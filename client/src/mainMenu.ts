@@ -1,7 +1,7 @@
 import {
   ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, itemById, itemColor, lootItem, rarityIndex, rarityOf, tierOf, tierUnlocked,
 } from '@arena/shared';
-import type { AccountInfo, Build, ClassId, PracticeDifficulty } from '@arena/shared';
+import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { loadBuild, owned, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
@@ -33,13 +33,15 @@ export interface MainMenuHooks {
   onWatch(): void;
   /** The previewed class or build changed (so the tooltip numbers and 3D model can follow). */
   onSelect(classId: ClassId, build: Build): void;
+  /** A non-leader party member toggled Ready. */
+  onReady(on: boolean): void;
   /** The player threw away a loot item. */
   onDiscard(id: string): void;
   /** The account chip, placed top right under the settings bar. */
   extras?: HTMLElement;
 }
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -96,6 +98,11 @@ export class MainMenu {
     return signedIn ? `Ranked ${m}` : `Find ${m} match`;
   }
   private account: AccountInfo | null = null;
+  private party: PartyInfo | null = null;
+  private partyBox = el('div', 'mm-party hidden');
+  private practiceBtn = el('button', 'mm-btn primary', 'Practice');
+  private readyBtn = el('button', 'mm-btn primary rdy hidden', 'Ready');
+  private isReady = false;
   private openSlot: string | null = null;
   private perksEl = el('div', 'mm-perks');
 
@@ -122,6 +129,45 @@ export class MainMenu {
     return this.build;
   }
 
+  get ready(): boolean {
+    return this.isReady;
+  }
+
+  /** Your party (null when alone). The leader keeps Practice and Ranked; everyone else gets a Ready toggle. */
+  setParty(info: PartyInfo | null) {
+    this.party = info;
+    const me = this.account?.name ?? '';
+    const leader = !info || info.leader === me;
+    const mine = info?.members.find((m) => m.name === me);
+    this.isReady = !!mine?.ready && !leader;
+    this.paintParty();
+  }
+
+  private paintParty() {
+    const info = this.party;
+    const me = this.account?.name ?? '';
+    const leader = !info || info.leader === me;
+    this.partyBox.classList.toggle('hidden', !info);
+    this.practiceBtn.classList.toggle('hidden', !leader);
+    this.queueBtn.classList.toggle('hidden', !leader);
+    this.readyBtn.classList.toggle('hidden', leader);
+    this.readyBtn.textContent = this.isReady ? 'Ready ✓ (click to cancel)' : 'Ready';
+    this.readyBtn.classList.toggle('on', this.isReady);
+    this.partyBox.replaceChildren();
+    this.queueBtn.textContent = this.queueLabel(!!this.account);
+    if (!info) return;
+    const waiting = info.members.filter((m) => !m.ready).length;
+    this.partyBox.append(el('b', '', `Party (${info.members.length}/3)`));
+    for (const m of info.members) {
+      const chip = el('span', `mm-pchip${m.ready ? ' ok' : ''}`, `${m.name === info.leader ? '👑 ' : ''}${m.name} ${m.ready ? '✓' : '…'}`);
+      this.partyBox.append(chip);
+    }
+    this.partyBox.append(
+      el('small', '', leader ? (waiting ? `Waiting for ${waiting} to ready up. You pick the mode and arena.` : 'Everyone is ready. Pick Practice or Ranked.') : `${info.leader} picks the mode and arena. Press Ready.`),
+    );
+    this.queueBtn.textContent += (info.members.length > 1 ? ` (${info.members.length - waiting}/${info.members.length} ready)` : '');
+  }
+
   setMessage(text: string) {
     this.msg.textContent = text;
   }
@@ -132,7 +178,7 @@ export class MainMenu {
     this.nameInput.disabled = !!a;
     if (a) this.nameInput.value = a.name;
     else this.nameInput.value = store.get('arena.name', '');
-    this.queueBtn.textContent = this.queueLabel(!!a);
+    this.paintParty();
     this.queueBtn.title = a ? 'Queue for a rated match. Your rating changes with the result.' : 'Sign in to play for rank.';
   }
 
@@ -218,7 +264,7 @@ export class MainMenu {
     this.size.addEventListener('change', () => {
       store.set('arena.size', this.size.value);
       refill();
-      this.queueBtn.textContent = this.queueLabel(!!this.account);
+      this.paintParty();
     });
     refill();
     this.queueBtn.textContent = this.queueLabel(!!this.account);
@@ -232,11 +278,16 @@ export class MainMenu {
     showMap();
     opts.append(mk('Mode', this.size), mk('Arena', this.map), this.mapDesc, mk('Opponents (practice)', this.foes), mk('Your partners (practice)', this.ally), mk('Bot skill', this.diff));
     const row = el('div', 'mm-row');
-    const practice = el('button', 'mm-btn primary', 'Practice');
+    const practice = this.practiceBtn;
     const queue = this.queueBtn;
     practice.addEventListener('click', () => this.play('practice'));
     queue.addEventListener('click', () => this.play('queue'));
-    row.append(practice, queue);
+    this.readyBtn.addEventListener('click', () => {
+      this.isReady = !this.isReady;
+      this.paintParty();
+      this.hooks.onReady(this.isReady);
+    });
+    row.append(practice, queue, this.readyBtn);
     const controls = el('button', 'mm-link', 'Controls & keybinds');
     controls.id = 'btn-keys';
     controls.addEventListener('click', () => this.hooks.onControls());
@@ -244,7 +295,7 @@ export class MainMenu {
     hudBtn.addEventListener('click', () => this.hooks.onEditHud());
     const watch = el('button', 'mm-link', '👁 Watch live ranked matches');
     watch.addEventListener('click', () => this.hooks.onWatch());
-    play.append(opts, row, controls, hudBtn, watch, this.msg);
+    play.append(this.partyBox, opts, row, controls, hudBtn, watch, this.msg);
     right.append(play);
 
     this.modal.addEventListener('mousedown', (e) => {

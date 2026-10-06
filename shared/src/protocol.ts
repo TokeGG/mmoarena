@@ -67,6 +67,8 @@ export type ClientMsg =
   | { t: 'invite'; kind: 'party' | 'duel'; name: string }
   | { t: 'invite_reply'; id: string; accept: boolean }
   | { t: 'party_leave' }
+  /** Party members other than the leader: mark yourself ready (with your current class and build) or not. */
+  | { t: 'ready'; on: boolean; name: string; classId: ClassId; build?: Build; profile?: string }
   | { t: 'party_kick'; name: string }
   /** Owner only. Any field left out is unchanged; `custom: null` removes a custom style. */
   | { t: 'admin_set'; name: string; grants?: string[]; custom?: CustomStyle | null; useCustom?: boolean; resetPassword?: boolean };
@@ -156,6 +158,17 @@ export function parseClientMsg(raw: string): ClientMsg | null {
         difficulty: DIFFICULTIES.includes(m.difficulty) ? m.difficulty : undefined,
         build: parseBuild(m.build),
         map: typeof m.map === 'string' && (m.map === 'random' || ARENAS.some((a) => a.id === m.map)) ? m.map : undefined,
+        profile: typeof m.profile === 'string' && m.profile.length <= 400 ? m.profile : undefined,
+      };
+    }
+    case 'ready': {
+      if (typeof m.name !== 'string' || typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId)) return null;
+      return {
+        t: 'ready',
+        on: !!m.on,
+        name: m.name.replace(/[^\w \-.]/g, '').trim().slice(0, 16) || 'Player',
+        classId: m.classId as ClassId,
+        build: parseBuild(m.build),
         profile: typeof m.profile === 'string' && m.profile.length <= 400 ? m.profile : undefined,
       };
     }

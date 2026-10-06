@@ -14,6 +14,8 @@ interface Hooks {
   signedIn(): boolean;
   /** The sign-in window, for guests who press Friends. */
   needSignIn(): void;
+  /** Your party changed (null: you left or it ended). */
+  onParty?(p: PartyInfo | null): void;
 }
 
 const STATUS_TEXT: Record<FriendStatus, string> = { offline: 'Offline', menu: 'In menu', queue: 'In queue', match: 'In a match', party: 'In a party' };
@@ -42,6 +44,7 @@ export class FriendsUi {
       this.friends = [];
       this.requests = [];
       this.party = null;
+      this.hooks.onParty?.(null);
       this.close();
     }
     this.paintBadge();
@@ -61,6 +64,7 @@ export class FriendsUi {
         return true;
       case 'party':
         this.party = m.party;
+        this.hooks.onParty?.(m.party);
         if (this.modal) this.render();
         return true;
       case 'invite':
@@ -229,7 +233,7 @@ export class FriendsUi {
       }
       box.append(row);
     }
-    box.append(el('p', 'mm-modal-foot', 'Everyone presses Ranked when ready; the party leader picks the mode and arena. A party always plays on the same team.'));
+    box.append(el('p', 'mm-modal-foot', 'The leader picks the mode and arena; everyone else presses Ready in the lobby. Parties play on the same team, in practice too.'));
     const leave = el('button', 'mm-small', 'Leave party');
     leave.addEventListener('click', () => this.hooks.send({ t: 'party_leave' }));
     box.append(leave);

@@ -193,9 +193,6 @@ function onMessage(raw: MessageEvent) {
     case 'notice':
       friendsUi.handle(m);
       break;
-    case 'party_wait':
-      joinMsg(`Waiting for your party… ${m.ready}/${m.total} ready`);
-      break;
     case 'duel_go':
       void joinDuel(m.with);
       break;
@@ -765,6 +762,13 @@ async function play(req: PlayRequest) {
   send(msg);
 }
 
+function sendReady(on: boolean) {
+  classId = mainMenu.selectedClass;
+  myBuild = mainMenu.currentBuild;
+  const profile = accountUi.account ? undefined : progress.token || undefined;
+  send({ t: 'ready', on, name: accountUi.account?.name ?? 'Player', classId: mainMenu.selectedClass, build: mainMenu.currentBuild, profile });
+}
+
 const lootUi = new LootUi();
 const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
@@ -794,6 +798,7 @@ const friendsUi = new FriendsUi({
   },
   signedIn: () => !!accountUi.account,
   needSignIn: () => accountUi.openAuth(),
+  onParty: (p) => mainMenu.setParty(p),
 });
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
@@ -811,7 +816,12 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onControls: () => menu.open(false, 'keys'),
   onEditHud: editHudFromMenu,
   onWatch: () => void openLive(),
-  onSelect: (c, b) => setTipMods(compileMods(c, b)),
+  onSelect: (c, b) => {
+    setTipMods(compileMods(c, b));
+    // a ready party member who changes class or build keeps their ready mark with the new setup
+    if (mainMenu.ready) sendReady(true);
+  },
+  onReady: (on) => sendReady(on),
   onDiscard: (id) => send({ t: 'discard', id }),
   extras: menuExtras,
 });

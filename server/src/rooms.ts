@@ -507,28 +507,35 @@ export class Lobby {
     }
   }
 
+  /** Validate and store a player's name, class and build. False (after telling them) if the build is invalid. */
+  private applyIdentity(p: Player, msg: { name: string; classId: ClassId; build?: Build; profile?: string }): boolean {
+    const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
+    if (msg.build) {
+      const check = validateBuild(msg.classId, msg.build, progress.matches, p.account?.inventory);
+      if (!check.ok) {
+        send(p, { t: 'error', reason: `Invalid build: ${check.reason}` });
+        send(p, { t: 'closed', reason: `Invalid build: ${check.reason}` });
+        return false;
+      }
+    }
+    p.matches = progress.matches;
+    p.wins = progress.wins;
+    p.build = msg.build;
+    p.name = p.account ? p.account.name : msg.name;
+    p.classId = msg.classId;
+    return true;
+  }
+
   handle(p: Player, msg: ClientMsg): void {
     switch (msg.t) {
       case 'join':
         if (p.room || this.inQueue(p)) return;
         p.watching?.removeSpectator(p);
-        {
-          const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
-          const build = msg.build;
-          if (build) {
-            const check = validateBuild(msg.classId, build, progress.matches, p.account?.inventory);
-            if (!check.ok) {
-              send(p, { t: 'error', reason: `Invalid build: ${check.reason}` });
-              send(p, { t: 'closed', reason: `Invalid build: ${check.reason}` });
-              return;
-            }
-          }
-          p.matches = progress.matches;
-          p.wins = progress.wins;
-          p.build = build;
+        if (p.party && p.party.members.length > 1 && p.party.leader !== p) {
+          send(p, { t: 'closed', reason: 'Only the party leader picks the mode. Press Ready.' });
+          return;
         }
-        p.name = p.account ? p.account.name : msg.name;
-        p.classId = msg.classId;
+        if (!this.applyIdentity(p, msg)) return;
         p.mapPref = msg.map ?? 'random';
         p.size = msg.size ?? 2;
         if (msg.mode === 'practice') this.startPractice(p, msg);
@@ -538,6 +545,16 @@ export class Lobby {
       case 'leave':
         this.leave(p);
         break;
+      case 'ready': {
+        const party = p.party;
+        if (!party || party.leader === p || p.room || this.inQueue(p)) return;
+        if (msg.on) {
+          if (!this.applyIdentity(p, msg)) return;
+          party.ready.add(p);
+        } else party.ready.delete(p);
+        this.sendParty(party);
+        break;
+      }
       case 'live':
         send(p, { t: 'live', rows: [...this.rooms].filter((r) => r.watchable).map((r) => r.live()) });
         break;
@@ -645,7 +662,7 @@ export class Lobby {
   // ------------------------------------------------------------------ parties and invites
 
   private partyInfo(party: Party): PartyInfo {
-    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: party.ready.has(m) })) };
+    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m) })) };
   }
 
   private sendParty(party: Party): void {
@@ -790,39 +807,69 @@ export class Lobby {
     // explicit lists are honoured as sent (a lopsided practice is allowed); defaults follow the team size
     const foes = msg.foes && msg.foes.length ? msg.foes.slice(0, 3) : defaultFoes.slice(0, size);
     const allies = (msg.allies ?? (msg.ally === undefined ? defaultAllies.slice(0, size - 1) : msg.ally ? [msg.ally] : [])).slice(0, 2);
+    const wait0 = this.notReady(p);
+    if (wait0) return void send(p, { t: 'closed', reason: wait0 });
     const room = this.makeRoom(this.cfg.practicePrepMs, difficulty !== 'dummy', false, pickMap(p.mapPref));
     room.size = size;
-    room.addPlayer(p, 0);
+    const wait = this.notReady(p);
+    if (wait) return void send(p, { t: 'closed', reason: wait });
+    const humans = [p, ...this.partyMates(p)].slice(0, size);
+    for (const h of humans) h.size = size;
+    for (const h of humans) room.addPlayer(h, 0);
     room.broadcastRoster();
+    // friends take the place of ally bots
+    allies.splice(Math.max(0, size - humans.length));
+    if (p.party) {
+      p.party.ready.clear();
+      this.sendParty(p.party);
+    }
     for (const ally of allies) room.addNpc(ally, 0, difficulty);
     for (const foe of foes) room.addNpc(foe, 1, difficulty);
     this.rooms.add(room);
   }
 
-  /** Solo players queue straight away; a party queues once every member has pressed play. */
+  /** The other party members that must be ready before the leader starts anything (none for a solo player). */
+  private partyMates(p: Player): Player[] {
+    return p.party && p.party.members.length > 1 ? p.party.members.filter((m) => m !== p) : [];
+  }
+
+  /** Why a leader cannot start yet, or null when every other member is ready. */
+  private notReady(p: Player): string | null {
+    const waiting = this.partyMates(p).filter((m) => !p.party!.ready.has(m));
+    return waiting.length ? `Waiting for ${waiting.map((m) => m.account?.name ?? m.name).join(', ')} to press Ready.` : null;
+  }
+
+  /**
+   * Solo players queue straight away. A party's leader picks the mode once everyone else is ready.
+   * A party bigger than the team size queues as separate players, so friends can still land in the same match.
+   */
   private enqueue(p: Player): void {
+    const wait = this.notReady(p);
+    if (wait) return void send(p, { t: 'closed', reason: wait });
+    const mates = this.partyMates(p);
     const party = p.party;
-    if (party && party.members.length > 1) {
-      const leader = party.leader;
-      if (party.members.length > leader.size) return void send(p, { t: 'notice', text: `Your party has ${party.members.length} players: pick a mode with at least that many per team.` });
-      party.ready.add(p);
-      // the leader's mode and arena decide for everyone
-      if (party.ready.size < party.members.length) {
-        this.sendParty(party);
-        for (const m of party.members) send(m, { t: 'party_wait', ready: party.ready.size, total: party.members.length });
-        this.changed(p);
-        return;
+    const now = Date.now();
+    if (mates.length && mates.length + 1 <= p.size) {
+      const all = [p, ...mates];
+      for (const m of all) {
+        m.size = p.size;
+        m.mapPref = p.mapPref;
       }
-      for (const m of party.members) m.size = leader.size;
-      this.queue.push({ members: [...party.members], size: leader.size, pref: leader.mapPref, at: Date.now() });
+      this.queue.push({ members: all, size: p.size, pref: p.mapPref, at: now });
+    } else {
+      for (const m of [p, ...mates]) {
+        m.size = p.size;
+        m.mapPref = p.mapPref;
+        this.queue.push({ members: [m], size: p.size, pref: p.mapPref, at: now });
+      }
+      if (mates.length) for (const m of [p, ...mates]) send(m, { t: 'notice', text: 'Your party is bigger than the team size, so you queue separately and may not be placed together.' });
+    }
+    if (party) {
       party.ready.clear();
       this.sendParty(party);
-      for (const m of party.members) this.changed(m);
-    } else {
-      this.queue.push({ members: [p], size: p.size, pref: p.mapPref, at: Date.now() });
-      this.changed(p);
     }
-    this.tryMatch(this.queue[this.queue.length - 1].size);
+    for (const m of [p, ...mates]) this.changed(m);
+    this.tryMatch(p.size);
     this.announceQueue();
   }
 
@@ -845,8 +892,10 @@ export class Lobby {
   private dequeue(p: Player): void {
     const e = this.queue.find((x) => x.members.includes(p));
     if (!e) return;
-    this.queue = this.queue.filter((x) => x !== e);
-    for (const m of e.members) {
+    // a party that queued as separate players comes out together
+    const out = p.party ? this.queue.filter((x) => x.members.some((m) => m.party === p.party)) : [e];
+    this.queue = this.queue.filter((x) => !out.includes(x) && x !== e);
+    for (const m of out.flatMap((x) => x.members)) {
       if (m !== p) send(m, { t: 'notice', text: 'Your party left the queue.' });
       if (m.party) m.party.ready.delete(m);
       this.changed(m);

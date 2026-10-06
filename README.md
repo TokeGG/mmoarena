@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.24.1
+# WoW-style Arena · v0.25.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -17,7 +17,7 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 
 - **Practice**: a private match against bots or training dummies. Choose 1v1, 2v2 or 3v3, who the enemies are, who your partners are (a bot of any class, or none), the bot level and the map. Nothing moves your rating.
 - **Ranked** (needs an account): joins the queue for the size you picked (1v1, 2v2, 3v3). The server pairs waiting players in the order they queued; players who chose a specific arena only play there and Random players fit anywhere. Your rating changes with the result. Leaving a live ranked match is a loss.
-- **Parties** (up to 3 friends): the leader invites, everybody presses Ranked when ready, the leader's size and arena apply, and the party always plays on one team.
+- **Parties** (up to 3 friends): the lobby lists who is in your party and who is ready. The leader picks the mode and arena (Practice or Ranked); everyone else presses Ready instead. A party plays on one team, in practice too (friends replace ally bots). A party larger than the team size (for example 2 friends in a 1v1) queues as separate players, so they can be matched against each other.
 - **Duels**: challenge an online friend to an unranked 1v1. Both of you use the class and build selected in the menu.
 - **Watch live**: the menu lists ranked matches in progress. Spectators see everything five seconds late, so watching cannot help the players.
 - **Replays**: Profile > Matches keeps your last 30 counted matches, each with a replay button.

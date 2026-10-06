@@ -90,9 +90,14 @@ describe('parties', () => {
     await until(() => last(us[0].s, 'party')?.party?.members.length === 2);
     assert.equal(last(us[1].s, 'party')!.party!.leader, 'Ann');
 
-    // Ann picks 2v2; Bob presses play first, then Ann: they queue together
-    for (const u of [us[1], us[0]]) lobby.handle(u.p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
-    assert.ok(last(us[1].s, 'party_wait'));
+    // Bob cannot pick a queue himself; Ann cannot start until Bob is ready
+    lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    assert.match((last(us[1].s, 'closed') as any).reason, /party leader/);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    assert.match((last(us[0].s, 'closed') as any).reason, /Waiting for Bob/);
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'mage' });
+    assert.equal(last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!.ready, true);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
     assert.equal(us[0].p.room, undefined);
     for (const u of [us[2], us[3]]) lobby.handle(u.p, { t: 'join', name: 'x', classId: 'priest', mode: 'queue', size: 2 });
     assert.ok(us[0].p.room, 'party + two solos = 2v2');
@@ -103,7 +108,7 @@ describe('parties', () => {
     assert.equal(last(us[0].s, 'friends')!.friends[0].status, 'match');
   });
 
-  it('party too big for the mode is refused; leaving disbands a two-person party; leader passes on', async () => {
+  it('party too big for the mode is refused (queued apart); leaving disbands a two-person party; leader passes on', async () => {
     const { lobby, us, friend } = await world(['Ann', 'Bob', 'Cy_']);
     await friend(0, 1);
     await friend(0, 2);
@@ -111,8 +116,11 @@ describe('parties', () => {
     await until(() => !!last(us[1].s, 'invite') && !!last(us[2].s, 'invite'));
     for (const u of [us[1], us[2]]) lobby.handle(u.p, { t: 'invite_reply', id: last(u.s, 'invite')!.id, accept: true });
     await until(() => last(us[0].s, 'party')?.party?.members.length === 3);
+    for (const u of [us[1], us[2]]) lobby.handle(u.p, { t: 'ready', on: true, name: 'x', classId: 'mage' });
     lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
-    assert.match((last(us[0].s, 'notice') as any).text, /at least that many/);
+    assert.match((last(us[0].s, 'notice') as any).text, /queue separately/);
+    lobby.handle(us[0].p, { t: 'leave' });
+    await until(() => (last(us[1].s, 'notice') as any).text === 'Your party left the queue.');
     lobby.handle(us[0].p, { t: 'party_leave' });
     await until(() => last(us[1].s, 'party')?.party?.leader === 'Bob');
     lobby.handle(us[2].p, { t: 'party_leave' });
@@ -127,11 +135,59 @@ describe('parties', () => {
     await until(() => !!last(us[1].s, 'invite'));
     lobby.handle(us[1].p, { t: 'invite_reply', id: last(us[1].s, 'invite')!.id, accept: true });
     await until(() => last(us[0].s, 'party')?.party?.members.length === 2);
-    for (const u of us) lobby.handle(u.p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'mage' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
     await until(() => us[0].s.sent.some((m: ServerMsg) => m.t === 'queued'));
     lobby.handle(us[1].p, { t: 'leave' });
     await until(() => (last(us[0].s, 'notice') as any).text === 'Your party left the queue.');
     assert.equal(us[0].p.room, undefined);
+  });
+});
+
+describe('party play', () => {
+  async function party(names: string[]) {
+    const w = await world(names);
+    for (let i = 1; i < names.length; i++) {
+      await w.friend(0, i);
+      w.lobby.handle(w.us[0].p, { t: 'invite', kind: 'party', name: names[i] });
+      await until(() => !!last(w.us[i].s, 'invite'));
+      w.lobby.handle(w.us[i].p, { t: 'invite_reply', id: last(w.us[i].s, 'invite')!.id, accept: true });
+    }
+    await until(() => last(w.us[0].s, 'party')?.party?.members.length === names.length);
+    return w;
+  }
+
+  it('a ready party practises together against bots, friends replacing ally bots', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob']);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', size: 2 });
+    assert.match((last(us[0].s, 'closed') as any).reason, /Waiting for Bob/);
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'priest' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', size: 2 });
+    const room = us[0].p.room!;
+    assert.ok(room && us[1].p.room === room);
+    const sim = room.sim;
+    const mine = [...sim.units.values()].filter((u) => u.team === sim.units.get(us[0].p.unitId!)!.team);
+    assert.equal(mine.length, 2, 'two humans fill the team, no ally bot');
+    assert.equal(sim.units.get(us[1].p.unitId!)!.team, sim.units.get(us[0].p.unitId!)!.team);
+    assert.equal(last(us[0].s, 'party')!.party!.members.every((m) => m.name === 'Ann' || !m.ready), true, 'ready marks cleared');
+  });
+
+  it('two friends who queue a 1v1 get matched with each other', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob']);
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'rogue' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 1 });
+    assert.ok(us[0].p.room && us[0].p.room === us[1].p.room);
+    const sim = us[0].p.room!.sim;
+    assert.notEqual(sim.units.get(us[0].p.unitId!)!.team, sim.units.get(us[1].p.unitId!)!.team);
+  });
+
+  it('un-readying takes the mark away; a ready member joining the queue alone is refused', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob']);
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'rogue' });
+    lobby.handle(us[1].p, { t: 'ready', on: false, name: 'x', classId: 'rogue' });
+    assert.equal(last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!.ready, false);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 1 });
+    assert.match((last(us[0].s, 'closed') as any).reason, /Waiting for Bob/);
   });
 });
 
