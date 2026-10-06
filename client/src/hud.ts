@@ -129,7 +129,15 @@ export class Hud {
 
   constructor(private handlers: HudHandlers) {
     $('cast').append(this.castBar.root);
+    // click your own frame to target yourself
+    $('self-frame').classList.add('clickable');
+    $('self-frame').addEventListener('mousedown', (e) => {
+      e.stopPropagation();
+      if (this.youId !== null) this.handlers.onTarget(this.youId);
+    });
   }
+
+  private youId: number | null = null;
 
   /** Fill the HUD with a made-up fight so the layout editor has something to arrange outside a match. */
   demo(classId: ClassId, abilities: string[]) {
@@ -217,6 +225,7 @@ export class Hud {
 
   update(ctx: HudContext) {
     const { snap, now, you, targetId } = ctx;
+    this.youId = you;
     const me = snap.units.find((u) => u.id === you);
     if (!me) return;
     this.self.update(me, now, false);

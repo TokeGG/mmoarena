@@ -286,14 +286,24 @@ export class ArenaScene {
     };
   }
 
-  /** Unit id under the pointer, or null. `excludeId` (your own unit) is never picked, so your own model can't steal clicks. */
-  pick(clientX: number, clientY: number, excludeId: number | null = null): number | null {
+  /**
+   * Unit id under the pointer, or null. `selfId` (your own unit) loses to any other unit on the same ray, so your own
+   * model can't steal clicks meant for someone behind it, but clicking only yourself targets you.
+   */
+  pick(clientX: number, clientY: number, selfId: number | null = null): number | null {
     const ndc = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     this.raycaster.far = 200;
-    const groups = [...this.meshes.entries()].filter(([id]) => id !== excludeId).map(([, m]) => m.group);
-    const hit = this.raycaster.intersectObjects(groups, true)[0];
-    return hit ? (hit.object.userData.unitId as number) : null;
+    const groups = [...this.meshes.values()].map((m) => m.group);
+    const hits = this.raycaster.intersectObjects(groups, true);
+    let self = false;
+    for (const h of hits) {
+      const id = h.object.userData.unitId as number | undefined;
+      if (id === undefined) continue;
+      if (id !== selfId) return id;
+      self = true;
+    }
+    return self ? selfId : null;
   }
 
   setPhase(phase: string): void {

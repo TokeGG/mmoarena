@@ -17,7 +17,7 @@
   "damageVariance": 0.08,
   "stealthDetect": 2,
   "outOfCombatMs": 5000,
-  "rageFromDealt": 0.05,
-  "rageFromTaken": 0.05,
+  "rageFromDealt": 0.15,
+  "rageFromTaken": 0.15,
   "rageDecayPerSec": 5
 }

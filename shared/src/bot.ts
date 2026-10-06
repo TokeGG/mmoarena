@@ -12,7 +12,7 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
  */
 const PARAMS: Record<Difficulty, { react: number; think: number; interruptChance: number }> = {
   easy: { react: 700, think: 4, interruptChance: 0.4 },
-  normal: { react: 380, think: 2, interruptChance: 0.8 },
+  normal: { react: 650, think: 3, interruptChance: 0.5 },
   hard: { react: 160, think: 1, interruptChance: 1 },
 };
 
