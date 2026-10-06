@@ -1,5 +1,5 @@
-import { ABILITIES, AURAS, CLASSES, GEAR, SPECS, TALENTS, describeAbility, describeAura, describeMods, itemById, itemColor, newMods, rarityOf, specOf, tierOf } from '@arena/shared';
-import type { ClassId, Mods, StatId } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, COSMETICS, SPECS, TALENTS, describeAbility, describeAura, describeMods, itemById, newMods, specOf } from '@arena/shared';
+import type { ClassId, Mods } from '@arena/shared';
 import { setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
 
@@ -10,13 +10,11 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** The player's current numbers, so ability tooltips show real damage (talents and gear included). */
 let mods: Mods = newMods();
-let matches = 0;
 export function setTipMods(m: Mods) {
   mods = m;
 }
-export function setTipProgress(n: number) {
-  matches = n;
-}
+/** Kept for callers; tooltips no longer depend on progress (cosmetics are all unlocked). */
+export function setTipProgress(_matches: number) {}
 
 export function abilityTip(id: string): TipContent | null {
   const def = ABILITIES[id];
@@ -28,28 +26,8 @@ export function abilityTip(id: string): TipContent | null {
 export function itemTip(id: string): TipContent | null {
   const item = itemById(id);
   if (!item) return null;
-  const slot = GEAR.slots.find((s) => s.id === item.slot)!;
-  const lines = ['Cosmetic only: changes how you look, never how you fight.'];
-  if (item.rarity) {
-    return {
-      title: item.name,
-      titleColor: itemColor(item),
-      tag: slot.name,
-      stats: [`${rarityOf(item.rarity)?.name ?? 'Loot'} · dropped loot`],
-      good: lines,
-      bad: [],
-    };
-  }
-  const tier = tierOf(item.tier)!;
-  const flavor = GEAR.flavors.find((f) => f.id === item.flavor)!;
-  return {
-    title: item.name,
-    titleColor: tier.color,
-    tag: slot.name,
-    stats: [`${tier.name} tier · ${flavor.desc}`],
-    good: lines,
-    bad: matches < tier.unlockMatches ? [`Locked: play ${tier.unlockMatches - matches} more match${tier.unlockMatches - matches === 1 ? '' : 'es'} to unlock.`] : [],
-  };
+  const slot = COSMETICS.slots.find((s) => s.id === item.slot)!;
+  return { title: item.name, titleColor: item.color, tag: slot.name, stats: [], good: ['Cosmetic only: changes how you look, never how you fight.'], bad: [] };
 }
 
 export function installTips() {
@@ -85,11 +63,6 @@ export function installTips() {
       }
       case 'item':
         return itemTip(a);
-      case 'stat': {
-        const s = GEAR.stats[a as StatId];
-        if (!s) return null;
-        return { title: s.name, titleColor: '#ffd24a', lines: [s.desc], stats: [`Each point gives ${s.ratePct}%.`] };
-      }
       case 'class': {
         const c = CLASSES[a as ClassId];
         if (!c) return null;

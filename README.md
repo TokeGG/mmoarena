@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.25.3
+# WoW-style Arena · v0.26.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -9,7 +9,7 @@ A 3D third-person arena game in the style of WoW arena that runs in your browser
 Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pick a class, a spec and talents, then press **Practice** (bots) or **Ranked** (needs an account).
 
 - The first visit after a quiet spell can take up to a minute while the server wakes up. If the page is slow, wait and reload.
-- Guests can play practice and everything else except ranked, rating, history, friends and the leaderboard. Sign up (name + password) in the menu to keep your rating, unlocks, loot, settings and history.
+- Guests can play practice and everything else except ranked, rating, history, friends and the leaderboard. Sign up (name + password) in the menu to keep your rating, unlocks, settings and history.
 - If the game looks outdated after an update, press **Ctrl+Shift+R** to reload fresh.
 - Play with friends: add them in the friends panel, make a party, or challenge them to a duel.
 
@@ -63,13 +63,13 @@ Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, 
 - **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the old rate; stealthed rogues are spotted within 4 yards.
 - **Fog:** enemies you cannot see (stealthed or farther than 8 yards) are left out of your snapshots entirely.
 
-## Appearance and loot (gear is cosmetic)
+## Appearance (cosmetics change how you look, nothing else)
 
-Gear never changes your stats, damage or health: every player of a class is equal, and the build that matters is your spec and talents. Gear is how you look.
+Nothing you wear changes your stats, damage or health: every player of a class is equal, and the build that matters is your spec and talents. There is no loot and no unlocking: **all 60 cosmetics are free for everyone**.
 
-- **What your gear looks like:** equipped pieces are drawn on your character and everyone in the match sees them (spectators and replays too). Empty slots show the plain class look. The **colour theme** tints the armour at every tier (Fury crimson, Bulwark sapphire, Tempo teal, Balance gold) and the **tier** or loot rarity sets the sheen and how elaborate it is: plain pieces at the bottom, spikes and studs from the third tier, glow and a halo at the top. Head = brow band with a gem (fins, crown spikes and a halo as it improves), Chest = shoulder plates and a tabard, Legs = greaves and knee guards (a coloured hem on robes), Weapon = a glowing aura with orbiting sparks, Trinket = a floating charm. The menu preview updates as you change class or looks.
-- **Unlocks:** 5 slots, 4 tiers (Initiate, Veteran, Elite, Gladiator), 4 colour themes. Tiers unlock by finishing matches (0 / 3 / 8 / 15).
-- **Loot (signed in):** finished ranked matches drop a random look (two on a win); bot practice drops at most one Common-to-Rare piece half the time; dummy practice drops nothing. Rarities Common, Uncommon, Rare, Epic, Legendary (weights 55 / 28 / 12 / 4.2 / 0.8). Ranked drops are guaranteed Epic+ after 20 without one. Inventory holds 60; a full inventory pushes out the lowest-rarity, oldest piece.
+- **Seven slots, 8-10 choices each:** *Headwear* (horned crown, winged circlet, royal and frost crowns, pointed hat, warcrest, halo, antlers, cat ears, knight helm), *Shoulders* (spiked, gilded, crystal, wolf fur, flame tufts, royal mantle, bone, emerald), *Back* (four cloaks that sway as you run, angel, bat and phoenix wings that flap, a war banner), *Weapon glow* (ember, frostbite, venom, radiance, void, storm, blood, moonlit), *Ground aura* (sun ring, frost and emerald runes, hellfire, whirlwind, cherry blossom, shadow mist, drifting embers), *Armor dye* (ten colours that recolour the whole class model) and *Companion* (orbiting fire, frost and spirit orbs, an arcane crystal, orb trios, a pale moon, a lantern).
+- **Who sees it:** everyone in the match, spectators and replays too. The menu preview updates as you pick, the picker stays open so you can try several, and **Random look** and **Clear all** are one click.
+- Old saves are tidied automatically: gear ids from the earlier tier and loot system are dropped quietly and any loot you held is gone.
 
 ## Practice with bots
 
@@ -112,7 +112,7 @@ All audio is synthesised live in the browser (Web Audio), so there are no sound 
 - The server decides every outcome. The client sends intents only (cast X on Y, movement input) and never decides hits, cooldowns or damage.
 - Your own movement is predicted and corrected by the server. Abilities are not predicted.
 - Enemies you cannot see are not sent to your browser, so wall-hacks have nothing to read.
-- Gear is cosmetic only, so nothing you wear or own gives an advantage.
+- Cosmetics are visual only, so nothing you wear gives an advantage.
 - Your password and login token only go to this site.
 
 ## For the owner (hosting and moderation)
@@ -123,7 +123,7 @@ Players do not need any of this. The game is built from the GitHub repo `TokeGG/
 
 | Variable | Purpose |
 |---|---|
-| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Free Upstash Redis database so accounts, ratings, loot, history, replays and friends survive restarts. (`KV_REST_API_URL` and `KV_REST_API_TOKEN` also work.) Without them everything lives in memory and resets on every restart or redeploy. |
+| `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Free Upstash Redis database so accounts, ratings, history, replays and friends survive restarts. (`KV_REST_API_URL` and `KV_REST_API_TOKEN` also work.) Without them everything lives in memory and resets on every restart or redeploy. |
 | `ARENA_OWNER_CODE` | Secret that unlocks the owner tools for the founder account (see below). Without it the owner tools are off, and you should set it **before** registering `Toke`. |
 | `ARENA_SECRET` | Long random string that signs the guest progress tokens. Without it a public dev secret is used and tokens can be forged. |
 | `ARENA_KEY_PREFIX` | Prefix for every database key (default `wowarena:`). It lets this game share the Aim Arena Upstash database without conflicts. Do not change it once accounts exist. |
@@ -194,10 +194,10 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 
 | Path | Role |
 |---|---|
-| `shared/data/*.json` | Classes, abilities, auras, specs, talents, gear, arenas, tuning. All game content lives here, so a future Godot/Unity client or server can read the same files. |
+| `shared/data/*.json` | Classes, abilities, auras, specs, talents, cosmetics, arenas, tuning. All game content lives here, so a future Godot/Unity client or server can read the same files. |
 | `shared/src/sim.ts` | Headless, deterministic simulation. No rendering, no I/O, no wall clock. Same seed and inputs give the same result. |
 | `shared/src/replay.ts` | Recorder and runner that re-simulate a match from its commands. |
-| `shared/src/build.ts` | The only place that turns specs and talents (including ability swaps) into numbers; gear only decides the look. |
+| `shared/src/build.ts` | The only place that turns specs and talents (including ability swaps) into numbers; cosmetics only decide the look. |
 | `shared/src/bot.ts` | Bot AI, driven through the same commands a player uses. |
 | `shared/src/geometry.ts`, `jump.ts` | Movement, collision, line of sight, jumping. Used by the server and by client prediction. |
 | `shared/src/protocol.ts` | Message types and validation of untrusted client input. |

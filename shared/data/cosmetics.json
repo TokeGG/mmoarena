@@ -1,0 +1,461 @@
+{
+ "slots": [
+  {
+   "id": "head",
+   "name": "Headwear",
+   "icon": "\ud83c\udfa9"
+  },
+  {
+   "id": "shoulders",
+   "name": "Shoulders",
+   "icon": "\ud83e\uddbe"
+  },
+  {
+   "id": "back",
+   "name": "Back",
+   "icon": "\ud83e\udde3"
+  },
+  {
+   "id": "weapon",
+   "name": "Weapon glow",
+   "icon": "\u2728"
+  },
+  {
+   "id": "aura",
+   "name": "Ground aura",
+   "icon": "\ud83c\udf00"
+  },
+  {
+   "id": "tint",
+   "name": "Armor dye",
+   "icon": "\ud83c\udfa8"
+  },
+  {
+   "id": "orbit",
+   "name": "Companion",
+   "icon": "\ud83d\udd2e"
+  }
+ ],
+ "items": [
+  {
+   "id": "horns_ember",
+   "slot": "head",
+   "name": "Horned Crown",
+   "style": "horns",
+   "color": "#d9472b"
+  },
+  {
+   "id": "wings_silver",
+   "slot": "head",
+   "name": "Winged Circlet",
+   "style": "wings",
+   "color": "#dfe6ee"
+  },
+  {
+   "id": "crown_gold",
+   "slot": "head",
+   "name": "Royal Crown",
+   "style": "crown",
+   "color": "#f0c53a"
+  },
+  {
+   "id": "hat_arcane",
+   "slot": "head",
+   "name": "Pointed Hat",
+   "style": "hat",
+   "color": "#5b3fb8"
+  },
+  {
+   "id": "crest_crimson",
+   "slot": "head",
+   "name": "Warcrest",
+   "style": "crest",
+   "color": "#c4252b"
+  },
+  {
+   "id": "halo_light",
+   "slot": "head",
+   "name": "Halo",
+   "style": "halo",
+   "color": "#ffe9a0"
+  },
+  {
+   "id": "antlers_forest",
+   "slot": "head",
+   "name": "Antlers",
+   "style": "antlers",
+   "color": "#8a6a3c"
+  },
+  {
+   "id": "ears_shadow",
+   "slot": "head",
+   "name": "Cat Ears",
+   "style": "ears",
+   "color": "#3a3a4a"
+  },
+  {
+   "id": "helm_steel",
+   "slot": "head",
+   "name": "Knight Helm",
+   "style": "helm",
+   "color": "#aeb6c4"
+  },
+  {
+   "id": "crown_frost",
+   "slot": "head",
+   "name": "Frost Crown",
+   "style": "crown",
+   "color": "#8fd8ff"
+  },
+  {
+   "id": "spikes_steel",
+   "slot": "shoulders",
+   "name": "Spiked Pauldrons",
+   "style": "spikes",
+   "color": "#9aa3b2"
+  },
+  {
+   "id": "plates_gold",
+   "slot": "shoulders",
+   "name": "Gilded Plates",
+   "style": "plates",
+   "color": "#f0c53a"
+  },
+  {
+   "id": "crystal_ice",
+   "slot": "shoulders",
+   "name": "Crystal Shards",
+   "style": "crystals",
+   "color": "#5de0ff"
+  },
+  {
+   "id": "fluff_wolf",
+   "slot": "shoulders",
+   "name": "Wolf Fur",
+   "style": "fluff",
+   "color": "#bdb2a0"
+  },
+  {
+   "id": "flames_ember",
+   "slot": "shoulders",
+   "name": "Flame Tufts",
+   "style": "flames",
+   "color": "#ff7a1a"
+  },
+  {
+   "id": "mantle_royal",
+   "slot": "shoulders",
+   "name": "Royal Mantle",
+   "style": "mantle",
+   "color": "#7a1f3d"
+  },
+  {
+   "id": "spikes_bone",
+   "slot": "shoulders",
+   "name": "Bone Spurs",
+   "style": "spikes",
+   "color": "#e8e0cc"
+  },
+  {
+   "id": "plates_emerald",
+   "slot": "shoulders",
+   "name": "Emerald Plates",
+   "style": "plates",
+   "color": "#2ecc71"
+  },
+  {
+   "id": "cloak_crimson",
+   "slot": "back",
+   "name": "Crimson Cloak",
+   "style": "cloak",
+   "color": "#b3202a"
+  },
+  {
+   "id": "cloak_azure",
+   "slot": "back",
+   "name": "Azure Cloak",
+   "style": "cloak",
+   "color": "#2f6fd0"
+  },
+  {
+   "id": "cloak_midnight",
+   "slot": "back",
+   "name": "Midnight Cloak",
+   "style": "cloak",
+   "color": "#1b1b2a"
+  },
+  {
+   "id": "cloak_verdant",
+   "slot": "back",
+   "name": "Verdant Cloak",
+   "style": "cloak",
+   "color": "#2e8b4a"
+  },
+  {
+   "id": "wings_angel",
+   "slot": "back",
+   "name": "Angel Wings",
+   "style": "angel",
+   "color": "#fff3d0"
+  },
+  {
+   "id": "wings_bat",
+   "slot": "back",
+   "name": "Bat Wings",
+   "style": "bat",
+   "color": "#3a2a4a"
+  },
+  {
+   "id": "wings_phoenix",
+   "slot": "back",
+   "name": "Phoenix Wings",
+   "style": "phoenix",
+   "color": "#ff7a1a"
+  },
+  {
+   "id": "banner_war",
+   "slot": "back",
+   "name": "War Banner",
+   "style": "banner",
+   "color": "#c4252b"
+  },
+  {
+   "id": "glow_ember",
+   "slot": "weapon",
+   "name": "Ember Brand",
+   "style": "flame",
+   "color": "#ff6a1a"
+  },
+  {
+   "id": "glow_frost",
+   "slot": "weapon",
+   "name": "Frostbite",
+   "style": "sparks",
+   "color": "#6fd6ff"
+  },
+  {
+   "id": "glow_venom",
+   "slot": "weapon",
+   "name": "Venom",
+   "style": "sparks",
+   "color": "#7dff5a"
+  },
+  {
+   "id": "glow_radiance",
+   "slot": "weapon",
+   "name": "Radiance",
+   "style": "halo",
+   "color": "#ffe38a"
+  },
+  {
+   "id": "glow_void",
+   "slot": "weapon",
+   "name": "Void Touch",
+   "style": "sparks",
+   "color": "#9b5cff"
+  },
+  {
+   "id": "glow_storm",
+   "slot": "weapon",
+   "name": "Stormcall",
+   "style": "sparks",
+   "color": "#ffe14a"
+  },
+  {
+   "id": "glow_blood",
+   "slot": "weapon",
+   "name": "Bloodthirst",
+   "style": "flame",
+   "color": "#c01830"
+  },
+  {
+   "id": "glow_moon",
+   "slot": "weapon",
+   "name": "Moonlit",
+   "style": "halo",
+   "color": "#bcd2ff"
+  },
+  {
+   "id": "ring_sun",
+   "slot": "aura",
+   "name": "Sun Ring",
+   "style": "ring",
+   "color": "#ffd24a"
+  },
+  {
+   "id": "runes_frost",
+   "slot": "aura",
+   "name": "Frost Runes",
+   "style": "runes",
+   "color": "#7fdcff"
+  },
+  {
+   "id": "flames_hell",
+   "slot": "aura",
+   "name": "Hellfire",
+   "style": "flames",
+   "color": "#ff5a14"
+  },
+  {
+   "id": "vortex_wind",
+   "slot": "aura",
+   "name": "Whirlwind",
+   "style": "vortex",
+   "color": "#bfe8ff"
+  },
+  {
+   "id": "petals_blossom",
+   "slot": "aura",
+   "name": "Cherry Blossom",
+   "style": "petals",
+   "color": "#ff9ad0"
+  },
+  {
+   "id": "vortex_shadow",
+   "slot": "aura",
+   "name": "Shadow Mist",
+   "style": "vortex",
+   "color": "#6a3bd0"
+  },
+  {
+   "id": "runes_emerald",
+   "slot": "aura",
+   "name": "Emerald Runes",
+   "style": "runes",
+   "color": "#3df08a"
+  },
+  {
+   "id": "embers_drift",
+   "slot": "aura",
+   "name": "Drifting Embers",
+   "style": "embers",
+   "color": "#ff9d3a"
+  },
+  {
+   "id": "dye_crimson",
+   "slot": "tint",
+   "name": "Crimson",
+   "style": "dye",
+   "color": "#b3202a"
+  },
+  {
+   "id": "dye_azure",
+   "slot": "tint",
+   "name": "Azure",
+   "style": "dye",
+   "color": "#2f6fd0"
+  },
+  {
+   "id": "dye_emerald",
+   "slot": "tint",
+   "name": "Emerald",
+   "style": "dye",
+   "color": "#2e9b55"
+  },
+  {
+   "id": "dye_purple",
+   "slot": "tint",
+   "name": "Royal Purple",
+   "style": "dye",
+   "color": "#6a3bb8"
+  },
+  {
+   "id": "dye_obsidian",
+   "slot": "tint",
+   "name": "Obsidian",
+   "style": "dye",
+   "color": "#26262e"
+  },
+  {
+   "id": "dye_ivory",
+   "slot": "tint",
+   "name": "Ivory",
+   "style": "dye",
+   "color": "#e8e2d0"
+  },
+  {
+   "id": "dye_gold",
+   "slot": "tint",
+   "name": "Gold",
+   "style": "dye",
+   "color": "#d9a82a"
+  },
+  {
+   "id": "dye_rose",
+   "slot": "tint",
+   "name": "Rose",
+   "style": "dye",
+   "color": "#e0708f"
+  },
+  {
+   "id": "dye_teal",
+   "slot": "tint",
+   "name": "Teal",
+   "style": "dye",
+   "color": "#1fa8a0"
+  },
+  {
+   "id": "dye_sunset",
+   "slot": "tint",
+   "name": "Sunset",
+   "style": "dye",
+   "color": "#f08a2a"
+  },
+  {
+   "id": "orb_fire",
+   "slot": "orbit",
+   "name": "Fire Orb",
+   "style": "orb",
+   "color": "#ff6a1a"
+  },
+  {
+   "id": "orb_frost",
+   "slot": "orbit",
+   "name": "Frost Orb",
+   "style": "orb",
+   "color": "#6fd6ff"
+  },
+  {
+   "id": "orb_wisp",
+   "slot": "orbit",
+   "name": "Spirit Wisp",
+   "style": "orb",
+   "color": "#9ffcd0"
+  },
+  {
+   "id": "crystal_arcane",
+   "slot": "orbit",
+   "name": "Arcane Crystal",
+   "style": "crystal",
+   "color": "#c07bff"
+  },
+  {
+   "id": "trio_ember",
+   "slot": "orbit",
+   "name": "Ember Trio",
+   "style": "trio",
+   "color": "#ff8a3a"
+  },
+  {
+   "id": "trio_star",
+   "slot": "orbit",
+   "name": "Starlight Trio",
+   "style": "trio",
+   "color": "#fff0a0"
+  },
+  {
+   "id": "moon_pale",
+   "slot": "orbit",
+   "name": "Pale Moon",
+   "style": "moon",
+   "color": "#dfe8ff"
+  },
+  {
+   "id": "lantern_gold",
+   "slot": "orbit",
+   "name": "Lantern",
+   "style": "lantern",
+   "color": "#ffcf5a"
+  }
+ ]
+}

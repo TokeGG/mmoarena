@@ -36,25 +36,18 @@ export interface SpecDef { id: string; name: string; role: string; desc: string;
 /** A talent that trades one bar ability for another. `replaces` maps spec id -> the ability given up (by spec). */
 export interface BarSwap { to: string; replaces: Record<string, string> }
 export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput; swap?: BarSwap }
-export type StatId = 'power' | 'vitality' | 'haste' | 'resilience';
-export interface GearDef {
-  slots: { id: string; name: string; icon: string; weight: number; noun: string }[];
-  tiers: { id: string; name: string; budget: number; unlockMatches: number; color: string }[];
-  flavors: { id: string; name: string; desc: string; weights: Partial<Record<StatId, number>> }[];
-  stats: Record<StatId, { name: string; desc: string; ratePct: number }>;
-}
-export interface GearItem {
+export interface CosmeticItem {
   id: string;
   slot: string;
-  tier: string;
-  flavor: string;
   name: string;
-  stats: Record<StatId, number>;
-  /** Loot only: rarity id and optional perk id. */
-  rarity?: string;
-  perk?: string;
+  /** Which model the client draws (horns, wings, cloak, ring...). */
+  style: string;
+  /** CSS hex colour. */
+  color: string;
 }
+export interface CosmeticsDef { slots: { id: string; name: string; icon: string }[]; items: CosmeticItem[] }
 /** A player's chosen build. Sent on join and validated by the server. */
+/** `gear` holds the cosmetic picked for each slot (slot id -> item id). Looks only. */
 export interface Build { spec: string; talents: string[]; gear: Record<string, string> }
 
 // ---------- data definitions (loaded from /shared/data/*.json) ----------

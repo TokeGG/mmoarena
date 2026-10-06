@@ -1,9 +1,9 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, itemById, itemColor, lootItem, rarityIndex, rarityOf, tierOf, tierUnlocked,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, SPECS, TALENTS, itemById, itemsForSlot,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
-import { loadBuild, owned, progress, saveBuild } from './profile';
+import { loadBuild, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
 
 /**
@@ -35,8 +35,6 @@ export interface MainMenuHooks {
   onSelect(classId: ClassId, build: Build): void;
   /** A non-leader party member toggled Ready. */
   onReady(on: boolean): void;
-  /** The player threw away a loot item. */
-  onDiscard(id: string): void;
   /** The account chip, placed top right under the settings bar. */
   extras?: HTMLElement;
 }
@@ -91,7 +89,6 @@ export class MainMenu {
   private progressEl = el('div', 'mm-progress');
   private msg = el('div', 'mm-msg');
   private modal = el('div', 'mm-modal hidden');
-  private flavor = el('select');
   private queueBtn = el('button', 'mm-btn', 'Find match');
   private queueLabel(signedIn: boolean): string {
     const m = `${this.size.value}v${this.size.value}`;
@@ -104,7 +101,6 @@ export class MainMenu {
   private readyBtn = el('button', 'mm-btn primary rdy hidden', 'Ready');
   private isReady = false;
   private openSlot: string | null = null;
-  private perksEl = el('div', 'mm-perks');
 
   constructor(root: HTMLElement, private hooks: MainMenuHooks) {
     this.root = root;
@@ -212,16 +208,21 @@ export class MainMenu {
     // right: gear + play
     const right = el('section', 'mm-panel mm-right');
     const autoRow = el('div', 'mm-auto');
-    for (const f of GEAR.flavors) this.flavor.append(new Option(`${f.name} (${f.desc})`, f.id));
-    this.flavor.value = store.get('arena.flavor', 'balance');
-    const auto = el('button', 'mm-small', 'Auto-equip best look');
-    auto.addEventListener('click', () => {
-      store.set('arena.flavor', this.flavor.value);
-      this.build.gear = bestGear(this.flavor.value, progress.matches, [...owned]);
+    const random = el('button', 'mm-small', '🎲 Random look');
+    random.addEventListener('click', () => {
+      this.build.gear = Object.fromEntries(COSMETICS.slots.filter(() => Math.random() < 0.8).map((sl) => {
+        const list = itemsForSlot(sl.id);
+        return [sl.id, list[Math.floor(Math.random() * list.length)].id];
+      }));
       this.commit();
     });
-    autoRow.append(this.flavor, auto);
-    right.append(el('h2', '', 'Appearance'), this.gearRow, autoRow, this.summary, this.perksEl, this.progressEl);
+    const clearAll = el('button', 'mm-small', 'Clear all');
+    clearAll.addEventListener('click', () => {
+      this.build.gear = {};
+      this.commit();
+    });
+    autoRow.append(random, clearAll);
+    right.append(el('h2', '', 'Appearance'), this.gearRow, autoRow, this.summary, this.progressEl);
 
     const play = el('div', 'mm-play');
     const opts = el('div', 'mm-opts');
@@ -394,12 +395,12 @@ export class MainMenu {
 
   private renderGear() {
     this.gearRow.replaceChildren(
-      ...GEAR.slots.map((slot) => {
+      ...COSMETICS.slots.map((slot) => {
         const id = this.build.gear[slot.id];
         const item = id ? itemById(id) : undefined;
         const b = el('button', 'mm-slot');
-        if (item) b.style.setProperty('--q', itemColor(item));
-        b.append(el('span', 'ci', slot.icon), el('span', 'sn', slot.name), el('span', 'in', item ? item.name : 'Empty'));
+        if (item) b.style.setProperty('--q', item.color);
+        b.append(el('span', 'ci', slot.icon), el('span', 'sn', slot.name), el('span', 'in', item ? item.name : 'None'));
         if (item) tip(b, `item:${item.id}`);
         b.addEventListener('click', () => this.openGear(slot.id));
         return b;
@@ -408,97 +409,42 @@ export class MainMenu {
   }
 
   private renderSummary() {
-    this.summary.replaceChildren(el('div', 'perk', 'Cosmetic only: gear changes how you look, never how you fight.'));
-    this.perksEl.replaceChildren();
-    const next = GEAR.tiers.find((t) => progress.matches < t.unlockMatches);
-    this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}` + (next ? ` · ${next.name} looks unlock in ${next.unlockMatches - progress.matches} more` : ' · All looks unlocked');
+    this.summary.replaceChildren(el('div', 'perk', 'Cosmetics change how you look to everyone. They never change how you fight, and they are all free.'));
+    this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}`;
   }
 
-  // ------------------------------------------------------------------ gear picker
+  // ------------------------------------------------------------------ cosmetic picker
 
   private openGear(slotId: string) {
-    const slot = GEAR.slots.find((s) => s.id === slotId)!;
+    const slot = COSMETICS.slots.find((s) => s.id === slotId)!;
     const card = el('div', 'mm-modal-card');
     const head = el('div', 'mm-modal-head');
     const close = el('button', 'mm-small', 'Close');
     close.addEventListener('click', () => this.closeGear());
-    const clear = el('button', 'mm-small', 'Unequip');
+    const clear = el('button', 'mm-small', 'None');
     clear.addEventListener('click', () => {
       delete this.build.gear[slotId];
       this.closeGear();
       this.commit();
     });
-    head.append(el('h2', '', `${slot.name}`), clear, close);
-    const grid = el('div', 'mm-gear-grid');
-    grid.style.gridTemplateColumns = `110px repeat(${GEAR.flavors.length}, 1fr)`;
-    grid.append(el('span'));
-    for (const f of GEAR.flavors) grid.append(el('div', 'gh', f.name));
-    for (const tier of GEAR.tiers) {
-      const unlocked = tierUnlocked(tier.id, progress.matches);
-      const label = el('div', 'gt');
-      label.style.color = tier.color;
-      label.append(el('b', '', tier.name), el('small', '', unlocked ? '' : `${tier.unlockMatches} matches`));
-      grid.append(label);
-      for (const f of GEAR.flavors) {
-        const item = ITEMS.find((i) => i.slot === slotId && i.tier === tier.id && i.flavor === f.id)!;
-        const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${unlocked ? '' : ' locked'}`);
-        b.style.setProperty('--q', tier.color);
-        b.append(el('span', 'ist', `${tier.name} ${f.name}`));
-        tip(b, `item:${item.id}`);
-        b.addEventListener('click', () => {
-          if (!unlocked) return;
-          this.build.gear[slotId] = item.id;
-          this.closeGear();
-          this.commit();
-        });
-        grid.append(b);
-      }
+    head.append(el('h2', '', slot.name), clear, close);
+    const grid = el('div', 'mm-cos-grid');
+    for (const item of itemsForSlot(slotId)) {
+      const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}`);
+      b.style.setProperty('--q', item.color);
+      b.append(el('span', 'sw'), el('span', 'ist', item.name));
+      tip(b, `item:${item.id}`);
+      b.addEventListener('click', () => {
+        this.build.gear[slotId] = item.id;
+        this.commit(); // keep the picker open so you can try several; the model behind it updates
+        this.openGear(slotId);
+      });
+      grid.append(b);
     }
-    card.append(head, grid, el('div', 'mm-modal-foot', 'Higher tiers unlock as you finish matches. Looks only: no gear gives any advantage.'));
-    card.append(this.lootSection(slotId));
+    card.append(head, grid, el('div', 'mm-modal-foot', 'Click to try one on. Cosmetics are free and only change your look.'));
     this.openSlot = slotId;
     this.modal.replaceChildren(card);
     this.modal.classList.remove('hidden');
-  }
-
-  /** The signed-in account's dropped items for this slot, best rarity first. */
-  private lootSection(slotId: string): HTMLElement {
-    const box = el('div', 'mm-loot');
-    box.append(el('h3', '', 'Loot'));
-    if (!this.account) {
-      box.append(el('div', 'mm-modal-foot', 'Sign in to collect loot: every ranked match drops a new look (two on a win).'));
-      return box;
-    }
-    const mine = [...owned]
-      .map((id) => lootItem(id)!)
-      .filter((i) => i && i.slot === slotId)
-      .sort((a, b) => rarityIndex(b.rarity!) - rarityIndex(a.rarity!) || Object.values(b.stats).reduce((x, y) => x + y, 0) - Object.values(a.stats).reduce((x, y) => x + y, 0));
-    if (!mine.length) {
-      box.append(el('div', 'mm-modal-foot', `Nothing yet for this slot. You hold ${owned.size} item${owned.size === 1 ? '' : 's'} in total.`));
-      return box;
-    }
-    const list = el('div', 'loot-list');
-    for (const item of mine) {
-      const row = el('div', `loot-row${this.build.gear[slotId] === item.id ? ' sel' : ''}`);
-      row.style.setProperty('--q', itemColor(item));
-      row.append(el('b', '', item.name), el('span', 'ist', `${rarityOf(item.rarity ?? '')?.name ?? 'Loot'} · ${GEAR.flavors.find((f) => f.id === item.flavor)?.name ?? ''}`));
-      tip(row, `item:${item.id}`);
-      row.addEventListener('click', () => {
-        this.build.gear[slotId] = item.id;
-        this.closeGear();
-        this.commit();
-      });
-      const del = el('button', 'loot-del', '✕');
-      del.title = 'Discard this item';
-      del.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (window.confirm(`Discard ${item.name}? This cannot be undone.`)) this.hooks.onDiscard(item.id);
-      });
-      row.append(del);
-      list.append(row);
-    }
-    box.append(list, el('div', 'mm-modal-foot', `${owned.size}/60 items. A full inventory pushes out your lowest-rarity, oldest item.`));
-    return box;
   }
 
   private closeGear() {

@@ -3,7 +3,7 @@ import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
-export const PROTOCOL_VERSION = 6;
+export const PROTOCOL_VERSION = 7;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
@@ -49,8 +49,6 @@ export type ClientMsg =
   | { t: 'customize'; cosmetics: Cosmetics }
   /** Replace the account's saved settings (HUD, keybinds, builds...) with this JSON snapshot. */
   | { t: 'save_settings'; data: string }
-  /** Throw away a loot item. */
-  | { t: 'discard'; id: string }
   | { t: 'leaderboard' }
   /** Prove this session is the owner (needs the server's owner code). */
   | { t: 'owner_unlock'; code: string }
@@ -77,7 +75,7 @@ export const MAX_SETTINGS = 24000;
 
 export type ServerMsg =
   | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string }
-  /** Progress (matches played unlock gear tiers). Store `token` and send it back on join. */
+  /** Progress (matches played). Store `token` and send it back on join. */
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
   | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
@@ -90,8 +88,6 @@ export type ServerMsg =
   | { t: 'leaderboard'; rows: LeaderRow[] }
   /** The account's saved settings JSON ('' if none yet). Sent right after login/resume. */
   | { t: 'settings'; data: string }
-  /** Loot earned from the match that just finished; `discarded` are items pushed out of a full inventory. */
-  | { t: 'loot'; drops: string[]; discarded: string[] }
   /** Cosmetics of the signed-in players in your match, by unit id. */
   | { t: 'roster'; players: RosterEntry[] }
   | { t: 'owner'; ok: boolean; reason?: string }
@@ -261,9 +257,6 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.resetPassword) out.resetPassword = true;
       return out;
     }
-    case 'discard':
-      if (typeof m.id !== 'string' || !/^L\.[a-z]{3,12}\.[a-z]{3,12}\.[a-z0-9]{4,8}$/.test(m.id)) return null;
-      return { t: 'discard', id: m.id };
     case 'save_settings':
       if (typeof m.data !== 'string' || m.data.length > MAX_SETTINGS) return null;
       return { t: 'save_settings', data: m.data };

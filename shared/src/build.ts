@@ -1,6 +1,5 @@
-import { AURAS, GEAR, SPECS, TALENTS, TUNING } from './data';
-import { lootItem, perkById, rarityOf } from './loot';
-import type { AbilityMod, Build, ClassId, GearItem, Mods, ModsInput, StatId, TalentDef } from './types';
+import { AURAS, COSMETICS, SPECS, TALENTS } from './data';
+import type { AbilityMod, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
 
@@ -29,99 +28,23 @@ export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
   return into;
 }
 
-// ------------------------------------------------------------------ gear
+// ------------------------------------------------------------------ cosmetics
 
-export const SLOT_IDS = GEAR.slots.map((s) => s.id);
-
-/** All items. Generated from gear.json so adding a tier or flavor is a data change. */
-export const ITEMS: GearItem[] = [];
-for (const tier of GEAR.tiers) {
-  for (const slot of GEAR.slots) {
-    for (const flavor of GEAR.flavors) {
-      const stats = { power: 0, vitality: 0, haste: 0, resilience: 0 } as Record<StatId, number>;
-      for (const [stat, w] of Object.entries(flavor.weights)) stats[stat as StatId] = Math.round(tier.budget * slot.weight * (w ?? 0));
-      ITEMS.push({ id: `${tier.id}.${slot.id}.${flavor.id}`, slot: slot.id, tier: tier.id, flavor: flavor.id, name: `${tier.name} ${flavor.name} ${slot.noun}`, stats });
-    }
-  }
-}
+export const SLOT_IDS = COSMETICS.slots.map((x) => x.id);
+export const ITEMS: CosmeticItem[] = COSMETICS.items;
 const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
-export const itemById = (id: string): GearItem | undefined => ITEM_BY_ID.get(id) ?? lootItem(id);
-export const itemsForSlot = (slot: string): GearItem[] => ITEMS.filter((i) => i.slot === slot);
-export const tierOf = (id: string) => GEAR.tiers.find((t) => t.id === id);
+export const itemById = (id: string): CosmeticItem | undefined => ITEM_BY_ID.get(id);
+export const itemsForSlot = (slot: string): CosmeticItem[] => ITEMS.filter((i) => i.slot === slot);
 
-export function tierUnlocked(tierId: string, matchesPlayed: number): boolean {
-  const t = tierOf(tierId);
-  return !!t && matchesPlayed >= t.unlockMatches;
-}
-
-export function gearStats(gear: Record<string, string> | undefined): Record<StatId, number> {
-  const total = { power: 0, vitality: 0, haste: 0, resilience: 0 } as Record<StatId, number>;
-  for (const slot of SLOT_IDS) {
-    const item = gear?.[slot] ? itemById(gear[slot]) : undefined;
-    if (!item || item.slot !== slot) continue;
-    for (const s of Object.keys(total) as StatId[]) total[s] += item.stats[s];
-  }
-  return total;
-}
-
-/** Legacy stat table. Gear is cosmetic now, so nothing in combat reads this; kept for item data and tests. */
-export function statBonuses(stats: Record<StatId, number>): Record<StatId, number> {
-  const cap = (TUNING.gearCap - 1) * 100;
-  const out = {} as Record<StatId, number>;
-  for (const s of Object.keys(stats) as StatId[]) out[s] = Math.min(cap, stats[s] * GEAR.stats[s].ratePct);
-  return out;
-}
-
-export function gearMods(gear: Record<string, string> | undefined): ModsInput {
-  const b = statBonuses(gearStats(gear));
-  const out: ModsInput = {
-    damageDone: 1 + b.power / 100,
-    healingDone: 1 + b.power / 100,
-    maxHealth: 1 + b.vitality / 100,
-    castTime: 1 - b.haste / 100,
-    gcd: 1 - b.haste / 100,
-    damageTaken: 1 - b.resilience / 100,
-  };
-  // loot perks: each distinct perk counts once, however many equipped pieces carry it
-  const seen = new Set<string>();
-  for (const slot of SLOT_IDS) {
-    const item = gear?.[slot] ? itemById(gear[slot]) : undefined;
-    const perk = item && item.slot === slot ? perkById(item.perk) : undefined;
-    if (!perk || seen.has(perk.id)) continue;
-    seen.add(perk.id);
-    for (const [k, v] of Object.entries(perk.mods) as [keyof ModsInput, number][]) {
-      if (typeof v === 'number') (out as Record<string, number>)[k] = ((out as Record<string, number>)[k] ?? 1) * v;
-    }
-  }
-  return out;
-}
-
-/** How well an item suits a flavor: its stats weighted by the flavor, plus a little for a perk. */
-export function itemScore(item: GearItem, flavor: string): number {
-  const w = GEAR.flavors.find((f) => f.id === flavor)?.weights ?? {};
-  let score = 0;
-  for (const s of Object.keys(item.stats) as StatId[]) score += item.stats[s] * (w[s] ?? 0);
-  return score + (item.perk ? 1.5 : 0);
-}
-
-/**
- * Best unlocked item per slot for the given flavor (used by "auto equip"). Pass the account's loot ids to consider
- * them too; set gear is chosen by tier, and loot replaces it only when it scores higher for the flavor.
- */
-export function bestGear(flavor: string, matchesPlayed: number, ownedLoot: readonly string[] = []): Record<string, string> {
+/** Keep only cosmetics that exist and sit in the right slot (an old save may name things that were removed). */
+export function cleanGear(gear: Record<string, string> | undefined): Record<string, string> {
   const out: Record<string, string> = {};
-  const loot = ownedLoot.map((id) => lootItem(id)).filter((i): i is GearItem => !!i);
-  for (const slot of SLOT_IDS) {
-    let pick = itemsForSlot(slot)
-      .filter((i) => i.flavor === flavor && tierUnlocked(i.tier, matchesPlayed))
-      .sort((a, b) => (tierOf(b.tier)!.budget - tierOf(a.tier)!.budget))[0];
-    for (const l of loot) if (l.slot === slot && (!pick || itemScore(l, flavor) > itemScore(pick, flavor))) pick = l;
-    if (pick) out[slot] = pick.id;
+  for (const [slot, id] of Object.entries(gear ?? {})) {
+    const item = itemById(id);
+    if (item && item.slot === slot) out[slot] = id;
   }
   return out;
 }
-
-// ------------------------------------------------------------------ specs and talents
 
 export const specOf = (classId: ClassId, specId: string) => SPECS[classId]?.find((s) => s.id === specId);
 export const defaultSpec = (classId: ClassId) => SPECS[classId][0];
@@ -135,7 +58,7 @@ export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(clas
 export type BuildCheck = { ok: true } | { ok: false; reason: string };
 
 /** Strict check used by the server for anything a client sends. */
-export function validateBuild(classId: ClassId, b: Build, matchesPlayed: number, ownedLoot?: readonly string[] | ReadonlySet<string>): BuildCheck {
+export function validateBuild(classId: ClassId, b: Build): BuildCheck {
   if (!specOf(classId, b.spec)) return { ok: false, reason: 'unknown spec' };
   const tiers = TALENTS[classId];
   if (b.talents.length > tiers.length) return { ok: false, reason: 'too many talents' };
@@ -145,11 +68,7 @@ export function validateBuild(classId: ClassId, b: Build, matchesPlayed: number,
   }
   for (const [slot, id] of Object.entries(b.gear)) {
     const item = itemById(id);
-    if (!SLOT_IDS.includes(slot) || !item || item.slot !== slot) return { ok: false, reason: 'invalid gear' };
-    if (item.rarity) {
-      const owns = ownedLoot && (Array.isArray(ownedLoot) ? ownedLoot.includes(id) : (ownedLoot as ReadonlySet<string>).has(id));
-      if (!owns) return { ok: false, reason: `${item.name} is not in your inventory` };
-    } else if (!tierUnlocked(item.tier, matchesPlayed)) return { ok: false, reason: `${item.name} is locked` };
+    if (!SLOT_IDS.includes(slot) || !item || item.slot !== slot) return { ok: false, reason: 'invalid cosmetic' };
   }
   return { ok: true };
 }
@@ -206,53 +125,30 @@ export function barSwapped(classId: ClassId, spec: string | null, bar: readonly 
   return !!d && (d.bar.length !== bar.length || d.bar.some((a, i) => a !== bar[i]));
 }
 
-// ------------------------------------------------------------------ gear look (what other players see)
-
-export interface LookPiece {
-  /** 0 = nothing equipped, 1-4 = tier gear (Initiate..Gladiator), 1-5 = loot rarity (Common..Legendary). */
-  rank: number;
-  flavor: string;
-  /** Tier or rarity colour as a CSS hex string. */
-  color: string;
-}
-const LOOK_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
-const LOOK_FLAVOR: Record<string, string> = { fury: 'f', bulwark: 'b', tempo: 't', balance: 'p' };
-const LOOK_FLAVOR_BACK: Record<string, string> = { f: 'fury', b: 'bulwark', t: 'tempo', p: 'balance' };
+// ------------------------------------------------------------------ cosmetic look (what other players see)
 
 /**
- * Compact string for the gear a unit wears, two characters per slot in `SLOT_IDS` order: a rank digit (tier 1-4, loot
- * 'a'-'e' for Common..Legendary) and a flavor letter. '--' = empty slot. Cosmetic only, carried in snapshots.
+ * Compact string for what a unit wears: one character per slot in `SLOT_IDS` order, the item's index within its slot
+ * in base 36, or '-' for nothing. Carried in snapshots so everyone sees everyone's cosmetics.
  */
 export function gearLook(gear: Record<string, string> | undefined): string {
   let out = '';
   for (const slot of SLOT_IDS) {
     const item = gear?.[slot] ? itemById(gear[slot]) : undefined;
-    if (!item || item.slot !== slot) {
-      out += '--';
-      continue;
-    }
-    const rank = item.rarity ? 'abcde'[Math.max(0, LOOK_RARITY.indexOf(item.rarity))] : String(Math.max(1, GEAR.tiers.findIndex((t) => t.id === item.tier) + 1));
-    out += rank + (LOOK_FLAVOR[item.flavor] ?? 'p');
+    const at = item && item.slot === slot ? itemsForSlot(slot).indexOf(item) : -1;
+    out += at >= 0 ? at.toString(36) : '-';
   }
   return out;
 }
 
-/** Decodes `gearLook`. Tolerates anything: junk gives empty pieces. */
-export function parseLook(look: string | undefined | null): Record<string, LookPiece> {
-  const out: Record<string, LookPiece> = {};
+/** Decodes `gearLook` into slot -> item. Tolerates anything: junk gives no piece for that slot. */
+export function parseLook(look: string | undefined | null): Record<string, CosmeticItem> {
+  const out: Record<string, CosmeticItem> = {};
   SLOT_IDS.forEach((slot, i) => {
-    const r = look?.[i * 2] ?? '-';
-    const f = LOOK_FLAVOR_BACK[look?.[i * 2 + 1] ?? ''] ?? 'balance';
-    let rank = 0;
-    let color = '#9d9d9d';
-    if (r >= '1' && r <= '9') {
-      rank = Math.min(GEAR.tiers.length, Number(r));
-      color = GEAR.tiers[rank - 1]?.color ?? color;
-    } else if (r >= 'a' && r <= 'e') {
-      rank = r.charCodeAt(0) - 96;
-      color = rarityOf(LOOK_RARITY[rank - 1])?.color ?? color;
-    }
-    out[slot] = { rank, flavor: f, color };
+    const c = look?.[i] ?? '-';
+    const at = c === '-' ? -1 : parseInt(c, 36);
+    const item = Number.isFinite(at) && at >= 0 ? itemsForSlot(slot)[at] : undefined;
+    if (item) out[slot] = item;
   });
   return out;
 }

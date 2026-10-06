@@ -13,8 +13,7 @@ import { MainMenu } from './mainMenu';
 import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
 import { installTips, setTipMods, setTipProgress } from './tips';
-import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile, setOwned } from './profile';
-import { LootUi } from './lootUi';
+import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
 import { AccountUi } from './accountUi';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 import { SettingsSync } from './settingsSync';
@@ -183,10 +182,6 @@ function onMessage(raw: MessageEvent) {
     case 'settings':
       if (!latest) settingsSync.onServer(m.data);
       break;
-    case 'loot':
-      lootUi.add(m.drops, m.discarded);
-      if (!latest) lootUi.flush();
-      break;
     case 'roster':
       hud.setRoster(m.players);
       break;
@@ -237,7 +232,6 @@ function onMessage(raw: MessageEvent) {
       latest = null;
       mainMenu.show(true);
       joinMsg(m.reason === 'match over' ? 'Match over. Queue again?' : m.reason);
-      lootUi.flush();
       break;
   }
 }
@@ -744,7 +738,6 @@ function connect(): Promise<boolean> {
       menu.close();
       mainMenu.show(true);
       mainMenu.refresh();
-      lootUi.flush();
       // an idle socket dropping at the menu is silent; it reconnects when needed
       if (inMatch || leaving) joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
       leaving = false;
@@ -779,7 +772,6 @@ function sendReady(on: boolean) {
   send({ t: 'ready', on, name: accountUi.account?.name ?? 'Player', classId: mainMenu.selectedClass, build: mainMenu.currentBuild, profile });
 }
 
-const lootUi = new LootUi();
 const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
   onReplay: (id) => void startReplay(id),
@@ -789,7 +781,6 @@ const accountUi = new AccountUi({
   },
   onAccount: (a) => {
     friendsUi.setAccount(a?.name ?? null);
-    setOwned(a?.inventory ?? []);
     if (a) applyAccountProgress(a.matches, a.wins);
     else {
       restoreGuestProgress();
@@ -832,7 +823,6 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
     if (mainMenu.ready) sendReady(true);
   },
   onReady: (on) => sendReady(on),
-  onDiscard: (id) => send({ t: 'discard', id }),
   extras: menuExtras,
 });
 const replayParam = new URLSearchParams(location.search).get('replay');

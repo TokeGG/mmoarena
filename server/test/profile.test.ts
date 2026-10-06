@@ -28,11 +28,11 @@ function fakeSocket() {
 const join = (extra: Partial<Extract<ClientMsg, { t: 'join' }>> = {}): ClientMsg => ({ t: 'join', name: 'T', classId: 'mage', mode: 'practice', foes: ['warrior'], ally: null, difficulty: 'easy', ...extra });
 
 describe('lobby: builds and progress', () => {
-  it('accepts a legal build, rejects locked gear, and a forged token cannot unlock tiers', () => {
+  it('accepts a legal build with cosmetics, drops unknown cosmetics quietly, and rejects bad talents or a forged token', () => {
     const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 });
     const a = fakeSocket();
     const p = lobby.connect(a);
-    lobby.handle(p, join({ build: { spec: 'fire', talents: ['spell_power'], gear: { head: 't1.head.fury' } } }));
+    lobby.handle(p, join({ build: { spec: 'fire', talents: ['spell_power'], gear: { head: 'crown_gold', back: 'wings_angel' } } }));
     const welcome = a.sent.find((m: ServerMsg) => m.t === 'welcome');
     assert.equal(welcome.spec, 'fire');
     assert.ok(a.sent.some((m: ServerMsg) => m.t === 'profile' && m.matches === 0));
@@ -41,15 +41,23 @@ describe('lobby: builds and progress', () => {
 
     const b = fakeSocket();
     const q = lobby.connect(b);
-    lobby.handle(q, join({ build: { spec: 'frost', talents: [], gear: { head: 't4.head.fury' } } }));
-    assert.ok(b.sent.some((m: ServerMsg) => m.t === 'error' && /locked/.test((m as any).reason)));
-    assert.ok(!b.sent.some((m: ServerMsg) => m.t === 'welcome'));
+    lobby.handle(q, join({ build: { spec: 'frost', talents: [], gear: { head: 't4.head.fury', back: 'cloak_azure' } } }));
+    assert.ok(b.sent.some((m: ServerMsg) => m.t === 'welcome'), 'an old gear id from before cosmetics is just dropped');
+    const unitQ = [...(q.room as any).sim.units.values()].find((u: any) => u.name === 'T');
+    assert.equal(unitQ.look[0], '-', 'no head piece');
+    assert.notEqual(unitQ.look[2], '-', 'the valid cloak stays');
+
+    const d = fakeSocket();
+    const bad = lobby.connect(d);
+    lobby.handle(bad, join({ build: { spec: 'frost', talents: ['no_such_talent'], gear: {} } }));
+    assert.ok(d.sent.some((m: ServerMsg) => m.t === 'error' && /talent/.test((m as any).reason)));
 
     const c = fakeSocket();
     const r = lobby.connect(c);
     const forged = Buffer.from(JSON.stringify({ v: 1, m: 99, w: 1 })).toString('base64url') + '.AAAA';
-    lobby.handle(r, join({ profile: forged, build: { spec: 'frost', talents: [], gear: { head: 't4.head.fury' } } }));
-    assert.ok(c.sent.some((m: ServerMsg) => m.t === 'error'));
+    lobby.handle(r, join({ profile: forged, build: { spec: 'frost', talents: [], gear: {} } }));
+    assert.ok(c.sent.some((m: ServerMsg) => m.t === 'welcome'), 'a forged token is just ignored: it only counts matches now');
+    assert.ok(a.sent.some((m: ServerMsg) => m.t === 'profile' && m.matches === 0));
   });
 
   it('a finished match earns progress and issues a new signed token; forfeits and dummies earn nothing', () => {
@@ -90,18 +98,5 @@ describe('lobby: builds and progress', () => {
     lobby.disconnect(p3);
     for (let i = 0; i < 5; i++) lobby.tick();
     assert.equal(s3.sent.filter((m: ServerMsg) => m.t === 'profile').length, 1);
-  });
-
-  it('a token earned in play unlocks the next gear tier on the next join', () => {
-    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 });
-    const token = issueProfile({ matches: 3, wins: 1 });
-    const s = fakeSocket();
-    const p = lobby.connect(s);
-    lobby.handle(p, join({ profile: token, build: { spec: 'frost', talents: [], gear: { head: 't2.head.fury' } } }));
-    assert.ok(s.sent.some((m: ServerMsg) => m.t === 'welcome'));
-    const s2 = fakeSocket();
-    const p2 = lobby.connect(s2);
-    lobby.handle(p2, join({ profile: token, build: { spec: 'frost', talents: [], gear: { head: 't3.head.fury' } } }));
-    assert.ok(s2.sent.some((m: ServerMsg) => m.t === 'error'));
   });
 });

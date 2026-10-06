@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { parseLook } from '@arena/shared';
-import type { ClassId, LookPiece } from '@arena/shared';
+import type { ClassId, CosmeticItem } from '@arena/shared';
 
 /**
  * Stylized heroic humanoids built from rounded primitives with ink outlines, one silhouette per class so you can read a fight at a glance:
@@ -504,144 +504,414 @@ function rogue(b: Builder): Rig {
 }
 
 
-// ------------------------------------------------------------------ gear looks
+// ------------------------------------------------------------------ cosmetics
 
-const FLAVOR_COLOR: Record<string, number> = { fury: 0xe0392b, bulwark: 0x3f7fe0, tempo: 0x21c9c0, balance: 0xf0c53a };
-/** Where each class's head, shoulders and so on sit, so worn gear lands on the right spot. */
+/** Where each class's head, shoulders and so on sit, so worn cosmetics land on the right spot. */
 const FIT: Record<ClassId, { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number }> = {
   warrior: { headTop: 1.58, headR: 0.285, tw: 0.78, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.52, pauldronY: 0.98 },
   mage: { headTop: 2.12, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
   priest: { headTop: 1.72, headR: 0.25, tw: 0.58, chestZ: 0.285, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
   rogue: { headTop: 1.44, headR: 0.275, tw: 0.54, chestZ: 0.2, robe: false, legW: 0.2, pauldronX: 0.36, pauldronY: 0.84 },
 };
-const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x9d9d9d;
+const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x888888;
+const lighter = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), k).getHex();
+const darker = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0x000000), k).getHex();
+
+/** Armor dye: pulls every cloth and metal colour of the class model towards the dye. Skin, eye whites, dark details and glows stay. */
+function dye(b: Builder, color: number) {
+  const target = new THREE.Color(color);
+  for (const m of b.mats) {
+    const base = m.userData.base as THREE.Color;
+    const hx = base.getHex();
+    const lum = (((hx >> 16) & 255) + ((hx >> 8) & 255) + (hx & 255)) / 765;
+    if (hx === SKIN || m.userData.glow || lum > 0.93 || lum < 0.05) continue;
+    base.lerp(target, 0.6);
+    m.color.copy(base);
+  }
+}
 
 /**
- * Draws what a unit has equipped on top of its class model, in a way you can see from across the arena.
- * - The flavor (Fury red, Bulwark blue, Tempo teal, Balance gold) tints the armour pieces and their gems at every tier.
- * - The tier or loot rarity (rank 1-5) sets the metal sheen and how elaborate each piece is: plain at rank 1, spikes and
- *   studs from rank 3, glow and a halo at the top.
- * Nothing equipped in a slot draws nothing there, so a bare character shows just its class look.
+ * Draws a unit's cosmetics on top of its class model. Every style is a different shape, so what a player picked is
+ * obvious from across the arena. A slot with nothing picked draws nothing.
  */
-function wearGear(b: Builder, r: Rig, classId: ClassId, look: Record<string, LookPiece>) {
+function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string, CosmeticItem>) {
   const fit = FIT[classId];
   const { upper } = r;
-  const accentOf = (p: LookPiece) => FLAVOR_COLOR[p.flavor] ?? 0xf0c53a;
-  /** Armour colour: the tier colour pulled strongly towards the flavor, so both show. */
-  const armorHex = (p: LookPiece) => new THREE.Color(hexNum(p.color)).lerp(new THREE.Color(accentOf(p)), 0.6).getHex();
-  const armor = (p: LookPiece) => b.m(armorHex(p), { metal: 0.45 + 0.1 * p.rank, rough: 0.5 - 0.06 * p.rank });
-  const trim = (p: LookPiece) => b.m(hexNum(p.color), { metal: 0.8, rough: 0.3 });
-  const gem = (p: LookPiece) => b.m(accentOf(p), { glow: 1.1 + 0.2 * p.rank, rough: 0.25 });
+  if (look.tint) dye(b, hexNum(look.tint.color));
+  const metal = (c: number) => b.m(c, { metal: 0.6, rough: 0.35 });
+  const cloth = (c: number) => b.m(c, { rough: 0.9 });
+  const gemMat = (c: number) => b.m(c, { glow: 1.3, rough: 0.25 });
 
-  // head: a band round the brow, a gem, side fins from rank 3, a crown of spikes from rank 4, a halo at rank 5
+  // ---- head
   const head = look.head;
-  if (head?.rank) {
+  if (head) {
+    const c = hexNum(head.color);
     const R = fit.headR;
-    const band = b.torus(upper, R, 0.03 + 0.006 * head.rank, armor(head), 0, 1.03, 0);
-    band.rotation.x = Math.PI / 2;
-    b.plain(() => b.ball(upper, 0.04 + 0.006 * head.rank, gem(head), 0, 1.03, R + 0.01));
-    if (head.rank >= 2) {
-      const brow = b.rbox(upper, 0.12 + 0.02 * head.rank, 0.07, 0.05, trim(head), 0, 1.03, R + 0.02, 0.02);
-      brow.renderOrder = 1;
-    }
-    if (head.rank >= 3) {
-      for (const sd of [-1, 1]) {
-        const fin = b.cone(upper, 0.05 + 0.01 * head.rank, 0.22 + 0.05 * head.rank, armor(head), sd * (R + 0.02), 1.12, -0.02, 6);
-        fin.rotation.z = -sd * (0.9 + 0.05 * head.rank);
+    const top = fit.headTop;
+    const brow = 1.03;
+    const sides = [-1, 1];
+    switch (head.style) {
+      case 'horns':
+        for (const sd of sides) {
+          const horn = b.cone(upper, 0.07, 0.38, metal(c), sd * (R * 0.9), brow + 0.12, 0, 8);
+          horn.rotation.z = -sd * 0.75;
+          const tip = b.cone(upper, 0.045, 0.22, metal(lighter(c)), sd * (R * 0.9 + 0.3), brow + 0.34, 0, 8);
+          tip.rotation.z = -sd * 0.25;
+        }
+        break;
+      case 'wings': {
+        const band = b.torus(upper, R, 0.028, metal(c), 0, brow, 0);
+        band.rotation.x = Math.PI / 2;
+        b.plain(() => b.ball(upper, 0.045, gemMat(0x66ccff), 0, brow, R + 0.01));
+        for (const sd of sides) for (let i = 0; i < 3; i++) {
+          const f = b.rbox(upper, 0.28 - i * 0.05, 0.035, 0.1, cloth(lighter(c, 0.2 + i * 0.1)), sd * (R + 0.16 - i * 0.02), brow + 0.05 + i * 0.07, -0.02, 0.015);
+          f.rotation.z = sd * (0.25 + i * 0.22);
+        }
+        break;
       }
-    }
-    if (head.rank >= 4) {
-      const n = head.rank === 4 ? 5 : 7;
-      for (let i = 0; i < n; i++) {
-        const ang = -Math.PI / 2 + (i / (n - 1)) * Math.PI; // front arc, over the brow
-        const sp = b.cone(upper, 0.03, 0.14 + 0.02 * head.rank, trim(head), Math.sin(ang) * (R + 0.01), 1.12, Math.cos(ang) * (R + 0.01) * 0.6 - 0.02, 6);
-        sp.rotation.z = -Math.sin(ang) * 0.5;
+      case 'crown': {
+        const band = b.torus(upper, R * 0.82, 0.03, metal(c), 0, top - 0.1, 0);
+        band.rotation.x = Math.PI / 2;
+        for (let i = 0; i < 7; i++) {
+          const a = (i / 7) * Math.PI * 2;
+          b.cone(upper, 0.032, 0.15 + (i % 2) * 0.05, metal(c), Math.cos(a) * R * 0.82, top - 0.02, Math.sin(a) * R * 0.82, 6);
+        }
+        b.plain(() => b.ball(upper, 0.045, gemMat(0xff4466), 0, top - 0.1, R * 0.82 + 0.02));
+        break;
       }
-    }
-    if (head.rank >= 5) {
-      const halo = b.glow(upper, new THREE.TorusGeometry(0.3, 0.015, 8, 36), accentOf(head), 0.75, 0, fit.headTop - 0.05, 0);
-      halo.rotation.x = Math.PI / 2;
-      b.anim.push((t) => (halo.rotation.z = t * 1.2));
+      case 'hat': {
+        b.cyl(upper, R * 1.65, R * 1.65, 0.035, cloth(darker(c, 0.2)), 0, top - 0.12, 0, 28);
+        b.cone(upper, R * 1.0, 0.55, cloth(c), 0, top + 0.17, 0, 20).rotation.z = 0.12;
+        const band = b.torus(upper, R * 1.0, 0.025, metal(0xf0c53a), 0, top - 0.08, 0);
+        band.rotation.x = Math.PI / 2;
+        break;
+      }
+      case 'crest':
+        for (let i = 0; i < 8; i++) {
+          const h = 0.1 + 0.12 * Math.sin((i / 7) * Math.PI);
+          b.rbox(upper, 0.045, h, 0.07, cloth(c), 0, top - 0.04 + h / 2 - 0.04, -0.2 + i * 0.058, 0.015);
+        }
+        break;
+      case 'halo': {
+        const halo = b.glow(upper, new THREE.TorusGeometry(0.3, 0.02, 8, 40), c, 0.85, 0, top + 0.12, 0);
+        halo.rotation.x = Math.PI / 2;
+        b.glow(upper, new THREE.TorusGeometry(0.3, 0.07, 8, 40), c, 0.18, 0, top + 0.12, 0).rotation.x = Math.PI / 2;
+        b.anim.push((t) => (halo.position.y = top + 0.12 + Math.sin(t * 2) * 0.02));
+        break;
+      }
+      case 'antlers':
+        for (const sd of sides) {
+          const main = b.cone(upper, 0.035, 0.5, cloth(c), sd * (R * 0.7), top + 0.02, 0, 6);
+          main.rotation.z = -sd * 0.3;
+          for (const [h, len] of [[0.0, 0.26], [0.14, 0.2]] as const) {
+            const tine = b.cone(upper, 0.025, len, cloth(lighter(c, 0.2)), sd * (R * 0.7 + 0.08 + h * 0.5), top + 0.1 + h, 0, 6);
+            tine.rotation.z = -sd * 1.0;
+          }
+        }
+        break;
+      case 'ears':
+        for (const sd of sides) {
+          const ear = b.cone(upper, 0.075, 0.2, cloth(c), sd * R * 0.62, top - 0.02, 0, 4);
+          ear.rotation.z = -sd * 0.25;
+          b.cone(upper, 0.04, 0.12, cloth(0xe89ab0), sd * R * 0.62, top - 0.04, 0.03, 4).rotation.z = -sd * 0.25;
+        }
+        break;
+      case 'helm': {
+        const dome = b.add(upper, new THREE.SphereGeometry(R * 1.1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), metal(c), 0, brow - 0.04, 0);
+        dome.scale.set(1, 1.05, 1.05);
+        b.rbox(upper, 0.05, 0.2, 0.05, metal(darker(c, 0.2)), 0, brow, R * 1.1, 0.01); // nose guard
+        b.rbox(upper, 0.03, 0.1, R * 2.1, metal(lighter(c, 0.2)), 0, brow + R * 1.08, 0, 0.01); // ridge
+        break;
+      }
     }
   }
 
-  // chest: shoulder plates, a tabard in the flavor colour with a metal frame, and (high rank) glow
-  const chest = look.chest;
-  if (chest?.rank) {
+  // ---- shoulders
+  const sh = look.shoulders;
+  if (sh) {
+    const c = hexNum(sh.color);
     for (const sd of [-1, 1]) {
-      const pd = b.ball(upper, 0.13 + 0.025 * chest.rank, armor(chest), sd * fit.pauldronX, fit.pauldronY, 0);
-      pd.scale.set(1.15, 0.7, 1.1);
-      const rim = b.torus(upper, 0.13 + 0.025 * chest.rank, 0.016 + 0.003 * chest.rank, trim(chest), sd * fit.pauldronX, fit.pauldronY - 0.03, 0);
-      rim.rotation.x = Math.PI / 2;
-      rim.scale.set(1.15, 1.1, 1);
-      if (chest.rank >= 3) {
-        const sp = b.cone(upper, 0.05, 0.12 + 0.05 * chest.rank, trim(chest), sd * (fit.pauldronX + 0.04), fit.pauldronY + 0.1, 0, 6);
-        sp.rotation.z = -sd * 0.45;
+      const x = sd * fit.pauldronX;
+      const y = fit.pauldronY;
+      switch (sh.style) {
+        case 'plates': {
+          const pd = b.ball(upper, 0.2, metal(c), x, y, 0);
+          pd.scale.set(1.15, 0.7, 1.1);
+          b.torus(upper, 0.2, 0.02, metal(lighter(c)), x, y - 0.04, 0).rotation.x = Math.PI / 2;
+          break;
+        }
+        case 'spikes': {
+          b.ball(upper, 0.16, metal(c), x, y, 0).scale.set(1.2, 0.75, 1.1);
+          for (let i = 0; i < 3; i++) {
+            const sp = b.cone(upper, 0.05, 0.22 - i * 0.03, metal(lighter(c, 0.3)), x + sd * (0.02 + i * 0.07), y + 0.12 - i * 0.02, (i - 1) * 0.09, 6);
+            sp.rotation.z = -sd * (0.35 + i * 0.3);
+          }
+          break;
+        }
+        case 'crystals':
+          for (let i = 0; i < 4; i++) {
+            const cr = b.add(upper, new THREE.OctahedronGeometry(0.07 + (i % 2) * 0.04), b.m(c, { glow: 0.9, rough: 0.2, metal: 0.2 }), x + sd * (i * 0.04), y + 0.08 + i * 0.06, (i - 1.5) * 0.07);
+            cr.scale.set(0.7, 1.7, 0.7);
+            cr.rotation.z = -sd * 0.25 * i;
+          }
+          break;
+        case 'fluff':
+          for (let i = 0; i < 6; i++) {
+            const a = (i / 6) * Math.PI * 2;
+            b.ball(upper, 0.1, cloth(i % 2 ? lighter(c, 0.25) : c), x + Math.cos(a) * 0.11, y + 0.02 + (i % 2) * 0.04, Math.sin(a) * 0.11);
+          }
+          b.ball(upper, 0.13, cloth(c), x, y + 0.05, 0);
+          break;
+        case 'flames': {
+          b.ball(upper, 0.09, metal(darker(c, 0.5)), x, y, 0);
+          const flames: THREE.Object3D[] = [];
+          for (let i = 0; i < 3; i++) {
+            const f = b.glow(upper, new THREE.ConeGeometry(0.07 - i * 0.012, 0.3 + i * 0.05, 8), i === 1 ? lighter(c, 0.4) : c, 0.75, x + (i - 1) * 0.07 * sd, y + 0.2, 0);
+            flames.push(f);
+          }
+          b.anim.push((t) => flames.forEach((f, i) => f.scale.set(1, 0.85 + 0.3 * Math.sin(t * 9 + i * 2 + sd), 1)));
+          break;
+        }
+        case 'mantle': {
+          const m = b.rbox(upper, 0.36, 0.07, 0.34, cloth(c), x, y - 0.02, 0, 0.03);
+          m.rotation.z = -sd * 0.28;
+          b.rbox(upper, 0.38, 0.03, 0.36, metal(0xf0c53a), x + sd * 0.02, y - 0.05, 0, 0.012).rotation.z = -sd * 0.28;
+          break;
+        }
       }
-      if (chest.rank >= 5) b.glow(upper, new THREE.SphereGeometry(0.26, 12, 10), accentOf(chest), 0.18, sd * fit.pauldronX, fit.pauldronY, 0);
     }
-    const len = 0.26 + 0.05 * chest.rank;
-    b.rbox(upper, 0.26 + 0.02 * chest.rank, len, 0.03, b.m(accentOf(chest), { rough: 0.8 }), 0, 0.62 - len / 2, fit.chestZ, 0.012);
-    b.rbox(upper, 0.3 + 0.02 * chest.rank, 0.06, 0.05, trim(chest), 0, 0.6, fit.chestZ + 0.005, 0.02);
-    b.plain(() => b.ball(upper, 0.04 + 0.006 * chest.rank, gem(chest), 0, 0.5, fit.chestZ + 0.035));
-    if (chest.rank >= 4) b.glow(upper, new THREE.SphereGeometry(0.2, 12, 10), accentOf(chest), 0.16, 0, 0.5, 0.1);
   }
 
-  // legs: greaves and knee guards on plate and leather; a coloured, heavier hem on robes
-  const legs = look.legs;
-  if (legs?.rank) {
-    if (fit.robe) {
-      const hemBand = b.cyl(r.root, 0.6, 0.64, 0.1 + 0.015 * legs.rank, armor(legs), 0, 0.1, 0, 32);
-      hemBand.renderOrder = 1;
-      const edge = b.torus(r.root, 0.63, 0.018 + 0.004 * legs.rank, trim(legs), 0, 0.2 + 0.015 * legs.rank, 0);
-      edge.rotation.x = Math.PI / 2;
-      b.plain(() => {
-        const g = b.torus(r.root, 0.645, 0.012, b.m(accentOf(legs), { glow: 1.2 + 0.2 * legs.rank }), 0, 0.045, 0);
-        g.rotation.x = Math.PI / 2;
-      });
-      if (legs.rank >= 3) for (let i = 0; i < 6; i++) {
-        const a = (i / 6) * Math.PI * 2;
-        b.plain(() => b.ball(r.root, 0.03, gem(legs), Math.cos(a) * 0.63, 0.11, Math.sin(a) * 0.63));
+  // ---- back
+  const back = look.back;
+  if (back) {
+    const c = hexNum(back.color);
+    switch (back.style) {
+      case 'cloak': {
+        const len = fit.robe ? 1.25 : 0.95;
+        const pivot = new THREE.Group();
+        pivot.position.set(0, 0.72, -fit.chestZ + 0.02);
+        const w = fit.tw * 1.12;
+        b.rbox(pivot, w, len, 0.045, cloth(c), 0, -len / 2, 0, 0.02);
+        b.rbox(pivot, w * 1.1, 0.07, 0.065, metal(0xf0c53a), 0, -len + 0.035, 0, 0.025);
+        b.rbox(pivot, w * 0.95, 0.1, 0.08, metal(0xf0c53a), 0, -0.02, 0, 0.03);
+        upper.add(pivot);
+        b.anim.push((t, move) => {
+          pivot.rotation.x = 0.1 + move * 0.5 + Math.sin(t * 1.8) * 0.03;
+        });
+        break;
       }
-    } else {
-      const w = fit.legW;
-      for (const leg of [r.legL, r.legR]) {
-        b.rbox(leg, w + 0.07, 0.36, 0.34, armor(legs), 0, -0.5, 0.01, 0.07);
-        const knee = b.ball(leg, 0.11 + 0.012 * legs.rank, trim(legs), 0, -0.3, 0.12);
-        knee.scale.set(1.1, 0.9, 0.85);
-        b.plain(() => b.ball(leg, 0.03 + 0.004 * legs.rank, gem(legs), 0, -0.3, 0.2));
-        if (legs.rank >= 3) b.rbox(leg, w + 0.09, 0.05, 0.36, trim(legs), 0, -0.34, 0.01, 0.02);
-        if (legs.rank >= 4) b.plain(() => (b.torus(leg, w * 0.62, 0.016, b.m(accentOf(legs), { glow: 1.4 }), 0, -0.62, 0).rotation.x = Math.PI / 2));
+      case 'angel':
+      case 'phoenix':
+      case 'bat': {
+        const wings: THREE.Group[] = [];
+        for (const sd of [-1, 1]) {
+          const g = new THREE.Group();
+          g.position.set(sd * 0.1, 0.6, -fit.chestZ);
+          for (let i = 0; i < 5; i++) {
+            const len = 0.95 - i * 0.12;
+            const ang = 0.35 + i * 0.28;
+            const holder = new THREE.Group();
+            holder.rotation.z = sd * ang;
+            if (back.style === 'bat') {
+              b.rbox(holder, 0.04, len, 0.03, metal(darker(c, 0.2)), sd * 0.0, len / 2, 0, 0.012);
+              if (i > 0) {
+                const mem = b.rbox(holder, 0.34, len * 0.78, 0.015, cloth(i % 2 ? c : darker(c, 0.25)), -sd * 0.17, len * 0.42, 0, 0.005);
+                mem.rotation.z = 0;
+              }
+            } else {
+              b.glow(holder, new THREE.BoxGeometry(0.14 - i * 0.012, len, 0.02), i % 2 ? lighter(c, 0.3) : c, back.style === 'phoenix' ? 0.8 : 0.9, 0, len / 2, 0);
+            }
+            g.add(holder);
+          }
+          upper.add(g);
+          wings.push(g);
+        }
+        b.anim.push((t, move) => wings.forEach((g, i) => {
+          const sd = i === 0 ? -1 : 1;
+          g.rotation.y = sd * (0.5 + Math.sin(t * (back.style === 'bat' ? 3.2 : 2.2)) * 0.12 + move * 0.25);
+        }));
+        break;
+      }
+      case 'banner': {
+        b.cyl(upper, 0.02, 0.02, 1.5, metal(0x6b5a3a), 0.0, 0.95, -fit.chestZ - 0.04, 8);
+        b.cone(upper, 0.04, 0.14, metal(0xd0d6df), 0, 1.75, -fit.chestZ - 0.04, 6);
+        const flag = new THREE.Group();
+        flag.position.set(0, 1.62, -fit.chestZ - 0.04);
+        b.rbox(flag, 0.38, 0.55, 0.02, cloth(c), 0.2, -0.28, 0, 0.01);
+        b.rbox(flag, 0.38, 0.06, 0.03, metal(0xf0c53a), 0.2, -0.04, 0, 0.01);
+        upper.add(flag);
+        b.anim.push((t, move) => (flag.rotation.y = Math.sin(t * 3) * 0.2 + move * 0.3));
+        break;
       }
     }
   }
 
-  // weapon: a flavor-coloured aura round the weapon hand, with sparks orbiting from rank 2
+  // ---- weapon glow, around the weapon hand
   const weapon = look.weapon;
-  if (weapon?.rank) {
+  if (weapon) {
+    const c = hexNum(weapon.color);
     const aura = new THREE.Group();
     aura.position.set(0, -0.6, 0.05);
     r.armR.add(aura);
-    b.glow(aura, new THREE.SphereGeometry(0.17 + 0.03 * weapon.rank, 16, 12), accentOf(weapon), 0.2 + 0.06 * weapon.rank, 0, 0, 0);
-    const pts: THREE.Object3D[] = [];
-    for (let i = 0; i < weapon.rank + 1; i++) pts.push(b.glow(aura, new THREE.SphereGeometry(0.035, 8, 6), hexNum(weapon.color), 0.95, 0, 0, 0));
-    b.anim.push((t) => pts.forEach((m, i) => {
-      const a = t * 2.6 + (i / pts.length) * Math.PI * 2;
-      m.position.set(Math.cos(a) * 0.3, Math.sin(a * 0.7) * 0.2, Math.sin(a) * 0.3);
-    }));
+    b.glow(aura, new THREE.SphereGeometry(0.22, 16, 12), c, 0.22, 0, 0, 0);
+    if (weapon.style === 'sparks') {
+      const pts: THREE.Object3D[] = [];
+      for (let i = 0; i < 5; i++) pts.push(b.glow(aura, new THREE.SphereGeometry(0.035, 8, 6), lighter(c, 0.3), 0.95, 0, 0, 0));
+      b.anim.push((t) => pts.forEach((m, i) => {
+        const a = t * 2.8 + (i / pts.length) * Math.PI * 2;
+        m.position.set(Math.cos(a) * 0.3, Math.sin(a * 0.7 + i) * 0.22, Math.sin(a) * 0.3);
+      }));
+    } else if (weapon.style === 'flame') {
+      const fl: THREE.Object3D[] = [];
+      for (let i = 0; i < 4; i++) fl.push(b.glow(aura, new THREE.ConeGeometry(0.07, 0.3, 8), i % 2 ? lighter(c, 0.4) : c, 0.8, (i - 1.5) * 0.07, 0.15, (i % 2 - 0.5) * 0.1));
+      b.anim.push((t) => fl.forEach((f, i) => {
+        f.scale.set(1, 0.7 + 0.5 * Math.abs(Math.sin(t * 8 + i * 1.7)), 1);
+        f.position.y = 0.12 + 0.05 * Math.sin(t * 6 + i);
+      }));
+    } else {
+      const rings: THREE.Mesh[] = [];
+      for (let i = 0; i < 2; i++) rings.push(b.glow(aura, new THREE.TorusGeometry(0.28 - i * 0.05, 0.014, 8, 30), c, 0.85, 0, 0, 0));
+      b.anim.push((t) => rings.forEach((m, i) => {
+        m.rotation.x = t * (1.6 + i) + i;
+        m.rotation.y = t * (1.1 - i * 0.7);
+      }));
+    }
   }
 
-  // trinket: a charm that floats beside the hip, in the flavor colour, bigger and brighter with rank
-  const trinket = look.trinket;
-  if (trinket?.rank) {
-    const charm = new THREE.Group();
-    upper.add(charm);
-    b.plain(() => b.add(charm, new THREE.OctahedronGeometry(0.08 + 0.012 * trinket.rank), b.m(accentOf(trinket), { glow: 1.0 + 0.25 * trinket.rank, rough: 0.3 }), 0, 0, 0));
-    b.glow(charm, new THREE.SphereGeometry(0.13 + 0.018 * trinket.rank, 10, 8), hexNum(trinket.color), 0.3, 0, 0, 0);
-    b.anim.push((t) => {
-      charm.position.set(0.55, 0.12 + Math.sin(t * 2.1) * 0.06, -0.05);
-      charm.rotation.y = t * 1.6;
-    });
+  // ---- ground aura
+  const ground = look.aura;
+  if (ground) {
+    const c = hexNum(ground.color);
+    const root = r.root;
+    const flat = (m: THREE.Mesh) => ((m.rotation.x = Math.PI / 2), m);
+    switch (ground.style) {
+      case 'ring': {
+        const a = flat(b.glow(root, new THREE.TorusGeometry(0.85, 0.03, 8, 48), c, 0.85, 0, 0.04, 0));
+        flat(b.glow(root, new THREE.RingGeometry(0.2, 0.85, 40), c, 0.14, 0, 0.035, 0));
+        const inner = flat(b.glow(root, new THREE.TorusGeometry(0.55, 0.015, 8, 40), lighter(c, 0.4), 0.7, 0, 0.045, 0));
+        b.anim.push((t) => {
+          a.scale.setScalar(1 + Math.sin(t * 2.4) * 0.05);
+          inner.scale.setScalar(1 - Math.sin(t * 2.4) * 0.06);
+        });
+        break;
+      }
+      case 'runes': {
+        const rings: THREE.Group[] = [];
+        for (const [rad, n, dir] of [[0.9, 8, 1], [0.6, 6, -1]] as const) {
+          const g = new THREE.Group();
+          g.position.y = 0.045;
+          flat(b.glow(g, new THREE.TorusGeometry(rad, 0.012, 6, 48), c, 0.8, 0, 0, 0));
+          for (let i = 0; i < n; i++) {
+            const a = (i / n) * Math.PI * 2;
+            const rune = b.glow(g, new THREE.BoxGeometry(0.1, 0.02, 0.06), lighter(c, 0.3), 0.95, Math.cos(a) * rad, 0, Math.sin(a) * rad);
+            rune.rotation.y = -a;
+          }
+          root.add(g);
+          rings.push(g);
+          void dir;
+        }
+        b.anim.push((t) => rings.forEach((g, i) => (g.rotation.y = t * (i ? -0.9 : 0.6))));
+        break;
+      }
+      case 'flames': {
+        const fl: THREE.Object3D[] = [];
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          fl.push(b.glow(root, new THREE.ConeGeometry(0.09, 0.4, 8), i % 2 ? lighter(c, 0.35) : c, 0.75, Math.cos(a) * 0.75, 0.2, Math.sin(a) * 0.75));
+        }
+        flat(b.glow(root, new THREE.RingGeometry(0.2, 0.8, 36), c, 0.12, 0, 0.035, 0));
+        b.anim.push((t) => fl.forEach((f, i) => f.scale.set(1, 0.7 + 0.6 * Math.abs(Math.sin(t * 6 + i * 1.3)), 1)));
+        break;
+      }
+      case 'vortex': {
+        const cyls: THREE.Mesh[] = [];
+        for (let i = 0; i < 2; i++) cyls.push(b.glow(root, new THREE.CylinderGeometry(0.85 - i * 0.15, 0.55 - i * 0.1, 1.9, 24, 1, true), i ? lighter(c, 0.3) : c, 0.16 + i * 0.06, 0, 0.95, 0));
+        flat(b.glow(root, new THREE.TorusGeometry(0.7, 0.02, 8, 40), c, 0.8, 0, 0.04, 0));
+        b.anim.push((t) => cyls.forEach((m, i) => (m.rotation.y = t * (i ? -2.2 : 1.6))));
+        break;
+      }
+      case 'petals': {
+        const ps: THREE.Object3D[] = [];
+        for (let i = 0; i < 12; i++) ps.push(b.glow(root, new THREE.BoxGeometry(0.1, 0.012, 0.06), i % 3 ? c : lighter(c, 0.4), 0.9, 0, 0, 0));
+        b.anim.push((t) => ps.forEach((p, i) => {
+          const a = t * (0.8 + (i % 3) * 0.25) + (i / 12) * Math.PI * 2;
+          const rad = 0.65 + 0.15 * Math.sin(t + i);
+          p.position.set(Math.cos(a) * rad, 0.15 + ((t * 0.35 + i * 0.17) % 1) * 1.6, Math.sin(a) * rad);
+          p.rotation.set(t * 2 + i, a, t * 1.5);
+        }));
+        break;
+      }
+      case 'embers': {
+        const es: THREE.Object3D[] = [];
+        for (let i = 0; i < 14; i++) es.push(b.glow(root, new THREE.SphereGeometry(0.03, 6, 5), i % 2 ? lighter(c, 0.4) : c, 0.95, 0, 0, 0));
+        flat(b.glow(root, new THREE.RingGeometry(0.3, 0.8, 36), c, 0.1, 0, 0.035, 0));
+        b.anim.push((t) => es.forEach((e, i) => {
+          const k = (t * 0.45 + i * 0.211) % 1;
+          const a = i * 2.4 + t * 0.7;
+          e.position.set(Math.cos(a) * (0.35 + 0.35 * ((i * 37) % 10) / 10), 0.1 + k * 1.9, Math.sin(a) * (0.35 + 0.35 * ((i * 37) % 10) / 10));
+          e.scale.setScalar(1 - k * 0.7);
+        }));
+        break;
+      }
+    }
+  }
+
+  // ---- companion
+  const orbit = look.orbit;
+  if (orbit) {
+    const c = hexNum(orbit.color);
+    const make = (size: number): THREE.Group => {
+      const g = new THREE.Group();
+      b.plain(() => b.ball(g, size, b.m(c, { glow: 1.4, rough: 0.2 }), 0, 0, 0));
+      b.glow(g, new THREE.SphereGeometry(size * 2.1, 10, 8), c, 0.25, 0, 0, 0);
+      upper.add(g);
+      return g;
+    };
+    switch (orbit.style) {
+      case 'orb': {
+        const g = make(0.075);
+        b.anim.push((t) => g.position.set(Math.cos(t * 1.4) * 0.8, 0.75 + Math.sin(t * 2.2) * 0.12, Math.sin(t * 1.4) * 0.8));
+        break;
+      }
+      case 'crystal': {
+        const g = new THREE.Group();
+        b.plain(() => b.add(g, new THREE.OctahedronGeometry(0.1), b.m(c, { glow: 1.1, rough: 0.2, metal: 0.2 }), 0, 0, 0).scale.set(0.8, 1.5, 0.8));
+        b.glow(g, new THREE.SphereGeometry(0.2, 10, 8), c, 0.22, 0, 0, 0);
+        upper.add(g);
+        b.anim.push((t) => {
+          g.position.set(0.62, 1.05 + Math.sin(t * 2) * 0.07, -0.1);
+          g.rotation.y = t * 1.8;
+        });
+        break;
+      }
+      case 'trio': {
+        const gs = [make(0.05), make(0.05), make(0.05)];
+        b.anim.push((t) => gs.forEach((g, i) => {
+          const a = t * 2.1 + (i / 3) * Math.PI * 2;
+          g.position.set(Math.cos(a) * 0.7, 0.8 + Math.sin(a * 1.5) * 0.15, Math.sin(a) * 0.7);
+        }));
+        break;
+      }
+      case 'moon': {
+        const g = new THREE.Group();
+        b.plain(() => b.ball(g, 0.14, b.m(c, { glow: 0.6, rough: 0.9 }), 0, 0, 0));
+        b.glow(g, new THREE.SphereGeometry(0.26, 12, 10), c, 0.2, 0, 0, 0);
+        upper.add(g);
+        b.anim.push((t) => g.position.set(Math.cos(t * 0.9) * 0.55, fit.headTop + 0.35 + Math.sin(t * 1.3) * 0.05, Math.sin(t * 0.9) * 0.55));
+        break;
+      }
+      case 'lantern': {
+        const g = new THREE.Group();
+        b.cyl(g, 0.05, 0.05, 0.02, metal(0x6b5a3a), 0, 0.09, 0, 8);
+        b.cyl(g, 0.06, 0.06, 0.02, metal(0x6b5a3a), 0, -0.09, 0, 8);
+        b.plain(() => b.ball(g, 0.065, b.m(c, { glow: 1.5, rough: 0.2 }), 0, 0, 0));
+        b.glow(g, new THREE.SphereGeometry(0.2, 10, 8), c, 0.28, 0, 0, 0);
+        upper.add(g);
+        b.anim.push((t) => g.position.set(-0.62, 0.35 + Math.sin(t * 2.3) * 0.06, 0.12));
+        break;
+      }
+    }
   }
 }
 
@@ -652,7 +922,7 @@ const RESTING_ARMS: Record<ClassId, number> = { warrior: -0.15, mage: -0.2, prie
 export function createCharacter(classId: ClassId, look?: string): Character {
   const b = new Builder();
   const r = BUILDERS[classId](b);
-  if (look) wearGear(b, r, classId, parseLook(look));
+  if (look) wearCosmetics(b, r, classId, parseLook(look));
   const lean = LEAN[classId];
   const armRest = RESTING_ARMS[classId];
   let lastAlive = true;

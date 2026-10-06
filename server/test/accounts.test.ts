@@ -120,11 +120,9 @@ describe('accounts in the lobby', () => {
     const ratingOf = (i: number) => (socks[i].sent.filter((m: ServerMsg) => m.t === 'account').at(-1) as any).account.rating as number;
     assert.ok(ratingOf(0) > START_RATING && ratingOf(1) > START_RATING, 'winning team gains');
     assert.ok(ratingOf(2) < START_RATING, 'losing team loses');
-    await until(() => socks[0].sent.some((m: ServerMsg) => m.t === 'loot'));
-    const winnerLoot = socks[0].sent.find((m: ServerMsg) => m.t === 'loot') as any;
-    assert.equal(winnerLoot.drops.length, 2, 'a ranked win drops two items');
+    assert.ok(!socks[0].sent.some((m: ServerMsg) => (m.t as string) === 'loot'), 'no loot drops any more');
     const lastAccount = socks[0].sent.filter((m: ServerMsg) => m.t === 'account').at(-1) as any;
-    assert.deepEqual(lastAccount.account.inventory, winnerLoot.drops, 'inventory in the account message matches the drops');
+    assert.equal(lastAccount.account.inventory, undefined);
     const top = await accounts.leaderboard();
     assert.equal(top.length, 4);
   });
@@ -178,67 +176,17 @@ describe('owner cosmetics and synced settings', () => {
   });
 });
 
-describe('loot drops', () => {
-  const seededRand = (seed: number) => {
-    let a = seed;
-    return () => {
-      a = (Math.imul(a, 1664525) + 1013904223) >>> 0;
-      return a / 4294967296;
-    };
-  };
-  it('ranked matches drop one item, two on a win; practice drops at most a Rare', async () => {
+describe('old saves', () => {
+  it('a stored loot inventory from before cosmetics is dropped when the account loads', async () => {
     const a = fresh();
-    await a.register('Looter', 'hunter22', '8.8.8.8');
-    const r = seededRand(1);
-    const loss = (await a.grantLoot('Looter', 'ranked', false, r))!;
-    assert.equal(loss.drops.length, 1);
-    const win = (await a.grantLoot('Looter', 'ranked', true, r))!;
-    assert.equal(win.drops.length, 2);
-    assert.equal(win.account.inventory.length, 3);
-    for (let i = 0; i < 40; i++) {
-      const p = (await a.grantLoot('Looter', 'practice', true, r))!;
-      for (const id of p.drops) assert.ok(!/\.(epic|legendary)\./.test(id));
-    }
-  });
-
-  it('bad-luck protection guarantees an epic or better', async () => {
-    const a = fresh();
-    await a.register('Unlucky', 'hunter22', '9.9.9.9');
-    // a generator that always rolls the commonest outcome
-    let n = 0;
-    const lowRoll = () => ((n++ * 0.000137) % 0.5) + 0.0001;
-    let sawEpic = -1;
-    for (let i = 0; i < 25; i++) {
-      const g = (await a.grantLoot('Unlucky', 'ranked', false, lowRoll))!;
-      if (/\.(epic|legendary)\./.test(g.drops[0])) {
-        sawEpic = i;
-        break;
-      }
-    }
-    assert.ok(sawEpic >= 0 && sawEpic <= 19, `epic by drop 20 (got ${sawEpic})`);
-  });
-
-  it('a full inventory pushes out the lowest rarity, oldest item and keeps the new drop', async () => {
-    const a = fresh();
-    await a.register('Hoarder', 'hunter22', '10.0.0.1');
-    const rec = (await a.get('Hoarder'))!;
-    rec.inventory = [];
-    for (let i = 0; i < 60; i++) rec.inventory.push(`L.${i === 5 ? 'common' : 'rare'}.head.${String(i).padStart(4, '0')}`);
+    await a.register('Oldie', 'hunter22', '8.8.4.4');
+    const rec = (await a.get('Oldie'))! as any;
+    rec.inventory = ['L.rare.head.abcd12'];
+    rec.pity = 5;
     await a.save(rec);
-    const g = (await a.grantLoot('Hoarder', 'ranked', false, seededRand(2)))!;
-    assert.equal(g.account.inventory.length, 60);
-    assert.deepEqual(g.discarded, ['L.common.head.0005']);
-    assert.ok(g.account.inventory.includes(g.drops[0]));
-  });
-
-  it('discard removes only owned items', async () => {
-    const a = fresh();
-    const r = (await a.register('Tidy', 'hunter22', '10.0.0.2')) as any;
-    const g = (await a.grantLoot('Tidy', 'ranked', true, seededRand(4)))!;
-    assert.equal(await a.discard(r.account, 'L.rare.head.nopeee'), null);
-    const after = (await a.discard(r.account, g.drops[0]))!;
-    assert.ok(!after.inventory.includes(g.drops[0]));
-    assert.equal(after.inventory.length, 1);
+    const again = (await a.get('Oldie'))! as any;
+    assert.equal(again.inventory, undefined);
+    assert.equal(again.pity, undefined);
   });
 });
 

@@ -8,7 +8,7 @@ import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
-import { barSwapped, validateBuild } from '@arena/shared';
+import { barSwapped, cleanGear, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
@@ -258,7 +258,7 @@ export class Room {
     }
   }
 
-  /** Once per match: players still connected earn progress, which unlocks higher gear tiers. */
+  /** Once per match: players still connected earn progress, counted in your matches and wins. */
   private creditProgress(): void {
     if (this.credited) return;
     this.credited = true;
@@ -279,10 +279,7 @@ export class Room {
             if (!a) return;
             if (this.ranked) this.deltas.set(me.id, { rating: a.rating, delta: a.rating - before });
             p.account = a;
-            const loot = await this.accounts!.grantLoot(a.name, this.ranked ? 'ranked' : 'practice', won);
-            if (loot) p.account = loot.account;
             send(p, { t: 'account', account: publicInfo(p.account, p.ownerOk) });
-            if (loot && loot.drops.length) send(p, { t: 'loot', drops: loot.drops, discarded: loot.discarded });
           })
           .catch(() => {}));
         continue;
@@ -417,14 +414,6 @@ export class Lobby {
           send(p, { t: 'account', account: publicInfo(updated, p.ownerOk) });
           break;
         }
-        case 'discard': {
-          if (!p.account) return;
-          const updated = await acc.discard(p.account, msg.id);
-          if (!updated) return;
-          p.account = updated;
-          send(p, { t: 'account', account: publicInfo(updated, p.ownerOk) });
-          break;
-        }
         case 'save_settings': {
           if (!p.account) return;
           const now = Date.now();
@@ -510,8 +499,10 @@ export class Lobby {
   /** Validate and store a player's name, class and build. False (after telling them) if the build is invalid. */
   private applyIdentity(p: Player, msg: { name: string; classId: ClassId; build?: Build; profile?: string }): boolean {
     const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
-    if (msg.build) {
-      const check = validateBuild(msg.classId, msg.build, progress.matches, p.account?.inventory);
+    // cosmetics that no longer exist (an old save) are dropped quietly rather than refusing the match
+    const build = msg.build ? { ...msg.build, gear: cleanGear(msg.build.gear) } : undefined;
+    if (build) {
+      const check = validateBuild(msg.classId, build);
       if (!check.ok) {
         send(p, { t: 'error', reason: `Invalid build: ${check.reason}` });
         send(p, { t: 'closed', reason: `Invalid build: ${check.reason}` });
@@ -520,7 +511,7 @@ export class Lobby {
     }
     p.matches = progress.matches;
     p.wins = progress.wins;
-    p.build = msg.build;
+    p.build = build;
     p.name = p.account ? p.account.name : msg.name;
     p.classId = msg.classId;
     return true;
@@ -592,7 +583,6 @@ export class Lobby {
       case 'logout':
       case 'customize':
       case 'save_settings':
-      case 'discard':
       case 'leaderboard':
       case 'owner_unlock':
       case 'admin_list':

@@ -224,8 +224,6 @@ export interface AccountInfo extends Stats {
   cosmetics: Cosmetics;
   /** 'owner' for the founder account. */
   role?: 'owner';
-  /** Loot ids the account owns (oldest first). Only ever sent to the account's own player. */
-  inventory: string[];
   /** Owner-given unlocks ('title:founder', 'gif'...). */
   grants: string[];
   /** Version stamp of the animated icon (served at /avatar/<name>?v=n), if one is set. */

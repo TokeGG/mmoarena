@@ -277,7 +277,7 @@ export class AccountUi {
       store.set(SEEN_KEY, '1');
       this.closeModal();
     });
-    const note = el('div', 'mm-modal-foot', 'Accounts keep your rank, wins, unlocked gear, cosmetics and all your settings (HUD, keybinds, builds) on any device. Passwords are hashed on the server.');
+    const note = el('div', 'mm-modal-foot', 'Accounts keep your rank, wins, cosmetics and all your settings (HUD, keybinds, builds) on any device. Passwords are hashed on the server.');
     card.append(tabs, name, pass, code, err, go, guest, note);
     window.setTimeout(() => name.focus(), 0);
     return card;

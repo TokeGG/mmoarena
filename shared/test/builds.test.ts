@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ABILITIES, ArenaSim, AURAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, TUNING,
-  barFor, bestGear, compileMods, describeAbility, describeAura, describeMods, gearMods, gearStats, itemById, parseClientMsg,
-  statBonuses, validateBuild, withAuraMods,
+  ABILITIES, ArenaSim, AURAS, CLASSES, CLASS_IDS, COSMETICS, ITEMS, SPECS, TALENTS, TUNING,
+  barFor, cleanGear, compileMods, describeAbility, describeAura, describeMods, itemById, itemsForSlot, parseClientMsg,
+  validateBuild, withAuraMods,
 } from '../src/index';
 import type { Build, ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
@@ -83,50 +83,39 @@ describe('content data is consistent', () => {
   });
 });
 
-describe('gear', () => {
-  it('generates the full catalog and gates tiers by matches played', () => {
-    assert.equal(ITEMS.length, GEAR.tiers.length * GEAR.slots.length * GEAR.flavors.length);
-    assert.equal(validateBuild('mage', build('frost', [], { head: 't1.head.fury' }), 0).ok, true);
-    const locked = validateBuild('mage', build('frost', [], { head: 't4.head.fury' }), 0);
-    assert.equal(locked.ok, false);
-    assert.equal(validateBuild('mage', build('frost', [], { head: 't4.head.fury' }), GEAR.tiers[3].unlockMatches).ok, true);
+describe('cosmetics', () => {
+  it('has a good number of items in every slot, each with a unique id and a valid colour', () => {
+    assert.ok(ITEMS.length >= 50);
+    assert.equal(new Set(ITEMS.map((i) => i.id)).size, ITEMS.length);
+    for (const slot of COSMETICS.slots) assert.ok(itemsForSlot(slot.id).length >= 7, slot.id);
+    for (const i of ITEMS) assert.match(i.color, /^#[0-9a-f]{6}$/i, i.id);
   });
 
-  it('rejects wrong-slot, unknown and malformed picks', () => {
-    assert.equal(validateBuild('mage', build('frost', [], { head: 't1.legs.fury' }), 99).ok, false);
-    assert.equal(validateBuild('mage', build('frost', [], { head: 'nope' }), 99).ok, false);
-    assert.equal(validateBuild('mage', build('frost', [], { hat: 't1.head.fury' }), 99).ok, false);
-    assert.equal(validateBuild('mage', build('fire' + 'x'), 99).ok, false);
-    assert.equal(validateBuild('mage', build('frost', ['bogus']), 99).ok, false);
-    assert.equal(validateBuild('mage', build('frost', ['spell_power', 'improved_blink', 'blazing_speed', 'extra']), 99).ok, false);
-    assert.equal(validateBuild('mage', build('frost', ['spell_power', '', 'blazing_speed']), 99).ok, true);
+  it('every cosmetic is free for everyone (no unlocks), and bad picks are rejected', () => {
+    for (const i of ITEMS) assert.equal(validateBuild('mage', build('frost', [], { [i.slot]: i.id })).ok, true, i.id);
+    assert.equal(validateBuild('mage', build('frost', [], { head: 'cloak_azure' })).ok, false, 'wrong slot');
+    assert.equal(validateBuild('mage', build('frost', [], { head: 'nope' })).ok, false);
+    assert.equal(validateBuild('mage', build('frost', [], { hat: 'crown_gold' })).ok, false);
+    assert.equal(validateBuild('mage', build('fire' + 'x')).ok, false);
+    assert.equal(validateBuild('mage', build('frost', ['bogus'])).ok, false);
+    assert.equal(validateBuild('mage', build('frost', ['spell_power', 'improved_blink', 'blazing_speed', 'extra'])).ok, false);
+    assert.equal(validateBuild('mage', build('frost', ['spell_power', '', 'blazing_speed'])).ok, true);
   });
 
-  it('stat bonuses are capped, and best gear never beats the cap or the catch-up gap budget', () => {
-    const cap = (TUNING.gearCap - 1) * 100;
-    for (const flavor of GEAR.flavors) {
-      const full = bestGear(flavor.id, 999);
-      const b = statBonuses(gearStats(full));
-      for (const v of Object.values(b)) assert.ok(v <= cap + 1e-9);
-    }
-    const huge = statBonuses({ power: 9999, vitality: 9999, haste: 9999, resilience: 9999 });
-    for (const v of Object.values(huge)) assert.equal(v, cap);
-    // a fresh player in the starter tier is within ~6% power of a fully geared one
-    const fresh = statBonuses(gearStats(bestGear('fury', 0))).power;
-    const maxed = statBonuses(gearStats(bestGear('fury', 999))).power;
-    assert.ok(maxed - fresh < 6, `gap ${maxed - fresh}`);
-    assert.ok(maxed > fresh);
+  it('cleanGear drops anything that no longer exists', () => {
+    assert.deepEqual(cleanGear({ head: 'crown_gold', back: 't1.head.fury', zzz: 'x' }), { head: 'crown_gold' });
+    assert.deepEqual(cleanGear(undefined), {});
   });
 
-  it('gear is cosmetic only: it changes the look, never the combat numbers', () => {
-    const gear = bestGear('fury', 999);
+  it('cosmetics change the look and never the combat numbers', () => {
+    const gear = Object.fromEntries(COSMETICS.slots.map((s) => [s.id, itemsForSlot(s.id)[0].id]));
     const sim = live();
     const plain = add(sim, 'mage', 0, 0, 0, build('frost'));
-    const geared = add(sim, 'mage', 1, 5, 0, build('frost', [], gear));
-    assert.equal(geared.maxHealth, plain.maxHealth);
+    const dressed = add(sim, 'mage', 1, 5, 0, build('frost', [], gear));
+    assert.equal(dressed.maxHealth, plain.maxHealth);
     assert.deepEqual(compileMods('mage', build('frost', [], gear)), compileMods('mage', build('frost')));
-    assert.notEqual(geared.look, plain.look, 'but it does show');
-    assert.ok(itemById('t1.head.fury'));
+    assert.notEqual(dressed.look, plain.look, 'but it does show');
+    assert.ok(itemById('crown_gold'));
   });
 });
 
@@ -255,11 +244,11 @@ describe('specs and talents in the sim', () => {
 
 describe('protocol carries a build', () => {
   it('accepts a well-formed build and strips junk', () => {
-    const m: any = parseClientMsg(JSON.stringify({ t: 'join', name: 'A', classId: 'mage', mode: 'practice', build: { spec: 'fire', talents: ['spell_power', 5, 'x'.repeat(100)], gear: { head: 't1.head.fury', bad: 7 } }, profile: 'abc' }));
+    const m: any = parseClientMsg(JSON.stringify({ t: 'join', name: 'A', classId: 'mage', mode: 'practice', build: { spec: 'fire', talents: ['spell_power', 5, 'x'.repeat(100)], gear: { head: 'crown_gold', bad: 7 } }, profile: 'abc' }));
     assert.ok(m);
     assert.equal(m.build.spec, 'fire');
     assert.deepEqual(m.build.talents, ['spell_power', '', '']);
-    assert.deepEqual(m.build.gear, { head: 't1.head.fury' });
+    assert.deepEqual(m.build.gear, { head: 'crown_gold' });
     assert.equal(m.profile, 'abc');
     const none: any = parseClientMsg(JSON.stringify({ t: 'join', name: 'A', classId: 'mage', mode: 'practice' }));
     assert.equal(none.build, undefined);
@@ -388,36 +377,32 @@ describe('talent ability swaps', () => {
   });
 });
 
-describe('gear look', () => {
-  const ids = (flavor: string, tier: string) => Object.fromEntries(['weapon', 'head', 'chest', 'legs', 'trinket'].map((s) => [s, `${tier}.${s}.${flavor}`]));
-  it('encodes two characters per slot and decodes them again', async () => {
+describe('cosmetic look', () => {
+  const n = COSMETICS.slots.length;
+  it('encodes one character per slot and decodes every item back', async () => {
     const { gearLook, parseLook } = await import('../src/index');
-    assert.equal(gearLook(undefined), '----------');
-    const look = gearLook(ids('fury', 't3'));
-    assert.equal(look, '3f3f3f3f3f');
-    const p = parseLook(look);
-    assert.equal(p.chest.rank, 3);
-    assert.equal(p.chest.flavor, 'fury');
-    assert.equal(p.chest.color, GEAR.tiers[2].color);
+    assert.equal(gearLook(undefined), '-'.repeat(n));
+    for (const item of ITEMS) {
+      const look = gearLook({ [item.slot]: item.id });
+      assert.equal(look.length, n);
+      assert.equal(parseLook(look)[item.slot].id, item.id);
+    }
+    const all = gearLook(Object.fromEntries(COSMETICS.slots.map((s) => [s.id, itemsForSlot(s.id)[1].id])));
+    assert.equal(Object.keys(parseLook(all)).length, n);
   });
-  it('different gear gives a different look, and junk decodes to empty pieces', async () => {
+  it('different cosmetics give different looks; wrong-slot items and junk show nothing', async () => {
     const { gearLook, parseLook } = await import('../src/index');
-    assert.notEqual(gearLook(ids('fury', 't1')), gearLook(ids('fury', 't4')));
-    assert.notEqual(gearLook(ids('fury', 't2')), gearLook(ids('bulwark', 't2')));
-    assert.equal(gearLook({ head: ids('fury', 't2').head, chest: ids('fury', 't2').head }).slice(4, 6), '--', 'an item in the wrong slot shows nothing');
-    const junk = parseLook('zz!!');
-    assert.equal(junk.weapon.rank, 0);
-    assert.equal(parseLook(null).trinket.rank, 0);
+    assert.notEqual(gearLook({ head: 'crown_gold' }), gearLook({ head: 'halo_light' }));
+    assert.equal(gearLook({ head: 'cloak_azure' }), '-'.repeat(n), 'an item in the wrong slot shows nothing');
+    assert.deepEqual(parseLook('zz!!'), {}, 'a slot index past the list gives nothing');
+    assert.deepEqual(parseLook(null), {});
   });
-  it('loot rarity shows as a rank and units carry the look in snapshots', async () => {
-    const { gearLook, parseLook, rollLoot } = await import('../src/index');
-    const id = rollLoot(() => 0.99, { minRarity: 'legendary' });
-    const slot = id.split('.')[2];
-    const look = parseLook(gearLook({ [slot]: id }));
-    assert.equal(look[slot].rank, 5);
+  it('units carry the look in snapshots', () => {
     const sim = live(2);
-    const u = add(sim, 'warrior', 0, 0, 0, build('arms', [], ids('bulwark', 't4')));
-    assert.equal(sim.snapshot().units.find((x) => x.id === u.id)!.look, '4b4b4b4b4b');
+    const u = add(sim, 'warrior', 0, 0, 0, build('arms', [], { head: 'crown_gold', tint: 'dye_azure' }));
+    const look = sim.snapshot().units.find((x) => x.id === u.id)!.look;
+    assert.equal(look.length, n);
+    assert.notEqual(look, '-'.repeat(n));
   });
 });
 

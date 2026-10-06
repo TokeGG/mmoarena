@@ -4,9 +4,9 @@ import classesJson from '../data/classes.json' with { type: 'json' };
 import arenasJson from '../data/arenas.json' with { type: 'json' };
 import specsJson from '../data/specs.json' with { type: 'json' };
 import talentsJson from '../data/talents.json' with { type: 'json' };
-import gearJson from '../data/gear.json' with { type: 'json' };
+import cosmeticsJson from '../data/cosmetics.json' with { type: 'json' };
 import tuningJson from '../data/tuning.json' with { type: 'json' };
-import type { AbilityDef, ArenaDef, AuraDef, ClassDef, ClassId, GearDef, SpecDef, TalentDef, Tuning } from './types';
+import type { AbilityDef, ArenaDef, AuraDef, ClassDef, ClassId, CosmeticsDef, SpecDef, TalentDef, Tuning } from './types';
 
 export const ABILITIES: Record<string, AbilityDef> = Object.fromEntries(
   (abilitiesJson as unknown as AbilityDef[]).map((a) => [a.id, a]),
@@ -22,6 +22,7 @@ export const TUNING = tuningJson as unknown as Tuning;
 export const SPECS = specsJson as unknown as Record<ClassId, SpecDef[]>;
 /** Per class: talent tiers, each a list of choices (pick at most one per tier). */
 export const TALENTS = talentsJson as unknown as Record<ClassId, TalentDef[][]>;
-export const GEAR = gearJson as unknown as GearDef;
+/** Cosmetic slots and every item. Purely visual: nothing here touches combat. */
+export const COSMETICS = cosmeticsJson as unknown as CosmeticsDef;
 
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
