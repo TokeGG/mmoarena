@@ -2,7 +2,7 @@
   "warrior": {
     "name": "Warrior", "color": "#c79c6e", "maxHealth": 3400,
     "resource": { "type": "rage", "max": 100, "start": 0, "regenPerSec": 0 },
-    "auto": { "interval": 2000, "damage": 60, "range": 5 },
+    "auto": { "interval": 2000, "damage": 60, "range": 3 },
     "bar": ["mortal_strike", "charge", "pummel", "hamstring"]
   },
   "mage": {
@@ -20,7 +20,7 @@
   "rogue": {
     "name": "Rogue", "color": "#fff569", "maxHealth": 2800,
     "resource": { "type": "energy", "max": 100, "start": 100, "regenPerSec": 15 },
-    "auto": { "interval": 1800, "damage": 50, "range": 5 },
+    "auto": { "interval": 1800, "damage": 50, "range": 3 },
     "bar": ["stealth", "cheap_shot", "sinister_strike", "kidney_shot", "kick", "sprint"]
   }
 }

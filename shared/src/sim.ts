@@ -531,7 +531,7 @@ export class ArenaSim {
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;
     // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
     if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
-    if (dist(u.pos, t.pos) > auto.range + TUNING.rangeTolerance || this.time < u.nextSwing) return;
+    if (dist(u.pos, t.pos) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
     if (!hasLOS(u.pos, t.pos, this.arena)) return; // no swinging through pillars
     u.nextSwing = this.time + auto.interval;
     if (this.isStealthed(u)) this.breakStealth(u);

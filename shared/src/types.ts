@@ -149,6 +149,7 @@ export interface Tuning {
   drSteps: number[];
   gearCap: number;
   rangeTolerance: number;
+  autoTolerance: number;
   prepMs: number;
   maxMatchMs: number;
   damageVariance: number;

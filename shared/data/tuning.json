@@ -11,6 +11,7 @@
   ],
   "gearCap": 1.15,
   "rangeTolerance": 1.5,
+  "autoTolerance": 0.5,
   "prepMs": 10000,
   "maxMatchMs": 600000,
   "damageVariance": 0.08,
