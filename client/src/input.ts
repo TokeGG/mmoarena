@@ -1,3 +1,4 @@
+import { zoomStep } from './camera';
 import type { Action, Keybinds } from './keybinds';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -108,13 +109,7 @@ export class Controls {
       (e) => {
         e.preventDefault();
         if (!this.enabled) return;
-        // scrolling in past the closest third-person distance snaps into first person (dist 0); scrolling out leaves it
-        if (this.dist <= 0.01) {
-          if (e.deltaY > 0) this.dist = 3;
-        } else {
-          const next = this.dist * Math.exp(e.deltaY * 0.001);
-          this.dist = next < 2.4 && e.deltaY < 0 ? 0 : clamp(next, 3, 30);
-        }
+        this.dist = zoomStep(this.dist, e.deltaY);
       },
       { passive: false },
     );

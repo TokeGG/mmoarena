@@ -95,6 +95,8 @@ class UnitFrame {
 export interface HudHandlers {
   onTarget(id: number): void;
   onSlot(index: number): void;
+  /** Shift+drag one slot onto another. */
+  onReorder?(from: number, to: number): void;
 }
 
 export interface HudContext {
@@ -177,6 +179,20 @@ export class Hud {
       root.append(ico, nm, cd, key);
       root.addEventListener('mousedown', (e) => {
         e.stopPropagation();
+        if (e.shiftKey && this.handlers.onReorder) {
+          // Shift+drag rearranges the bar instead of casting
+          e.preventDefault();
+          root.classList.add('dragging');
+          const done = (up: MouseEvent) => {
+            window.removeEventListener('mouseup', done, true);
+            root.classList.remove('dragging');
+            const over = document.elementFromPoint(up.clientX, up.clientY)?.closest('.slot');
+            const to = over ? this.slots.findIndex((s) => s.root === over) : -1;
+            if (to >= 0 && to !== i) this.handlers.onReorder?.(i, to);
+          };
+          window.addEventListener('mouseup', done, true);
+          return;
+        }
         this.handlers.onSlot(i);
       });
       bar.append(root);
@@ -188,7 +204,7 @@ export class Hud {
   setKeyLabels(labels: string[]) {
     this.slots.forEach((s, i) => {
       s.key.textContent = labels[i] ?? '';
-      s.root.dataset.tipSub = labels[i] ? `Hotkey: ${labels[i]}` : '';
+      s.root.dataset.tipSub = (labels[i] ? `Hotkey: ${labels[i]}  ·  ` : '') + 'Shift+drag to move';
     });
   }
 

@@ -16,6 +16,7 @@ import { installTips, setTipMods, setTipProgress } from './tips';
 import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile, setOwned } from './profile';
 import { LootUi } from './lootUi';
 import { AccountUi } from './accountUi';
+import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 import { SettingsSync } from './settingsSync';
 import { FriendsUi } from './friendsUi';
 import { Audio } from './audio';
@@ -74,9 +75,17 @@ const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
 effects.onSwing = (id) => scene.swing(id);
 effects.onHit = (id) => scene.flash(id);
 
+let barSpec: string | null = null;
 const hud = new Hud({
   onTarget: (id) => setTarget(id),
   onSlot: (i) => castSlot(i),
+  onReorder: (from, to) => {
+    if (spec) return;
+    bar = swapSlots(bar, from, to);
+    saveOrder(classId, barSpec, bar);
+    hud.setBar(classId, bar);
+    relabel();
+  },
 });
 
 const menu = new Menu(binds, {
@@ -143,7 +152,8 @@ function onMessage(raw: MessageEvent) {
       you = m.unitId;
       team = m.team;
       classId = m.classId;
-      bar = m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar;
+      barSpec = m.spec ?? myBuild.spec ?? null;
+      bar = applyOrder(m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar, loadOrder(classId, barSpec));
       setTipMods(compileMods(classId, myBuild));
       latest = null;
       snaps.length = 0;

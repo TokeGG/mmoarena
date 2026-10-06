@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.25.2
+# WoW-style Arena · v0.25.3
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -33,7 +33,7 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 
 ## Controls (rebindable)
 
-Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target · 1-8 abilities · R auto-attack.
+Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target · 1-8 abilities (Shift+drag one action slot onto another to rearrange; saved per spec) · R auto-attack.
 
 **Esc** clears your target first, then opens the menu: Resume, Controls, mouse sensitivity, volume sliders, HUD editor, Leave match. In **Controls** click a box and press a key; every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. The same screen is on the join page. Signed in, your keybinds, HUD, volume and builds follow your account to any device.
 

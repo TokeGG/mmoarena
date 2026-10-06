@@ -1,3 +1,4 @@
+import { cameraReach } from './camera';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -230,14 +231,10 @@ export class ArenaScene {
     if (d > 0.35) {
       this.raycaster.set(head, offset);
       this.raycaster.far = dist;
-      const hits = this.raycaster.intersectObjects(this.pillars, false);
-      if (hits.length) d = Math.min(d, hits[0].distance - 0.4);
-      // the arena walls and the floor: how far along the ray until the camera would leave the playing area
-      const b = this.arena.bounds;
-      const lim = (o: number, p: number, lo: number, hi: number) => (o > 1e-6 ? (hi - 0.4 - p) / o : o < -1e-6 ? (lo + 0.4 - p) / o : Infinity);
-      d = Math.min(d, lim(offset.x, head.x, b.minX, b.maxX), lim(offset.z, head.z, b.minZ, b.maxZ), offset.y < -1e-6 ? (head.y - 0.5) / -offset.y : Infinity);
+      const hits = this.raycaster.intersectObjects(this.pillars, true);
+      d = cameraReach(dist, { x: head.x, y: head.y, z: head.z }, { x: offset.x, y: offset.y, z: offset.z }, this.arena.bounds, hits.length ? hits[0].distance : Infinity);
     }
-    const first = d < 1.1;
+    const first = d < 1.8; // the camera pressed this close to a wall or pillar becomes first person
     const me = this.meshes.get(this.followId);
     if (me) me.group.visible = !first;
 
