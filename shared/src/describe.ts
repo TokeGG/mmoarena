@@ -120,6 +120,12 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
       case 'gain':
         lines.push(`Generates ${e.amount} ${res}.`);
         break;
+      case 'cleanse':
+        lines.push('Removes every harmful effect from you.');
+        break;
+      case 'dropCombat':
+        lines.push('Drops you out of combat: enemies lose their target on you and spells aimed at you are cancelled.');
+        break;
       case 'smoke':
         lines.push(`Drops a smoke cloud ${e.radius} yards wide for ${e.duration / 1000} sec. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.`);
         break;

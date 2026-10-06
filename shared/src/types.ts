@@ -91,7 +91,11 @@ export type Effect =
   /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. */
   | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number }
   /** A smoke cloud on the caster: enemies inside lose their target and cannot target anyone. */
-  | { type: 'smoke'; radius: number; duration: number };
+  | { type: 'smoke'; radius: number; duration: number }
+  /** Removes every harmful effect from the caster. */
+  | { type: 'cleanse' }
+  /** Drops combat: out of combat at once, and enemies lose their target on the caster. */
+  | { type: 'dropCombat' };
 
 export interface AbilityDef {
   id: string;

@@ -481,6 +481,21 @@ export class ArenaSim {
           start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration,
         });
         break;
+      case 'cleanse':
+        for (const a of [...u.auras]) if (AURAS[a.id].harmful) this.removeAura(u, a, 'cleansed');
+        break;
+      case 'dropCombat':
+        u.lastCombatAt = -1e9;
+        u.autoAttack = false;
+        for (const e of this.units.values()) {
+          if (e.team === u.team) continue;
+          if (e.target === u.id) {
+            e.target = null;
+            e.autoAttack = false;
+          }
+          if (e.cast && e.cast.target === u.id && ABILITIES[e.cast.ability]?.target !== 'ground') this.cancelCast(e, 'target vanished');
+        }
+        break;
       case 'smoke':
         this.zones.push({
           id: this.nextZoneId++, owner: u.id, team: u.team, x: u.pos.x, z: u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,

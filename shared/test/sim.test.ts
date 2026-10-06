@@ -384,6 +384,28 @@ describe('melee and auto-attack', () => {
   });
 });
 
+describe('vanish', () => {
+  it('cleanses debuffs, drops combat, makes enemies lose their target, and stealths you', () => {
+    const sim = new ArenaSim({ seed: 1, prepMs: 0 });
+    const r = sim.addUnit({ name: 'r', classId: 'rogue', team: 0 });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+    r.pos = { x: 0, z: 0 }; w.pos = { x: 2, z: 0 };
+    advance(sim, 100);
+    r.bar = [...r.bar, 'vanish'];
+    sim.setTarget(w.id, r.id);
+    sim.dealDamage(w, r, 100, 'physical', 'test');
+    sim.applyAura(w, r, 'hamstring_slow');
+    sim.applyAura(w, r, 'frost_nova_root');
+    assert.ok(r.auras.length >= 2);
+    mustFail(sim.useAbility(r.id, 'stealth'), /in combat/);
+    assert.ok(sim.useAbility(r.id, 'vanish').ok);
+    assert.ok(!r.auras.some((a) => a.kind === 'slow' || a.kind === 'root'), 'debuffs removed');
+    assert.ok(sim.isStealthed(r), 'stealthed');
+    assert.equal(w.target, null, 'the enemy lost its target');
+    assert.ok(sim.time - r.lastCombatAt > 5000, 'out of combat');
+  });
+});
+
 describe('crowd control that breaks on damage', () => {
   it('blind, psychic scream and intimidating shout all end when the victim is hurt', () => {
     for (const aura of ['blind', 'psychic_scream', 'intimidating_shout']) {
