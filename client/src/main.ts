@@ -18,12 +18,15 @@ import { LootUi } from './lootUi';
 import { AccountUi } from './accountUi';
 import { SettingsSync } from './settingsSync';
 import { FriendsUi } from './friendsUi';
+import { Audio } from './audio';
+import type { Spatial } from './audio';
 import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
 const INTERP_DELAY_MS = 100;
 
+const audio = new Audio();
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const scene = new ArenaScene(canvas);
 const binds = new Keybinds();
@@ -50,6 +53,9 @@ let spec: { kind: 'live' | 'replay'; runner?: ReplayRunner; id?: string; rate: n
 
 let latest: Snapshot | null = null;
 let latestAt = 0;
+let lastCount = -1;
+let stepAcc = 0;
+const lastStepPos = { x: 0, z: 0 };
 const snaps: { at: number; snap: Snapshot }[] = [];
 
 /** Client-side prediction for our own movement only. Abilities are never predicted. */
@@ -133,6 +139,7 @@ function onMessage(raw: MessageEvent) {
       }
       arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
       scene.setMap(arena.id);
+      audio.ambience(arena.theme);
       you = m.unitId;
       team = m.team;
       classId = m.classId;
@@ -176,9 +183,12 @@ function onMessage(raw: MessageEvent) {
     case 'history':
       accountUi.handle(m);
       break;
+    case 'invite':
+      audio.ui('ping');
+      friendsUi.handle(m);
+      break;
     case 'friends':
     case 'party':
-    case 'invite':
     case 'invite_gone':
     case 'notice':
       friendsUi.handle(m);
@@ -208,9 +218,11 @@ function onMessage(raw: MessageEvent) {
       onSnapshot(m.snap, m.events);
       break;
     case 'error':
+      audio.ui('error');
       hud.error(m.reason);
       break;
     case 'closed':
+      audio.stopAmbience();
       hud.setRoster([]);
       menu.close();
       hud.show(false);
@@ -260,7 +272,19 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   for (const ev of events) {
     hud.event(ev, ctx);
     effects.event(ev);
+    audio.event(ev, you, team, spatial);
   }
+}
+
+/** How loud and where a unit's sound should be, from its distance and screen position relative to the camera. */
+function spatial(id: number): Spatial | null {
+  const p = renderPos.get(id);
+  if (!p) return { gain: 0.6, pan: 0 };
+  const dist = Math.hypot(p.x - vis.x, p.z - vis.z);
+  if (dist > 60) return null;
+  const s = scene.project(p.x, 1.5, p.z);
+  const pan = s.visible ? Math.max(-1, Math.min(1, (s.x / window.innerWidth - 0.5) * 2)) * 0.7 : 0;
+  return { gain: Math.max(0.12, 1 - dist / 55) * (s.visible ? 1 : 0.6) * (id === you ? 1.1 : 1), pan };
 }
 
 // ------------------------------------------------------------------ movement prediction
@@ -283,7 +307,10 @@ function fixedStep() {
   if (!me) return;
   const sample = controls.sample(DT);
   const jump = sample.jump && me.alive && !me.controlled && canStartJump(performance.now() - myJumpAt);
-  if (jump) myJumpAt = performance.now();
+  if (jump) {
+    myJumpAt = performance.now();
+    audio.jump();
+  }
   const input: MoveInput = { seq: ++seq, ...sample, jump: jump || undefined };
   send({ t: 'input', ...input });
   pending.push(input);
@@ -323,6 +350,7 @@ function setTarget(id: number | null) {
     return;
   }
   targetId = id;
+  if (id !== null) audio.ui('select');
   send({ t: 'target', id });
 }
 
@@ -495,6 +523,25 @@ function frame(now: number) {
   );
   scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist, (spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45);
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
+  // countdown ticks before the gates open, and our own footsteps
+  if (snap.phase === 'prep') {
+    const left = Math.ceil((snap.phaseEndsAt - estNow) / 1000);
+    if (left >= 1 && left <= 3 && left !== lastCount) audio.countdown(left);
+    lastCount = left;
+  } else lastCount = -1;
+  {
+    const me = snap.units.find((u) => u.id === you);
+    const moved = Math.hypot(vis.x - lastStepPos.x, vis.z - lastStepPos.z);
+    lastStepPos.x = vis.x;
+    lastStepPos.z = vis.z;
+    if (me?.alive && !spec && moved < 3 && (interp.get(you)?.y ?? 0) < 0.15) {
+      stepAcc += moved;
+      if (stepAcc > 2.3) {
+        stepAcc = 0;
+        audio.footstep();
+      }
+    }
+  }
   scene.render(); // render first so projection uses this frame's camera
 
   hud.update({ snap, now: estNow, you, targetId });
@@ -538,6 +585,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
+  audio.ambience(arena.theme);
   you = 0;
   team = 0;
   latest = null;
@@ -591,6 +639,7 @@ function endSpectateState() {
 }
 
 function exitSpectate() {
+  audio.stopAmbience();
   endSpectateState();
   latest = null;
   hud.show(false);
@@ -645,6 +694,7 @@ function connect(): Promise<boolean> {
       resolve(false);
       if (ws !== sock) return;
       ws = null;
+      audio.stopAmbience();
       const inMatch = !!latest && !spec;
       if (spec?.kind === 'live') endSpectateState();
       hud.show(false);
@@ -736,5 +786,25 @@ if (replayParam && /^[0-9a-f]{12,16}$/.test(replayParam)) void startReplay(repla
 else accountUi.promptIfNew();
 if (accountUi.token) void connect();
 setTipMods(compileMods(mainMenu.selectedClass, mainMenu.currentBuild));
+// sound controls: mute button and the three volume sliders in the Esc menu
+{
+  const muteBtn = document.getElementById('mute-btn') as HTMLButtonElement;
+  const paint = () => (muteBtn.textContent = audio.isMuted ? '🔇' : '🔊');
+  muteBtn.addEventListener('click', () => audio.setMuted(!audio.isMuted));
+  audio.onMute = paint;
+  paint();
+  for (const kind of ['master', 'sfx', 'amb'] as const) {
+    const input = document.getElementById(`vol-${kind}`) as HTMLInputElement;
+    const label = document.getElementById(`vol-${kind}-val`)!;
+    input.value = String(audio.volumes[kind]);
+    const show = () => (label.textContent = `${Math.round(Number(input.value) * 100)}%`);
+    input.addEventListener('input', () => {
+      audio.setVolume(kind, Number(input.value));
+      if (audio.isMuted) audio.setMuted(false);
+      show();
+    });
+    show();
+  }
+}
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;

@@ -373,6 +373,7 @@
 .fr-toast{pointer-events:auto;background:rgba(14,17,24,.95);border:1px solid #3a4258;border-radius:10px;padding:8px 12px;font-size:13px;display:flex;gap:8px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.5)}.fr-toast.inv{border-color:#7a5cff}
 .menu-extras{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
 .fr-card input[type=text]{background:#10131a;border:1px solid #333b4d;color:#e6e9ef;border-radius:6px;padding:7px 9px;font-size:14px;min-width:0;flex:1 1 150px}.fr-card .own-row{display:flex;gap:8px;align-items:center}
+#mute-btn{position:fixed;left:10px;bottom:10px;z-index:45;width:38px;height:38px;border-radius:50%;border:1px solid #3a4258;background:rgba(14,17,24,.85);color:#e6e9ef;font-size:17px;cursor:pointer}#mute-btn:hover{border-color:#7a5cff}
 </style>
 </head>
 <body>
@@ -395,6 +396,7 @@
 </div>
 
 <div id="join"></div>
+<button id="mute-btn" title="Sound on/off" aria-label="Sound on/off">🔊</button>
 
 <div id="menu" class="hidden">
   <div class="card">
@@ -407,6 +409,9 @@
         <button id="menu-controls" class="big"><span class="bi">⌨</span>Controls &amp; keybinds</button>
         <button id="menu-hud" class="big"><span class="bi">▦</span>Edit HUD layout</button>
         <div class="srow"><span>Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
+        <div class="srow"><span>Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
+        <div class="srow"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>
+        <div class="srow"><span>Ambience</span><input id="vol-amb" type="range" min="0" max="1" step="0.05" value="0.5" /><span id="vol-amb-val">50%</span></div>
         <div class="m-rule" id="menu-rule"><i>✦</i></div>
         <button id="menu-leave" class="big danger"><span class="bi">⚔</span>Leave match</button>
       </div>

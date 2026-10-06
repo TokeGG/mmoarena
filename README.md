@@ -127,3 +127,7 @@ Space jumps. A jump is mostly cosmetic, but while airborne you can dodge **groun
 - **Parties** (up to 3 friends): the leader invites; everybody presses Ranked when ready; the leader's mode and arena apply, and the whole party is always on one team (parties are matched as one unit, never split).
 - **Duels:** challenge an online friend to an unranked 1v1; both sides join with the class and build they have selected in the menu.
 - Friend lists are stored on the account record; presence is in-memory only, so it costs no database reads.
+
+## Sound (0.20)
+
+All audio is synthesised live with the Web Audio API (`client/src/audio.ts`); there are no asset files. It covers spell casts and impacts per school, melee swings, heals, crowd-control, deaths, jump and footsteps, countdown ticks, match start and result stingers, UI clicks and a quiet ambience per arena theme. Sounds are positional (distance gain and stereo pan). The Esc menu has master/effects/ambience sliders and there is a mute button on screen; the settings are stored in `arena.vol.*` and sync with your account like the other settings. Audio starts on the first click or key press, as browsers require.
