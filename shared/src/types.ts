@@ -3,9 +3,9 @@ export type TeamId = 0 | 1;
 export type ClassId = 'warrior' | 'mage' | 'priest' | 'rogue';
 export type School = 'physical' | 'fire' | 'frost' | 'arcane' | 'holy' | 'shadow' | 'nature';
 export type DRCategory = 'stun' | 'incapacitate' | 'fear' | 'root' | 'silence';
-export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff';
+export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff' | 'dot';
 export type ResourceType = 'mana' | 'rage' | 'energy';
-export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy';
+export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy' | 'ground';
 export type Phase = 'prep' | 'live' | 'ended';
 
 // ---------- builds: specs, talents, gear ----------
@@ -75,13 +75,16 @@ export interface AuraDef {
   slowPct?: number;
   speedPct?: number;
   absorb?: number;
+  /** Damage over time: `amount` every `interval` ms while the aura lasts (credited to `ability` for talent modifiers). */
+  dot?: { amount: number; interval: number; school: School; ability: string };
   /** Stat modifiers applied while the aura is active (kind 'buff'). */
   mods?: ModsInput;
 }
 
 export type Effect =
-  | { type: 'damage'; amount: number }
-  | { type: 'heal'; amount: number }
+  /** `only` limits an effect to allies or enemies of the caster (Sacred Lash heals a friend and hurts a foe). */
+  | { type: 'damage'; amount: number; only?: 'ally' | 'enemy' }
+  | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   | { type: 'aura'; aura: string }
   | { type: 'interrupt'; lockout: number }
   | { type: 'dispel' }
@@ -164,8 +167,8 @@ export interface Tuning {
 export interface MoveInput { seq: number; fwd: number; strafe: number; facing: number; /** Start a (cosmetic) jump. */ jump?: boolean }
 export type Result = { ok: true } | { ok: false; reason: string };
 
-export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number }
-export interface CastState { ability: string; target: number; start: number; end: number; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
+export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number }
+export interface CastState { ability: string; target: number; start: number; end: number; /** Ground-targeted spells: where it lands. */ gx?: number; gz?: number; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
 export interface DRState { count: number; resetAt: number }
 
 export interface Unit {

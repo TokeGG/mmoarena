@@ -436,3 +436,69 @@ describe('v0.23 combat rules', () => {
     assert.ok(Math.hypot(w2.pos.x - p0.x, w2.pos.z - p0.z) > 0.5, 'sheep wanders');
   });
 });
+
+describe('v0.24 damage over time, penance and ground spells', () => {
+  const T = TUNING.tickMs;
+  const run = (sim: ArenaSim, ms: number) => { for (let t = 0; t < ms; t += T) { sim.step(); sim.drainEvents(); } };
+  const shadow = { spec: 'shadow', talents: [] as string[], gear: {} };
+  it('creeping rot has no cooldown and ticks damage for its whole duration', () => {
+    const sim = new ArenaSim({ seed: 4, prepMs: 0 });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: shadow });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+    p.pos = { x: 0, z: 0 }; w.pos = { x: 10, z: 0 };
+    run(sim, 100);
+    const hp = w.health;
+    assert.ok(sim.useAbility(p.id, 'shadow_word_death', w.id).ok);
+    assert.equal(p.cooldowns.shadow_word_death ?? 0, 0, 'no cooldown');
+    run(sim, 5100);
+    const mid = hp - w.health;
+    assert.ok(mid > 100 && mid < 250, `ticking, got ${mid}`);
+    run(sim, 8000);
+    const total = hp - w.health;
+    assert.ok(total > 250 && total < 380, `ten ticks in total, got ${total}`);
+    assert.ok(!w.auras.some((a) => a.id === 'creeping_rot'));
+  });
+  it('blightbloom is a bigger dot on a cooldown', () => {
+    const sim = new ArenaSim({ seed: 5, prepMs: 0 });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: shadow });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+    p.pos = { x: 0, z: 0 }; w.pos = { x: 10, z: 0 };
+    run(sim, 100);
+    assert.ok(sim.useAbility(p.id, 'plague_bloom', w.id).ok);
+    assert.ok((p.cooldowns.plague_bloom ?? 0) > sim.time);
+    run(sim, 11000);
+    assert.ok(w.maxHealth - w.health > 330);
+  });
+  it('sacred lash heals a friend and hurts a foe', () => {
+    const sim = new ArenaSim({ seed: 6, prepMs: 0 });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', 'tal_penance', '', ''], gear: {} } });
+    const ally = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
+    const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1 });
+    p.pos = { x: 0, z: 0 }; ally.pos = { x: 5, z: 0 }; foe.pos = { x: -5, z: 0 };
+    ally.health = 1000;
+    run(sim, 100);
+    assert.ok(sim.useAbility(p.id, 'penance', ally.id).ok);
+    run(sim, 2000);
+    assert.ok(ally.health > 1100 && foe.health === foe.maxHealth, 'ally healed, foe untouched');
+    p.cooldowns = {}; p.gcdEnd = 0;
+    assert.ok(sim.useAbility(p.id, 'penance', foe.id).ok);
+    run(sim, 2000);
+    assert.ok(foe.health < foe.maxHealth - 100, 'foe damaged');
+  });
+  it('a ground spell lands where it is aimed, within range and line of sight', () => {
+    const arena = arenaById('colosseum');
+    const sim = new ArenaSim({ seed: 7, prepMs: 0, arena });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'fire', talents: [], gear: {} } });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+    m.pos = { x: 0, z: 0 }; w.pos = { x: 20, z: 0 };
+    run(sim, 100);
+    const r = sim.useAbility(m.id, 'flamestrike', null, { x: 12, z: 3 });
+    assert.ok(r.ok, (r as any).reason);
+    run(sim, 2000);
+    const z = sim.snapshot().zones.find((q: any) => q.ability === 'flamestrike');
+    assert.ok(z && Math.abs(z.x - 12) < 0.1 && Math.abs(z.z - 3) < 0.1);
+    m.cooldowns = {}; m.gcdEnd = 0; m.cast = null; m.pos = { x: -25, z: 0 };
+    assert.ok(!sim.useAbility(m.id, 'flamestrike', null, { x: 80, z: 0 }).ok, 'out of range');
+    assert.ok(!sim.useAbility(m.id, 'flamestrike').ok, 'needs a location');
+  });
+});

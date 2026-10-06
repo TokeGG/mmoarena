@@ -2,7 +2,7 @@
 
 export type Action =
   | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
-  | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6'
+  | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8'
   | 'nextTarget' | 'prevTarget' | 'autoAttack';
 
 export const ACTIONS: { id: Action; label: string; group: string }[] = [
@@ -19,12 +19,14 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'slot4', label: 'Ability 4', group: 'Abilities' },
   { id: 'slot5', label: 'Ability 5', group: 'Abilities' },
   { id: 'slot6', label: 'Ability 6', group: 'Abilities' },
+  { id: 'slot7', label: 'Ability 7', group: 'Abilities' },
+  { id: 'slot8', label: 'Ability 8', group: 'Abilities' },
   { id: 'nextTarget', label: 'Next enemy', group: 'Targeting' },
   { id: 'prevTarget', label: 'Previous enemy', group: 'Targeting' },
   { id: 'autoAttack', label: 'Toggle auto-attack', group: 'Targeting' },
 ];
 
-export const SLOT_ACTIONS: Action[] = ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6'];
+export const SLOT_ACTIONS: Action[] = ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8'];
 
 /** Escape always opens the menu and can never be bound, so a bad binding can't lock you out. */
 export const RESERVED = ['Escape'];
@@ -43,6 +45,8 @@ const DEFAULTS: Record<Action, [string, string]> = {
   slot4: ['Digit4', ''],
   slot5: ['Digit5', ''],
   slot6: ['Digit6', ''],
+  slot7: ['Digit7', ''],
+  slot8: ['Digit8', ''],
   nextTarget: ['Tab', ''],
   prevTarget: ['', ''],
   autoAttack: ['KeyR', ''],

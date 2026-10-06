@@ -50,6 +50,7 @@ export function describeAura(id: string): string {
     case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;
     case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Movement speed reduced by ${Math.abs(a.speedPct ?? 0)}%. Broken by damage or attacking.`;
     case 'buff': return describeMods(a.mods).map(cap).join('. ') + '.';
+    case 'dot': return a.dot ? `Takes about ${a.dot.amount} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${Math.round((a.duration / a.dot.interval) * a.dot.amount)} total)` : ''}.` : '';
   }
 }
 
@@ -71,6 +72,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   const stats: string[] = [];
   if (def.cost) stats.push(`${def.cost} ${res}`);
   if (def.target === 'aoe_enemy') stats.push(`${def.radius} yd radius`);
+  else if (def.target === 'ground') stats.push(`${def.range + (am.range ?? 0)} yd range`, 'Aimed at the cursor');
   else if (def.range > 0) stats.push(`${def.range + (am.range ?? 0)} yd range`);
   else if (def.target === 'enemy' || def.target === 'any') stats.push('Melee range');
   if (def.minRange) stats.push(`min ${def.minRange} yd`);
@@ -83,12 +85,13 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
     switch (e.type) {
       case 'damage': {
         const n = Math.round(e.amount * mods.damageDone * (am.damage ?? 1));
-        if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing about ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
+        if (def.channel && e.only) lines.push(`On an enemy: deals about ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total).`);
+        else if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing about ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
         else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' ? ' to all enemies in range' : ''}.`);
         break;
       }
       case 'heal':
-        lines.push(`Heals for about ${Math.round(e.amount * mods.healingDone * (am.heal ?? 1))}.`);
+        lines.push(`${e.only === 'ally' ? 'On an ally: heals' : 'Heals'} for about ${Math.round(e.amount * mods.healingDone * (am.heal ?? 1))}${def.channel ? ` per pulse (${Math.round(e.amount * mods.healingDone * (am.heal ?? 1)) * def.channel.ticks} total)` : ''}.`);
         break;
       case 'aura': {
         const a = AURAS[e.aura];
@@ -115,7 +118,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(`Generates ${e.amount} ${res}.`);
         break;
       case 'zone':
-        lines.push(`Sets the ground at the target's position ablaze for ${e.duration / 1000} sec. Enemies inside take ${Math.round(e.amount * mods.damageDone * (mods.ability[def.id]?.damage ?? 1))} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).`);
+        lines.push(`Marks the ground at the chosen spot for ${e.duration / 1000} sec. Enemies inside take ${Math.round(e.amount * mods.damageDone * (mods.ability[def.id]?.damage ?? 1))} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).`);
         break;
     }
   }

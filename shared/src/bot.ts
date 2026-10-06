@@ -53,6 +53,9 @@ export class Bot {
   private strafeSign = 1;
   private strafeFlipAt = 0;
   private forceFacing: { angle: number; until: number } | null = null;
+  private cover: Vec2 | null = null;
+  private coverUntil = 0;
+  private coverReadyAt = 0;
   private rng: () => number;
   private P: (typeof PARAMS)[Difficulty];
 
@@ -83,6 +86,22 @@ export class Bot {
 
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
+
+    // hurt: duck behind a pillar to break line of sight, wait a moment, then come back (not every few seconds)
+    const threat = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
+    if (threat && hpFrac(u) < 0.45 && sim.time >= this.coverReadyAt && !this.cover) {
+      this.cover = this.coverPoint(u, threat.pos);
+      this.coverUntil = sim.time + 3500;
+      this.coverReadyAt = sim.time + 9000;
+    }
+    if (this.cover && sim.time >= this.coverUntil) this.cover = null;
+    if (this.cover && sim.canMove(u)) {
+      if (dist(u.pos, this.cover) > 0.9) {
+        // run for it, abandoning any cast (moving cancels it)
+        this.send(u, { facing: angleTo(u.pos, this.cover), fwd: 1, strafe: 0 });
+        return;
+      }
+    }
 
     // Decide first, move second: if a cast just started, movement sees it and stands still.
     if (sim.time >= this.nextThink) {
@@ -284,6 +303,28 @@ export class Bot {
     return dist(a, to) < dist(b, to) ? a : b;
   }
 
+  /** A spot just behind a pillar, as seen from `threat`, where nothing can hit us (out of line of sight). */
+  private coverPoint(u: Unit, threat: Vec2): Vec2 | null {
+    const arena = this.sim.arena;
+    const b = arena.bounds;
+    let best: Vec2 | null = null;
+    let bestD = 24;
+    for (const pl of arena.pillars) {
+      const dx = pl.x - threat.x;
+      const dz = pl.z - threat.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const p = { x: pl.x + (dx / len) * (pl.r + 1.4), z: pl.z + (dz / len) * (pl.r + 1.4) };
+      if (p.x < b.minX + 1 || p.x > b.maxX - 1 || p.z < b.minZ + 1 || p.z > b.maxZ - 1) continue;
+      if (hasLOS(p, threat, arena)) continue;
+      const d = dist(u.pos, p);
+      if (d < bestD) {
+        bestD = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
   private movement(u: Unit, enemies: Unit[], allies: Unit[], tgt?: Unit): Cmd {
     const sim = this.sim;
     const idle: Cmd = { facing: u.facing, fwd: 0, strafe: 0 };
@@ -295,6 +336,8 @@ export class Bot {
       this.strafeFlipAt = sim.time + 1500;
     }
 
+    if (this.cover && sim.time < this.coverUntil) return idle; // sitting in cover
+
     if (u.classId === 'priest') return this.healerMove(u, enemies, allies, idle);
     if (!tgt) return idle;
 
@@ -303,7 +346,8 @@ export class Bot {
     const range = RANGED[u.classId];
     if (!range) {
       if (d > 3.5) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
-      return { facing: toT, fwd: 0, strafe: 0 };
+      // in melee range: keep moving round the target instead of standing still
+      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.7 };
     }
     if (!hasLOS(u.pos, tgt.pos, sim.arena) || d > range.max) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
@@ -313,6 +357,8 @@ export class Bot {
       (e) => MELEE.has(e.classId) && dist(u.pos, e.pos) < range.min && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root'),
     );
     if (d < range.min && kiteable) return { facing: toT, fwd: -1, strafe: this.strafeSign * 0.6 };
+    // between casts, sidestep so the bot is not a stationary target (moving never interrupts: casts return early above)
+    if (sim.time < u.gcdEnd) return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.8 };
     return { facing: toT, fwd: 0, strafe: 0 };
   }
 

@@ -197,7 +197,7 @@ export class Room {
         break;
       }
       case 'cast': {
-        const r = this.sim.useAbility(id, msg.ability, msg.target);
+        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z } : null);
         if (!r.ok) send(p, { t: 'error', reason: r.reason, ability: msg.ability });
         break;
       }

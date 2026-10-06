@@ -38,7 +38,7 @@ export type ClientMsg =
     }
   | { t: 'input'; seq: number; fwd: number; strafe: number; facing: number; jump?: boolean }
   | { t: 'target'; id: number | null }
-  | { t: 'cast'; ability: string; target?: number | null }
+  | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number }
   | { t: 'auto'; on: boolean }
   | { t: 'leave' }
   /** Accounts. Password-based; a successful register/login returns a session token for `resume`. */
@@ -168,7 +168,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'cast':
       if (typeof m.ability !== 'string' || m.ability.length > 40) return null;
       if (m.target !== undefined && m.target !== null && !isNum(m.target)) return null;
-      return { t: 'cast', ability: m.ability, target: m.target ?? null };
+      const gx = typeof m.x === 'number' && Number.isFinite(m.x) && Math.abs(m.x) < 1000 ? m.x : undefined;
+      const gz = typeof m.z === 'number' && Number.isFinite(m.z) && Math.abs(m.z) < 1000 ? m.z : undefined;
+      return { t: 'cast', ability: m.ability, target: m.target ?? null, ...(gx !== undefined && gz !== undefined ? { x: gx, z: gz } : {}) };
     case 'auto':
       return { t: 'auto', on: !!m.on };
     case 'leave':

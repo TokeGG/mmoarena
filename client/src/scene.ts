@@ -200,7 +200,7 @@ export class ArenaScene {
       active.setState(u.alive, u.stealthed);
       active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt, vf: m.vf, vs: m.vs });
       (m.ring.material as THREE.MeshBasicMaterial).color.set(u.team === myTeam ? 0x3fbf5f : 0xc0392b);
-      m.ring.visible = u.alive;
+      m.ring.visible = u.alive && this.teamRings;
       m.targetRing.visible = u.id === targetId;
     }
     for (const [id, m] of this.meshes) {
@@ -210,26 +210,74 @@ export class ArenaScene {
     }
   }
 
-  /** Third-person orbit camera. Facing `yaw` is the direction the camera looks; pillars pull it in. */
-  setCamera(fx: number, fz: number, yaw: number, pitch: number, dist: number, fy = 0): void {
+  /** The unit the camera follows (hidden while the camera is in first person). */
+  followId = -99;
+  /** The coloured ring under each unit; off in 1v1, where there is no one to tell apart. */
+  teamRings = true;
+
+  /**
+   * Third-person orbit camera. Facing `yaw` is the direction the camera looks; pillars, walls and the ground pull it in.
+   * When it gets pulled in very close, or `dist` is 0, the camera moves into the character's head (first person) and
+   * the character's own model is hidden. Returns true in first person.
+   */
+  setCamera(fx: number, fz: number, yaw: number, pitch: number, dist: number, fy = 0): boolean {
     const head = new THREE.Vector3(fx, 1.8 + fy, fz);
     const dir = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const h = Math.cos(pitch);
     const offset = new THREE.Vector3(-dir.x * h, Math.sin(pitch), -dir.z * h);
 
-    this.raycaster.set(head, offset);
-    this.raycaster.far = dist;
-    const hits = this.raycaster.intersectObjects(this.pillars, false);
-    const d = hits.length ? Math.max(1.5, hits[0].distance - 0.4) : dist;
+    let d = dist;
+    if (d > 0.35) {
+      this.raycaster.set(head, offset);
+      this.raycaster.far = dist;
+      const hits = this.raycaster.intersectObjects(this.pillars, false);
+      if (hits.length) d = Math.min(d, hits[0].distance - 0.4);
+      // the arena walls and the floor: how far along the ray until the camera would leave the playing area
+      const b = this.arena.bounds;
+      const lim = (o: number, p: number, lo: number, hi: number) => (o > 1e-6 ? (hi - 0.4 - p) / o : o < -1e-6 ? (lo + 0.4 - p) / o : Infinity);
+      d = Math.min(d, lim(offset.x, head.x, b.minX, b.maxX), lim(offset.z, head.z, b.minZ, b.maxZ), offset.y < -1e-6 ? (head.y - 0.5) / -offset.y : Infinity);
+    }
+    const first = d < 1.1;
+    const me = this.meshes.get(this.followId);
+    if (me) me.group.visible = !first;
 
-    const pos = head.clone().addScaledVector(offset, d);
-    const b = this.arena.bounds;
-    pos.x = clamp(pos.x, b.minX + 0.5, b.maxX - 0.5);
-    pos.z = clamp(pos.z, b.minZ + 0.5, b.maxZ - 0.5);
-    pos.y = Math.max(0.5, pos.y);
-    this.camera.position.copy(pos);
+    if (first) {
+      const look = offset.clone().multiplyScalar(-1);
+      const eye = new THREE.Vector3(fx, 1.65 + fy, fz).addScaledVector(look, 0.18);
+      this.camera.position.copy(eye);
+      this.camera.lookAt(eye.clone().addScaledVector(look, 10));
+      return true;
+    }
+    this.camera.position.copy(head).addScaledVector(offset, d);
     this.camera.lookAt(head);
+    return false;
   }
+
+  /** Where the pointer touches the ground (y = 0), or null when it points at the sky. */
+  groundPoint(clientX: number, clientY: number): { x: number; z: number } | null {
+    const ndc = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+    this.raycaster.setFromCamera(ndc, this.camera);
+    const o = this.raycaster.ray.origin;
+    const dv = this.raycaster.ray.direction;
+    if (dv.y >= -1e-4) return null;
+    const t = -o.y / dv.y;
+    return { x: o.x + dv.x * t, z: o.z + dv.z * t };
+  }
+
+  /** A ring on the ground showing where an aimed spell would land; null hides it. */
+  setReticle(p: { x: number; z: number } | null, radius = 5): void {
+    if (!this.reticle) {
+      this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 40), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
+      this.reticle.rotation.x = -Math.PI / 2;
+      this.scene.add(this.reticle);
+    }
+    this.reticle.visible = !!p;
+    if (p) {
+      this.reticle.position.set(p.x, 0.07, p.z);
+      this.reticle.scale.set(radius, radius, 1);
+    }
+  }
+  private reticle: THREE.Mesh | null = null;
 
   /** World point to screen pixels. */
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {
@@ -241,12 +289,12 @@ export class ArenaScene {
     };
   }
 
-  /** Unit id under the pointer, or null. */
-  pick(clientX: number, clientY: number): number | null {
+  /** Unit id under the pointer, or null. `excludeId` (your own unit) is never picked, so your own model can't steal clicks. */
+  pick(clientX: number, clientY: number, excludeId: number | null = null): number | null {
     const ndc = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     this.raycaster.far = 200;
-    const groups = [...this.meshes.values()].map((m) => m.group);
+    const groups = [...this.meshes.entries()].filter(([id]) => id !== excludeId).map(([, m]) => m.group);
     const hit = this.raycaster.intersectObjects(groups, true)[0];
     return hit ? (hit.object.userData.unitId as number) : null;
   }

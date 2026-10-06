@@ -1,4 +1,4 @@
-import { ARENAS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, stepMovement } from '@arena/shared';
+import { ABILITIES, ARENAS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, stepMovement } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -249,6 +249,12 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   const me = snap.units.find((u) => u.id === you);
   if (me) {
     // Reconcile: start from the server's position, then replay inputs it has not processed yet.
+    // While we can't act (stunned, feared, sheep) the server moves us, so glide from the last position to the new one;
+    // otherwise the render position would swing back to where the crowd control began on every tick.
+    if (me.controlled || !me.alive) {
+      prevPred.x = pred.x;
+      prevPred.z = pred.z;
+    }
     pred.x = me.x;
     pred.z = me.z;
     if (!vis.ready) {
@@ -366,14 +372,33 @@ function cycleTarget(dir: 1 | -1) {
   setTarget(next.id);
 }
 
+/** The ground point under the cursor for an aimed spell, pulled in to the spell's range from you. */
+function groundAim(range: number): { x: number; z: number } | null {
+  const c = controls.cursor();
+  const g = scene.groundPoint(c.x, c.y);
+  if (!g) return null;
+  const dx = g.x - pred.x;
+  const dz = g.z - pred.z;
+  const d = Math.hypot(dx, dz);
+  if (d > range - 0.3) return { x: pred.x + (dx / d) * (range - 0.3), z: pred.z + (dz / d) * (range - 0.3) };
+  return g;
+}
+
 function castSlot(i: number) {
   if (spec) return;
   const ability = bar[i];
-  if (ability) send({ t: 'cast', ability, target: targetId });
+  if (!ability) return;
+  const def = ABILITIES[ability];
+  if (def?.target === 'ground') {
+    const g = groundAim(def.range);
+    if (g) send({ t: 'cast', ability, target: null, x: g.x, z: g.z });
+    return;
+  }
+  send({ t: 'cast', ability, target: targetId });
 }
 
 controls.onClick = (x, y) => {
-  const id = scene.pick(x, y);
+  const id = scene.pick(x, y, spec ? null : you);
   if (id !== null) setTarget(id);
 };
 controls.onKey = (code, e) => {
@@ -512,6 +537,8 @@ function frame(now: number) {
   for (const u of units) renderPos.set(u.id, { x: u.x, z: u.z, facing: u.facing });
 
   scene.setPhase(snap.phase);
+  scene.followId = spec ? -99 : you;
+  scene.teamRings = snap.units.length > 2;
   scene.update(units, team, targetId);
   effects.setZones(snap.zones ?? [], estNow);
   effects.update(
@@ -521,7 +548,14 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist, (spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45);
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, (spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45);
+  {
+    // aimed spells (Flamestrike, Blizzard): show where they would land
+    const aimed = spec ? undefined : bar.map((a) => ABILITIES[a]).find((d) => d?.target === 'ground');
+    const g = aimed ? groundAim(aimed.range) : null;
+    const r = aimed?.effects.find((e) => e.type === 'zone');
+    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5);
+  }
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
   // countdown ticks before the gates open, and our own footsteps
   if (snap.phase === 'prep') {

@@ -1,6 +1,6 @@
 {
  "polymorph": {
-  "name": "Polymorph",
+  "name": "Critter Curse",
   "kind": "incapacitate",
   "duration": 8000,
   "harmful": true,
@@ -11,7 +11,7 @@
   "wander": true
  },
  "frost_nova_root": {
-  "name": "Frost Nova",
+  "name": "Glacial Burst",
   "kind": "root",
   "duration": 6000,
   "harmful": true,
@@ -19,7 +19,7 @@
   "dispellable": true
  },
  "frostbolt_slow": {
-  "name": "Frostbolt",
+  "name": "Ice Shard",
   "kind": "slow",
   "duration": 4000,
   "harmful": true,
@@ -27,28 +27,28 @@
   "dispellable": true
  },
  "hamstring_slow": {
-  "name": "Hamstring",
+  "name": "Crippling Cut",
   "kind": "slow",
   "duration": 8000,
   "harmful": true,
   "slowPct": 50
  },
  "cheap_shot_stun": {
-  "name": "Cheap Shot",
+  "name": "Ambush Stun",
   "kind": "stun",
   "duration": 4000,
   "harmful": true,
   "dr": "stun"
  },
  "kidney_shot": {
-  "name": "Kidney Shot",
+  "name": "Nerve Pinch",
   "kind": "stun",
   "duration": 4000,
   "harmful": true,
   "dr": "stun"
  },
  "psychic_scream": {
-  "name": "Psychic Scream",
+  "name": "Terror Wail",
   "kind": "fear",
   "duration": 6000,
   "harmful": true,
@@ -56,7 +56,7 @@
   "dispellable": true
  },
  "pw_shield": {
-  "name": "Power Word: Shield",
+  "name": "Ward of Light",
   "kind": "absorb",
   "duration": 15000,
   "harmful": false,
@@ -64,21 +64,21 @@
   "dispellable": true
  },
  "stealth": {
-  "name": "Stealth",
+  "name": "Shadow Cloak",
   "kind": "stealth",
   "duration": 0,
   "harmful": false,
   "speedPct": -30
  },
  "sprint": {
-  "name": "Sprint",
+  "name": "Dash",
   "kind": "speed",
   "duration": 8000,
   "harmful": false,
   "speedPct": 70
  },
  "recklessness": {
-  "name": "Recklessness",
+  "name": "Blood Frenzy",
   "kind": "buff",
   "duration": 10000,
   "harmful": false,
@@ -88,7 +88,7 @@
   }
  },
  "shield_wall": {
-  "name": "Shield Wall",
+  "name": "Iron Aegis",
   "kind": "buff",
   "duration": 8000,
   "harmful": false,
@@ -97,21 +97,21 @@
   }
  },
  "intimidating_shout": {
-  "name": "Intimidating Shout",
+  "name": "Dread Roar",
   "kind": "fear",
   "duration": 5000,
   "harmful": true,
   "dr": "fear"
  },
  "concussion_stun": {
-  "name": "Concussion Blow",
+  "name": "Skull Rattle",
   "kind": "stun",
   "duration": 3000,
   "harmful": true,
   "dr": "stun"
  },
  "ice_barrier": {
-  "name": "Ice Barrier",
+  "name": "Rime Shield",
   "kind": "absorb",
   "duration": 12000,
   "harmful": false,
@@ -119,7 +119,7 @@
   "dispellable": true
  },
  "arcane_power": {
-  "name": "Arcane Power",
+  "name": "Overmind",
   "kind": "buff",
   "duration": 12000,
   "harmful": false,
@@ -129,7 +129,7 @@
   "dispellable": true
  },
  "pain_suppression": {
-  "name": "Pain Suppression",
+  "name": "Guardian Veil",
   "kind": "buff",
   "duration": 8000,
   "harmful": false,
@@ -138,7 +138,7 @@
   }
  },
  "dispersion": {
-  "name": "Dispersion",
+  "name": "Shade Form",
   "kind": "buff",
   "duration": 6000,
   "harmful": false,
@@ -147,7 +147,7 @@
   }
  },
  "adrenaline_rush": {
-  "name": "Adrenaline Rush",
+  "name": "Bloodrush",
   "kind": "buff",
   "duration": 12000,
   "harmful": false,
@@ -157,7 +157,7 @@
   }
  },
  "evasion": {
-  "name": "Evasion",
+  "name": "Phantom Dodge",
   "kind": "buff",
   "duration": 6000,
   "harmful": false,
@@ -166,21 +166,21 @@
   }
  },
  "shockwave_stun": {
-  "name": "Shockwave",
+  "name": "Quake Stomp",
   "kind": "stun",
   "duration": 2000,
   "harmful": true,
   "dr": "stun"
  },
  "howl_slow": {
-  "name": "Piercing Howl",
+  "name": "Wailing Horn",
   "kind": "slow",
   "duration": 6000,
   "harmful": true,
   "slowPct": 50
  },
  "die_by_the_sword": {
-  "name": "Die by the Sword",
+  "name": "Last Bastion",
   "kind": "buff",
   "duration": 5000,
   "harmful": false,
@@ -189,7 +189,7 @@
   }
  },
  "cone_slow": {
-  "name": "Cone of Cold",
+  "name": "Frost Fan",
   "kind": "slow",
   "duration": 5000,
   "harmful": true,
@@ -197,7 +197,7 @@
   "dispellable": true
  },
  "evocation": {
-  "name": "Evocation",
+  "name": "Mana Surge",
   "kind": "buff",
   "duration": 6000,
   "harmful": false,
@@ -208,15 +208,15 @@
   "dispellable": true
  },
  "dragons_breath": {
-  "name": "Dragon's Breath",
-  "kind": "incapacitate",
-  "duration": 3000,
+  "name": "Drake Gust",
+  "kind": "stun",
+  "duration": 2000,
   "harmful": true,
-  "dr": "incapacitate",
+  "dr": "stun",
   "dispellable": true
  },
  "power_infusion": {
-  "name": "Power Infusion",
+  "name": "Surge of Faith",
   "kind": "buff",
   "duration": 12000,
   "harmful": false,
@@ -228,7 +228,7 @@
   "dispellable": true
  },
  "blind": {
-  "name": "Blind",
+  "name": "Dust Cloud",
   "kind": "incapacitate",
   "duration": 5000,
   "harmful": true,
@@ -237,10 +237,64 @@
   "unique": true
  },
  "crippling_slow": {
-  "name": "Crippling Strike",
+  "name": "Hobbling Cut",
   "kind": "slow",
   "duration": 6000,
   "harmful": true,
   "slowPct": 40
+ },
+ "deep_freeze_stun": {
+  "name": "Cold Lock",
+  "kind": "stun",
+  "duration": 3000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "hammer_stun": {
+  "name": "Hammer Toss",
+  "kind": "stun",
+  "duration": 2000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "judgment_stun": {
+  "name": "Gavel Strike",
+  "kind": "stun",
+  "duration": 3000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "choke_stun": {
+  "name": "Choke Cloud",
+  "kind": "stun",
+  "duration": 2000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "creeping_rot": {
+  "name": "Creeping Rot",
+  "kind": "dot",
+  "duration": 10000,
+  "harmful": true,
+  "dispellable": true,
+  "dot": {
+   "amount": 30,
+   "interval": 1000,
+   "school": "shadow",
+   "ability": "shadow_word_death"
+  }
+ },
+ "plague_bloom": {
+  "name": "Blightbloom",
+  "kind": "dot",
+  "duration": 10000,
+  "harmful": true,
+  "dispellable": true,
+  "dot": {
+   "amount": 42,
+   "interval": 1000,
+   "school": "shadow",
+   "ability": "plague_bloom"
+  }
  }
 }

@@ -5,7 +5,7 @@ const TURN_SPEED = 2.6; // rad/s for A/D turning
 
 /**
  * WoW-style controls: hold RMB to steer (character faces the camera), LMB-drag to orbit the camera only,
- * A/D turn (or strafe while RMB is held), Q/E strafe, scroll to zoom.
+ * A/D turn (or strafe while RMB is held), Q/E strafe, both mouse buttons run forward, scroll to zoom (all the way in = first person).
  */
 export class Controls {
   private keys = new Set<string>();
@@ -24,6 +24,8 @@ export class Controls {
   private downY = 0;
   private dragged = false;
   private jumpQueued = false;
+  private mx = 0;
+  private my = 0;
 
   onClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
@@ -64,7 +66,7 @@ export class Controls {
       if (e.button === 0) {
         const wasDown = this.lmb;
         this.lmb = false;
-        if (wasDown && this.enabled && !this.dragged) this.onClick(e.clientX, e.clientY);
+        if (wasDown && this.enabled && !this.dragged && !this.rmb) this.onClick(e.clientX, e.clientY);
       }
       if (e.button === 2) {
         this.rmb = false;
@@ -72,6 +74,10 @@ export class Controls {
       }
     });
     window.addEventListener('mousemove', (e) => {
+      if (!document.pointerLockElement) {
+        this.mx = e.clientX;
+        this.my = e.clientY;
+      }
       if (!this.enabled || (!this.lmb && !this.rmb)) return;
       if (Math.abs(e.clientX - this.downX) + Math.abs(e.clientY - this.downY) > 4) this.dragged = true;
       this.yaw -= e.movementX * 0.005 * this.sens;
@@ -82,10 +88,21 @@ export class Controls {
       (e) => {
         e.preventDefault();
         if (!this.enabled) return;
-        this.dist = clamp(this.dist * Math.exp(e.deltaY * 0.001), 3, 30);
+        // scrolling in past the closest third-person distance snaps into first person (dist 0); scrolling out leaves it
+        if (this.dist <= 0.01) {
+          if (e.deltaY > 0) this.dist = 3;
+        } else {
+          const next = this.dist * Math.exp(e.deltaY * 0.001);
+          this.dist = next < 2.4 && e.deltaY < 0 ? 0 : clamp(next, 3, 30);
+        }
       },
       { passive: false },
     );
+  }
+
+  /** Where the cursor is, for aimed spells. While steering with the right button the cursor is locked, so aim at screen centre. */
+  cursor(): { x: number; y: number } {
+    return document.pointerLockElement ? { x: window.innerWidth / 2, y: window.innerHeight / 2 } : { x: this.mx, y: this.my };
   }
 
   private down(action: Action): number {
@@ -104,7 +121,8 @@ export class Controls {
   sample(dtSec: number): { fwd: number; strafe: number; facing: number; jump: boolean } {
     const jump = this.jumpQueued;
     this.jumpQueued = false;
-    const fwd = this.down('forward') - this.down('back');
+    let fwd = this.down('forward') - this.down('back');
+    if (this.lmb && this.rmb) fwd = 1; // both mouse buttons held runs forward, like WoW
     const turn = this.down('turnLeft') - this.down('turnRight');
     let strafe = this.down('strafeRight') - this.down('strafeLeft');
 

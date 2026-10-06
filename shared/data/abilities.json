@@ -1,7 +1,7 @@
 [
  {
   "id": "mortal_strike",
-  "name": "Mortal Strike",
+  "name": "Crushing Blow",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -19,7 +19,7 @@
  },
  {
   "id": "charge",
-  "name": "Charge",
+  "name": "Rushdown",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -42,7 +42,7 @@
  },
  {
   "id": "pummel",
-  "name": "Pummel",
+  "name": "Jaw Breaker",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -61,7 +61,7 @@
  },
  {
   "id": "hamstring",
-  "name": "Hamstring",
+  "name": "Crippling Cut",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -83,7 +83,7 @@
  },
  {
   "id": "frostbolt",
-  "name": "Frostbolt",
+  "name": "Ice Shard",
   "class": "mage",
   "school": "frost",
   "target": "enemy",
@@ -105,7 +105,7 @@
  },
  {
   "id": "fireball",
-  "name": "Fireball",
+  "name": "Cinder Bolt",
   "class": "mage",
   "school": "fire",
   "target": "enemy",
@@ -123,7 +123,7 @@
  },
  {
   "id": "polymorph",
-  "name": "Polymorph",
+  "name": "Critter Curse",
   "class": "mage",
   "school": "arcane",
   "target": "enemy",
@@ -141,7 +141,7 @@
  },
  {
   "id": "counterspell",
-  "name": "Counterspell",
+  "name": "Spell Snuff",
   "class": "mage",
   "school": "arcane",
   "target": "enemy",
@@ -160,7 +160,7 @@
  },
  {
   "id": "frost_nova",
-  "name": "Frost Nova",
+  "name": "Glacial Burst",
   "class": "mage",
   "school": "frost",
   "target": "aoe_enemy",
@@ -183,7 +183,7 @@
  },
  {
   "id": "blink",
-  "name": "Blink",
+  "name": "Phase Step",
   "class": "mage",
   "school": "arcane",
   "target": "self",
@@ -204,7 +204,7 @@
  },
  {
   "id": "flash_heal",
-  "name": "Flash Heal",
+  "name": "Quick Mend",
   "class": "priest",
   "school": "holy",
   "target": "ally_or_self",
@@ -222,7 +222,7 @@
  },
  {
   "id": "power_word_shield",
-  "name": "Power Word: Shield",
+  "name": "Ward of Light",
   "class": "priest",
   "school": "holy",
   "target": "ally_or_self",
@@ -241,7 +241,7 @@
  },
  {
   "id": "smite",
-  "name": "Smite",
+  "name": "Radiant Bolt",
   "class": "priest",
   "school": "holy",
   "target": "enemy",
@@ -259,7 +259,7 @@
  },
  {
   "id": "dispel_magic",
-  "name": "Dispel Magic",
+  "name": "Purge Veil",
   "class": "priest",
   "school": "holy",
   "target": "any",
@@ -276,7 +276,7 @@
  },
  {
   "id": "psychic_scream",
-  "name": "Psychic Scream",
+  "name": "Terror Wail",
   "class": "priest",
   "school": "shadow",
   "target": "aoe_enemy",
@@ -295,7 +295,7 @@
  },
  {
   "id": "stealth",
-  "name": "Stealth",
+  "name": "Shadow Cloak",
   "class": "rogue",
   "school": "physical",
   "target": "self",
@@ -316,7 +316,7 @@
  },
  {
   "id": "cheap_shot",
-  "name": "Cheap Shot",
+  "name": "Ambush Stun",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -335,7 +335,7 @@
  },
  {
   "id": "sinister_strike",
-  "name": "Sinister Strike",
+  "name": "Wicked Slash",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -353,7 +353,7 @@
  },
  {
   "id": "kidney_shot",
-  "name": "Kidney Shot",
+  "name": "Nerve Pinch",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -371,7 +371,7 @@
  },
  {
   "id": "kick",
-  "name": "Kick",
+  "name": "Quick Boot",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -390,7 +390,7 @@
  },
  {
   "id": "sprint",
-  "name": "Sprint",
+  "name": "Dash",
   "class": "rogue",
   "school": "physical",
   "target": "self",
@@ -409,7 +409,7 @@
  },
  {
   "id": "recklessness",
-  "name": "Recklessness",
+  "name": "Blood Frenzy",
   "class": "warrior",
   "school": "physical",
   "target": "self",
@@ -427,7 +427,7 @@
  },
  {
   "id": "intimidating_shout",
-  "name": "Intimidating Shout",
+  "name": "Dread Roar",
   "class": "warrior",
   "school": "physical",
   "target": "aoe_enemy",
@@ -446,7 +446,7 @@
  },
  {
   "id": "bloodthirst",
-  "name": "Bloodthirst",
+  "name": "Rending Surge",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -468,7 +468,7 @@
  },
  {
   "id": "whirlwind",
-  "name": "Whirlwind",
+  "name": "Cyclone Slash",
   "class": "warrior",
   "school": "physical",
   "target": "aoe_enemy",
@@ -487,7 +487,7 @@
  },
  {
   "id": "enraged_regeneration",
-  "name": "Enraged Regeneration",
+  "name": "Second Wind",
   "class": "warrior",
   "school": "physical",
   "target": "self",
@@ -505,7 +505,7 @@
  },
  {
   "id": "shield_slam",
-  "name": "Shield Slam",
+  "name": "Bulwark Bash",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -523,7 +523,7 @@
  },
  {
   "id": "concussion_blow",
-  "name": "Concussion Blow",
+  "name": "Skull Rattle",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -541,7 +541,7 @@
  },
  {
   "id": "shield_wall",
-  "name": "Shield Wall",
+  "name": "Iron Aegis",
   "class": "warrior",
   "school": "physical",
   "target": "self",
@@ -559,7 +559,7 @@
  },
  {
   "id": "ice_barrier",
-  "name": "Ice Barrier",
+  "name": "Rime Shield",
   "class": "mage",
   "school": "frost",
   "target": "self",
@@ -577,7 +577,7 @@
  },
  {
   "id": "pyroblast",
-  "name": "Pyroblast",
+  "name": "Sunfire Orb",
   "class": "mage",
   "school": "fire",
   "target": "enemy",
@@ -595,7 +595,7 @@
  },
  {
   "id": "arcane_blast",
-  "name": "Arcane Blast",
+  "name": "Mana Lance",
   "class": "mage",
   "school": "arcane",
   "target": "enemy",
@@ -613,7 +613,7 @@
  },
  {
   "id": "arcane_barrage",
-  "name": "Arcane Barrage",
+  "name": "Starfall Volley",
   "class": "mage",
   "school": "arcane",
   "target": "enemy",
@@ -634,7 +634,7 @@
  },
  {
   "id": "arcane_power",
-  "name": "Arcane Power",
+  "name": "Overmind",
   "class": "mage",
   "school": "arcane",
   "target": "self",
@@ -652,7 +652,7 @@
  },
  {
   "id": "greater_heal",
-  "name": "Greater Heal",
+  "name": "Deep Mend",
   "class": "priest",
   "school": "holy",
   "target": "ally_or_self",
@@ -670,7 +670,7 @@
  },
  {
   "id": "pain_suppression",
-  "name": "Pain Suppression",
+  "name": "Guardian Veil",
   "class": "priest",
   "school": "holy",
   "target": "ally_or_self",
@@ -688,7 +688,7 @@
  },
  {
   "id": "desperate_prayer",
-  "name": "Desperate Prayer",
+  "name": "Last Prayer",
   "class": "priest",
   "school": "holy",
   "target": "self",
@@ -706,7 +706,7 @@
  },
  {
   "id": "mind_blast",
-  "name": "Mind Blast",
+  "name": "Mind Spike",
   "class": "priest",
   "school": "shadow",
   "target": "enemy",
@@ -724,25 +724,25 @@
  },
  {
   "id": "shadow_word_death",
-  "name": "Shadow Word: Death",
+  "name": "Creeping Rot",
   "class": "priest",
   "school": "shadow",
   "target": "enemy",
   "range": 30,
   "castTime": 0,
-  "cooldown": 12000,
+  "cooldown": 0,
   "gcd": true,
-  "cost": 40,
+  "cost": 30,
   "effects": [
    {
-    "type": "damage",
-    "amount": 300
+    "type": "aura",
+    "aura": "creeping_rot"
    }
   ]
  },
  {
   "id": "dispersion",
-  "name": "Dispersion",
+  "name": "Shade Form",
   "class": "priest",
   "school": "shadow",
   "target": "self",
@@ -760,7 +760,7 @@
  },
  {
   "id": "mutilate",
-  "name": "Mutilate",
+  "name": "Gutting Stab",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -778,7 +778,7 @@
  },
  {
   "id": "vanish",
-  "name": "Vanish",
+  "name": "Smoke Veil",
   "class": "rogue",
   "school": "physical",
   "target": "self",
@@ -797,7 +797,7 @@
  },
  {
   "id": "adrenaline_rush",
-  "name": "Adrenaline Rush",
+  "name": "Bloodrush",
   "class": "rogue",
   "school": "physical",
   "target": "self",
@@ -816,7 +816,7 @@
  },
  {
   "id": "shadowstep",
-  "name": "Shadowstep",
+  "name": "Umbral Step",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -836,7 +836,7 @@
  },
  {
   "id": "evasion",
-  "name": "Evasion",
+  "name": "Phantom Dodge",
   "class": "rogue",
   "school": "physical",
   "target": "self",
@@ -855,10 +855,10 @@
  },
  {
   "id": "flamestrike",
-  "name": "Flamestrike",
+  "name": "Firefall",
   "class": "mage",
   "school": "fire",
-  "target": "enemy",
+  "target": "ground",
   "range": 30,
   "castTime": 1500,
   "cooldown": 12000,
@@ -881,7 +881,7 @@
   "gcd": true,
   "range": 0,
   "id": "shockwave",
-  "name": "Shockwave",
+  "name": "Quake Stomp",
   "class": "warrior",
   "school": "physical",
   "target": "aoe_enemy",
@@ -904,7 +904,7 @@
   "gcd": true,
   "range": 0,
   "id": "piercing_howl",
-  "name": "Piercing Howl",
+  "name": "Wailing Horn",
   "class": "warrior",
   "school": "physical",
   "target": "aoe_enemy",
@@ -923,7 +923,7 @@
   "gcd": false,
   "range": 0,
   "id": "die_by_the_sword",
-  "name": "Die by the Sword",
+  "name": "Last Bastion",
   "class": "warrior",
   "school": "physical",
   "target": "self",
@@ -941,7 +941,7 @@
   "gcd": true,
   "range": 0,
   "id": "cone_of_cold",
-  "name": "Cone of Cold",
+  "name": "Frost Fan",
   "class": "mage",
   "school": "frost",
   "target": "aoe_enemy",
@@ -964,7 +964,7 @@
   "gcd": false,
   "range": 0,
   "id": "evocation",
-  "name": "Evocation",
+  "name": "Mana Surge",
   "class": "mage",
   "school": "arcane",
   "target": "self",
@@ -982,7 +982,7 @@
   "gcd": true,
   "range": 0,
   "id": "dragons_breath",
-  "name": "Dragon's Breath",
+  "name": "Drake Gust",
   "class": "mage",
   "school": "fire",
   "target": "aoe_enemy",
@@ -1005,15 +1005,21 @@
   "gcd": true,
   "range": 30,
   "id": "penance",
-  "name": "Penance",
+  "name": "Sacred Lash",
   "class": "priest",
   "school": "holy",
-  "target": "enemy",
+  "target": "any",
   "cost": 45,
   "effects": [
    {
     "type": "damage",
-    "amount": 45
+    "amount": 60,
+    "only": "enemy"
+   },
+   {
+    "type": "heal",
+    "amount": 75,
+    "only": "ally"
    }
   ],
   "channel": {
@@ -1026,7 +1032,7 @@
   "gcd": true,
   "range": 40,
   "id": "holy_word",
-  "name": "Holy Word: Serenity",
+  "name": "Beacon Heal",
   "class": "priest",
   "school": "holy",
   "target": "ally_or_self",
@@ -1044,7 +1050,7 @@
   "gcd": false,
   "range": 40,
   "id": "power_infusion",
-  "name": "Power Infusion",
+  "name": "Surge of Faith",
   "class": "priest",
   "school": "holy",
   "target": "ally_or_self",
@@ -1062,7 +1068,7 @@
   "gcd": true,
   "range": 15,
   "id": "blind",
-  "name": "Blind",
+  "name": "Dust Cloud",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -1080,7 +1086,7 @@
   "gcd": true,
   "range": 5,
   "id": "eviscerate",
-  "name": "Eviscerate",
+  "name": "Deathblow",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -1098,7 +1104,7 @@
   "gcd": true,
   "range": 5,
   "id": "crippling_strike",
-  "name": "Crippling Strike",
+  "name": "Hobbling Cut",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
@@ -1113,5 +1119,230 @@
     "aura": "crippling_slow"
    }
   ]
+ },
+ {
+  "id": "ice_lance",
+  "name": "Ice Lance",
+  "class": "mage",
+  "school": "frost",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 3000,
+  "gcd": true,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 85
+   }
+  ]
+ },
+ {
+  "id": "blizzard",
+  "name": "Blizzard",
+  "class": "mage",
+  "school": "frost",
+  "target": "ground",
+  "range": 30,
+  "castTime": 1500,
+  "cooldown": 14000,
+  "gcd": true,
+  "cost": 70,
+  "effects": [
+   {
+    "type": "zone",
+    "radius": 6,
+    "duration": 7000,
+    "pulse": 1000,
+    "amount": 38,
+    "delay": 600
+   }
+  ]
+ },
+ {
+  "id": "scorch",
+  "name": "Scorch",
+  "class": "mage",
+  "school": "fire",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 70
+   }
+  ]
+ },
+ {
+  "id": "deep_freeze",
+  "name": "Cold Lock",
+  "class": "mage",
+  "school": "frost",
+  "target": "enemy",
+  "range": 25,
+  "castTime": 0,
+  "cooldown": 35000,
+  "gcd": true,
+  "cost": 45,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "deep_freeze_stun"
+   }
+  ]
+ },
+ {
+  "id": "arcane_silence",
+  "name": "Arcane Gag",
+  "class": "mage",
+  "school": "arcane",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": false,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 5000
+   }
+  ],
+  "requiresTargetCasting": true
+ },
+ {
+  "id": "hammer_toss",
+  "name": "Hammer Toss",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 20,
+  "castTime": 0,
+  "cooldown": 35000,
+  "gcd": true,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "hammer_stun"
+   }
+  ]
+ },
+ {
+  "id": "harpoon_throw",
+  "name": "Harpoon Throw",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 15,
+  "castTime": 0,
+  "cooldown": 20000,
+  "gcd": false,
+  "cost": 10,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 3000
+   }
+  ],
+  "requiresTargetCasting": true
+ },
+ {
+  "id": "judgment_hammer",
+  "name": "Gavel Strike",
+  "class": "priest",
+  "school": "holy",
+  "target": "enemy",
+  "range": 20,
+  "castTime": 0,
+  "cooldown": 40000,
+  "gcd": true,
+  "cost": 45,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "judgment_stun"
+   }
+  ]
+ },
+ {
+  "id": "hush",
+  "name": "Still Tongue",
+  "class": "priest",
+  "school": "shadow",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 24000,
+  "gcd": false,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 4000
+   }
+  ],
+  "requiresTargetCasting": true
+ },
+ {
+  "id": "plague_bloom",
+  "name": "Blightbloom",
+  "class": "priest",
+  "school": "shadow",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 15000,
+  "gcd": true,
+  "cost": 55,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "plague_bloom"
+   }
+  ]
+ },
+ {
+  "id": "choke_bomb",
+  "name": "Choke Cloud",
+  "class": "rogue",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 45000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "choke_stun"
+   }
+  ],
+  "radius": 6
+ },
+ {
+  "id": "knife_snipe",
+  "name": "Throwing Spike",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 20,
+  "castTime": 0,
+  "cooldown": 25000,
+  "gcd": false,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 3000
+   }
+  ],
+  "requiresTargetCasting": true
  }
 ]

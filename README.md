@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.23
+# WoW-style Arena · v0.24
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -33,25 +33,25 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 
 ## Controls (rebindable)
 
-Defaults: RMB-drag steer · LMB-drag orbit camera · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom · Tab next enemy · click to target · 1-6 abilities · R auto-attack.
+Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target · 1-8 abilities · R auto-attack.
 
 **Esc** clears your target first, then opens the menu: Resume, Controls, mouse sensitivity, volume sliders, HUD editor, Leave match. In **Controls** click a box and press a key; every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. The same screen is on the join page. Signed in, your keybinds, HUD, volume and builds follow your account to any device.
 
 ## Classes, specs and talents
 
-Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each has **3 specs** with their own six-ability bar and passive modifiers (for example Frost, Fire and Arcane), and **5 talent tiers**, one pick per tier:
+Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each has **3 specs** with their own **eight-ability bar** (keys 1-8) and passive modifiers (for example Frost, Fire and Arcane), and **6 talent tiers**, one pick per tier:
 
-- **Tiers I to III:** small passives (damage, healing, movement speed, cooldowns, longer slows and stuns).
-- **Tier IV (ability swap):** pick one of three extra abilities that takes the place of one on your bar. The tooltip lists what each spec gives up. The bar stays six slots.
+- **Tiers I to III and the last tier:** passives (damage, healing, movement speed, cooldowns, longer slows and stuns).
+- **Tiers IV and V (ability swaps):** each choice adds an extra ability that takes the place of one on your bar (the tooltip lists what each spec gives up). Between them, every class can bring **a stun and an interrupt** of its own.
 
-| Class | Tier IV choices |
+| Class | Abilities you can swap in |
 |---|---|
-| Warrior | Shockwave (short AoE stun), Piercing Howl (AoE slow), Die by the Sword (half damage for 5 s) |
-| Mage | Cone of Cold (AoE damage and slow), Evocation (fast mana and 15% less damage for 6 s), Dragon's Breath (AoE burn and disorient) |
-| Priest | Penance (three-hit channel), Holy Word: Serenity (strong instant heal), Power Infusion (+20% damage and healing, 15% faster casts) |
-| Rogue | Blind (5 s disorient), Eviscerate (heavy finisher), Crippling Strike (hit and 40% slow) |
+| Warrior | Quake Stomp, Wailing Horn, Last Bastion, Hammer Toss, Harpoon Throw |
+| Mage | Frost Fan, Mana Surge, Drake Gust, Cold Lock, Arcane Gag |
+| Priest | Sacred Lash, Beacon Heal, Surge of Faith, Gavel Strike, Still Tongue |
+| Rogue | Dust Cloud, Deathblow, Hobbling Cut, Choke Cloud, Throwing Spike |
 
-- **Tier V (capstones):** three more passives per class, mostly strengthening the new abilities.
+- **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Sacred Lash) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key and the spell lands where your pointer is (a ring shows the spot); while steering with the right button it lands at the centre of the screen.
 
 Hover any ability, buff or debuff, spec, talent, gear piece or stat to see numbers that include your build.
 

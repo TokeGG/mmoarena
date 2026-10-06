@@ -128,8 +128,9 @@ export class ArenaSim {
     if (u) u.autoAttack = on && !!CLASSES[u.classId].auto;
   }
 
-  useAbility(id: number, abilityId: string, targetId?: number | null): Result {
-    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null]);
+  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: { x: number; z: number } | null): Result {
+    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null]);
+    if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100 };
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
     const def = ABILITIES[abilityId];
@@ -144,6 +145,18 @@ export class ArenaSim {
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
     if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget')) return fail('you are rooted');
+
+    if (def.target === 'ground') {
+      if (!ground && targetId !== undefined && targetId !== null) {
+        const t0 = this.units.get(targetId);
+        if (t0) ground = { x: t0.pos.x, z: t0.pos.z };
+      }
+      if (!ground || !Number.isFinite(ground.x) || !Number.isFinite(ground.z)) return fail('no target location');
+      const b = this.arena.bounds;
+      ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ) };
+      if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return fail('out of range');
+      if (!hasLOS(u.pos, ground, this.arena)) return fail('no line of sight');
+    }
 
     const tgt = this.resolveTarget(u, def, targetId);
     if (typeof tgt === 'string') return fail(tgt);
@@ -174,12 +187,12 @@ export class ArenaSim {
     }
     if (def.castTime > 0) {
       const castMs = this.castTimeOf(u, def);
-      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs };
+      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z } : {}) };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
-    this.execute(u, def, tgt);
+    this.execute(u, def, tgt, ground ?? undefined);
     return ok;
   }
 
@@ -205,7 +218,19 @@ export class ArenaSim {
 
   private tickUnit(u: Unit): void {
     const cls = CLASSES[u.classId];
-    for (const a of [...u.auras]) if (a.expiresAt <= this.time) this.removeAura(u, a, 'expired');
+    for (const a of [...u.auras]) {
+      const dot = AURAS[a.id]?.dot;
+      if (dot && a.nextTick !== undefined) {
+        while (u.alive && a.nextTick <= this.time && a.nextTick <= a.expiresAt && u.auras.includes(a)) {
+          a.nextTick += dot.interval;
+          const src = this.units.get(a.sourceId) ?? null;
+          const m = src ? this.modsOf(src) : null;
+          this.dealDamage(src, u, dot.amount * (src?.gearMult ?? 1) * this.variance() * (m?.damageDone ?? 1) * (m?.ability[dot.ability]?.damage ?? 1), dot.school, dot.ability);
+        }
+      }
+      if (u.alive && a.expiresAt <= this.time) this.removeAura(u, a, 'expired');
+    }
+    if (!u.alive) return;
 
     // resources
     if (u.resourceType === 'rage') {
@@ -323,7 +348,7 @@ export class ArenaSim {
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
     if (u.resource < def.cost) return this.failCast(u, c.ability, `not enough ${u.resourceType}`);
-    this.execute(u, def, tgt);
+    this.execute(u, def, tgt, c.gx !== undefined && c.gz !== undefined ? { x: c.gx, z: c.gz } : undefined);
   }
 
   cancelCast(u: Unit, reason: string): void {
@@ -337,7 +362,10 @@ export class ArenaSim {
     this.emit({ t: 'cast_fail', unit: u.id, ability, reason });
   }
 
-  private execute(u: Unit, def: AbilityDef, tgt: Unit): void {
+  private ground: { x: number; z: number } | null = null;
+
+  private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: { x: number; z: number }): void {
+    this.ground = ground ?? null;
     u.resource -= def.cost;
     if (def.cooldown > 0) u.cooldowns[def.id] = this.time + Math.round(def.cooldown * (this.modsOf(u).ability[def.id]?.cooldown ?? 1));
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
@@ -349,6 +377,7 @@ export class ArenaSim {
         : [tgt];
 
     for (const t of targets) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
+    this.ground = null;
 
     if (isMelee(def) && CLASSES[u.classId].auto) u.autoAttack = true;
     if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
@@ -357,9 +386,13 @@ export class ArenaSim {
   private applyEffect(u: Unit, def: AbilityDef, t: Unit, eff: AbilityDef['effects'][number]): void {
     switch (eff.type) {
       case 'damage':
+        if (eff.only === 'enemy' && t.team === u.team) break;
+        if (eff.only === 'ally' && t.team !== u.team) break;
         this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
         break;
       case 'heal':
+        if (eff.only === 'enemy' && t.team === u.team) break;
+        if (eff.only === 'ally' && t.team !== u.team) break;
         this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1), def.id);
         break;
       case 'aura':
@@ -392,7 +425,7 @@ export class ArenaSim {
         break;
       case 'zone':
         this.zones.push({
-          id: this.nextZoneId++, owner: u.id, team: u.team, x: t.pos.x, z: t.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: eff.amount,
+          id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? t.pos.x, z: this.ground?.z ?? t.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: eff.amount,
           start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration,
         });
         break;
@@ -513,6 +546,7 @@ export class ArenaSim {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
       absorbLeft: (def.absorb ?? 0) * src.gearMult * this.modsOf(src).healingDone,
+      ...(def.dot ? { nextTick: this.time + def.dot.interval } : {}),
     };
     tgt.auras.push(inst);
 
@@ -603,7 +637,7 @@ export class ArenaSim {
   }
 
   private resolveTarget(u: Unit, def: AbilityDef, targetId?: number | null): Unit | string {
-    if (def.target === 'self' || def.target === 'aoe_enemy') return u;
+    if (def.target === 'self' || def.target === 'aoe_enemy' || def.target === 'ground') return u;
     const t = this.units.get(targetId ?? u.target ?? -1);
     switch (def.target) {
       case 'enemy':
