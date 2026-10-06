@@ -1,6 +1,8 @@
 import type { WebSocket } from 'ws';
-import { ArenaSim, Bot, CLASSES, PROTOCOL_VERSION } from '@arena/shared';
+import { ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, START_RATING, resolveCosmetics } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
+import { publicInfo } from './accounts';
+import type { AccountRecord, Accounts } from './accounts';
 import { validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId } from '@arena/shared';
 
@@ -22,6 +24,13 @@ export interface Player {
   matches: number;
   wins: number;
   build?: Build;
+  /** Network address, for rate limiting account actions. */
+  ip: string;
+  /** Signed-in account (authoritative progress and rating) and its session token. */
+  account?: AccountRecord;
+  token?: string;
+  /** Account actions run one at a time per connection. */
+  chain: Promise<void>;
 }
 
 export function send(p: Player, msg: ServerMsg): void {
@@ -38,7 +47,7 @@ export class Room {
   private credited = false;
 
   /** `countsForProgress`: whether finishing this match earns gear-tier progress (not true for dummy practice). */
-  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS) {
+  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts) {
     this.sim = new ArenaSim({ prepMs, seed: Math.floor(Math.random() * 2 ** 31) });
   }
 
@@ -48,7 +57,23 @@ export class Room {
     p.room = this;
     this.players.set(u.id, p);
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec });
-    send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
+    if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
+  }
+
+  /** Tell everyone in the room how the signed-in players want to be shown (emblem, title, name colour). */
+  broadcastRoster(): void {
+    const players = [...this.players.entries()]
+      .filter(([, p]) => p.account)
+      .map(([unitId, p]) => ({ unitId, rating: p.account!.rating, ...resolveCosmetics(p.account!.cosmetics) }));
+    if (!players.length) return;
+    for (const p of this.players.values()) send(p, { t: 'roster', players });
+  }
+
+  /** Average rating of the humans on a team; guests and bots count as the starting rating. */
+  private teamAvg(team: number): number {
+    const r: number[] = [];
+    for (const [id, p] of this.players) if (this.sim.units.get(id)?.team === team) r.push(p.account?.rating ?? START_RATING);
+    return r.length ? r.reduce((a, b) => a + b, 0) / r.length : START_RATING;
   }
 
   /** A stand-in that never acts (difficulty 'dummy') or a bot that plays by the normal rules. */
@@ -87,7 +112,23 @@ export class Room {
 
   removePlayer(p: Player): void {
     if (p.unitId !== undefined) {
-      if (this.sim.phase !== 'ended') this.sim.forfeit(p.unitId);
+      if (this.sim.phase !== 'ended') {
+        // leaving a live ranked match is a loss
+        const me = this.sim.units.get(p.unitId);
+        if (this.ranked && this.accounts && p.account && me && this.sim.phase === 'live') {
+          const acc = p.account;
+          this.accounts
+            .recordForfeit(acc.name, this.teamAvg(1 - me.team))
+            .then((a) => {
+              if (a) {
+                p.account = a;
+                send(p, { t: 'account', account: publicInfo(a) });
+              }
+            })
+            .catch(() => {});
+        }
+        this.sim.forfeit(p.unitId);
+      }
       this.players.delete(p.unitId);
     }
     p.room = undefined;
@@ -115,11 +156,26 @@ export class Room {
     if (this.credited) return;
     this.credited = true;
     if (!this.countsForProgress || this.sim.time - this.sim.prepEndsAt < this.minCountedMs) return;
+    const draw = this.sim.winner === 'draw';
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
       if (!me) continue;
+      const won = this.sim.winner === me.team;
+      if (p.account && this.accounts) {
+        // signed in: the server-side account is the source of truth, and ranked matches move the rating
+        this.accounts
+          .recordMatch(p.account.name, { won, draw, rated: this.ranked, opponentAvg: this.teamAvg(1 - me.team) })
+          .then((a) => {
+            if (a) {
+              p.account = a;
+              send(p, { t: 'account', account: publicInfo(a) });
+            }
+          })
+          .catch(() => {});
+        continue;
+      }
       p.matches++;
-      if (this.sim.winner === me.team) p.wins++;
+      if (won) p.wins++;
       send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     }
   }
@@ -147,10 +203,56 @@ export class Lobby {
   private queue: Player[] = [];
   private nextPlayerId = 1;
 
-  constructor(private cfg: LobbyConfig) {}
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts) {}
 
-  connect(ws: WebSocket): Player {
-    return { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0 };
+  connect(ws: WebSocket, ip = ''): Player {
+    return { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve() };
+  }
+
+  /** Account messages are async (hashing, storage), so they run in order per connection off the game loop. */
+  private account(p: Player, msg: ClientMsg): void {
+    p.chain = p.chain.then(() => this.handleAccount(p, msg)).catch(() => {});
+  }
+
+  private async handleAccount(p: Player, msg: ClientMsg): Promise<void> {
+    const acc = this.accounts;
+    if (!acc) return void send(p, { t: 'auth_error', reason: 'Accounts are not available on this server.' });
+    try {
+      switch (msg.t) {
+        case 'register':
+        case 'login':
+        case 'resume': {
+          if (p.room || this.queue.includes(p)) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
+          const r = msg.t === 'register' ? await acc.register(msg.name, msg.password, p.ip) : msg.t === 'login' ? await acc.login(msg.name, msg.password, p.ip) : await acc.resume(msg.token);
+          if (!r.ok) return void send(p, { t: 'auth_error', reason: r.reason });
+          p.account = r.account;
+          p.token = r.token;
+          p.matches = r.account.matches;
+          p.wins = r.account.wins;
+          send(p, { t: 'account', account: publicInfo(r.account), token: msg.t === 'resume' ? undefined : r.token });
+          break;
+        }
+        case 'logout':
+          if (p.token) await acc.logout(p.token);
+          p.account = undefined;
+          p.token = undefined;
+          send(p, { t: 'logged_out' });
+          break;
+        case 'customize': {
+          if (!p.account) return;
+          const updated = await acc.customize(p.account, msg.cosmetics);
+          if (!updated) return void send(p, { t: 'auth_error', reason: 'That cosmetic is still locked.' });
+          p.account = updated;
+          send(p, { t: 'account', account: publicInfo(updated) });
+          break;
+        }
+        case 'leaderboard':
+          send(p, { t: 'leaderboard', rows: await acc.leaderboard(20) });
+          break;
+      }
+    } catch {
+      send(p, { t: 'auth_error', reason: 'Account service error. Try again in a moment.' });
+    }
   }
 
   handle(p: Player, msg: ClientMsg): void {
@@ -158,7 +260,7 @@ export class Lobby {
       case 'join':
         if (p.room || this.queue.includes(p)) return;
         {
-          const progress = verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
+          const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
           const build = msg.build;
           if (build) {
             const check = validateBuild(msg.classId, build, progress.matches);
@@ -172,13 +274,21 @@ export class Lobby {
           p.wins = progress.wins;
           p.build = build;
         }
-        p.name = msg.name;
+        p.name = p.account ? p.account.name : msg.name;
         p.classId = msg.classId;
         if (msg.mode === 'practice') this.startPractice(p, msg);
         else this.enqueue(p);
         break;
       case 'leave':
         this.leave(p);
+        break;
+      case 'register':
+      case 'login':
+      case 'resume':
+      case 'logout':
+      case 'customize':
+      case 'leaderboard':
+        this.account(p, msg);
         break;
       default:
         p.room?.command(p, msg);
@@ -203,8 +313,9 @@ export class Lobby {
     const difficulty = msg.difficulty ?? 'dummy';
     const foes = msg.foes ?? (['warrior', 'mage'] as ClassId[]);
     const ally = msg.ally === undefined ? 'priest' : msg.ally;
-    const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs);
+    const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs, false, this.accounts);
     room.addPlayer(p, 0);
+    room.broadcastRoster();
     if (ally) room.addNpc(ally, 0, difficulty);
     for (const foe of foes) room.addNpc(foe, 1, difficulty);
     this.rooms.add(room);
@@ -213,9 +324,10 @@ export class Lobby {
   private enqueue(p: Player): void {
     this.queue.push(p);
     if (this.queue.length >= QUEUE_SIZE) {
-      const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs);
+      const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs, true, this.accounts);
       const group = this.queue.splice(0, QUEUE_SIZE);
       group.forEach((player, i) => room.addPlayer(player, i < QUEUE_SIZE / 2 ? 0 : 1));
+      room.broadcastRoster();
       this.rooms.add(room);
     }
     this.announceQueue();

@@ -1,7 +1,9 @@
 import { CLASSES } from './data';
+import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN } from './accounts';
+import type { AccountInfo, Cosmetics, LeaderRow, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 
 export type PracticeDifficulty = 'dummy' | 'easy' | 'normal' | 'hard';
 const DIFFICULTIES: PracticeDifficulty[] = ['dummy', 'easy', 'normal', 'hard'];
@@ -26,7 +28,14 @@ export type ClientMsg =
   | { t: 'target'; id: number | null }
   | { t: 'cast'; ability: string; target?: number | null }
   | { t: 'auto'; on: boolean }
-  | { t: 'leave' };
+  | { t: 'leave' }
+  /** Accounts. Password-based; a successful register/login returns a session token for `resume`. */
+  | { t: 'register'; name: string; password: string }
+  | { t: 'login'; name: string; password: string }
+  | { t: 'resume'; token: string }
+  | { t: 'logout' }
+  | { t: 'customize'; cosmetics: Cosmetics }
+  | { t: 'leaderboard' };
 
 export type ServerMsg =
   | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null }
@@ -35,7 +44,14 @@ export type ServerMsg =
   | { t: 'queued'; waiting: number; needed: number }
   | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
   | { t: 'error'; reason: string; ability?: string }
-  | { t: 'closed'; reason: string };
+  | { t: 'closed'; reason: string }
+  /** The signed-in account (sent on login, resume, customize and after every counted match). `token` only on login/register. */
+  | { t: 'account'; account: AccountInfo; token?: string }
+  | { t: 'auth_error'; reason: string }
+  | { t: 'logged_out' }
+  | { t: 'leaderboard'; rows: LeaderRow[] }
+  /** Cosmetics of the signed-in players in your match, by unit id. */
+  | { t: 'roster'; players: RosterEntry[] };
 
 /** Keep only a well-formed build: strings of sane length, at most 3 talent tiers and one id per gear slot. */
 export function parseBuild(raw: unknown): Build | undefined {
@@ -94,6 +110,28 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'auto', on: !!m.on };
     case 'leave':
       return { t: 'leave' };
+    case 'register':
+    case 'login':
+      if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      if (typeof m.password !== 'string' || m.password.length < PASSWORD_MIN || m.password.length > PASSWORD_MAX) return null;
+      return { t: m.t, name: m.name, password: m.password };
+    case 'resume':
+      if (typeof m.token !== 'string' || m.token.length < 10 || m.token.length > 80) return null;
+      return { t: 'resume', token: m.token };
+    case 'logout':
+      return { t: 'logout' };
+    case 'customize': {
+      const c = m.cosmetics;
+      const str = (v: unknown) => (typeof v === 'string' && v.length <= 24 ? v : null);
+      if (!c || typeof c !== 'object') return null;
+      const title = str(c.title);
+      const emblem = str(c.emblem);
+      const color = str(c.color);
+      if (title === null || !emblem || !color) return null;
+      return { t: 'customize', cosmetics: { title, emblem, color } };
+    }
+    case 'leaderboard':
+      return { t: 'leaderboard' };
     default:
       return null;
   }

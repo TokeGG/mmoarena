@@ -6,6 +6,9 @@ import { WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
 import { TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
+import { Accounts } from './accounts';
+import { createStore } from './store';
+import type { Store } from './store';
 
 export interface ServerOptions {
   port: number;
@@ -14,6 +17,8 @@ export interface ServerOptions {
   queuePrepMs?: number;
   /** Directory with the built client. Defaults to ../../client/dist. */
   staticDir?: string;
+  /** Account storage. Defaults to Upstash from the environment, else memory. */
+  accountStore?: Store;
 }
 
 export interface RunningServer {
@@ -38,7 +43,9 @@ const MAX_MSGS_PER_SEC = 120;
 export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const root = path.resolve(opts.staticDir ?? path.join(here, '../../client/dist'));
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 });
+  const accounts = new Accounts(opts.accountStore ?? createStore());
+  console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
+  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts);
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -71,8 +78,10 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
   const alive = new WeakSet<object>();
 
-  wss.on('connection', (ws) => {
-    const player = lobby.connect(ws);
+  wss.on('connection', (ws, req) => {
+    const fwd = req.headers['x-forwarded-for'];
+    const ip = (typeof fwd === 'string' ? fwd.split(',')[0].trim() : '') || req.socket.remoteAddress || '';
+    const player = lobby.connect(ws, ip);
     alive.add(ws);
     ws.on('pong', () => alive.add(ws));
 

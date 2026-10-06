@@ -1,7 +1,7 @@
 import {
   ABILITIES, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, gearStats, itemById, statBonuses, tierOf, tierUnlocked,
 } from '@arena/shared';
-import type { Build, ClassId, PracticeDifficulty, StatId } from '@arena/shared';
+import type { AccountInfo, Build, ClassId, PracticeDifficulty, StatId } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { loadBuild, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
@@ -28,6 +28,8 @@ export interface MainMenuHooks {
   onEditHud(): void;
   /** The previewed class or build changed (so the tooltip numbers and 3D model can follow). */
   onSelect(classId: ClassId, build: Build): void;
+  /** The account chip, placed top right under the settings bar. */
+  extras?: HTMLElement;
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
@@ -79,6 +81,8 @@ export class MainMenu {
   private msg = el('div', 'mm-msg');
   private modal = el('div', 'mm-modal hidden');
   private flavor = el('select');
+  private queueBtn = el('button', 'mm-btn', 'Find 2v2 match');
+  private account: AccountInfo | null = null;
 
   constructor(root: HTMLElement, private hooks: MainMenuHooks) {
     this.root = root;
@@ -101,6 +105,16 @@ export class MainMenu {
 
   setMessage(text: string) {
     this.msg.textContent = text;
+  }
+
+  /** Signed in: the account's name is used in matches and the queue becomes the ranked ladder. */
+  setAccount(a: AccountInfo | null) {
+    this.account = a;
+    this.nameInput.disabled = !!a;
+    if (a) this.nameInput.value = a.name;
+    else this.nameInput.value = store.get('arena.name', '');
+    this.queueBtn.textContent = a ? 'Ranked 2v2' : 'Find 2v2 match';
+    this.queueBtn.title = a ? 'Queue for a rated match. Your rating changes with the result.' : 'Sign in to play for rank.';
   }
 
   /** Call when progress changed (a match finished) so locks and the counter refresh. */
@@ -166,7 +180,7 @@ export class MainMenu {
     opts.append(mk('Opponents', this.foes), mk('Your partner', this.ally), mk('Bot skill', this.diff));
     const row = el('div', 'mm-row');
     const practice = el('button', 'mm-btn primary', 'Practice');
-    const queue = el('button', 'mm-btn', 'Find 2v2 match');
+    const queue = this.queueBtn;
     practice.addEventListener('click', () => this.play('practice'));
     queue.addEventListener('click', () => this.play('queue'));
     row.append(practice, queue);
@@ -182,7 +196,14 @@ export class MainMenu {
       if (e.target === this.modal) this.closeGear();
     });
     this.root.replaceChildren(logo, ver, buildProfileBar(), left, right, this.modal);
-    this.nameInput.addEventListener('input', () => store.set('arena.name', this.nameInput.value));
+    this.nameInput.addEventListener('input', () => {
+      if (!this.account) store.set('arena.name', this.nameInput.value);
+    });
+    if (this.hooks.extras) {
+      const box = el('div', 'mm-acct');
+      box.append(this.hooks.extras);
+      this.root.append(box);
+    }
   }
 
   // ------------------------------------------------------------------ rendering
@@ -353,8 +374,8 @@ export class MainMenu {
   // ------------------------------------------------------------------ play
 
   private play(mode: 'practice' | 'queue') {
-    const name = this.nameInput.value.trim() || 'Player';
-    store.set('arena.name', name);
+    const name = this.account ? this.account.name : this.nameInput.value.trim() || 'Player';
+    if (!this.account) store.set('arena.name', name);
     this.hooks.onPlay({
       mode,
       name,

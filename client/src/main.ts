@@ -13,7 +13,8 @@ import { MainMenu } from './mainMenu';
 import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
 import { installTips, setTipMods, setTipProgress } from './tips';
-import { defaultBuild, loadProfile, progress, saveProfile } from './profile';
+import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
+import { AccountUi } from './accountUi';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -132,6 +133,15 @@ function onMessage(raw: MessageEvent) {
       mainMenu.show(false);
       joinMsg('');
       break;
+    case 'account':
+    case 'auth_error':
+    case 'logged_out':
+    case 'leaderboard':
+      accountUi.handle(m);
+      break;
+    case 'roster':
+      hud.setRoster(m.players);
+      break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
@@ -147,6 +157,7 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      hud.setRoster([]);
       menu.close();
       hud.show(false);
       latest = null;
@@ -399,37 +410,80 @@ function joinMsg(text: string) {
   mainMenu.setMessage(text);
 }
 
-function play(req: PlayRequest) {
+/** Open the socket (once) and resolve true when it is usable. A saved session is resumed on every open. */
+let connecting: Promise<boolean> | null = null;
+function connect(): Promise<boolean> {
+  if (ws && ws.readyState === WebSocket.OPEN) return Promise.resolve(true);
+  if (connecting && ws && ws.readyState === WebSocket.CONNECTING) return connecting;
+  connecting = new Promise<boolean>((resolve) => {
+    const sock = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+    ws = sock;
+    sock.onopen = () => {
+      accountUi.resume();
+      resolve(true);
+    };
+    sock.onmessage = onMessage;
+    sock.onclose = () => {
+      resolve(false);
+      if (ws !== sock) return;
+      ws = null;
+      const inMatch = !!latest;
+      hud.show(false);
+      hud.setRoster([]);
+      latest = null;
+      menu.close();
+      mainMenu.show(true);
+      mainMenu.refresh();
+      // an idle socket dropping at the menu is silent; it reconnects when needed
+      if (inMatch || leaving) joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
+      leaving = false;
+    };
+  });
+  return connecting;
+}
+
+async function play(req: PlayRequest) {
   classId = req.classId;
   myBuild = req.build;
-  const profile = progress.token || undefined;
+  joinMsg('Connecting…');
+  if (!(await connect())) {
+    joinMsg('Could not reach the server.');
+    return;
+  }
+  // a saved session resumes in the background; the server must know who is joining
+  await accountUi.settled();
+  if (mainMenu.selectedClass === req.classId) myBuild = mainMenu.currentBuild;
+  const profile = accountUi.account ? undefined : progress.token || undefined;
   const msg: ClientMsg =
     req.mode === 'practice'
-      ? { t: 'join', name: req.name, classId: req.classId, mode: 'practice', foes: req.foes, ally: req.ally, difficulty: req.difficulty, build: req.build, profile }
-      : { t: 'join', name: req.name, classId: req.classId, mode: 'queue', build: req.build, profile };
-  if (ws && ws.readyState === WebSocket.OPEN) return send(msg);
-
-  joinMsg('Connecting…');
-  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
-  ws.onopen = () => send(msg);
-  ws.onmessage = onMessage;
-  ws.onclose = () => {
-    hud.show(false);
-    latest = null;
-    menu.close();
-    mainMenu.show(true);
-    mainMenu.refresh();
-    joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
-    leaving = false;
-  };
+      ? { t: 'join', name: req.name, classId: req.classId, mode: 'practice', foes: req.foes, ally: req.ally, difficulty: req.difficulty, build: myBuild, profile }
+      : { t: 'join', name: req.name, classId: req.classId, mode: 'queue', build: myBuild, profile };
+  send(msg);
 }
+
+const accountUi = new AccountUi({
+  send: (m) => {
+    if (ws && ws.readyState === WebSocket.OPEN) send(m);
+    else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
+  },
+  onAccount: (a) => {
+    if (a) applyAccountProgress(a.matches, a.wins);
+    else restoreGuestProgress();
+    setTipProgress(progress.matches);
+    mainMenu.setAccount(a);
+    mainMenu.refresh();
+  },
+});
 
 const mainMenu = new MainMenu(document.getElementById('join')!, {
   onPlay: play,
   onControls: () => menu.open(false, 'keys'),
   onEditHud: editHudFromMenu,
   onSelect: (c, b) => setTipMods(compileMods(c, b)),
+  extras: accountUi.chip,
 });
+accountUi.promptIfNew();
+if (accountUi.token) void connect();
 setTipMods(compileMods(mainMenu.selectedClass, mainMenu.currentBuild));
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;

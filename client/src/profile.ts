@@ -17,6 +17,19 @@ export function loadProfile() {
   }
 }
 
+/** Signed in: the account is the source of truth, kept in memory only (never written over the guest save). */
+export function applyAccountProgress(matches: number, wins: number) {
+  progress.token = '';
+  progress.matches = matches;
+  progress.wins = wins;
+}
+
+/** Signed out: go back to this browser's guest progress. */
+export function restoreGuestProgress() {
+  Object.assign(progress, { token: '', matches: 0, wins: 0 });
+  loadProfile();
+}
+
 export function saveProfile(token: string, matches: number, wins: number) {
   progress.token = token;
   progress.matches = matches;

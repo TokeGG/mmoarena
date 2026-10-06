@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
-import type { ClassId, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import type { ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -57,7 +57,7 @@ class UnitFrame {
     body.append(this.auras);
     root.append(this.portrait, body);
   }
-  update(u: UnitSnap, now: number, enemy: boolean, targeted = false) {
+  update(u: UnitSnap, now: number, enemy: boolean, targeted = false, who?: RosterEntry) {
     this.root.classList.toggle('dead', !u.alive);
     this.root.classList.toggle('targeted', targeted);
     if (this.classShown !== u.classId) {
@@ -67,8 +67,8 @@ class UnitFrame {
       this.portrait.style.background = `radial-gradient(circle at 35% 30%, ${c}, #14161c 85%)`;
     }
     this.portrait.classList.toggle('enemy', enemy);
-    this.nameEl.textContent = u.name;
-    this.nameEl.style.color = CLASSES[u.classId].color;
+    this.nameEl.textContent = who ? `${who.emblem} ${u.name}` : u.name;
+    this.nameEl.style.color = who?.color || CLASSES[u.classId].color;
     this.hp.setColor(enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)');
     this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}`);
     this.res.setColor(RES_COLOR[u.resourceType]);
@@ -118,7 +118,9 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; bar: Bar; cast: Bar }>();
+  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar }>();
+  /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
+  private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
   private logLines: string[] = [];
 
@@ -225,6 +227,10 @@ export class Hud {
     this.updateBanner(snap, now, me.team);
   }
 
+  setRoster(players: RosterEntry[]) {
+    this.roster = new Map(players.map((p) => [p.unitId, p]));
+  }
+
   private syncFrames(container: HTMLElement, frames: Map<number, UnitFrame>, units: UnitSnap[], now: number, enemy: boolean, targetId: number | null) {
     const ids = new Set(units.map((u) => u.id));
     for (const [id, f] of frames) {
@@ -245,7 +251,7 @@ export class Hud {
         frames.set(u.id, f);
         container.append(root);
       }
-      f.update(u, now, enemy, u.id === targetId);
+      f.update(u, now, enemy, u.id === targetId, this.roster.get(u.id));
     }
   }
 
@@ -290,16 +296,20 @@ export class Hud {
         const bar = new Bar(HP_ALLY, true);
         const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
         cast.root.classList.add('pcast', 'hidden');
-        root.append(name, bar.root, cast.root);
+        const title = el('div', 'ptitle');
+        root.append(name, title, bar.root, cast.root);
         $('labels').append(root);
-        p = { root, name, bar, cast };
+        p = { root, name, title, bar, cast };
         this.plates.set(u.id, p);
       }
       p.root.classList.toggle('hidden', !u.visible || !u.alive);
       p.root.style.left = `${u.x}px`;
       p.root.style.top = `${u.y}px`;
-      p.name.textContent = u.name;
-      p.name.style.color = u.enemy ? '#ff8a7a' : '#a8f0b8';
+      const who = this.roster.get(u.id);
+      p.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;
+      p.name.style.color = who?.color || (u.enemy ? '#ff8a7a' : '#a8f0b8');
+      p.title.textContent = who?.title ? `«${who.title}»` : '';
+      p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);
       p.bar.set(u.health, u.maxHealth, '');
       // cast bar over the head: gold for allies, hot orange for enemies so you can see what to interrupt

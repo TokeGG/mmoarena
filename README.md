@@ -37,6 +37,8 @@ The free tier sleeps when idle, so the first visit after a while takes about a m
 
 - **Specs:** 3 per class (e.g. Frost/Fire/Arcane), each with its own 6-ability bar and passive modifiers. **Talents:** 3 tiers, one pick per tier.
 - **Gear:** 5 slots, 4 tiers (Initiate, Veteran, Elite, Gladiator), 4 flavors. Tiers unlock by finishing matches (0 / 3 / 8 / 15); each stat bonus is capped at 15%, so higher tiers are a small edge.
+- **Accounts and ranked ladder:** players can register with a username + password (scrypt-hashed, 30-day session token). Signed-in players get a server-side profile: Elo rating (start 1000; Bronze/Silver/Gold/Platinum/Diamond/Gladiator), wins/matches, unlockable emblems/titles/name colours shown on nameplates, and a leaderboard. Only the queue ("Ranked 2v2") moves rating; leaving a live ranked match is a loss. Guests still play with browser-local progress.
+  - **Persistence:** create a free Upstash Redis database and set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (the Vercel-style `KV_REST_API_URL`/`KV_REST_API_TOKEN` also work) on Render. Without them accounts live in memory and reset on every restart (the server logs which store is in use).
 - **Progress without a database:** the server signs a token with your match count; the browser stores it and sends it on join. **Set the `ARENA_SECRET` env var on Render** to a long random string, otherwise a public dev secret is used and tokens can be forged.
 - A match counts only if it was live 20 s or more, was not dummy practice, and you did not forfeit.
 - **Tooltips:** hover abilities, buffs/debuffs, specs, talents, gear, stats and classes (numbers reflect your build).

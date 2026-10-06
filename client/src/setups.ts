@@ -9,6 +9,8 @@ const PREFIX = 'arena.';
 const CODE_TAG = 'ARENA1.';
 const MAX_CODE = 40000;
 const PROGRESS_KEY = 'arena.profile.v1';
+/** Never exported or restored: it is a login credential. */
+const SECRET_KEYS = new Set(['arena.session.v1']);
 
 type Snapshot = Record<string, string>;
 interface Store {
@@ -39,7 +41,7 @@ export function snapshotLive(): Snapshot {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith(PREFIX) && k !== STORE) out[k] = localStorage.getItem(k) ?? '';
+      if (k && k.startsWith(PREFIX) && k !== STORE && !SECRET_KEYS.has(k)) out[k] = localStorage.getItem(k) ?? '';
     }
   } catch {
     /* ignore */
@@ -115,7 +117,7 @@ export const setups = {
       const obj = JSON.parse(decodeURIComponent(escape(atob(text.slice(CODE_TAG.length))))) as Record<string, unknown>;
       const snap: Snapshot = {};
       for (const [k, v] of Object.entries(obj)) {
-        if (typeof v === 'string' && k.startsWith(PREFIX) && k !== STORE && k.length < 80 && v.length < 8000) snap[k] = v;
+        if (typeof v === 'string' && k.startsWith(PREFIX) && k !== STORE && !SECRET_KEYS.has(k) && k.length < 80 && v.length < 8000) snap[k] = v;
       }
       if (!Object.keys(snap).length) return 'That code has no settings in it.';
       return snap;
@@ -143,7 +145,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
 /** A compact profile switcher for the main menu. Switching reloads the page so keybinds, HUD and builds all re-read. */
 export function buildProfileBar(): HTMLElement {
   const root = el('div', 'mm-profiles');
-  const label = el('span', 'pl', 'Profile');
+  const label = el('span', 'pl', 'Settings');
   const select = el('select');
   const msg = el('span', 'pmsg');
   const mkBtn = (t: string, tip: string, fn: () => void) => {
@@ -185,7 +187,7 @@ export function buildProfileBar(): HTMLElement {
     refresh();
     say(`Saved "${name}"`);
   });
-  const saveAs = mkBtn('Save as…', 'Save the current settings as a new profile', () => {
+  const saveAs = mkBtn('Save as…', 'Save the current settings as a new preset', () => {
     const name = askName('');
     if (!name) return;
     setups.save(name);
