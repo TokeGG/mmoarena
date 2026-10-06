@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { ARENA } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
-import { createCharacter } from './models';
+import { createCharacter, createSheep } from './models';
 import type { Character } from './models';
 
 export interface RenderUnit {
@@ -14,11 +14,14 @@ export interface RenderUnit {
   alive: boolean;
   stealthed: boolean;
   casting: boolean;
+  /** Polymorphed: drawn as a sheep. */
+  sheep: boolean;
 }
 
 interface UnitMesh {
   group: THREE.Group;
   character: Character;
+  sheep: Character;
   ring: THREE.Mesh;
   targetRing: THREE.Mesh;
   classId: ClassId;
@@ -109,7 +112,9 @@ export class ArenaScene {
   private createUnitMesh(id: number, classId: ClassId, x: number, z: number): UnitMesh {
     const group = new THREE.Group();
     const character = createCharacter(classId);
-    group.add(character.root);
+    const sheep = createSheep();
+    sheep.root.visible = false;
+    group.add(character.root, sheep.root);
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.85, 32), new THREE.MeshBasicMaterial({ color: 0x3fbf5f, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.04;
@@ -118,9 +123,19 @@ export class ArenaScene {
     targetRing.position.y = 0.05;
     targetRing.visible = false;
     group.add(ring, targetRing);
-    for (const mesh of [...character.meshes, ring, targetRing]) mesh.userData.unitId = id;
+    for (const mesh of [...character.meshes, ...sheep.meshes, ring, targetRing]) mesh.userData.unitId = id;
     this.scene.add(group);
-    return { group, character, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0 };
+    return { group, character, sheep, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0 };
+  }
+
+  /** Cosmetic reactions, called from the effects system. */
+  swing(id: number): void {
+    this.meshes.get(id)?.character.swing();
+  }
+  flash(id: number): void {
+    const m = this.meshes.get(id);
+    m?.character.flash();
+    m?.sheep.flash();
   }
 
   update(units: RenderUnit[], myTeam: TeamId, targetId: number | null): void {
@@ -145,8 +160,11 @@ export class ArenaScene {
 
       m.group.position.set(u.x, 0, u.z);
       m.group.rotation.y = u.facing;
-      m.character.setState(u.alive, u.stealthed);
-      m.character.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id });
+      const active = u.sheep ? m.sheep : m.character;
+      m.character.root.visible = !u.sheep;
+      m.sheep.root.visible = u.sheep;
+      active.setState(u.alive, u.stealthed);
+      active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt });
       (m.ring.material as THREE.MeshBasicMaterial).color.set(u.team === myTeam ? 0x3fbf5f : 0xc0392b);
       m.ring.visible = u.alive;
       m.targetRing.visible = u.id === targetId;

@@ -18,6 +18,8 @@ export interface PoseInput {
   casting: boolean;
   /** Seconds, for idle breathing. */
   time: number;
+  /** Seconds since the last pose call. */
+  dt: number;
 }
 
 export interface Character {
@@ -25,6 +27,10 @@ export interface Character {
   /** Every mesh, for picking. */
   meshes: THREE.Mesh[];
   pose(p: PoseInput): void;
+  /** Play a quick melee swing. */
+  swing(): void;
+  /** Flash red for a moment (took a hit). */
+  flash(): void;
   setState(alive: boolean, stealthed: boolean): void;
 }
 
@@ -60,6 +66,7 @@ class Builder {
     const mesh = new THREE.Mesh(geo, mat);
     mesh.position.set(x, y, z);
     parent.add(mesh);
+    mesh.castShadow = true;
     this.meshes.push(mesh);
     return mesh;
   }
@@ -261,6 +268,9 @@ export function createCharacter(classId: ClassId): Character {
   const armRest = RESTING_ARMS[classId];
   let lastAlive = true;
   let lastStealth = false;
+  let swingT = 0;
+  let flashT = 0;
+  const SWING = 0.3;
 
   const applyState = (alive: boolean, stealthed: boolean) => {
     for (const m of b.mats) {
@@ -271,6 +281,20 @@ export function createCharacter(classId: ClassId): Character {
       m.transparent = stealthed;
       m.opacity = stealthed ? 0.35 : 1;
       m.needsUpdate = true;
+    }
+  };
+
+  let flashed = false;
+  const setFlash = (v: number) => {
+    flashed = v > 0;
+    for (const m of b.mats) {
+      if (v > 0) {
+        m.emissive.set(0xff2a1a);
+        m.emissiveIntensity = 0.7 * v;
+      } else {
+        m.emissive.set(m.userData.glow ? (m.userData.base as THREE.Color) : 0x000000);
+        m.emissiveIntensity = m.userData.glow as number;
+      }
     }
   };
 
@@ -292,7 +316,13 @@ export function createCharacter(classId: ClassId): Character {
         r.root.position.y = 0.28;
       }
     },
-    pose({ phase, move, casting, time }) {
+    swing() {
+      swingT = SWING;
+    },
+    flash() {
+      flashT = 0.2;
+    },
+    pose({ phase, move, casting, time, dt }) {
       const swing = Math.sin(phase) * 0.75 * move;
       r.legL.rotation.x = swing;
       r.legR.rotation.x = -swing;
@@ -307,6 +337,93 @@ export function createCharacter(classId: ClassId): Character {
       } else {
         r.armL.rotation.x = armRest - swing * 0.9;
         r.armR.rotation.x = armRest + swing * 0.9;
+      }
+      if (swingT > 0) {
+        // wind up, then chop forward and down
+        const p = 1 - swingT / SWING;
+        const arc = p < 0.35 ? -2.4 * (p / 0.35) : -2.4 + 3.0 * ((p - 0.35) / 0.65);
+        r.armR.rotation.x = arc;
+        if (classId === 'rogue') r.armL.rotation.x = arc * 0.8 - 0.2;
+        r.upper.rotation.y = Math.sin(p * Math.PI) * -0.35;
+        swingT = Math.max(0, swingT - dt);
+        if (swingT === 0) r.upper.rotation.y = 0;
+      }
+      if (flashT > 0 || flashed) {
+        flashT = Math.max(0, flashT - dt);
+        setFlash(flashT > 0 ? flashT / 0.2 : 0);
+      }
+    },
+  };
+}
+
+/** Polymorph form. Smaller than a person, same interface, so the scene can swap it in. */
+export function createSheep(): Character {
+  const b = new Builder();
+  const root = new THREE.Group();
+  const wool = b.m(0xf4f1ea, { rough: 1, metal: 0 });
+  const dark = b.m(0x3a3430, { rough: 0.9 });
+  const body = b.ball(root, 0.5, wool, 0, 0.72, 0);
+  body.scale.set(0.85, 0.8, 1.15);
+  for (const [x, y, z] of [[0.25, 0.95, 0.2], [-0.25, 0.95, 0.15], [0, 1.0, -0.15], [0.3, 0.7, -0.35], [-0.3, 0.7, -0.35]] as const) b.ball(root, 0.27, wool, x, y, z);
+  const head = b.ball(root, 0.2, dark, 0, 0.95, 0.62);
+  head.scale.set(0.9, 1, 1.15);
+  b.ball(root, 0.2, wool, 0, 1.12, 0.52);
+  for (const s of [-1, 1]) {
+    const ear = b.ball(root, 0.09, dark, s * 0.22, 0.98, 0.55);
+    ear.scale.set(1.4, 0.5, 0.8);
+    b.ball(root, 0.035, b.m(0xffffff), s * 0.1, 1.0, 0.78);
+  }
+  const legs: THREE.Group[] = [];
+  for (const [x, z] of [[0.2, 0.3], [-0.2, 0.3], [0.2, -0.3], [-0.2, -0.3]] as const) {
+    const g = new THREE.Group();
+    g.position.set(x, 0.42, z);
+    b.box(g, 0.1, 0.42, 0.1, dark, 0, -0.21, 0);
+    root.add(g);
+    legs.push(g);
+  }
+  const tail = b.ball(root, 0.12, wool, 0, 0.8, -0.58);
+  void tail;
+  let flashT = 0;
+  const setFlash = (v: number) => {
+    for (const m of b.mats) {
+      m.emissive.set(v > 0 ? 0xff2a1a : 0x000000);
+      m.emissiveIntensity = 0.7 * v;
+    }
+  };
+  let lastAlive = true;
+  let lastStealth = false;
+  return {
+    root,
+    meshes: b.meshes,
+    swing() {},
+    flash() {
+      flashT = 0.2;
+    },
+    setState(alive, stealthed) {
+      if (alive !== lastAlive || stealthed !== lastStealth) {
+        lastAlive = alive;
+        lastStealth = stealthed;
+        for (const m of b.mats) {
+          m.color.copy(m.userData.base as THREE.Color);
+          if (!alive) m.color.lerp(DEAD_GRAY, 0.75);
+          m.transparent = stealthed;
+          m.opacity = stealthed ? 0.35 : 1;
+          m.needsUpdate = true;
+        }
+      }
+      root.rotation.x = alive ? 0 : -Math.PI / 2;
+      root.position.y = alive ? 0 : 0.3;
+    },
+    pose({ phase, move, time, dt }) {
+      const sw = Math.sin(phase * 1.3) * 0.6 * move;
+      legs[0].rotation.x = sw;
+      legs[3].rotation.x = sw;
+      legs[1].rotation.x = -sw;
+      legs[2].rotation.x = -sw;
+      body.position.y = 0.72 + Math.abs(Math.sin(phase * 1.3)) * 0.04 * move + Math.sin(time * 2) * 0.01;
+      if (flashT > 0) {
+        flashT = Math.max(0, flashT - dt);
+        setFlash(flashT / 0.2);
       }
     },
   };

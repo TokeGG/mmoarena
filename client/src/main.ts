@@ -7,6 +7,7 @@ import { Controls } from './input';
 import { Hud } from './hud';
 import { Keybinds, SLOT_ACTIONS } from './keybinds';
 import { Menu } from './menu';
+import { Effects } from './effects';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -34,7 +35,10 @@ const pred = { x: 0, z: 0 };
 let seq = 0;
 let pending: MoveInput[] = [];
 
-const renderPos = new Map<number, { x: number; z: number }>();
+const renderPos = new Map<number, { x: number; z: number; facing: number }>();
+const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
+effects.onSwing = (id) => scene.swing(id);
+effects.onHit = (id) => scene.flash(id);
 
 const hud = new Hud({
   onTarget: (id) => setTarget(id),
@@ -132,7 +136,10 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
       return s.visible ? s : null;
     },
   };
-  for (const ev of events) hud.event(ev, ctx);
+  for (const ev of events) {
+    hud.event(ev, ctx);
+    effects.event(ev);
+  }
 }
 
 // ------------------------------------------------------------------ movement prediction
@@ -269,13 +276,20 @@ function frame(now: number) {
       z = pred.z;
       facing = controls.facing;
     }
-    return { id: u.id, classId: u.classId, team: u.team, x, z, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast };
+    return { id: u.id, classId: u.classId, team: u.team, x, z, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
 
   renderPos.clear();
-  for (const u of units) renderPos.set(u.id, { x: u.x, z: u.z });
+  for (const u of units) renderPos.set(u.id, { x: u.x, z: u.z, facing: u.facing });
 
   scene.update(units, team, targetId);
+  effects.update(
+    dt,
+    snap.units.map((s) => {
+      const p = renderPos.get(s.id)!;
+      return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
+    }),
+  );
   scene.setCamera(pred.x, pred.z, controls.yaw, controls.pitch, controls.dist);
   scene.render(); // render first so projection uses this frame's camera
 
