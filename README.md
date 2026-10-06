@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.22
+# WoW-style Arena · v0.23
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -60,6 +60,7 @@ Hover any ability, buff or debuff, spec, talent, gear piece or stat to see numbe
 Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, crowd control with diminishing returns, line-of-sight pillars and stealth. Warriors and rogues need auto-attack on (R, or any melee ability) to build rage and deal steady damage.
 
 - **Jumping and ground zones:** Space jumps. A jump is mostly cosmetic, but while airborne you dodge the pulses of ground zones such as Flamestrike. Dodging has a 1.5 s cooldown so hop-spamming does not work. Targeted spells (Fireball, Frostbolt, Smite...) always hit.
+- **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the old rate; stealthed rogues are spotted within 4 yards.
 - **Fog:** enemies you cannot see (stealthed or farther than 8 yards) are left out of your snapshots entirely.
 
 ## Gear and loot
@@ -187,7 +188,7 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 
 `npm run duel` measures how the bots' playbook performs, not how humans will. Use it to catch broken classes and wildly lopsided numbers, then tune `shared/data/*.json`.
 
-**Replay rule:** whenever you change simulation code (`shared/src/sim.ts` and anything it uses), bump `SIM_REVISION` in `shared/src/replay.ts`, otherwise older replays would play out differently. It is currently 2.
+**Replay rule:** whenever you change simulation code (`shared/src/sim.ts` and anything it uses), bump `SIM_REVISION` in `shared/src/replay.ts`, otherwise older replays would play out differently. It is currently 3.
 
 ### Files
 

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ArenaSim, AURAS, CLASSES, TUNING, parseClientMsg } from '../src/index';
+import { ArenaSim, AURAS, CLASSES, TUNING, arenaById, parseClientMsg } from '../src/index';
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -204,7 +204,9 @@ describe('stealth', () => {
     assert.ok(sim.snapshot(0).units.some((u) => u.id === rogue.id), 'own team always sees it');
     mustFail(sim.useAbility(mage.id, 'frostbolt', rogue.id), /not visible/);
     rogue.pos = { x: 10, z: 0 };
-    assert.ok(sim.snapshot(1).units.some((u) => u.id === rogue.id), 'revealed within 8 yards');
+    assert.ok(!sim.snapshot(1).units.some((u) => u.id === rogue.id), 'still hidden beyond 4 yards');
+    rogue.pos = { x: 17, z: 0 };
+    assert.ok(sim.snapshot(1).units.some((u) => u.id === rogue.id), 'revealed within 4 yards');
   });
 
   it('cheap shot needs stealth, stuns, and breaks stealth', () => {
@@ -377,5 +379,60 @@ describe('protocol validation', () => {
     assert.equal(j.difficulty, undefined, 'unknown difficulty ignored');
     const bare = parseClientMsg('{"t":"join","name":"a","classId":"mage","mode":"practice"}');
     assert.ok(bare && bare.t === 'join' && bare.ally === undefined && bare.foes === undefined);
+  });
+});
+
+describe('v0.23 combat rules', () => {
+  const T = TUNING.tickMs;
+  const run = (sim: ArenaSim, ms: number) => { for (let t = 0; t < ms; t += T) { sim.step(); sim.drainEvents(); } };
+  it('auto-attacks do not hit through a pillar', () => {
+    const arena = arenaById('colosseum');
+    const sim = new ArenaSim({ seed: 1, prepMs: 0, arena });
+    const p = arena.pillars[0];
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0 });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 1 });
+    // stand the two on opposite sides of the pillar, within melee reach of each other's centre line
+    w.pos = { x: p.x - p.r - 0.6, z: p.z };
+    m.pos = { x: p.x + p.r + 0.6, z: p.z };
+    run(sim, 100);
+    sim.setTarget(w.id, m.id);
+    sim.setAutoAttack(w.id, true);
+    w.nextSwing = 0;
+    const hp = m.health;
+    run(sim, 6000);
+    assert.equal(m.health, hp);
+  });
+  it('starting another spell cancels the cast in progress, but a failed attempt does not', () => {
+    const sim = new ArenaSim({ seed: 2, prepMs: 0 });
+    const a = sim.addUnit({ name: 'a', classId: 'mage', team: 0 });
+    const b = sim.addUnit({ name: 'b', classId: 'warrior', team: 1 });
+    a.pos = { x: 0, z: 0 }; b.pos = { x: 10, z: 0 };
+    run(sim, 100);
+    assert.ok(sim.useAbility(a.id, 'fireball', b.id).ok);
+    run(sim, 1600); // past the global cooldown, mid-cast
+    assert.ok(a.cast?.ability === 'fireball');
+    const r = sim.useAbility(a.id, 'frostbolt', b.id);
+    assert.ok(r.ok);
+    assert.equal(a.cast?.ability, 'frostbolt');
+  });
+  it('blink works while stunned, polymorph is limited to one target and polymorphed units wander', () => {
+    const sim = new ArenaSim({ seed: 3, prepMs: 0 });
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0 });
+    const w1 = sim.addUnit({ name: 'w1', classId: 'warrior', team: 1 });
+    const w2 = sim.addUnit({ name: 'w2', classId: 'warrior', team: 1 });
+    mage.pos = { x: 0, z: 0 }; w1.pos = { x: 6, z: 0 }; w2.pos = { x: -6, z: 0 };
+    run(sim, 100);
+    sim.applyAura(w1, mage, 'cheap_shot_stun');
+    const before = { ...mage.pos };
+    assert.ok(sim.useAbility(mage.id, 'blink').ok, 'blink while stunned');
+    assert.ok(Math.hypot(mage.pos.x - before.x, mage.pos.z - before.z) > 5);
+    mage.auras = [];
+    sim.applyAura(mage, w1, 'polymorph');
+    sim.applyAura(mage, w2, 'polymorph');
+    assert.ok(!w1.auras.some((x) => x.id === 'polymorph'), 'first target freed');
+    assert.ok(w2.auras.some((x) => x.id === 'polymorph'));
+    const p0 = { ...w2.pos };
+    run(sim, 2000);
+    assert.ok(Math.hypot(w2.pos.x - p0.x, w2.pos.z - p0.z) > 0.5, 'sheep wanders');
   });
 });

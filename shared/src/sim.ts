@@ -136,11 +136,10 @@ export class ArenaSim {
     if (!def || !u.bar.includes(abilityId)) return fail('unknown ability');
     if (this.phase === 'ended') return fail('match is over');
     if (this.phase === 'prep' && !def.prepOk) return fail('match has not started');
-    if (!this.canAct(u)) return fail('you are incapacitated');
+    if (!this.canAct(u) && !def.ignoresControl) return fail('you are incapacitated');
     if (!def.ignoresLockout && (u.lockouts[def.school] ?? 0) > this.time) return fail(`${def.school} school is locked out`);
     if ((u.cooldowns[def.id] ?? 0) > this.time) return fail('ability is on cooldown');
     if (def.gcd && u.gcdEnd > this.time) return fail('global cooldown');
-    if (u.cast && (def.castTime > 0 || def.gcd)) return fail('already casting');
     if (u.resource < def.cost) return fail(`not enough ${u.resourceType}`);
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
@@ -158,6 +157,8 @@ export class ArenaSim {
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
 
+    // starting another cast or gcd ability cancels the one in progress (off-gcd instants like interrupts do not)
+    if (u.cast && (def.castTime > 0 || def.gcd)) this.cancelCast(u, 'switched spell');
     if (def.target === 'enemy') u.target = tgt.id;
 
     if (def.channel && def.castTime > 0) {
@@ -239,14 +240,17 @@ export class ArenaSim {
 
     // movement
     const before = { x: u.pos.x, z: u.pos.z };
-    if (this.hasAura(u, ['fear'])) {
+    const feared = this.hasAura(u, ['fear']);
+    const wandering = !feared && u.auras.some((a) => AURAS[a.id]?.wander);
+    if (feared || wandering) {
       if (this.time >= u.fearRetargetAt) {
         const ang = this.rng() * Math.PI * 2;
         u.fearDir = { x: Math.sin(ang), z: Math.cos(ang) };
         u.facing = ang;
-        u.fearRetargetAt = this.time + 1000;
+        u.fearRetargetAt = this.time + (feared ? 1000 : 1500);
       }
-      u.pos = resolveCollisions({ x: u.pos.x + u.fearDir.x * TUNING.runSpeed * 0.9 * DT, z: u.pos.z + u.fearDir.z * TUNING.runSpeed * 0.9 * DT }, this.arena);
+      const k = (feared ? 0.9 : 0.45) * TUNING.runSpeed * DT;
+      u.pos = resolveCollisions({ x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k }, this.arena);
     } else {
       if (this.canAct(u) && Number.isFinite(input.facing)) u.facing = input.facing;
       const speed = TUNING.runSpeed * this.speedMult(u);
@@ -469,6 +473,7 @@ export class ArenaSim {
     const t = u.target !== null ? this.units.get(u.target) : undefined;
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;
     if (dist(u.pos, t.pos) > auto.range + TUNING.rangeTolerance || this.time < u.nextSwing) return;
+    if (!hasLOS(u.pos, t.pos, this.arena)) return; // no swinging through pillars
     u.nextSwing = this.time + auto.interval;
     if (this.isStealthed(u)) this.breakStealth(u);
     this.dealDamage(u, t, auto.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone, 'physical', null);
@@ -498,6 +503,12 @@ export class ArenaSim {
     else duration = def.duration * (this.modsOf(src).auraDuration[auraId] ?? 1);
 
     tgt.auras = tgt.auras.filter((a) => !(a.id === auraId && a.sourceId === src.id));
+    if (def.unique) {
+      for (const v of this.units.values()) {
+        if (v === tgt) continue;
+        for (const a of [...v.auras]) if (a.id === auraId && a.sourceId === src.id) this.removeAura(v, a, 'replaced');
+      }
+    }
     const inst: AuraInst = {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
@@ -511,7 +522,7 @@ export class ArenaSim {
     }
     if (CC_KINDS.includes(def.kind)) {
       if (tgt.cast) this.cancelCast(tgt, 'crowd controlled');
-      if (def.kind === 'fear') tgt.fearRetargetAt = 0;
+      if (def.kind === 'fear' || def.wander) tgt.fearRetargetAt = 0;
     }
     this.emit({ t: 'aura', src: src.id, tgt: tgt.id, aura: auraId, expiresAt: isFinite(inst.expiresAt) ? inst.expiresAt : 0, dr: drMult });
     return { applied: true, duration, dr: drMult };

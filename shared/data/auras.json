@@ -6,7 +6,9 @@
   "harmful": true,
   "dr": "incapacitate",
   "breaksOnDamage": true,
-  "dispellable": true
+  "dispellable": true,
+  "unique": true,
+  "wander": true
  },
  "frost_nova_root": {
   "name": "Frost Nova",
@@ -231,7 +233,8 @@
   "duration": 5000,
   "harmful": true,
   "dr": "incapacitate",
-  "breaksOnDamage": true
+  "breaksOnDamage": true,
+  "unique": true
  },
  "crippling_slow": {
   "name": "Crippling Strike",

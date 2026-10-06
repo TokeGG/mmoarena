@@ -36,7 +36,7 @@
    },
    {
     "type": "gain",
-    "amount": 15
+    "amount": 10
    }
   ]
  },
@@ -110,14 +110,14 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 2500,
+  "castTime": 1800,
   "cooldown": 0,
   "gcd": true,
   "cost": 60,
   "effects": [
    {
     "type": "damage",
-    "amount": 200
+    "amount": 170
    }
   ]
  },
@@ -199,7 +199,8 @@
     "type": "blink",
     "distance": 20
    }
-  ]
+  ],
+  "ignoresControl": true
  },
  {
   "id": "flash_heal",
@@ -461,7 +462,7 @@
    },
    {
     "type": "gain",
-    "amount": 5
+    "amount": 3
    }
   ]
  },

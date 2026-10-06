@@ -67,6 +67,10 @@ export interface AuraDef {
   harmful: boolean;
   dr?: DRCategory;
   breaksOnDamage?: boolean;
+  /** Only one target at a time per caster: applying it again removes it from the previous target. */
+  unique?: boolean;
+  /** Incapacitated units wander slowly instead of standing still (Polymorph). */
+  wander?: boolean;
   dispellable?: boolean;
   slowPct?: number;
   speedPct?: number;
@@ -107,6 +111,8 @@ export interface AbilityDef {
   keepsStealth?: boolean;
   prepOk?: boolean;
   ignoresLockout?: boolean;
+  /** Can be used while stunned, feared or incapacitated (Blink). */
+  ignoresControl?: boolean;
   allowWhileRooted?: boolean;
   /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
   channel?: { ticks: number };

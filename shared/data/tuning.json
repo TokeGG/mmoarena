@@ -3,15 +3,20 @@
   "gcdMs": 1500,
   "runSpeed": 7,
   "drResetMs": 18000,
-  "drSteps": [1, 0.5, 0.25, 0],
+  "drSteps": [
+    1,
+    0.5,
+    0.25,
+    0
+  ],
   "gearCap": 1.15,
   "rangeTolerance": 1.5,
   "prepMs": 10000,
   "maxMatchMs": 600000,
   "damageVariance": 0.08,
-  "stealthDetect": 8,
+  "stealthDetect": 4,
   "outOfCombatMs": 5000,
-  "rageFromDealt": 0.15,
-  "rageFromTaken": 0.15,
+  "rageFromDealt": 0.05,
+  "rageFromTaken": 0.05,
   "rageDecayPerSec": 5
 }
