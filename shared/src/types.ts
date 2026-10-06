@@ -77,7 +77,7 @@ export interface AuraDef {
 }
 
 export type Effect =
-  /** `only` limits an effect to allies or enemies of the caster (Sacred Lash heals a friend and hurts a foe). */
+  /** `only` limits an effect to allies or enemies of the caster (Penance heals a friend and hurts a foe). */
   | { type: 'damage'; amount: number; only?: 'ally' | 'enemy' }
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   | { type: 'aura'; aura: string }
@@ -198,6 +198,8 @@ export interface Unit {
   dr: Partial<Record<DRCategory, DRState>>;
   lockouts: Partial<Record<School, number>>;
   autoAttack: boolean;
+  /** The player turned auto-attack off in settings: it never starts, not even from a melee ability. */
+  autoDisabled: boolean;
   /** Set while running a Charge: the unit is carried to the target and ignores movement input. */
   charge: { target: number; stop: number; speed: number; until: number } | null;
   nextSwing: number;

@@ -204,6 +204,9 @@ export class Room {
       case 'auto':
         this.sim.setAutoAttack(id, msg.on);
         break;
+      case 'autoOff':
+        this.sim.setAutoDisabled(id, msg.off);
+        break;
     }
   }
 

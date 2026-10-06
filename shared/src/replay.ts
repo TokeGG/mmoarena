@@ -88,6 +88,9 @@ export class ReplayRunner {
         case 3:
           this.sim.setAutoAttack(id, a[0] === true);
           break;
+        case 5:
+          this.sim.setAutoDisabled(id, a[0] === true);
+          break;
         case 4:
           this.sim.forfeit(id);
           break;

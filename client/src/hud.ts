@@ -374,12 +374,14 @@ export class Hud {
   }
 
   private autoShown = false;
+  /** The auto-attack setting: the indicator is hidden while it is off. */
+  autoEnabled = true;
 
   /** Auto-attack status: lit and pulsing while swinging, amber when something stops the swings. */
   private autoIndicator(me: UnitSnap, snap: Snapshot, targetId: number | null) {
     const auto = CLASSES[me.classId].auto;
     const root = $('autoind');
-    const show = !!auto && me.alive && snap.phase === 'live';
+    const show = !!auto && this.autoEnabled && me.alive && snap.phase === 'live';
     root.classList.toggle('hidden', !show);
     if (!show || !auto) return;
     const t = targetId !== null ? snap.units.find((u) => u.id === targetId) : undefined;

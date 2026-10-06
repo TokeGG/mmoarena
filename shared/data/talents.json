@@ -33,7 +33,7 @@
    {
     "id": "improved_charge",
     "name": "Quick Rush",
-    "desc": "Rushdown cooldown reduced by 30%.",
+    "desc": "Charge cooldown reduced by 30%.",
     "icon": "\ud83d\udc17",
     "mods": {
      "ability": {
@@ -46,7 +46,7 @@
    {
     "id": "improved_pummel",
     "name": "Quick Jab",
-    "desc": "Jaw Breaker cooldown reduced by 30%.",
+    "desc": "Pummel cooldown reduced by 30%.",
     "icon": "\ud83d\udc4a",
     "mods": {
      "ability": {
@@ -59,7 +59,7 @@
    {
     "id": "improved_hamstring",
     "name": "Deep Gash",
-    "desc": "Crippling Cut slows for 50% longer.",
+    "desc": "Hamstring slows for 50% longer.",
     "icon": "\ud83e\ude78",
     "mods": {
      "auraDuration": {
@@ -100,8 +100,8 @@
   [
    {
     "id": "tal_shockwave",
-    "name": "Quake Stomp",
-    "desc": "Learn Quake Stomp: a short stun and damage around you.",
+    "name": "Shockwave",
+    "desc": "Learn Shockwave: a short stun and damage around you.",
     "icon": "\ud83d\udca5",
     "mods": {},
     "swap": {
@@ -115,8 +115,8 @@
    },
    {
     "id": "tal_howl",
-    "name": "Wailing Horn",
-    "desc": "Learn Wailing Horn: slows every enemy near you.",
+    "name": "Piercing Howl",
+    "desc": "Learn Piercing Howl: slows every enemy near you.",
     "icon": "\ud83d\udcef",
     "mods": {},
     "swap": {
@@ -130,8 +130,8 @@
    },
    {
     "id": "tal_sword",
-    "name": "Last Bastion",
-    "desc": "Learn Last Bastion: take half damage for 5 seconds.",
+    "name": "Die by the Sword",
+    "desc": "Learn Die by the Sword: take half damage for 5 seconds.",
     "icon": "\ud83d\udde1\ufe0f",
     "mods": {},
     "swap": {
@@ -147,9 +147,9 @@
   [
    {
     "id": "tal_c_hammer",
-    "name": "Hammer Toss",
+    "name": "Storm Bolt",
     "icon": "\ud83d\udd28",
-    "desc": "Learn Hammer Toss: a thrown hammer stuns an enemy 20 yards away for 2 seconds.",
+    "desc": "Learn Storm Bolt: a thrown hammer stuns an enemy 20 yards away for 2 seconds.",
     "mods": {},
     "swap": {
      "to": "hammer_toss",
@@ -162,9 +162,9 @@
    },
    {
     "id": "tal_c_harpoon",
-    "name": "Harpoon Throw",
+    "name": "Disrupting Shout",
     "icon": "\ud83e\ude9d",
-    "desc": "Learn Harpoon Throw: interrupt a caster from 15 yards away.",
+    "desc": "Learn Disrupting Shout: interrupt a caster from 15 yards away.",
     "mods": {},
     "swap": {
      "to": "harpoon_throw",
@@ -190,7 +190,7 @@
    {
     "id": "tal_w_rage",
     "name": "Carnage",
-    "desc": "Crushing Blow, Rending Surge and Bulwark Bash hit 12% harder.",
+    "desc": "Mortal Strike, Bloodthirst and Shield Slam hit 12% harder.",
     "icon": "\ud83e\ude78",
     "mods": {
      "ability": {
@@ -209,7 +209,7 @@
    {
     "id": "tal_w_wall",
     "name": "Fortress",
-    "desc": "Iron Aegis and Last Bastion are ready 25% sooner.",
+    "desc": "Shield Wall and Die by the Sword are ready 25% sooner.",
     "icon": "\ud83c\udff0",
     "mods": {
      "ability": {
@@ -225,7 +225,7 @@
    {
     "id": "tal_w_shout",
     "name": "Thunder Lungs",
-    "desc": "Dread Roar lasts 25% longer and is ready 15% sooner. Skull Rattle stuns 15% longer.",
+    "desc": "Intimidating Shout lasts 25% longer and is ready 15% sooner. Concussion Blow stuns 15% longer.",
     "icon": "\ud83d\udce2",
     "mods": {
      "auraDuration": {
@@ -264,7 +264,7 @@
    {
     "id": "winters_chill",
     "name": "Lingering Frost",
-    "desc": "Ice Shard slows for 50% longer and Glacial Burst roots 25% longer.",
+    "desc": "Frostbolt slows for 50% longer and Frost Nova roots 25% longer.",
     "icon": "\u2744\ufe0f",
     "mods": {
      "auraDuration": {
@@ -278,7 +278,7 @@
    {
     "id": "improved_counterspell",
     "name": "Quick Snuff",
-    "desc": "Spell Snuff cooldown reduced by 25%.",
+    "desc": "Counterspell cooldown reduced by 25%.",
     "icon": "\ud83d\udeab",
     "mods": {
      "ability": {
@@ -291,7 +291,7 @@
    {
     "id": "improved_blink",
     "name": "Fleet Phase",
-    "desc": "Phase Step cooldown reduced by 30%.",
+    "desc": "Blink cooldown reduced by 30%.",
     "icon": "\ud83c\udf00",
     "mods": {
      "ability": {
@@ -304,7 +304,7 @@
    {
     "id": "permafrost",
     "name": "Deep Winter",
-    "desc": "Glacial Burst roots 25% longer and has a 15% shorter cooldown.",
+    "desc": "Frost Nova roots 25% longer and has a 15% shorter cooldown.",
     "icon": "\ud83e\uddca",
     "mods": {
      "auraDuration": {
@@ -322,7 +322,7 @@
    {
     "id": "elemental_precision",
     "name": "Spellcraft",
-    "desc": "Your Cinder Bolt, Ice Shard, Sunfire Orb, Mana Lance, Starfall Volley, Ice Lance, Scorch, Firefall and Blizzard deal 12% more damage.",
+    "desc": "Your Fireball, Frostbolt, Pyroblast, Arcane Blast, Arcane Barrage, Ice Lance, Scorch, Flamestrike and Blizzard deal 12% more damage.",
     "icon": "\ud83c\udfaf",
     "mods": {
      "ability": {
@@ -379,8 +379,8 @@
   [
    {
     "id": "tal_cone",
-    "name": "Frost Fan",
-    "desc": "Learn Frost Fan: damages and slows enemies around you.",
+    "name": "Cone of Cold",
+    "desc": "Learn Cone of Cold: damages and slows enemies around you.",
     "icon": "\ud83c\udf2c\ufe0f",
     "mods": {},
     "swap": {
@@ -394,8 +394,8 @@
    },
    {
     "id": "tal_evocation",
-    "name": "Mana Surge",
-    "desc": "Learn Mana Surge: restore mana fast and take 15% less damage for 6 seconds.",
+    "name": "Evocation",
+    "desc": "Learn Evocation: restore mana fast and take 15% less damage for 6 seconds.",
     "icon": "\ud83e\uddd8",
     "mods": {},
     "swap": {
@@ -409,8 +409,8 @@
    },
    {
     "id": "tal_breath",
-    "name": "Drake Gust",
-    "desc": "Learn Drake Gust: burns and disorients enemies close to you.",
+    "name": "Dragon's Breath",
+    "desc": "Learn Dragon's Breath: burns and disorients enemies close to you.",
     "icon": "\ud83d\udc09",
     "mods": {},
     "swap": {
@@ -426,9 +426,9 @@
   [
    {
     "id": "tal_c_coldlock",
-    "name": "Cold Lock",
+    "name": "Deep Freeze",
     "icon": "\ud83e\uddca",
-    "desc": "Learn Cold Lock: freeze one enemy solid and stun it for 3 seconds.",
+    "desc": "Learn Deep Freeze: freeze one enemy solid and stun it for 3 seconds.",
     "mods": {},
     "swap": {
      "to": "deep_freeze",
@@ -441,9 +441,9 @@
    },
    {
     "id": "tal_c_gag",
-    "name": "Arcane Gag",
+    "name": "Arcane Torrent",
     "icon": "\ud83e\udd10",
-    "desc": "Learn Arcane Gag: a second interrupt with a longer lockout.",
+    "desc": "Learn Arcane Torrent: a second interrupt with a longer lockout.",
     "mods": {},
     "swap": {
      "to": "arcane_silence",
@@ -469,7 +469,7 @@
    {
     "id": "tal_m_ice",
     "name": "Flash Freeze",
-    "desc": "Glacial Burst and Frost Fan are ready 15% sooner.",
+    "desc": "Frost Nova and Cone of Cold are ready 15% sooner.",
     "icon": "\ud83e\uddca",
     "mods": {
      "ability": {
@@ -485,7 +485,7 @@
    {
     "id": "tal_m_pyro",
     "name": "Inferno Heart",
-    "desc": "Firefall and Drake Gust deal 20% more damage.",
+    "desc": "Flamestrike and Dragon's Breath deal 20% more damage.",
     "icon": "\ud83c\udf0b",
     "mods": {
      "ability": {
@@ -501,7 +501,7 @@
    {
     "id": "tal_m_barrage",
     "name": "Star Focus",
-    "desc": "Mana Lance, Starfall Volley, Ice Lance and Scorch deal 10% more damage.",
+    "desc": "Arcane Blast, Arcane Barrage, Ice Lance and Scorch deal 10% more damage.",
     "icon": "\ud83c\udf1f",
     "mods": {
      "ability": {
@@ -556,7 +556,7 @@
    {
     "id": "improved_shield",
     "name": "Quick Ward",
-    "desc": "Ward of Light cooldown reduced by 30%.",
+    "desc": "Power Word: Shield cooldown reduced by 30%.",
     "icon": "\ud83d\udee1\ufe0f",
     "mods": {
      "ability": {
@@ -569,7 +569,7 @@
    {
     "id": "improved_dispel",
     "name": "Swift Purge",
-    "desc": "Purge Veil cooldown reduced by 40%. Blightbloom is ready 15% sooner.",
+    "desc": "Dispel Magic cooldown reduced by 40%. Shadow Word: Pain is ready 15% sooner.",
     "icon": "\ud83e\ude84",
     "mods": {
      "ability": {
@@ -585,7 +585,7 @@
    {
     "id": "psychic_horror",
     "name": "Dread Echo",
-    "desc": "Terror Wail cooldown reduced by 20%.",
+    "desc": "Psychic Scream cooldown reduced by 20%.",
     "icon": "\ud83d\ude31",
     "mods": {
      "ability": {
@@ -618,7 +618,7 @@
    {
     "id": "empowered_healing",
     "name": "Mender's Gift",
-    "desc": "Quick Mend and Deep Mend heal for 12% more.",
+    "desc": "Flash Heal and Greater Heal heal for 12% more.",
     "icon": "\ud83d\ude4f",
     "mods": {
      "ability": {
@@ -635,8 +635,8 @@
   [
    {
     "id": "tal_penance",
-    "name": "Sacred Lash",
-    "desc": "Learn Sacred Lash: a three-hit holy channel (stand still).",
+    "name": "Penance",
+    "desc": "Learn Penance: a three-hit holy channel (stand still).",
     "icon": "\ud83d\udd06",
     "mods": {},
     "swap": {
@@ -650,7 +650,7 @@
    },
    {
     "id": "tal_holyword",
-    "name": "Beacon Heal",
+    "name": "Holy Word: Serenity",
     "desc": "Learn Serenity: a strong instant heal.",
     "icon": "\ud83c\udf1f",
     "mods": {},
@@ -665,8 +665,8 @@
    },
    {
     "id": "tal_infusion",
-    "name": "Surge of Faith",
-    "desc": "Learn Surge of Faith: an ally (or you) deals and heals 20% more and casts 15% faster for 12 seconds.",
+    "name": "Power Infusion",
+    "desc": "Learn Power Infusion: an ally (or you) deals and heals 20% more and casts 15% faster for 12 seconds.",
     "icon": "\ud83d\ude4c",
     "mods": {},
     "swap": {
@@ -682,9 +682,9 @@
   [
    {
     "id": "tal_c_gavel",
-    "name": "Gavel Strike",
+    "name": "Hammer of Justice",
     "icon": "\u2696\ufe0f",
-    "desc": "Learn Gavel Strike: a holy gavel stuns an enemy for 3 seconds.",
+    "desc": "Learn Hammer of Justice: a holy gavel stuns an enemy for 3 seconds.",
     "mods": {},
     "swap": {
      "to": "judgment_hammer",
@@ -697,9 +697,9 @@
    },
    {
     "id": "tal_c_still",
-    "name": "Still Tongue",
+    "name": "Silence",
     "icon": "\ud83e\udd2b",
-    "desc": "Learn Still Tongue: interrupt a caster and lock out its school for 4 seconds.",
+    "desc": "Learn Silence: interrupt a caster and lock out its school for 4 seconds.",
     "mods": {},
     "swap": {
      "to": "hush",
@@ -725,7 +725,7 @@
    {
     "id": "tal_p_grace",
     "name": "Soothing Light",
-    "desc": "Deep Mend, Quick Mend and Serenity heal 8% more.",
+    "desc": "Greater Heal, Flash Heal and Serenity heal 8% more.",
     "icon": "\ud83d\udd4a\ufe0f",
     "mods": {
      "ability": {
@@ -744,7 +744,7 @@
    {
     "id": "tal_p_dark",
     "name": "Night Rites",
-    "desc": "Mind Spike, Creeping Rot and Sacred Lash deal 10% more.",
+    "desc": "Mind Blast, Shadow Word: Death and Penance deal 10% more.",
     "icon": "\ud83c\udf11",
     "mods": {
      "ability": {
@@ -763,7 +763,7 @@
    {
     "id": "tal_p_ward",
     "name": "Radiant Guard",
-    "desc": "Ward of Light and Guardian Veil are ready 20% sooner.",
+    "desc": "Power Word: Shield and Pain Suppression are ready 20% sooner.",
     "icon": "\ud83d\udee1\ufe0f",
     "mods": {
      "ability": {
@@ -812,7 +812,7 @@
    {
     "id": "improved_kick",
     "name": "Fast Boot",
-    "desc": "Quick Boot cooldown reduced by 30%.",
+    "desc": "Kick cooldown reduced by 30%.",
     "icon": "\ud83e\uddb6",
     "mods": {
      "ability": {
@@ -825,7 +825,7 @@
    {
     "id": "improved_kidney",
     "name": "Lasting Pinch",
-    "desc": "Nerve Pinch stuns for 25% longer.",
+    "desc": "Kidney Shot stuns for 25% longer.",
     "icon": "\ud83e\udd4a",
     "mods": {
      "auraDuration": {
@@ -836,7 +836,7 @@
    {
     "id": "improved_sprint",
     "name": "Burst Legs",
-    "desc": "Dash cooldown reduced by 30%.",
+    "desc": "Sprint cooldown reduced by 30%.",
     "icon": "\ud83d\udca8",
     "mods": {
      "ability": {
@@ -851,7 +851,7 @@
    {
     "id": "ruthlessness",
     "name": "Cold Precision",
-    "desc": "Wicked Slash and Gutting Stab deal 15% more damage.",
+    "desc": "Sinister Strike and Mutilate deal 15% more damage.",
     "icon": "\ud83d\udd2a",
     "mods": {
      "ability": {
@@ -886,8 +886,8 @@
   [
    {
     "id": "tal_blind",
-    "name": "Dust Cloud",
-    "desc": "Learn Dust Cloud: a 5 second disorient that breaks on damage.",
+    "name": "Blind",
+    "desc": "Learn Blind: a 5 second disorient that breaks on damage.",
     "icon": "\ud83d\ude35",
     "mods": {},
     "swap": {
@@ -901,8 +901,8 @@
    },
    {
     "id": "tal_evis",
-    "name": "Deathblow",
-    "desc": "Learn Deathblow: a heavy finishing strike.",
+    "name": "Eviscerate",
+    "desc": "Learn Eviscerate: a heavy finishing strike.",
     "icon": "\ud83e\ude78",
     "mods": {},
     "swap": {
@@ -916,8 +916,8 @@
    },
    {
     "id": "tal_cripple",
-    "name": "Hobbling Cut",
-    "desc": "Learn Hobbling Cut: a hit that slows the target by 40%.",
+    "name": "Crippling Poison",
+    "desc": "Learn Crippling Poison: a hit that slows the target by 40%.",
     "icon": "\ud83e\uddb5",
     "mods": {},
     "swap": {
@@ -933,9 +933,9 @@
   [
    {
     "id": "tal_c_choke",
-    "name": "Choke Cloud",
+    "name": "Smoke Bomb",
     "icon": "\ud83d\udca8",
-    "desc": "Learn Choke Cloud: a smoke bomb stuns every enemy within 6 yards for 2 seconds.",
+    "desc": "Learn Smoke Bomb: a smoke bomb stuns every enemy within 6 yards for 2 seconds.",
     "mods": {},
     "swap": {
      "to": "choke_bomb",
@@ -948,9 +948,9 @@
    },
    {
     "id": "tal_c_spike",
-    "name": "Throwing Spike",
+    "name": "Deadly Throw",
     "icon": "\ud83d\udde1\ufe0f",
-    "desc": "Learn Throwing Spike: interrupt a caster from 20 yards away.",
+    "desc": "Learn Deadly Throw: interrupt a caster from 20 yards away.",
     "mods": {},
     "swap": {
      "to": "knife_snipe",
@@ -976,7 +976,7 @@
    {
     "id": "tal_r_assassin",
     "name": "Killer's Eye",
-    "desc": "Gutting Stab, Wicked Slash and Deathblow deal 10% more.",
+    "desc": "Mutilate, Sinister Strike and Eviscerate deal 10% more.",
     "icon": "\ud83d\udde1\ufe0f",
     "mods": {
      "ability": {
@@ -995,7 +995,7 @@
    {
     "id": "tal_r_cheat",
     "name": "Close Call",
-    "desc": "Phantom Dodge and Smoke Veil are ready 25% sooner.",
+    "desc": "Evasion and Vanish are ready 25% sooner.",
     "icon": "\u2620\ufe0f",
     "mods": {
      "ability": {
@@ -1011,7 +1011,7 @@
    {
     "id": "tal_r_stun",
     "name": "Pressure Points",
-    "desc": "Nerve Pinch, Ambush Stun and Dust Cloud last 15% longer.",
+    "desc": "Kidney Shot, Cheap Shot and Blind last 15% longer.",
     "icon": "\ud83e\udd4a",
     "mods": {
      "auraDuration": {

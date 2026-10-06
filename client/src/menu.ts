@@ -9,6 +9,8 @@ export interface MenuHandlers {
   /** Leave the current match (only offered while in one). */
   onLeave: () => void;
   onSensitivity: (v: number) => void;
+  /** The auto-attack setting changed (also called once at start-up with the saved value). */
+  onAutoAttack: (enabled: boolean) => void;
   /** Open the HUD layout editor (only offered while in a match). */
   onEditHud: () => void;
 }
@@ -17,6 +19,9 @@ export interface MenuHandlers {
  * Esc menu with Resume / Controls / Leave match. The same Controls screen is reachable from the join screen
  * (menu opened with `inMatch = false`, which hides Resume and Leave).
  */
+/** localStorage key of the auto-attack setting ('0' = off). Synced with the account like every `arena.*` key. */
+export const AUTO_KEY = 'arena.autoattack';
+
 export class Menu {
   private root = $('menu');
   private main = $('menu-main');
@@ -65,6 +70,25 @@ export class Menu {
     };
     sens.addEventListener('input', applySens);
     applySens();
+
+    const auto = $('auto-toggle') as HTMLInputElement;
+    try {
+      auto.checked = localStorage.getItem(AUTO_KEY) !== '0';
+    } catch {
+      /* ignore */
+    }
+    const applyAuto = () => {
+      $('auto-toggle-val').textContent = auto.checked ? 'On' : 'Off';
+      try {
+        localStorage.setItem(AUTO_KEY, auto.checked ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      handlers.onAutoAttack(auto.checked);
+    };
+    auto.addEventListener('change', applyAuto);
+    $('auto-toggle-val').textContent = auto.checked ? 'On' : 'Off';
+    handlers.onAutoAttack(auto.checked);
 
     // Key capture. Runs in the capture phase so the game never sees the key that is being bound.
     window.addEventListener(

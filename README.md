@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.29.1
+# WoW-style Arena · v0.30.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -35,7 +35,7 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 
 Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target · 1-8 abilities (Shift+drag one action slot onto another to rearrange; saved per spec) · R toggles auto-attack; right-click an enemy (a click, not a drag) targets it and starts auto-attack, left-click only targets.
 
-**Esc** clears your target first, then opens the menu: Resume, Controls, mouse sensitivity, volume sliders, HUD editor, Leave match. In **Controls** click a box and press a key, or hold **Shift / Ctrl / Alt** and press one for a combo such as Shift+1 (a plain binding still fires with a modifier held unless that exact combo is bound; release a modifier on its own to bind the modifier itself; browsers may grab some Ctrl combos); every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. The same screen is on the join page. Signed in, your keybinds, HUD, volume and builds follow your account to any device.
+**Esc** clears your target first, then opens the menu: Resume, Controls, an Auto-attack on/off toggle, mouse sensitivity, volume sliders, HUD editor, Leave match. In **Controls** click a box and press a key, or hold **Shift / Ctrl / Alt** and press one for a combo such as Shift+1 (a plain binding still fires with a modifier held unless that exact combo is bound; release a modifier on its own to bind the modifier itself; browsers may grab some Ctrl combos); every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. The same screen is on the join page. Signed in, your keybinds, HUD, volume and builds follow your account to any device.
 
 ## Classes, specs and talents
 
@@ -46,12 +46,12 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 
 | Class | Abilities you can swap in |
 |---|---|
-| Warrior | Quake Stomp, Wailing Horn, Last Bastion, Hammer Toss, Harpoon Throw |
-| Mage | Frost Fan, Mana Surge, Drake Gust, Cold Lock, Arcane Gag |
-| Priest | Sacred Lash, Beacon Heal, Surge of Faith, Gavel Strike, Still Tongue |
-| Rogue | Dust Cloud, Deathblow, Hobbling Cut, Choke Cloud, Throwing Spike |
+| Warrior | Shockwave, Piercing Howl, Die by the Sword, Storm Bolt, Disrupting Shout |
+| Mage | Cone of Cold, Evocation, Dragon's Breath, Deep Freeze, Arcane Torrent |
+| Priest | Penance, Holy Word: Serenity, Power Infusion, Hammer of Justice, Silence |
+| Rogue | Blind, Eviscerate, Crippling Poison, Smoke Bomb, Deadly Throw |
 
-- **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Sacred Lash) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key to arm the spell (its slot lights up and a ring follows your pointer), then **click or press the key again to place it**; Esc, casting something else or a stun cancels. The ring only shows while a spell is armed. While steering with the right button the ring sits at the centre of the screen.
+- **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Penance) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key to arm the spell (its slot lights up and a ring follows your pointer), then **click or press the key again to place it**; Esc, casting something else or a stun cancels. The ring only shows while a spell is armed. While steering with the right button the ring sits at the centre of the screen.
 
 Hover any ability, buff or debuff, spec, talent or look to see numbers for your build.
 

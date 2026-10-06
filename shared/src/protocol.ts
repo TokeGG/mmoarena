@@ -3,7 +3,7 @@ import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
-export const PROTOCOL_VERSION = 7;
+export const PROTOCOL_VERSION = 8;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
@@ -40,6 +40,8 @@ export type ClientMsg =
   | { t: 'target'; id: number | null }
   | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number }
   | { t: 'auto'; on: boolean }
+  /** The auto-attack setting: `off` stops it from ever starting. */
+  | { t: 'autoOff'; off: boolean }
   | { t: 'leave' }
   /** Accounts. Password-based; a successful register/login returns a session token for `resume`. */
   | { t: 'register'; name: string; password: string; ownerCode?: string }
@@ -182,6 +184,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'cast', ability: m.ability, target: m.target ?? null, ...(gx !== undefined && gz !== undefined ? { x: gx, z: gz } : {}) };
     case 'auto':
       return { t: 'auto', on: !!m.on };
+    case 'autoOff':
+      return { t: 'autoOff', off: !!m.off };
     case 'leave':
       return { t: 'leave' };
     case 'register':

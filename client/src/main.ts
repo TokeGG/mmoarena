@@ -43,6 +43,7 @@ let classId: ClassId = 'mage';
 /** The ability bar for the current spec (keys 1..6). */
 let bar: string[] = CLASSES.mage.bar;
 let myBuild: Build = defaultBuild('mage');
+let autoEnabled = true; // the auto-attack setting (Esc menu)
 let targetId: number | null = null;
 
 /**
@@ -102,6 +103,10 @@ const menu = new Menu(binds, {
     ws?.close();
   },
   onSensitivity: (v) => (controls.sens = v),
+  onAutoAttack: (enabled) => {
+    autoEnabled = enabled;
+    send({ t: 'autoOff', off: !enabled });
+  },
   onEditHud: () => hudLayout.start(),
 });
 const hudLayout = new HudLayout();
@@ -151,6 +156,7 @@ function onMessage(raw: MessageEvent) {
       you = m.unitId;
       team = m.team;
       classId = m.classId;
+      send({ t: 'autoOff', off: !autoEnabled });
       barSpec = m.spec ?? myBuild.spec ?? null;
       bar = applyOrder(m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar, loadOrder(classId, barSpec));
       setTipMods(compileMods(classId, myBuild));
@@ -401,7 +407,7 @@ function castSlot(i: number) {
   send({ t: 'cast', ability, target: targetId });
 }
 
-/** The ground spell waiting for a click (Firefall, Blizzard), or null. The aiming ring only shows while this is set. */
+/** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
 let aiming: string | null = null;
 function setAiming(id: string | null) {
   aiming = id;
@@ -428,7 +434,7 @@ controls.onRightClick = (x, y) => {
   setTarget(id);
   const me = latest?.units.find((u) => u.id === you);
   const t = latest?.units.find((u) => u.id === id);
-  if (me && t && t.team !== me.team && !me.autoAttack) send({ t: 'auto', on: true }); // right-click an enemy: target and start swinging
+  if (autoEnabled && me && t && t.team !== me.team && !me.autoAttack) send({ t: 'auto', on: true }); // right-click an enemy: target and start swinging
 };
 controls.onKey = (code, e) => {
   if (code === 'Escape') {
@@ -452,7 +458,7 @@ controls.onKey = (code, e) => {
   else if (action === 'nextTarget') cycleTarget(e.shiftKey ? -1 : 1);
   else if (action === 'prevTarget') cycleTarget(-1);
   else if (action === 'autoAttack') {
-    if (spec) return;
+    if (spec || !autoEnabled) return;
     const me = latest.units.find((u) => u.id === you);
     send({ t: 'auto', on: !me?.autoAttack });
   }
@@ -610,6 +616,7 @@ function frame(now: number) {
   }
   scene.render(); // render first so projection uses this frame's camera
 
+  hud.autoEnabled = autoEnabled;
   hud.update({ snap, now: estNow, you, targetId });
   hud.nameplates(
     units.map((u) => {

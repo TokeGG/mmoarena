@@ -15,8 +15,8 @@ const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
 export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef }
-/** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit. */
-export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4, unit: number, ...args: (number | string | boolean | null)[]];
+/** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit, 5 auto-attack setting. */
+export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4 | 5, unit: number, ...args: (number | string | boolean | null)[]];
 export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
 export type AuraResult = { applied: true; duration: number; dr: number } | { applied: false; immune: true };
 
@@ -78,7 +78,7 @@ export class ArenaSim {
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
-      autoAttack: false, nextSwing: 0, lastCombatAt: -1e9,
+      autoAttack: false, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], charge: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
@@ -125,7 +125,16 @@ export class ArenaSim {
   setAutoAttack(id: number, on: boolean): void {
     this.onCommand?.([this.tickNo, 3, id, on]);
     const u = this.units.get(id);
-    if (u) u.autoAttack = on && !!CLASSES[u.classId].auto;
+    if (u) u.autoAttack = on && !u.autoDisabled && !!CLASSES[u.classId].auto;
+  }
+
+  /** The auto-attack setting: while disabled the unit never auto-attacks. Recorded in replays as op 5. */
+  setAutoDisabled(id: number, disabled: boolean): void {
+    this.onCommand?.([this.tickNo, 5, id, disabled]);
+    const u = this.units.get(id);
+    if (!u) return;
+    u.autoDisabled = disabled;
+    if (disabled) u.autoAttack = false;
   }
 
   useAbility(id: number, abilityId: string, targetId?: number | null, ground?: { x: number; z: number } | null): Result {
@@ -398,7 +407,7 @@ export class ArenaSim {
     for (const t of targets) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
     this.ground = null;
 
-    if (isMelee(def) && CLASSES[u.classId].auto) u.autoAttack = true;
+    if (isMelee(def) && CLASSES[u.classId].auto && !u.autoDisabled) u.autoAttack = true;
     if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
   }
 

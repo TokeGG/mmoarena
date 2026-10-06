@@ -72,6 +72,9 @@
   #menu button.big.danger:hover { box-shadow:0 0 14px rgba(224,82,63,.45); }
   .srow { display:flex; align-items:center; gap:10px; padding:8px 4px 2px; color:#a79d88; font-size:12px; }
   .srow input { flex:1; accent-color:#d9a43c; }
+  .srow .tgl { flex:1; display:flex; align-items:center; justify-content:flex-end; gap:8px; cursor:pointer; color:#e9c872; font-weight:700; }
+  .srow .tgl input { flex:none; width:16px; height:16px; }
+  .srow .tgl span { min-width:0; }
   .srow span:last-child { min-width:34px; text-align:right; color:#e9c872; font-weight:700; }
   #keys-list { margin:8px 0; }
   .kgroup { margin:14px 0 4px; padding-bottom:3px; border-bottom:1px solid rgba(201,162,74,.25); font:700 11px Georgia,serif; letter-spacing:2px; text-transform:uppercase; color:#c9a24a; }
@@ -392,6 +395,7 @@
         <button id="menu-resume" class="big primary"><span class="bi">▶</span>Resume</button>
         <button id="menu-controls" class="big"><span class="bi">⌨</span>Controls &amp; keybinds</button>
         <button id="menu-hud" class="big"><span class="bi">▦</span>Edit HUD layout</button>
+        <div class="srow"><span>Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /> <span id="auto-toggle-val">On</span></label></div>
         <div class="srow"><span>Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
         <div class="srow"><span>Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
         <div class="srow"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>

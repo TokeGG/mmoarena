@@ -350,6 +350,27 @@ describe('melee and auto-attack', () => {
   });
 });
 
+describe('auto-attack setting', () => {
+  it('when disabled, auto-attack never starts, even from a melee ability', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 2, 0);
+    advance(sim, TICK);
+    sim.setAutoDisabled(war.id, true);
+    sim.setAutoAttack(war.id, true);
+    assert.ok(!war.autoAttack);
+    war.resource = 30;
+    assert.ok(sim.useAbility(war.id, 'mortal_strike', rogue.id).ok);
+    assert.ok(!war.autoAttack);
+    const hp = rogue.health;
+    advance(sim, 2500);
+    assert.equal(rogue.health, hp, 'only the ability damage, no swings');
+    sim.setAutoDisabled(war.id, false);
+    sim.setAutoAttack(war.id, true);
+    assert.ok(war.autoAttack);
+  });
+});
+
 describe('gear cap and match flow', () => {
   it('caps the gear multiplier at 1.15', () => {
     const sim = live();

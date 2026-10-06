@@ -4,7 +4,7 @@
    "id": "arms",
    "name": "Warbringer",
    "role": "Burst melee",
-   "desc": "Heavy hits and a big damage cooldown. Control with Crippling Cut and Dread Roar.",
+   "desc": "Heavy hits and a big damage cooldown. Control with Hamstring and Intimidating Shout.",
    "icon": "\u2694\ufe0f",
    "bar": [
     "mortal_strike",
@@ -24,7 +24,7 @@
    "id": "fury",
    "name": "Rampager",
    "role": "Sustained melee",
-   "desc": "Fast, relentless attacks and extra mobility. Heals itself with Second Wind.",
+   "desc": "Fast, relentless attacks and extra mobility. Heals itself with Enraged Regeneration.",
    "icon": "\ud83e\ude93",
    "bar": [
     "bloodthirst",
@@ -45,7 +45,7 @@
    "id": "protection",
    "name": "Bulwark",
    "role": "Tank / control",
-   "desc": "Tough and hard to kill, with Skull Rattle and Iron Aegis. Deals less damage.",
+   "desc": "Tough and hard to kill, with Concussion Blow and Shield Wall. Deals less damage.",
    "icon": "\ud83d\udee1\ufe0f",
    "bar": [
     "shield_slam",
@@ -69,7 +69,7 @@
    "id": "frost",
    "name": "Cryomancy",
    "role": "Control / kiting",
-   "desc": "Slows and roots keep enemies away, backed by Ice Lance and Blizzard for real damage. Rime Shield absorbs a burst.",
+   "desc": "Slows and roots keep enemies away, backed by Ice Lance and Blizzard for real damage. Ice Barrier absorbs a burst.",
    "icon": "\u2744\ufe0f",
    "bar": [
     "frostbolt",
@@ -92,7 +92,7 @@
    "id": "fire",
    "name": "Pyromancy",
    "role": "Burst damage",
-   "desc": "Big fire damage: Sunfire Orb, quick Cinder Bolt and Scorch, and Firefall on the ground. Fragile.",
+   "desc": "Big fire damage: Pyroblast, quick Fireball and Scorch, and Flamestrike on the ground. Fragile.",
    "icon": "\ud83d\udd25",
    "bar": [
     "fireball",
@@ -113,7 +113,7 @@
    "id": "arcane",
    "name": "Starweaving",
    "role": "Sustain / utility",
-   "desc": "Strong mana regeneration and a damage cooldown. Starfall Volley channels a volley of missiles; stand still to finish it.",
+   "desc": "Strong mana regeneration and a damage cooldown. Arcane Barrage channels a volley of missiles; stand still to finish it.",
    "icon": "\ud83d\udd2e",
    "bar": [
     "arcane_blast",
@@ -135,7 +135,7 @@
    "id": "discipline",
    "name": "Warden",
    "role": "Shield healer",
-   "desc": "Wards and Guardian Veil keep allies alive. Good all-round control.",
+   "desc": "Wards and Pain Suppression keep allies alive. Good all-round control.",
    "icon": "\ud83d\udee1\ufe0f",
    "bar": [
     "flash_heal",
@@ -177,7 +177,7 @@
    "id": "shadow",
    "name": "Gloomweaver",
    "role": "Damage",
-   "desc": "Rot and Blightbloom wear enemies down over time, Mind Spike hits hard. Weaker healing.",
+   "desc": "Rot and Shadow Word: Pain wear enemies down over time, Mind Blast hits hard. Weaker healing.",
    "icon": "\ud83c\udf11",
    "bar": [
     "mind_blast",
@@ -200,7 +200,7 @@
    "id": "assassination",
    "name": "Cutthroat",
    "role": "Burst melee",
-   "desc": "Stealth openers into heavy hits. Smoke Veil to reset the fight.",
+   "desc": "Stealth openers into heavy hits. Vanish to reset the fight.",
    "icon": "\ud83d\udde1\ufe0f",
    "bar": [
     "stealth",
@@ -220,7 +220,7 @@
    "id": "combat",
    "name": "Duelist",
    "role": "Sustained melee",
-   "desc": "Steady damage with Bloodrush and Dash for pressure.",
+   "desc": "Steady damage with Adrenaline Rush and Sprint for pressure.",
    "icon": "\u26a1",
    "bar": [
     "stealth",
@@ -240,7 +240,7 @@
    "id": "subtlety",
    "name": "Shade",
    "role": "Control / mobility",
-   "desc": "Slippery: Umbral Step and Dash for repositioning and survival.",
+   "desc": "Slippery: Shadowstep and Sprint for repositioning and survival.",
    "icon": "\ud83d\udc64",
    "bar": [
     "stealth",
