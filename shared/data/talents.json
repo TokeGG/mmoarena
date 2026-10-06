@@ -225,11 +225,12 @@
    {
     "id": "tal_w_shout",
     "name": "Thunder Lungs",
-    "desc": "Dread Roar lasts 25% longer and is ready 15% sooner.",
+    "desc": "Dread Roar lasts 25% longer and is ready 15% sooner. Skull Rattle stuns 15% longer.",
     "icon": "\ud83d\udce2",
     "mods": {
      "auraDuration": {
-      "intimidating_shout": 1.25
+      "intimidating_shout": 1.25,
+      "concussion_stun": 1.15
      },
      "ability": {
       "intimidating_shout": {
@@ -263,11 +264,12 @@
    {
     "id": "winters_chill",
     "name": "Lingering Frost",
-    "desc": "Ice Shard slows for 50% longer.",
+    "desc": "Ice Shard slows for 50% longer and Glacial Burst roots 25% longer.",
     "icon": "\u2744\ufe0f",
     "mods": {
      "auraDuration": {
-      "frostbolt_slow": 1.5
+      "frostbolt_slow": 1.5,
+      "frost_nova_root": 1.25
      }
     }
    }
@@ -499,7 +501,7 @@
    {
     "id": "tal_m_barrage",
     "name": "Star Focus",
-    "desc": "Mana Lance and Starfall Volley deal 10% more damage.",
+    "desc": "Mana Lance, Starfall Volley, Ice Lance and Scorch deal 10% more damage.",
     "icon": "\ud83c\udf1f",
     "mods": {
      "ability": {
@@ -507,6 +509,12 @@
        "damage": 1.1
       },
       "arcane_barrage": {
+       "damage": 1.1
+      },
+      "ice_lance": {
+       "damage": 1.1
+      },
+      "scorch": {
        "damage": 1.1
       }
      }
@@ -561,12 +569,15 @@
    {
     "id": "improved_dispel",
     "name": "Swift Purge",
-    "desc": "Purge Veil cooldown reduced by 40%.",
+    "desc": "Purge Veil cooldown reduced by 40%. Blightbloom is ready 15% sooner.",
     "icon": "\ud83e\ude84",
     "mods": {
      "ability": {
       "dispel_magic": {
        "cooldown": 0.6
+      },
+      "plague_bloom": {
+       "cooldown": 0.85
       }
      }
     }
@@ -931,7 +942,7 @@
      "replaces": {
       "assassination": "evasion",
       "combat": "evasion",
-      "subtlety": "evasion"
+      "subtlety": "vanish"
      }
     }
    },
@@ -946,7 +957,7 @@
      "replaces": {
       "assassination": "evasion",
       "combat": "evasion",
-      "subtlety": "evasion"
+      "subtlety": "vanish"
      }
     }
    },
