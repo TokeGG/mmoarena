@@ -11,6 +11,8 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
+const SCHOOL_TEXT: Record<string, string> = { physical: '#ffffff', fire: '#ffb04a', frost: '#8fdcff', arcane: '#d79bff', holy: '#fff3a0', shadow: '#c68bff', nature: '#8dff8d' };
+
 const RES_COLOR = { mana: '#3b82f6', rage: '#c0392b', energy: '#e6c229' } as const;
 const HP_ALLY = '#3fbf5f';
 const HP_ENEMY = '#c0392b';
@@ -165,6 +167,7 @@ export class Hud {
     const me = snap.units.find((u) => u.id === you);
     if (!me) return;
     this.self.update(me, now, false);
+    this.autoIndicator(me, snap, targetId);
 
     const tgt = targetId !== null ? snap.units.find((u) => u.id === targetId) : undefined;
     $('target-frame').classList.toggle('hidden', !tgt);
@@ -276,13 +279,45 @@ export class Hud {
     }
   }
 
-  private float(pos: { x: number; y: number } | null, text: string, cls: string) {
+  private float(pos: { x: number; y: number } | null, text: string, cls: string, size = 20, color = '') {
     if (!pos) return;
     const f = el('div', `ft ${cls}`, text);
-    f.style.left = `${pos.x + (Math.random() * 30 - 15)}px`;
-    f.style.top = `${pos.y}px`;
+    f.style.left = `${pos.x + (Math.random() * 44 - 22)}px`;
+    f.style.top = `${pos.y - Math.random() * 14}px`;
+    f.style.fontSize = `${size}px`;
+    if (color) f.style.color = color;
+    f.style.setProperty('--dx', `${(Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 26)}px`);
     $('ftext').append(f);
-    window.setTimeout(() => f.remove(), 1300);
+    window.setTimeout(() => f.remove(), 1400);
+  }
+
+  private autoShown = false;
+
+  /** Auto-attack status: lit and pulsing while swinging, amber when something stops the swings. */
+  private autoIndicator(me: UnitSnap, snap: Snapshot, targetId: number | null) {
+    const auto = CLASSES[me.classId].auto;
+    const root = $('autoind');
+    const show = !!auto && me.alive && snap.phase === 'live';
+    root.classList.toggle('hidden', !show);
+    if (!show || !auto) return;
+    const t = targetId !== null ? snap.units.find((u) => u.id === targetId) : undefined;
+    let state: 'on' | 'range' | 'target' | 'off' = 'off';
+    if (me.autoAttack) {
+      if (!t || !t.alive || t.team === me.team) state = 'target';
+      else if (Math.hypot(t.x - me.x, t.z - me.z) > auto.range + 0.5) state = 'range';
+      else state = 'on';
+    }
+    root.dataset.state = state;
+    const label = { on: 'Auto-attacking', range: 'Auto-attack: move closer', target: 'Auto-attack: no target', off: 'Auto-attack off (R)' }[state];
+    if (root.lastElementChild!.textContent !== label) root.lastElementChild!.textContent = label;
+  }
+
+  /** Pulse the indicator whenever one of our swings lands. */
+  private autoPulse() {
+    const root = $('autoind');
+    root.classList.remove('pulse');
+    void root.offsetWidth;
+    root.classList.add('pulse');
   }
 
   private log(line: string) {
@@ -295,14 +330,23 @@ export class Hud {
     const n = ctx.nameOf;
     const ab = (id: string | null) => (id ? ABILITIES[id]?.name ?? id : 'Auto Attack');
     switch (ev.t) {
-      case 'damage':
-        if (ev.tgt === ctx.you) this.float(ctx.project(ev.tgt), `-${ev.amount}`, 'in');
-        else if (ev.src === ctx.you) this.float(ctx.project(ev.tgt), `-${ev.amount}`, 'out');
-        if (ev.absorbed > 0 && (ev.tgt === ctx.you || ev.src === ctx.you)) this.float(ctx.project(ev.tgt), `${ev.absorbed} absorbed`, 'dim');
-        if (ev.tgt === ctx.you || ev.src === ctx.you) this.log(`${n(ev.src)}'s ${ab(ev.ability)} hits ${n(ev.tgt)} for ${ev.amount}`);
+      case 'damage': {
+        const mine = ev.src === ctx.you;
+        const toMe = ev.tgt === ctx.you;
+        if (ev.amount > 0) {
+          const size = Math.round(Math.min(40, 17 + Math.sqrt(ev.amount) * 0.9));
+          if (toMe) this.float(ctx.project(ev.tgt), `-${ev.amount}`, 'in', size);
+          else if (mine) {
+            this.float(ctx.project(ev.tgt), `${ev.amount}`, 'out', size + 2, SCHOOL_TEXT[ev.school]);
+            if (ev.ability === null) this.autoPulse();
+          } else this.float(ctx.project(ev.tgt), `${ev.amount}`, 'other', Math.max(13, size - 6));
+        }
+        if (ev.absorbed > 0 && (toMe || mine)) this.float(ctx.project(ev.tgt), `${ev.absorbed} absorbed`, 'dim', 14);
+        if (toMe || mine) this.log(`${n(ev.src)}'s ${ab(ev.ability)} hits ${n(ev.tgt)} for ${ev.amount}`);
         break;
+      }
       case 'heal':
-        if (ev.amount > 0) this.float(ctx.project(ev.tgt), `+${ev.amount}`, 'heal');
+        if (ev.amount > 0) this.float(ctx.project(ev.tgt), `+${ev.amount}`, 'heal', Math.round(Math.min(34, 16 + Math.sqrt(ev.amount) * 0.8)));
         if (ev.tgt === ctx.you || ev.src === ctx.you) this.log(`${n(ev.src)}'s ${ab(ev.ability)} heals ${n(ev.tgt)} for ${ev.amount}`);
         break;
       case 'interrupt':

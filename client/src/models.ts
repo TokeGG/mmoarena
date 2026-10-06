@@ -21,6 +21,9 @@ export interface PoseInput {
   time: number;
   /** Seconds since the last pose call. */
   dt: number;
+  /** Signed speed along the facing direction (negative = backpedalling) and sideways (positive = towards the character's left). */
+  vf?: number;
+  vs?: number;
 }
 
 export interface Character {
@@ -34,6 +37,16 @@ export interface Character {
   flash(): void;
   setState(alive: boolean, stealthed: boolean): void;
 }
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
+const smooth = (x: number) => {
+  const k = clamp(x, 0, 1);
+  return k * k * (3 - 2 * k);
+};
+const easeOut = (x: number) => 1 - (1 - clamp(x, 0, 1)) ** 3;
+/** Frame-rate independent exponential approach: the basis of all the smoothing. */
+const damp = (cur: number, target: number, rate: number, dt: number) => cur + (target - cur) * (1 - Math.exp(-rate * dt));
 
 const SKIN = 0xe8b898;
 const HIP = 0.85;
@@ -502,7 +515,10 @@ export function createCharacter(classId: ClassId): Character {
   let lastStealth = false;
   let swingT = 0;
   let flashT = 0;
-  const SWING = 0.3;
+  const SWING = 0.38;
+  let swingHand = 0;
+  // smoothed joint state so nothing ever snaps
+  const st = { sign: 1, upX: lean, upZ: 0, bob: 0, legL: 0, legR: 0, armLx: armRest, armRx: armRest, armLz: 0, armRz: 0, twist: 0, lunge: 0, cape: 0.08, capeV: 0, lastVf: 0 };
 
   const applyState = (alive: boolean, stealthed: boolean) => {
     for (const m of b.mats) {
@@ -551,38 +567,109 @@ export function createCharacter(classId: ClassId): Character {
     },
     swing() {
       swingT = SWING;
+      if (classId === 'rogue') swingHand = 1 - swingHand; // twin daggers strike in turn
     },
     flash() {
       flashT = 0.2;
     },
-    pose({ phase, move, casting, time, dt }) {
-      const swing = Math.sin(phase) * 0.75 * move;
-      r.legL.rotation.x = swing;
-      r.legR.rotation.x = -swing;
+    pose({ phase, move, casting, time, dt: rawDt, vf: vfIn, vs: vsIn }) {
+      const dt = clamp(rawDt, 0.001, 0.1);
+      const vf = vfIn ?? move * 7;
+      const vs = vsIn ?? 0;
       for (const a of b.anim) a(time, move);
-      const breathe = Math.sin(time * 2.2) * 0.02;
-      r.upper.rotation.x = lean + move * 0.06 + breathe;
-      r.upper.position.y = HIP + Math.abs(Math.sin(phase)) * 0.05 * move;
-      if (r.cape) r.cape.rotation.x = 0.08 + move * 0.45 + Math.sin(time * 2.4 + phase) * 0.05 * (0.4 + move);
+
+      // gait: reverses when backpedalling, eased so direction changes do not snap
+      st.sign = damp(st.sign, vf < -0.6 ? -1 : 1, 14, dt);
+      const stride = Math.sin(phase) * 0.82 * move * st.sign;
+      const breathe = Math.sin(time * 2.0) * 0.02;
+
+      // body: lean into the run, roll into strafes, counter-twist against the legs, bob on each step
+      st.upX = damp(st.upX, lean + 0.11 * clamp(vf / 7, -0.5, 1) + breathe, 9, dt);
+      st.upZ = damp(st.upZ, -clamp(vs / 7, -1, 1) * 0.13 + Math.sin(phase) * 0.045 * move + Math.sin(time * 0.8) * 0.012 * (1 - move), 10, dt);
+      st.bob = damp(st.bob, Math.abs(Math.sin(phase)) * 0.06 * move + breathe * 0.5, 16, dt);
+      r.upper.rotation.x = st.upX;
+      r.upper.rotation.z = st.upZ;
+      r.upper.position.y = HIP + st.bob;
+
+      st.legL = damp(st.legL, stride, 34, dt);
+      st.legR = damp(st.legR, -stride, 34, dt);
+      r.legL.rotation.x = st.legL;
+      r.legR.rotation.x = st.legR;
+      r.legL.rotation.z = r.legR.rotation.z = 0;
+
+      // arms: swing opposite the legs, hang loose when idle, rise smoothly into a cast
+      let tLx = armRest - stride * 1.05 + Math.sin(time * 1.3) * 0.02 * (1 - move);
+      let tRx = armRest + stride * 1.05 - Math.sin(time * 1.3) * 0.02 * (1 - move);
+      let tLz = 0.07 + move * 0.03;
+      let tRz = -0.07 - move * 0.03;
+      let twist = -stride * 0.14;
+      let armRate = 22;
+      let lunge = 0;
       if (casting) {
-        // both hands forward and up, with a slight shake of concentration
-        const shake = Math.sin(time * 18) * 0.03;
-        r.armL.rotation.x = -1.35 + shake;
-        r.armR.rotation.x = -1.45 - shake;
-      } else {
-        r.armL.rotation.x = armRest - swing * 0.9;
-        r.armR.rotation.x = armRest + swing * 0.9;
+        const shake = Math.sin(time * 16) * 0.02;
+        tLx = -1.3 + shake;
+        tRx = -1.45 - shake;
+        tLz = 0.16;
+        tRz = -0.16;
+        armRate = 13;
       }
       if (swingT > 0) {
-        // wind up, then chop forward and down
+        // anticipation -> fast strike -> follow-through -> settle
         const p = 1 - swingT / SWING;
-        const arc = p < 0.35 ? -2.4 * (p / 0.35) : -2.4 + 3.0 * ((p - 0.35) / 0.65);
-        r.armR.rotation.x = arc;
-        if (classId === 'rogue') r.armL.rotation.x = arc * 0.8 - 0.2;
-        r.upper.rotation.y = Math.sin(p * Math.PI) * -0.35;
+        let arc: number;
+        let tw: number;
+        if (p < 0.3) {
+          const k = easeOut(p / 0.3);
+          arc = lerp(armRest, -2.5, k);
+          tw = -0.5 * k;
+        } else if (p < 0.52) {
+          const k = (p - 0.3) / 0.22;
+          arc = lerp(-2.5, 0.55, k * k * k);
+          tw = lerp(-0.5, 0.45, easeOut(k));
+          lunge = Math.sin(k * Math.PI * 0.5) * 0.2;
+        } else {
+          const k = smooth((p - 0.52) / 0.48);
+          arc = lerp(0.55, armRest, k);
+          tw = lerp(0.45, 0, k);
+          lunge = 0.2 * (1 - k);
+        }
+        const hit = classId === 'rogue' && swingHand === 1 ? 'L' : 'R';
+        if (hit === 'R') {
+          tRx = arc;
+          if (classId === 'rogue') tLx = armRest - 0.3 + (arc - armRest) * -0.25;
+        } else {
+          tLx = arc;
+          tRx = armRest - 0.3 + (arc - armRest) * -0.25;
+          tw = -tw;
+        }
+        twist = tw;
+        armRate = 55;
         swingT = Math.max(0, swingT - dt);
-        if (swingT === 0) r.upper.rotation.y = 0;
       }
+      st.armLx = damp(st.armLx, tLx, armRate, dt);
+      st.armRx = damp(st.armRx, tRx, armRate, dt);
+      st.armLz = damp(st.armLz, tLz, 14, dt);
+      st.armRz = damp(st.armRz, tRz, 14, dt);
+      r.armL.rotation.x = st.armLx;
+      r.armR.rotation.x = st.armRx;
+      r.armL.rotation.z = st.armLz;
+      r.armR.rotation.z = st.armRz;
+      st.twist = damp(st.twist, twist, swingT > 0 ? 40 : 12, dt);
+      r.upper.rotation.y = st.twist;
+      st.lunge = damp(st.lunge, lunge, 30, dt);
+      r.root.position.z = st.lunge;
+
+      // cape: a damped spring that lags behind acceleration and streams out at speed
+      if (r.cape) {
+        const target = 0.08 + move * 0.5 * (st.sign > 0 ? 1 : -0.3) + Math.sin(time * 2.4 + phase) * 0.05 * (0.4 + move);
+        st.capeV -= (vf - st.lastVf) * 0.04;
+        st.capeV += (62 * (target - st.cape) - 9 * st.capeV) * dt;
+        st.cape += st.capeV * dt;
+        st.lastVf = vf;
+        r.cape.rotation.x = st.cape;
+        r.cape.rotation.z = -clamp(vs / 7, -1, 1) * 0.15;
+      }
+
       if (flashT > 0 || flashed) {
         flashT = Math.max(0, flashT - dt);
         setFlash(flashT > 0 ? flashT / 0.2 : 0);

@@ -36,6 +36,8 @@ interface UnitMesh {
   lastZ: number;
   phase: number;
   move: number;
+  vf: number;
+  vs: number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -121,7 +123,7 @@ export class ArenaScene {
     group.add(ring, targetRing);
     for (const mesh of [...character.meshes, ...sheep.meshes, ring, targetRing]) mesh.userData.unitId = id;
     this.scene.add(group);
-    return { group, character, sheep, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0 };
+    return { group, character, sheep, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0, vf: 0, vs: 0 };
   }
 
   /** Cosmetic reactions, called from the effects system. */
@@ -147,12 +149,20 @@ export class ArenaScene {
         this.meshes.set(u.id, m);
       }
       // walk cycle driven by how far the unit actually moved this frame
-      const speed = Math.hypot(u.x - m.lastX, u.z - m.lastZ) / dt;
+      const vx = (u.x - m.lastX) / dt;
+      const vz = (u.z - m.lastZ) / dt;
+      const speed = Math.min(14, Math.hypot(vx, vz));
       m.lastX = u.x;
       m.lastZ = u.z;
+      // velocity relative to where the unit faces: forward/back and sideways (towards its left)
+      const fwdV = vx * Math.sin(u.facing) + vz * Math.cos(u.facing);
+      const sideV = vx * Math.cos(u.facing) - vz * Math.sin(u.facing);
+      const k = 1 - Math.exp(-dt * 12);
+      m.vf += (fwdV - m.vf) * k;
+      m.vs += (sideV - m.vs) * k;
       const target = u.alive && speed > 0.6 ? Math.min(1, speed / 7) : 0;
-      m.move += (target - m.move) * Math.min(1, dt * 12);
-      m.phase += speed * dt * 1.5;
+      m.move += (target - m.move) * k;
+      m.phase += Math.hypot(m.vf, m.vs) * dt * 1.5;
 
       m.group.position.set(u.x, 0, u.z);
       m.group.rotation.y = u.facing;
@@ -160,7 +170,7 @@ export class ArenaScene {
       m.character.root.visible = !u.sheep;
       m.sheep.root.visible = u.sheep;
       active.setState(u.alive, u.stealthed);
-      active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt });
+      active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt, vf: m.vf, vs: m.vs });
       (m.ring.material as THREE.MeshBasicMaterial).color.set(u.team === myTeam ? 0x3fbf5f : 0xc0392b);
       m.ring.visible = u.alive;
       m.targetRing.visible = u.id === targetId;

@@ -47,7 +47,7 @@
   .plate { position:absolute; transform:translate(-50%,-100%); width:80px; text-align:center; font-size:11px; text-shadow:0 0 3px #000; }
   .plate .bar { height:6px; margin-top:1px; }
   .ft { position:absolute; transform:translate(-50%,-50%); font-weight:700; font-size:18px; text-shadow:0 0 4px #000; animation:rise 1.2s ease-out forwards; white-space:nowrap; }
-  .ft.in { color:#ff5a4d; } .ft.out { color:#fff; } .ft.heal { color:#5dff8a; } .ft.cc { color:#ffb347; font-size:15px; } .ft.info { color:#f1c40f; font-size:15px; } .ft.dim { color:#aab; font-size:14px; }
+    .ft.out { color:#fff; } .ft.cc { color:#ffb347; font-size:15px; } .ft.info { color:#f1c40f; font-size:15px; } .ft.dim { color:#aab; font-size:14px; }
   @keyframes rise { from { transform:translate(-50%,-50%); opacity:1; } to { transform:translate(-50%,-190%); opacity:0; } }
 
   #log { position:fixed; left:12px; bottom:12px; width:360px; font-size:11px; color:var(--dim); pointer-events:none; text-shadow:0 0 3px #000; }
@@ -121,7 +121,20 @@
   #log:empty { display:none; }
   #help { color:#e9dcc0; text-shadow:0 0 3px #000, 0 0 6px #000, 0 1px 2px #000; }
 
-  .ft { font-family:var(--serif); font-size:20px; -webkit-text-stroke:.6px rgba(0,0,0,.7); text-shadow:0 2px 4px rgba(0,0,0,.8); }
+  .ft { font-family:var(--serif); font-weight:800; -webkit-text-stroke:.8px rgba(0,0,0,.85); text-shadow:0 2px 5px rgba(0,0,0,.9), 0 0 10px rgba(0,0,0,.5); animation:floatup 1.3s cubic-bezier(.2,.7,.3,1) forwards; }
+  .ft.other { opacity:.8; font-weight:700; }
+  .ft.in { color:#ff5a4d; } .ft.heal { color:#6dff9a; }
+  @keyframes floatup { 0% { transform:translate(-50%,-50%) scale(.5); opacity:0; } 10% { transform:translate(-50%,-70%) scale(1.35); opacity:1; } 22% { transform:translate(-50%,-85%) scale(1); } 100% { transform:translate(calc(-50% + var(--dx,0px)),-330%) scale(.9); opacity:0; } }
+
+  #autoind { position:fixed; bottom:150px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:8px; padding:4px 12px; border-radius:16px; background:rgba(12,10,10,.7); border:1px solid #4a4538; font:700 12px var(--serif); letter-spacing:.5px; color:#8b8372; pointer-events:none; transition:color .15s, border-color .15s, box-shadow .15s; }
+  #autoind .ico { font-size:15px; filter:grayscale(1) brightness(.7); }
+  #autoind[data-state=on] { color:#ffe8b0; border-color:#ffb347; box-shadow:0 0 14px rgba(255,170,60,.55); }
+  #autoind[data-state=on] .ico { filter:none; animation:sway .5s ease-in-out infinite alternate; }
+  #autoind[data-state=range], #autoind[data-state=target] { color:#ffb347; border-color:#a86a1c; }
+  #autoind[data-state=range] .ico, #autoind[data-state=target] .ico { filter:none; opacity:.7; }
+  #autoind.pulse { animation:aipulse .28s ease-out; }
+  @keyframes aipulse { 0% { transform:translateX(-50%) scale(1.18); box-shadow:0 0 26px rgba(255,200,90,.95); } 100% { transform:translateX(-50%) scale(1); } }
+  @keyframes sway { from { transform:rotate(-14deg); } to { transform:rotate(14deg); } }
 
   /* ---------- main menu (character select) ---------- */
   #join { position:fixed; inset:0; z-index:20; display:grid; grid-template-columns:minmax(340px,430px) 1fr minmax(320px,400px); grid-template-rows:auto 1fr; gap:14px 18px; padding:18px 22px; overflow:auto;
@@ -216,6 +229,7 @@
   <div id="banner"></div>
   <div id="err"></div>
   <div id="cast" class="hidden"></div>
+  <div id="autoind" class="hidden" data-state="off"><span class="ico">⚔️</span><span>Auto-attack off (R)</span></div>
   <div id="actionbar"></div>
   <div id="log"></div>
   <div id="help">RMB-drag: steer · LMB-drag: orbit camera · wheel: zoom · click: target<br />Esc: clear target, then menu · keys can be changed in the menu</div>

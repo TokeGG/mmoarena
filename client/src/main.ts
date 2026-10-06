@@ -40,6 +40,10 @@ const snaps: { at: number; snap: Snapshot }[] = [];
 
 /** Client-side prediction for our own movement only. Abilities are never predicted. */
 const pred = { x: 0, z: 0 };
+/** Previous predicted step, so rendering can interpolate between 20 Hz steps at full frame rate. */
+const prevPred = { x: 0, z: 0 };
+/** What is actually drawn for our unit and camera: interpolated, then eased, so motion is never stepped. */
+const vis = { x: 0, z: 0, facing: 0, yaw: 0, pitch: 0.5, dist: 14, ready: false };
 let seq = 0;
 let pending: MoveInput[] = [];
 
@@ -93,7 +97,11 @@ function onMessage(raw: MessageEvent) {
       pending = [];
       seq = 0;
       targetId = null;
+      vis.ready = false;
       controls.yaw = controls.facing = ARENA.spawnFacing[team];
+      vis.facing = vis.yaw = controls.yaw;
+      vis.pitch = controls.pitch;
+      vis.dist = controls.dist;
       hud.setBar(classId, bar);
       relabel();
       hud.show(true);
@@ -136,6 +144,10 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     // Reconcile: start from the server's position, then replay inputs it has not processed yet.
     pred.x = me.x;
     pred.z = me.z;
+    if (!vis.ready) {
+      prevPred.x = vis.x = me.x;
+      prevPred.z = vis.z = me.z;
+    }
     while (pending.length && pending[0].seq <= me.lastSeq) pending.shift();
     if (me.alive && !me.controlled) for (const i of pending) applyInput(i, me);
   }
@@ -163,6 +175,8 @@ function applyInput(i: MoveInput, me: UnitSnap) {
   if (speed <= 0) return;
   let p = stepMovement({ x: pred.x, z: pred.z }, i, speed, DT, ARENA);
   if (latest?.phase === 'prep') p = clampToGate(p, team, ARENA);
+  prevPred.x = pred.x;
+  prevPred.z = pred.z;
   pred.x = p.x;
   pred.z = p.z;
 }
@@ -284,6 +298,27 @@ function frame(now: number) {
   const estNow = snap.time + (performance.now() - latestAt);
   const interp = interpolate(estNow - INTERP_DELAY_MS);
 
+  // our own unit: interpolate between the last two 20 Hz predictions, then ease towards that (hides corrections too)
+  {
+    const alpha = Math.min(1, Math.max(0, acc / DT));
+    const tx = prevPred.x + (pred.x - prevPred.x) * alpha;
+    const tz = prevPred.z + (pred.z - prevPred.z) * alpha;
+    if (!vis.ready || Math.hypot(tx - vis.x, tz - vis.z) > 4) {
+      vis.x = tx;
+      vis.z = tz;
+      vis.ready = true;
+    } else {
+      const k = 1 - Math.exp(-dt * 38);
+      vis.x += (tx - vis.x) * k;
+      vis.z += (tz - vis.z) * k;
+    }
+    vis.facing = lerpAngle(vis.facing, controls.facing, 1 - Math.exp(-dt * 16));
+    // camera: a touch of ease on orbit and zoom so it glides
+    vis.yaw = lerpAngle(vis.yaw, controls.yaw, 1 - Math.exp(-dt * 32));
+    vis.pitch += (controls.pitch - vis.pitch) * (1 - Math.exp(-dt * 32));
+    vis.dist += (controls.dist - vis.dist) * (1 - Math.exp(-dt * 10));
+  }
+
   const units: RenderUnit[] = snap.units.map((u) => {
     let x = u.x;
     let z = u.z;
@@ -291,9 +326,9 @@ function frame(now: number) {
     const i = interp.get(u.id);
     if (i) ({ x, z, facing } = i);
     if (u.id === you) {
-      x = pred.x;
-      z = pred.z;
-      facing = controls.facing;
+      x = vis.x;
+      z = vis.z;
+      facing = vis.facing;
     }
     return { id: u.id, classId: u.classId, team: u.team, x, z, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
@@ -310,7 +345,7 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(pred.x, pred.z, controls.yaw, controls.pitch, controls.dist);
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist);
   scene.render(); // render first so projection uses this frame's camera
 
   hud.update({ snap, now: estNow, you, targetId });

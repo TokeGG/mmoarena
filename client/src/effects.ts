@@ -508,6 +508,15 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (!p) break;
         this.onHit(ev.tgt);
+        if (ev.ability === null && ev.src !== 0) {
+          // auto-attack: swing the attacker's weapon and draw a quick steel slash so every swing is visible
+          const a = this.pos(ev.src);
+          if (a) {
+            this.onSwing(ev.src);
+            this.slash(a.x, a.z, p.x, p.z, 0xe9eef7, 0.95, CHEST);
+            this.later(0.05, () => this.ring(p.x, p.z, 0xffffff, 0.18, 1.2, 0.18));
+          }
+        }
         const color = SCHOOL_COLOR[ev.school] ?? 0xffffff;
         const key = ev.ability ? `${ev.src}:${ev.ability}` : '';
         const delay = key ? this.flights.get(key) ?? 0 : 0;
