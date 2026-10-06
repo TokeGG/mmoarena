@@ -15,6 +15,7 @@ import { initTooltips } from './tooltip';
 import { installTips, setTipMods, setTipProgress } from './tips';
 import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
 import { AccountUi } from './accountUi';
+import { SettingsSync } from './settingsSync';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -138,6 +139,9 @@ function onMessage(raw: MessageEvent) {
     case 'logged_out':
     case 'leaderboard':
       accountUi.handle(m);
+      break;
+    case 'settings':
+      if (!latest) settingsSync.onServer(m.data);
       break;
     case 'roster':
       hud.setRoster(m.players);
@@ -461,6 +465,7 @@ async function play(req: PlayRequest) {
   send(msg);
 }
 
+const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
   send: (m) => {
     if (ws && ws.readyState === WebSocket.OPEN) send(m);
@@ -468,7 +473,10 @@ const accountUi = new AccountUi({
   },
   onAccount: (a) => {
     if (a) applyAccountProgress(a.matches, a.wins);
-    else restoreGuestProgress();
+    else {
+      restoreGuestProgress();
+      settingsSync.stop();
+    }
     setTipProgress(progress.matches);
     mainMenu.setAccount(a);
     mainMenu.refresh();

@@ -142,3 +142,32 @@ describe('accounts in the lobby', () => {
     await until(() => s.sent.some((m: ServerMsg) => m.t === 'logged_out'));
   });
 });
+
+describe('owner cosmetics and synced settings', () => {
+  it('owner-only cosmetics work for Toke and are refused for everyone else', async () => {
+    const a = fresh();
+    const toke = (await a.register('Toke', 'hunter22', '3.3.3.3')) as any;
+    const bob = (await a.register('Bob', 'hunter22', '4.4.4.4')) as any;
+    const want = { title: 'founder', emblem: 'trident', color: 'neon' };
+    const ok = await a.customize(toke.account, want);
+    assert.deepEqual(ok?.cosmetics, want);
+    assert.equal(await a.customize(bob.account, want), null);
+    assert.equal(await a.customize(bob.account, { title: 'founder', emblem: 'swords', color: 'white' }), null);
+  });
+
+  it('reserved owner names need the owner code when one is configured', async () => {
+    const a = new Accounts(new MemoryStore(), 'sesame');
+    assert.equal((await a.register('Toke', 'hunter22', '5.5.5.5')).ok, false);
+    assert.equal((await a.register('Toke', 'hunter22', '5.5.5.5', 'wrong')).ok, false);
+    assert.ok((await a.register('Toke', 'hunter22', '5.5.5.5', 'sesame')).ok);
+    assert.ok((await a.register('Other', 'hunter22', '5.5.5.5')).ok, 'ordinary names are unaffected');
+  });
+
+  it('saves settings on the account and returns them on login', async () => {
+    const a = fresh();
+    const r = (await a.register('Alice', 'hunter22', '6.6.6.6')) as any;
+    await a.saveSettings(r.account, '{"arena.hud.v1":"{}"}');
+    const l = (await a.login('Alice', 'hunter22', '6.6.6.6')) as any;
+    assert.equal(l.account.settings, '{"arena.hud.v1":"{}"}');
+  });
+});

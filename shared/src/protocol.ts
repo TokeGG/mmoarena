@@ -30,12 +30,16 @@ export type ClientMsg =
   | { t: 'auto'; on: boolean }
   | { t: 'leave' }
   /** Accounts. Password-based; a successful register/login returns a session token for `resume`. */
-  | { t: 'register'; name: string; password: string }
+  | { t: 'register'; name: string; password: string; ownerCode?: string }
   | { t: 'login'; name: string; password: string }
   | { t: 'resume'; token: string }
   | { t: 'logout' }
   | { t: 'customize'; cosmetics: Cosmetics }
+  /** Replace the account's saved settings (HUD, keybinds, builds...) with this JSON snapshot. */
+  | { t: 'save_settings'; data: string }
   | { t: 'leaderboard' };
+
+export const MAX_SETTINGS = 24000;
 
 export type ServerMsg =
   | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null }
@@ -50,6 +54,8 @@ export type ServerMsg =
   | { t: 'auth_error'; reason: string }
   | { t: 'logged_out' }
   | { t: 'leaderboard'; rows: LeaderRow[] }
+  /** The account's saved settings JSON ('' if none yet). Sent right after login/resume. */
+  | { t: 'settings'; data: string }
   /** Cosmetics of the signed-in players in your match, by unit id. */
   | { t: 'roster'; players: RosterEntry[] };
 
@@ -114,7 +120,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'login':
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       if (typeof m.password !== 'string' || m.password.length < PASSWORD_MIN || m.password.length > PASSWORD_MAX) return null;
-      return { t: m.t, name: m.name, password: m.password };
+      if (m.t === 'register') return { t: 'register', name: m.name, password: m.password, ownerCode: typeof m.ownerCode === 'string' ? m.ownerCode.slice(0, 80) : undefined };
+      return { t: 'login', name: m.name, password: m.password };
     case 'resume':
       if (typeof m.token !== 'string' || m.token.length < 10 || m.token.length > 80) return null;
       return { t: 'resume', token: m.token };
@@ -130,6 +137,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (title === null || !emblem || !color) return null;
       return { t: 'customize', cosmetics: { title, emblem, color } };
     }
+    case 'save_settings':
+      if (typeof m.data !== 'string' || m.data.length > MAX_SETTINGS) return null;
+      return { t: 'save_settings', data: m.data };
     case 'leaderboard':
       return { t: 'leaderboard' };
     default:

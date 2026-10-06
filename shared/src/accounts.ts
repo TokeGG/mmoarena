@@ -52,7 +52,11 @@ export interface Stats {
   peak: number;
 }
 
-export type Unlock = { kind: 'free' } | { kind: 'matches' | 'wins' | 'peak'; n: number };
+/** Names that carry the owner role (lowercase). Owner-only cosmetics can only be used by these accounts. */
+export const OWNER_NAMES = ['toke'];
+export const isOwnerName = (name: string): boolean => OWNER_NAMES.includes(name.toLowerCase());
+
+export type Unlock = { kind: 'free' } | { kind: 'owner' } | { kind: 'matches' | 'wins' | 'peak'; n: number };
 export interface CosmeticDef {
   id: string;
   name: string;
@@ -60,6 +64,8 @@ export interface CosmeticDef {
   /** Emblem glyph or colour hex. */
   value?: string;
 }
+
+const owner: Unlock = { kind: 'owner' };
 
 const free: Unlock = { kind: 'free' };
 export const TITLES: CosmeticDef[] = [
@@ -71,6 +77,12 @@ export const TITLES: CosmeticDef[] = [
   { id: 'duelist', name: 'Duelist', unlock: { kind: 'peak', n: 1300 } },
   { id: 'warlord', name: 'Warlord', unlock: { kind: 'wins', n: 25 } },
   { id: 'gladiator', name: 'Gladiator', unlock: { kind: 'peak', n: 1900 } },
+  // owner only
+  { id: 'founder', name: 'Founder', unlock: owner },
+  { id: 'architect', name: 'Architect of the Arena', unlock: owner },
+  { id: 'archon', name: 'Grand Archon', unlock: owner },
+  { id: 'unbound', name: 'the Unbound', unlock: owner },
+  { id: 'sovereign', name: 'Sovereign of Sparks', unlock: owner },
 ];
 
 export const EMBLEMS: CosmeticDef[] = [
@@ -86,6 +98,11 @@ export const EMBLEMS: CosmeticDef[] = [
   { id: 'dragon', name: 'Dragon', value: '🐉', unlock: { kind: 'peak', n: 1500 } },
   { id: 'crown', name: 'Crown', value: '👑', unlock: { kind: 'peak', n: 1700 } },
   { id: 'trophy', name: 'Trophy', value: '🏆', unlock: { kind: 'peak', n: 1900 } },
+  // owner only
+  { id: 'trident', name: 'Sovereign trident', value: '🔱', unlock: owner },
+  { id: 'comet', name: 'Comet', value: '☄️', unlock: owner },
+  { id: 'cosmos', name: 'Cosmos', value: '🌌', unlock: owner },
+  { id: 'volcano', name: 'Caldera', value: '🌋', unlock: owner },
 ];
 
 export const NAME_COLORS: CosmeticDef[] = [
@@ -97,6 +114,10 @@ export const NAME_COLORS: CosmeticDef[] = [
   { id: 'violet', name: 'Void', value: '#c58bff', unlock: { kind: 'peak', n: 1300 } },
   { id: 'rose', name: 'Rose', value: '#ff7aa8', unlock: { kind: 'peak', n: 1500 } },
   { id: 'crimson', name: 'Crimson', value: '#ff4d4d', unlock: { kind: 'peak', n: 1700 } },
+  // owner only (drawn with a glow)
+  { id: 'neon', name: 'Neon', value: '#ff2bd6', unlock: owner },
+  { id: 'aurora', name: 'Aurora', value: '#2bffd0', unlock: owner },
+  { id: 'sunfire', name: 'Sunfire', value: '#ffd23f', unlock: owner },
 ];
 
 export interface Cosmetics {
@@ -106,20 +127,22 @@ export interface Cosmetics {
 }
 export const DEFAULT_COSMETICS: Cosmetics = { title: '', emblem: 'swords', color: 'white' };
 
-export function isUnlocked(def: CosmeticDef, s: Stats): boolean {
+export function isUnlocked(def: CosmeticDef, s: Stats & { name?: string }): boolean {
   const u = def.unlock;
   if (u.kind === 'free') return true;
+  if (u.kind === 'owner') return !!s.name && isOwnerName(s.name);
   return s[u.kind] >= u.n;
 }
 
 export function unlockText(def: CosmeticDef): string {
   const u = def.unlock;
   if (u.kind === 'free') return 'Unlocked';
+  if (u.kind === 'owner') return 'Founder only';
   return u.kind === 'matches' ? `Play ${u.n} matches` : u.kind === 'wins' ? `Win ${u.n} matches` : `Reach ${u.n} rating`;
 }
 
 /** Returns the cleaned choice, or null if any pick is unknown or still locked. */
-export function validateCosmetics(c: Cosmetics, s: Stats): Cosmetics | null {
+export function validateCosmetics(c: Cosmetics, s: Stats & { name?: string }): Cosmetics | null {
   const t = TITLES.find((x) => x.id === c.title);
   const e = EMBLEMS.find((x) => x.id === c.emblem);
   const k = NAME_COLORS.find((x) => x.id === c.color);
@@ -129,8 +152,9 @@ export function validateCosmetics(c: Cosmetics, s: Stats): Cosmetics | null {
 }
 
 /** What other players see: the glyph, the title text and the colour hex, resolved from ids. */
-export function resolveCosmetics(c: Cosmetics): { emblem: string; title: string; color: string } {
+export function resolveCosmetics(c: Cosmetics): { emblem: string; title: string; color: string; glow: boolean } {
   return {
+    glow: NAME_COLORS.find((x) => x.id === c.color)?.unlock.kind === 'owner',
     emblem: EMBLEMS.find((x) => x.id === c.emblem)?.value ?? '⚔️',
     title: TITLES.find((x) => x.id === c.title)?.name ?? '',
     color: NAME_COLORS.find((x) => x.id === c.color)?.value ?? '#e6e9ef',
@@ -146,6 +170,8 @@ export interface AccountInfo extends Stats {
   /** Rated games played (drives K-factor and placement). */
   rated: number;
   cosmetics: Cosmetics;
+  /** 'owner' for the founder account. */
+  role?: 'owner';
 }
 
 export interface LeaderRow {
@@ -154,6 +180,7 @@ export interface LeaderRow {
   wins: number;
   matches: number;
   cosmetics: Cosmetics;
+  role?: 'owner';
 }
 
 export interface RosterEntry {
@@ -161,6 +188,7 @@ export interface RosterEntry {
   emblem: string;
   title: string;
   color: string;
+  glow?: boolean;
   rating: number;
 }
 

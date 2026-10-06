@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { DEFAULT_COSMETICS, NAME_RE, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
+import { DEFAULT_COSMETICS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
 import type { AccountInfo, Cosmetics, LeaderRow } from '@arena/shared';
 import type { Store } from './store';
 
@@ -13,6 +13,8 @@ export interface AccountRecord extends AccountInfo {
   salt: string;
   hash: string;
   createdAt: number;
+  /** JSON snapshot of the player's client settings (HUD, keybinds, builds). */
+  settings?: string;
 }
 
 export type AuthResult = { ok: true; account: AccountRecord; token: string } | { ok: false; reason: string };
@@ -41,7 +43,8 @@ export class Accounts {
   private loginFails = new Limiter(6, 10 * 60 * 1000);
   private registers = new Limiter(5, 60 * 60 * 1000);
 
-  constructor(private store: Store) {}
+  /** If `ownerCode` is set, owner names can only be registered with that code. */
+  constructor(private store: Store, private ownerCode?: string) {}
 
   get storeKind(): string {
     return this.store.kind;
@@ -70,8 +73,9 @@ export class Accounts {
     await this.store.zadd(LEADERBOARD_KEY, a.rating, a.name);
   }
 
-  async register(name: string, password: string, ip: string): Promise<AuthResult> {
+  async register(name: string, password: string, ip: string, code?: string): Promise<AuthResult> {
     if (!NAME_RE.test(name)) return { ok: false, reason: 'Names are 3-16 letters, numbers or underscores.' };
+    if (isOwnerName(name) && this.ownerCode && code !== this.ownerCode) return { ok: false, reason: 'That name is reserved. Enter the owner code to register it.' };
     if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) return { ok: false, reason: `Passwords are ${PASSWORD_MIN}-${PASSWORD_MAX} characters.` };
     if (!this.registers.allow(ip)) return { ok: false, reason: 'Too many new accounts from your network. Try again later.' };
     const salt = crypto.randomBytes(16);
@@ -118,6 +122,13 @@ export class Accounts {
     await this.store.del(`sess:${token}`);
   }
 
+  async saveSettings(a: AccountRecord, data: string): Promise<void> {
+    const fresh = (await this.get(a.name)) ?? a;
+    fresh.settings = data;
+    await this.save(fresh);
+    a.settings = data;
+  }
+
   async customize(a: AccountRecord, want: Cosmetics): Promise<AccountRecord | null> {
     const ok = validateCosmetics(want, a);
     if (!ok) return null;
@@ -155,7 +166,7 @@ export class Accounts {
     const rows: LeaderRow[] = [];
     for (const { member } of top) {
       const a = await this.get(member);
-      if (a) rows.push({ name: a.name, rating: a.rating, wins: a.wins, matches: a.matches, cosmetics: a.cosmetics });
+      if (a) rows.push({ name: a.name, rating: a.rating, wins: a.wins, matches: a.matches, cosmetics: a.cosmetics, role: isOwnerName(a.name) ? 'owner' : undefined });
     }
     return rows;
   }
@@ -163,5 +174,5 @@ export class Accounts {
 
 /** The account a player may see: everything except the credentials. */
 export function publicInfo(a: AccountRecord): AccountInfo {
-  return { name: a.name, matches: a.matches, wins: a.wins, peak: a.peak, rating: a.rating, rated: a.rated, cosmetics: a.cosmetics };
+  return { name: a.name, matches: a.matches, wins: a.wins, peak: a.peak, rating: a.rating, rated: a.rated, cosmetics: a.cosmetics, role: isOwnerName(a.name) ? 'owner' : undefined };
 }

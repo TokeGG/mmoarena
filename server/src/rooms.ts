@@ -31,6 +31,7 @@ export interface Player {
   token?: string;
   /** Account actions run one at a time per connection. */
   chain: Promise<void>;
+  lastSettingsSave?: number;
 }
 
 export function send(p: Player, msg: ServerMsg): void {
@@ -223,13 +224,14 @@ export class Lobby {
         case 'login':
         case 'resume': {
           if (p.room || this.queue.includes(p)) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
-          const r = msg.t === 'register' ? await acc.register(msg.name, msg.password, p.ip) : msg.t === 'login' ? await acc.login(msg.name, msg.password, p.ip) : await acc.resume(msg.token);
+          const r = msg.t === 'register' ? await acc.register(msg.name, msg.password, p.ip, msg.ownerCode) : msg.t === 'login' ? await acc.login(msg.name, msg.password, p.ip) : await acc.resume(msg.token);
           if (!r.ok) return void send(p, { t: 'auth_error', reason: r.reason });
           p.account = r.account;
           p.token = r.token;
           p.matches = r.account.matches;
           p.wins = r.account.wins;
           send(p, { t: 'account', account: publicInfo(r.account), token: msg.t === 'resume' ? undefined : r.token });
+          send(p, { t: 'settings', data: r.account.settings ?? '' });
           break;
         }
         case 'logout':
@@ -244,6 +246,21 @@ export class Lobby {
           if (!updated) return void send(p, { t: 'auth_error', reason: 'That cosmetic is still locked.' });
           p.account = updated;
           send(p, { t: 'account', account: publicInfo(updated) });
+          break;
+        }
+        case 'save_settings': {
+          if (!p.account) return;
+          const now = Date.now();
+          if (now - (p.lastSettingsSave ?? 0) < 1500) return; // at most one write per 1.5 s per connection
+          p.lastSettingsSave = now;
+          try {
+            const obj = JSON.parse(msg.data) as unknown;
+            if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
+            if (!Object.entries(obj).every(([k, v]) => k.startsWith('arena.') && k.length < 80 && typeof v === 'string')) return;
+          } catch {
+            return;
+          }
+          await acc.saveSettings(p.account, msg.data);
           break;
         }
         case 'leaderboard':
@@ -287,6 +304,7 @@ export class Lobby {
       case 'resume':
       case 'logout':
       case 'customize':
+      case 'save_settings':
       case 'leaderboard':
         this.account(p, msg);
         break;

@@ -69,6 +69,7 @@ class UnitFrame {
     this.portrait.classList.toggle('enemy', enemy);
     this.nameEl.textContent = who ? `${who.emblem} ${u.name}` : u.name;
     this.nameEl.style.color = who?.color || CLASSES[u.classId].color;
+    this.nameEl.style.textShadow = who?.glow ? `0 0 8px ${who.color}` : '';
     this.hp.setColor(enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)');
     this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}`);
     this.res.setColor(RES_COLOR[u.resourceType]);
@@ -308,6 +309,7 @@ export class Hud {
       const who = this.roster.get(u.id);
       p.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;
       p.name.style.color = who?.color || (u.enemy ? '#ff8a7a' : '#a8f0b8');
+      p.name.style.textShadow = who?.glow ? `0 0 8px ${who.color}, 0 1px 2px #000` : '';
       p.title.textContent = who?.title ? `«${who.title}»` : '';
       p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);

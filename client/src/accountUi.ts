@@ -1,4 +1,4 @@
-import { EMBLEMS, NAME_COLORS, NAME_RE, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
+import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
 import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, ServerMsg } from '@arena/shared';
 
 /**
@@ -150,6 +150,7 @@ export class AccountUi {
     name.style.color = c.color;
     const rank = el('span', 'cr', `${tier.icon} ${tier.name} · ${a.rating}`);
     rank.style.color = tier.color;
+    if (c.glow) name.style.textShadow = `0 0 8px ${c.color}`;
     this.chip.append(el('span', 'ci', c.emblem), name, rank);
   }
 
@@ -209,6 +210,15 @@ export class AccountUi {
     name.maxLength = 16;
     name.autocomplete = 'username';
     name.dataset.f = 'name';
+    // reserved owner names need the owner code (only shown when the typed name is one)
+    const code = el('input');
+    code.type = 'password';
+    code.placeholder = 'Owner code';
+    code.autocomplete = 'off';
+    code.dataset.f = 'code';
+    code.style.display = 'none';
+    const syncCode = () => (code.style.display = this.authMode === 'register' && isOwnerName(name.value.trim()) ? '' : 'none');
+    name.addEventListener('input', syncCode);
     const pass = el('input');
     pass.type = 'password';
     pass.placeholder = `Password (${PASSWORD_MIN}+ characters)`;
@@ -222,17 +232,18 @@ export class AccountUi {
       if (!NAME_RE.test(n)) return this.say(err, 'Names are 3-16 letters, numbers or underscores.');
       if (pass.value.length < PASSWORD_MIN) return this.say(err, `Passwords need at least ${PASSWORD_MIN} characters.`);
       this.say(err, 'Working…');
-      this.hooks.send({ t: this.authMode, name: n, password: pass.value });
+      if (this.authMode === 'register') this.hooks.send({ t: 'register', name: n, password: pass.value, ownerCode: code.value || undefined });
+      else this.hooks.send({ t: 'login', name: n, password: pass.value });
     };
     go.addEventListener('click', submit);
-    for (const i of [name, pass]) i.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
+    for (const i of [name, pass, code]) i.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
     const guest = el('button', 'mm-link', 'Continue as guest (no rank, progress stays in this browser)');
     guest.addEventListener('click', () => {
       store.set(SEEN_KEY, '1');
       this.closeModal();
     });
-    const note = el('div', 'mm-modal-foot', 'Accounts keep your rank, wins, unlocked gear tiers and cosmetics on any device. Passwords are hashed on the server.');
-    card.append(tabs, name, pass, err, go, guest, note);
+    const note = el('div', 'mm-modal-foot', 'Accounts keep your rank, wins, unlocked gear, cosmetics and all your settings (HUD, keybinds, builds) on any device. Passwords are hashed on the server.');
+    card.append(tabs, name, pass, code, err, go, guest, note);
     window.setTimeout(() => name.focus(), 0);
     return card;
   }
@@ -272,7 +283,9 @@ export class AccountUi {
     const who = el('div', 'prof-who');
     const nm = el('div', 'prof-name', a.name);
     nm.style.color = c.color;
+    if (c.glow) nm.style.textShadow = `0 0 12px ${c.color}`;
     who.append(nm, el('div', 'prof-title', c.title || 'No title'));
+    if (a.role === 'owner') who.append(el('div', 'owner-ribbon', '★ FOUNDER · Owner of the Arena'));
     const rank = el('div', 'prof-rank');
     rank.style.color = tier.color;
     rank.append(el('div', 'rr-icon', tier.icon), el('div', 'rr-name', tier.name), el('div', 'rr-num', String(a.rating)));
@@ -339,6 +352,7 @@ export class AccountUi {
       const row = el('div', `opt-row ${field}`);
       for (const d of defs) {
         const open = isUnlocked(d, a);
+        if (!open && d.unlock.kind === 'owner') continue; // owner-only items stay hidden from everyone else
         const b = el('button', `opt${a.cosmetics[field] === d.id ? ' sel' : ''}${open ? '' : ' locked'}`);
         b.append(el('span', 'ov', render(d)), el('small', '', open ? d.name : `🔒 ${unlockText(d)}`));
         if (field === 'color' && d.value) b.style.setProperty('--c', d.value);
@@ -369,8 +383,9 @@ export class AccountUi {
       const row = el('div', `lb-row${r.name === a.name ? ' me' : ''}`);
       const rc = resolveCosmetics(r.cosmetics);
       const tier = rankProgress(r.rating).tier;
-      const nm = el('span', 'lb-name', `${rc.emblem} ${r.name}`);
+      const nm = el('span', 'lb-name', `${r.role === 'owner' ? '★ ' : ''}${rc.emblem} ${r.name}`);
       nm.style.color = rc.color;
+      if (rc.glow) nm.style.textShadow = `0 0 8px ${rc.color}`;
       const rating = el('span', 'lb-rating', `${tier.icon} ${r.rating}`);
       rating.style.color = tier.color;
       row.append(el('span', 'lb-pos', `#${i + 1}`), nm, rating, el('span', 'lb-wl', `${r.wins}W / ${r.matches}M`));

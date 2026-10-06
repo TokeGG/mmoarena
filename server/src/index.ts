@@ -43,7 +43,7 @@ const MAX_MSGS_PER_SEC = 120;
 export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const root = path.resolve(opts.staticDir ?? path.join(here, '../../client/dist'));
-  const accounts = new Accounts(opts.accountStore ?? createStore());
+  const accounts = new Accounts(opts.accountStore ?? createStore(), process.env.ARENA_OWNER_CODE);
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
   const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts);
 
@@ -75,7 +75,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
     });
   });
 
-  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 2048 });
+  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 32768 });
   const alive = new WeakSet<object>();
 
   wss.on('connection', (ws, req) => {
