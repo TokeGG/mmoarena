@@ -60,7 +60,7 @@
   "kind": "absorb",
   "duration": 15000,
   "harmful": false,
-  "absorb": 350,
+  "absorb": 200,
   "dispellable": true
  },
  "stealth": {

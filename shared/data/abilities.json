@@ -218,11 +218,11 @@
   "castTime": 1500,
   "cooldown": 0,
   "gcd": true,
-  "cost": 60,
+  "cost": 80,
   "effects": [
    {
     "type": "heal",
-    "amount": 230
+    "amount": 130
    }
   ]
  },
@@ -234,7 +234,7 @@
   "target": "ally_or_self",
   "range": 40,
   "castTime": 0,
-  "cooldown": 10000,
+  "cooldown": 15000,
   "gcd": true,
   "cost": 50,
   "prepOk": true,
@@ -353,7 +353,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 95
+    "amount": 110
    }
   ]
  },
@@ -778,7 +778,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 140
+    "amount": 155
    }
   ]
  },
@@ -1100,7 +1100,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 230
+    "amount": 260
    }
   ]
  },
