@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.28.0
+# WoW-style Arena · v0.29.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -33,7 +33,7 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 
 ## Controls (rebindable)
 
-Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target · 1-8 abilities (Shift+drag one action slot onto another to rearrange; saved per spec) · R auto-attack.
+Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target · 1-8 abilities (Shift+drag one action slot onto another to rearrange; saved per spec) · R toggles auto-attack; right-click an enemy (a click, not a drag) targets it and starts auto-attack, left-click only targets.
 
 **Esc** clears your target first, then opens the menu: Resume, Controls, mouse sensitivity, volume sliders, HUD editor, Leave match. In **Controls** click a box and press a key, or hold **Shift / Ctrl / Alt** and press one for a combo such as Shift+1 (a plain binding still fires with a modifier held unless that exact combo is bound; release a modifier on its own to bind the modifier itself; browsers may grab some Ctrl combos); every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. The same screen is on the join page. Signed in, your keybinds, HUD, volume and builds follow your account to any device.
 
@@ -57,10 +57,10 @@ Hover any ability, buff or debuff, spec, talent or look to see numbers for your 
 
 ## How combat works
 
-Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, crowd control with diminishing returns, line-of-sight pillars and stealth. Warriors and rogues need auto-attack on (R, or any melee ability) to build rage and deal steady damage.
+Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, crowd control with diminishing returns, line-of-sight pillars and stealth. Warriors and rogues need auto-attack on (right-click an enemy, R, or any melee ability; it is held while stealthed unless the target is within 2 yards) to build rage and deal steady damage.
 
 - **Jumping and ground zones:** Space jumps. A jump is mostly cosmetic, but while airborne you dodge the pulses of ground zones such as Flamestrike. Dodging has a 1.5 s cooldown so hop-spamming does not work. Targeted spells (Fireball, Frostbolt, Smite...) always hit.
-- **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the old rate; stealthed rogues are spotted within 4 yards.
+- **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the old rate; stealthed rogues are spotted within 2 yards (0.29), and auto-attack only swings from stealth at that range, breaking it.
 - **Fog:** enemies you cannot see (stealthed or farther than 8 yards) are left out of your snapshots entirely.
 
 ## Appearance (cosmetics change how you look, nothing else)

@@ -529,6 +529,8 @@ export class ArenaSim {
     if (!auto || !u.autoAttack || this.phase !== 'live' || !this.canAct(u) || u.cast) return;
     const t = u.target !== null ? this.units.get(u.target) : undefined;
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;
+    // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
+    if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
     if (dist(u.pos, t.pos) > auto.range + TUNING.rangeTolerance || this.time < u.nextSwing) return;
     if (!hasLOS(u.pos, t.pos, this.arena)) return; // no swinging through pillars
     u.nextSwing = this.time + auto.interval;

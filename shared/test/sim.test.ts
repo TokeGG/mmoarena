@@ -204,9 +204,9 @@ describe('stealth', () => {
     assert.ok(sim.snapshot(0).units.some((u) => u.id === rogue.id), 'own team always sees it');
     mustFail(sim.useAbility(mage.id, 'frostbolt', rogue.id), /not visible/);
     rogue.pos = { x: 10, z: 0 };
-    assert.ok(!sim.snapshot(1).units.some((u) => u.id === rogue.id), 'still hidden beyond 4 yards');
+    assert.ok(!sim.snapshot(1).units.some((u) => u.id === rogue.id), 'still hidden beyond 2 yards');
     rogue.pos = { x: 17, z: 0 };
-    assert.ok(sim.snapshot(1).units.some((u) => u.id === rogue.id), 'revealed within 4 yards');
+    assert.ok(sim.snapshot(1).units.some((u) => u.id === rogue.id), 'revealed within 2 yards');
   });
 
   it('cheap shot needs stealth, stuns, and breaks stealth', () => {
@@ -219,6 +219,24 @@ describe('stealth', () => {
     assert.ok(sim.useAbility(rogue.id, 'cheap_shot', mage.id).ok);
     assert.ok(mage.auras.some((a) => a.id === 'cheap_shot_stun'));
     assert.ok(!sim.isStealthed(rogue));
+  });
+
+  it('auto-attack is held while stealthed unless the target is within 2 yards', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const mage = add(sim, 'mage', 1, 3, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(rogue.id, 'stealth').ok);
+    sim.setTarget(rogue.id, mage.id);
+    sim.setAutoAttack(rogue.id, true);
+    const hp = mage.health;
+    advance(sim, 2500);
+    assert.equal(mage.health, hp, 'no swings from stealth at 3 yards');
+    assert.ok(sim.isStealthed(rogue), 'stealth is not broken by the pending auto-attack');
+    mage.pos = { x: 2, z: 0 };
+    advance(sim, 2500);
+    assert.ok(mage.health < hp, 'swings land once the target is within 2 yards');
+    assert.ok(!sim.isStealthed(rogue), 'and the swing breaks stealth');
   });
 
   it('cannot stealth while in combat', () => {

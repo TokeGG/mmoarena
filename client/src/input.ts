@@ -24,11 +24,14 @@ export class Controls {
   private downX = 0;
   private downY = 0;
   private dragged = false;
+  private travel = 0; // pointer distance moved since a button went down (works under pointer lock)
   private jumpQueued = false;
   private mx = 0;
   private my = 0;
 
   onClick: (x: number, y: number) => void = () => {};
+  /** A right-button click that did not turn the camera (WoW: target and auto-attack). */
+  onRightClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
 
   constructor(canvas: HTMLCanvasElement, private binds: Keybinds) {
@@ -72,6 +75,7 @@ export class Controls {
           this.downX = e.clientX;
           this.downY = e.clientY;
           this.dragged = false;
+          this.travel = 0;
         }
         if (e.button === 0) this.lmb = true;
         if (e.button === 2) {
@@ -88,8 +92,10 @@ export class Controls {
         if (wasDown && this.enabled && !this.dragged && !this.rmb) this.onClick(e.clientX, e.clientY);
       }
       if (e.button === 2) {
+        const wasDown = this.rmb;
         this.rmb = false;
         if (document.pointerLockElement) document.exitPointerLock();
+        if (wasDown && this.enabled && !this.dragged && !this.lmb) this.onRightClick(this.downX, this.downY);
       }
       sync(e);
     });
@@ -100,7 +106,8 @@ export class Controls {
         this.my = e.clientY;
       }
       if (!this.enabled || (!this.lmb && !this.rmb)) return;
-      if (Math.abs(e.clientX - this.downX) + Math.abs(e.clientY - this.downY) > 4) this.dragged = true;
+      this.travel += Math.abs(e.movementX) + Math.abs(e.movementY);
+      if (this.travel > 4) this.dragged = true;
       this.yaw -= e.movementX * 0.005 * this.sens;
       this.pitch = clamp(this.pitch + e.movementY * 0.005 * this.sens, -0.15, 1.35);
     });

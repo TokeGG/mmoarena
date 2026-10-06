@@ -14,7 +14,7 @@
   "prepMs": 10000,
   "maxMatchMs": 600000,
   "damageVariance": 0.08,
-  "stealthDetect": 4,
+  "stealthDetect": 2,
   "outOfCombatMs": 5000,
   "rageFromDealt": 0.05,
   "rageFromTaken": 0.05,

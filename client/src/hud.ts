@@ -383,15 +383,16 @@ export class Hud {
     root.classList.toggle('hidden', !show);
     if (!show || !auto) return;
     const t = targetId !== null ? snap.units.find((u) => u.id === targetId) : undefined;
-    let state: 'on' | 'range' | 'target' | 'off' = 'off';
-    if (me.autoAttack) {
+    let state: 'on' | 'range' | 'target' | 'stealth' | 'off' = 'off';
+    if (me.stealthed) state = 'stealth';
+    else if (me.autoAttack) {
       if (!t || !t.alive || t.team === me.team) state = 'target';
       else if (Math.hypot(t.x - me.x, t.z - me.z) > auto.range + 0.5) state = 'range';
       else state = 'on';
     }
     root.dataset.state = state;
-    const label = { on: 'Auto-attacking', range: 'Auto-attack: move closer', target: 'Auto-attack: no target', off: 'Auto-attack off (R)' }[state];
-    if (root.lastElementChild!.textContent !== label) root.lastElementChild!.textContent = label;
+    const label = { on: 'Auto-attacking', range: 'Auto-attack: move closer', target: 'Auto-attack: no target', stealth: 'Auto-attack is off while stealthed', off: 'Auto-attack off (right-click an enemy or press R)' }[state];
+    if (root.title !== label) root.title = label;
   }
 
   /** Pulse the indicator whenever one of our swings lands. */

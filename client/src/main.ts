@@ -421,6 +421,15 @@ controls.onClick = (x, y) => {
   const id = scene.pick(x, y, spec ? null : you);
   if (id !== null) setTarget(id);
 };
+controls.onRightClick = (x, y) => {
+  if (spec || aiming) return;
+  const id = scene.pick(x, y, you);
+  if (id === null) return;
+  setTarget(id);
+  const me = latest?.units.find((u) => u.id === you);
+  const t = latest?.units.find((u) => u.id === id);
+  if (me && t && t.team !== me.team && !me.autoAttack) send({ t: 'auto', on: true }); // right-click an enemy: target and start swinging
+};
 controls.onKey = (code, e) => {
   if (code === 'Escape') {
     if (aiming) return void setAiming(null);

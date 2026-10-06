@@ -139,8 +139,10 @@
   .ft.in { color:#ff5a4d; } .ft.heal { color:#6dff9a; }
   @keyframes floatup { 0% { transform:translate(-50%,-50%) scale(.5); opacity:0; } 10% { transform:translate(-50%,-70%) scale(1.35); opacity:1; } 22% { transform:translate(-50%,-85%) scale(1); } 100% { transform:translate(calc(-50% + var(--dx,0px)),-330%) scale(.9); opacity:0; } }
 
-  #autoind { position:fixed; bottom:150px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:8px; padding:4px 12px; border-radius:16px; background:rgba(12,10,10,.7); border:1px solid #4a4538; font:700 12px var(--serif); letter-spacing:.5px; color:#8b8372; pointer-events:none; transition:color .15s, border-color .15s, box-shadow .15s; }
-  #autoind .ico { font-size:15px; filter:grayscale(1) brightness(.7); }
+  #autoind { position:fixed; bottom:150px; left:50%; transform:translateX(-50%); display:flex; align-items:center; justify-content:center; width:34px; height:34px; border-radius:50%; background:rgba(12,10,10,.7); border:1px solid #4a4538; color:#8b8372; pointer-events:none; transition:color .15s, border-color .15s, box-shadow .15s; }
+  #autoind .ico { font-size:18px; line-height:1; filter:grayscale(1) brightness(.7); }
+  #autoind[data-state=stealth] { border-style:dashed; }
+  #autoind[data-state=stealth] .ico { opacity:.45; }
   #autoind[data-state=on] { color:#ffe8b0; border-color:#ffb347; box-shadow:0 0 14px rgba(255,170,60,.55); }
   #autoind[data-state=on] .ico { filter:none; animation:sway .5s ease-in-out infinite alternate; }
   #autoind[data-state=range], #autoind[data-state=target] { color:#ffb347; border-color:#a86a1c; }
@@ -371,7 +373,7 @@
   <div id="banner"></div>
   <div id="err"></div>
   <div id="cast" class="hidden"></div>
-  <div id="autoind" class="hidden" data-state="off"><span class="ico">⚔️</span><span>Auto-attack off (R)</span></div>
+  <div id="autoind" class="hidden" data-state="off"><span class="ico">⚔️</span></div>
   <div id="actionbar"></div>
   <div id="log"></div>
   <div id="help">RMB-drag: steer · LMB-drag: orbit camera · wheel: zoom · click: target<br />Esc: clear target, then menu · keys can be changed in the menu</div>
