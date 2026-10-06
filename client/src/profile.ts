@@ -5,6 +5,13 @@ import type { Build, ClassId } from '@arena/shared';
 
 export const progress = { token: '', matches: 0, wins: 0 };
 
+/** Loot ids the signed-in account owns (empty for guests). Equipped loot must be in here. */
+export const owned = new Set<string>();
+export function setOwned(ids: readonly string[]) {
+  owned.clear();
+  for (const id of ids) owned.add(id);
+}
+
 const PROFILE_KEY = 'arena.profile.v1';
 const buildKey = (c: ClassId) => `arena.build.v1.${c}`;
 
@@ -49,13 +56,13 @@ export function sanitize(classId: ClassId, b: Build, matches = progress.matches)
   const gear: Record<string, string> = {};
   for (const [slot, id] of Object.entries(b.gear ?? {})) {
     const item = itemById(id);
-    if (item && item.slot === slot && tierUnlocked(item.tier, matches)) gear[slot] = id;
+    if (item && item.slot === slot && (item.rarity ? owned.has(id) : tierUnlocked(item.tier, matches))) gear[slot] = id;
   }
   return { spec, talents, gear };
 }
 
 export function defaultBuild(classId: ClassId): Build {
-  return { ...emptyBuild(classId), talents: TALENTS[classId].map(() => ''), gear: bestGear('balance', progress.matches) };
+  return { ...emptyBuild(classId), talents: TALENTS[classId].map(() => ''), gear: bestGear('balance', progress.matches, [...owned]) };
 }
 
 export function loadBuild(classId: ClassId): Build {
@@ -63,7 +70,7 @@ export function loadBuild(classId: ClassId): Build {
     const raw = localStorage.getItem(buildKey(classId));
     if (raw) {
       const b = sanitize(classId, JSON.parse(raw) as Build);
-      if (validateBuild(classId, b, progress.matches).ok) return b;
+      if (validateBuild(classId, b, progress.matches, owned).ok) return b;
     }
   } catch {
     /* fall through */

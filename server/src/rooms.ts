@@ -173,11 +173,13 @@ export class Room {
         // signed in: the server-side account is the source of truth, and ranked matches move the rating
         this.accounts
           .recordMatch(p.account.name, { won, draw, rated: this.ranked, opponentAvg: this.teamAvg(1 - me.team) })
-          .then((a) => {
-            if (a) {
-              p.account = a;
-              send(p, { t: 'account', account: publicInfo(a) });
-            }
+          .then(async (a) => {
+            if (!a) return;
+            p.account = a;
+            const loot = await this.accounts!.grantLoot(a.name, this.ranked ? 'ranked' : 'practice', won);
+            if (loot) p.account = loot.account;
+            send(p, { t: 'account', account: publicInfo(p.account) });
+            if (loot && loot.drops.length) send(p, { t: 'loot', drops: loot.drops, discarded: loot.discarded });
           })
           .catch(() => {});
         continue;
@@ -255,6 +257,14 @@ export class Lobby {
           send(p, { t: 'account', account: publicInfo(updated) });
           break;
         }
+        case 'discard': {
+          if (!p.account) return;
+          const updated = await acc.discard(p.account, msg.id);
+          if (!updated) return;
+          p.account = updated;
+          send(p, { t: 'account', account: publicInfo(updated) });
+          break;
+        }
         case 'save_settings': {
           if (!p.account) return;
           const now = Date.now();
@@ -287,7 +297,7 @@ export class Lobby {
           const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
           const build = msg.build;
           if (build) {
-            const check = validateBuild(msg.classId, build, progress.matches);
+            const check = validateBuild(msg.classId, build, progress.matches, p.account?.inventory);
             if (!check.ok) {
               send(p, { t: 'error', reason: `Invalid build: ${check.reason}` });
               send(p, { t: 'closed', reason: `Invalid build: ${check.reason}` });
@@ -313,6 +323,7 @@ export class Lobby {
       case 'logout':
       case 'customize':
       case 'save_settings':
+      case 'discard':
       case 'leaderboard':
         this.account(p, msg);
         break;

@@ -39,6 +39,8 @@ export type ClientMsg =
   | { t: 'customize'; cosmetics: Cosmetics }
   /** Replace the account's saved settings (HUD, keybinds, builds...) with this JSON snapshot. */
   | { t: 'save_settings'; data: string }
+  /** Throw away a loot item. */
+  | { t: 'discard'; id: string }
   | { t: 'leaderboard' };
 
 export const MAX_SETTINGS = 24000;
@@ -58,6 +60,8 @@ export type ServerMsg =
   | { t: 'leaderboard'; rows: LeaderRow[] }
   /** The account's saved settings JSON ('' if none yet). Sent right after login/resume. */
   | { t: 'settings'; data: string }
+  /** Loot earned from the match that just finished; `discarded` are items pushed out of a full inventory. */
+  | { t: 'loot'; drops: string[]; discarded: string[] }
   /** Cosmetics of the signed-in players in your match, by unit id. */
   | { t: 'roster'; players: RosterEntry[] };
 
@@ -140,6 +144,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (title === null || !emblem || !color) return null;
       return { t: 'customize', cosmetics: { title, emblem, color } };
     }
+    case 'discard':
+      if (typeof m.id !== 'string' || !/^L\.[a-z]{3,12}\.[a-z]{3,12}\.[a-z0-9]{4,8}$/.test(m.id)) return null;
+      return { t: 'discard', id: m.id };
     case 'save_settings':
       if (typeof m.data !== 'string' || m.data.length > MAX_SETTINGS) return null;
       return { t: 'save_settings', data: m.data };

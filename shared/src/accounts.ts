@@ -172,6 +172,8 @@ export interface AccountInfo extends Stats {
   cosmetics: Cosmetics;
   /** 'owner' for the founder account. */
   role?: 'owner';
+  /** Loot ids the account owns (oldest first). Only ever sent to the account's own player. */
+  inventory: string[];
 }
 
 export interface LeaderRow {

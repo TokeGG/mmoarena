@@ -1,12 +1,15 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { DEFAULT_COSMETICS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
+import { DEFAULT_COSMETICS, MAX_INVENTORY, NAME_RE, isOwnerName, lootItem, rarityIndex, rollLoot, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
 import type { AccountInfo, Cosmetics, LeaderRow } from '@arena/shared';
 import type { Store } from './store';
 
 const scrypt = promisify(crypto.scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
 const SESSION_SECONDS = 30 * 24 * 3600;
 const LEADERBOARD_KEY = 'lb:rating';
+/** A ranked drop is guaranteed to be epic or better after this many without one. */
+export const PITY_EPIC = 20;
+const cryptoRand = () => crypto.randomInt(0, 2 ** 30) / 2 ** 30;
 
 export interface AccountRecord extends AccountInfo {
   key: string;
@@ -15,6 +18,8 @@ export interface AccountRecord extends AccountInfo {
   createdAt: number;
   /** JSON snapshot of the player's client settings (HUD, keybinds, builds). */
   settings?: string;
+  /** Drops since the last epic or better (bad-luck protection). */
+  pity?: number;
 }
 
 export type AuthResult = { ok: true; account: AccountRecord; token: string } | { ok: false; reason: string };
@@ -62,7 +67,9 @@ export class Accounts {
     const raw = await this.store.get(`acct:${name.toLowerCase()}`);
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as AccountRecord;
+      const a = JSON.parse(raw) as AccountRecord;
+      a.inventory ??= [];
+      return a;
     } catch {
       return null;
     }
@@ -81,7 +88,7 @@ export class Accounts {
     const salt = crypto.randomBytes(16);
     const record: AccountRecord = {
       key: name.toLowerCase(), name, salt: salt.toString('base64'), hash: await this.hash(password, salt), createdAt: Date.now(),
-      matches: 0, wins: 0, peak: START_RATING, rating: START_RATING, rated: 0, cosmetics: { ...DEFAULT_COSMETICS },
+      matches: 0, wins: 0, peak: START_RATING, rating: START_RATING, rated: 0, cosmetics: { ...DEFAULT_COSMETICS }, inventory: [],
     };
     if (!(await this.store.setNx(`acct:${record.key}`, JSON.stringify(record)))) return { ok: false, reason: 'That name is taken.' };
     await this.store.zadd(LEADERBOARD_KEY, record.rating, record.name);
@@ -129,6 +136,45 @@ export class Accounts {
     a.settings = data;
   }
 
+  /**
+   * Roll the loot for a finished, counted match. Ranked (queue) matches always drop one item and a second for a win, with
+   * bad-luck protection towards epics. Practice matches against bots drop at most one item, never above Rare, half the time.
+   * A full inventory pushes out its lowest-rarity, oldest item (never one that just dropped).
+   */
+  async grantLoot(name: string, kind: 'ranked' | 'practice', won: boolean, rand: () => number = cryptoRand): Promise<{ account: AccountRecord; drops: string[]; discarded: string[] } | null> {
+    const a = await this.get(name);
+    if (!a) return null;
+    const count = kind === 'ranked' ? 1 + (won ? 1 : 0) : rand() < 0.5 ? 1 : 0;
+    const drops: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const guaranteed = kind === 'ranked' && (a.pity ?? 0) >= PITY_EPIC - 1;
+      let id = rollLoot(rand, { minRarity: guaranteed ? 'epic' : undefined, maxRarity: kind === 'practice' ? 'rare' : undefined });
+      while (a.inventory.includes(id) || drops.includes(id)) id = rollLoot(rand, { minRarity: guaranteed ? 'epic' : undefined, maxRarity: kind === 'practice' ? 'rare' : undefined });
+      drops.push(id);
+      if (kind === 'ranked') a.pity = rarityIndex(lootItem(id)!.rarity!) >= rarityIndex('epic') ? 0 : (a.pity ?? 0) + 1;
+    }
+    a.inventory.push(...drops);
+    const discarded: string[] = [];
+    while (a.inventory.length > MAX_INVENTORY) {
+      const candidates = a.inventory.filter((id) => !drops.includes(id));
+      const pool = candidates.length ? candidates : a.inventory;
+      const worst = pool.reduce((w, id) => (rarityIndex(lootItem(id)!.rarity!) < rarityIndex(lootItem(w)!.rarity!) ? id : w));
+      a.inventory.splice(a.inventory.indexOf(worst), 1);
+      discarded.push(worst);
+    }
+    await this.save(a);
+    return { account: a, drops, discarded };
+  }
+
+  async discard(a: AccountRecord, id: string): Promise<AccountRecord | null> {
+    const fresh = (await this.get(a.name)) ?? a;
+    const i = fresh.inventory.indexOf(id);
+    if (i < 0) return null;
+    fresh.inventory.splice(i, 1);
+    await this.save(fresh);
+    return fresh;
+  }
+
   async customize(a: AccountRecord, want: Cosmetics): Promise<AccountRecord | null> {
     const ok = validateCosmetics(want, a);
     if (!ok) return null;
@@ -174,5 +220,5 @@ export class Accounts {
 
 /** The account a player may see: everything except the credentials. */
 export function publicInfo(a: AccountRecord): AccountInfo {
-  return { name: a.name, matches: a.matches, wins: a.wins, peak: a.peak, rating: a.rating, rated: a.rated, cosmetics: a.cosmetics, role: isOwnerName(a.name) ? 'owner' : undefined };
+  return { name: a.name, matches: a.matches, wins: a.wins, peak: a.peak, rating: a.rating, rated: a.rated, cosmetics: a.cosmetics, role: isOwnerName(a.name) ? 'owner' : undefined, inventory: a.inventory };
 }

@@ -13,7 +13,8 @@ import { MainMenu } from './mainMenu';
 import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
 import { installTips, setTipMods, setTipProgress } from './tips';
-import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
+import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile, setOwned } from './profile';
+import { LootUi } from './lootUi';
 import { AccountUi } from './accountUi';
 import { SettingsSync } from './settingsSync';
 
@@ -147,6 +148,10 @@ function onMessage(raw: MessageEvent) {
     case 'settings':
       if (!latest) settingsSync.onServer(m.data);
       break;
+    case 'loot':
+      lootUi.add(m.drops, m.discarded);
+      if (!latest) lootUi.flush();
+      break;
     case 'roster':
       hud.setRoster(m.players);
       break;
@@ -171,6 +176,7 @@ function onMessage(raw: MessageEvent) {
       latest = null;
       mainMenu.show(true);
       joinMsg(m.reason === 'match over' ? 'Match over. Queue again?' : m.reason);
+      lootUi.flush();
       break;
   }
 }
@@ -446,6 +452,7 @@ function connect(): Promise<boolean> {
       menu.close();
       mainMenu.show(true);
       mainMenu.refresh();
+      lootUi.flush();
       // an idle socket dropping at the menu is silent; it reconnects when needed
       if (inMatch || leaving) joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
       leaving = false;
@@ -473,6 +480,7 @@ async function play(req: PlayRequest) {
   send(msg);
 }
 
+const lootUi = new LootUi();
 const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
   send: (m) => {
@@ -480,6 +488,7 @@ const accountUi = new AccountUi({
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
   },
   onAccount: (a) => {
+    setOwned(a?.inventory ?? []);
     if (a) applyAccountProgress(a.matches, a.wins);
     else {
       restoreGuestProgress();
@@ -496,6 +505,7 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onControls: () => menu.open(false, 'keys'),
   onEditHud: editHudFromMenu,
   onSelect: (c, b) => setTipMods(compileMods(c, b)),
+  onDiscard: (id) => send({ t: 'discard', id }),
   extras: accountUi.chip,
 });
 accountUi.promptIfNew();

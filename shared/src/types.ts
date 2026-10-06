@@ -41,7 +41,17 @@ export interface GearDef {
   flavors: { id: string; name: string; desc: string; weights: Partial<Record<StatId, number>> }[];
   stats: Record<StatId, { name: string; desc: string; ratePct: number }>;
 }
-export interface GearItem { id: string; slot: string; tier: string; flavor: string; name: string; stats: Record<StatId, number> }
+export interface GearItem {
+  id: string;
+  slot: string;
+  tier: string;
+  flavor: string;
+  name: string;
+  stats: Record<StatId, number>;
+  /** Loot only: rarity id and optional perk id. */
+  rarity?: string;
+  perk?: string;
+}
 /** A player's chosen build. Sent on join and validated by the server. */
 export interface Build { spec: string; talents: string[]; gear: Record<string, string> }
 

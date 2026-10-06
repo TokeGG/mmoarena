@@ -1,4 +1,5 @@
 import { AURAS, GEAR, SPECS, TALENTS, TUNING } from './data';
+import { lootItem, perkById } from './loot';
 import type { AbilityMod, Build, ClassId, GearItem, Mods, ModsInput, StatId } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
@@ -44,7 +45,7 @@ for (const tier of GEAR.tiers) {
   }
 }
 const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
-export const itemById = (id: string): GearItem | undefined => ITEM_BY_ID.get(id);
+export const itemById = (id: string): GearItem | undefined => ITEM_BY_ID.get(id) ?? lootItem(id);
 export const itemsForSlot = (slot: string): GearItem[] => ITEMS.filter((i) => i.slot === slot);
 export const tierOf = (id: string) => GEAR.tiers.find((t) => t.id === id);
 
@@ -73,7 +74,7 @@ export function statBonuses(stats: Record<StatId, number>): Record<StatId, numbe
 
 export function gearMods(gear: Record<string, string> | undefined): ModsInput {
   const b = statBonuses(gearStats(gear));
-  return {
+  const out: ModsInput = {
     damageDone: 1 + b.power / 100,
     healingDone: 1 + b.power / 100,
     maxHealth: 1 + b.vitality / 100,
@@ -81,15 +82,40 @@ export function gearMods(gear: Record<string, string> | undefined): ModsInput {
     gcd: 1 - b.haste / 100,
     damageTaken: 1 - b.resilience / 100,
   };
+  // loot perks: each distinct perk counts once, however many equipped pieces carry it
+  const seen = new Set<string>();
+  for (const slot of SLOT_IDS) {
+    const item = gear?.[slot] ? itemById(gear[slot]) : undefined;
+    const perk = item && item.slot === slot ? perkById(item.perk) : undefined;
+    if (!perk || seen.has(perk.id)) continue;
+    seen.add(perk.id);
+    for (const [k, v] of Object.entries(perk.mods) as [keyof ModsInput, number][]) {
+      if (typeof v === 'number') (out as Record<string, number>)[k] = ((out as Record<string, number>)[k] ?? 1) * v;
+    }
+  }
+  return out;
 }
 
-/** Best unlocked item per slot for the given flavor (used by "auto equip"). */
-export function bestGear(flavor: string, matchesPlayed: number): Record<string, string> {
+/** How well an item suits a flavor: its stats weighted by the flavor, plus a little for a perk. */
+export function itemScore(item: GearItem, flavor: string): number {
+  const w = GEAR.flavors.find((f) => f.id === flavor)?.weights ?? {};
+  let score = 0;
+  for (const s of Object.keys(item.stats) as StatId[]) score += item.stats[s] * (w[s] ?? 0);
+  return score + (item.perk ? 1.5 : 0);
+}
+
+/**
+ * Best unlocked item per slot for the given flavor (used by "auto equip"). Pass the account's loot ids to consider
+ * them too; set gear is chosen by tier, and loot replaces it only when it scores higher for the flavor.
+ */
+export function bestGear(flavor: string, matchesPlayed: number, ownedLoot: readonly string[] = []): Record<string, string> {
   const out: Record<string, string> = {};
+  const loot = ownedLoot.map((id) => lootItem(id)).filter((i): i is GearItem => !!i);
   for (const slot of SLOT_IDS) {
-    const pick = itemsForSlot(slot)
+    let pick = itemsForSlot(slot)
       .filter((i) => i.flavor === flavor && tierUnlocked(i.tier, matchesPlayed))
       .sort((a, b) => (tierOf(b.tier)!.budget - tierOf(a.tier)!.budget))[0];
+    for (const l of loot) if (l.slot === slot && (!pick || itemScore(l, flavor) > itemScore(pick, flavor))) pick = l;
     if (pick) out[slot] = pick.id;
   }
   return out;
@@ -109,7 +135,7 @@ export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(clas
 export type BuildCheck = { ok: true } | { ok: false; reason: string };
 
 /** Strict check used by the server for anything a client sends. */
-export function validateBuild(classId: ClassId, b: Build, matchesPlayed: number): BuildCheck {
+export function validateBuild(classId: ClassId, b: Build, matchesPlayed: number, ownedLoot?: readonly string[] | ReadonlySet<string>): BuildCheck {
   if (!specOf(classId, b.spec)) return { ok: false, reason: 'unknown spec' };
   const tiers = TALENTS[classId];
   if (b.talents.length > tiers.length) return { ok: false, reason: 'too many talents' };
@@ -120,7 +146,10 @@ export function validateBuild(classId: ClassId, b: Build, matchesPlayed: number)
   for (const [slot, id] of Object.entries(b.gear)) {
     const item = itemById(id);
     if (!SLOT_IDS.includes(slot) || !item || item.slot !== slot) return { ok: false, reason: 'invalid gear' };
-    if (!tierUnlocked(item.tier, matchesPlayed)) return { ok: false, reason: `${item.name} is locked` };
+    if (item.rarity) {
+      const owns = ownedLoot && (Array.isArray(ownedLoot) ? ownedLoot.includes(id) : (ownedLoot as ReadonlySet<string>).has(id));
+      if (!owns) return { ok: false, reason: `${item.name} is not in your inventory` };
+    } else if (!tierUnlocked(item.tier, matchesPlayed)) return { ok: false, reason: `${item.name} is locked` };
   }
   return { ok: true };
 }

@@ -1,9 +1,9 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, gearStats, itemById, statBonuses, tierOf, tierUnlocked,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, gearStats, itemById, itemColor, lootItem, perkById, rarityIndex, statBonuses, tierOf, tierUnlocked,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PracticeDifficulty, StatId } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
-import { loadBuild, progress, saveBuild } from './profile';
+import { loadBuild, owned, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
 
 /**
@@ -29,6 +29,8 @@ export interface MainMenuHooks {
   onEditHud(): void;
   /** The previewed class or build changed (so the tooltip numbers and 3D model can follow). */
   onSelect(classId: ClassId, build: Build): void;
+  /** The player threw away a loot item. */
+  onDiscard(id: string): void;
   /** The account chip, placed top right under the settings bar. */
   extras?: HTMLElement;
 }
@@ -86,6 +88,8 @@ export class MainMenu {
   private flavor = el('select');
   private queueBtn = el('button', 'mm-btn', 'Find 2v2 match');
   private account: AccountInfo | null = null;
+  private openSlot: string | null = null;
+  private perksEl = el('div', 'mm-perks');
 
   constructor(root: HTMLElement, private hooks: MainMenuHooks) {
     this.root = root;
@@ -128,6 +132,7 @@ export class MainMenu {
   refresh() {
     this.build = loadBuild(this.classId);
     this.renderAll();
+    if (this.openSlot) this.openGear(this.openSlot); // keep the picker in step after a discard
   }
 
   show(visible: boolean) {
@@ -158,11 +163,11 @@ export class MainMenu {
     const auto = el('button', 'mm-small', 'Auto-equip best');
     auto.addEventListener('click', () => {
       store.set('arena.flavor', this.flavor.value);
-      this.build.gear = bestGear(this.flavor.value, progress.matches);
+      this.build.gear = bestGear(this.flavor.value, progress.matches, [...owned]);
       this.commit();
     });
     autoRow.append(this.flavor, auto);
-    right.append(el('h2', '', 'Gear'), this.gearRow, autoRow, this.summary, this.progressEl);
+    right.append(el('h2', '', 'Gear'), this.gearRow, autoRow, this.summary, this.perksEl, this.progressEl);
 
     const play = el('div', 'mm-play');
     const opts = el('div', 'mm-opts');
@@ -305,8 +310,7 @@ export class MainMenu {
         const id = this.build.gear[slot.id];
         const item = id ? itemById(id) : undefined;
         const b = el('button', 'mm-slot');
-        const tier = item ? tierOf(item.tier) : undefined;
-        if (tier) b.style.setProperty('--q', tier.color);
+        if (item) b.style.setProperty('--q', itemColor(item));
         b.append(el('span', 'ci', slot.icon), el('span', 'sn', slot.name), el('span', 'in', item ? item.name : 'Empty'));
         if (item) tip(b, `item:${item.id}`);
         b.addEventListener('click', () => this.openGear(slot.id));
@@ -331,6 +335,12 @@ export class MainMenu {
         return row;
       }),
     );
+    const perks = new Set<string>();
+    for (const id of Object.values(this.build.gear)) {
+      const perk = perkById(itemById(id)?.perk);
+      if (perk) perks.add(`${perk.name}: ${perk.desc}`);
+    }
+    this.perksEl.replaceChildren(...[...perks].map((t) => el('div', 'perk', `✦ ${t}`)));
     const next = GEAR.tiers.find((t) => progress.matches < t.unlockMatches);
     this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}` + (next ? ` · ${next.name} gear unlocks in ${next.unlockMatches - progress.matches} more` : ' · All gear unlocked');
   }
@@ -376,11 +386,56 @@ export class MainMenu {
       }
     }
     card.append(head, grid, el('div', 'mm-modal-foot', 'Higher tiers unlock as you finish matches. Bonuses are capped, so the gap between tiers stays small.'));
+    card.append(this.lootSection(slotId));
+    this.openSlot = slotId;
     this.modal.replaceChildren(card);
     this.modal.classList.remove('hidden');
   }
 
+  /** The signed-in account's dropped items for this slot, best rarity first. */
+  private lootSection(slotId: string): HTMLElement {
+    const box = el('div', 'mm-loot');
+    box.append(el('h3', '', 'Loot'));
+    if (!this.account) {
+      box.append(el('div', 'mm-modal-foot', 'Sign in to collect loot: every ranked match drops gear (two on a win).'));
+      return box;
+    }
+    const mine = [...owned]
+      .map((id) => lootItem(id)!)
+      .filter((i) => i && i.slot === slotId)
+      .sort((a, b) => rarityIndex(b.rarity!) - rarityIndex(a.rarity!) || Object.values(b.stats).reduce((x, y) => x + y, 0) - Object.values(a.stats).reduce((x, y) => x + y, 0));
+    if (!mine.length) {
+      box.append(el('div', 'mm-modal-foot', `Nothing yet for this slot. You hold ${owned.size} item${owned.size === 1 ? '' : 's'} in total.`));
+      return box;
+    }
+    const list = el('div', 'loot-list');
+    for (const item of mine) {
+      const row = el('div', `loot-row${this.build.gear[slotId] === item.id ? ' sel' : ''}`);
+      row.style.setProperty('--q', itemColor(item));
+      const stats = STAT_ORDER.filter((s) => item.stats[s] > 0).map((s) => `${item.stats[s]} ${GEAR.stats[s].name.slice(0, 3)}`).join(' · ');
+      const perk = perkById(item.perk);
+      row.append(el('b', '', item.name), el('span', 'ist', stats + (perk ? ` · ✦ ${perk.name}` : '')));
+      tip(row, `item:${item.id}`);
+      row.addEventListener('click', () => {
+        this.build.gear[slotId] = item.id;
+        this.closeGear();
+        this.commit();
+      });
+      const del = el('button', 'loot-del', '✕');
+      del.title = 'Discard this item';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.confirm(`Discard ${item.name}? This cannot be undone.`)) this.hooks.onDiscard(item.id);
+      });
+      row.append(del);
+      list.append(row);
+    }
+    box.append(list, el('div', 'mm-modal-foot', `${owned.size}/60 items. A full inventory pushes out your lowest-rarity, oldest item.`));
+    return box;
+  }
+
   private closeGear() {
+    this.openSlot = null;
     this.modal.classList.add('hidden');
   }
 
