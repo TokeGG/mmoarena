@@ -629,6 +629,26 @@ describe('v0.24 damage over time, penance and ground spells', () => {
     run(sim, 2000);
     assert.ok(foe.health < foe.maxHealth - 100, 'foe damaged');
   });
+  it('a channel keeps working when the target moves behind a pillar', () => {
+    const arena = arenaById('colosseum');
+    const sim = new ArenaSim({ seed: 8, prepMs: 0, arena });
+    const pil = arena.pillars[0];
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', 'tal_penance', '', ''], gear: {} } });
+    const ally = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
+    const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1 });
+    foe.pos = { x: 25, z: 15 };
+    p.pos = { x: pil.x - pil.r - 3, z: pil.z + 8 };
+    ally.pos = { x: pil.x - pil.r - 3, z: pil.z + 12 };
+    ally.health = 1000;
+    run(sim, 100);
+    const r = sim.useAbility(p.id, 'penance', ally.id);
+    assert.ok(r.ok, (r as any).reason);
+    run(sim, 400);
+    ally.pos = { x: pil.x + pil.r + 0.6, z: pil.z };
+    p.pos = { x: pil.x - pil.r - 0.6, z: pil.z };
+    run(sim, 2000);
+    assert.ok(ally.health > 1150, `all three ticks landed through the pillar (${ally.health})`);
+  });
   it('a ground spell lands where it is aimed, within range and line of sight', () => {
     const arena = arenaById('colosseum');
     const sim = new ArenaSim({ seed: 7, prepMs: 0, arena });

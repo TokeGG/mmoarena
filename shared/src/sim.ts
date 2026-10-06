@@ -360,7 +360,7 @@ export class ArenaSim {
       }
       if (tgt !== u) {
         if (def.range > 0 && dist(u.pos, tgt.pos) > this.rangeOf(u, def) + TUNING.rangeTolerance) return this.cancelCast(u, 'out of range');
-        if (!hasLOS(u.pos, tgt.pos, this.arena)) return this.cancelCast(u, 'no line of sight');
+        // a channel that has started keeps ticking when the target steps behind a pillar or wall
         if (!this.canSee(u, tgt)) return this.cancelCast(u, 'target not visible');
       }
       c.done = (c.done ?? 0) + 1;
