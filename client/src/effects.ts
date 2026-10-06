@@ -1036,9 +1036,57 @@ export class Effects {
   private zoneMeshes = new Map<number, { disc: THREE.Mesh; ring: THREE.Mesh }>();
 
   /** Ground zones (Flamestrike etc.): warning ring that fills until the first beat, then a pulsing fire disc. */
+  private smokeMeshes = new Map<number, { group: THREE.Group; disc: THREE.Mesh; blobs: { mesh: THREE.Mesh; x: number; z: number; r: number; ph: number }[] }>();
+  private smokeGeo = new THREE.SphereGeometry(1, 12, 10);
+
+  /** A smoke cloud: pops up from the caster's feet, billows for its duration and thins out at the end. */
+  private setSmoke(z: ZoneSnap, now: number, seenSmoke: Set<number>) {
+    seenSmoke.add(z.id);
+    let m = this.smokeMeshes.get(z.id);
+    if (!m) {
+      const group = new THREE.Group();
+      group.position.set(z.x, 0, z.z);
+      const mat = () => new THREE.MeshBasicMaterial({ color: 0x8b8f99, transparent: true, opacity: 0.4, depthWrite: false });
+      const disc = new THREE.Mesh(this.discGeo, new THREE.MeshBasicMaterial({ color: 0x555a66, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
+      disc.rotation.x = -Math.PI / 2;
+      disc.position.y = 0.05;
+      group.add(disc);
+      const blobs: { mesh: THREE.Mesh; x: number; z: number; r: number; ph: number }[] = [];
+      for (let i = 0; i < 16; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const d = Math.sqrt(Math.random()) * z.r * 0.85;
+        const mesh = new THREE.Mesh(this.smokeGeo, mat());
+        const b = { mesh, x: Math.cos(a) * d, z: Math.sin(a) * d, r: 1.4 + Math.random() * 1.5, ph: Math.random() * 6.28 };
+        group.add(mesh);
+        blobs.push(b);
+      }
+      this.scene.add(group);
+      m = { group, disc, blobs };
+      this.smokeMeshes.set(z.id, m);
+    }
+    const age = Math.max(0, (now - z.start) / 1000);
+    const left = Math.max(0, (z.end - now) / 1000);
+    const grow = Math.min(1, age / 0.35);
+    const fade = Math.min(1, left / 0.8);
+    (m.disc.material as THREE.MeshBasicMaterial).opacity = 0.35 * fade;
+    m.disc.scale.set(z.r * grow, z.r * grow, 1);
+    for (const b of m.blobs) {
+      const bob = Math.sin(now / 700 + b.ph);
+      const s = b.r * (0.85 + 0.15 * bob) * grow;
+      b.mesh.position.set(b.x * grow, 1 + s * 0.6 + bob * 0.2, b.z * grow);
+      b.mesh.scale.set(s, s * 0.8, s);
+      (b.mesh.material as THREE.MeshBasicMaterial).opacity = 0.42 * fade;
+    }
+  }
+
   setZones(zones: ZoneSnap[], now: number) {
     const seen = new Set<number>();
+    const seenSmoke = new Set<number>();
     for (const z of zones) {
+      if (z.smoke) {
+        this.setSmoke(z, now, seenSmoke);
+        continue;
+      }
       seen.add(z.id);
       let m = this.zoneMeshes.get(z.id);
       const color = SCHOOL_COLOR[z.school] ?? 0xff6a20;
@@ -1059,6 +1107,12 @@ export class Effects {
       const sincePulse = armed ? ((now - z.firstAt) % z.pulse) / z.pulse : 0;
       (m.ring.material as THREE.MeshBasicMaterial).opacity = armed ? 0.9 : 0.5 + 0.4 * Math.sin(now / 90);
       (m.disc.material as THREE.MeshBasicMaterial).opacity = armed ? 0.55 - 0.4 * sincePulse : 0.12 + 0.18 * Math.min(1, (now - z.start) / Math.max(1, z.firstAt - z.start));
+    }
+    for (const [id, m] of this.smokeMeshes) {
+      if (seenSmoke.has(id)) continue;
+      this.scene.remove(m.group);
+      for (const c of m.group.children) (c as THREE.Mesh).material && ((c as THREE.Mesh).material as THREE.Material).dispose();
+      this.smokeMeshes.delete(id);
     }
     for (const [id, m] of this.zoneMeshes) {
       if (seen.has(id)) continue;

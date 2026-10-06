@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.32.0
+# WoW-style Arena · v0.33.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -60,7 +60,7 @@ Hover any ability, buff or debuff, spec, talent or look to see numbers for your 
 Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, crowd control with diminishing returns, line-of-sight pillars and stealth. Warriors and rogues need auto-attack on (right-click an enemy, R, or any melee ability; it is held while stealthed unless the target is within 2 yards) to build rage and deal steady damage.
 
 - **Jumping and ground zones:** Space jumps. A jump is mostly cosmetic, but while airborne you dodge the pulses of ground zones such as Flamestrike. Dodging has a 1.5 s cooldown so hop-spamming does not work. Targeted spells (Fireball, Frostbolt, Smite...) always hit.
-- **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the original rate in 0.23 and at 0.15 per damage point from 0.31; stealthed rogues are spotted within 2 yards (0.29), and auto-attack only swings from stealth at that range, breaking it.
+- **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the original rate in 0.23 and at 0.15 per damage point from 0.31; Smoke Bomb (0.33) drops a 6-yard cloud for 6 s that strips targeting from enemies inside it; stealthed rogues are spotted within 2 yards (0.29), and auto-attack only swings from stealth at that range, breaking it.
 - **Fog:** enemies you cannot see (stealthed or farther than 8 yards) are left out of your snapshots entirely.
 
 ## Appearance (cosmetics change how you look, nothing else)

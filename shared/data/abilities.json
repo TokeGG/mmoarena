@@ -1318,7 +1318,7 @@
   "name": "Smoke Bomb",
   "class": "rogue",
   "school": "physical",
-  "target": "aoe_enemy",
+  "target": "self",
   "range": 0,
   "castTime": 0,
   "cooldown": 45000,
@@ -1326,11 +1326,11 @@
   "cost": 30,
   "effects": [
    {
-    "type": "aura",
-    "aura": "choke_stun"
+    "type": "smoke",
+    "radius": 6,
+    "duration": 6000
    }
-  ],
-  "radius": 6
+  ]
  },
  {
   "id": "knife_snipe",

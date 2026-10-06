@@ -271,13 +271,6 @@
   "harmful": true,
   "dr": "stun"
  },
- "choke_stun": {
-  "name": "Smoke Bomb",
-  "kind": "stun",
-  "duration": 2000,
-  "harmful": true,
-  "dr": "stun"
- },
  "creeping_rot": {
   "name": "Shadow Word: Death",
   "kind": "dot",

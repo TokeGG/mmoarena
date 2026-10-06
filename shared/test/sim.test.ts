@@ -384,6 +384,35 @@ describe('melee and auto-attack', () => {
   });
 });
 
+describe('smoke bomb', () => {
+  it('enemies inside lose their target and cannot target; the caster team can, and leaving restores it', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const ally = add(sim, 'mage', 0, 2, 0);
+    const foe = add(sim, 'warrior', 1, 3, 0);
+    const far = add(sim, 'mage', 1, 30, 0);
+    rogue.bar = [...rogue.bar, 'choke_bomb']; // normally learned through a talent
+    foe.resource = 50;
+    advance(sim, TICK);
+    sim.setTarget(foe.id, rogue.id);
+    sim.setTarget(far.id, rogue.id);
+    assert.equal(foe.target, rogue.id);
+    assert.ok(sim.useAbility(rogue.id, 'choke_bomb').ok);
+    advance(sim, TICK * 2);
+    assert.equal(foe.target, null, 'target taken away inside the cloud');
+    assert.equal(far.target, rogue.id, 'outside the cloud nothing changes');
+    mustFail(sim.setTarget(foe.id, rogue.id), /smoke/);
+    mustFail(sim.useAbility(foe.id, 'mortal_strike', rogue.id), /smoke/);
+    assert.ok(sim.setTarget(ally.id, foe.id).ok, 'the caster team is not affected');
+    assert.ok(sim.snapshot().zones.some((z) => z.smoke), 'the cloud is in the snapshot');
+    foe.pos = { x: 20, z: 0 };
+    advance(sim, TICK * 2);
+    assert.ok(sim.setTarget(foe.id, rogue.id).ok, 'can target again after leaving');
+    advance(sim, 7000);
+    assert.ok(!sim.snapshot().zones.some((z) => z.smoke), 'the cloud fades');
+  });
+});
+
 describe('auto-attack lifecycle', () => {
   it('stops when the target is cleared and after leaving combat, but gets time to start', () => {
     const sim = live();

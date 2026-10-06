@@ -935,7 +935,7 @@
     "id": "tal_c_choke",
     "name": "Smoke Bomb",
     "icon": "\ud83d\udca8",
-    "desc": "Learn Smoke Bomb: a smoke bomb stuns every enemy within 6 yards for 2 seconds.",
+    "desc": "Learn Smoke Bomb: drop a smoke cloud (6 yards, 6 seconds). Enemies inside it lose their target and cannot target anyone.",
     "mods": {},
     "swap": {
      "to": "choke_bomb",

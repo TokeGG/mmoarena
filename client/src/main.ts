@@ -358,9 +358,20 @@ function interpolate(rt: number): Map<number, { x: number; z: number; y: number;
 
 // ------------------------------------------------------------------ targeting & abilities
 
+/** True while you stand in an enemy's smoke cloud: you cannot target. */
+function inEnemySmoke(): boolean {
+  const me = latest?.units.find((u) => u.id === you);
+  if (!latest || !me) return false;
+  return (latest.zones ?? []).some((z) => z.smoke && z.team !== me.team && Math.hypot(me.x - z.x, me.z - z.z) <= z.r);
+}
+
 function setTarget(id: number | null) {
   if (spec) {
     if (id !== null) setFollow(id, latest);
+    return;
+  }
+  if (id !== null && inEnemySmoke()) {
+    hud.error('Blinded by smoke');
     return;
   }
   targetId = id;
@@ -617,6 +628,7 @@ function frame(now: number) {
   }
   scene.render(); // render first so projection uses this frame's camera
 
+  if (!spec && targetId !== null && inEnemySmoke()) setTarget(null); // smoke takes your target away
   hud.autoEnabled = autoEnabled;
   hud.update({ snap, now: estNow, you, targetId });
   hud.nameplates(

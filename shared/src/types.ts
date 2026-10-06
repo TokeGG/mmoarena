@@ -89,7 +89,9 @@ export type Effect =
   | { type: 'blink'; distance: number }
   | { type: 'gain'; amount: number }
   /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. */
-  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number };
+  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number }
+  /** A smoke cloud on the caster: enemies inside lose their target and cannot target anyone. */
+  | { type: 'smoke'; radius: number; duration: number };
 
 export interface AbilityDef {
   id: string;
@@ -289,6 +291,8 @@ export interface Snapshot {
 
 export interface ZoneSnap {
   id: number;
+  /** A smoke cloud (no damage): enemies inside cannot target. */
+  smoke?: boolean;
   owner: number;
   team: TeamId;
   x: number;

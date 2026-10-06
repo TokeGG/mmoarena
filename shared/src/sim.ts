@@ -48,7 +48,7 @@ export class ArenaSim {
   readonly matchEndsAt: number;
   readonly units = new Map<number, Unit>();
   private events: SimEvent[] = [];
-  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number }[] = [];
+  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean }[] = [];
   private nextZoneId = 1;
   private nextId = 1;
   private rng: () => number;
@@ -111,6 +111,7 @@ export class ArenaSim {
     this.onCommand?.([this.tickNo, 1, id, targetId]);
     const u = this.units.get(id);
     if (!u) return fail('no unit');
+    if (targetId !== null && this.inSmoke(u)) return fail('blinded by smoke');
     if (targetId === null) {
       u.target = null;
       u.autoAttack = false; // clicking off the target stops swinging
@@ -156,6 +157,7 @@ export class ArenaSim {
     if (def.gcd && u.gcdEnd > this.time) return fail('global cooldown');
     if (u.resource < def.cost) return fail(`not enough ${u.resourceType}`);
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
+    if ((def.target === 'enemy' || def.target === 'ally' || def.target === 'ally_or_self' || def.target === 'any') && this.inSmoke(u)) return fail('blinded by smoke');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
     if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget' || e.type === 'charge')) return fail('you are rooted');
 
@@ -473,6 +475,12 @@ export class ArenaSim {
           start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration,
         });
         break;
+      case 'smoke':
+        this.zones.push({
+          id: this.nextZoneId++, owner: u.id, team: u.team, x: u.pos.x, z: u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,
+          start: this.time, firstAt: this.time + eff.duration + 1, nextAt: Infinity, pulse: eff.duration, end: this.time + eff.duration, smoke: true,
+        });
+        break;
       case 'gain':
         u.resource = Math.min(u.resourceMax, u.resource + eff.amount);
         break;
@@ -722,9 +730,24 @@ export class ArenaSim {
    * Ground effects pulse on a fixed beat (a short telegraph first). Enemies inside the circle take damage, unless they are
    * airborne at that instant: a well-timed jump dodges a pulse. Targeted spells never check this; only zones do.
    */
+  /** True while the unit stands in an enemy smoke cloud: it cannot target. */
+  inSmoke(u: Unit): boolean {
+    return this.zones.some((z) => z.smoke && z.team !== u.team && this.time < z.end && Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r);
+  }
+
   private tickZones(): void {
     if (!this.zones.length) return;
+    for (const v of this.units.values()) {
+      if (!v.alive || !this.inSmoke(v)) continue;
+      if (v.target !== null) v.target = null;
+      v.autoAttack = false;
+      if (v.cast) {
+        const kind = ABILITIES[v.cast.ability]?.target;
+        if (kind === 'enemy' || kind === 'ally' || kind === 'ally_or_self' || kind === 'any') this.cancelCast(v, 'blinded by smoke');
+      }
+    }
     for (const z of this.zones) {
+      if (z.smoke) continue;
       while (this.phase === 'live' && z.nextAt <= this.time && z.nextAt <= z.end) {
         const owner = this.units.get(z.owner);
         for (const v of this.units.values()) {
@@ -760,7 +783,7 @@ export class ArenaSim {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
       winner: this.winner, units,
-      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end })),
+      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}) })),
     };
   }
 
