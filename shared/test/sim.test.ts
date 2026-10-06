@@ -673,7 +673,11 @@ describe('facing rule', () => {
     const sim = new ArenaSim({ seed: 3, prepMs: 0, facing: true });
     const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0 });
     const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
-    const face = (a: number) => { face(a);
+    let seq = 0;
+    const face = (a: number) => {
+      sim.queueInput(m.id, { seq: ++seq, fwd: 0, strafe: 0, facing: a });
+      advance(sim, 100);
+    };
     m.pos = { x: 0, z: 0 };
     w.pos = { x: 10, z: 0 }; // due +x
     advance(sim, 100);
