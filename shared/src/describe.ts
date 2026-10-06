@@ -109,7 +109,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(def.target === 'any' ? 'Removes one magic effect: a harmful one from allies, a beneficial one from enemies.' : 'Removes one magic effect.');
         break;
       case 'charge':
-        lines.push('Sprints at the target, closing the distance in about a second. You cannot steer while charging, and a stun or root stops you.');
+        lines.push(`Stuns the target as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${e.hit} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`);
         break;
       case 'dashToTarget':
         lines.push('Rushes to the target.');

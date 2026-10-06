@@ -253,7 +253,7 @@
  "charge_stun": {
   "name": "Charge",
   "kind": "stun",
-  "duration": 2000,
+  "duration": 2500,
   "harmful": true,
   "dr": "stun"
  },

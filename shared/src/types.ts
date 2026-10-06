@@ -85,7 +85,7 @@ export type Effect =
   | { type: 'dispel' }
   | { type: 'dashToTarget'; stopDistance: number }
   /** A real run: the caster sprints at `speed` yards/s towards the target (uncontrollable) until `stopDistance` away. */
-  | { type: 'charge'; stopDistance: number; speed: number }
+  | { type: 'charge'; stopDistance: number; speed: number; /** Damage dealt on landing, when the target's stun ends. */ hit?: number }
   | { type: 'blink'; distance: number }
   | { type: 'gain'; amount: number }
   /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. */
@@ -201,7 +201,7 @@ export interface Unit {
   /** The player turned auto-attack off in settings: it never starts, not even from a melee ability. */
   autoDisabled: boolean;
   /** Set while running a Charge: the unit is carried to the target and ignores movement input. */
-  charge: { target: number; stop: number; speed: number; until: number } | null;
+  charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
   lastCombatAt: number;
   inputQueue: MoveInput[];

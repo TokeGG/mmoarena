@@ -329,6 +329,23 @@ describe('movement', () => {
     assert.equal(war.charge, null, 'a hit ends the charge');
     advance(sim, TICK * 3);
     assert.ok(Math.abs(war.pos.x - at) < 0.2, 'stopped where it was hit');
+    assert.ok(!rogue.auras.some((a) => a.id === 'charge_stun'), 'the target is freed when the charge is broken');
+  });
+
+  it('on landing the warrior hits the target and the stun ends', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 20, 0);
+    advance(sim, TICK);
+    const hp = rogue.health;
+    assert.ok(sim.useAbility(war.id, 'charge', rogue.id).ok);
+    advance(sim, 400);
+    assert.ok(rogue.auras.some((a) => a.id === 'charge_stun'), 'stunned while the warrior runs in');
+    assert.equal(rogue.health, hp, 'no damage before landing');
+    advance(sim, 1000);
+    assert.equal(war.charge, null);
+    assert.ok(!rogue.auras.some((a) => a.id === 'charge_stun'), 'stun is over when he lands');
+    assert.ok(rogue.health < hp, 'the landing hits');
   });
 
   it('movement input is ignored during a charge, and a stun stops it where it is', () => {

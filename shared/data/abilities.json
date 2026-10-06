@@ -33,7 +33,8 @@
    {
     "type": "charge",
     "stopDistance": 2,
-    "speed": 34
+    "speed": 34,
+    "hit": 40
    },
    {
     "type": "gain",

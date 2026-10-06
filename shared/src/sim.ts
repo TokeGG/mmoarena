@@ -278,15 +278,16 @@ export class ArenaSim {
       const ch = u.charge;
       const tgt = this.units.get(ch.target);
       const d = tgt ? dist(u.pos, tgt.pos) : 0;
-      if (!tgt || !tgt.alive || this.time > ch.until || !this.canAct(u) || this.hasAura(u, ['root']) || d <= ch.stop + 0.05) u.charge = null;
-      else {
+      if (!tgt || !tgt.alive || this.time > ch.until || !this.canAct(u) || this.hasAura(u, ['root']) || d <= ch.stop + 0.05) {
+        this.endCharge(u, !!tgt && tgt.alive && this.canAct(u) && !this.hasAura(u, ['root']) && d <= ch.stop + 0.05);
+      } else {
         const k = Math.min(ch.speed * DT, d - ch.stop);
         const nx = u.pos.x + ((tgt.pos.x - u.pos.x) / d) * k;
         const nz = u.pos.z + ((tgt.pos.z - u.pos.z) / d) * k;
         u.facing = Math.atan2(tgt.pos.x - u.pos.x, tgt.pos.z - u.pos.z);
         u.pos = resolveCollisions({ x: nx, z: nz }, this.arena);
         // blocked by a pillar: stop rather than push against it
-        if (dist(before, u.pos) < k * 0.3) u.charge = null;
+        if (dist(before, u.pos) < k * 0.3) this.endCharge(u, false);
         if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
         if (u.cast && dist(before, u.pos) > 0.001) this.cancelCast(u, 'moved');
         this.tryAutoAttack(u);
@@ -439,7 +440,7 @@ export class ArenaSim {
       }
       case 'charge': {
         if (u.cast) this.cancelCast(u, 'moved');
-        u.charge = { target: t.id, stop: eff.stopDistance, speed: eff.speed, until: this.time + 2000 };
+        u.charge = { target: t.id, stop: eff.stopDistance, speed: eff.speed, until: this.time + 2000, hit: eff.hit ?? 0 };
         break;
       }
       case 'dashToTarget': {
@@ -507,7 +508,7 @@ export class ArenaSim {
     if (tgt.resourceType === 'rage') tgt.resource = Math.min(tgt.resourceMax, tgt.resource + remaining * TUNING.rageFromTaken);
 
     if (remaining + absorbed > 0) {
-      if (tgt.charge) tgt.charge = null; // being hit stops a charge
+      if (tgt.charge) this.endCharge(tgt, false); // being hit stops a charge
       for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage) this.removeAura(tgt, a, 'damage');
       if (this.isStealthed(tgt)) this.breakStealth(tgt);
     }
@@ -529,9 +530,24 @@ export class ArenaSim {
     u.alive = false;
     u.health = 0;
     u.cast = null;
+    this.endCharge(u, false);
     u.auras = [];
     u.autoAttack = false;
     this.emit({ t: 'death', unit: u.id, killer });
+  }
+
+  /** A charge ends: the target's stun is lifted, and on a landing the warrior hits it. */
+  private endCharge(u: Unit, landed: boolean): void {
+    const ch = u.charge;
+    if (!ch) return;
+    u.charge = null;
+    const t = this.units.get(ch.target);
+    if (!t) return;
+    const stun = t.auras.find((a) => a.id === 'charge_stun' && a.sourceId === u.id);
+    if (stun) this.removeAura(t, stun, 'charge ended');
+    if (landed && t.alive && ch.hit > 0) {
+      this.dealDamage(u, t, ch.hit * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability['charge']?.damage ?? 1), 'physical', 'charge');
+    }
   }
 
   private tryAutoAttack(u: Unit): void {
