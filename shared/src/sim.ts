@@ -1,7 +1,8 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
+import { barFor, compileMods, withAuraMods } from './build';
 import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
 import type {
-  AbilityDef, ArenaDef, AuraInst, AuraKind, ClassId, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap,
+  AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap,
 } from './types';
 
 const TICK = TUNING.tickMs;
@@ -13,7 +14,7 @@ const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
 export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef }
-export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number }
+export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
 export type AuraResult = { applied: true; duration: number; dr: number } | { applied: false; immune: true };
 
 function mulberry32(seed: number) {
@@ -59,13 +60,14 @@ export class ArenaSim {
     const spawns = this.arena.spawns[o.team];
     const spawn = spawns[slot % spawns.length];
     const facing = this.arena.spawnFacing[o.team];
-    const maxHealth = Math.round(cls.maxHealth * gear);
+    const mods = compileMods(o.classId, o.build);
+    const maxHealth = Math.round(cls.maxHealth * gear * mods.maxHealth);
     const u: Unit = {
       id: this.nextId++, name: o.name, team: o.team, classId: o.classId, controller: o.controller ?? 'player',
       pos: { x: spawn.x, z: spawn.z }, facing, alive: true,
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      gearMult: gear, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
+      gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
       autoAttack: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
@@ -117,7 +119,7 @@ export class ArenaSim {
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
     const def = ABILITIES[abilityId];
-    if (!def || !CLASSES[u.classId].bar.includes(abilityId)) return fail('unknown ability');
+    if (!def || !u.bar.includes(abilityId)) return fail('unknown ability');
     if (this.phase === 'ended') return fail('match is over');
     if (this.phase === 'prep' && !def.prepOk) return fail('match has not started');
     if (!this.canAct(u)) return fail('you are incapacitated');
@@ -135,7 +137,7 @@ export class ArenaSim {
 
     if (tgt !== u) {
       const d = dist(u.pos, tgt.pos);
-      if (def.range > 0 && d > def.range + TUNING.rangeTolerance) return fail('out of range');
+      if (def.range > 0 && d > this.rangeOf(u, def) + TUNING.rangeTolerance) return fail('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
@@ -145,8 +147,9 @@ export class ArenaSim {
     if (def.target === 'enemy') u.target = tgt.id;
 
     if (def.castTime > 0) {
-      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + def.castTime };
-      if (def.gcd) u.gcdEnd = this.time + TUNING.gcdMs;
+      const castMs = this.castTimeOf(u, def);
+      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs };
+      if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
@@ -181,7 +184,7 @@ export class ArenaSim {
     if (u.resourceType === 'rage') {
       if (this.time - u.lastCombatAt > TUNING.outOfCombatMs) u.resource = Math.max(0, u.resource - TUNING.rageDecayPerSec * DT);
     } else {
-      u.resource = Math.min(u.resourceMax, u.resource + cls.resource.regenPerSec * DT);
+      u.resource = Math.min(u.resourceMax, u.resource + cls.resource.regenPerSec * this.modsOf(u).regen * DT);
     }
 
     // input: one queued command per tick; briefly repeat the last one if a packet is late
@@ -247,7 +250,7 @@ export class ArenaSim {
     const tgt = this.units.get(c.target);
     if (!tgt || !tgt.alive) return this.failCast(u, c.ability, 'target is dead');
     if (tgt !== u) {
-      if (def.range > 0 && dist(u.pos, tgt.pos) > def.range + TUNING.rangeTolerance) return this.failCast(u, c.ability, 'out of range');
+      if (def.range > 0 && dist(u.pos, tgt.pos) > this.rangeOf(u, def) + TUNING.rangeTolerance) return this.failCast(u, c.ability, 'out of range');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return this.failCast(u, c.ability, 'no line of sight');
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
@@ -268,8 +271,8 @@ export class ArenaSim {
 
   private execute(u: Unit, def: AbilityDef, tgt: Unit): void {
     u.resource -= def.cost;
-    if (def.cooldown > 0) u.cooldowns[def.id] = this.time + def.cooldown;
-    if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + TUNING.gcdMs;
+    if (def.cooldown > 0) u.cooldowns[def.id] = this.time + Math.round(def.cooldown * (this.modsOf(u).ability[def.id]?.cooldown ?? 1));
+    if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
 
     const targets: Unit[] =
@@ -286,10 +289,10 @@ export class ArenaSim {
   private applyEffect(u: Unit, def: AbilityDef, t: Unit, eff: AbilityDef['effects'][number]): void {
     switch (eff.type) {
       case 'damage':
-        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance(), def.school, def.id);
+        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
         break;
       case 'heal':
-        this.heal(u, t, eff.amount * u.gearMult * this.variance(), def.id);
+        this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1), def.id);
         break;
       case 'aura':
         this.applyAura(u, t, eff.aura);
@@ -345,7 +348,7 @@ export class ArenaSim {
   /** Returns damage that actually reached health (after absorbs). */
   dealDamage(src: Unit | null, tgt: Unit, raw: number, school: School, ability: string | null): number {
     if (!tgt.alive) return 0;
-    let remaining = Math.max(0, Math.round(raw));
+    let remaining = Math.max(0, Math.round(raw * this.modsOf(tgt).damageTaken));
     let absorbed = 0;
     for (const a of [...tgt.auras]) {
       if (a.kind !== 'absorb' || remaining <= 0) continue;
@@ -398,7 +401,7 @@ export class ArenaSim {
     if (dist(u.pos, t.pos) > auto.range + TUNING.rangeTolerance || this.time < u.nextSwing) return;
     u.nextSwing = this.time + auto.interval;
     if (this.isStealthed(u)) this.breakStealth(u);
-    this.dealDamage(u, t, auto.damage * u.gearMult * this.variance(), 'physical', null);
+    this.dealDamage(u, t, auto.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone, 'physical', null);
   }
 
   // ------------------------------------------------------------------ auras, crowd control, diminishing returns
@@ -417,16 +420,18 @@ export class ArenaSim {
         this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
         return { applied: false, immune: true };
       }
-      duration = def.duration * drMult;
+      duration = def.duration * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
       st.count++;
       st.resetAt = this.time + duration + TUNING.drResetMs;
     }
+
+    else duration = def.duration * (this.modsOf(src).auraDuration[auraId] ?? 1);
 
     tgt.auras = tgt.auras.filter((a) => !(a.id === auraId && a.sourceId === src.id));
     const inst: AuraInst = {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
-      absorbLeft: (def.absorb ?? 0) * src.gearMult,
+      absorbLeft: (def.absorb ?? 0) * src.gearMult * this.modsOf(src).healingDone,
     };
     tgt.auras.push(inst);
 
@@ -462,6 +467,24 @@ export class ArenaSim {
       .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))[0];
   }
 
+  /** Base build modifiers combined with any active buff auras. */
+  modsOf(u: Unit): Mods {
+    return u.auras.length ? withAuraMods(u.mods, u.auras.map((a) => a.id)) : u.mods;
+  }
+  private abilityMod(u: Unit, def: AbilityDef): AbilityMod {
+    return this.modsOf(u).ability[def.id] ?? {};
+  }
+  private rangeOf(u: Unit, def: AbilityDef): number {
+    return def.range + (this.abilityMod(u, def).range ?? 0);
+  }
+  private castTimeOf(u: Unit, def: AbilityDef): number {
+    const m = this.modsOf(u);
+    return Math.max(250, Math.round(def.castTime * m.castTime * (m.ability[def.id]?.castTime ?? 1)));
+  }
+  private gcdOf(u: Unit): number {
+    return Math.max(750, Math.round(TUNING.gcdMs * this.modsOf(u).gcd));
+  }
+
   hasAura(u: Unit, kinds: AuraKind[]): boolean {
     return u.auras.some((a) => kinds.includes(a.kind));
   }
@@ -487,7 +510,7 @@ export class ArenaSim {
       if (d.kind === 'slow') slow = Math.min(slow, 1 - (d.slowPct ?? 0) / 100);
       else if (d.kind === 'speed' || d.kind === 'stealth') boost += (d.speedPct ?? 0) / 100;
     }
-    return Math.max(0, (1 + boost) * slow);
+    return Math.max(0, (1 + boost) * slow * this.modsOf(u).moveSpeed);
   }
 
   // ------------------------------------------------------------------ targeting & visibility
@@ -543,7 +566,7 @@ export class ArenaSim {
     for (const [k, v] of Object.entries(u.cooldowns)) if (v > this.time) cooldowns[k] = v;
     const r2 = (n: number) => Math.round(n * 100) / 100;
     return {
-      id: u.id, name: u.name, team: u.team, classId: u.classId,
+      id: u.id, name: u.name, team: u.team, classId: u.classId, spec: u.spec,
       x: r2(u.pos.x), z: r2(u.pos.z), facing: Math.round(u.facing * 1000) / 1000,
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,
       resource: Math.round(u.resource), resourceMax: u.resourceMax, resourceType: u.resourceType,

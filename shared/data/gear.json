@@ -1,0 +1,134 @@
+{
+ "slots": [
+  {
+   "id": "weapon",
+   "name": "Weapon",
+   "icon": "🗡️",
+   "weight": 1.3,
+   "noun": "Arms"
+  },
+  {
+   "id": "head",
+   "name": "Head",
+   "icon": "🪖",
+   "weight": 1.0,
+   "noun": "Helm"
+  },
+  {
+   "id": "chest",
+   "name": "Chest",
+   "icon": "🦺",
+   "weight": 1.2,
+   "noun": "Chestguard"
+  },
+  {
+   "id": "legs",
+   "name": "Legs",
+   "icon": "👖",
+   "weight": 1.0,
+   "noun": "Legguards"
+  },
+  {
+   "id": "trinket",
+   "name": "Trinket",
+   "icon": "📿",
+   "weight": 0.8,
+   "noun": "Charm"
+  }
+ ],
+ "tiers": [
+  {
+   "id": "t1",
+   "name": "Initiate",
+   "budget": 14,
+   "unlockMatches": 0,
+   "color": "#9d9d9d"
+  },
+  {
+   "id": "t2",
+   "name": "Veteran",
+   "budget": 16,
+   "unlockMatches": 3,
+   "color": "#1eff00"
+  },
+  {
+   "id": "t3",
+   "name": "Elite",
+   "budget": 18,
+   "unlockMatches": 8,
+   "color": "#0070dd"
+  },
+  {
+   "id": "t4",
+   "name": "Gladiator",
+   "budget": 20,
+   "unlockMatches": 15,
+   "color": "#a335ee"
+  }
+ ],
+ "flavors": [
+  {
+   "id": "fury",
+   "name": "Fury",
+   "desc": "Offense",
+   "weights": {
+    "power": 0.6,
+    "haste": 0.2,
+    "vitality": 0.2
+   }
+  },
+  {
+   "id": "bulwark",
+   "name": "Bulwark",
+   "desc": "Defense",
+   "weights": {
+    "vitality": 0.4,
+    "resilience": 0.4,
+    "power": 0.2
+   }
+  },
+  {
+   "id": "tempo",
+   "name": "Tempo",
+   "desc": "Casting speed",
+   "weights": {
+    "haste": 0.5,
+    "power": 0.3,
+    "resilience": 0.2
+   }
+  },
+  {
+   "id": "balance",
+   "name": "Balance",
+   "desc": "All-round",
+   "weights": {
+    "power": 0.3,
+    "vitality": 0.25,
+    "haste": 0.2,
+    "resilience": 0.25
+   }
+  }
+ ],
+ "stats": {
+  "power": {
+   "name": "Power",
+   "desc": "Increases damage, healing and shields.",
+   "ratePct": 0.15
+  },
+  "vitality": {
+   "name": "Vitality",
+   "desc": "Increases maximum health.",
+   "ratePct": 0.2
+  },
+  "haste": {
+   "name": "Haste",
+   "desc": "Reduces cast times and the global cooldown.",
+   "ratePct": 0.15
+  },
+  "resilience": {
+   "name": "Resilience",
+   "desc": "Reduces damage taken.",
+   "ratePct": 0.12
+  }
+ }
+}

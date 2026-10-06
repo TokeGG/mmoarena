@@ -4,3 +4,5 @@ export * from './geometry';
 export * from './protocol';
 export * from './sim';
 export * from './bot';
+export * from './build';
+export * from './describe';

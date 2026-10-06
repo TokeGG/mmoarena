@@ -1,0 +1,237 @@
+{
+ "warrior": [
+  {
+   "id": "arms",
+   "name": "Arms",
+   "role": "Burst melee",
+   "desc": "Heavy hits and a big damage cooldown. Control with Hamstring and Intimidating Shout.",
+   "icon": "⚔️",
+   "bar": [
+    "mortal_strike",
+    "hamstring",
+    "charge",
+    "pummel",
+    "recklessness",
+    "intimidating_shout"
+   ],
+   "mods": {
+    "damageDone": 1.05
+   }
+  },
+  {
+   "id": "fury",
+   "name": "Fury",
+   "role": "Sustained melee",
+   "desc": "Fast, relentless attacks and extra mobility. Heals itself through bursts.",
+   "icon": "🪓",
+   "bar": [
+    "bloodthirst",
+    "whirlwind",
+    "charge",
+    "pummel",
+    "hamstring",
+    "enraged_regeneration"
+   ],
+   "mods": {
+    "moveSpeed": 1.05,
+    "damageDone": 1.03
+   }
+  },
+  {
+   "id": "protection",
+   "name": "Protection",
+   "role": "Tank / control",
+   "desc": "Tough and hard to kill, with a stun and Shield Wall. Deals less damage.",
+   "icon": "🛡️",
+   "bar": [
+    "shield_slam",
+    "concussion_blow",
+    "charge",
+    "pummel",
+    "shield_wall",
+    "hamstring"
+   ],
+   "mods": {
+    "maxHealth": 1.15,
+    "damageTaken": 0.92,
+    "damageDone": 0.85
+   }
+  }
+ ],
+ "mage": [
+  {
+   "id": "frost",
+   "name": "Frost",
+   "role": "Control / kiting",
+   "desc": "Slows and roots keep enemies away. Ice Barrier absorbs a burst.",
+   "icon": "❄️",
+   "bar": [
+    "frostbolt",
+    "polymorph",
+    "counterspell",
+    "frost_nova",
+    "blink",
+    "ice_barrier"
+   ],
+   "mods": {
+    "auraDuration": {
+     "frostbolt_slow": 1.5,
+     "frost_nova_root": 1.15
+    }
+   }
+  },
+  {
+   "id": "fire",
+   "name": "Fire",
+   "role": "Burst damage",
+   "desc": "Big fire damage, including the long Pyroblast cast. Fragile.",
+   "icon": "🔥",
+   "bar": [
+    "fireball",
+    "pyroblast",
+    "fire_blast",
+    "polymorph",
+    "counterspell",
+    "blink"
+   ],
+   "mods": {
+    "damageDone": 1.08,
+    "maxHealth": 0.95
+   }
+  },
+  {
+   "id": "arcane",
+   "name": "Arcane",
+   "role": "Sustain / utility",
+   "desc": "Strong mana regeneration and a damage cooldown. Arcane Barrage is instant.",
+   "icon": "🔮",
+   "bar": [
+    "arcane_blast",
+    "arcane_barrage",
+    "polymorph",
+    "counterspell",
+    "blink",
+    "arcane_power"
+   ],
+   "mods": {
+    "regen": 1.5
+   }
+  }
+ ],
+ "priest": [
+  {
+   "id": "discipline",
+   "name": "Discipline",
+   "role": "Shield healer",
+   "desc": "Shields and Pain Suppression keep allies alive. Good all-round control.",
+   "icon": "🛡️",
+   "bar": [
+    "flash_heal",
+    "power_word_shield",
+    "pain_suppression",
+    "smite",
+    "dispel_magic",
+    "psychic_scream"
+   ],
+   "mods": {
+    "healingDone": 1.1
+   }
+  },
+  {
+   "id": "holy",
+   "name": "Holy",
+   "role": "Pure healer",
+   "desc": "The strongest direct healing and mana regeneration. Low damage.",
+   "icon": "✨",
+   "bar": [
+    "flash_heal",
+    "greater_heal",
+    "power_word_shield",
+    "desperate_prayer",
+    "dispel_magic",
+    "psychic_scream"
+   ],
+   "mods": {
+    "healingDone": 1.12,
+    "regen": 1.2,
+    "damageDone": 0.8
+   }
+  },
+  {
+   "id": "shadow",
+   "name": "Shadow",
+   "role": "Damage",
+   "desc": "Shadow damage and a defensive cooldown. Weaker healing. Dispel Magic purges enemy shields.",
+   "icon": "🌑",
+   "bar": [
+    "mind_blast",
+    "shadow_word_death",
+    "smite",
+    "dispel_magic",
+    "psychic_scream",
+    "dispersion"
+   ],
+   "mods": {
+    "damageDone": 1.1,
+    "healingDone": 0.8
+   }
+  }
+ ],
+ "rogue": [
+  {
+   "id": "assassination",
+   "name": "Assassination",
+   "role": "Burst melee",
+   "desc": "Stealth openers into heavy hits. Vanish to reset the fight.",
+   "icon": "🗡️",
+   "bar": [
+    "stealth",
+    "cheap_shot",
+    "mutilate",
+    "kidney_shot",
+    "kick",
+    "vanish"
+   ],
+   "mods": {
+    "damageDone": 1.08
+   }
+  },
+  {
+   "id": "combat",
+   "name": "Combat",
+   "role": "Sustained melee",
+   "desc": "Steady damage with Adrenaline Rush and Sprint for pressure.",
+   "icon": "⚡",
+   "bar": [
+    "stealth",
+    "sinister_strike",
+    "kidney_shot",
+    "kick",
+    "sprint",
+    "adrenaline_rush"
+   ],
+   "mods": {
+    "maxHealth": 1.05
+   }
+  },
+  {
+   "id": "subtlety",
+   "name": "Subtlety",
+   "role": "Control / mobility",
+   "desc": "Slippery: Shadowstep and Evasion for repositioning and survival.",
+   "icon": "👤",
+   "bar": [
+    "stealth",
+    "cheap_shot",
+    "kidney_shot",
+    "kick",
+    "shadowstep",
+    "evasion"
+   ],
+   "mods": {
+    "moveSpeed": 1.05,
+    "damageDone": 0.95
+   }
+  }
+ ]
+}

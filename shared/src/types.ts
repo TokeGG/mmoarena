@@ -3,10 +3,47 @@ export type TeamId = 0 | 1;
 export type ClassId = 'warrior' | 'mage' | 'priest' | 'rogue';
 export type School = 'physical' | 'fire' | 'frost' | 'arcane' | 'holy' | 'shadow' | 'nature';
 export type DRCategory = 'stun' | 'incapacitate' | 'fear' | 'root' | 'silence';
-export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth';
+export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff';
 export type ResourceType = 'mana' | 'rage' | 'energy';
 export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy';
 export type Phase = 'prep' | 'live' | 'ended';
+
+// ---------- builds: specs, talents, gear ----------
+
+/** Per-ability tweaks. damage/heal/cooldown/castTime are multipliers, range is added yards. */
+export interface AbilityMod { damage?: number; heal?: number; cooldown?: number; castTime?: number; range?: number }
+
+/** Fully resolved modifiers a unit carries. Multipliers default to 1. */
+export interface Mods {
+  damageDone: number;
+  healingDone: number;
+  damageTaken: number;
+  maxHealth: number;
+  castTime: number;
+  gcd: number;
+  regen: number;
+  moveSpeed: number;
+  ability: Record<string, AbilityMod>;
+  auraDuration: Record<string, number>;
+}
+/** Partial form used in data files (specs, talents, auras). */
+export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration'>> & {
+  ability?: Record<string, AbilityMod>;
+  auraDuration?: Record<string, number>;
+};
+
+export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput }
+export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput }
+export type StatId = 'power' | 'vitality' | 'haste' | 'resilience';
+export interface GearDef {
+  slots: { id: string; name: string; icon: string; weight: number; noun: string }[];
+  tiers: { id: string; name: string; budget: number; unlockMatches: number; color: string }[];
+  flavors: { id: string; name: string; desc: string; weights: Partial<Record<StatId, number>> }[];
+  stats: Record<StatId, { name: string; desc: string; ratePct: number }>;
+}
+export interface GearItem { id: string; slot: string; tier: string; flavor: string; name: string; stats: Record<StatId, number> }
+/** A player's chosen build. Sent on join and validated by the server. */
+export interface Build { spec: string; talents: string[]; gear: Record<string, string> }
 
 // ---------- data definitions (loaded from /shared/data/*.json) ----------
 
@@ -22,6 +59,8 @@ export interface AuraDef {
   slowPct?: number;
   speedPct?: number;
   absorb?: number;
+  /** Stat modifiers applied while the aura is active (kind 'buff'). */
+  mods?: ModsInput;
 }
 
 export type Effect =
@@ -117,6 +156,10 @@ export interface Unit {
   resourceMax: number;
   resourceType: ResourceType;
   gearMult: number;
+  /** Build: ability bar, spec id and resolved passive modifiers. */
+  bar: string[];
+  spec: string | null;
+  mods: Mods;
   target: number | null;
   cast: CastState | null;
   gcdEnd: number;
@@ -155,6 +198,7 @@ export interface UnitSnap {
   name: string;
   team: TeamId;
   classId: ClassId;
+  spec: string | null;
   x: number;
   z: number;
   facing: number;

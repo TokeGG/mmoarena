@@ -1,47 +1,870 @@
 [
-  { "id": "mortal_strike", "name": "Mortal Strike", "class": "warrior", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 6000, "gcd": true, "cost": 30,
-    "effects": [{ "type": "damage", "amount": 170 }] },
-  { "id": "charge", "name": "Charge", "class": "warrior", "school": "physical", "target": "enemy", "range": 25, "minRange": 8, "castTime": 0, "cooldown": 15000, "gcd": false, "cost": 0,
-    "effects": [{ "type": "dashToTarget", "stopDistance": 2 }, { "type": "gain", "amount": 15 }] },
-  { "id": "pummel", "name": "Pummel", "class": "warrior", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 10000, "gcd": false, "cost": 10, "requiresTargetCasting": true,
-    "effects": [{ "type": "interrupt", "lockout": 4000 }] },
-  { "id": "hamstring", "name": "Hamstring", "class": "warrior", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 0, "gcd": true, "cost": 10,
-    "effects": [{ "type": "damage", "amount": 30 }, { "type": "aura", "aura": "hamstring_slow" }] },
-
-  { "id": "frostbolt", "name": "Frostbolt", "class": "mage", "school": "frost", "target": "enemy", "range": 30, "castTime": 1500, "cooldown": 0, "gcd": true, "cost": 40,
-    "effects": [{ "type": "damage", "amount": 110 }, { "type": "aura", "aura": "frostbolt_slow" }] },
-  { "id": "fireball", "name": "Fireball", "class": "mage", "school": "fire", "target": "enemy", "range": 30, "castTime": 2500, "cooldown": 0, "gcd": true, "cost": 60,
-    "effects": [{ "type": "damage", "amount": 200 }] },
-  { "id": "polymorph", "name": "Polymorph", "class": "mage", "school": "arcane", "target": "enemy", "range": 30, "castTime": 1700, "cooldown": 0, "gcd": true, "cost": 70,
-    "effects": [{ "type": "aura", "aura": "polymorph" }] },
-  { "id": "counterspell", "name": "Counterspell", "class": "mage", "school": "arcane", "target": "enemy", "range": 30, "castTime": 0, "cooldown": 24000, "gcd": false, "cost": 0, "requiresTargetCasting": true,
-    "effects": [{ "type": "interrupt", "lockout": 4000 }] },
-  { "id": "frost_nova", "name": "Frost Nova", "class": "mage", "school": "frost", "target": "aoe_enemy", "range": 0, "radius": 10, "castTime": 0, "cooldown": 25000, "gcd": true, "cost": 30,
-    "effects": [{ "type": "damage", "amount": 40 }, { "type": "aura", "aura": "frost_nova_root" }] },
-  { "id": "blink", "name": "Blink", "class": "mage", "school": "arcane", "target": "self", "range": 0, "castTime": 0, "cooldown": 15000, "gcd": false, "cost": 0, "ignoresLockout": true, "allowWhileRooted": true,
-    "effects": [{ "type": "blink", "distance": 20 }] },
-
-  { "id": "flash_heal", "name": "Flash Heal", "class": "priest", "school": "holy", "target": "ally_or_self", "range": 40, "castTime": 1500, "cooldown": 0, "gcd": true, "cost": 60,
-    "effects": [{ "type": "heal", "amount": 230 }] },
-  { "id": "power_word_shield", "name": "Power Word: Shield", "class": "priest", "school": "holy", "target": "ally_or_self", "range": 40, "castTime": 0, "cooldown": 10000, "gcd": true, "cost": 50, "prepOk": true,
-    "effects": [{ "type": "aura", "aura": "pw_shield" }] },
-  { "id": "smite", "name": "Smite", "class": "priest", "school": "holy", "target": "enemy", "range": 30, "castTime": 1500, "cooldown": 0, "gcd": true, "cost": 30,
-    "effects": [{ "type": "damage", "amount": 85 }] },
-  { "id": "dispel_magic", "name": "Dispel Magic", "class": "priest", "school": "holy", "target": "any", "range": 30, "castTime": 0, "cooldown": 8000, "gcd": true, "cost": 40,
-    "effects": [{ "type": "dispel" }] },
-  { "id": "psychic_scream", "name": "Psychic Scream", "class": "priest", "school": "shadow", "target": "aoe_enemy", "range": 0, "radius": 8, "castTime": 0, "cooldown": 30000, "gcd": true, "cost": 50,
-    "effects": [{ "type": "aura", "aura": "psychic_scream" }] },
-
-  { "id": "stealth", "name": "Stealth", "class": "rogue", "school": "physical", "target": "self", "range": 0, "castTime": 0, "cooldown": 10000, "gcd": false, "cost": 0, "outOfCombatOnly": true, "keepsStealth": true, "prepOk": true,
-    "effects": [{ "type": "aura", "aura": "stealth" }] },
-  { "id": "cheap_shot", "name": "Cheap Shot", "class": "rogue", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 0, "gcd": true, "cost": 40, "requiresStealth": true,
-    "effects": [{ "type": "aura", "aura": "cheap_shot_stun" }] },
-  { "id": "sinister_strike", "name": "Sinister Strike", "class": "rogue", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 0, "gcd": true, "cost": 40,
-    "effects": [{ "type": "damage", "amount": 95 }] },
-  { "id": "kidney_shot", "name": "Kidney Shot", "class": "rogue", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 20000, "gcd": true, "cost": 25,
-    "effects": [{ "type": "aura", "aura": "kidney_shot" }] },
-  { "id": "kick", "name": "Kick", "class": "rogue", "school": "physical", "target": "enemy", "range": 5, "castTime": 0, "cooldown": 15000, "gcd": false, "cost": 0, "requiresTargetCasting": true,
-    "effects": [{ "type": "interrupt", "lockout": 5000 }] },
-  { "id": "sprint", "name": "Sprint", "class": "rogue", "school": "physical", "target": "self", "range": 0, "castTime": 0, "cooldown": 60000, "gcd": false, "cost": 0, "keepsStealth": true,
-    "effects": [{ "type": "aura", "aura": "sprint" }] }
+ {
+  "id": "mortal_strike",
+  "name": "Mortal Strike",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 6000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 170
+   }
+  ]
+ },
+ {
+  "id": "charge",
+  "name": "Charge",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 25,
+  "minRange": 8,
+  "castTime": 0,
+  "cooldown": 15000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "dashToTarget",
+    "stopDistance": 2
+   },
+   {
+    "type": "gain",
+    "amount": 15
+   }
+  ]
+ },
+ {
+  "id": "pummel",
+  "name": "Pummel",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 10000,
+  "gcd": false,
+  "cost": 10,
+  "requiresTargetCasting": true,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 4000
+   }
+  ]
+ },
+ {
+  "id": "hamstring",
+  "name": "Hamstring",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 10,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 30
+   },
+   {
+    "type": "aura",
+    "aura": "hamstring_slow"
+   }
+  ]
+ },
+ {
+  "id": "frostbolt",
+  "name": "Frostbolt",
+  "class": "mage",
+  "school": "frost",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1500,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 110
+   },
+   {
+    "type": "aura",
+    "aura": "frostbolt_slow"
+   }
+  ]
+ },
+ {
+  "id": "fireball",
+  "name": "Fireball",
+  "class": "mage",
+  "school": "fire",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 2500,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 60,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 200
+   }
+  ]
+ },
+ {
+  "id": "polymorph",
+  "name": "Polymorph",
+  "class": "mage",
+  "school": "arcane",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1700,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 70,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "polymorph"
+   }
+  ]
+ },
+ {
+  "id": "counterspell",
+  "name": "Counterspell",
+  "class": "mage",
+  "school": "arcane",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 24000,
+  "gcd": false,
+  "cost": 0,
+  "requiresTargetCasting": true,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 4000
+   }
+  ]
+ },
+ {
+  "id": "frost_nova",
+  "name": "Frost Nova",
+  "class": "mage",
+  "school": "frost",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 10,
+  "castTime": 0,
+  "cooldown": 25000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 40
+   },
+   {
+    "type": "aura",
+    "aura": "frost_nova_root"
+   }
+  ]
+ },
+ {
+  "id": "blink",
+  "name": "Blink",
+  "class": "mage",
+  "school": "arcane",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 15000,
+  "gcd": false,
+  "cost": 0,
+  "ignoresLockout": true,
+  "allowWhileRooted": true,
+  "effects": [
+   {
+    "type": "blink",
+    "distance": 20
+   }
+  ]
+ },
+ {
+  "id": "flash_heal",
+  "name": "Flash Heal",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally_or_self",
+  "range": 40,
+  "castTime": 1500,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 60,
+  "effects": [
+   {
+    "type": "heal",
+    "amount": 230
+   }
+  ]
+ },
+ {
+  "id": "power_word_shield",
+  "name": "Power Word: Shield",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally_or_self",
+  "range": 40,
+  "castTime": 0,
+  "cooldown": 10000,
+  "gcd": true,
+  "cost": 50,
+  "prepOk": true,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "pw_shield"
+   }
+  ]
+ },
+ {
+  "id": "smite",
+  "name": "Smite",
+  "class": "priest",
+  "school": "holy",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1500,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 85
+   }
+  ]
+ },
+ {
+  "id": "dispel_magic",
+  "name": "Dispel Magic",
+  "class": "priest",
+  "school": "holy",
+  "target": "any",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 8000,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "dispel"
+   }
+  ]
+ },
+ {
+  "id": "psychic_scream",
+  "name": "Psychic Scream",
+  "class": "priest",
+  "school": "shadow",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 8,
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "cost": 50,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "psychic_scream"
+   }
+  ]
+ },
+ {
+  "id": "stealth",
+  "name": "Stealth",
+  "class": "rogue",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 10000,
+  "gcd": false,
+  "cost": 0,
+  "outOfCombatOnly": true,
+  "keepsStealth": true,
+  "prepOk": true,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "stealth"
+   }
+  ]
+ },
+ {
+  "id": "cheap_shot",
+  "name": "Cheap Shot",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 40,
+  "requiresStealth": true,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "cheap_shot_stun"
+   }
+  ]
+ },
+ {
+  "id": "sinister_strike",
+  "name": "Sinister Strike",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 95
+   }
+  ]
+ },
+ {
+  "id": "kidney_shot",
+  "name": "Kidney Shot",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 20000,
+  "gcd": true,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "kidney_shot"
+   }
+  ]
+ },
+ {
+  "id": "kick",
+  "name": "Kick",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 15000,
+  "gcd": false,
+  "cost": 0,
+  "requiresTargetCasting": true,
+  "effects": [
+   {
+    "type": "interrupt",
+    "lockout": 5000
+   }
+  ]
+ },
+ {
+  "id": "sprint",
+  "name": "Sprint",
+  "class": "rogue",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "keepsStealth": true,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "sprint"
+   }
+  ]
+ },
+ {
+  "id": "recklessness",
+  "name": "Recklessness",
+  "class": "warrior",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 45000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "recklessness"
+   }
+  ]
+ },
+ {
+  "id": "intimidating_shout",
+  "name": "Intimidating Shout",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 40000,
+  "gcd": true,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "intimidating_shout"
+   }
+  ],
+  "radius": 8
+ },
+ {
+  "id": "bloodthirst",
+  "name": "Bloodthirst",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 4500,
+  "gcd": true,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 150
+   },
+   {
+    "type": "gain",
+    "amount": 5
+   }
+  ]
+ },
+ {
+  "id": "whirlwind",
+  "name": "Whirlwind",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 9000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 90
+   }
+  ],
+  "radius": 8
+ },
+ {
+  "id": "enraged_regeneration",
+  "name": "Enraged Regeneration",
+  "class": "warrior",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 10,
+  "effects": [
+   {
+    "type": "heal",
+    "amount": 700
+   }
+  ]
+ },
+ {
+  "id": "shield_slam",
+  "name": "Shield Slam",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 6000,
+  "gcd": true,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 110
+   }
+  ]
+ },
+ {
+  "id": "concussion_blow",
+  "name": "Concussion Blow",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "concussion_stun"
+   }
+  ]
+ },
+ {
+  "id": "shield_wall",
+  "name": "Shield Wall",
+  "class": "warrior",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "shield_wall"
+   }
+  ]
+ },
+ {
+  "id": "ice_barrier",
+  "name": "Ice Barrier",
+  "class": "mage",
+  "school": "frost",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "ice_barrier"
+   }
+  ]
+ },
+ {
+  "id": "pyroblast",
+  "name": "Pyroblast",
+  "class": "mage",
+  "school": "fire",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 3000,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 90,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 420
+   }
+  ]
+ },
+ {
+  "id": "fire_blast",
+  "name": "Fire Blast",
+  "class": "mage",
+  "school": "fire",
+  "target": "enemy",
+  "range": 20,
+  "castTime": 0,
+  "cooldown": 8000,
+  "gcd": false,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 130
+   }
+  ]
+ },
+ {
+  "id": "arcane_blast",
+  "name": "Arcane Blast",
+  "class": "mage",
+  "school": "arcane",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1800,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 55,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 190
+   }
+  ]
+ },
+ {
+  "id": "arcane_barrage",
+  "name": "Arcane Barrage",
+  "class": "mage",
+  "school": "arcane",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 6000,
+  "gcd": true,
+  "cost": 35,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 120
+   }
+  ]
+ },
+ {
+  "id": "arcane_power",
+  "name": "Arcane Power",
+  "class": "mage",
+  "school": "arcane",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "arcane_power"
+   }
+  ]
+ },
+ {
+  "id": "greater_heal",
+  "name": "Greater Heal",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally_or_self",
+  "range": 40,
+  "castTime": 2600,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 90,
+  "effects": [
+   {
+    "type": "heal",
+    "amount": 520
+   }
+  ]
+ },
+ {
+  "id": "pain_suppression",
+  "name": "Pain Suppression",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally_or_self",
+  "range": 40,
+  "castTime": 0,
+  "cooldown": 45000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "pain_suppression"
+   }
+  ]
+ },
+ {
+  "id": "desperate_prayer",
+  "name": "Desperate Prayer",
+  "class": "priest",
+  "school": "holy",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "heal",
+    "amount": 650
+   }
+  ]
+ },
+ {
+  "id": "mind_blast",
+  "name": "Mind Blast",
+  "class": "priest",
+  "school": "shadow",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1500,
+  "cooldown": 7000,
+  "gcd": true,
+  "cost": 55,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 230
+   }
+  ]
+ },
+ {
+  "id": "shadow_word_death",
+  "name": "Shadow Word: Death",
+  "class": "priest",
+  "school": "shadow",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 0,
+  "cooldown": 12000,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 300
+   }
+  ]
+ },
+ {
+  "id": "dispersion",
+  "name": "Dispersion",
+  "class": "priest",
+  "school": "shadow",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "dispersion"
+   }
+  ]
+ },
+ {
+  "id": "mutilate",
+  "name": "Mutilate",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 5,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 50,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 140
+   }
+  ]
+ },
+ {
+  "id": "vanish",
+  "name": "Vanish",
+  "class": "rogue",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 120000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "stealth"
+   }
+  ],
+  "keepsStealth": true
+ },
+ {
+  "id": "adrenaline_rush",
+  "name": "Adrenaline Rush",
+  "class": "rogue",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "adrenaline_rush"
+   }
+  ],
+  "keepsStealth": true
+ },
+ {
+  "id": "shadowstep",
+  "name": "Shadowstep",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 25,
+  "castTime": 0,
+  "cooldown": 20000,
+  "gcd": false,
+  "cost": 10,
+  "effects": [
+   {
+    "type": "dashToTarget",
+    "stopDistance": 2
+   }
+  ],
+  "minRange": 5,
+  "keepsStealth": true
+ },
+ {
+  "id": "evasion",
+  "name": "Evasion",
+  "class": "rogue",
+  "school": "physical",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "evasion"
+   }
+  ],
+  "keepsStealth": true
+ }
 ]

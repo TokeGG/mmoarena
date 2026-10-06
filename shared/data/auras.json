@@ -1,12 +1,166 @@
 {
-  "polymorph": { "name": "Polymorph", "kind": "incapacitate", "duration": 8000, "harmful": true, "dr": "incapacitate", "breaksOnDamage": true, "dispellable": true },
-  "frost_nova_root": { "name": "Frost Nova", "kind": "root", "duration": 6000, "harmful": true, "dr": "root", "dispellable": true },
-  "frostbolt_slow": { "name": "Frostbolt", "kind": "slow", "duration": 4000, "harmful": true, "slowPct": 40, "dispellable": true },
-  "hamstring_slow": { "name": "Hamstring", "kind": "slow", "duration": 8000, "harmful": true, "slowPct": 50 },
-  "cheap_shot_stun": { "name": "Cheap Shot", "kind": "stun", "duration": 4000, "harmful": true, "dr": "stun" },
-  "kidney_shot": { "name": "Kidney Shot", "kind": "stun", "duration": 4000, "harmful": true, "dr": "stun" },
-  "psychic_scream": { "name": "Psychic Scream", "kind": "fear", "duration": 6000, "harmful": true, "dr": "fear", "dispellable": true },
-  "pw_shield": { "name": "Power Word: Shield", "kind": "absorb", "duration": 15000, "harmful": false, "absorb": 350, "dispellable": true },
-  "stealth": { "name": "Stealth", "kind": "stealth", "duration": 0, "harmful": false, "speedPct": -30 },
-  "sprint": { "name": "Sprint", "kind": "speed", "duration": 8000, "harmful": false, "speedPct": 70 }
+ "polymorph": {
+  "name": "Polymorph",
+  "kind": "incapacitate",
+  "duration": 8000,
+  "harmful": true,
+  "dr": "incapacitate",
+  "breaksOnDamage": true,
+  "dispellable": true
+ },
+ "frost_nova_root": {
+  "name": "Frost Nova",
+  "kind": "root",
+  "duration": 6000,
+  "harmful": true,
+  "dr": "root",
+  "dispellable": true
+ },
+ "frostbolt_slow": {
+  "name": "Frostbolt",
+  "kind": "slow",
+  "duration": 4000,
+  "harmful": true,
+  "slowPct": 40,
+  "dispellable": true
+ },
+ "hamstring_slow": {
+  "name": "Hamstring",
+  "kind": "slow",
+  "duration": 8000,
+  "harmful": true,
+  "slowPct": 50
+ },
+ "cheap_shot_stun": {
+  "name": "Cheap Shot",
+  "kind": "stun",
+  "duration": 4000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "kidney_shot": {
+  "name": "Kidney Shot",
+  "kind": "stun",
+  "duration": 4000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "psychic_scream": {
+  "name": "Psychic Scream",
+  "kind": "fear",
+  "duration": 6000,
+  "harmful": true,
+  "dr": "fear",
+  "dispellable": true
+ },
+ "pw_shield": {
+  "name": "Power Word: Shield",
+  "kind": "absorb",
+  "duration": 15000,
+  "harmful": false,
+  "absorb": 350,
+  "dispellable": true
+ },
+ "stealth": {
+  "name": "Stealth",
+  "kind": "stealth",
+  "duration": 0,
+  "harmful": false,
+  "speedPct": -30
+ },
+ "sprint": {
+  "name": "Sprint",
+  "kind": "speed",
+  "duration": 8000,
+  "harmful": false,
+  "speedPct": 70
+ },
+ "recklessness": {
+  "name": "Recklessness",
+  "kind": "buff",
+  "duration": 10000,
+  "harmful": false,
+  "mods": {
+   "damageDone": 1.3,
+   "damageTaken": 1.15
+  }
+ },
+ "shield_wall": {
+  "name": "Shield Wall",
+  "kind": "buff",
+  "duration": 8000,
+  "harmful": false,
+  "mods": {
+   "damageTaken": 0.6
+  }
+ },
+ "intimidating_shout": {
+  "name": "Intimidating Shout",
+  "kind": "fear",
+  "duration": 5000,
+  "harmful": true,
+  "dr": "fear"
+ },
+ "concussion_stun": {
+  "name": "Concussion Blow",
+  "kind": "stun",
+  "duration": 3000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "ice_barrier": {
+  "name": "Ice Barrier",
+  "kind": "absorb",
+  "duration": 12000,
+  "harmful": false,
+  "absorb": 450,
+  "dispellable": true
+ },
+ "arcane_power": {
+  "name": "Arcane Power",
+  "kind": "buff",
+  "duration": 12000,
+  "harmful": false,
+  "mods": {
+   "damageDone": 1.25
+  },
+  "dispellable": true
+ },
+ "pain_suppression": {
+  "name": "Pain Suppression",
+  "kind": "buff",
+  "duration": 8000,
+  "harmful": false,
+  "mods": {
+   "damageTaken": 0.6
+  }
+ },
+ "dispersion": {
+  "name": "Dispersion",
+  "kind": "buff",
+  "duration": 6000,
+  "harmful": false,
+  "mods": {
+   "damageTaken": 0.4
+  }
+ },
+ "adrenaline_rush": {
+  "name": "Adrenaline Rush",
+  "kind": "buff",
+  "duration": 12000,
+  "harmful": false,
+  "mods": {
+   "damageDone": 1.2,
+   "regen": 2
+  }
+ },
+ "evasion": {
+  "name": "Evasion",
+  "kind": "buff",
+  "duration": 6000,
+  "harmful": false,
+  "mods": {
+   "damageTaken": 0.55
+  }
+ }
 }

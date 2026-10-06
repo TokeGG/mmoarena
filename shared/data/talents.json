@@ -1,0 +1,432 @@
+{
+ "warrior": [
+  [
+   {
+    "id": "brutality",
+    "name": "Brutality",
+    "desc": "Your damage is increased by 6%.",
+    "icon": "💪",
+    "mods": {
+     "damageDone": 1.06
+    }
+   },
+   {
+    "id": "iron_will",
+    "name": "Iron Will",
+    "desc": "Damage you take is reduced by 6%.",
+    "icon": "🛡️",
+    "mods": {
+     "damageTaken": 0.94
+    }
+   },
+   {
+    "id": "fleet_footed",
+    "name": "Fleet Footed",
+    "desc": "Movement speed increased by 8%.",
+    "icon": "👟",
+    "mods": {
+     "moveSpeed": 1.08
+    }
+   }
+  ],
+  [
+   {
+    "id": "improved_charge",
+    "name": "Improved Charge",
+    "desc": "Charge cooldown reduced by 30%.",
+    "icon": "🐗",
+    "mods": {
+     "ability": {
+      "charge": {
+       "cooldown": 0.7
+      }
+     }
+    }
+   },
+   {
+    "id": "improved_pummel",
+    "name": "Improved Pummel",
+    "desc": "Pummel cooldown reduced by 30%.",
+    "icon": "👊",
+    "mods": {
+     "ability": {
+      "pummel": {
+       "cooldown": 0.7
+      }
+     }
+    }
+   },
+   {
+    "id": "improved_hamstring",
+    "name": "Improved Hamstring",
+    "desc": "Hamstring slows for 50% longer.",
+    "icon": "🩸",
+    "mods": {
+     "auraDuration": {
+      "hamstring_slow": 1.5
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "executioner",
+    "name": "Executioner",
+    "desc": "Your damage is increased by 8%.",
+    "icon": "🪓",
+    "mods": {
+     "damageDone": 1.08
+    }
+   },
+   {
+    "id": "last_stand",
+    "name": "Last Stand",
+    "desc": "Maximum health increased by 12%.",
+    "icon": "❤️",
+    "mods": {
+     "maxHealth": 1.12
+    }
+   },
+   {
+    "id": "relentless",
+    "name": "Relentless",
+    "desc": "Global cooldown reduced by 7%.",
+    "icon": "⏱️",
+    "mods": {
+     "gcd": 0.93
+    }
+   }
+  ]
+ ],
+ "mage": [
+  [
+   {
+    "id": "spell_power",
+    "name": "Spell Power",
+    "desc": "Your damage is increased by 6%.",
+    "icon": "✨",
+    "mods": {
+     "damageDone": 1.06
+    }
+   },
+   {
+    "id": "mana_flow",
+    "name": "Mana Flow",
+    "desc": "Mana regeneration increased by 25%.",
+    "icon": "💧",
+    "mods": {
+     "regen": 1.25
+    }
+   },
+   {
+    "id": "winters_chill",
+    "name": "Winter's Chill",
+    "desc": "Frostbolt slows for 50% longer.",
+    "icon": "❄️",
+    "mods": {
+     "auraDuration": {
+      "frostbolt_slow": 1.5
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "improved_counterspell",
+    "name": "Improved Counterspell",
+    "desc": "Counterspell cooldown reduced by 25%.",
+    "icon": "🚫",
+    "mods": {
+     "ability": {
+      "counterspell": {
+       "cooldown": 0.75
+      }
+     }
+    }
+   },
+   {
+    "id": "improved_blink",
+    "name": "Improved Blink",
+    "desc": "Blink cooldown reduced by 30%.",
+    "icon": "🌀",
+    "mods": {
+     "ability": {
+      "blink": {
+       "cooldown": 0.7
+      }
+     }
+    }
+   },
+   {
+    "id": "permafrost",
+    "name": "Permafrost",
+    "desc": "Frost Nova roots 25% longer and has a 15% shorter cooldown.",
+    "icon": "🧊",
+    "mods": {
+     "auraDuration": {
+      "frost_nova_root": 1.25
+     },
+     "ability": {
+      "frost_nova": {
+       "cooldown": 0.85
+      }
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "elemental_precision",
+    "name": "Elemental Precision",
+    "desc": "Fireball, Frostbolt and Pyroblast deal 12% more damage.",
+    "icon": "🎯",
+    "mods": {
+     "ability": {
+      "fireball": {
+       "damage": 1.12
+      },
+      "frostbolt": {
+       "damage": 1.12
+      },
+      "pyroblast": {
+       "damage": 1.12
+      }
+     }
+    }
+   },
+   {
+    "id": "arcane_mind",
+    "name": "Arcane Mind",
+    "desc": "Maximum health +6% and mana regeneration +15%.",
+    "icon": "🧠",
+    "mods": {
+     "maxHealth": 1.06,
+     "regen": 1.15
+    }
+   },
+   {
+    "id": "blazing_speed",
+    "name": "Blazing Speed",
+    "desc": "Movement speed increased by 8%.",
+    "icon": "💨",
+    "mods": {
+     "moveSpeed": 1.08
+    }
+   }
+  ]
+ ],
+ "priest": [
+  [
+   {
+    "id": "holy_focus",
+    "name": "Holy Focus",
+    "desc": "Your healing and shields are 6% stronger.",
+    "icon": "💚",
+    "mods": {
+     "healingDone": 1.06
+    }
+   },
+   {
+    "id": "shadow_focus",
+    "name": "Shadow Focus",
+    "desc": "Your damage is increased by 6%.",
+    "icon": "🌑",
+    "mods": {
+     "damageDone": 1.06
+    }
+   },
+   {
+    "id": "inner_peace",
+    "name": "Inner Peace",
+    "desc": "Mana regeneration increased by 25%.",
+    "icon": "🕊️",
+    "mods": {
+     "regen": 1.25
+    }
+   }
+  ],
+  [
+   {
+    "id": "improved_shield",
+    "name": "Improved Shield",
+    "desc": "Power Word: Shield cooldown reduced by 30%.",
+    "icon": "🛡️",
+    "mods": {
+     "ability": {
+      "power_word_shield": {
+       "cooldown": 0.7
+      }
+     }
+    }
+   },
+   {
+    "id": "improved_dispel",
+    "name": "Improved Dispel",
+    "desc": "Dispel Magic cooldown reduced by 40%.",
+    "icon": "🪄",
+    "mods": {
+     "ability": {
+      "dispel_magic": {
+       "cooldown": 0.6
+      }
+     }
+    }
+   },
+   {
+    "id": "psychic_horror",
+    "name": "Psychic Horror",
+    "desc": "Psychic Scream cooldown reduced by 20%.",
+    "icon": "😱",
+    "mods": {
+     "ability": {
+      "psychic_scream": {
+       "cooldown": 0.8
+      }
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "focused_will",
+    "name": "Focused Will",
+    "desc": "Damage you take is reduced by 7%.",
+    "icon": "🧿",
+    "mods": {
+     "damageTaken": 0.93
+    }
+   },
+   {
+    "id": "swift_prayer",
+    "name": "Swift Prayer",
+    "desc": "Cast times reduced by 7%.",
+    "icon": "⏩",
+    "mods": {
+     "castTime": 0.93
+    }
+   },
+   {
+    "id": "empowered_healing",
+    "name": "Empowered Healing",
+    "desc": "Flash Heal and Greater Heal heal for 12% more.",
+    "icon": "🙏",
+    "mods": {
+     "ability": {
+      "flash_heal": {
+       "heal": 1.12
+      },
+      "greater_heal": {
+       "heal": 1.12
+      }
+     }
+    }
+   }
+  ]
+ ],
+ "rogue": [
+  [
+   {
+    "id": "deadly_poisons",
+    "name": "Deadly Poisons",
+    "desc": "Your damage is increased by 6%.",
+    "icon": "☠️",
+    "mods": {
+     "damageDone": 1.06
+    }
+   },
+   {
+    "id": "nimble",
+    "name": "Nimble",
+    "desc": "Damage you take is reduced by 6%.",
+    "icon": "🤸",
+    "mods": {
+     "damageTaken": 0.94
+    }
+   },
+   {
+    "id": "fleet",
+    "name": "Fleet",
+    "desc": "Movement speed increased by 6%.",
+    "icon": "👟",
+    "mods": {
+     "moveSpeed": 1.06
+    }
+   }
+  ],
+  [
+   {
+    "id": "improved_kick",
+    "name": "Improved Kick",
+    "desc": "Kick cooldown reduced by 30%.",
+    "icon": "🦶",
+    "mods": {
+     "ability": {
+      "kick": {
+       "cooldown": 0.7
+      }
+     }
+    }
+   },
+   {
+    "id": "improved_kidney",
+    "name": "Improved Kidney Shot",
+    "desc": "Kidney Shot stuns for 25% longer.",
+    "icon": "🥊",
+    "mods": {
+     "auraDuration": {
+      "kidney_shot": 1.25
+     }
+    }
+   },
+   {
+    "id": "improved_sprint",
+    "name": "Improved Sprint",
+    "desc": "Sprint cooldown reduced by 30%.",
+    "icon": "💨",
+    "mods": {
+     "ability": {
+      "sprint": {
+       "cooldown": 0.7
+      }
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "ruthlessness",
+    "name": "Ruthlessness",
+    "desc": "Sinister Strike and Mutilate deal 15% more damage.",
+    "icon": "🔪",
+    "mods": {
+     "ability": {
+      "sinister_strike": {
+       "damage": 1.15
+      },
+      "mutilate": {
+       "damage": 1.15
+      }
+     }
+    }
+   },
+   {
+    "id": "vigor",
+    "name": "Vigor",
+    "desc": "Maximum health increased by 10%.",
+    "icon": "❤️",
+    "mods": {
+     "maxHealth": 1.1
+    }
+   },
+   {
+    "id": "shadow_dance",
+    "name": "Shadow Dance",
+    "desc": "Global cooldown reduced by 7%.",
+    "icon": "⏱️",
+    "mods": {
+     "gcd": 0.93
+    }
+   }
+  ]
+ ]
+}
