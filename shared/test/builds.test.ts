@@ -40,7 +40,7 @@ describe('content data is consistent', () => {
   });
 
   it('every ability is on at least one spec bar, and every talent mod points at something real', () => {
-    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)), ...CLASS_IDS.flatMap((c) => TALENTS[c].flat().map((t) => t.swap?.to ?? ''))]);
+    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)), ...CLASS_IDS.flatMap((c) => TALENTS[c].flat().map((t) => t.swap?.to ?? '')), ...Object.values(ABILITIES).map((a) => a.stealthSwap ?? '')]);
     for (const id of Object.keys(ABILITIES)) assert.ok(used.has(id) || CLASSES[ABILITIES[id].class].bar.includes(id), `${id} unreachable`);
     const check = (m: any, where: string) => {
       for (const id of Object.keys(m?.ability ?? {})) assert.ok(ABILITIES[id], `${where}: ability ${id}`);

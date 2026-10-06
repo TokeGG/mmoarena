@@ -209,6 +209,27 @@ describe('stealth', () => {
     assert.ok(sim.snapshot(1).units.some((u) => u.id === rogue.id), 'revealed within 2 yards');
   });
 
+  it('sinister strike and mutilate turn into cheap shot while stealthed, and only then', () => {
+    for (const base of ['sinister_strike', 'mutilate']) {
+      const sim = live();
+      const rogue = add(sim, 'rogue', 0, 0, 0);
+      const mage = add(sim, 'mage', 1, 2, 0);
+      rogue.bar = ['stealth', base, 'kidney_shot', 'kick', 'sprint'];
+      advance(sim, TICK);
+      mustFail(sim.useAbility(rogue.id, 'cheap_shot', mage.id), /requires stealth/);
+      assert.ok(sim.useAbility(rogue.id, 'stealth').ok);
+      assert.ok(sim.useAbility(rogue.id, 'cheap_shot', mage.id).ok, `${base} slot opens with Cheap Shot`);
+      assert.ok(mage.auras.some((a) => a.id === 'cheap_shot_stun'));
+    }
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const mage = add(sim, 'mage', 1, 2, 0);
+    rogue.bar = ['stealth', 'kidney_shot', 'kick', 'sprint'];
+    advance(sim, TICK);
+    sim.useAbility(rogue.id, 'stealth');
+    mustFail(sim.useAbility(rogue.id, 'cheap_shot', mage.id), /unknown ability/);
+  });
+
   it('cheap shot needs stealth, stuns, and breaks stealth', () => {
     const sim = live();
     const rogue = add(sim, 'rogue', 0, 0, 0);

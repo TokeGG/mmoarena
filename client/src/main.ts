@@ -84,6 +84,7 @@ const hud = new Hud({
     bar = swapSlots(bar, from, to);
     saveOrder(classId, barSpec, bar);
     hud.setBar(classId, bar);
+    shownKey = '';
     relabel();
   },
 });
@@ -171,6 +172,7 @@ function onMessage(raw: MessageEvent) {
       vis.pitch = controls.pitch;
       vis.dist = controls.dist;
       hud.setBar(classId, bar);
+      shownKey = '';
       setAiming(null);
       relabel();
       hud.show(true);
@@ -403,9 +405,17 @@ function groundAim(range: number): { x: number; z: number } | null {
   return g;
 }
 
+/** The bar as it looks right now: slots with a stealth swap show the swapped ability while you are stealthed. */
+function shownBar(): string[] {
+  const me = latest?.units.find((u) => u.id === you);
+  const stealthed = !!me?.stealthed;
+  return bar.map((id) => (stealthed && ABILITIES[id]?.stealthSwap) || id);
+}
+let shownKey = '';
+
 function castSlot(i: number) {
   if (spec) return;
-  const ability = bar[i];
+  const ability = shownBar()[i];
   if (!ability) return;
   const def = ABILITIES[ability];
   if (def?.target === 'ground') {
@@ -629,6 +639,12 @@ function frame(now: number) {
   scene.render(); // render first so projection uses this frame's camera
 
   if (!spec && targetId !== null && inEnemySmoke()) setTarget(null); // smoke takes your target away
+  const shown = shownBar();
+  if (shown.join() !== shownKey) {
+    shownKey = shown.join();
+    hud.setBar(classId, shown);
+    relabel();
+  }
   hud.autoEnabled = autoEnabled;
   hud.update({ snap, now: estNow, you, targetId });
   hud.nameplates(
@@ -704,6 +720,7 @@ function setFollow(id: number, snap: Snapshot | null) {
   classId = u.classId;
   bar = u.bar ?? specOf(u.classId, u.spec ?? '')?.bar ?? CLASSES[u.classId].bar;
   hud.setBar(classId, bar);
+  shownKey = '';
   relabel();
   vis.ready = false;
 }

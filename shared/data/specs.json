@@ -204,13 +204,13 @@
    "icon": "\ud83d\udde1\ufe0f",
    "bar": [
     "stealth",
-    "cheap_shot",
     "mutilate",
     "kidney_shot",
     "kick",
     "vanish",
     "sprint",
-    "evasion"
+    "evasion",
+    "adrenaline_rush"
    ],
    "mods": {
     "damageDone": 1.08
@@ -244,13 +244,13 @@
    "icon": "\ud83d\udc64",
    "bar": [
     "stealth",
-    "cheap_shot",
     "kidney_shot",
     "kick",
     "shadowstep",
     "vanish",
     "sprint",
-    "sinister_strike"
+    "sinister_strike",
+    "evasion"
    ],
    "mods": {
     "moveSpeed": 1.05,

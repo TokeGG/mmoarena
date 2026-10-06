@@ -115,6 +115,8 @@ export interface AbilityDef {
   requiresTargetCasting?: boolean;
   outOfCombatOnly?: boolean;
   keepsStealth?: boolean;
+  /** While the caster is stealthed this ability's slot becomes the named ability (Sinister Strike turns into Cheap Shot). */
+  stealthSwap?: string;
   prepOk?: boolean;
   ignoresLockout?: boolean;
   /** Can be used while stunned, feared or incapacitated (Blink). */

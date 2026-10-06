@@ -150,7 +150,12 @@ export class ArenaSim {
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
     const def = ABILITIES[abilityId];
-    if (!def || !u.bar.includes(abilityId)) return fail('unknown ability');
+    if (def && !u.bar.includes(abilityId)) {
+      // a slot can turn into another ability while stealthed (Sinister Strike and Mutilate become Cheap Shot)
+      if (u.bar.some((b) => ABILITIES[b]?.stealthSwap === abilityId)) {
+        if (!this.isStealthed(u)) return fail('requires stealth');
+      } else return fail('unknown ability');
+    } else if (!def) return fail('unknown ability');
     if (this.phase === 'ended') return fail('match is over');
     if (this.phase === 'prep' && !def.prepOk) return fail('match has not started');
     if (!this.canAct(u) && !def.ignoresControl) return fail('you are incapacitated');

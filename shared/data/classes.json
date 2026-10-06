@@ -21,6 +21,6 @@
     "name": "Rogue", "color": "#fff569", "maxHealth": 2800,
     "resource": { "type": "energy", "max": 100, "start": 100, "regenPerSec": 15 },
     "auto": { "interval": 1800, "damage": 50, "range": 3 },
-    "bar": ["stealth", "cheap_shot", "sinister_strike", "kidney_shot", "kick", "sprint"]
+    "bar": ["stealth", "sinister_strike", "kidney_shot", "kick", "sprint"]
   }
 }

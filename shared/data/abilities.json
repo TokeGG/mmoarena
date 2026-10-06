@@ -355,7 +355,8 @@
     "type": "damage",
     "amount": 110
    }
-  ]
+  ],
+  "stealthSwap": "cheap_shot"
  },
  {
   "id": "kidney_shot",
@@ -780,7 +781,8 @@
     "type": "damage",
     "amount": 155
    }
-  ]
+  ],
+  "stealthSwap": "cheap_shot"
  },
  {
   "id": "vanish",

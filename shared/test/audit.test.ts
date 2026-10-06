@@ -10,6 +10,7 @@ const classIds = Object.keys(CLASSES) as ClassId[];
 function reachableFor(cid: ClassId, specId: string): Set<string> {
   const sp = SPECS[cid].find((s) => s.id === specId)!;
   const out = new Set(sp.bar);
+  for (const a of sp.bar) if (ABILITIES[a]?.stealthSwap) out.add(ABILITIES[a].stealthSwap!); // slots that turn into another ability in stealth
   for (const tier of TALENTS[cid]) for (const t of tier) if (t.swap?.replaces[specId]) out.add(t.swap.to);
   return out;
 }
@@ -95,7 +96,7 @@ describe('skills and talents audit: data', () => {
 function trial(a: AbilityDef, useAlly = false) {
   const sim = new ArenaSim({ seed: 7, prepMs: 0 });
   const specs = SPECS[a.class];
-  let spec = specs.find((s) => s.bar.includes(a.id));
+  let spec = specs.find((s) => s.bar.includes(a.id)) ?? specs.find((s) => s.bar.some((b) => ABILITIES[b]?.stealthSwap === a.id));
   let talents: string[] = [];
   if (!spec) {
     for (const s of specs) TALENTS[a.class].forEach((tier, ti) => tier.forEach((t) => {
