@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.21
+# WoW-style Arena · v0.22
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -63,6 +63,8 @@ Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, 
 - **Fog:** enemies you cannot see (stealthed or farther than 8 yards) are left out of your snapshots entirely.
 
 ## Gear and loot
+
+- **What your gear looks like:** equipped gear is drawn on your character and everyone in the match sees it (spectators and replays too). Empty slots show the plain class look. Better gear looks richer: tier (Initiate to Gladiator) or loot rarity sets the metal colour, the number of spikes and studs and the glow, and the flavor (Fury red, Bulwark blue, Tempo cyan, Balance gold) colours the gems and auras. Head = floating crown, Chest = breast plaque and shoulder studs, Legs = knee guards (hem ring on robes), Weapon = an aura with orbiting motes round the weapon hand, Trinket = a floating charm. The menu preview updates as you change class or gear.
 
 - **Gear:** 5 slots, 4 tiers (Initiate, Veteran, Elite, Gladiator), 4 flavors. Tiers unlock by finishing matches (0 / 3 / 8 / 15). Every stat bonus is capped at 15%, so higher tiers are a small edge, not a gap.
 - **Loot (signed in):** finished ranked matches drop a random item (two on a win); bot practice drops at most one Common-to-Rare item half the time; dummy practice drops nothing. Rarities Common, Uncommon, Rare, Epic, Legendary (weights 55 / 28 / 12 / 4.2 / 0.8) with rolled stats. Epic and Legendary can carry a perk, and each perk counts once however many pieces have it. Ranked drops are guaranteed Epic+ after 20 without one. Inventory holds 60; a full inventory pushes out the lowest-rarity, oldest item. Loot goes through the same capped bonuses as tier gear.

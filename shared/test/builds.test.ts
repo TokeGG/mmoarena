@@ -386,3 +386,36 @@ describe('talent ability swaps', () => {
     assert.ok(w.ability.mortal_strike.damage! > 1.1);
   });
 });
+
+describe('gear look', () => {
+  const ids = (flavor: string, tier: string) => Object.fromEntries(['weapon', 'head', 'chest', 'legs', 'trinket'].map((s) => [s, `${tier}.${s}.${flavor}`]));
+  it('encodes two characters per slot and decodes them again', async () => {
+    const { gearLook, parseLook } = await import('../src/index');
+    assert.equal(gearLook(undefined), '----------');
+    const look = gearLook(ids('fury', 't3'));
+    assert.equal(look, '3f3f3f3f3f');
+    const p = parseLook(look);
+    assert.equal(p.chest.rank, 3);
+    assert.equal(p.chest.flavor, 'fury');
+    assert.equal(p.chest.color, GEAR.tiers[2].color);
+  });
+  it('different gear gives a different look, and junk decodes to empty pieces', async () => {
+    const { gearLook, parseLook } = await import('../src/index');
+    assert.notEqual(gearLook(ids('fury', 't1')), gearLook(ids('fury', 't4')));
+    assert.notEqual(gearLook(ids('fury', 't2')), gearLook(ids('bulwark', 't2')));
+    assert.equal(gearLook({ head: ids('fury', 't2').head, chest: ids('fury', 't2').head }).slice(4, 6), '--', 'an item in the wrong slot shows nothing');
+    const junk = parseLook('zz!!');
+    assert.equal(junk.weapon.rank, 0);
+    assert.equal(parseLook(null).trinket.rank, 0);
+  });
+  it('loot rarity shows as a rank and units carry the look in snapshots', async () => {
+    const { gearLook, parseLook, rollLoot } = await import('../src/index');
+    const id = rollLoot(() => 0.99, { minRarity: 'legendary' });
+    const slot = id.split('.')[2];
+    const look = parseLook(gearLook({ [slot]: id }));
+    assert.equal(look[slot].rank, 5);
+    const sim = live(2);
+    const u = add(sim, 'warrior', 0, 0, 0, build('arms', [], ids('bulwark', 't4')));
+    assert.equal(sim.snapshot().units.find((x) => x.id === u.id)!.look, '4b4b4b4b4b');
+  });
+});

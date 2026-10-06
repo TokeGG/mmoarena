@@ -180,6 +180,8 @@ export interface Unit {
   /** Build: ability bar, spec id and resolved passive modifiers. */
   bar: string[];
   spec: string | null;
+  /** Cosmetic gear summary (see gearLook). */
+  look: string;
   mods: Mods;
   target: number | null;
   cast: CastState | null;
@@ -231,6 +233,8 @@ export interface UnitSnap {
   spec: string | null;
   /** Only present when talents changed the spec's default ability bar. */
   bar?: string[];
+  /** Cosmetic gear summary (see gearLook). */
+  look: string;
   x: number;
   z: number;
   facing: number;

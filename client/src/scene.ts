@@ -26,6 +26,8 @@ export interface RenderUnit {
   casting: boolean;
   /** Polymorphed: drawn as a sheep. */
   sheep: boolean;
+  /** Gear summary (see gearLook in shared); a change rebuilds the model. */
+  look?: string;
 }
 
 interface UnitMesh {
@@ -35,6 +37,7 @@ interface UnitMesh {
   ring: THREE.Mesh;
   targetRing: THREE.Mesh;
   classId: ClassId;
+  look: string;
   lastX: number;
   lastZ: number;
   phase: number;
@@ -112,9 +115,9 @@ export class ArenaScene {
     }
   }
 
-  private createUnitMesh(id: number, classId: ClassId, x: number, z: number): UnitMesh {
+  private createUnitMesh(id: number, classId: ClassId, look: string, x: number, z: number): UnitMesh {
     const group = new THREE.Group();
-    const character = createCharacter(classId);
+    const character = createCharacter(classId, look);
     const sheep = createSheep();
     sheep.root.visible = false;
     group.add(character.root, sheep.root);
@@ -128,7 +131,7 @@ export class ArenaScene {
     group.add(ring, targetRing);
     for (const mesh of [...character.meshes, ...sheep.meshes, ring, targetRing]) mesh.userData.unitId = id;
     this.scene.add(group);
-    return { group, character, sheep, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0, vf: 0, vs: 0 };
+    return { group, character, sheep, ring, targetRing, classId, look, lastX: x, lastZ: z, phase: 0, move: 0, vf: 0, vs: 0 };
   }
 
   /** Swap the scenery (and the camera's pillar collision) to another arena. A no-op if it is already showing. */
@@ -160,8 +163,16 @@ export class ArenaScene {
       seen.add(u.id);
       let m = this.meshes.get(u.id);
       if (!m) {
-        m = this.createUnitMesh(u.id, u.classId, u.x, u.z);
+        m = this.createUnitMesh(u.id, u.classId, u.look ?? '', u.x, u.z);
         this.meshes.set(u.id, m);
+      } else if (m.classId !== u.classId || m.look !== (u.look ?? '')) {
+        // a different class or different gear (menu preview, or a spectated unit): rebuild the model in place
+        m.group.remove(m.character.root);
+        m.character = createCharacter(u.classId, u.look ?? '');
+        m.group.add(m.character.root);
+        for (const mesh of m.character.meshes) mesh.userData.unitId = u.id;
+        m.classId = u.classId;
+        m.look = u.look ?? '';
       }
       // walk cycle driven by how far the unit actually moved this frame
       const vx = (u.x - m.lastX) / dt;

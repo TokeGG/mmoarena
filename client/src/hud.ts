@@ -135,7 +135,7 @@ export class Hud {
     const mk = (id: number, name: string, team: TeamId, c: ClassId, hp: number, extra: Partial<UnitSnap> = {}): UnitSnap => {
       const cls = CLASSES[c];
       return {
-        id, name, team, classId: c, spec: null, x: 0, z: 0, facing: 0, alive: true, health: Math.round(cls.maxHealth * hp), maxHealth: cls.maxHealth,
+        id, name, team, classId: c, spec: null, look: '', x: 0, z: 0, facing: 0, alive: true, health: Math.round(cls.maxHealth * hp), maxHealth: cls.maxHealth,
         resource: Math.round(cls.resource.max * 0.7), resourceMax: cls.resource.max, resourceType: cls.resource.type, target: null, cast: null, gcdEnd: 0,
         cooldowns: {}, auras: [], stealthed: false, y: 0, speedMult: 1, controlled: false, autoAttack: false, lastSeq: 0, ...extra,
       };

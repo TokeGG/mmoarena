@@ -1,5 +1,5 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
-import { barFor, barSwapped, compileMods, withAuraMods } from './build';
+import { barFor, barSwapped, compileMods, gearLook, withAuraMods } from './build';
 import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
@@ -77,7 +77,7 @@ export class ArenaSim {
       pos: { x: spawn.x, z: spawn.z }, facing, alive: true,
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
+      gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
       autoAttack: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
@@ -662,7 +662,7 @@ export class ArenaSim {
     for (const [k, v] of Object.entries(u.cooldowns)) if (v > this.time) cooldowns[k] = v;
     const r2 = (n: number) => Math.round(n * 100) / 100;
     return {
-      id: u.id, name: u.name, team: u.team, classId: u.classId, spec: u.spec,
+      id: u.id, name: u.name, team: u.team, classId: u.classId, spec: u.spec, look: u.look,
       ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}),
       x: r2(u.pos.x), z: r2(u.pos.z), facing: Math.round(u.facing * 1000) / 1000,
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,

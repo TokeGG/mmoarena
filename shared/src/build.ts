@@ -1,5 +1,5 @@
 import { AURAS, GEAR, SPECS, TALENTS, TUNING } from './data';
-import { lootItem, perkById } from './loot';
+import { lootItem, perkById, rarityOf } from './loot';
 import type { AbilityMod, Build, ClassId, GearItem, Mods, ModsInput, StatId, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
@@ -204,4 +204,55 @@ export function withAuraMods(base: Mods, auraIds: string[]): Mods {
 export function barSwapped(classId: ClassId, spec: string | null, bar: readonly string[]): boolean {
   const d = spec ? specOf(classId, spec) : undefined;
   return !!d && (d.bar.length !== bar.length || d.bar.some((a, i) => a !== bar[i]));
+}
+
+// ------------------------------------------------------------------ gear look (what other players see)
+
+export interface LookPiece {
+  /** 0 = nothing equipped, 1-4 = tier gear (Initiate..Gladiator), 1-5 = loot rarity (Common..Legendary). */
+  rank: number;
+  flavor: string;
+  /** Tier or rarity colour as a CSS hex string. */
+  color: string;
+}
+const LOOK_RARITY = ['common', 'uncommon', 'rare', 'epic', 'legendary'];
+const LOOK_FLAVOR: Record<string, string> = { fury: 'f', bulwark: 'b', tempo: 't', balance: 'p' };
+const LOOK_FLAVOR_BACK: Record<string, string> = { f: 'fury', b: 'bulwark', t: 'tempo', p: 'balance' };
+
+/**
+ * Compact string for the gear a unit wears, two characters per slot in `SLOT_IDS` order: a rank digit (tier 1-4, loot
+ * 'a'-'e' for Common..Legendary) and a flavor letter. '--' = empty slot. Cosmetic only, carried in snapshots.
+ */
+export function gearLook(gear: Record<string, string> | undefined): string {
+  let out = '';
+  for (const slot of SLOT_IDS) {
+    const item = gear?.[slot] ? itemById(gear[slot]) : undefined;
+    if (!item || item.slot !== slot) {
+      out += '--';
+      continue;
+    }
+    const rank = item.rarity ? 'abcde'[Math.max(0, LOOK_RARITY.indexOf(item.rarity))] : String(Math.max(1, GEAR.tiers.findIndex((t) => t.id === item.tier) + 1));
+    out += rank + (LOOK_FLAVOR[item.flavor] ?? 'p');
+  }
+  return out;
+}
+
+/** Decodes `gearLook`. Tolerates anything: junk gives empty pieces. */
+export function parseLook(look: string | undefined | null): Record<string, LookPiece> {
+  const out: Record<string, LookPiece> = {};
+  SLOT_IDS.forEach((slot, i) => {
+    const r = look?.[i * 2] ?? '-';
+    const f = LOOK_FLAVOR_BACK[look?.[i * 2 + 1] ?? ''] ?? 'balance';
+    let rank = 0;
+    let color = '#9d9d9d';
+    if (r >= '1' && r <= '9') {
+      rank = Math.min(GEAR.tiers.length, Number(r));
+      color = GEAR.tiers[rank - 1]?.color ?? color;
+    } else if (r >= 'a' && r <= 'e') {
+      rank = r.charCodeAt(0) - 96;
+      color = rarityOf(LOOK_RARITY[rank - 1])?.color ?? color;
+    }
+    out[slot] = { rank, flavor: f, color };
+  });
+  return out;
 }
