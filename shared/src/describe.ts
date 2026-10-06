@@ -43,7 +43,7 @@ export function describeAura(id: string): string {
   switch (a.kind) {
     case 'stun': return 'Cannot move, cast or act.';
     case 'incapacitate': return 'Cannot move, cast or act. Breaks on damage.';
-    case 'fear': return 'Runs around in fear. Cannot cast or act.';
+    case 'fear': return `Runs around in fear. Cannot cast or act.${a.breaksOnDamage ? ' Breaks on damage.' : ''}`;
     case 'root': return 'Cannot move.';
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;

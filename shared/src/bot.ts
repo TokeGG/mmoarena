@@ -187,6 +187,8 @@ export class Bot {
   // ------------------------------------------------------------------ decisions
 
   private decide(u: Unit, enemies: Unit[], allies: Unit[], tgt: Unit | undefined): void {
+    // do not break crowd control that breaks on damage (a feared or blinded lone enemy is left alone until it wakes)
+    if (tgt && this.isPolymorphed(tgt) && enemies.length === 1) tgt = undefined;
     switch (u.classId) {
       case 'warrior':
         return this.warrior(u, enemies, tgt);

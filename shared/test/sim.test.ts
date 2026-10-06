@@ -384,6 +384,22 @@ describe('melee and auto-attack', () => {
   });
 });
 
+describe('crowd control that breaks on damage', () => {
+  it('blind, psychic scream and intimidating shout all end when the victim is hurt', () => {
+    for (const aura of ['blind', 'psychic_scream', 'intimidating_shout']) {
+      const sim = new ArenaSim({ seed: 1, prepMs: 0 });
+      const a = sim.addUnit({ name: 'a', classId: 'rogue', team: 0 });
+      const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+      a.pos = { x: 0, z: 0 }; w.pos = { x: 5, z: 0 };
+      advance(sim, 100);
+      sim.applyAura(a, w, aura);
+      assert.ok(w.auras.some((x) => x.id === aura), `${aura} applied`);
+      sim.dealDamage(a, w, 40, 'physical', 'test');
+      assert.ok(!w.auras.some((x) => x.id === aura), `${aura} broke on damage`);
+    }
+  });
+});
+
 describe('smoke bomb', () => {
   it('enemies inside lose their target and cannot target; the caster team can, and leaving restores it', () => {
     const sim = live();
