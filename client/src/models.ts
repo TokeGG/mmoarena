@@ -506,108 +506,140 @@ function rogue(b: Builder): Rig {
 
 // ------------------------------------------------------------------ gear looks
 
-const FLAVOR_COLOR: Record<string, number> = { fury: 0xff5a2a, bulwark: 0x4a8cff, tempo: 0x3ee0e0, balance: 0xffd24a };
-/** Where each class's head, chest and so on sit, so worn gear lands on the right spot. */
-const FIT: Record<ClassId, { headTop: number; chestZ: number; robe: boolean }> = {
-  warrior: { headTop: 1.55, chestZ: 0.31, robe: false },
-  mage: { headTop: 2.12, chestZ: 0.235, robe: true },
-  priest: { headTop: 1.72, chestZ: 0.28, robe: true },
-  rogue: { headTop: 1.44, chestZ: 0.2, robe: false },
+const FLAVOR_COLOR: Record<string, number> = { fury: 0xe0392b, bulwark: 0x3f7fe0, tempo: 0x21c9c0, balance: 0xf0c53a };
+/** Where each class's head, shoulders and so on sit, so worn gear lands on the right spot. */
+const FIT: Record<ClassId, { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number }> = {
+  warrior: { headTop: 1.58, headR: 0.285, tw: 0.78, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.52, pauldronY: 0.98 },
+  mage: { headTop: 2.12, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
+  priest: { headTop: 1.72, headR: 0.25, tw: 0.58, chestZ: 0.285, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
+  rogue: { headTop: 1.44, headR: 0.275, tw: 0.54, chestZ: 0.2, robe: false, legW: 0.2, pauldronX: 0.36, pauldronY: 0.84 },
 };
 const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x9d9d9d;
 
 /**
- * Draws what a unit has equipped on top of its class model. Better gear (higher rank) gets richer metal, more pieces and
- * more glow, and the flavor (Fury, Bulwark, Tempo, Balance) picks the accent colour of gems and auras. Nothing equipped
- * means nothing extra is drawn, so the plain class look is the "naked" look.
+ * Draws what a unit has equipped on top of its class model, in a way you can see from across the arena.
+ * - The flavor (Fury red, Bulwark blue, Tempo teal, Balance gold) tints the armour pieces and their gems at every tier.
+ * - The tier or loot rarity (rank 1-5) sets the metal sheen and how elaborate each piece is: plain at rank 1, spikes and
+ *   studs from rank 3, glow and a halo at the top.
+ * Nothing equipped in a slot draws nothing there, so a bare character shows just its class look.
  */
 function wearGear(b: Builder, r: Rig, classId: ClassId, look: Record<string, LookPiece>) {
   const fit = FIT[classId];
   const { upper } = r;
-  const metalOf = (p: LookPiece) => b.m(hexNum(p.color), { metal: 0.55 + 0.08 * p.rank, rough: 0.4 - 0.04 * p.rank });
-  const accentOf = (p: LookPiece) => FLAVOR_COLOR[p.flavor] ?? 0xffd24a;
+  const accentOf = (p: LookPiece) => FLAVOR_COLOR[p.flavor] ?? 0xf0c53a;
+  /** Armour colour: the tier colour pulled strongly towards the flavor, so both show. */
+  const armorHex = (p: LookPiece) => new THREE.Color(hexNum(p.color)).lerp(new THREE.Color(accentOf(p)), 0.6).getHex();
+  const armor = (p: LookPiece) => b.m(armorHex(p), { metal: 0.45 + 0.1 * p.rank, rough: 0.5 - 0.06 * p.rank });
+  const trim = (p: LookPiece) => b.m(hexNum(p.color), { metal: 0.8, rough: 0.3 });
+  const gem = (p: LookPiece) => b.m(accentOf(p), { glow: 1.1 + 0.2 * p.rank, rough: 0.25 });
 
-  // head: a floating crown above the head; spikes and a second ring appear with rank
+  // head: a band round the brow, a gem, side fins from rank 3, a crown of spikes from rank 4, a halo at rank 5
   const head = look.head;
   if (head?.rank) {
-    const crown = new THREE.Group();
-    crown.position.y = fit.headTop;
-    upper.add(crown);
-    const ring = b.torus(crown, 0.17 + 0.01 * head.rank, 0.018 + 0.004 * head.rank, metalOf(head));
-    ring.rotation.x = Math.PI / 2;
-    const spikes = head.rank >= 5 ? 7 : head.rank >= 3 ? head.rank + 1 : 0;
-    for (let i = 0; i < spikes; i++) {
-      const a = (i / spikes) * Math.PI * 2;
-      const sp = b.cone(crown, 0.03, 0.1 + 0.03 * head.rank, metalOf(head), Math.cos(a) * (0.17 + 0.01 * head.rank), 0.06, Math.sin(a) * (0.17 + 0.01 * head.rank), 6);
-      sp.rotation.set(Math.sin(a) * 0.25, 0, -Math.cos(a) * 0.25);
+    const R = fit.headR;
+    const band = b.torus(upper, R, 0.03 + 0.006 * head.rank, armor(head), 0, 1.03, 0);
+    band.rotation.x = Math.PI / 2;
+    b.plain(() => b.ball(upper, 0.04 + 0.006 * head.rank, gem(head), 0, 1.03, R + 0.01));
+    if (head.rank >= 2) {
+      const brow = b.rbox(upper, 0.12 + 0.02 * head.rank, 0.07, 0.05, trim(head), 0, 1.03, R + 0.02, 0.02);
+      brow.renderOrder = 1;
     }
-    if (head.rank >= 2) b.plain(() => b.ball(crown, 0.035 + 0.004 * head.rank, b.m(accentOf(head), { glow: 1.5 }), 0, 0.03, 0.18 + 0.01 * head.rank));
-    if (head.rank >= 4) {
-      const halo = b.glow(crown, new THREE.TorusGeometry(0.26, 0.012, 8, 32), hexNum(head.color), 0.55, 0, 0.02, 0);
-      halo.rotation.x = Math.PI / 2;
-      b.anim.push((t) => (halo.rotation.z = t * 1.4));
-    }
-    b.anim.push((t) => (crown.position.y = fit.headTop + Math.sin(t * 2.2) * 0.02));
-  }
-
-  // chest: a breast plaque in the tier colour with a flavor gem; rank adds a gold-rimmed frame and shoulder studs
-  const chest = look.chest;
-  if (chest?.rank) {
-    b.rbox(upper, 0.24 + 0.02 * chest.rank, 0.2 + 0.015 * chest.rank, 0.04, metalOf(chest), 0, 0.37, fit.chestZ, 0.02);
-    if (chest.rank >= 2) b.plain(() => b.ball(upper, 0.03 + 0.004 * chest.rank, b.m(accentOf(chest), { glow: 1.4 }), 0, 0.37, fit.chestZ + 0.035));
-    if (chest.rank >= 3) {
-      for (const s of [-1, 1]) {
-        const stud = b.ball(upper, 0.05 + 0.008 * chest.rank, metalOf(chest), s * (classId === 'warrior' ? 0.58 : 0.4), 0.9, 0);
-        stud.scale.set(1, 0.7, 1);
+    if (head.rank >= 3) {
+      for (const sd of [-1, 1]) {
+        const fin = b.cone(upper, 0.05 + 0.01 * head.rank, 0.22 + 0.05 * head.rank, armor(head), sd * (R + 0.02), 1.12, -0.02, 6);
+        fin.rotation.z = -sd * (0.9 + 0.05 * head.rank);
       }
     }
-    if (chest.rank >= 5) b.glow(upper, new THREE.SphereGeometry(0.2, 12, 10), accentOf(chest), 0.18, 0, 0.5, 0);
+    if (head.rank >= 4) {
+      const n = head.rank === 4 ? 5 : 7;
+      for (let i = 0; i < n; i++) {
+        const ang = -Math.PI / 2 + (i / (n - 1)) * Math.PI; // front arc, over the brow
+        const sp = b.cone(upper, 0.03, 0.14 + 0.02 * head.rank, trim(head), Math.sin(ang) * (R + 0.01), 1.12, Math.cos(ang) * (R + 0.01) * 0.6 - 0.02, 6);
+        sp.rotation.z = -Math.sin(ang) * 0.5;
+      }
+    }
+    if (head.rank >= 5) {
+      const halo = b.glow(upper, new THREE.TorusGeometry(0.3, 0.015, 8, 36), accentOf(head), 0.75, 0, fit.headTop - 0.05, 0);
+      halo.rotation.x = Math.PI / 2;
+      b.anim.push((t) => (halo.rotation.z = t * 1.2));
+    }
   }
 
-  // legs: knee guards and shin rings for plate and leather; a heavier hem ring on robes
+  // chest: shoulder plates, a tabard in the flavor colour with a metal frame, and (high rank) glow
+  const chest = look.chest;
+  if (chest?.rank) {
+    for (const sd of [-1, 1]) {
+      const pd = b.ball(upper, 0.13 + 0.025 * chest.rank, armor(chest), sd * fit.pauldronX, fit.pauldronY, 0);
+      pd.scale.set(1.15, 0.7, 1.1);
+      const rim = b.torus(upper, 0.13 + 0.025 * chest.rank, 0.016 + 0.003 * chest.rank, trim(chest), sd * fit.pauldronX, fit.pauldronY - 0.03, 0);
+      rim.rotation.x = Math.PI / 2;
+      rim.scale.set(1.15, 1.1, 1);
+      if (chest.rank >= 3) {
+        const sp = b.cone(upper, 0.05, 0.12 + 0.05 * chest.rank, trim(chest), sd * (fit.pauldronX + 0.04), fit.pauldronY + 0.1, 0, 6);
+        sp.rotation.z = -sd * 0.45;
+      }
+      if (chest.rank >= 5) b.glow(upper, new THREE.SphereGeometry(0.26, 12, 10), accentOf(chest), 0.18, sd * fit.pauldronX, fit.pauldronY, 0);
+    }
+    const len = 0.26 + 0.05 * chest.rank;
+    b.rbox(upper, 0.26 + 0.02 * chest.rank, len, 0.03, b.m(accentOf(chest), { rough: 0.8 }), 0, 0.62 - len / 2, fit.chestZ, 0.012);
+    b.rbox(upper, 0.3 + 0.02 * chest.rank, 0.06, 0.05, trim(chest), 0, 0.6, fit.chestZ + 0.005, 0.02);
+    b.plain(() => b.ball(upper, 0.04 + 0.006 * chest.rank, gem(chest), 0, 0.5, fit.chestZ + 0.035));
+    if (chest.rank >= 4) b.glow(upper, new THREE.SphereGeometry(0.2, 12, 10), accentOf(chest), 0.16, 0, 0.5, 0.1);
+  }
+
+  // legs: greaves and knee guards on plate and leather; a coloured, heavier hem on robes
   const legs = look.legs;
   if (legs?.rank) {
     if (fit.robe) {
-      const hem = b.torus(r.root, 0.62, 0.02 + 0.006 * legs.rank, metalOf(legs), 0, 0.17, 0);
-      hem.rotation.x = Math.PI / 2;
-      if (legs.rank >= 3) b.plain(() => {
-        const g = b.torus(r.root, 0.64, 0.012, b.m(accentOf(legs), { glow: 1.3 }), 0, 0.22, 0);
+      const hemBand = b.cyl(r.root, 0.6, 0.64, 0.1 + 0.015 * legs.rank, armor(legs), 0, 0.1, 0, 32);
+      hemBand.renderOrder = 1;
+      const edge = b.torus(r.root, 0.63, 0.018 + 0.004 * legs.rank, trim(legs), 0, 0.2 + 0.015 * legs.rank, 0);
+      edge.rotation.x = Math.PI / 2;
+      b.plain(() => {
+        const g = b.torus(r.root, 0.645, 0.012, b.m(accentOf(legs), { glow: 1.2 + 0.2 * legs.rank }), 0, 0.045, 0);
         g.rotation.x = Math.PI / 2;
       });
+      if (legs.rank >= 3) for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * Math.PI * 2;
+        b.plain(() => b.ball(r.root, 0.03, gem(legs), Math.cos(a) * 0.63, 0.11, Math.sin(a) * 0.63));
+      }
     } else {
+      const w = fit.legW;
       for (const leg of [r.legL, r.legR]) {
-        const knee = b.ball(leg, 0.1 + 0.01 * legs.rank, metalOf(legs), 0, -0.34, 0.1);
-        knee.scale.set(1, 0.85, 0.8);
-        if (legs.rank >= 3) b.plain(() => b.torus(leg, 0.14, 0.014, b.m(accentOf(legs), { glow: 1.2 }), 0, -0.52, 0).rotation.x = Math.PI / 2);
+        b.rbox(leg, w + 0.07, 0.36, 0.34, armor(legs), 0, -0.5, 0.01, 0.07);
+        const knee = b.ball(leg, 0.11 + 0.012 * legs.rank, trim(legs), 0, -0.3, 0.12);
+        knee.scale.set(1.1, 0.9, 0.85);
+        b.plain(() => b.ball(leg, 0.03 + 0.004 * legs.rank, gem(legs), 0, -0.3, 0.2));
+        if (legs.rank >= 3) b.rbox(leg, w + 0.09, 0.05, 0.36, trim(legs), 0, -0.34, 0.01, 0.02);
+        if (legs.rank >= 4) b.plain(() => (b.torus(leg, w * 0.62, 0.016, b.m(accentOf(legs), { glow: 1.4 }), 0, -0.62, 0).rotation.x = Math.PI / 2));
       }
     }
   }
 
-  // weapon: an aura of the flavor colour round the right hand that grows and orbits with rank
+  // weapon: a flavor-coloured aura round the weapon hand, with sparks orbiting from rank 2
   const weapon = look.weapon;
   if (weapon?.rank) {
     const aura = new THREE.Group();
     aura.position.set(0, -0.6, 0.05);
     r.armR.add(aura);
-    b.glow(aura, new THREE.SphereGeometry(0.1 + 0.02 * weapon.rank, 14, 10), accentOf(weapon), 0.1 + 0.05 * weapon.rank, 0, 0, 0);
-    const motes = Math.max(0, weapon.rank - 1);
+    b.glow(aura, new THREE.SphereGeometry(0.17 + 0.03 * weapon.rank, 16, 12), accentOf(weapon), 0.2 + 0.06 * weapon.rank, 0, 0, 0);
     const pts: THREE.Object3D[] = [];
-    for (let i = 0; i < motes; i++) pts.push(b.glow(aura, new THREE.SphereGeometry(0.025, 8, 6), hexNum(weapon.color), 0.9, 0, 0, 0));
+    for (let i = 0; i < weapon.rank + 1; i++) pts.push(b.glow(aura, new THREE.SphereGeometry(0.035, 8, 6), hexNum(weapon.color), 0.95, 0, 0, 0));
     b.anim.push((t) => pts.forEach((m, i) => {
-      const a = t * 2.4 + (i / pts.length) * Math.PI * 2;
-      m.position.set(Math.cos(a) * 0.22, Math.sin(a * 0.7) * 0.14, Math.sin(a) * 0.22);
+      const a = t * 2.6 + (i / pts.length) * Math.PI * 2;
+      m.position.set(Math.cos(a) * 0.3, Math.sin(a * 0.7) * 0.2, Math.sin(a) * 0.3);
     }));
   }
 
-  // trinket: a charm that floats beside the hip, in the flavor colour
+  // trinket: a charm that floats beside the hip, in the flavor colour, bigger and brighter with rank
   const trinket = look.trinket;
   if (trinket?.rank) {
     const charm = new THREE.Group();
     upper.add(charm);
-    b.plain(() => b.add(charm, new THREE.OctahedronGeometry(0.05 + 0.008 * trinket.rank), b.m(accentOf(trinket), { glow: 0.9 + 0.2 * trinket.rank, rough: 0.3 }), 0, 0, 0));
-    b.glow(charm, new THREE.SphereGeometry(0.09 + 0.012 * trinket.rank, 10, 8), hexNum(trinket.color), 0.25, 0, 0, 0);
+    b.plain(() => b.add(charm, new THREE.OctahedronGeometry(0.08 + 0.012 * trinket.rank), b.m(accentOf(trinket), { glow: 1.0 + 0.25 * trinket.rank, rough: 0.3 }), 0, 0, 0));
+    b.glow(charm, new THREE.SphereGeometry(0.13 + 0.018 * trinket.rank, 10, 8), hexNum(trinket.color), 0.3, 0, 0, 0);
     b.anim.push((t) => {
-      charm.position.set(0.5, 0.05 + Math.sin(t * 2.1) * 0.05, -0.05);
+      charm.position.set(0.55, 0.12 + Math.sin(t * 2.1) * 0.06, -0.05);
       charm.rotation.y = t * 1.6;
     });
   }
