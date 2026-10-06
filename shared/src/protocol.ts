@@ -1,9 +1,9 @@
-import { CLASSES } from './data';
+import { ARENAS, CLASSES } from './data';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN } from './accounts';
 import type { AccountInfo, Cosmetics, LeaderRow, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
-export const PROTOCOL_VERSION = 4;
+export const PROTOCOL_VERSION = 5;
 
 export type PracticeDifficulty = 'dummy' | 'easy' | 'normal' | 'hard';
 const DIFFICULTIES: PracticeDifficulty[] = ['dummy', 'easy', 'normal', 'hard'];
@@ -19,6 +19,8 @@ export type ClientMsg =
       foes?: ClassId[];
       ally?: ClassId | null;
       difficulty?: PracticeDifficulty;
+      /** Arena id, or 'random' (default). */
+      map?: string;
       /** Spec, talent picks and gear. Validated by the server against the signed profile. */
       build?: Build;
       /** Signed progress token from an earlier `profile` message. */
@@ -42,7 +44,7 @@ export type ClientMsg =
 export const MAX_SETTINGS = 24000;
 
 export type ServerMsg =
-  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null }
+  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; map: string }
   /** Progress (matches played unlock gear tiers). Store `token` and send it back on join. */
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
@@ -99,6 +101,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
         ally: m.ally === undefined ? undefined : validClass(m.ally) ? m.ally : null,
         difficulty: DIFFICULTIES.includes(m.difficulty) ? m.difficulty : undefined,
         build: parseBuild(m.build),
+        map: typeof m.map === 'string' && (m.map === 'random' || ARENAS.some((a) => a.id === m.map)) ? m.map : undefined,
         profile: typeof m.profile === 'string' && m.profile.length <= 400 ? m.profile : undefined,
       };
     }

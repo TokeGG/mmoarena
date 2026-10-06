@@ -1,7 +1,7 @@
 import abilitiesJson from '../data/abilities.json' with { type: 'json' };
 import aurasJson from '../data/auras.json' with { type: 'json' };
 import classesJson from '../data/classes.json' with { type: 'json' };
-import arenaJson from '../data/arena.json' with { type: 'json' };
+import arenasJson from '../data/arenas.json' with { type: 'json' };
 import specsJson from '../data/specs.json' with { type: 'json' };
 import talentsJson from '../data/talents.json' with { type: 'json' };
 import gearJson from '../data/gear.json' with { type: 'json' };
@@ -13,7 +13,10 @@ export const ABILITIES: Record<string, AbilityDef> = Object.fromEntries(
 );
 export const AURAS = aurasJson as unknown as Record<string, AuraDef>;
 export const CLASSES = classesJson as unknown as Record<ClassId, ClassDef>;
-export const ARENA = arenaJson as unknown as ArenaDef;
+/** Every arena the server can play on. The first is the default. */
+export const ARENAS = arenasJson as unknown as ArenaDef[];
+export const ARENA = ARENAS[0];
+export const arenaById = (id: string | undefined): ArenaDef => ARENAS.find((a) => a.id === id) ?? ARENA;
 export const TUNING = tuningJson as unknown as Tuning;
 
 export const SPECS = specsJson as unknown as Record<ClassId, SpecDef[]>;

@@ -1,5 +1,5 @@
 import {
-  ABILITIES, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, gearStats, itemById, statBonuses, tierOf, tierUnlocked,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, gearStats, itemById, statBonuses, tierOf, tierUnlocked,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PracticeDifficulty, StatId } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -19,6 +19,8 @@ export interface PlayRequest {
   foes: ClassId[];
   ally: ClassId | null;
   difficulty: PracticeDifficulty;
+  /** An arena id or 'random'. */
+  map: string;
 }
 
 export interface MainMenuHooks {
@@ -70,6 +72,8 @@ export class MainMenu {
   private foes = el('select');
   private ally = el('select');
   private diff = el('select');
+  private map = el('select');
+  private mapDesc = el('div', 'mm-mapdesc');
   private classRow = el('div', 'mm-classes');
   private blurb = el('div', 'mm-blurb');
   private specs = el('div', 'mm-specs');
@@ -97,6 +101,10 @@ export class MainMenu {
 
   get selectedClass(): ClassId {
     return this.classId;
+  }
+  /** The arena picked in the menu: an id or 'random'. */
+  get selectedMap(): string {
+    return this.map.value;
   }
   get currentBuild(): Build {
     return this.build;
@@ -175,7 +183,14 @@ export class MainMenu {
     opt(this.foes, foeCombos, 'arena.foes', 'warrior,mage');
     opt(this.ally, [...CLASS_IDS.map((c): [string, string] => [c, `${CLASSES[c].name} bot`]), ['none', 'None']], 'arena.ally', 'priest');
     opt(this.diff, [['dummy', 'Dummies (passive)'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], 'arena.difficulty', 'normal');
-    opts.append(mk('Opponents', this.foes), mk('Your partner', this.ally), mk('Bot skill', this.diff));
+    opt(this.map, [['random', 'Random'], ...ARENAS.map((a): [string, string] => [a.id, a.name])], 'arena.map', 'random');
+    const showMap = () => {
+      const a = ARENAS.find((x) => x.id === this.map.value);
+      this.mapDesc.textContent = a ? a.desc : 'A random arena each match. In the queue, random players fill any arena.';
+    };
+    this.map.addEventListener('change', showMap);
+    showMap();
+    opts.append(mk('Arena', this.map), this.mapDesc, mk('Opponents', this.foes), mk('Your partner', this.ally), mk('Bot skill', this.diff));
     const row = el('div', 'mm-row');
     const practice = el('button', 'mm-btn primary', 'Practice');
     const queue = this.queueBtn;
@@ -382,6 +397,7 @@ export class MainMenu {
       foes: this.foes.value.split(',') as ClassId[],
       ally: this.ally.value === 'none' ? null : (this.ally.value as ClassId),
       difficulty: this.diff.value as PracticeDifficulty,
+      map: this.map.value,
     });
   }
 }

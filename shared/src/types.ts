@@ -109,6 +109,11 @@ export interface ClassDef {
 }
 
 export interface ArenaDef {
+  id: string;
+  name: string;
+  /** Visual theme for the client scenery (gameplay never depends on it). */
+  theme: string;
+  desc: string;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   pillars: { x: number; z: number; r: number }[];
   spawns: Vec2[][];

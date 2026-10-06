@@ -1,0 +1,234 @@
+[
+ {
+  "id": "colosseum",
+  "name": "Dusk Colosseum",
+  "theme": "colosseum",
+  "desc": "Four great columns frame an open centre. Classic, balanced, easy to read.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": -10,
+    "z": -7,
+    "r": 2.2
+   },
+   {
+    "x": -10,
+    "z": 7,
+    "r": 2.2
+   },
+   {
+    "x": 10,
+    "z": -7,
+    "r": 2.2
+   },
+   {
+    "x": 10,
+    "z": 7,
+    "r": 2.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20
+ },
+ {
+  "id": "ruins",
+  "name": "Sunken Ruins",
+  "theme": "ruins",
+  "desc": "A fallen tower splits the middle and broken columns hide the corners. Lots of line of sight to break.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 3.2
+   },
+   {
+    "x": -12,
+    "z": -8.5,
+    "r": 1.8
+   },
+   {
+    "x": -12,
+    "z": 8.5,
+    "r": 1.8
+   },
+   {
+    "x": 12,
+    "z": -8.5,
+    "r": 1.8
+   },
+   {
+    "x": 12,
+    "z": 8.5,
+    "r": 1.8
+   },
+   {
+    "x": 0,
+    "z": -13,
+    "r": 1.4
+   },
+   {
+    "x": 0,
+    "z": 13,
+    "r": 1.4
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20
+ },
+ {
+  "id": "frost",
+  "name": "Frostkeep Pit",
+  "theme": "frost",
+  "desc": "A ring of ice spires around an open pit. Fights spill around the ring, so positioning decides them.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 9.0,
+    "z": 0.0,
+    "r": 1.7
+   },
+   {
+    "x": 4.5,
+    "z": 7.79,
+    "r": 1.7
+   },
+   {
+    "x": -4.5,
+    "z": 7.79,
+    "r": 1.7
+   },
+   {
+    "x": -9.0,
+    "z": 0.0,
+    "r": 1.7
+   },
+   {
+    "x": -4.5,
+    "z": -7.79,
+    "r": 1.7
+   },
+   {
+    "x": 4.5,
+    "z": -7.79,
+    "r": 1.7
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20
+ }
+]

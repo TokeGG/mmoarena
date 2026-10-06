@@ -61,7 +61,7 @@ describe('server end to end', () => {
     const c = new TestClient(`ws://127.0.0.1:${server.port}/ws`);
     clients.push(c);
     await c.open();
-    c.send({ t: 'join', name: 'Tester', classId: 'mage', mode: 'practice' });
+    c.send({ t: 'join', name: 'Tester', classId: 'mage', mode: 'practice', map: 'colosseum' });
     await until(() => c.welcome !== null && c.snap !== null, 2000, 'welcome + first snapshot');
     assert.equal(c.welcome!.team, 0);
     assert.equal(c.snap!.units.length, 4);

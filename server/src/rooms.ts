@@ -1,5 +1,5 @@
 import type { WebSocket } from 'ws';
-import { ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, START_RATING, resolveCosmetics } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
@@ -32,10 +32,17 @@ export interface Player {
   /** Account actions run one at a time per connection. */
   chain: Promise<void>;
   lastSettingsSave?: number;
+  /** Arena chosen at join: an arena id or 'random'. */
+  mapPref: string;
 }
 
 export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
+}
+
+/** An arena id, resolving 'random' (or anything unknown) to a random arena. */
+export function pickMap(pref: string): string {
+  return ARENAS.some((a) => a.id === pref) ? pref : ARENAS[Math.floor(Math.random() * ARENAS.length)].id;
 }
 
 export class Room {
@@ -48,8 +55,8 @@ export class Room {
   private credited = false;
 
   /** `countsForProgress`: whether finishing this match earns gear-tier progress (not true for dummy practice). */
-  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts) {
-    this.sim = new ArenaSim({ prepMs, seed: Math.floor(Math.random() * 2 ** 31) });
+  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, readonly arenaId: string = ARENAS[0].id) {
+    this.sim = new ArenaSim({ prepMs, seed: Math.floor(Math.random() * 2 ** 31), arena: arenaById(arenaId) });
   }
 
   addPlayer(p: Player, team: TeamId): void {
@@ -57,7 +64,7 @@ export class Room {
     p.unitId = u.id;
     p.room = this;
     this.players.set(u.id, p);
-    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec });
+    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, map: this.arenaId });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
   }
 
@@ -207,7 +214,7 @@ export class Lobby {
   constructor(private cfg: LobbyConfig, private accounts?: Accounts) {}
 
   connect(ws: WebSocket, ip = ''): Player {
-    return { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve() };
+    return { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random' };
   }
 
   /** Account messages are async (hashing, storage), so they run in order per connection off the game loop. */
@@ -293,6 +300,7 @@ export class Lobby {
         }
         p.name = p.account ? p.account.name : msg.name;
         p.classId = msg.classId;
+        p.mapPref = msg.map ?? 'random';
         if (msg.mode === 'practice') this.startPractice(p, msg);
         else this.enqueue(p);
         break;
@@ -331,7 +339,7 @@ export class Lobby {
     const difficulty = msg.difficulty ?? 'dummy';
     const foes = msg.foes ?? (['warrior', 'mage'] as ClassId[]);
     const ally = msg.ally === undefined ? 'priest' : msg.ally;
-    const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs, false, this.accounts);
+    const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs, false, this.accounts, pickMap(p.mapPref));
     room.addPlayer(p, 0);
     room.broadcastRoster();
     if (ally) room.addNpc(ally, 0, difficulty);
@@ -341,18 +349,37 @@ export class Lobby {
 
   private enqueue(p: Player): void {
     this.queue.push(p);
-    if (this.queue.length >= QUEUE_SIZE) {
-      const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs, true, this.accounts);
-      const group = this.queue.splice(0, QUEUE_SIZE);
-      group.forEach((player, i) => room.addPlayer(player, i < QUEUE_SIZE / 2 ? 0 : 1));
+    const match = this.findMatch();
+    if (match) {
+      const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs, true, this.accounts, match.map);
+      for (const player of match.group) this.queue.splice(this.queue.indexOf(player), 1);
+      match.group.forEach((player, i) => room.addPlayer(player, i < QUEUE_SIZE / 2 ? 0 : 1));
       room.broadcastRoster();
       this.rooms.add(room);
     }
     this.announceQueue();
   }
 
+  /**
+   * Four players who can share an arena. Someone who picked a specific arena only plays there; 'random' players fill in
+   * anywhere. The arena with the longest-waiting specific player is tried first; four randoms get a random arena.
+   */
+  private findMatch(): { map: string; group: Player[] } | null {
+    const randoms = this.queue.filter((p) => p.mapPref === 'random');
+    const ids = [...new Set(this.queue.filter((p) => p.mapPref !== 'random').map((p) => p.mapPref))];
+    for (const id of ids) {
+      const group = [...this.queue.filter((p) => p.mapPref === id), ...randoms].slice(0, QUEUE_SIZE);
+      if (group.length >= QUEUE_SIZE) return { map: id, group };
+    }
+    if (randoms.length >= QUEUE_SIZE) return { map: pickMap('random'), group: randoms.slice(0, QUEUE_SIZE) };
+    return null;
+  }
+
   private announceQueue(): void {
-    for (const p of this.queue) send(p, { t: 'queued', waiting: this.queue.length, needed: QUEUE_SIZE });
+    for (const p of this.queue) {
+      const waiting = this.queue.filter((q) => q.mapPref === 'random' || p.mapPref === 'random' || q.mapPref === p.mapPref).length;
+      send(p, { t: 'queued', waiting, needed: QUEUE_SIZE });
+    }
   }
 
   tick(): void {

@@ -4,7 +4,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { ARENA } from '@arena/shared';
+import { arenaById } from '@arena/shared';
+import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
 import { buildArenaEnvironment } from './arenaMap';
@@ -50,6 +51,8 @@ export class ArenaScene {
   private meshes = new Map<number, UnitMesh>();
   private pillars: THREE.Mesh[] = [];
   private env: ArenaEnvironment;
+  private arena: ArenaDef = arenaById(undefined);
+  private phase = 'prep';
   private raycaster = new THREE.Raycaster();
   private tmp = new THREE.Vector3();
   private lastUpdate = performance.now() / 1000;
@@ -60,7 +63,7 @@ export class ArenaScene {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
-    this.env = buildArenaEnvironment(this.scene, this.renderer);
+    this.env = buildArenaEnvironment(this.scene, this.renderer, this.arena);
     this.pillars = this.env.pillars;
 
     const resize = () => {
@@ -124,6 +127,16 @@ export class ArenaScene {
     for (const mesh of [...character.meshes, ...sheep.meshes, ring, targetRing]) mesh.userData.unitId = id;
     this.scene.add(group);
     return { group, character, sheep, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0, vf: 0, vs: 0 };
+  }
+
+  /** Swap the scenery (and the camera's pillar collision) to another arena. A no-op if it is already showing. */
+  setMap(id: string): void {
+    if (id === this.arena.id) return;
+    this.env.dispose();
+    this.arena = arenaById(id);
+    this.env = buildArenaEnvironment(this.scene, this.renderer, this.arena);
+    this.pillars = this.env.pillars;
+    this.env.setPhase(this.phase);
   }
 
   /** Cosmetic reactions, called from the effects system. */
@@ -195,7 +208,7 @@ export class ArenaScene {
     const d = hits.length ? Math.max(1.5, hits[0].distance - 0.4) : dist;
 
     const pos = head.clone().addScaledVector(offset, d);
-    const b = ARENA.bounds;
+    const b = this.arena.bounds;
     pos.x = clamp(pos.x, b.minX + 0.5, b.maxX - 0.5);
     pos.z = clamp(pos.z, b.minZ + 0.5, b.maxZ - 0.5);
     pos.y = Math.max(0.5, pos.y);
@@ -224,6 +237,7 @@ export class ArenaScene {
   }
 
   setPhase(phase: string): void {
+    this.phase = phase;
     this.env.setPhase(phase);
   }
 

@@ -1,5 +1,5 @@
-import { ARENA, CLASSES, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
-import type { Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import { ARENAS, CLASSES, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
+import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
 import type { RenderUnit } from './scene';
@@ -29,6 +29,8 @@ const controls = new Controls(canvas, binds);
 // ------------------------------------------------------------------ state
 
 let ws: WebSocket | null = null;
+/** The arena of the current match (or the menu preview). */
+let arena: ArenaDef = ARENAS[0];
 let you = 0;
 let team: TeamId = 0;
 let classId: ClassId = 'mage';
@@ -113,6 +115,8 @@ function onMessage(raw: MessageEvent) {
         ws?.close();
         return;
       }
+      arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
+      scene.setMap(arena.id);
       you = m.unitId;
       team = m.team;
       classId = m.classId;
@@ -124,7 +128,7 @@ function onMessage(raw: MessageEvent) {
       seq = 0;
       targetId = null;
       vis.ready = false;
-      controls.yaw = controls.facing = ARENA.spawnFacing[team];
+      controls.yaw = controls.facing = arena.spawnFacing[team];
       vis.facing = vis.yaw = controls.yaw;
       vis.pitch = controls.pitch;
       vis.dist = controls.dist;
@@ -212,8 +216,8 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
 function applyInput(i: MoveInput, me: UnitSnap) {
   const speed = TUNING.runSpeed * me.speedMult;
   if (speed <= 0) return;
-  let p = stepMovement({ x: pred.x, z: pred.z }, i, speed, DT, ARENA);
-  if (latest?.phase === 'prep') p = clampToGate(p, team, ARENA);
+  let p = stepMovement({ x: pred.x, z: pred.z }, i, speed, DT, arena);
+  if (latest?.phase === 'prep') p = clampToGate(p, team, arena);
   prevPred.x = pred.x;
   prevPred.z = pred.z;
   pred.x = p.x;
@@ -322,11 +326,15 @@ function frame(now: number) {
   if (!latest) {
     // Menu backdrop: the chosen class idles in the arena and sways gently towards the camera.
     const t = now / 1000;
-    const spot = ARENA.spawns[0][0];
-    const face = ARENA.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
+    // preview the arena picked in the menu (random shows the last one)
+    const previewMap = mainMenu.selectedMap;
+    if (previewMap !== 'random') scene.setMap(previewMap);
+    const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
+    const spot = prev.spawns[0][0];
+    const face = prev.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
     scene.setPhase('prep');
     scene.update([{ id: -1, classId: mainMenu.selectedClass, team: 0, x: spot.x, z: spot.z, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
-    scene.setCamera(spot.x, spot.z, ARENA.spawnFacing[0] + Math.sin(t * 0.6) * 0.1, 0.12, 6.5);
+    scene.setCamera(spot.x, spot.z, prev.spawnFacing[0] + Math.sin(t * 0.6) * 0.1, 0.12, 6.5);
     scene.render();
     return;
   }
@@ -460,8 +468,8 @@ async function play(req: PlayRequest) {
   const profile = accountUi.account ? undefined : progress.token || undefined;
   const msg: ClientMsg =
     req.mode === 'practice'
-      ? { t: 'join', name: req.name, classId: req.classId, mode: 'practice', foes: req.foes, ally: req.ally, difficulty: req.difficulty, build: myBuild, profile }
-      : { t: 'join', name: req.name, classId: req.classId, mode: 'queue', build: myBuild, profile };
+      ? { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'practice', foes: req.foes, ally: req.ally, difficulty: req.difficulty, build: myBuild, profile }
+      : { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'queue', build: myBuild, profile };
   send(msg);
 }
 
