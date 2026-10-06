@@ -51,17 +51,35 @@ export class Controls {
     });
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    canvas.addEventListener('mousedown', (e) => {
-      if (!this.enabled) return;
-      this.downX = e.clientX;
-      this.downY = e.clientY;
-      this.dragged = false;
-      if (e.button === 0) this.lmb = true;
-      if (e.button === 2) {
-        this.rmb = true;
-        canvas.requestPointerLock?.();
+    // Mouse state is read from `e.buttons` on every event, so a second button pressed while the first is held
+    // (or over a HUD element, or while the pointer is locked) is never missed, and a lost mouseup cannot stick.
+    const sync = (e: MouseEvent) => {
+      if (!(e.buttons & 1)) this.lmb = false;
+      if (!(e.buttons & 2)) {
+        if (this.rmb && document.pointerLockElement) document.exitPointerLock();
+        this.rmb = false;
       }
-    });
+    };
+    window.addEventListener(
+      'mousedown',
+      (e) => {
+        if (!this.enabled) return;
+        const other = this.lmb || this.rmb;
+        // a press counts when it starts on the scene, or joins a button that is already steering
+        if (e.target !== canvas && !other) return;
+        if (!other) {
+          this.downX = e.clientX;
+          this.downY = e.clientY;
+          this.dragged = false;
+        }
+        if (e.button === 0) this.lmb = true;
+        if (e.button === 2) {
+          this.rmb = true;
+          if (!document.pointerLockElement) canvas.requestPointerLock?.();
+        }
+      },
+      true,
+    );
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) {
         const wasDown = this.lmb;
@@ -72,8 +90,10 @@ export class Controls {
         this.rmb = false;
         if (document.pointerLockElement) document.exitPointerLock();
       }
+      sync(e);
     });
     window.addEventListener('mousemove', (e) => {
+      sync(e);
       if (!document.pointerLockElement) {
         this.mx = e.clientX;
         this.my = e.clientY;
