@@ -366,7 +366,13 @@ describe('protocol validation', () => {
       '{"t":"join","name":"a","classId":"mage","mode":"practice","foes":["rogue","hax","priest","mage"],"ally":"toString","difficulty":"godlike"}',
     );
     assert.ok(j && j.t === 'join');
-    assert.deepEqual(j.foes, ['rogue', 'priest'], 'invalid classes dropped, at most two foes');
+    assert.deepEqual(j.foes, ['rogue', 'priest', 'mage'], 'invalid classes dropped, at most three foes');
+    const sized = parseClientMsg('{"t":"join","name":"a","classId":"mage","mode":"queue","size":3,"allies":["priest","x","mage","rogue"]}');
+    assert.ok(sized && sized.t === 'join');
+    assert.equal(sized.size, 3);
+    assert.deepEqual(sized.allies, ['priest', 'mage'], 'at most two allies');
+    const badSize = parseClientMsg('{"t":"join","name":"a","classId":"mage","mode":"queue","size":9}');
+    assert.ok(badSize && badSize.t === 'join' && badSize.size === undefined);
     assert.equal(j.ally, null, 'invalid ally means no ally');
     assert.equal(j.difficulty, undefined, 'unknown difficulty ignored');
     const bare = parseClientMsg('{"t":"join","name":"a","classId":"mage","mode":"practice"}');
