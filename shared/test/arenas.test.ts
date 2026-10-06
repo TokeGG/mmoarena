@@ -44,3 +44,45 @@ describe('arenas', () => {
     assert.equal(arenaById('nope').id, ARENAS[0].id);
   });
 });
+
+describe('jumping', () => {
+  it('is cosmetic: height follows the curve, ground position is untouched, and it needs a fresh request', async () => {
+    const { ArenaSim, JUMP_HEIGHT, JUMP_MS, jumpHeight, TUNING } = await import('../src/index');
+    assert.equal(jumpHeight(0), 0);
+    assert.equal(jumpHeight(JUMP_MS), 0);
+    assert.ok(Math.abs(jumpHeight(JUMP_MS / 2) - JUMP_HEIGHT) < 1e-9);
+
+    const sim = new ArenaSim({ prepMs: 0, seed: 1 });
+    const u = sim.addUnit({ name: 'J', classId: 'rogue', team: 0, controller: 'player' });
+    sim.addUnit({ name: 'T', classId: 'warrior', team: 1, controller: 'dummy' });
+    const at = () => sim.snapshot().units.find((x) => x.id === u.id)!;
+    for (let i = 0; i < 3; i++) sim.step();
+    const x0 = at().x;
+    sim.queueInput(u.id, { seq: 1, fwd: 0, strafe: 0, facing: u.facing, jump: true });
+    sim.step();
+    let peak = 0;
+    const ticks = Math.ceil(JUMP_MS / TUNING.tickMs) + 2;
+    for (let i = 0; i < ticks; i++) {
+      peak = Math.max(peak, at().y);
+      sim.step();
+    }
+    assert.ok(peak > JUMP_HEIGHT * 0.9, `peaked at ${peak}`);
+    assert.equal(at().y, 0, 'landed');
+    assert.equal(at().x, x0, 'no ground movement from jumping');
+    // the late-packet repeat of the same input must not start another jump
+    for (let i = 0; i < 6; i++) sim.step();
+    assert.equal(at().y, 0);
+  });
+
+  it('cannot jump while stunned or dead', async () => {
+    const { ArenaSim } = await import('../src/index');
+    const sim = new ArenaSim({ prepMs: 0, seed: 2 });
+    const u = sim.addUnit({ name: 'J', classId: 'rogue', team: 0, controller: 'player' });
+    sim.addUnit({ name: 'T', classId: 'warrior', team: 1, controller: 'dummy' });
+    for (let i = 0; i < 3; i++) sim.step();
+    u.alive = false;
+    sim.queueInput(u.id, { seq: 1, fwd: 0, strafe: 0, facing: 0, jump: true });
+    for (let i = 0; i < 4; i++) sim.step();
+    assert.equal(sim.snapshot().units.find((x) => x.id === u.id)!.y, 0);
+  });
+});

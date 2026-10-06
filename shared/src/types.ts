@@ -151,7 +151,7 @@ export interface Tuning {
 
 // ---------- simulation state ----------
 
-export interface MoveInput { seq: number; fwd: number; strafe: number; facing: number }
+export interface MoveInput { seq: number; fwd: number; strafe: number; facing: number; /** Start a (cosmetic) jump. */ jump?: boolean }
 export type Result = { ok: true } | { ok: false; reason: string };
 
 export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number }
@@ -188,6 +188,8 @@ export interface Unit {
   nextSwing: number;
   lastCombatAt: number;
   inputQueue: MoveInput[];
+  /** Sim time (ms) the current/last jump began. */
+  jumpStart: number;
   lastInput: MoveInput;
   lastSeq: number;
   starve: number;
@@ -235,6 +237,8 @@ export interface UnitSnap {
   /** expiresAt 0 = permanent */
   auras: { id: string; kind: AuraKind; src: number; expiresAt: number }[];
   stealthed: boolean;
+  /** Height above the ground from a jump (cosmetic). */
+  y: number;
   /** Movement multiplier on TUNING.runSpeed; 0 when rooted/stunned/feared. */
   speedMult: number;
   /** Stunned, incapacitated or feared: client must not predict movement. */

@@ -1,6 +1,7 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
 import { barFor, compileMods, withAuraMods } from './build';
 import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
+import { canStartJump, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap,
 } from './types';
@@ -69,7 +70,7 @@ export class ArenaSim {
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
       autoAttack: false, nextSwing: 0, lastCombatAt: -1e9,
-      inputQueue: [], lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
+      inputQueue: [], jumpStart: -1e9, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
     this.units.set(u.id, u);
@@ -92,6 +93,7 @@ export class ArenaSim {
       fwd: clamp(input.fwd, -1, 1),
       strafe: clamp(input.strafe, -1, 1),
       facing: input.facing,
+      jump: input.jump === true,
     });
     while (u.inputQueue.length > 5) u.inputQueue.shift();
   }
@@ -212,6 +214,9 @@ export class ArenaSim {
     } else {
       input = { ...u.lastInput, fwd: 0, strafe: 0 };
     }
+
+    // a fresh jump request only (a repeated stale input must not re-jump)
+    if (queued?.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) u.jumpStart = this.time;
 
     // movement
     const before = { x: u.pos.x, z: u.pos.z };
@@ -613,6 +618,7 @@ export class ArenaSim {
       target: u.target, cast: u.cast, gcdEnd: u.gcdEnd, cooldowns,
       auras: u.auras.map((a) => ({ id: a.id, kind: a.kind, src: a.sourceId, expiresAt: isFinite(a.expiresAt) ? a.expiresAt : 0 })),
       stealthed: this.isStealthed(u),
+      y: u.alive ? Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100 : 0,
       speedMult: this.speedMult(u),
       controlled: !this.canAct(u),
       autoAttack: u.autoAttack,

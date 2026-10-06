@@ -26,7 +26,7 @@ export type ClientMsg =
       /** Signed progress token from an earlier `profile` message. */
       profile?: string;
     }
-  | { t: 'input'; seq: number; fwd: number; strafe: number; facing: number }
+  | { t: 'input'; seq: number; fwd: number; strafe: number; facing: number; jump?: boolean }
   | { t: 'target'; id: number | null }
   | { t: 'cast'; ability: string; target?: number | null }
   | { t: 'auto'; on: boolean }
@@ -111,7 +111,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'input':
       if (!isNum(m.seq) || !isNum(m.fwd) || !isNum(m.strafe) || !isNum(m.facing)) return null;
-      return { t: 'input', seq: m.seq | 0, fwd: m.fwd, strafe: m.strafe, facing: m.facing };
+      return { t: 'input', seq: m.seq | 0, fwd: m.fwd, strafe: m.strafe, facing: m.facing, jump: m.jump === true ? true : undefined };
     case 'target':
       if (m.id !== null && !isNum(m.id)) return null;
       return { t: 'target', id: m.id };

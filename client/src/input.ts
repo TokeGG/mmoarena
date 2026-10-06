@@ -23,6 +23,7 @@ export class Controls {
   private downX = 0;
   private downY = 0;
   private dragged = false;
+  private jumpQueued = false;
 
   onClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
@@ -36,6 +37,8 @@ export class Controls {
         if (e.code === 'Escape' && !e.repeat) this.onKey(e.code, e);
         return;
       }
+      if (e.code === 'Space') e.preventDefault(); // never scroll or click a focused button
+      if (!e.repeat && this.binds.codes('jump').includes(e.code)) this.jumpQueued = true;
       if (!e.repeat) this.onKey(e.code, e);
       this.keys.add(e.code);
     });
@@ -92,12 +95,15 @@ export class Controls {
   /** Forget held keys, e.g. when a menu opens mid-run so the character does not keep walking. */
   releaseAll() {
     this.keys.clear();
+    this.jumpQueued = false;
     this.rmb = this.lmb = false;
     if (document.pointerLockElement) document.exitPointerLock();
   }
 
   /** Called once per fixed step. */
-  sample(dtSec: number): { fwd: number; strafe: number; facing: number } {
+  sample(dtSec: number): { fwd: number; strafe: number; facing: number; jump: boolean } {
+    const jump = this.jumpQueued;
+    this.jumpQueued = false;
     const fwd = this.down('forward') - this.down('back');
     const turn = this.down('turnLeft') - this.down('turnRight');
     let strafe = this.down('strafeRight') - this.down('strafeLeft');
@@ -111,6 +117,6 @@ export class Controls {
     } else if (fwd !== 0 || strafe !== 0) {
       this.facing = this.yaw; // moving snaps the character to the camera heading
     }
-    return { fwd, strafe: clamp(strafe, -1, 1), facing: this.facing };
+    return { fwd, strafe: clamp(strafe, -1, 1), facing: this.facing, jump };
   }
 }

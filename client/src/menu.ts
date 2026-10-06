@@ -97,6 +97,8 @@ export class Menu {
     $('menu-resume').classList.toggle('hidden', !inMatch);
     $('menu-leave').classList.toggle('hidden', !inMatch);
     $('menu-hud').classList.toggle('hidden', !inMatch);
+    $('menu-sub').classList.toggle('hidden', !inMatch);
+    $('menu-rule').classList.toggle('hidden', !inMatch);
     if (view === 'keys') this.showKeys();
     else this.showMain();
     this.handlers.onToggle(true);

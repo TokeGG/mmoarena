@@ -100,7 +100,7 @@ export class Room {
     if (id === undefined || this.closed) return;
     switch (msg.t) {
       case 'input':
-        this.sim.queueInput(id, { seq: msg.seq, fwd: msg.fwd, strafe: msg.strafe, facing: msg.facing });
+        this.sim.queueInput(id, { seq: msg.seq, fwd: msg.fwd, strafe: msg.strafe, facing: msg.facing, jump: msg.jump });
         break;
       case 'target': {
         const r = this.sim.setTarget(id, msg.id);

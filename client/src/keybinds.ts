@@ -1,7 +1,7 @@
 /** Rebindable keyboard actions. Each action has two slots (primary, secondary), saved in localStorage. */
 
 export type Action =
-  | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
+  | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
   | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6'
   | 'nextTarget' | 'prevTarget' | 'autoAttack';
 
@@ -12,6 +12,7 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'turnRight', label: 'Turn right (strafe while steering)', group: 'Movement' },
   { id: 'strafeLeft', label: 'Strafe left', group: 'Movement' },
   { id: 'strafeRight', label: 'Strafe right', group: 'Movement' },
+  { id: 'jump', label: 'Jump', group: 'Movement' },
   { id: 'slot1', label: 'Ability 1', group: 'Abilities' },
   { id: 'slot2', label: 'Ability 2', group: 'Abilities' },
   { id: 'slot3', label: 'Ability 3', group: 'Abilities' },
@@ -35,6 +36,7 @@ const DEFAULTS: Record<Action, [string, string]> = {
   turnRight: ['KeyD', 'ArrowRight'],
   strafeLeft: ['KeyQ', ''],
   strafeRight: ['KeyE', ''],
+  jump: ['Space', ''],
   slot1: ['Digit1', ''],
   slot2: ['Digit2', ''],
   slot3: ['Digit3', ''],

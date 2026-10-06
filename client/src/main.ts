@@ -1,4 +1,4 @@
-import { ARENAS, CLASSES, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
+import { ARENAS, CLASSES, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -51,6 +51,8 @@ const prevPred = { x: 0, z: 0 };
 /** What is actually drawn for our unit and camera: interpolated, then eased, so motion is never stepped. */
 const vis = { x: 0, z: 0, facing: 0, yaw: 0, pitch: 0.5, dist: 14, ready: false };
 let seq = 0;
+/** When our own jump began (performance.now). Drawn locally the instant it starts, like movement. */
+let myJumpAt = -1e9;
 let pending: MoveInput[] = [];
 
 const renderPos = new Map<number, { x: number; z: number; facing: number }>();
@@ -235,7 +237,10 @@ function fixedStep() {
   if (!latest) return;
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
-  const input: MoveInput = { seq: ++seq, ...controls.sample(DT) };
+  const sample = controls.sample(DT);
+  const jump = sample.jump && me.alive && !me.controlled && canStartJump(performance.now() - myJumpAt);
+  if (jump) myJumpAt = performance.now();
+  const input: MoveInput = { seq: ++seq, ...sample, jump: jump || undefined };
   send({ t: 'input', ...input });
   pending.push(input);
   if (pending.length > 60) pending.shift();
@@ -249,8 +254,8 @@ const lerpAngle = (a: number, b: number, t: number) => {
   return a + d * t;
 };
 
-function interpolate(rt: number): Map<number, { x: number; z: number; facing: number }> {
-  const out = new Map<number, { x: number; z: number; facing: number }>();
+function interpolate(rt: number): Map<number, { x: number; z: number; y: number; facing: number }> {
+  const out = new Map<number, { x: number; z: number; y: number; facing: number }>();
   if (!snaps.length) return out;
   let i = snaps.length - 1;
   while (i > 0 && snaps[i].snap.time > rt) i--;
@@ -260,9 +265,9 @@ function interpolate(rt: number): Map<number, { x: number; z: number; facing: nu
   const t = span > 0 ? Math.min(1, Math.max(0, (rt - a.time) / span)) : 0;
   for (const ua of a.units) {
     const ub = b.units.find((u) => u.id === ua.id) ?? ua;
-    out.set(ua.id, { x: ua.x + (ub.x - ua.x) * t, z: ua.z + (ub.z - ua.z) * t, facing: lerpAngle(ua.facing, ub.facing, t) });
+    out.set(ua.id, { x: ua.x + (ub.x - ua.x) * t, z: ua.z + (ub.z - ua.z) * t, y: ua.y + (ub.y - ua.y) * t, facing: lerpAngle(ua.facing, ub.facing, t) });
   }
-  for (const ub of b.units) if (!out.has(ub.id)) out.set(ub.id, { x: ub.x, z: ub.z, facing: ub.facing });
+  for (const ub of b.units) if (!out.has(ub.id)) out.set(ub.id, { x: ub.x, z: ub.z, y: ub.y, facing: ub.facing });
   return out;
 }
 
@@ -339,7 +344,7 @@ function frame(now: number) {
     const spot = prev.spawns[0][0];
     const face = prev.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
     scene.setPhase('prep');
-    scene.update([{ id: -1, classId: mainMenu.selectedClass, team: 0, x: spot.x, z: spot.z, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
+    scene.update([{ id: -1, classId: mainMenu.selectedClass, team: 0, x: spot.x, z: spot.z, y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
     scene.setCamera(spot.x, spot.z, prev.spawnFacing[0] + Math.sin(t * 0.6) * 0.1, 0.12, 6.5);
     scene.render();
     return;
@@ -380,14 +385,16 @@ function frame(now: number) {
     let x = u.x;
     let z = u.z;
     let facing = u.facing;
+    let y = u.y;
     const i = interp.get(u.id);
-    if (i) ({ x, z, facing } = i);
+    if (i) ({ x, z, y, facing } = i);
     if (u.id === you) {
       x = vis.x;
       z = vis.z;
       facing = vis.facing;
+      y = u.alive ? jumpHeight(performance.now() - myJumpAt) : 0;
     }
-    return { id: u.id, classId: u.classId, team: u.team, x, z, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
+    return { id: u.id, classId: u.classId, team: u.team, x, z, y, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
 
   renderPos.clear();
@@ -402,13 +409,13 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist);
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist, jumpHeight(performance.now() - myJumpAt) * 0.45);
   scene.render(); // render first so projection uses this frame's camera
 
   hud.update({ snap, now: estNow, you, targetId });
   hud.nameplates(
     units.map((u) => {
-      const s = scene.project(u.x, 2.7, u.z);
+      const s = scene.project(u.x, 2.7 + u.y, u.z);
       const meta = snap.units.find((x) => x.id === u.id)!;
       return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null };
     }),

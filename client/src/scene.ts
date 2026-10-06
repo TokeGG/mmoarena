@@ -18,6 +18,8 @@ export interface RenderUnit {
   team: TeamId;
   x: number;
   z: number;
+  /** Height above the ground (jumping). */
+  y: number;
   facing: number;
   alive: boolean;
   stealthed: boolean;
@@ -173,11 +175,13 @@ export class ArenaScene {
       const k = 1 - Math.exp(-dt * 12);
       m.vf += (fwdV - m.vf) * k;
       m.vs += (sideV - m.vs) * k;
-      const target = u.alive && speed > 0.6 ? Math.min(1, speed / 7) : 0;
+      const target = u.alive && speed > 0.6 && u.y < 0.08 ? Math.min(1, speed / 7) : 0; // legs stop cycling in the air
       m.move += (target - m.move) * k;
       m.phase += Math.hypot(m.vf, m.vs) * dt * 1.5;
 
-      m.group.position.set(u.x, 0, u.z);
+      m.group.position.set(u.x, u.y, u.z);
+      m.ring.position.y = 0.04 - u.y; // the team ring stays on the floor
+      m.targetRing.position.y = 0.05 - u.y;
       m.group.rotation.y = u.facing;
       const active = u.sheep ? m.sheep : m.character;
       m.character.root.visible = !u.sheep;
@@ -196,8 +200,8 @@ export class ArenaScene {
   }
 
   /** Third-person orbit camera. Facing `yaw` is the direction the camera looks; pillars pull it in. */
-  setCamera(fx: number, fz: number, yaw: number, pitch: number, dist: number): void {
-    const head = new THREE.Vector3(fx, 1.8, fz);
+  setCamera(fx: number, fz: number, yaw: number, pitch: number, dist: number, fy = 0): void {
+    const head = new THREE.Vector3(fx, 1.8 + fy, fz);
     const dir = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     const h = Math.cos(pitch);
     const offset = new THREE.Vector3(-dir.x * h, Math.sin(pitch), -dir.z * h);
