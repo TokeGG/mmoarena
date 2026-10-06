@@ -118,15 +118,14 @@ describe('gear', () => {
     assert.ok(maxed > fresh);
   });
 
-  it('gear stats become combat numbers: vitality health, haste cast time, power damage', () => {
+  it('gear is cosmetic only: it changes the look, never the combat numbers', () => {
     const gear = bestGear('fury', 999);
     const sim = live();
-    const plain = add(sim, 'mage', 0, 0, 0);
+    const plain = add(sim, 'mage', 0, 0, 0, build('frost'));
     const geared = add(sim, 'mage', 1, 5, 0, build('frost', [], gear));
-    assert.ok(geared.maxHealth > plain.maxHealth);
-    const mods = compileMods('mage', build('frost', [], gear));
-    assert.ok(mods.castTime < 1 && mods.damageDone > 1);
-    assert.deepEqual(gearMods({}).damageDone, 1);
+    assert.equal(geared.maxHealth, plain.maxHealth);
+    assert.deepEqual(compileMods('mage', build('frost', [], gear)), compileMods('mage', build('frost')));
+    assert.notEqual(geared.look, plain.look, 'but it does show');
     assert.ok(itemById('t1.head.fury'));
   });
 });

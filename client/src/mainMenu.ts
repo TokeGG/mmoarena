@@ -1,7 +1,7 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, gearStats, itemById, itemColor, lootItem, perkById, rarityIndex, statBonuses, tierOf, tierUnlocked,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, GEAR, ITEMS, SPECS, TALENTS, bestGear, itemById, itemColor, lootItem, rarityIndex, rarityOf, tierOf, tierUnlocked,
 } from '@arena/shared';
-import type { AccountInfo, Build, ClassId, PracticeDifficulty, StatId } from '@arena/shared';
+import type { AccountInfo, Build, ClassId, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { loadBuild, owned, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
@@ -40,7 +40,6 @@ export interface MainMenuHooks {
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
-const STAT_ORDER: StatId[] = ['power', 'vitality', 'haste', 'resilience'];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -169,14 +168,14 @@ export class MainMenu {
     const autoRow = el('div', 'mm-auto');
     for (const f of GEAR.flavors) this.flavor.append(new Option(`${f.name} (${f.desc})`, f.id));
     this.flavor.value = store.get('arena.flavor', 'balance');
-    const auto = el('button', 'mm-small', 'Auto-equip best');
+    const auto = el('button', 'mm-small', 'Auto-equip best look');
     auto.addEventListener('click', () => {
       store.set('arena.flavor', this.flavor.value);
       this.build.gear = bestGear(this.flavor.value, progress.matches, [...owned]);
       this.commit();
     });
     autoRow.append(this.flavor, auto);
-    right.append(el('h2', '', 'Gear'), this.gearRow, autoRow, this.summary, this.perksEl, this.progressEl);
+    right.append(el('h2', '', 'Appearance'), this.gearRow, autoRow, this.summary, this.perksEl, this.progressEl);
 
     const play = el('div', 'mm-play');
     const opts = el('div', 'mm-opts');
@@ -358,29 +357,10 @@ export class MainMenu {
   }
 
   private renderSummary() {
-    const stats = gearStats(this.build.gear);
-    const bonus = statBonuses(stats);
-    const cap = (GEAR.stats.power.ratePct > 0 ? 15 : 15) as number;
-    this.summary.replaceChildren(
-      ...STAT_ORDER.map((s) => {
-        const row = el('div', 'mm-stat');
-        tip(row, `stat:${s}`);
-        const bar = el('div', 'bar');
-        const fill = el('div', 'fill');
-        fill.style.width = `${Math.min(100, (bonus[s] / cap) * 100)}%`;
-        bar.append(fill);
-        row.append(el('span', 'sname', GEAR.stats[s].name), bar, el('span', 'sval', `${stats[s]} · ${s === 'haste' || s === 'resilience' ? '−' : '+'}${bonus[s].toFixed(1)}%`));
-        return row;
-      }),
-    );
-    const perks = new Set<string>();
-    for (const id of Object.values(this.build.gear)) {
-      const perk = perkById(itemById(id)?.perk);
-      if (perk) perks.add(`${perk.name}: ${perk.desc}`);
-    }
-    this.perksEl.replaceChildren(...[...perks].map((t) => el('div', 'perk', `✦ ${t}`)));
+    this.summary.replaceChildren(el('div', 'perk', 'Cosmetic only: gear changes how you look, never how you fight.'));
+    this.perksEl.replaceChildren();
     const next = GEAR.tiers.find((t) => progress.matches < t.unlockMatches);
-    this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}` + (next ? ` · ${next.name} gear unlocks in ${next.unlockMatches - progress.matches} more` : ' · All gear unlocked');
+    this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}` + (next ? ` · ${next.name} looks unlock in ${next.unlockMatches - progress.matches} more` : ' · All looks unlocked');
   }
 
   // ------------------------------------------------------------------ gear picker
@@ -412,7 +392,7 @@ export class MainMenu {
         const item = ITEMS.find((i) => i.slot === slotId && i.tier === tier.id && i.flavor === f.id)!;
         const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${unlocked ? '' : ' locked'}`);
         b.style.setProperty('--q', tier.color);
-        b.append(el('span', 'ist', STAT_ORDER.filter((s) => item.stats[s] > 0).map((s) => `${item.stats[s]} ${GEAR.stats[s].name.slice(0, 3)}`).join(' · ')));
+        b.append(el('span', 'ist', `${tier.name} ${f.name}`));
         tip(b, `item:${item.id}`);
         b.addEventListener('click', () => {
           if (!unlocked) return;
@@ -423,7 +403,7 @@ export class MainMenu {
         grid.append(b);
       }
     }
-    card.append(head, grid, el('div', 'mm-modal-foot', 'Higher tiers unlock as you finish matches. Bonuses are capped, so the gap between tiers stays small.'));
+    card.append(head, grid, el('div', 'mm-modal-foot', 'Higher tiers unlock as you finish matches. Looks only: no gear gives any advantage.'));
     card.append(this.lootSection(slotId));
     this.openSlot = slotId;
     this.modal.replaceChildren(card);
@@ -435,7 +415,7 @@ export class MainMenu {
     const box = el('div', 'mm-loot');
     box.append(el('h3', '', 'Loot'));
     if (!this.account) {
-      box.append(el('div', 'mm-modal-foot', 'Sign in to collect loot: every ranked match drops gear (two on a win).'));
+      box.append(el('div', 'mm-modal-foot', 'Sign in to collect loot: every ranked match drops a new look (two on a win).'));
       return box;
     }
     const mine = [...owned]
@@ -450,9 +430,7 @@ export class MainMenu {
     for (const item of mine) {
       const row = el('div', `loot-row${this.build.gear[slotId] === item.id ? ' sel' : ''}`);
       row.style.setProperty('--q', itemColor(item));
-      const stats = STAT_ORDER.filter((s) => item.stats[s] > 0).map((s) => `${item.stats[s]} ${GEAR.stats[s].name.slice(0, 3)}`).join(' · ');
-      const perk = perkById(item.perk);
-      row.append(el('b', '', item.name), el('span', 'ist', stats + (perk ? ` · ✦ ${perk.name}` : '')));
+      row.append(el('b', '', item.name), el('span', 'ist', `${rarityOf(item.rarity ?? '')?.name ?? 'Loot'} · ${GEAR.flavors.find((f) => f.id === item.flavor)?.name ?? ''}`));
       tip(row, `item:${item.id}`);
       row.addEventListener('click', () => {
         this.build.gear[slotId] = item.id;

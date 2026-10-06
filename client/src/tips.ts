@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, GEAR, SPECS, TALENTS, describeAbility, describeAura, describeMods, itemById, itemColor, newMods, perkById, rarityOf, specOf, tierOf } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, GEAR, SPECS, TALENTS, describeAbility, describeAura, describeMods, itemById, itemColor, newMods, rarityOf, specOf, tierOf } from '@arena/shared';
 import type { ClassId, Mods, StatId } from '@arena/shared';
 import { setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
@@ -29,15 +29,14 @@ export function itemTip(id: string): TipContent | null {
   const item = itemById(id);
   if (!item) return null;
   const slot = GEAR.slots.find((s) => s.id === item.slot)!;
-  const lines = (Object.keys(item.stats) as StatId[]).filter((s) => item.stats[s] > 0).map((s) => `+${item.stats[s]} ${GEAR.stats[s].name}`);
+  const lines = ['Cosmetic only: changes how you look, never how you fight.'];
   if (item.rarity) {
-    const perk = perkById(item.perk);
     return {
       title: item.name,
       titleColor: itemColor(item),
       tag: slot.name,
       stats: [`${rarityOf(item.rarity)?.name ?? 'Loot'} · dropped loot`],
-      good: perk ? [...lines, `${perk.name}: ${perk.desc} (counts once)`] : lines,
+      good: lines,
       bad: [],
     };
   }

@@ -89,23 +89,16 @@ describe('loot in builds', () => {
     for (const v of Object.values(bonuses)) assert.ok(v <= (TUNING.gearCap - 1) * 100 + 1e-9);
   });
 
-  it('the same perk on several pieces only counts once', () => {
-    let first: string | undefined;
-    const ids: Record<string, string> = {};
-    const slots = GEAR.slots.map((s) => s.id);
-    for (let n = 0; n < 4000 && Object.keys(ids).length < 2; n++) {
-      const id = `L.legendary.${slots[Object.keys(ids).length]}.${n.toString(36).padStart(5, '0')}`;
-      const it = lootItem(id)!;
-      if (it.perk === 'windrunner') {
-        first ??= it.perk;
-        ids[it.slot] = id;
-      }
+  it('perks no longer change combat numbers (gear is cosmetic)', () => {
+    const slots = GEAR.slots.map((x) => x.id);
+    let id = '';
+    for (let n = 0; n < 4000 && !id; n++) {
+      const cand = `L.legendary.${slots[0]}.${n.toString(36).padStart(5, '0')}`;
+      if (lootItem(cand)?.perk === 'windrunner') id = cand;
     }
-    assert.equal(Object.keys(ids).length, 2, 'found two windrunner pieces');
-    const one = compileMods('mage', { spec: 'frost', talents: [], gear: { [Object.keys(ids)[0]]: Object.values(ids)[0] } });
-    const two = compileMods('mage', { spec: 'frost', talents: [], gear: ids });
-    assert.equal(one.moveSpeed, two.moveSpeed);
-    assert.ok(one.moveSpeed > 1.04);
+    assert.ok(id, 'found a windrunner piece');
+    const withPerk = compileMods('mage', { spec: 'frost', talents: [], gear: { [slots[0]]: id } });
+    assert.equal(withPerk.moveSpeed, compileMods('mage', { spec: 'frost', talents: [], gear: {} }).moveSpeed);
   });
 
   it('auto-equip prefers loot that beats set gear for the flavor', () => {

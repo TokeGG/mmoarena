@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.24
+# WoW-style Arena · v0.24.1
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -53,7 +53,7 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 
 - **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Sacred Lash) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key and the spell lands where your pointer is (a ring shows the spot); while steering with the right button it lands at the centre of the screen.
 
-Hover any ability, buff or debuff, spec, talent, gear piece or stat to see numbers that include your build.
+Hover any ability, buff or debuff, spec, talent or look to see numbers for your build.
 
 ## How combat works
 
@@ -63,13 +63,13 @@ Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, 
 - **Rules worth knowing (0.23):** auto-attacks need line of sight like spells; starting another spell cancels the one you are casting (off-global instants like interrupts do not); Blink works while stunned, feared or incapacitated; Polymorph is limited to one target per caster and the sheep wanders; Fireball is a quick 1.8 s cast; warriors build rage at a third of the old rate; stealthed rogues are spotted within 4 yards.
 - **Fog:** enemies you cannot see (stealthed or farther than 8 yards) are left out of your snapshots entirely.
 
-## Gear and loot
+## Appearance and loot (gear is cosmetic)
 
-- **What your gear looks like:** equipped gear is drawn on your character and everyone in the match sees it (spectators and replays too). Empty slots show the plain class look. The **flavor** tints the armour at every tier (Fury red, Bulwark blue, Tempo teal, Balance gold) and the **tier** or loot rarity sets the sheen and how elaborate it is: plain pieces at the bottom, spikes and studs from the third tier, glow and a halo at the top. Head = brow band with a gem (fins, crown spikes and a halo as it improves), Chest = shoulder plates and a tabard, Legs = greaves and knee guards (a coloured hem on robes), Weapon = a glowing aura with orbiting sparks, Trinket = a floating charm. The menu preview updates as you change class or gear.
+Gear never changes your stats, damage or health: every player of a class is equal, and the build that matters is your spec and talents. Gear is how you look.
 
-- **Gear:** 5 slots, 4 tiers (Initiate, Veteran, Elite, Gladiator), 4 flavors. Tiers unlock by finishing matches (0 / 3 / 8 / 15). Every stat bonus is capped at 15%, so higher tiers are a small edge, not a gap.
-- **Loot (signed in):** finished ranked matches drop a random item (two on a win); bot practice drops at most one Common-to-Rare item half the time; dummy practice drops nothing. Rarities Common, Uncommon, Rare, Epic, Legendary (weights 55 / 28 / 12 / 4.2 / 0.8) with rolled stats. Epic and Legendary can carry a perk, and each perk counts once however many pieces have it. Ranked drops are guaranteed Epic+ after 20 without one. Inventory holds 60; a full inventory pushes out the lowest-rarity, oldest item. Loot goes through the same capped bonuses as tier gear.
-- Guests keep the match-count gear tiers.
+- **What your gear looks like:** equipped pieces are drawn on your character and everyone in the match sees them (spectators and replays too). Empty slots show the plain class look. The **colour theme** tints the armour at every tier (Fury crimson, Bulwark sapphire, Tempo teal, Balance gold) and the **tier** or loot rarity sets the sheen and how elaborate it is: plain pieces at the bottom, spikes and studs from the third tier, glow and a halo at the top. Head = brow band with a gem (fins, crown spikes and a halo as it improves), Chest = shoulder plates and a tabard, Legs = greaves and knee guards (a coloured hem on robes), Weapon = a glowing aura with orbiting sparks, Trinket = a floating charm. The menu preview updates as you change class or looks.
+- **Unlocks:** 5 slots, 4 tiers (Initiate, Veteran, Elite, Gladiator), 4 colour themes. Tiers unlock by finishing matches (0 / 3 / 8 / 15).
+- **Loot (signed in):** finished ranked matches drop a random look (two on a win); bot practice drops at most one Common-to-Rare piece half the time; dummy practice drops nothing. Rarities Common, Uncommon, Rare, Epic, Legendary (weights 55 / 28 / 12 / 4.2 / 0.8). Ranked drops are guaranteed Epic+ after 20 without one. Inventory holds 60; a full inventory pushes out the lowest-rarity, oldest piece.
 
 ## Practice with bots
 
@@ -112,7 +112,7 @@ All audio is synthesised live in the browser (Web Audio), so there are no sound 
 - The server decides every outcome. The client sends intents only (cast X on Y, movement input) and never decides hits, cooldowns or damage.
 - Your own movement is predicted and corrected by the server. Abilities are not predicted.
 - Enemies you cannot see are not sent to your browser, so wall-hacks have nothing to read.
-- Gear is a capped multiplier and one rating applies to everyone: nobody is nerfed for being stronger.
+- Gear is cosmetic only, so nothing you wear or own gives an advantage.
 - Your password and login token only go to this site.
 
 ## For the owner (hosting and moderation)
@@ -197,7 +197,7 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 | `shared/data/*.json` | Classes, abilities, auras, specs, talents, gear, arenas, tuning. All game content lives here, so a future Godot/Unity client or server can read the same files. |
 | `shared/src/sim.ts` | Headless, deterministic simulation. No rendering, no I/O, no wall clock. Same seed and inputs give the same result. |
 | `shared/src/replay.ts` | Recorder and runner that re-simulate a match from its commands. |
-| `shared/src/build.ts` | The only place that turns specs, talents (including ability swaps) and gear into numbers. |
+| `shared/src/build.ts` | The only place that turns specs and talents (including ability swaps) into numbers; gear only decides the look. |
 | `shared/src/bot.ts` | Bot AI, driven through the same commands a player uses. |
 | `shared/src/geometry.ts`, `jump.ts` | Movement, collision, line of sight, jumping. Used by the server and by client prediction. |
 | `shared/src/protocol.ts` | Message types and validation of untrusted client input. |
@@ -213,7 +213,7 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 
 - Numbers are a first pass and untuned, especially the 0.21 abilities and talents. Bot-vs-bot runs say mages are weak against melee and matches with a healer run long. Retune after you play.
 - Matchmaking pairs players in queue order; it does not use rating yet. One rating covers 1v1, 2v2 and 3v3.
-- Bots and dummies use the classic ability bar and neutral gear. They do not dodge ground zones, use Flamestrike, or pick specs and talents.
+- Bots and dummies use the classic ability bar. They do not dodge ground zones, use Flamestrike, or pick specs and talents.
 - Duels are 1v1 only. Spectating covers ranked matches only; replays are saved for ranked and bot-practice matches of signed-in players.
 - The 3D scene (maps, zones, replay and spectate cameras) has been built and tested through the simulation but not tuned on a real GPU yet. Characters are rounded primitives with outlines (`client/src/models.ts`); swap for glTF later.
 - No combo points and no spell queueing window.

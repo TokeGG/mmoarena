@@ -64,7 +64,7 @@ export function gearStats(gear: Record<string, string> | undefined): Record<Stat
   return total;
 }
 
-/** Percentage bonus each stat gives, hard-capped by tuning.gearCap so gear can never exceed it. */
+/** Legacy stat table. Gear is cosmetic now, so nothing in combat reads this; kept for item data and tests. */
 export function statBonuses(stats: Record<StatId, number>): Record<StatId, number> {
   const cap = (TUNING.gearCap - 1) * 100;
   const out = {} as Record<StatId, number>;
@@ -161,7 +161,7 @@ export function compileMods(classId: ClassId, b: Build | undefined): Mods {
   applyMods(m, specOf(classId, b.spec)?.mods);
   const tiers = TALENTS[classId] ?? [];
   b.talents.forEach((id, i) => applyMods(m, tiers[i]?.find((t) => t.id === id)?.mods));
-  applyMods(m, gearMods(b.gear));
+  // gear is cosmetic only: it never changes numbers (see gearLook for what it changes)
   return m;
 }
 

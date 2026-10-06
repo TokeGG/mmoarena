@@ -3,35 +3,35 @@
   {
    "id": "weapon",
    "name": "Weapon",
-   "icon": "🗡️",
+   "icon": "\ud83d\udde1\ufe0f",
    "weight": 1.3,
    "noun": "Arms"
   },
   {
    "id": "head",
    "name": "Head",
-   "icon": "🪖",
+   "icon": "\ud83e\ude96",
    "weight": 1.0,
    "noun": "Helm"
   },
   {
    "id": "chest",
    "name": "Chest",
-   "icon": "🦺",
+   "icon": "\ud83e\uddba",
    "weight": 1.2,
    "noun": "Chestguard"
   },
   {
    "id": "legs",
    "name": "Legs",
-   "icon": "👖",
+   "icon": "\ud83d\udc56",
    "weight": 1.0,
    "noun": "Legguards"
   },
   {
    "id": "trinket",
    "name": "Trinket",
-   "icon": "📿",
+   "icon": "\ud83d\udcff",
    "weight": 0.8,
    "noun": "Charm"
   }
@@ -70,7 +70,7 @@
   {
    "id": "fury",
    "name": "Fury",
-   "desc": "Offense",
+   "desc": "Crimson look",
    "weights": {
     "power": 0.6,
     "haste": 0.2,
@@ -80,7 +80,7 @@
   {
    "id": "bulwark",
    "name": "Bulwark",
-   "desc": "Defense",
+   "desc": "Sapphire look",
    "weights": {
     "vitality": 0.4,
     "resilience": 0.4,
@@ -90,7 +90,7 @@
   {
    "id": "tempo",
    "name": "Tempo",
-   "desc": "Casting speed",
+   "desc": "Teal look",
    "weights": {
     "haste": 0.5,
     "power": 0.3,
@@ -100,7 +100,7 @@
   {
    "id": "balance",
    "name": "Balance",
-   "desc": "All-round",
+   "desc": "Gold look",
    "weights": {
     "power": 0.3,
     "vitality": 0.25,
