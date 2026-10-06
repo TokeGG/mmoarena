@@ -1,4 +1,4 @@
-# WoW-style Arena (browser phase) · v0.2.0
+# WoW-style Arena (browser phase) · v0.2.1
 
 Third-person 3D arena combat in the style of WoW arena: tab-target, global cooldown, cast times, interrupts with school lockouts, crowd control with diminishing returns, line-of-sight pillars, stealth. The server decides every outcome; the browser is a renderer and input device.
 
@@ -18,7 +18,7 @@ npm run build && npm start     # uses $PORT, default 8080
 
 ## Deploy: GitHub + Render
 
-1. Push this folder to a new GitHub repo. Commit `package-lock.json` too (it appears after your first `npm install`).
+1. Push the **contents** of this folder so `package.json` and `render.yaml` sit at the repo root (not inside a `wow-arena/` subfolder). Leave Render's Root Directory blank. Commit `package-lock.json` too (it appears after your first `npm install`).
 2. Render: **New + → Blueprint**, pick the repo. `render.yaml` already sets Node, the Virginia region, the build and start commands and the health check. Or create a **Web Service** by hand with:
 
 | Setting | Value |

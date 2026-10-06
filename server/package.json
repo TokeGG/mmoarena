@@ -1,6 +1,6 @@
 {
   "name": "@arena/server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "start": "tsx src/main.ts"
   },
   "dependencies": {
-    "@arena/shared": "*",
+    "@arena/shared": "file:../shared",
     "tsx": "^4.19.0",
     "ws": "^8.18.0"
   },
