@@ -108,3 +108,9 @@ Defaults: RMB-drag steer · LMB-drag orbit camera · W/S move · Q/E strafe · A
 ## Ground zones and jumping (0.15)
 
 Space jumps. A jump is mostly cosmetic, but while airborne you can dodge **ground zones** (Flamestrike) pulses; dodging has a 1.5 s cooldown so hop-spamming does not work. Targeted spells and missiles (Fireball, Frostbolt, Smite...) always hit. Fire Blast was removed; Flamestrike took its slot on the Fire bar.
+
+## Owner tools and persistence (0.16)
+
+- **Accounts must be saved somewhere.** Without `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` on the server, accounts live in memory and vanish on every restart or redeploy (Render free services also restart after idling). The client shows a warning when that is the case; `/api/status` reports it.
+- **Owner tools** (Profile → ★ Owner, founder account only) need `ARENA_OWNER_CODE` set on the server. Enter the code once per session to unlock: your own free-text title with colours (gradient, glow), a GIF icon (max 256x256 px, 256 KB), and the accounts panel: grant owner-tier titles/emblems/colours or the GIF ability to friends, write a custom title and colours for a friend, reset a password (temporary password shown once, old sessions die).
+- All of it is enforced on the server; the founder name alone is not enough, the code must have been entered for that session.

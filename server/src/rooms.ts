@@ -29,6 +29,8 @@ export interface Player {
   /** Signed-in account (authoritative progress and rating) and its session token. */
   account?: AccountRecord;
   token?: string;
+  /** Owner code entered for this session: custom styles, GIF icon, admin panel. */
+  ownerOk?: boolean;
   /** Account actions run one at a time per connection. */
   chain: Promise<void>;
   lastSettingsSave?: number;
@@ -72,7 +74,7 @@ export class Room {
   broadcastRoster(): void {
     const players = [...this.players.entries()]
       .filter(([, p]) => p.account)
-      .map(([unitId, p]) => ({ unitId, rating: p.account!.rating, ...resolveCosmetics(p.account!.cosmetics) }));
+      .map(([unitId, p]) => ({ unitId, rating: p.account!.rating, ...resolveCosmetics(p.account!.cosmetics), avatarUrl: p.account!.avatar ? `/avatar/${p.account!.key}?v=${p.account!.avatar}` : undefined }));
     if (!players.length) return;
     for (const p of this.players.values()) send(p, { t: 'roster', players });
   }
@@ -130,7 +132,7 @@ export class Room {
             .then((a) => {
               if (a) {
                 p.account = a;
-                send(p, { t: 'account', account: publicInfo(a) });
+                send(p, { t: 'account', account: publicInfo(a, p.ownerOk) });
               }
             })
             .catch(() => {});
@@ -178,7 +180,7 @@ export class Room {
             p.account = a;
             const loot = await this.accounts!.grantLoot(a.name, this.ranked ? 'ranked' : 'practice', won);
             if (loot) p.account = loot.account;
-            send(p, { t: 'account', account: publicInfo(p.account) });
+            send(p, { t: 'account', account: publicInfo(p.account, p.ownerOk) });
             if (loot && loot.drops.length) send(p, { t: 'loot', drops: loot.drops, discarded: loot.discarded });
           })
           .catch(() => {});
@@ -215,8 +217,23 @@ export class Lobby {
 
   constructor(private cfg: LobbyConfig, private accounts?: Accounts) {}
 
+  private conns = new Set<Player>();
+  private onlineKeys(): Set<string> {
+    return new Set([...this.conns].flatMap((q) => (q.account ? [q.account.key] : [])));
+  }
+
+  /** The owner's session after a stored avatar change, so every connection of that account stays in sync. */
+  syncAccount(a: AccountRecord): void {
+    for (const q of this.conns) if (q.account?.key === a.key) {
+      q.account = a;
+      send(q, { t: 'account', account: publicInfo(a, q.ownerOk) });
+    }
+  }
+
   connect(ws: WebSocket, ip = ''): Player {
-    return { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random' };
+    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random' };
+    this.conns.add(p);
+    return p;
   }
 
   /** Account messages are async (hashing, storage), so they run in order per connection off the game loop. */
@@ -239,7 +256,8 @@ export class Lobby {
           p.token = r.token;
           p.matches = r.account.matches;
           p.wins = r.account.wins;
-          send(p, { t: 'account', account: publicInfo(r.account), token: msg.t === 'resume' ? undefined : r.token });
+          p.ownerOk = await acc.isOwnerSession(r.token, r.account);
+          send(p, { t: 'account', account: publicInfo(r.account, p.ownerOk), token: msg.t === 'resume' ? undefined : r.token });
           send(p, { t: 'settings', data: r.account.settings ?? '' });
           break;
         }
@@ -247,14 +265,15 @@ export class Lobby {
           if (p.token) await acc.logout(p.token);
           p.account = undefined;
           p.token = undefined;
+          p.ownerOk = false;
           send(p, { t: 'logged_out' });
           break;
         case 'customize': {
           if (!p.account) return;
-          const updated = await acc.customize(p.account, msg.cosmetics);
+          const updated = await acc.customize(p.account, msg.cosmetics, !!p.ownerOk);
           if (!updated) return void send(p, { t: 'auth_error', reason: 'That cosmetic is still locked.' });
           p.account = updated;
-          send(p, { t: 'account', account: publicInfo(updated) });
+          send(p, { t: 'account', account: publicInfo(updated, p.ownerOk) });
           break;
         }
         case 'discard': {
@@ -262,7 +281,7 @@ export class Lobby {
           const updated = await acc.discard(p.account, msg.id);
           if (!updated) return;
           p.account = updated;
-          send(p, { t: 'account', account: publicInfo(updated) });
+          send(p, { t: 'account', account: publicInfo(updated, p.ownerOk) });
           break;
         }
         case 'save_settings': {
@@ -283,6 +302,38 @@ export class Lobby {
         case 'leaderboard':
           send(p, { t: 'leaderboard', rows: await acc.leaderboard(20) });
           break;
+        case 'owner_unlock': {
+          const r = await acc.ownerUnlock(p.token, p.account, msg.code, p.ip);
+          if (r.ok && p.account) p.ownerOk = true;
+          send(p, { t: 'owner', ok: r.ok, reason: r.reason });
+          if (r.ok && p.account) send(p, { t: 'account', account: publicInfo(p.account, true) });
+          break;
+        }
+        case 'admin_list': {
+          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: 'Owner tools are locked.' });
+          send(p, { t: 'admin_accounts', rows: await acc.adminList(this.onlineKeys()) });
+          break;
+        }
+        case 'admin_set': {
+          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: 'Owner tools are locked.' });
+          const r = await acc.adminSet(msg.name, msg);
+          if (!r.ok) return void send(p, { t: 'admin_result', ok: false, name: msg.name, reason: r.reason });
+          // a friend who is online gets the change immediately (and a reset password signs them out)
+          for (const q of this.conns) {
+            if (q.account?.key !== r.account.key) continue;
+            if (msg.resetPassword) {
+              q.account = undefined;
+              q.token = undefined;
+              q.ownerOk = false;
+              send(q, { t: 'logged_out' });
+            } else {
+              q.account = r.account;
+              send(q, { t: 'account', account: publicInfo(r.account) });
+            }
+          }
+          send(p, { t: 'admin_result', ok: true, name: r.account.name, row: acc.adminRow(r.account, this.onlineKeys().has(r.account.key)), tempPassword: r.tempPassword });
+          break;
+        }
       }
     } catch {
       send(p, { t: 'auth_error', reason: 'Account service error. Try again in a moment.' });
@@ -325,6 +376,9 @@ export class Lobby {
       case 'save_settings':
       case 'discard':
       case 'leaderboard':
+      case 'owner_unlock':
+      case 'admin_list':
+      case 'admin_set':
         this.account(p, msg);
         break;
       default:
@@ -333,6 +387,7 @@ export class Lobby {
   }
 
   disconnect(p: Player): void {
+    this.conns.delete(p);
     this.leave(p);
   }
 

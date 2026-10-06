@@ -8,6 +8,7 @@ import { TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
 import { Accounts } from './accounts';
 import { createStore } from './store';
+import { AVATAR_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
 
 export interface ServerOptions {
@@ -51,6 +52,58 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
     const url = new URL(req.url ?? '/', 'http://localhost');
     if (url.pathname === '/healthz') {
       res.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
+      return;
+    }
+    if (url.pathname === '/api/status') {
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent }));
+      return;
+    }
+    if (url.pathname.startsWith('/avatar/') && req.method === 'GET') {
+      accounts
+        .getAvatar(decodeURIComponent(url.pathname.slice('/avatar/'.length)))
+        .then((b) => {
+          if (!b) return void res.writeHead(404).end();
+          res.writeHead(200, { 'content-type': 'image/gif', 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'" }).end(b);
+        })
+        .catch(() => res.writeHead(500).end());
+      return;
+    }
+    if (url.pathname === '/api/avatar' && (req.method === 'POST' || req.method === 'DELETE')) {
+      const token = /^Bearer (\S{10,80})$/.exec(String(req.headers.authorization ?? ''))?.[1];
+      const fail = (code: number, msg: string) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify({ error: msg }));
+      if (!token) return void fail(401, 'Sign in first.');
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let dead = false;
+      req.on('data', (c: Buffer) => {
+        size += c.length;
+        if (size > AVATAR_MAX_BYTES + 1024) {
+          dead = true;
+          fail(413, 'GIF is too big.');
+          req.destroy();
+        } else chunks.push(c);
+      });
+      req.on('end', async () => {
+        if (dead) return;
+        try {
+          const a = await accounts.accountForToken(token);
+          if (!a) return void fail(401, 'Session expired. Sign in again.');
+          const ownerOk = await accounts.isOwnerSession(token, a);
+          if (!accounts.canGif(a, ownerOk)) return void fail(403, 'You do not have the GIF icon ability.');
+          let fresh;
+          if (req.method === 'DELETE') fresh = await accounts.clearAvatar(a);
+          else {
+            const body = Buffer.concat(chunks);
+            const bad = validateGif(body);
+            if (bad) return void fail(400, bad);
+            fresh = await accounts.setAvatar(a, body);
+          }
+          lobby.syncAccount(fresh);
+          res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ avatar: fresh.avatar ?? null }));
+        } catch {
+          fail(500, 'Could not save the icon.');
+        }
+      });
       return;
     }
     let rel: string;

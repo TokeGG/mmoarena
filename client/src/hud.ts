@@ -1,5 +1,6 @@
 import { ABILITIES, AURAS, CLASSES } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { applyName, avatarImg } from './nameStyle';
 import type { ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -68,8 +69,7 @@ class UnitFrame {
     }
     this.portrait.classList.toggle('enemy', enemy);
     this.nameEl.textContent = who ? `${who.emblem} ${u.name}` : u.name;
-    this.nameEl.style.color = who?.color || CLASSES[u.classId].color;
-    this.nameEl.style.textShadow = who?.glow ? `0 0 8px ${who.color}` : '';
+    applyName(this.nameEl, { color: who?.color || CLASSES[u.classId].color, color2: who?.color2, glow: who?.glow });
     this.hp.setColor(enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)');
     this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}`);
     this.res.setColor(RES_COLOR[u.resourceType]);
@@ -119,7 +119,7 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar }>();
+  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
@@ -298,9 +298,10 @@ export class Hud {
         const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
         cast.root.classList.add('pcast', 'hidden');
         const title = el('div', 'ptitle');
-        root.append(name, title, bar.root, cast.root);
+        const icon = el('div', 'picon');
+        root.append(icon, name, title, bar.root, cast.root);
         $('labels').append(root);
-        p = { root, name, title, bar, cast };
+        p = { root, name, title, bar, cast, icon, av: '' };
         this.plates.set(u.id, p);
       }
       p.root.classList.toggle('hidden', !u.visible || !u.alive);
@@ -308,8 +309,14 @@ export class Hud {
       p.root.style.top = `${u.y}px`;
       const who = this.roster.get(u.id);
       p.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;
-      p.name.style.color = who?.color || (u.enemy ? '#ff8a7a' : '#a8f0b8');
-      p.name.style.textShadow = who?.glow ? `0 0 8px ${who.color}, 0 1px 2px #000` : '';
+      applyName(p.name, { color: who?.color || (u.enemy ? '#ff8a7a' : '#a8f0b8'), color2: who?.color2, glow: who?.glow }, '0 1px 2px #000');
+      const av = who?.avatarUrl ?? '';
+      if (p.av !== av) {
+        p.av = av;
+        p.icon.replaceChildren();
+        const img = avatarImg(av, 'pav');
+        if (img) p.icon.append(img);
+      }
       p.title.textContent = who?.title ? `«${who.title}»` : '';
       p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);

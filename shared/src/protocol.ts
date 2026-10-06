@@ -1,6 +1,6 @@
 import { ARENAS, CLASSES } from './data';
-import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN } from './accounts';
-import type { AccountInfo, Cosmetics, LeaderRow, RosterEntry } from './accounts';
+import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
+import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, LeaderRow, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
 export const PROTOCOL_VERSION = 5;
@@ -41,7 +41,12 @@ export type ClientMsg =
   | { t: 'save_settings'; data: string }
   /** Throw away a loot item. */
   | { t: 'discard'; id: string }
-  | { t: 'leaderboard' };
+  | { t: 'leaderboard' }
+  /** Prove this session is the owner (needs the server's owner code). */
+  | { t: 'owner_unlock'; code: string }
+  | { t: 'admin_list' }
+  /** Owner only. Any field left out is unchanged; `custom: null` removes a custom style. */
+  | { t: 'admin_set'; name: string; grants?: string[]; custom?: CustomStyle | null; useCustom?: boolean; resetPassword?: boolean };
 
 export const MAX_SETTINGS = 24000;
 
@@ -63,7 +68,11 @@ export type ServerMsg =
   /** Loot earned from the match that just finished; `discarded` are items pushed out of a full inventory. */
   | { t: 'loot'; drops: string[]; discarded: string[] }
   /** Cosmetics of the signed-in players in your match, by unit id. */
-  | { t: 'roster'; players: RosterEntry[] };
+  | { t: 'roster'; players: RosterEntry[] }
+  | { t: 'owner'; ok: boolean; reason?: string }
+  | { t: 'admin_accounts'; rows: AdminRow[] }
+  /** Result of an admin_set; `tempPassword` is shown once when a password was reset. */
+  | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };
 
 /** Keep only a well-formed build: strings of sane length, at most 3 talent tiers and one id per gear slot. */
 export function parseBuild(raw: unknown): Build | undefined {
@@ -142,7 +151,36 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       const emblem = str(c.emblem);
       const color = str(c.color);
       if (title === null || !emblem || !color) return null;
-      return { t: 'customize', cosmetics: { title, emblem, color } };
+      const cosmetics: Cosmetics = { title, emblem, color };
+      if (c.custom !== undefined) {
+        const custom = cleanCustom(c.custom);
+        if (!custom) return null;
+        cosmetics.custom = custom;
+      }
+      if (c.useCustom) cosmetics.useCustom = true;
+      return { t: 'customize', cosmetics };
+    }
+    case 'owner_unlock':
+      if (typeof m.code !== 'string' || !m.code || m.code.length > 80) return null;
+      return { t: 'owner_unlock', code: m.code };
+    case 'admin_list':
+      return { t: 'admin_list' };
+    case 'admin_set': {
+      if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      const out: Extract<ClientMsg, { t: 'admin_set' }> = { t: 'admin_set', name: m.name };
+      if (m.grants !== undefined) {
+        if (!Array.isArray(m.grants) || m.grants.length > 80 || !m.grants.every((g: unknown) => typeof g === 'string' && /^[a-z]{3,8}(:[a-z0-9_]{2,16})?$/.test(g))) return null;
+        out.grants = [...new Set(m.grants as string[])];
+      }
+      if (m.custom === null) out.custom = null;
+      else if (m.custom !== undefined) {
+        const custom = cleanCustom(m.custom);
+        if (!custom) return null;
+        out.custom = custom;
+      }
+      if (m.useCustom !== undefined) out.useCustom = !!m.useCustom;
+      if (m.resetPassword) out.resetPassword = true;
+      return out;
     }
     case 'discard':
       if (typeof m.id !== 'string' || !/^L\.[a-z]{3,12}\.[a-z]{3,12}\.[a-z0-9]{4,8}$/.test(m.id)) return null;

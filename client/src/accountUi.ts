@@ -1,3 +1,5 @@
+import { OwnerPanel } from './ownerUi';
+import { applyName, avatarImg, avatarUrl } from './nameStyle';
 import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
 import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, ServerMsg } from '@arena/shared';
 
@@ -40,7 +42,7 @@ const store = {
   },
 };
 
-type Tab = 'overview' | 'customize' | 'leaders';
+type Tab = 'overview' | 'customize' | 'leaders' | 'owner';
 
 export class AccountUi {
   readonly chip = el('button', 'acct-chip');
@@ -52,6 +54,7 @@ export class AccountUi {
   private rows: LeaderRow[] = [];
   private pendingResume: ((v: void) => void) | null = null;
   private settledPromise: Promise<void> = Promise.resolve();
+  private owner = new OwnerPanel({ send: (m) => this.hooks.send(m), token: () => this.token, rerender: () => this.modal && this.renderModal() });
 
   constructor(private hooks: AccountHooks) {
     this.chip.addEventListener('click', () => (this.account ? this.openProfile() : this.openAuth()));
@@ -59,7 +62,18 @@ export class AccountUi {
       if (e.code === 'Escape' && this.modal) this.closeModal();
     });
     this.renderChip();
+    fetch('/api/status')
+      .then((r) => r.json())
+      .then((j: { persistent?: boolean }) => {
+        this.ephemeral = j.persistent === false;
+        this.renderChip();
+        if (this.modal) this.renderModal();
+      })
+      .catch(() => {});
   }
+
+  /** True when the server keeps accounts in memory only (they vanish on restart). */
+  private ephemeral = false;
 
   get token(): string {
     return store.get(SESSION_KEY);
@@ -126,6 +140,11 @@ export class AccountUi {
         this.renderChip();
         this.hooks.onAccount(null);
         break;
+      case 'owner':
+      case 'admin_accounts':
+      case 'admin_result':
+        this.owner.handle(m);
+        break;
       case 'leaderboard':
         this.rows = m.rows;
         if (this.modal && this.tab === 'leaders') this.renderModal();
@@ -147,11 +166,18 @@ export class AccountUi {
     const { tier } = rankProgress(a.rating);
     this.chip.classList.add('in');
     const name = el('span', 'cn', a.name);
-    name.style.color = c.color;
     const rank = el('span', 'cr', `${tier.icon} ${tier.name} · ${a.rating}`);
     rank.style.color = tier.color;
-    if (c.glow) name.style.textShadow = `0 0 8px ${c.color}`;
-    this.chip.append(el('span', 'ci', c.emblem), name, rank);
+    applyName(name, c);
+    const ico = el('span', 'ci', c.emblem);
+    const img = avatarImg(avatarUrl(a.name, a.avatar));
+    if (img) ico.replaceChildren(img);
+    this.chip.append(ico, name, rank);
+    if (this.ephemeral) {
+      const w = el('span', 'cw', '⚠ not saved');
+      w.title = 'The server is not saving accounts permanently; they reset on restart.';
+      this.chip.append(w);
+    }
   }
 
   // ------------------------------------------------------------------ modal plumbing
@@ -193,6 +219,7 @@ export class AccountUi {
     const head = el('div', 'mm-modal-head');
     head.append(el('h2', '', this.authMode === 'login' ? 'Sign in' : 'Create account'));
     card.append(head);
+    if (this.ephemeral) card.append(el('div', 'acct-warn', '⚠ This server is not saving accounts permanently, so they will be wiped on the next restart. The owner needs to connect the database (UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN).'));
 
     const tabs = el('div', 'acct-tabs');
     for (const [mode, label] of [['login', 'Sign in'], ['register', 'Register']] as const) {
@@ -279,11 +306,12 @@ export class AccountUi {
 
     const head = el('div', 'prof-head');
     const emblem = el('div', 'prof-emblem', c.emblem);
+    const big = avatarImg(avatarUrl(a.name, a.avatar), 'av-big');
+    if (big) emblem.replaceChildren(big);
     emblem.style.borderColor = tier.color;
     const who = el('div', 'prof-who');
     const nm = el('div', 'prof-name', a.name);
-    nm.style.color = c.color;
-    if (c.glow) nm.style.textShadow = `0 0 12px ${c.color}`;
+    applyName(nm, c, '', 12);
     who.append(nm, el('div', 'prof-title', c.title || 'No title'));
     if (a.role === 'owner') who.append(el('div', 'owner-ribbon', '★ FOUNDER · Owner of the Arena'));
     const rank = el('div', 'prof-rank');
@@ -294,11 +322,14 @@ export class AccountUi {
     head.append(emblem, who, rank, close);
 
     const tabs = el('div', 'acct-tabs');
-    for (const [t, label] of [['overview', 'Overview'], ['customize', 'Customize'], ['leaders', 'Leaderboard']] as const) {
+    const tabList: [Tab, string][] = [['overview', 'Overview'], ['customize', 'Customize'], ['leaders', 'Leaderboard']];
+    if (a.role === 'owner') tabList.push(['owner', '★ Owner']);
+    for (const [t, label] of tabList) {
       const b = el('button', this.tab === t ? 'sel' : '', label);
       b.addEventListener('click', () => {
         this.tab = t;
         if (t === 'leaders') this.hooks.send({ t: 'leaderboard' });
+        if (t === 'owner') this.owner.opened(a);
         this.renderModal();
       });
       tabs.append(b);
@@ -307,6 +338,7 @@ export class AccountUi {
 
     if (this.tab === 'overview') card.append(this.overview(a));
     else if (this.tab === 'customize') card.append(this.customize(a));
+    else if (this.tab === 'owner' && a.role === 'owner') card.append(this.owner.render(a));
     else card.append(this.leaders(a));
 
     const foot = el('div', 'prof-foot');
@@ -351,7 +383,7 @@ export class AccountUi {
       box.append(el('h3', '', title));
       const row = el('div', `opt-row ${field}`);
       for (const d of defs) {
-        const open = isUnlocked(d, a);
+        const open = isUnlocked(d, a, field as 'title' | 'emblem' | 'color');
         if (!open && d.unlock.kind === 'owner') continue; // owner-only items stay hidden from everyone else
         const b = el('button', `opt${a.cosmetics[field] === d.id ? ' sel' : ''}${open ? '' : ' locked'}`);
         b.append(el('span', 'ov', render(d)), el('small', '', open ? d.name : `🔒 ${unlockText(d)}`));
@@ -367,6 +399,16 @@ export class AccountUi {
     pick('emblem', EMBLEMS, (d) => d.value ?? '', 'Emblem');
     pick('title', TITLES, (d) => (d.id ? '«»' : '—'), 'Title');
     pick('color', NAME_COLORS, () => 'Aa', 'Name colour');
+    if (a.cosmetics.custom && a.role !== 'owner') {
+      const l = el('label', 'chk');
+      const i = el('input');
+      i.type = 'checkbox';
+      i.checked = !!a.cosmetics.useCustom;
+      i.addEventListener('change', () => this.hooks.send({ t: 'customize', cosmetics: { title: a.cosmetics.title, emblem: a.cosmetics.emblem, color: a.cosmetics.color, useCustom: i.checked } }));
+      l.append(i, `Use my special title «${a.cosmetics.custom.title}» and colours`);
+      box.append(el('h3', '', 'Special style'), l);
+    }
+    if (a.grants.includes('gif') && a.role !== 'owner') box.append(el('h3', '', 'Animated icon'), this.owner.gifBox(a));
     box.append(el('div', 'mm-modal-foot', 'Other players see your emblem, title and colour on your nameplate in matches. Unlock more by playing, winning and climbing the ranks.'));
     if (this.authError) box.append(el('div', 'auth-err', this.authError));
     return box;
@@ -384,8 +426,9 @@ export class AccountUi {
       const rc = resolveCosmetics(r.cosmetics);
       const tier = rankProgress(r.rating).tier;
       const nm = el('span', 'lb-name', `${r.role === 'owner' ? '★ ' : ''}${rc.emblem} ${r.name}`);
-      nm.style.color = rc.color;
-      if (rc.glow) nm.style.textShadow = `0 0 8px ${rc.color}`;
+      const lbImg = avatarImg(avatarUrl(r.name, r.avatar));
+      if (lbImg) nm.replaceChildren(r.role === 'owner' ? '★ ' : '', lbImg, ` ${r.name}`);
+      applyName(nm, rc);
       const rating = el('span', 'lb-rating', `${tier.icon} ${r.rating}`);
       rating.style.color = tier.color;
       row.append(el('span', 'lb-pos', `#${i + 1}`), nm, rating, el('span', 'lb-wl', `${r.wins}W / ${r.matches}M`));

@@ -70,6 +70,7 @@ describe('accounts', () => {
     assert.equal(await a.customize(acc, { title: 'initiate', emblem: 'nonsense', color: 'white' }), null);
     acc.wins = 30;
     acc.matches = 40;
+    await a.save(acc);
     const later = await a.customize(acc, { title: 'warlord', emblem: 'skull', color: 'gold' });
     assert.equal(later?.cosmetics.title, 'warlord');
   });

@@ -120,17 +120,52 @@ export const NAME_COLORS: CosmeticDef[] = [
   { id: 'sunfire', name: 'Sunfire', value: '#ffd23f', unlock: owner },
 ];
 
+/** A hand-made name style. Only the owner can write one (for themselves or, through the admin panel, a friend). */
+export interface CustomStyle {
+  /** Free-text title, up to CUSTOM_TITLE_MAX characters. */
+  title: string;
+  /** Name colour, #rrggbb. */
+  color: string;
+  /** Optional second colour; the name becomes a gradient from `color` to `color2`. */
+  color2?: string;
+  glow: boolean;
+}
+export const CUSTOM_TITLE_MAX = 24;
+const HEX_RE = /^#[0-9a-fA-F]{6}$/;
+
+/** Cleans a custom style (trim, strip control and markup characters, validate hex). Null if unusable. */
+export function cleanCustom(c: unknown): CustomStyle | null {
+  if (!c || typeof c !== 'object') return null;
+  const o = c as Record<string, unknown>;
+  if (typeof o.title !== 'string' || typeof o.color !== 'string') return null;
+  // letters, digits, spaces and light punctuation only: no markup, no control or look-alike tricks
+  const title = o.title.replace(/[^\p{L}\p{N} '\-.!&*~^_+:|<>♛★☆♥♦♣♠✦✧⚔]/gu, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, CUSTOM_TITLE_MAX);
+  if (!HEX_RE.test(o.color)) return null;
+  const out: CustomStyle = { title, color: o.color.toLowerCase(), glow: !!o.glow };
+  if (typeof o.color2 === 'string' && o.color2) {
+    if (!HEX_RE.test(o.color2)) return null;
+    out.color2 = o.color2.toLowerCase();
+  }
+  return out;
+}
+
 export interface Cosmetics {
   title: string;
   emblem: string;
   color: string;
+  /** Hand-made style (owner-written). Only shown while `useCustom` is on. */
+  custom?: CustomStyle;
+  useCustom?: boolean;
 }
 export const DEFAULT_COSMETICS: Cosmetics = { title: '', emblem: 'swords', color: 'white' };
 
-export function isUnlocked(def: CosmeticDef, s: Stats & { name?: string }): boolean {
+export type CosmeticKind = 'title' | 'emblem' | 'color';
+
+/** `grants` are owner-given unlocks like 'title:founder'; they open owner-tier items for a friend. */
+export function isUnlocked(def: CosmeticDef, s: Stats & { name?: string; grants?: string[] }, kind?: CosmeticKind): boolean {
   const u = def.unlock;
   if (u.kind === 'free') return true;
-  if (u.kind === 'owner') return !!s.name && isOwnerName(s.name);
+  if (u.kind === 'owner') return (!!s.name && isOwnerName(s.name)) || (!!kind && !!s.grants?.includes(`${kind}:${def.id}`));
   return s[u.kind] >= u.n;
 }
 
@@ -142,17 +177,34 @@ export function unlockText(def: CosmeticDef): string {
 }
 
 /** Returns the cleaned choice, or null if any pick is unknown or still locked. */
-export function validateCosmetics(c: Cosmetics, s: Stats & { name?: string }): Cosmetics | null {
+export function validateCosmetics(c: Cosmetics, s: Stats & { name?: string; grants?: string[] }, existing?: Cosmetics, mayWriteCustom = false): Cosmetics | null {
   const t = TITLES.find((x) => x.id === c.title);
   const e = EMBLEMS.find((x) => x.id === c.emblem);
   const k = NAME_COLORS.find((x) => x.id === c.color);
   if (!t || !e || !k) return null;
-  if (!isUnlocked(t, s) || !isUnlocked(e, s) || !isUnlocked(k, s)) return null;
-  return { title: t.id, emblem: e.id, color: k.id };
+  if (!isUnlocked(t, s, 'title') || !isUnlocked(e, s, 'emblem') || !isUnlocked(k, s, 'color')) return null;
+  const out: Cosmetics = { title: t.id, emblem: e.id, color: k.id };
+  // the custom style is only ever written by someone allowed to; everyone else keeps what the owner gave them
+  const custom = mayWriteCustom ? (c.custom === undefined ? existing?.custom : cleanCustom(c.custom)) : existing?.custom;
+  if (mayWriteCustom && c.custom !== undefined && !custom) return null;
+  if (custom) {
+    out.custom = custom;
+    if (c.useCustom) out.useCustom = true;
+  }
+  return out;
 }
 
 /** What other players see: the glyph, the title text and the colour hex, resolved from ids. */
-export function resolveCosmetics(c: Cosmetics): { emblem: string; title: string; color: string; glow: boolean } {
+export function resolveCosmetics(c: Cosmetics): { emblem: string; title: string; color: string; glow: boolean; color2?: string } {
+  if (c.useCustom && c.custom) {
+    return {
+      emblem: EMBLEMS.find((x) => x.id === c.emblem)?.value ?? '⚔️',
+      title: c.custom.title,
+      color: c.custom.color,
+      color2: c.custom.color2,
+      glow: c.custom.glow,
+    };
+  }
   return {
     glow: NAME_COLORS.find((x) => x.id === c.color)?.unlock.kind === 'owner',
     emblem: EMBLEMS.find((x) => x.id === c.emblem)?.value ?? '⚔️',
@@ -174,7 +226,29 @@ export interface AccountInfo extends Stats {
   role?: 'owner';
   /** Loot ids the account owns (oldest first). Only ever sent to the account's own player. */
   inventory: string[];
+  /** Owner-given unlocks ('title:founder', 'gif'...). */
+  grants: string[];
+  /** Version stamp of the animated icon (served at /avatar/<name>?v=n), if one is set. */
+  avatar?: number;
+  /** This session has proven it is the owner (unlocked with the owner code): custom styles, GIF icon and the admin panel. */
+  ownerOk?: boolean;
 }
+
+/** One row of the owner's account list. */
+export interface AdminRow {
+  name: string;
+  rating: number;
+  matches: number;
+  wins: number;
+  createdAt: number;
+  grants: string[];
+  cosmetics: Cosmetics;
+  avatar?: number;
+  online: boolean;
+}
+
+/** Abilities the owner can switch on for a friend (besides per-item grants). */
+export const ABILITY_GRANTS = [{ id: 'gif', name: 'Animated GIF icon' }] as const;
 
 export interface LeaderRow {
   name: string;
@@ -183,6 +257,7 @@ export interface LeaderRow {
   matches: number;
   cosmetics: Cosmetics;
   role?: 'owner';
+  avatar?: number;
 }
 
 export interface RosterEntry {
@@ -191,6 +266,9 @@ export interface RosterEntry {
   title: string;
   color: string;
   glow?: boolean;
+  color2?: string;
+  /** Animated icon URL, if the player has one. */
+  avatarUrl?: string;
   rating: number;
 }
 
