@@ -8,6 +8,7 @@ import { Hud } from './hud';
 import { Keybinds, SLOT_ACTIONS } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
+import { HudLayout } from './hudLayout';
 import { MainMenu } from './mainMenu';
 import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
@@ -67,7 +68,13 @@ const menu = new Menu(binds, {
     ws?.close();
   },
   onSensitivity: (v) => (controls.sens = v),
+  onEditHud: () => hudLayout.start(),
 });
+const hudLayout = new HudLayout();
+hudLayout.onChange = (editing) => {
+  controls.enabled = !editing;
+  if (editing) controls.releaseAll();
+};
 let leaving = false;
 const relabel = () => hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
 binds.onChange = relabel;
@@ -246,6 +253,10 @@ controls.onClick = (x, y) => {
 };
 controls.onKey = (code, e) => {
   if (code === 'Escape') {
+    if (hudLayout.editing) {
+      hudLayout.stop();
+      return;
+    }
     // Esc closes the menu if open, else clears the target, else opens the menu (WoW behaviour).
     if (menu.isOpen) menu.back();
     else if (!latest) return;
@@ -353,8 +364,9 @@ function frame(now: number) {
     units.map((u) => {
       const s = scene.project(u.x, 2.7, u.z);
       const meta = snap.units.find((x) => x.id === u.id)!;
-      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive };
+      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null };
     }),
+    estNow,
   );
 }
 requestAnimationFrame(frame);

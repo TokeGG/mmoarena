@@ -118,7 +118,7 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; bar: Bar }>();
+  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; bar: Bar; cast: Bar }>();
   private errTimer = 0;
   private logLines: string[] = [];
 
@@ -249,7 +249,10 @@ export class Hud {
   }
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
-  nameplates(units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean }[]) {
+  nameplates(
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null }[],
+    now: number,
+  ) {
     const seen = new Set<number>();
     for (const u of units) {
       seen.add(u.id);
@@ -258,9 +261,11 @@ export class Hud {
         const root = el('div', 'plate');
         const name = el('div');
         const bar = new Bar(HP_ALLY, true);
-        root.append(name, bar.root);
+        const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
+        cast.root.classList.add('pcast', 'hidden');
+        root.append(name, bar.root, cast.root);
         $('labels').append(root);
-        p = { root, name, bar };
+        p = { root, name, bar, cast };
         this.plates.set(u.id, p);
       }
       p.root.classList.toggle('hidden', !u.visible || !u.alive);
@@ -270,6 +275,13 @@ export class Hud {
       p.name.style.color = u.enemy ? '#ff8a7a' : '#a8f0b8';
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);
       p.bar.set(u.health, u.maxHealth, '');
+      // cast bar over the head: gold for allies, hot orange for enemies so you can see what to interrupt
+      p.cast.root.classList.toggle('hidden', !u.cast);
+      if (u.cast) {
+        p.cast.root.classList.toggle('enemy', u.enemy);
+        p.cast.setColor(u.enemy ? 'linear-gradient(#ff9a52,#d94a1c)' : 'linear-gradient(#ffd966,#d9962a)');
+        p.cast.set(now - u.cast.start, u.cast.end - u.cast.start, ABILITIES[u.cast.ability]?.name ?? u.cast.ability);
+      }
     }
     for (const [id, p] of this.plates) {
       if (!seen.has(id)) {

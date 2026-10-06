@@ -1,4 +1,4 @@
-# WoW-style Arena (browser phase) · v0.7.0
+# WoW-style Arena (browser phase) · v0.8.0
 
 Third-person 3D arena combat in the style of WoW arena: tab-target, global cooldown, cast times, interrupts with school lockouts, crowd control with diminishing returns, line-of-sight pillars, stealth. The server decides every outcome; the browser is a renderer and input device.
 

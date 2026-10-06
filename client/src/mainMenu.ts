@@ -5,6 +5,7 @@ import type { Build, ClassId, PracticeDifficulty, StatId } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { loadBuild, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
+import { buildProfileBar, setups } from './setups';
 
 /**
  * Character-select style main menu. A 3D preview of the chosen class stands in the arena behind it (see
@@ -108,6 +109,7 @@ export class MainMenu {
   }
 
   show(visible: boolean) {
+    if (visible) setups.autosave();
     this.root.classList.toggle('hidden', !visible);
   }
 
@@ -176,7 +178,7 @@ export class MainMenu {
     this.modal.addEventListener('mousedown', (e) => {
       if (e.target === this.modal) this.closeGear();
     });
-    this.root.replaceChildren(logo, ver, left, right, this.modal);
+    this.root.replaceChildren(logo, ver, buildProfileBar(), left, right, this.modal);
     this.nameInput.addEventListener('input', () => store.set('arena.name', this.nameInput.value));
   }
 

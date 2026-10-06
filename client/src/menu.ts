@@ -9,6 +9,8 @@ export interface MenuHandlers {
   /** Leave the current match (only offered while in one). */
   onLeave: () => void;
   onSensitivity: (v: number) => void;
+  /** Open the HUD layout editor (only offered while in a match). */
+  onEditHud: () => void;
 }
 
 /**
@@ -29,6 +31,10 @@ export class Menu {
   constructor(private binds: Keybinds, private handlers: MenuHandlers) {
     $('menu-resume').addEventListener('click', () => this.close());
     $('menu-controls').addEventListener('click', () => this.showKeys());
+    $('menu-hud').addEventListener('click', () => {
+      this.close();
+      handlers.onEditHud();
+    });
     $('menu-leave').addEventListener('click', () => {
       this.close();
       handlers.onLeave();
@@ -90,6 +96,7 @@ export class Menu {
     this.root.classList.remove('hidden');
     $('menu-resume').classList.toggle('hidden', !inMatch);
     $('menu-leave').classList.toggle('hidden', !inMatch);
+    $('menu-hud').classList.toggle('hidden', !inMatch);
     if (view === 'keys') this.showKeys();
     else this.showMain();
     this.handlers.onToggle(true);

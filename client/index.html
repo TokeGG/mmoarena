@@ -203,6 +203,32 @@
   @media (max-width:1100px) { #join { grid-template-columns:1fr 1fr; } .mm-logo { grid-column:1 / 3; } .mm-left { grid-column:1; } .mm-right { grid-column:2; } }
   @media (max-width:760px) { #join { grid-template-columns:1fr; padding:10px; } .mm-logo { grid-column:1; } .mm-logo h1 { font-size:34px; letter-spacing:6px; } .mm-left,.mm-right { grid-column:1; grid-row:auto; } }
 
+  /* ---------- profile bar ---------- */
+  .mm-profiles { position:fixed; top:12px; right:16px; z-index:25; display:flex; align-items:center; gap:6px; padding:6px 8px; background:var(--panel2); border:1px solid var(--gold-d); border-radius:8px; box-shadow:0 4px 16px rgba(0,0,0,.6); }
+  .mm-profiles .pl { font:700 11px var(--serif); letter-spacing:1px; text-transform:uppercase; color:var(--gold); }
+  .mm-profiles select { width:130px !important; margin:0 !important; }
+  .mm-profiles .pmsg { font-size:11px; color:#f1c40f; min-width:0; }
+  .mm-code { width:100%; height:130px; margin:8px 0; padding:8px; background:#0f1015; color:#cfc6b2; border:1px solid var(--gold-d); border-radius:6px; font:11px/1.3 ui-monospace,monospace; user-select:text; resize:vertical; }
+  @media (max-width:1100px) { .mm-profiles { position:static; grid-column:1 / -1; flex-wrap:wrap; justify-self:center; } }
+
+  /* ---------- nameplate cast bars ---------- */
+  .plate { width:110px; }
+  .plate .pcast { margin-top:2px; height:11px; border:1px solid #000; border-radius:3px; }
+  .plate .pcast .blabel { font-size:9px; line-height:11px; font-weight:700; }
+  .plate .pcast.enemy { box-shadow:0 0 6px rgba(255,150,60,.7); }
+
+  /* ---------- HUD layout editor ---------- */
+  #hud-edit-bar { position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:150; display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel2); border:2px solid var(--gold); border-radius:10px; font:600 13px var(--serif); box-shadow:0 6px 24px rgba(0,0,0,.7); }
+  #hud-edit-bar button { padding:6px 12px; border-radius:6px; border:1px solid var(--gold-d); background:#1d1b20; color:#e9dcc0; cursor:pointer; font:600 12px var(--serif); }
+  #hud-edit-bar button.primary { background:linear-gradient(#f0c260,#b0781c); color:#2a1900; border-color:#5c3d08; }
+  body.hud-edit [data-hud] { outline:2px dashed rgba(255,210,74,.85); outline-offset:3px; cursor:move; pointer-events:auto !important; user-select:none; touch-action:none; }
+  body.hud-edit [data-hud] * { pointer-events:none !important; }
+  body.hud-edit [data-hud]::after { content:attr(data-hud); position:absolute; left:0; top:-20px; padding:1px 7px; border-radius:4px; background:#ffd24a; color:#2a1900; font:700 10px var(--serif); white-space:nowrap; pointer-events:none; }
+  body.hud-edit #target-frame.hidden, body.hud-edit #cast.hidden, body.hud-edit #autoind.hidden { display:flex !important; }
+  body.hud-edit #target-frame, body.hud-edit #party, body.hud-edit #enemies { min-width:200px; min-height:44px; }
+  body.hud-edit #cast { min-height:22px; background:rgba(255,210,74,.12); }
+  body.hud-edit #hud-edit-bar ~ * { }
+
   /* ---------- tooltips ---------- */
   #tooltip { position:fixed; z-index:200; max-width:320px; pointer-events:none; padding:8px 10px; background:linear-gradient(180deg,rgba(24,20,28,.97),rgba(10,9,13,.97)); border:1px solid var(--gold); border-radius:6px; box-shadow:0 6px 22px rgba(0,0,0,.75); font-size:12px; line-height:1.4; color:#d8d2c4; white-space:pre-line; }
   #tooltip .tt-head { display:flex; justify-content:space-between; gap:14px; align-items:baseline; margin-bottom:3px; }
@@ -244,6 +270,7 @@
       <div class="stack">
         <button id="menu-resume" class="big primary">Resume</button>
         <button id="menu-controls" class="big">Controls &amp; keybinds</button>
+        <button id="menu-hud" class="big">Edit HUD layout</button>
         <div class="srow"><span>Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
         <button id="menu-leave" class="big danger">Leave match</button>
       </div>
