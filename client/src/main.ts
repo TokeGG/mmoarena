@@ -8,6 +8,7 @@ import { Hud } from './hud';
 import { Keybinds, SLOT_ACTIONS } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
+import { CLASS_ICON } from './icons';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -326,7 +327,10 @@ try {
 
 const classButtons = CLASS_IDS.map((id) => {
   const b = document.createElement('button');
-  b.textContent = CLASSES[id].name;
+  const ci = document.createElement('span');
+  ci.className = 'ci';
+  ci.textContent = CLASS_ICON[id];
+  b.append(ci, document.createTextNode(CLASSES[id].name));
   b.style.color = CLASSES[id].color;
   b.addEventListener('click', () => {
     selected = id;

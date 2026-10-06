@@ -1,4 +1,5 @@
 import { ABILITIES, AURAS, CLASSES } from '@arena/shared';
+import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import type { ClassId, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -24,7 +25,10 @@ class Bar {
     this.fill.style.background = color;
   }
   setColor(c: string) {
-    this.fill.style.background = c;
+    if (this.fill.dataset.c !== c) {
+      this.fill.dataset.c = c;
+      this.fill.style.background = c;
+    }
   }
   set(v: number, max: number, text: string) {
     this.fill.style.width = `${max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0}%`;
@@ -32,27 +36,38 @@ class Bar {
   }
 }
 
-/** Name, health, resource, optional cast bar and aura chips. Built once, updated every frame. */
+/** Portrait, name, health, resource, optional cast bar and aura icons. Built once, updated every frame. */
 class UnitFrame {
   readonly root: HTMLElement;
+  private portrait = el('div', 'portrait');
   private nameEl = el('div', 'name');
   private hp = new Bar(HP_ALLY);
   private res = new Bar('#3b82f6', true);
   private cast: Bar | null;
   private auras = el('div', 'auras');
+  private classShown = '';
   constructor(root: HTMLElement, withCast: boolean) {
     this.root = root;
     this.cast = withCast ? new Bar('#f1c40f', true) : null;
-    root.append(this.nameEl, this.hp.root, this.res.root);
-    if (this.cast) root.append(this.cast.root);
-    root.append(this.auras);
+    const body = el('div', 'fbody');
+    body.append(this.nameEl, this.hp.root, this.res.root);
+    if (this.cast) body.append(this.cast.root);
+    body.append(this.auras);
+    root.append(this.portrait, body);
   }
   update(u: UnitSnap, now: number, enemy: boolean, targeted = false) {
     this.root.classList.toggle('dead', !u.alive);
     this.root.classList.toggle('targeted', targeted);
-    this.nameEl.textContent = `${u.name} · ${CLASSES[u.classId].name}`;
+    if (this.classShown !== u.classId) {
+      this.classShown = u.classId;
+      const c = CLASSES[u.classId].color;
+      this.portrait.textContent = CLASS_ICON[u.classId];
+      this.portrait.style.background = `radial-gradient(circle at 35% 30%, ${c}, #14161c 85%)`;
+    }
+    this.portrait.classList.toggle('enemy', enemy);
+    this.nameEl.textContent = u.name;
     this.nameEl.style.color = CLASSES[u.classId].color;
-    this.hp.setColor(enemy ? HP_ENEMY : HP_ALLY);
+    this.hp.setColor(enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)');
     this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}`);
     this.res.setColor(RES_COLOR[u.resourceType]);
     this.res.set(u.resource, u.resourceMax, `${u.resource}`);
@@ -64,8 +79,10 @@ class UnitFrame {
     this.auras.replaceChildren(
       ...u.auras.slice(0, 8).map((a) => {
         const def = AURAS[a.id];
-        const left = a.expiresAt > 0 ? ` ${Math.max(0, (a.expiresAt - now) / 1000).toFixed(0)}s` : '';
-        return el('span', `chip ${def?.harmful ? 'bad' : 'good'}`, `${def?.name ?? a.id}${left}`);
+        const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`, AURA_ICON[a.id] ?? '✦');
+        icon.title = def?.name ?? a.id;
+        if (a.expiresAt > 0) icon.append(el('i', '', String(Math.max(0, Math.ceil((a.expiresAt - now) / 1000)))));
+        return icon;
       }),
     );
   }
@@ -116,9 +133,14 @@ export class Hud {
     this.slots = CLASSES[classId].bar.map((ability, i) => {
       const root = el('div', 'slot');
       const key = el('span', 'key', String(i + 1));
-      root.append(key, document.createTextNode(ABILITIES[ability].name));
-      const cd = el('div', 'cd hidden');
-      root.append(cd);
+      const def = ABILITIES[ability];
+      root.style.background = SCHOOL_GRADIENT[def.school];
+      root.title = `${def.name}${def.cost ? ` · ${def.cost} ${CLASSES[classId].resource.type}` : ''}${def.cooldown ? ` · ${def.cooldown / 1000}s cooldown` : ''}`;
+      const ico = el('span', 'ico', ABILITY_ICON[ability] ?? '✦');
+      const nm = el('span', 'nm', def.name);
+      const cd = el('div', 'cd');
+      cd.append(el('span'));
+      root.append(ico, nm, cd, key);
       root.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         this.handlers.onSlot(i);
@@ -151,13 +173,19 @@ export class Hud {
     for (const s of this.slots) {
       const def = ABILITIES[s.ability];
       const cd = Math.max(me.cooldowns[s.ability] ? me.cooldowns[s.ability] - now : 0, def.gcd ? gcdLeft : 0);
+      const total = me.cooldowns[s.ability] && me.cooldowns[s.ability] - now >= gcdLeft ? def.cooldown || 1500 : 1500;
+      const frac = Math.min(1, cd / total);
       s.cd.classList.toggle('hidden', cd <= 50);
-      s.cd.textContent = cd > 1500 ? String(Math.ceil(cd / 1000)) : cd > 50 ? (cd / 1000).toFixed(1) : '';
+      s.cd.style.background = `conic-gradient(rgba(0,0,0,.72) ${frac * 360}deg, rgba(0,0,0,.08) 0)`;
+      (s.cd.firstChild as HTMLElement).textContent = cd > 1500 ? String(Math.ceil(cd / 1000)) : cd > 50 && total > 1500 ? (cd / 1000).toFixed(1) : '';
       s.root.classList.toggle('unusable', me.resource < def.cost || !me.alive);
       s.root.classList.toggle('casting', me.cast?.ability === s.ability);
     }
     $('cast').classList.toggle('hidden', !me.cast);
-    if (me.cast) this.castBar.set(now - me.cast.start, me.cast.end - me.cast.start, ABILITIES[me.cast.ability]?.name ?? '');
+    if (me.cast) {
+      const left = Math.max(0, me.cast.end - now) / 1000;
+      this.castBar.set(now - me.cast.start, me.cast.end - me.cast.start, `${ABILITIES[me.cast.ability]?.name ?? ''}  ${left.toFixed(1)}`);
+    }
 
     this.updateBanner(snap, now, me.team);
   }
