@@ -41,7 +41,7 @@ export class Controls {
         return;
       }
       if (e.code === 'Space') e.preventDefault(); // never scroll or click a focused button
-      if (!e.repeat && this.binds.codes('jump').includes(e.code)) this.jumpQueued = true;
+      if (!e.repeat && this.binds.matches('jump', e)) this.jumpQueued = true;
       if (!e.repeat) this.onKey(e.code, e);
       this.keys.add(e.code);
     });
@@ -121,7 +121,7 @@ export class Controls {
   }
 
   private down(action: Action): number {
-    return this.binds.codes(action).some((c) => this.keys.has(c)) ? 1 : 0;
+    return this.binds.isHeld(action, this.keys) ? 1 : 0;
   }
 
   /** Forget held keys, e.g. when a menu opens mid-run so the character does not keep walking. */

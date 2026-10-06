@@ -436,7 +436,7 @@ controls.onKey = (code, e) => {
     return;
   }
   if (!latest) return;
-  const action = binds.actionFor(code);
+  const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);
   if (slot >= 0) castSlot(slot);

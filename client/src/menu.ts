@@ -1,4 +1,4 @@
-import { ACTIONS, Keybinds, keyLabel } from './keybinds';
+import { ACTIONS, Keybinds, comboOf, isModifierCode, keyLabel } from './keybinds';
 import type { Action } from './keybinds';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -75,16 +75,39 @@ export class Menu {
         e.stopPropagation();
         if (e.code === 'Escape') return this.stopListening();
         if (['MetaLeft', 'MetaRight'].includes(e.code)) return;
-        const { action, slot } = this.listening;
-        const stolen = this.binds.set(action, slot, e.code);
-        this.stopListening();
-        this.render();
-        this.say(stolen ? `${keyLabel(e.code)} moved here from “${this.labelOf(stolen)}”.` : '');
+        // a modifier on its own waits: hold Shift, then press 1 for Shift+1. Releasing it alone binds the modifier itself.
+        if (isModifierCode(e.code)) {
+          this.pendingMod = e.code;
+          this.say('Now press the key to combine with it, or release it to bind it on its own.');
+          return;
+        }
+        this.pendingMod = null;
+        this.finishBind(comboOf(e));
+      },
+      true,
+    );
+    window.addEventListener(
+      'keyup',
+      (e) => {
+        if (!this.listening || this.pendingMod !== e.code) return;
+        this.pendingMod = null;
+        this.finishBind(e.code);
       },
       true,
     );
 
     this.render();
+  }
+
+  private pendingMod: string | null = null;
+
+  private finishBind(combo: string) {
+    if (!this.listening) return;
+    const { action, slot } = this.listening;
+    const stolen = this.binds.set(action, slot, combo);
+    this.stopListening();
+    this.render();
+    this.say(stolen ? `${keyLabel(combo)} moved here from “${this.labelOf(stolen)}”.` : '');
   }
 
   get isOpen(): boolean {
@@ -141,6 +164,7 @@ export class Menu {
     if (!this.listening) return;
     this.listening.btn.classList.remove('listening');
     this.listening = null;
+    this.pendingMod = null;
     this.render();
   }
 
@@ -168,7 +192,7 @@ export class Menu {
         b.textContent = listening ? 'Press a key…' : keyLabel(this.binds.get(a.id, slot));
         if (listening) b.classList.add('listening');
         b.addEventListener('click', () => {
-          this.say('Press the new key. Esc cancels. Right-click clears.');
+          this.say('Press the new key, or a modifier (Shift, Ctrl, Alt) then a key for a combo like Shift+1. Esc cancels. Right-click clears.');
           this.listening = { action: a.id, slot, btn: b };
           this.render();
         });
