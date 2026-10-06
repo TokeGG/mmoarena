@@ -256,7 +256,7 @@ export class MainMenu {
     };
     const refill = () => {
       const n = Number(this.size.value);
-      fill(this.foes, combos(n), `arena.foes${n}`, ['warrior', 'warrior,mage', 'warrior,mage,rogue'][n - 1]);
+      fill(this.foes, [['random', 'Random classes'], ...combos(n)], `arena.foes${n}`, 'random');
       fill(this.ally, n === 1 ? [['none', 'None (solo)']] : combos(n - 1), `arena.allies${n}`, ['', 'priest', 'priest,mage'][n - 1] || 'none');
       this.ally.disabled = n === 1;
     };
@@ -464,7 +464,7 @@ export class MainMenu {
       classId: this.classId,
       build: this.build,
       size: Number(this.size.value) as 1 | 2 | 3,
-      foes: this.foes.value.split(',') as ClassId[],
+      foes: this.foes.value === 'random' ? Array.from({ length: Number(this.size.value) }, () => CLASS_IDS[Math.floor(Math.random() * CLASS_IDS.length)]) : (this.foes.value.split(',') as ClassId[]),
       allies: this.ally.value === 'none' ? [] : (this.ally.value.split(',') as ClassId[]),
       difficulty: this.diff.value as PracticeDifficulty,
       map: this.map.value,
