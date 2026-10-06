@@ -58,6 +58,9 @@ export class Bot {
   private coverReadyAt = 0;
   private rng: () => number;
   private P: (typeof PARAMS)[Difficulty];
+  /** A lone priest casts back to back, so every few seconds it holds its casts for a moment and moves instead. */
+  private danceUntil = 0;
+  private nextDance = 0;
 
   constructor(private sim: ArenaSim, readonly unitId: number, difficulty: Difficulty = 'normal', seed = 1) {
     this.P = PARAMS[difficulty];
@@ -87,6 +90,15 @@ export class Bot {
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
 
+    // nobody in sight (e.g. a stealthed rogue): walk towards where the nearest enemy is rather than standing about
+    if (!enemies.length && sim.canMove(u) && !u.cast) {
+      const hidden = all.filter((e) => e.alive && e.team !== u.team).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
+      if (hidden && !(u.classId === 'priest' && allies.length > 1)) {
+        this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, hidden.pos)), fwd: 1, strafe: 0 });
+        return;
+      }
+    }
+
     // hurt: duck behind a pillar to break line of sight, wait a moment, then come back (not every few seconds)
     const threat = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
     if (threat && hpFrac(u) < 0.45 && sim.time >= this.coverReadyAt && !this.cover) {
@@ -101,6 +113,11 @@ export class Bot {
         this.send(u, { facing: angleTo(u.pos, this.cover), fwd: 1, strafe: 0 });
         return;
       }
+    }
+
+    if (u.classId === 'priest' && allies.length <= 1 && !u.cast && sim.time >= this.nextDance && tgt) {
+      this.danceUntil = sim.time + 600;
+      this.nextDance = sim.time + 6000;
     }
 
     // Decide first, move second: if a cast just started, movement sees it and stands still.
@@ -250,6 +267,7 @@ export class Bot {
 
   private priest(u: Unit, enemies: Unit[], allies: Unit[], tgt?: Unit): void {
     const sim = this.sim;
+    if (sim.time < this.danceUntil && !u.cast) return; // moving instead of casting for a moment
     const hasShield = (x: Unit) => x.auras.some((a) => a.kind === 'absorb');
     const reachable = allies.filter((a) => dist(u.pos, a.pos) <= 38 && hasLOS(u.pos, a.pos, sim.arena)).sort((a, b) => hpFrac(a) - hpFrac(b));
     const lowest = reachable[0];
@@ -268,17 +286,20 @@ export class Bot {
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
     if (u.cast) return;
 
+    // on its own the priest has to win the fight too: it heals later and spends the rest of its time on Smite
+    const solo = allies.length <= 1;
     if (lowest) {
       const f = hpFrac(lowest);
       if (f < 0.45 && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
-      if (f < 0.8 && this.use(u, 'flash_heal', lowest.id)) return;
-      if (f < 0.95 && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
+      if (f < (solo ? 0.6 : 0.8) && this.use(u, 'flash_heal', lowest.id)) return;
+      if (f < (solo ? 0.75 : 0.95) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
     }
 
     const meleeNear = enemies.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 7);
-    if (meleeNear.length && hpFrac(u) < 0.75 && this.use(u, 'psychic_scream')) return;
+    // alone, a priest screams as soon as melee reaches it (the fear buys time to heal and cast); with a partner it waits until hurt
+    if (meleeNear.length && (solo || hpFrac(u) < 0.75) && this.use(u, 'psychic_scream')) return;
 
-    if (tgt && (!lowest || hpFrac(lowest) > 0.9)) this.use(u, 'smite', tgt.id);
+    if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) this.use(u, 'smite', tgt.id);
   }
 
   // ------------------------------------------------------------------ movement
@@ -338,8 +359,12 @@ export class Bot {
 
     if (this.cover && sim.time < this.coverUntil) return idle; // sitting in cover
 
-    if (u.classId === 'priest') return this.healerMove(u, enemies, allies, idle);
+    if (u.classId === 'priest') {
+      const c = this.healerMove(u, enemies, allies, idle, tgt);
+      if (c) return c; // null: a priest on its own fights like a caster, below
+    }
     if (!tgt) return idle;
+    if (u.classId === 'priest' && sim.time < this.danceUntil && !u.cast) return { facing: angleTo(u.pos, tgt.pos), fwd: 0, strafe: this.strafeSign };
 
     const d = dist(u.pos, tgt.pos);
     const toT = angleTo(u.pos, tgt.pos);
@@ -362,13 +387,19 @@ export class Bot {
     return { facing: toT, fwd: 0, strafe: 0 };
   }
 
-  /** Healers hold their ground and only move to keep range and line of sight to an ally. */
-  private healerMove(u: Unit, _enemies: Unit[], allies: Unit[], idle: Cmd): Cmd {
+  /**
+   * Healers stay in line of sight of their partner and sidestep between casts. A priest with no partner left (or in
+   * a 1v1) returns null and moves like any other caster: closes to range, keeps line of sight and kites slowed melee.
+   */
+  private healerMove(u: Unit, _enemies: Unit[], allies: Unit[], idle: Cmd, tgt?: Unit): Cmd | null {
     const sim = this.sim;
-    const buddy = allies.filter((a) => a !== u).sort((a, b) => hpFrac(a) - hpFrac(b))[0];
-    if (buddy && (!hasLOS(u.pos, buddy.pos, sim.arena) || dist(u.pos, buddy.pos) > 30)) {
+    const buddy = allies.filter((a) => a !== u && a.alive).sort((a, b) => hpFrac(a) - hpFrac(b))[0];
+    if (!buddy) return null;
+    if (!hasLOS(u.pos, buddy.pos, sim.arena) || dist(u.pos, buddy.pos) > 30) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, buddy.pos)), fwd: 1, strafe: 0 };
     }
-    return idle;
+    if (!tgt) return idle;
+    const toT = angleTo(u.pos, tgt.pos);
+    return { facing: toT, fwd: 0, strafe: sim.time < u.gcdEnd ? this.strafeSign * 0.8 : 0 };
   }
 }

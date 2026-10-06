@@ -100,6 +100,24 @@ describe('bots play by the same rules as humans', () => {
     assert.ok(foe.health < foe.maxHealth, 'mage should have found a angle and cast');
   });
 
+  it('a priest bot on its own moves and casts at its enemy instead of standing still', () => {
+    const ctx = mk();
+    const priest = bot(ctx, 'priest', 0, -10, 0);
+    const foe = dummy(ctx, 'warrior', 1, 12, 0);
+    const start = { ...priest.pos };
+    let travelled = 0;
+    let last = { ...priest.pos };
+    const ev = run(ctx, 12000, () => {
+      travelled += Math.hypot(priest.pos.x - last.x, priest.pos.z - last.z);
+      last = { ...priest.pos };
+      return false;
+    });
+    assert.ok(travelled > 2, `priest moved ${travelled.toFixed(1)} yards`);
+    assert.ok(ev.some((e) => e.t === 'cast' && e.unit === priest.id && e.ability === 'smite'), 'a lone priest smites');
+    assert.ok(foe.health < foe.maxHealth);
+    void start;
+  });
+
   it('only stealth and shield are used before the gates open', () => {
     const ctx = mk(3000);
     bot(ctx, 'rogue', 0, -24, 0);

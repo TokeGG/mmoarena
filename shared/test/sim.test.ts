@@ -552,9 +552,9 @@ describe('v0.23 combat rules', () => {
     const b = sim.addUnit({ name: 'b', classId: 'warrior', team: 1 });
     a.pos = { x: 0, z: 0 }; b.pos = { x: 10, z: 0 };
     run(sim, 100);
-    assert.ok(sim.useAbility(a.id, 'fireball', b.id).ok);
+    assert.ok(sim.useAbility(a.id, 'polymorph', b.id).ok);
     run(sim, 1600); // past the global cooldown, mid-cast
-    assert.ok(a.cast?.ability === 'fireball');
+    assert.ok(a.cast?.ability === 'polymorph');
     const r = sim.useAbility(a.id, 'frostbolt', b.id);
     assert.ok(r.ok);
     assert.equal(a.cast?.ability, 'frostbolt');

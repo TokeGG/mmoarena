@@ -74,7 +74,6 @@ export class MainMenu {
   private classId: ClassId;
   private build: Build;
   private nameInput = el('input');
-  private foes = el('select');
   private ally = el('select');
   private size = el('select');
   private diff = el('select');
@@ -247,7 +246,7 @@ export class MainMenu {
       rec(0, []);
       return out;
     };
-    /** Opponent and partner lists depend on the team size (n foes, n-1 bot partners). */
+    /** The partner list depends on the team size (n-1 bot partners). */
     const fill = (sel: HTMLSelectElement, items: [string, string][], key: string, dflt: string) => {
       sel.replaceChildren();
       for (const [v, t] of items) sel.append(new Option(t, v));
@@ -256,11 +255,9 @@ export class MainMenu {
     };
     const refill = () => {
       const n = Number(this.size.value);
-      fill(this.foes, [['random', 'Random classes'], ...combos(n)], `arena.foes${n}`, 'random');
       fill(this.ally, n === 1 ? [['none', 'None (solo)']] : combos(n - 1), `arena.allies${n}`, ['', 'priest', 'priest,mage'][n - 1] || 'none');
       this.ally.disabled = n === 1;
     };
-    this.foes.addEventListener('change', () => store.set(`arena.foes${this.size.value}`, this.foes.value));
     this.ally.addEventListener('change', () => store.set(`arena.allies${this.size.value}`, this.ally.value));
     this.size.addEventListener('change', () => {
       store.set('arena.size', this.size.value);
@@ -277,7 +274,7 @@ export class MainMenu {
     };
     this.map.addEventListener('change', showMap);
     showMap();
-    opts.append(mk('Mode', this.size), mk('Arena', this.map), this.mapDesc, mk('Opponents (practice)', this.foes), mk('Your partners (practice)', this.ally), mk('Bot skill', this.diff));
+    opts.append(mk('Mode', this.size), mk('Arena', this.map), this.mapDesc, mk('Your partners (practice)', this.ally), mk('Bot skill', this.diff));
     const row = el('div', 'mm-row');
     const practice = this.practiceBtn;
     const queue = this.queueBtn;
@@ -464,7 +461,8 @@ export class MainMenu {
       classId: this.classId,
       build: this.build,
       size: Number(this.size.value) as 1 | 2 | 3,
-      foes: this.foes.value === 'random' ? Array.from({ length: Number(this.size.value) }, () => CLASS_IDS[Math.floor(Math.random() * CLASS_IDS.length)]) : (this.foes.value.split(',') as ClassId[]),
+      // practice opponents are always random classes, rolled for every match
+      foes: Array.from({ length: Number(this.size.value) }, () => CLASS_IDS[Math.floor(Math.random() * CLASS_IDS.length)]),
       allies: this.ally.value === 'none' ? [] : (this.ally.value.split(',') as ClassId[]),
       difficulty: this.diff.value as PracticeDifficulty,
       map: this.map.value,

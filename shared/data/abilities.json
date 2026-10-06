@@ -101,7 +101,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 110
+    "amount": 140
    },
    {
     "type": "aura",
@@ -116,14 +116,14 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 1800,
+  "castTime": 1500,
   "cooldown": 0,
   "gcd": true,
   "cost": 60,
   "effects": [
    {
     "type": "damage",
-    "amount": 170
+    "amount": 210
    }
   ]
  },
@@ -218,11 +218,11 @@
   "castTime": 1500,
   "cooldown": 0,
   "gcd": true,
-  "cost": 80,
+  "cost": 70,
   "effects": [
    {
     "type": "heal",
-    "amount": 130
+    "amount": 160
    }
   ]
  },
@@ -255,11 +255,11 @@
   "castTime": 1500,
   "cooldown": 0,
   "gcd": true,
-  "cost": 30,
+  "cost": 25,
   "effects": [
    {
     "type": "damage",
-    "amount": 85
+    "amount": 170
    }
   ]
  },
