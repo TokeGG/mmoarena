@@ -87,12 +87,12 @@ describe('cosmetics', () => {
   it('has a good number of items in every slot, each with a unique id and a valid colour', () => {
     assert.ok(ITEMS.length >= 50);
     assert.equal(new Set(ITEMS.map((i) => i.id)).size, ITEMS.length);
-    for (const slot of COSMETICS.slots) assert.ok(itemsForSlot(slot.id).length >= 7, slot.id);
+    for (const slot of COSMETICS.slots) assert.ok(itemsForSlot(slot.id).filter((i) => !i.owner).length >= 7, slot.id);
     for (const i of ITEMS) assert.match(i.color, /^#[0-9a-f]{6}$/i, i.id);
   });
 
   it('every cosmetic is free for everyone (no unlocks), and bad picks are rejected', () => {
-    for (const i of ITEMS) assert.equal(validateBuild('mage', build('frost', [], { [i.slot]: i.id })).ok, true, i.id);
+    for (const i of ITEMS.filter((x) => !x.owner)) assert.equal(validateBuild('mage', build('frost', [], { [i.slot]: i.id })).ok, true, i.id);
     assert.equal(validateBuild('mage', build('frost', [], { head: 'cloak_azure' })).ok, false, 'wrong slot');
     assert.equal(validateBuild('mage', build('frost', [], { head: 'nope' })).ok, false);
     assert.equal(validateBuild('mage', build('frost', [], { hat: 'crown_gold' })).ok, false);
@@ -100,6 +100,24 @@ describe('cosmetics', () => {
     assert.equal(validateBuild('mage', build('frost', ['bogus'])).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['spell_power', 'improved_blink', 'blazing_speed', 'extra'])).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['spell_power', '', 'blazing_speed'])).ok, true);
+  });
+
+  it('owner-only cosmetics: a good number, rejected and stripped for everyone but the owner', () => {
+    const own = ITEMS.filter((i) => i.owner);
+    assert.ok(own.length >= 8);
+    for (const i of own) {
+      const gear = { [i.slot]: i.id };
+      assert.equal(validateBuild('mage', build('frost', [], gear)).ok, false, i.id);
+      assert.equal(validateBuild('mage', build('frost', [], gear), true).ok, true, i.id);
+      assert.deepEqual(cleanGear(gear), {});
+      assert.deepEqual(cleanGear(gear, true), gear);
+    }
+    // normal items keep the same look index no matter what owner items exist after them
+    for (const slot of COSMETICS.slots) {
+      const list = itemsForSlot(slot.id);
+      const firstOwner = list.findIndex((i) => i.owner);
+      if (firstOwner >= 0) assert.ok(list.slice(firstOwner).every((i) => i.owner), `${slot.id}: owner items come last`);
+    }
   });
 
   it('cleanGear drops anything that no longer exists', () => {

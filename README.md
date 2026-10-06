@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.26.1
+# WoW-style Arena · v0.27.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -51,7 +51,7 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 | Priest | Sacred Lash, Beacon Heal, Surge of Faith, Gavel Strike, Still Tongue |
 | Rogue | Dust Cloud, Deathblow, Hobbling Cut, Choke Cloud, Throwing Spike |
 
-- **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Sacred Lash) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key and the spell lands where your pointer is (a ring shows the spot); while steering with the right button it lands at the centre of the screen.
+- **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Sacred Lash) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key to arm the spell (its slot lights up and a ring follows your pointer), then **click or press the key again to place it**; Esc, casting something else or a stun cancels. The ring only shows while a spell is armed. While steering with the right button the ring sits at the centre of the screen.
 
 Hover any ability, buff or debuff, spec, talent or look to see numbers for your build.
 
@@ -68,6 +68,7 @@ Tab-target, a 1.5 s global cooldown, cast times, interrupts that lock a school, 
 Nothing you wear changes your stats, damage or health: every player of a class is equal, and the build that matters is your spec and talents. There is no loot and no unlocking: **all 60 cosmetics are free for everyone**.
 
 - **Seven slots, 8-10 choices each:** *Headwear* (horned crown, winged circlet, royal and frost crowns, pointed hat, warcrest, halo, antlers, cat ears, knight helm), *Shoulders* (spiked, gilded, crystal, wolf fur, flame tufts, royal mantle, bone, emerald), *Back* (four cloaks that sway as you run, angel, bat and phoenix wings that flap, a war banner), *Weapon glow* (ember, frostbite, venom, radiance, void, storm, blood, moonlit), *Ground aura* (sun ring, frost and emerald runes, hellfire, whirlwind, cherry blossom, shadow mist, drifting embers), *Armor dye* (ten colours that recolour the whole class model) and *Companion* (orbiting fire, frost and spirit orbs, an arcane crystal, orb trios, a pale moon, a lantern).
+- **Owner-only looks:** the founder account has 11 extra cosmetics (Founder's Crown, Void Horns, Dragon Pauldrons, Archon Wings, Cloak of Embers, Godfire, Throne of Light, Stormlord, Midas Gold, Crown Satellites, Mini Sun). Other players cannot pick them, and the server strips them from anyone else's build, but everyone can see them on the owner.
 - **Who sees it:** everyone in the match, spectators and replays too. The menu preview updates as you pick, the picker stays open so you can try several, and **Random look** and **Clear all** are one click.
 - Old saves are tidied automatically: gear ids from the earlier tier and loot system are dropped quietly and any loot you held is gone.
 

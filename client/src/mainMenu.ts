@@ -3,7 +3,7 @@ import {
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
-import { loadBuild, progress, saveBuild } from './profile';
+import { flags, loadBuild, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
 
 /**
@@ -211,7 +211,7 @@ export class MainMenu {
     const random = el('button', 'mm-small', '🎲 Random look');
     random.addEventListener('click', () => {
       this.build.gear = Object.fromEntries(COSMETICS.slots.filter(() => Math.random() < 0.8).map((sl) => {
-        const list = itemsForSlot(sl.id);
+        const list = itemsForSlot(sl.id).filter((i) => !i.owner || flags.owner);
         return [sl.id, list[Math.floor(Math.random() * list.length)].id];
       }));
       this.commit();
@@ -430,9 +430,10 @@ export class MainMenu {
     head.append(el('h2', '', slot.name), clear, close);
     const grid = el('div', 'mm-cos-grid');
     for (const item of itemsForSlot(slotId)) {
-      const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}`);
+      if (item.owner && !flags.owner) continue; // owner-only looks stay hidden from everyone else
+      const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${item.owner ? ' owner' : ''}`);
       b.style.setProperty('--q', item.color);
-      b.append(el('span', 'sw'), el('span', 'ist', item.name));
+      b.append(el('span', 'sw'), el('span', 'ist', (item.owner ? '★ ' : '') + item.name));
       tip(b, `item:${item.id}`);
       b.addEventListener('click', () => {
         this.build.gear[slotId] = item.id;

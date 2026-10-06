@@ -44,6 +44,8 @@ export interface CosmeticItem {
   style: string;
   /** CSS hex colour. */
   color: string;
+  /** Only the owner account may wear it. */
+  owner?: boolean;
 }
 export interface CosmeticsDef { slots: { id: string; name: string; icon: string }[]; items: CosmeticItem[] }
 /** A player's chosen build. Sent on join and validated by the server. */

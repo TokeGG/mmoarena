@@ -1,5 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import { Accounts } from '../src/accounts';
+import { MemoryStore } from '../src/store';
 import { issueProfile, verifyProfile } from '../src/profile';
 import { Lobby } from '../src/rooms';
 import type { ClientMsg, ServerMsg } from '@arena/shared';
@@ -58,6 +60,34 @@ describe('lobby: builds and progress', () => {
     lobby.handle(r, join({ profile: forged, build: { spec: 'frost', talents: [], gear: {} } }));
     assert.ok(c.sent.some((m: ServerMsg) => m.t === 'welcome'), 'a forged token is just ignored: it only counts matches now');
     assert.ok(a.sent.some((m: ServerMsg) => m.t === 'profile' && m.matches === 0));
+  });
+
+  it('owner-only cosmetics are dropped for guests and ordinary accounts but kept for the owner account', async () => {
+    const accounts = new Accounts(new MemoryStore());
+    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 }, accounts);
+    const sign = async (name: string) => {
+      const sock = fakeSocket();
+      const p = lobby.connect(sock);
+      lobby.handle(p, { t: 'register', name, password: 'password1' } as ClientMsg);
+      for (let i = 0; i < 300 && !sock.sent.some((m: ServerMsg) => m.t === 'account'); i++) await new Promise((r) => setTimeout(r, 5));
+      return { sock, p };
+    };
+    const lookOf = (p: any) => [...p.room.sim.units.values()].find((u: any) => u.name === p.name).look as string;
+    const gear = { head: 'founder_crown', aura: 'throne_light', back: 'cloak_azure' };
+    const guest = fakeSocket();
+    const g = lobby.connect(guest);
+    lobby.handle(g, join({ build: { spec: 'frost', talents: [], gear } }));
+    const gl = lookOf(g);
+    assert.equal(gl[0], '-', 'guest: no founder crown');
+    assert.equal(gl[4], '-', 'guest: no throne');
+    assert.notEqual(gl[2], '-', 'guest keeps the ordinary cloak');
+    const reg = await sign('Plain_One');
+    lobby.handle(reg.p, join({ build: { spec: 'frost', talents: [], gear } }));
+    assert.equal(lookOf(reg.p)[0], '-', 'ordinary account: stripped');
+    const owner = await sign('Toke');
+    lobby.handle(owner.p, join({ build: { spec: 'frost', talents: [], gear } }));
+    assert.notEqual(lookOf(owner.p)[0], '-', 'owner keeps the founder crown');
+    assert.notEqual(lookOf(owner.p)[4], '-');
   });
 
   it('a finished match earns progress and issues a new signed token; forfeits and dummies earn nothing', () => {

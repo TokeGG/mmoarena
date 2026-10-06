@@ -108,6 +108,22 @@
    "color": "#8fd8ff"
   },
   {
+   "id": "founder_crown",
+   "slot": "head",
+   "name": "Founder's Crown",
+   "style": "founder",
+   "color": "#f5c542",
+   "owner": true
+  },
+  {
+   "id": "void_horns",
+   "slot": "head",
+   "name": "Void Horns",
+   "style": "voidhorns",
+   "color": "#9b3dff",
+   "owner": true
+  },
+  {
    "id": "spikes_steel",
    "slot": "shoulders",
    "name": "Spiked Pauldrons",
@@ -162,6 +178,14 @@
    "name": "Emerald Plates",
    "style": "plates",
    "color": "#2ecc71"
+  },
+  {
+   "id": "dragon_pauldrons",
+   "slot": "shoulders",
+   "name": "Dragon Pauldrons",
+   "style": "dragon",
+   "color": "#7a1418",
+   "owner": true
   },
   {
    "id": "cloak_crimson",
@@ -220,6 +244,22 @@
    "color": "#c4252b"
   },
   {
+   "id": "archon_wings",
+   "slot": "back",
+   "name": "Archon Wings",
+   "style": "archon",
+   "color": "#ffd76a",
+   "owner": true
+  },
+  {
+   "id": "ember_cloak",
+   "slot": "back",
+   "name": "Cloak of Embers",
+   "style": "embercloak",
+   "color": "#1a1218",
+   "owner": true
+  },
+  {
    "id": "glow_ember",
    "slot": "weapon",
    "name": "Ember Brand",
@@ -276,6 +316,14 @@
    "color": "#bcd2ff"
   },
   {
+   "id": "godfire",
+   "slot": "weapon",
+   "name": "Godfire",
+   "style": "inferno",
+   "color": "#ff7a1a",
+   "owner": true
+  },
+  {
    "id": "ring_sun",
    "slot": "aura",
    "name": "Sun Ring",
@@ -330,6 +378,22 @@
    "name": "Drifting Embers",
    "style": "embers",
    "color": "#ff9d3a"
+  },
+  {
+   "id": "throne_light",
+   "slot": "aura",
+   "name": "Throne of Light",
+   "style": "throne",
+   "color": "#ffd24a",
+   "owner": true
+  },
+  {
+   "id": "storm_lord",
+   "slot": "aura",
+   "name": "Stormlord",
+   "style": "storm",
+   "color": "#6fa8ff",
+   "owner": true
   },
   {
    "id": "dye_crimson",
@@ -402,6 +466,14 @@
    "color": "#f08a2a"
   },
   {
+   "id": "midas",
+   "slot": "tint",
+   "name": "Midas Gold",
+   "style": "dye",
+   "color": "#ffcc33",
+   "owner": true
+  },
+  {
    "id": "orb_fire",
    "slot": "orbit",
    "name": "Fire Orb",
@@ -456,6 +528,22 @@
    "name": "Lantern",
    "style": "lantern",
    "color": "#ffcf5a"
+  },
+  {
+   "id": "crown_satellites",
+   "slot": "orbit",
+   "name": "Crown Satellites",
+   "style": "satellites",
+   "color": "#ffd24a",
+   "owner": true
+  },
+  {
+   "id": "mini_sun",
+   "slot": "orbit",
+   "name": "Mini Sun",
+   "style": "sun",
+   "color": "#ffb52e",
+   "owner": true
   }
  ]
 }

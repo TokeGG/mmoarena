@@ -13,7 +13,7 @@ import { MainMenu } from './mainMenu';
 import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
 import { installTips, setTipMods, setTipProgress } from './tips';
-import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
+import { applyAccountProgress, defaultBuild, flags, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
 import { AccountUi } from './accountUi';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 import { SettingsSync } from './settingsSync';
@@ -165,6 +165,7 @@ function onMessage(raw: MessageEvent) {
       vis.pitch = controls.pitch;
       vis.dist = controls.dist;
       hud.setBar(classId, bar);
+      setAiming(null);
       relabel();
       hud.show(true);
       mainMenu.show(false);
@@ -391,19 +392,38 @@ function castSlot(i: number) {
   if (!ability) return;
   const def = ABILITIES[ability];
   if (def?.target === 'ground') {
-    const g = groundAim(def.range);
-    if (g) send({ t: 'cast', ability, target: null, x: g.x, z: g.z });
+    // first press arms the spell (a ring follows the cursor); pressing it again or clicking places it
+    if (aiming === ability) confirmAim();
+    else setAiming(ability);
     return;
   }
+  setAiming(null);
   send({ t: 'cast', ability, target: targetId });
 }
 
+/** The ground spell waiting for a click (Firefall, Blizzard), or null. The aiming ring only shows while this is set. */
+let aiming: string | null = null;
+function setAiming(id: string | null) {
+  aiming = id;
+  hud.setAiming(id);
+}
+function confirmAim() {
+  const def = aiming ? ABILITIES[aiming] : undefined;
+  if (!aiming || !def) return;
+  const g = groundAim(def.range);
+  if (!g) return; // cursor on the sky: keep aiming
+  send({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z });
+  setAiming(null);
+}
+
 controls.onClick = (x, y) => {
+  if (aiming && !spec) return void confirmAim();
   const id = scene.pick(x, y, spec ? null : you);
   if (id !== null) setTarget(id);
 };
 controls.onKey = (code, e) => {
   if (code === 'Escape') {
+    if (aiming) return void setAiming(null);
     if (hudLayout.editing) {
       hudLayout.stop();
       return;
@@ -552,7 +572,9 @@ function frame(now: number) {
   scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, (spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45);
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
-    const aimed = spec ? undefined : bar.map((a) => ABILITIES[a]).find((d) => d?.target === 'ground');
+    const meNow = snap.units.find((u) => u.id === you);
+    if (aiming && (spec || !meNow?.alive || meNow.controlled || meNow.cast)) setAiming(null);
+    const aimed = !spec && aiming ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
     scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5);
@@ -780,6 +802,7 @@ const accountUi = new AccountUi({
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
   },
   onAccount: (a) => {
+    flags.owner = a?.role === 'owner';
     friendsUi.setAccount(a?.name ?? null);
     if (a) applyAccountProgress(a.matches, a.wins);
     else {

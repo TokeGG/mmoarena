@@ -200,6 +200,13 @@ export class Hud {
     });
   }
 
+  private aimingId: string | null = null;
+  /** Highlights the slot of the ground spell that is waiting for a click. */
+  setAiming(id: string | null) {
+    this.aimingId = id;
+    for (const s of this.slots) s.root.classList.toggle('aiming', !!id && s.ability === id);
+  }
+
   /** Action bar key captions, one per slot, e.g. from the player's keybinds. */
   setKeyLabels(labels: string[]) {
     this.slots.forEach((s, i) => {
@@ -234,6 +241,7 @@ export class Hud {
       (s.cd.firstChild as HTMLElement).textContent = cd > 1500 ? String(Math.ceil(cd / 1000)) : cd > 50 && total > 1500 ? (cd / 1000).toFixed(1) : '';
       s.root.classList.toggle('unusable', me.resource < def.cost || !me.alive);
       s.root.classList.toggle('casting', me.cast?.ability === s.ability);
+      s.root.classList.toggle('aiming', this.aimingId === s.ability);
     }
     $('cast').classList.toggle('hidden', !me.cast);
     if (me.cast) {

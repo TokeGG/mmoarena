@@ -8,7 +8,7 @@ import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
-import { barSwapped, cleanGear, validateBuild } from '@arena/shared';
+import { barSwapped, cleanGear, isOwnerName, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
@@ -500,9 +500,10 @@ export class Lobby {
   private applyIdentity(p: Player, msg: { name: string; classId: ClassId; build?: Build; profile?: string }): boolean {
     const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
     // cosmetics that no longer exist (an old save) are dropped quietly rather than refusing the match
-    const build = msg.build ? { ...msg.build, gear: cleanGear(msg.build.gear) } : undefined;
+    const isOwner = !!p.account && isOwnerName(p.account.name);
+    const build = msg.build ? { ...msg.build, gear: cleanGear(msg.build.gear, isOwner) } : undefined;
     if (build) {
-      const check = validateBuild(msg.classId, build);
+      const check = validateBuild(msg.classId, build, isOwner);
       if (!check.ok) {
         send(p, { t: 'error', reason: `Invalid build: ${check.reason}` });
         send(p, { t: 'closed', reason: `Invalid build: ${check.reason}` });

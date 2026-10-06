@@ -3,6 +3,9 @@ import type { Build, ClassId } from '@arena/shared';
 
 /** Client-side progress and saved builds. The server re-validates everything; this just remembers the player's picks. */
 
+/** Set from the signed-in account: owner-only cosmetics are kept only for the owner. */
+export const flags = { owner: false };
+
 export const progress = { token: '', matches: 0, wins: 0 };
 
 const PROFILE_KEY = 'arena.profile.v1';
@@ -46,7 +49,7 @@ export function sanitize(classId: ClassId, b: Build): Build {
   const spec = SPECS[classId].some((s) => s.id === b.spec) ? b.spec : SPECS[classId][0].id;
   const tiers = TALENTS[classId];
   const talents = tiers.map((tier, i) => (tier.some((t) => t.id === b.talents[i]) ? b.talents[i] : ''));
-  const gear = cleanGear(b.gear);
+  const gear = cleanGear(b.gear, flags.owner);
   return { spec, talents, gear };
 }
 
@@ -59,7 +62,7 @@ export function loadBuild(classId: ClassId): Build {
     const raw = localStorage.getItem(buildKey(classId));
     if (raw) {
       const b = sanitize(classId, JSON.parse(raw) as Build);
-      if (validateBuild(classId, b).ok) return b;
+      if (validateBuild(classId, b, flags.owner).ok) return b;
     }
   } catch {
     /* fall through */

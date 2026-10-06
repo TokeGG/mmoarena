@@ -36,12 +36,12 @@ const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
 export const itemById = (id: string): CosmeticItem | undefined => ITEM_BY_ID.get(id);
 export const itemsForSlot = (slot: string): CosmeticItem[] => ITEMS.filter((i) => i.slot === slot);
 
-/** Keep only cosmetics that exist and sit in the right slot (an old save may name things that were removed). */
-export function cleanGear(gear: Record<string, string> | undefined): Record<string, string> {
+/** Keep only cosmetics that exist, sit in the right slot and are allowed (owner-only items need `isOwner`). */
+export function cleanGear(gear: Record<string, string> | undefined, isOwner = false): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [slot, id] of Object.entries(gear ?? {})) {
     const item = itemById(id);
-    if (item && item.slot === slot) out[slot] = id;
+    if (item && item.slot === slot && (isOwner || !item.owner)) out[slot] = id;
   }
   return out;
 }
@@ -58,7 +58,7 @@ export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(clas
 export type BuildCheck = { ok: true } | { ok: false; reason: string };
 
 /** Strict check used by the server for anything a client sends. */
-export function validateBuild(classId: ClassId, b: Build): BuildCheck {
+export function validateBuild(classId: ClassId, b: Build, isOwner = false): BuildCheck {
   if (!specOf(classId, b.spec)) return { ok: false, reason: 'unknown spec' };
   const tiers = TALENTS[classId];
   if (b.talents.length > tiers.length) return { ok: false, reason: 'too many talents' };
@@ -69,6 +69,7 @@ export function validateBuild(classId: ClassId, b: Build): BuildCheck {
   for (const [slot, id] of Object.entries(b.gear)) {
     const item = itemById(id);
     if (!SLOT_IDS.includes(slot) || !item || item.slot !== slot) return { ok: false, reason: 'invalid cosmetic' };
+    if (item.owner && !isOwner) return { ok: false, reason: `${item.name} is owner only` };
   }
   return { ok: true };
 }
