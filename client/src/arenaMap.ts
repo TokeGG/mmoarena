@@ -201,9 +201,9 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   scene.background = skyTexture();
   scene.fog = new THREE.Fog(0xd8a77c, 80, 430);
 
-  scene.add(new THREE.HemisphereLight(0xffe6c4, 0x5d4d3f, 1.15));
-  const sun = new THREE.DirectionalLight(0xffd7a0, 2.4);
-  sun.position.set(-28, 46, 22);
+  scene.add(new THREE.HemisphereLight(0xcfd8ff, 0x6a4a38, 0.95)); // cool sky fill vs warm sun
+  const sun = new THREE.DirectionalLight(0xffc27a, 2.8);
+  sun.position.set(-46, 30, 20);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   const sc = sun.shadow.camera;
@@ -212,7 +212,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   sc.top = 38;
   sc.bottom = -38;
   sc.near = 1;
-  sc.far = 140;
+  sc.far = 170;
   sun.shadow.bias = -0.0006;
   scene.add(sun);
 
@@ -456,19 +456,86 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     gates.push(g);
   }
 
-  // ---------------------------------------------------------- distant mountains
-  const mountainMat = new THREE.MeshStandardMaterial({ color: 0x6a566a, roughness: 1, flatShading: true });
-  const mountainFar = new THREE.MeshStandardMaterial({ color: 0x8b6f78, roughness: 1, flatShading: true });
-  for (let i = 0; i < 26; i++) {
-    const a = (i / 26) * Math.PI * 2 + rand() * 0.2;
-    const far = rand() < 0.5;
-    const r = (far ? 300 : 210) + rand() * 40;
-    const h = 40 + rand() * 70;
-    const m = new THREE.Mesh(new THREE.ConeGeometry(30 + rand() * 40, h, 6 + Math.floor(rand() * 3)), far ? mountainFar : mountainMat);
-    m.position.set(Math.cos(a) * r, h / 2 - 2, Math.sin(a) * r);
-    m.rotation.y = rand() * 3;
+  // ---------------------------------------------------------- distant mountain ranges (continuous ridgelines)
+  const ridge = (radius: number, height: number, color: number, seed: number, snow: boolean) => {
+    const r2 = rng(seed);
+    const ph = [r2() * 6.28, r2() * 6.28, r2() * 6.28, r2() * 6.28];
+    const geo = new THREE.CylinderGeometry(radius * 0.86, radius, height, 180, 10, true);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      const a = Math.atan2(z, x);
+      const t = (pos.getY(i) + height / 2) / height;
+      const n = 0.5 + 0.5 * (Math.sin(a * 3 + ph[0]) * 0.45 + Math.sin(a * 7 + ph[1]) * 0.3 + Math.sin(a * 17 + ph[2]) * 0.15 + Math.sin(a * 41 + ph[3]) * 0.1);
+      const prof = Math.pow(0.18 + 0.82 * n, 1.4);
+      pos.setY(i, -height / 2 + t * height * prof);
+    }
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({ color, roughness: 1, flatShading: true, side: THREE.DoubleSide });
+    const m = new THREE.Mesh(geo, mat);
+    m.position.y = height / 2 - 4;
     scene.add(m);
+    void snow;
+  };
+  ridge(330, 120, 0x9a7f93, 71, true);
+  ridge(270, 95, 0x75607f, 72, false);
+  ridge(215, 60, 0x574864, 73, false);
+
+  // big low sun and soft clouds painted into the sky
+  const sunDir = sun.position.clone().normalize();
+  const skySprite = (color: number, scale: number, opacity: number, dir: THREE.Vector3, dist: number) => {
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+    sp.position.copy(dir).multiplyScalar(dist);
+    sp.scale.set(scale, scale, 1);
+    scene.add(sp);
+    return sp;
+  };
+  skySprite(0xffb36a, 520, 0.55, sunDir, 600);
+  skySprite(0xfff1c8, 150, 1.0, sunDir, 600);
+  for (let i = 0; i < 14; i++) {
+    const a = rand() * Math.PI * 2;
+    const el = 0.12 + rand() * 0.3;
+    const dir = new THREE.Vector3(Math.cos(a) * Math.cos(el), Math.sin(el), Math.sin(a) * Math.cos(el));
+    const sp = skySprite(rand() < 0.5 ? 0xffc9a0 : 0xd9a8c8, 220 + rand() * 260, 0.16 + rand() * 0.12, dir, 600);
+    sp.scale.y *= 0.28;
   }
+
+  // ---------------------------------------------------------- drifting dust motes and brazier embers
+  const sparkTex = glowTex;
+  const MOTES = 260;
+  const motePos = new Float32Array(MOTES * 3);
+  const moteVel: number[] = [];
+  for (let i = 0; i < MOTES; i++) {
+    motePos[i * 3] = b.minX + rand() * w;
+    motePos[i * 3 + 1] = 0.3 + rand() * 9;
+    motePos[i * 3 + 2] = b.minZ + rand() * d;
+    moteVel.push(0.1 + rand() * 0.25, 0.04 + rand() * 0.12, (rand() - 0.5) * 0.2);
+  }
+  const moteGeo = new THREE.BufferGeometry();
+  moteGeo.setAttribute('position', new THREE.BufferAttribute(motePos, 3));
+  const motes = new THREE.Points(moteGeo, new THREE.PointsMaterial({ map: sparkTex, color: 0xffe2b0, size: 0.16, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  motes.frustumCulled = false;
+  scene.add(motes);
+
+  const emberSrc = flames.length ? [[bx, bz], [bX, bz], [bx, bZ], [bX, bZ]] : [];
+  const EMBERS = emberSrc.length * 14;
+  const emberPos = new Float32Array(EMBERS * 3);
+  const emberLife = new Float32Array(EMBERS);
+  const resetEmber = (i: number) => {
+    const [ex, ez] = emberSrc[Math.floor(i / 14)];
+    emberPos[i * 3] = ex + (rand() - 0.5) * 0.5;
+    emberPos[i * 3 + 1] = 1.7;
+    emberPos[i * 3 + 2] = ez + (rand() - 0.5) * 0.5;
+    emberLife[i] = rand();
+  };
+  for (let i = 0; i < EMBERS; i++) resetEmber(i);
+  const emberGeo = new THREE.BufferGeometry();
+  emberGeo.setAttribute('position', new THREE.BufferAttribute(emberPos, 3));
+  const embers = new THREE.Points(emberGeo, new THREE.PointsMaterial({ map: sparkTex, color: 0xff9a3a, size: 0.22, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  embers.frustumCulled = false;
+  scene.add(embers);
+  let lastT = 0;
 
   // ---------------------------------------------------------- rubble
   const rubbleMat = new THREE.MeshStandardMaterial({ color: 0x8d8274, roughness: 1, flatShading: true });
@@ -491,6 +558,26 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       for (const g of gates) g.visible = show;
     },
     update(t: number) {
+      const dt = Math.min(0.1, Math.max(0, t - lastT));
+      lastT = t;
+      for (let i = 0; i < MOTES; i++) {
+        let x = motePos[i * 3] + moteVel[i * 3] * dt + Math.sin(t * 0.5 + i) * 0.004;
+        let y = motePos[i * 3 + 1] + moteVel[i * 3 + 1] * dt;
+        const z = motePos[i * 3 + 2] + moteVel[i * 3 + 2] * dt;
+        if (x > b.maxX) x = b.minX;
+        if (y > 10) y = 0.3;
+        motePos[i * 3] = x;
+        motePos[i * 3 + 1] = y;
+        motePos[i * 3 + 2] = z;
+      }
+      moteGeo.attributes.position.needsUpdate = true;
+      for (let i = 0; i < EMBERS; i++) {
+        emberLife[i] += dt * 0.5;
+        if (emberLife[i] >= 1) resetEmber(i);
+        emberPos[i * 3 + 1] += dt * (0.8 + (i % 5) * 0.25);
+        emberPos[i * 3] += Math.sin(t * 2 + i * 1.3) * dt * 0.35;
+      }
+      emberGeo.attributes.position.needsUpdate = true;
       for (const [i, f] of flames.entries()) {
         const k = 0.85 + Math.sin(t * 9 + i * 1.7) * 0.08 + Math.sin(t * 23 + i) * 0.07;
         f.glow.scale.set(2.2 * k, 2.2 * k, 1);

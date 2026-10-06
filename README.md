@@ -1,4 +1,4 @@
-# WoW-style Arena (browser phase) · v0.5.0
+# WoW-style Arena (browser phase) · v0.6.0
 
 Third-person 3D arena combat in the style of WoW arena: tab-target, global cooldown, cast times, interrupts with school lockouts, crowd control with diminishing returns, line-of-sight pillars, stealth. The server decides every outcome; the browser is a renderer and input device.
 
@@ -96,4 +96,4 @@ Defaults: RMB-drag steer · LMB-drag orbit camera · W/S move · Q/E strafe · A
 - Warriors and rogues need auto-attack on (R, or any melee ability) to build rage and deal steady damage.
 - No rating or Elo yet, no spell queueing window, no silence or combo points.
 - Bots and dummies still use the classic ability bar and neutral gear; only humans get specs, talents and gear. New spec/ability numbers are untested against human play.
-- Characters are primitive-built low-poly models (`client/src/models.ts`): horned plate warrior with sword and shield, robed mage with hat and glowing staff, haloed priest with mace and tome, hooded rogue with twin daggers. They walk and raise their arms to cast. Swap for glTF later.
+- Characters are built from rounded primitives with ink outlines (`client/src/models.ts`): horned plate warrior with glowing-edged sword and shield, robed mage with bent hat and a floating arcane orb, priest with spinning halo, light wings and mace, hooded rogue with venom daggers. The world has bloom, colour grading, a low golden-hour sun, mountain ridgelines, dust motes and brazier embers (`scene.ts`, `arenaMap.ts`). None of this has been tuned on a real GPU yet. Swap for glTF later.

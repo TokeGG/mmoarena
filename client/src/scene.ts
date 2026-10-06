@@ -1,4 +1,9 @@
 import * as THREE from 'three';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { ARENA } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -46,6 +51,8 @@ export class ArenaScene {
   private raycaster = new THREE.Raycaster();
   private tmp = new THREE.Vector3();
   private lastUpdate = performance.now() / 1000;
+  /** Bloom + colour grade. Null if the GPU refused it; we then fall back to a plain render. */
+  private composer: EffectComposer | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -58,9 +65,44 @@ export class ArenaScene {
       this.renderer.setSize(window.innerWidth, window.innerHeight, false);
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
+      this.composer?.setPixelRatio(this.renderer.getPixelRatio());
+      this.composer?.setSize(window.innerWidth, window.innerHeight);
     };
+    this.composer = this.buildComposer();
     window.addEventListener('resize', resize);
     resize();
+  }
+
+  /** Bloom makes torches, runes and spell glows bloom; the grade adds a warm punch and a soft vignette. */
+  private buildComposer(): EffectComposer | null {
+    try {
+      const target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: 4 });
+      const composer = new EffectComposer(this.renderer, target);
+      composer.addPass(new RenderPass(this.scene, this.camera));
+      composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.75, 1.5));
+      composer.addPass(new OutputPass()); // tone mapping + sRGB
+      composer.addPass(
+        new ShaderPass({
+          uniforms: { tDiffuse: { value: null }, vig: { value: 0.42 }, sat: { value: 1.14 }, contrast: { value: 1.07 } },
+          vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+          fragmentShader: `uniform sampler2D tDiffuse; uniform float vig; uniform float sat; uniform float contrast; varying vec2 vUv;
+            void main(){
+              vec4 c = texture2D(tDiffuse, vUv);
+              float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
+              c.rgb = mix(vec3(l), c.rgb, sat);
+              c.rgb = (c.rgb - 0.5) * contrast + 0.5;
+              c.rgb *= vec3(1.03, 1.0, 0.95);
+              float d = distance(vUv, vec2(0.5));
+              c.rgb *= 1.0 - vig * smoothstep(0.35, 0.85, d);
+              gl_FragColor = c;
+            }`,
+        }),
+      );
+      return composer;
+    } catch (e) {
+      console.warn('post-processing unavailable, using plain rendering', e);
+      return null;
+    }
   }
 
   private createUnitMesh(id: number, classId: ClassId, x: number, z: number): UnitMesh {
@@ -177,6 +219,15 @@ export class ArenaScene {
 
   render(): void {
     this.env.update(performance.now() / 1000);
+    if (this.composer) {
+      try {
+        this.composer.render();
+        return;
+      } catch (e) {
+        console.warn('post-processing failed, falling back', e);
+        this.composer = null;
+      }
+    }
     this.renderer.render(this.scene, this.camera);
   }
 }
