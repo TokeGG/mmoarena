@@ -483,8 +483,8 @@ async function play(req: PlayRequest) {
   const profile = accountUi.account ? undefined : progress.token || undefined;
   const msg: ClientMsg =
     req.mode === 'practice'
-      ? { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'practice', foes: req.foes, ally: req.ally, difficulty: req.difficulty, build: myBuild, profile }
-      : { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'queue', build: myBuild, profile };
+      ? { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'practice', size: req.size, foes: req.foes, allies: req.allies, difficulty: req.difficulty, build: myBuild, profile }
+      : { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'queue', size: req.size, build: myBuild, profile };
   send(msg);
 }
 

@@ -4,11 +4,10 @@ import { issueProfile, verifyProfile } from './profile';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import { validateBuild } from '@arena/shared';
-import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId } from '@arena/shared';
+import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
-const QUEUE_SIZE = 4; // 2v2
 const TICKS_AFTER_END = 20 * 8; // keep the room open 8s so everyone sees the result
 /** A match must have been live this long to count towards gear unlocks (stops instant-win farming). */
 const MIN_COUNTED_MATCH_MS = 20000;
@@ -36,6 +35,8 @@ export interface Player {
   lastSettingsSave?: number;
   /** Arena chosen at join: an arena id or 'random'. */
   mapPref: string;
+  /** Players per team chosen at join. */
+  size: TeamSize;
 }
 
 export function send(p: Player, msg: ServerMsg): void {
@@ -231,7 +232,7 @@ export class Lobby {
   }
 
   connect(ws: WebSocket, ip = ''): Player {
-    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random' };
+    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random', size: 2 };
     this.conns.add(p);
     return p;
   }
@@ -362,6 +363,7 @@ export class Lobby {
         p.name = p.account ? p.account.name : msg.name;
         p.classId = msg.classId;
         p.mapPref = msg.map ?? 'random';
+        p.size = msg.size ?? 2;
         if (msg.mode === 'practice') this.startPractice(p, msg);
         else this.enqueue(p);
         break;
@@ -400,26 +402,30 @@ export class Lobby {
     p.room?.removePlayer(p);
   }
 
-  /** Defaults (nothing specified): passive dummies, a priest ally, a warrior and a mage on the other side. */
+  /** Defaults (nothing specified): passive dummies; for 2v2 a priest ally, a warrior and a mage on the other side. */
   private startPractice(p: Player, msg: JoinMsg): void {
     const difficulty = msg.difficulty ?? 'dummy';
-    const foes = msg.foes ?? (['warrior', 'mage'] as ClassId[]);
-    const ally = msg.ally === undefined ? 'priest' : msg.ally;
+    const size = p.size;
+    const defaultFoes: ClassId[] = ['warrior', 'mage', 'rogue'];
+    const defaultAllies: ClassId[] = ['priest', 'mage'];
+    // explicit lists are honoured as sent (a lopsided practice is allowed); defaults follow the team size
+    const foes = msg.foes && msg.foes.length ? msg.foes.slice(0, 3) : defaultFoes.slice(0, size);
+    const allies = (msg.allies ?? (msg.ally === undefined ? defaultAllies.slice(0, size - 1) : msg.ally ? [msg.ally] : [])).slice(0, 2);
     const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs, false, this.accounts, pickMap(p.mapPref));
     room.addPlayer(p, 0);
     room.broadcastRoster();
-    if (ally) room.addNpc(ally, 0, difficulty);
+    for (const ally of allies) room.addNpc(ally, 0, difficulty);
     for (const foe of foes) room.addNpc(foe, 1, difficulty);
     this.rooms.add(room);
   }
 
   private enqueue(p: Player): void {
     this.queue.push(p);
-    const match = this.findMatch();
+    const match = this.findMatch(p.size);
     if (match) {
       const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs, true, this.accounts, match.map);
       for (const player of match.group) this.queue.splice(this.queue.indexOf(player), 1);
-      match.group.forEach((player, i) => room.addPlayer(player, i < QUEUE_SIZE / 2 ? 0 : 1));
+      match.group.forEach((player, i) => room.addPlayer(player, i < p.size ? 0 : 1));
       room.broadcastRoster();
       this.rooms.add(room);
     }
@@ -427,24 +433,27 @@ export class Lobby {
   }
 
   /**
-   * Four players who can share an arena. Someone who picked a specific arena only plays there; 'random' players fill in
-   * anywhere. The arena with the longest-waiting specific player is tried first; four randoms get a random arena.
+   * Players who can share an arena at this team size (2 x size of them). Someone who picked a specific arena only plays
+   * there; 'random' players fill in anywhere. The arena with the longest-waiting specific player is tried first; all-random
+   * groups get a random arena.
    */
-  private findMatch(): { map: string; group: Player[] } | null {
-    const randoms = this.queue.filter((p) => p.mapPref === 'random');
-    const ids = [...new Set(this.queue.filter((p) => p.mapPref !== 'random').map((p) => p.mapPref))];
+  private findMatch(size: TeamSize): { map: string; group: Player[] } | null {
+    const need = size * 2;
+    const q = this.queue.filter((p) => p.size === size);
+    const randoms = q.filter((p) => p.mapPref === 'random');
+    const ids = [...new Set(q.filter((p) => p.mapPref !== 'random').map((p) => p.mapPref))];
     for (const id of ids) {
-      const group = [...this.queue.filter((p) => p.mapPref === id), ...randoms].slice(0, QUEUE_SIZE);
-      if (group.length >= QUEUE_SIZE) return { map: id, group };
+      const group = [...q.filter((p) => p.mapPref === id), ...randoms].slice(0, need);
+      if (group.length >= need) return { map: id, group };
     }
-    if (randoms.length >= QUEUE_SIZE) return { map: pickMap('random'), group: randoms.slice(0, QUEUE_SIZE) };
+    if (randoms.length >= need) return { map: pickMap('random'), group: randoms.slice(0, need) };
     return null;
   }
 
   private announceQueue(): void {
     for (const p of this.queue) {
-      const waiting = this.queue.filter((q) => q.mapPref === 'random' || p.mapPref === 'random' || q.mapPref === p.mapPref).length;
-      send(p, { t: 'queued', waiting, needed: QUEUE_SIZE });
+      const waiting = this.queue.filter((q) => q.size === p.size && (q.mapPref === 'random' || p.mapPref === 'random' || q.mapPref === p.mapPref)).length;
+      send(p, { t: 'queued', waiting, needed: p.size * 2 });
     }
   }
 

@@ -373,7 +373,7 @@ export class AccountUi {
       x.append(el('span', '', r.icon), el('small', '', `${r.name}\n${r.min}+`));
       ladder.append(x);
     }
-    box.append(el('div', 'rank-label', label), bar, stats, ladder, el('div', 'mm-modal-foot', `Ranked rating changes only in "Ranked 2v2" matches. ${a.rated} rated games played${a.rated < 5 ? ' (placement: ratings move faster for your first 5)' : ''}. Leaving a live ranked match counts as a loss.`));
+    box.append(el('div', 'rank-label', label), bar, stats, ladder, el('div', 'mm-modal-foot', `Ranked rating changes only in ranked queue matches (1v1, 2v2 and 3v3 share one rating). ${a.rated} rated games played${a.rated < 5 ? ' (placement: ratings move faster for your first 5)' : ''}. Leaving a live ranked match counts as a loss.`));
     return box;
   }
 

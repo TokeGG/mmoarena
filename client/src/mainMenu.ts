@@ -16,8 +16,10 @@ export interface PlayRequest {
   name: string;
   classId: ClassId;
   build: Build;
+  /** Players per team (1v1, 2v2, 3v3). */
+  size: 1 | 2 | 3;
   foes: ClassId[];
-  ally: ClassId | null;
+  allies: ClassId[];
   difficulty: PracticeDifficulty;
   /** An arena id or 'random'. */
   map: string;
@@ -73,6 +75,7 @@ export class MainMenu {
   private nameInput = el('input');
   private foes = el('select');
   private ally = el('select');
+  private size = el('select');
   private diff = el('select');
   private map = el('select');
   private mapDesc = el('div', 'mm-mapdesc');
@@ -86,7 +89,11 @@ export class MainMenu {
   private msg = el('div', 'mm-msg');
   private modal = el('div', 'mm-modal hidden');
   private flavor = el('select');
-  private queueBtn = el('button', 'mm-btn', 'Find 2v2 match');
+  private queueBtn = el('button', 'mm-btn', 'Find match');
+  private queueLabel(signedIn: boolean): string {
+    const m = `${this.size.value}v${this.size.value}`;
+    return signedIn ? `Ranked ${m}` : `Find ${m} match`;
+  }
   private account: AccountInfo | null = null;
   private openSlot: string | null = null;
   private perksEl = el('div', 'mm-perks');
@@ -124,7 +131,7 @@ export class MainMenu {
     this.nameInput.disabled = !!a;
     if (a) this.nameInput.value = a.name;
     else this.nameInput.value = store.get('arena.name', '');
-    this.queueBtn.textContent = a ? 'Ranked 2v2' : 'Find 2v2 match';
+    this.queueBtn.textContent = this.queueLabel(!!a);
     this.queueBtn.title = a ? 'Queue for a rated match. Your rating changes with the result.' : 'Sign in to play for rank.';
   }
 
@@ -182,11 +189,38 @@ export class MainMenu {
       sel.value = [...sel.options].some((o) => o.value === saved) ? saved : dflt;
       sel.addEventListener('change', () => store.set(key, sel.value));
     };
-    const foeCombos: [string, string][] = [];
-    for (let i = 0; i < CLASS_IDS.length; i++) for (let j = i + 1; j < CLASS_IDS.length; j++) foeCombos.push([`${CLASS_IDS[i]},${CLASS_IDS[j]}`, `${CLASSES[CLASS_IDS[i]].name} + ${CLASSES[CLASS_IDS[j]].name}`]);
-    for (const c of CLASS_IDS) foeCombos.push([c, `${CLASSES[c].name} (alone)`]);
-    opt(this.foes, foeCombos, 'arena.foes', 'warrior,mage');
-    opt(this.ally, [...CLASS_IDS.map((c): [string, string] => [c, `${CLASSES[c].name} bot`]), ['none', 'None']], 'arena.ally', 'priest');
+    opt(this.size, [['1', '1v1'], ['2', '2v2'], ['3', '3v3']], 'arena.size', '2');
+    const combos = (n: number): [string, string][] => {
+      const out: [string, string][] = [];
+      const rec = (start: number, cur: ClassId[]) => {
+        if (cur.length === n) return void out.push([cur.join(','), cur.map((c) => CLASSES[c].name).join(' + ')]);
+        for (let i = start; i < CLASS_IDS.length; i++) rec(i, [...cur, CLASS_IDS[i]]);
+      };
+      rec(0, []);
+      return out;
+    };
+    /** Opponent and partner lists depend on the team size (n foes, n-1 bot partners). */
+    const fill = (sel: HTMLSelectElement, items: [string, string][], key: string, dflt: string) => {
+      sel.replaceChildren();
+      for (const [v, t] of items) sel.append(new Option(t, v));
+      const saved = store.get(key, dflt);
+      sel.value = [...sel.options].some((o) => o.value === saved) ? saved : [...sel.options].some((o) => o.value === dflt) ? dflt : sel.options[0].value;
+    };
+    const refill = () => {
+      const n = Number(this.size.value);
+      fill(this.foes, combos(n), `arena.foes${n}`, ['warrior', 'warrior,mage', 'warrior,mage,rogue'][n - 1]);
+      fill(this.ally, n === 1 ? [['none', 'None (solo)']] : combos(n - 1), `arena.allies${n}`, ['', 'priest', 'priest,mage'][n - 1] || 'none');
+      this.ally.disabled = n === 1;
+    };
+    this.foes.addEventListener('change', () => store.set(`arena.foes${this.size.value}`, this.foes.value));
+    this.ally.addEventListener('change', () => store.set(`arena.allies${this.size.value}`, this.ally.value));
+    this.size.addEventListener('change', () => {
+      store.set('arena.size', this.size.value);
+      refill();
+      this.queueBtn.textContent = this.queueLabel(!!this.account);
+    });
+    refill();
+    this.queueBtn.textContent = this.queueLabel(!!this.account);
     opt(this.diff, [['dummy', 'Dummies (passive)'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], 'arena.difficulty', 'normal');
     opt(this.map, [['random', 'Random'], ...ARENAS.map((a): [string, string] => [a.id, a.name])], 'arena.map', 'random');
     const showMap = () => {
@@ -195,7 +229,7 @@ export class MainMenu {
     };
     this.map.addEventListener('change', showMap);
     showMap();
-    opts.append(mk('Arena', this.map), this.mapDesc, mk('Opponents', this.foes), mk('Your partner', this.ally), mk('Bot skill', this.diff));
+    opts.append(mk('Mode', this.size), mk('Arena', this.map), this.mapDesc, mk('Opponents (practice)', this.foes), mk('Your partners (practice)', this.ally), mk('Bot skill', this.diff));
     const row = el('div', 'mm-row');
     const practice = el('button', 'mm-btn primary', 'Practice');
     const queue = this.queueBtn;
@@ -449,8 +483,9 @@ export class MainMenu {
       name,
       classId: this.classId,
       build: this.build,
+      size: Number(this.size.value) as 1 | 2 | 3,
       foes: this.foes.value.split(',') as ClassId[],
-      ally: this.ally.value === 'none' ? null : (this.ally.value as ClassId),
+      allies: this.ally.value === 'none' ? [] : (this.ally.value.split(',') as ClassId[]),
       difficulty: this.diff.value as PracticeDifficulty,
       map: this.map.value,
     });

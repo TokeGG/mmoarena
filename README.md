@@ -81,7 +81,7 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 | `shared/src/bot.ts` | Bot AI, driven through the same commands a player uses. |
 | `shared/src/geometry.ts` | Movement, collision, line of sight. Used by the server and by client prediction. |
 | `shared/src/protocol.ts` | Message types and validation of untrusted client input. |
-| `server/` | Node + `ws`. 20 Hz tick, practice rooms, 2v2 queue, per-socket rate limit. |
+| `server/` | Node + `ws`. 20 Hz tick, practice rooms, 1v1/2v2/3v3 queues, per-socket rate limit. |
 | `client/` | Three.js + Vite. Orbit camera, HUD, prediction for own movement, interpolation for everyone else. |
 
 ## Design rules

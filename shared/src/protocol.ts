@@ -3,7 +3,11 @@ import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, LeaderRow, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
+
+/** Team sizes: 1v1, 2v2, 3v3. */
+export type TeamSize = 1 | 2 | 3;
+export const TEAM_SIZES: TeamSize[] = [1, 2, 3];
 
 export type PracticeDifficulty = 'dummy' | 'easy' | 'normal' | 'hard';
 const DIFFICULTIES: PracticeDifficulty[] = ['dummy', 'easy', 'normal', 'hard'];
@@ -15,8 +19,12 @@ export type ClientMsg =
       name: string;
       classId: ClassId;
       mode: 'practice' | 'queue';
-      /** Practice only: enemy classes (1-2), an optional ally bot, and how they behave. */
+      /** Players per team (default 2). */
+      size?: TeamSize;
+      /** Practice only: enemy classes (up to the team size), ally bots (one fewer than the team size), and how they behave. */
       foes?: ClassId[];
+      allies?: ClassId[];
+      /** Older single-ally form, used when `allies` is absent. */
       ally?: ClassId | null;
       difficulty?: PracticeDifficulty;
       /** Arena id, or 'random' (default). */
@@ -104,13 +112,16 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (typeof m.name !== 'string' || typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId) || (m.mode !== 'practice' && m.mode !== 'queue')) return null;
     {
       const validClass = (c: unknown): c is ClassId => typeof c === 'string' && Object.hasOwn(CLASSES, c);
-      const foes = Array.isArray(m.foes) ? (m.foes.filter(validClass).slice(0, 2) as ClassId[]) : undefined;
+      const foes = Array.isArray(m.foes) ? (m.foes.filter(validClass).slice(0, 3) as ClassId[]) : undefined;
+      const allies = Array.isArray(m.allies) ? (m.allies.filter(validClass).slice(0, 2) as ClassId[]) : undefined;
       return {
         t: 'join',
         name: m.name.replace(/[^\w \-.]/g, '').trim().slice(0, 16) || 'Player',
         classId: m.classId,
         mode: m.mode,
+        size: m.size === 1 || m.size === 2 || m.size === 3 ? m.size : undefined,
         foes: foes && foes.length ? foes : undefined,
+        allies,
         ally: m.ally === undefined ? undefined : validClass(m.ally) ? m.ally : null,
         difficulty: DIFFICULTIES.includes(m.difficulty) ? m.difficulty : undefined,
         build: parseBuild(m.build),
