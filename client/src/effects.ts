@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ABILITIES, AURAS } from '@arena/shared';
-import type { AbilityDef, School, SimEvent } from '@arena/shared';
+import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
 
 /**
  * Spell and combat visuals, driven entirely by sim events plus the aura list on each unit.
@@ -1012,6 +1012,43 @@ export class Effects {
   }
 
   // ------------------------------------------------------------ per frame
+
+  private zoneMeshes = new Map<number, { disc: THREE.Mesh; ring: THREE.Mesh }>();
+
+  /** Ground zones (Flamestrike etc.): warning ring that fills until the first beat, then a pulsing fire disc. */
+  setZones(zones: ZoneSnap[], now: number) {
+    const seen = new Set<number>();
+    for (const z of zones) {
+      seen.add(z.id);
+      let m = this.zoneMeshes.get(z.id);
+      const color = SCHOOL_COLOR[z.school] ?? 0xff6a20;
+      if (!m) {
+        const mk = (geo: THREE.BufferGeometry) => {
+          const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.rotation.x = -Math.PI / 2;
+          mesh.position.set(z.x, 0.06, z.z);
+          mesh.scale.set(z.r, z.r, 1);
+          this.scene.add(mesh);
+          return mesh;
+        };
+        m = { disc: mk(this.discGeo), ring: mk(this.ringGeo) };
+        this.zoneMeshes.set(z.id, m);
+      }
+      const armed = now >= z.firstAt;
+      const sincePulse = armed ? ((now - z.firstAt) % z.pulse) / z.pulse : 0;
+      (m.ring.material as THREE.MeshBasicMaterial).opacity = armed ? 0.9 : 0.5 + 0.4 * Math.sin(now / 90);
+      (m.disc.material as THREE.MeshBasicMaterial).opacity = armed ? 0.55 - 0.4 * sincePulse : 0.12 + 0.18 * Math.min(1, (now - z.start) / Math.max(1, z.firstAt - z.start));
+    }
+    for (const [id, m] of this.zoneMeshes) {
+      if (seen.has(id)) continue;
+      for (const mesh of [m.disc, m.ring]) {
+        this.scene.remove(mesh);
+        (mesh.material as THREE.Material).dispose();
+      }
+      this.zoneMeshes.delete(id);
+    }
+  }
 
   update(dt: number, units: EffectUnit[]) {
     this.clock += dt;

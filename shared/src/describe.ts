@@ -1,5 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, TUNING } from './data';
 import { newMods } from './build';
+import { JUMP_DODGE_CD } from './jump';
 import type { AbilityDef, Mods, ModsInput } from './types';
 
 /** Human-readable text for tooltips, generated from the same data the sim uses so it can never drift. */
@@ -112,6 +113,9 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         break;
       case 'gain':
         lines.push(`Generates ${e.amount} ${res}.`);
+        break;
+      case 'zone':
+        lines.push(`Sets the ground at the target's position ablaze for ${e.duration / 1000} sec. Enemies inside take ${Math.round(e.amount * mods.damageDone * (mods.ability[def.id]?.damage ?? 1))} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).`);
         break;
     }
   }

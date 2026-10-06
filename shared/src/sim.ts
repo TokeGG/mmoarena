@@ -1,7 +1,7 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
 import { barFor, compileMods, withAuraMods } from './build';
 import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
-import { canStartJump, jumpHeight } from './jump';
+import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap,
 } from './types';
@@ -42,6 +42,8 @@ export class ArenaSim {
   readonly matchEndsAt: number;
   readonly units = new Map<number, Unit>();
   private events: SimEvent[] = [];
+  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number }[] = [];
+  private nextZoneId = 1;
   private nextId = 1;
   private rng: () => number;
 
@@ -70,7 +72,7 @@ export class ArenaSim {
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
       autoAttack: false, nextSwing: 0, lastCombatAt: -1e9,
-      inputQueue: [], jumpStart: -1e9, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
+      inputQueue: [], jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
     this.units.set(u.id, u);
@@ -180,6 +182,7 @@ export class ArenaSim {
       this.emit({ t: 'phase', phase: 'live', winner: null });
     }
     for (const u of this.units.values()) if (u.alive) this.tickUnit(u);
+    this.tickZones();
     if (this.phase === 'live') this.checkEnd();
   }
 
@@ -216,7 +219,13 @@ export class ArenaSim {
     }
 
     // a fresh jump request only (a repeated stale input must not re-jump)
-    if (queued?.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) u.jumpStart = this.time;
+    if (queued?.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) {
+      u.jumpStart = this.time;
+      if (this.time >= u.dodgeReadyAt) {
+        u.dodgeUntil = this.time + JUMP_MS;
+        u.dodgeReadyAt = this.time + JUMP_DODGE_CD;
+      }
+    }
 
     // movement
     const before = { x: u.pos.x, z: u.pos.z };
@@ -366,6 +375,12 @@ export class ArenaSim {
       }
       case 'blink':
         u.pos = blinkDestination(u.pos, u.facing, eff.distance, this.arena);
+        break;
+      case 'zone':
+        this.zones.push({
+          id: this.nextZoneId++, owner: u.id, team: u.team, x: t.pos.x, z: t.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: eff.amount,
+          start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration,
+        });
         break;
       case 'gain':
         u.resource = Math.min(u.resourceMax, u.resource + eff.amount);
@@ -586,6 +601,31 @@ export class ArenaSim {
     return t;
   }
 
+  /**
+   * Ground effects pulse on a fixed beat (a short telegraph first). Enemies inside the circle take damage, unless they are
+   * airborne at that instant: a well-timed jump dodges a pulse. Targeted spells never check this; only zones do.
+   */
+  private tickZones(): void {
+    if (!this.zones.length) return;
+    for (const z of this.zones) {
+      while (this.phase === 'live' && z.nextAt <= this.time && z.nextAt <= z.end) {
+        const owner = this.units.get(z.owner);
+        for (const v of this.units.values()) {
+          if (!v.alive || v.team === z.team || !owner) continue;
+          if (Math.hypot(v.pos.x - z.x, v.pos.z - z.z) > z.r) continue;
+          if (this.time < v.dodgeUntil && jumpHeight(this.time - v.jumpStart) >= JUMP_DODGE_HEIGHT) {
+            this.emit({ t: 'dodge', unit: v.id, ability: z.ability });
+            continue;
+          }
+          const m = this.modsOf(owner);
+          this.dealDamage(owner, v, z.amount * owner.gearMult * this.variance() * m.damageDone * (m.ability[z.ability]?.damage ?? 1), z.school, z.ability);
+        }
+        z.nextAt += z.pulse;
+      }
+    }
+    this.zones = this.zones.filter((z) => this.time < z.end && this.phase !== 'ended');
+  }
+
   // ------------------------------------------------------------------ snapshots
 
   /** With viewerTeam set, enemy units the team cannot currently see are left out entirely. */
@@ -603,6 +643,7 @@ export class ArenaSim {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
       winner: this.winner, units,
+      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end })),
     };
   }
 

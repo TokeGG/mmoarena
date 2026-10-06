@@ -81,7 +81,9 @@ export type Effect =
   | { type: 'dispel' }
   | { type: 'dashToTarget'; stopDistance: number }
   | { type: 'blink'; distance: number }
-  | { type: 'gain'; amount: number };
+  | { type: 'gain'; amount: number }
+  /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. */
+  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number };
 
 export interface AbilityDef {
   id: string;
@@ -190,6 +192,9 @@ export interface Unit {
   inputQueue: MoveInput[];
   /** Sim time (ms) the current/last jump began. */
   jumpStart: number;
+  /** While time < dodgeUntil and high enough, ground effects miss this unit. dodgeReadyAt gates the next immune jump. */
+  dodgeUntil: number;
+  dodgeReadyAt: number;
   lastInput: MoveInput;
   lastSeq: number;
   starve: number;
@@ -212,6 +217,8 @@ export type SimEvent =
   | { t: 'immune'; src: number; tgt: number; aura: string }
   | { t: 'dispel'; src: number; tgt: number; aura: string }
   | { t: 'death'; unit: number; killer: number | null }
+  /** A jump took the unit out of a ground effect's pulse. */
+  | { t: 'dodge'; unit: number; ability: string }
   | { t: 'phase'; phase: Phase; winner: TeamId | 'draw' | null };
 
 export interface UnitSnap {
@@ -255,4 +262,22 @@ export interface Snapshot {
   phaseEndsAt: number;
   winner: TeamId | 'draw' | null;
   units: UnitSnap[];
+  /** Ground effects currently on the floor. */
+  zones: ZoneSnap[];
+}
+
+export interface ZoneSnap {
+  id: number;
+  owner: number;
+  team: TeamId;
+  x: number;
+  z: number;
+  r: number;
+  school: School;
+  ability: string;
+  start: number;
+  /** Server time of the first pulse; later pulses follow every `pulse` ms until `end`. */
+  firstAt: number;
+  pulse: number;
+  end: number;
 }

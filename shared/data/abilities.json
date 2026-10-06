@@ -593,24 +593,6 @@
   ]
  },
  {
-  "id": "fire_blast",
-  "name": "Fire Blast",
-  "class": "mage",
-  "school": "fire",
-  "target": "enemy",
-  "range": 20,
-  "castTime": 0,
-  "cooldown": 8000,
-  "gcd": false,
-  "cost": 30,
-  "effects": [
-   {
-    "type": "damage",
-    "amount": 130
-   }
-  ]
- },
- {
   "id": "arcane_blast",
   "name": "Arcane Blast",
   "class": "mage",
@@ -869,5 +851,27 @@
    }
   ],
   "keepsStealth": true
+ },
+ {
+  "id": "flamestrike",
+  "name": "Flamestrike",
+  "class": "mage",
+  "school": "fire",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1500,
+  "cooldown": 12000,
+  "gcd": true,
+  "cost": 70,
+  "effects": [
+   {
+    "type": "zone",
+    "radius": 5,
+    "duration": 8000,
+    "pulse": 1000,
+    "amount": 45,
+    "delay": 800
+   }
+  ]
  }
 ]

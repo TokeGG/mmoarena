@@ -104,3 +104,7 @@ Defaults: RMB-drag steer · LMB-drag orbit camera · W/S move · Q/E strafe · A
 - No rating or Elo yet, no spell queueing window, no silence or combo points.
 - Bots and dummies still use the classic ability bar and neutral gear; only humans get specs, talents and gear. New spec/ability numbers are untested against human play.
 - Characters are built from rounded primitives with ink outlines (`client/src/models.ts`): horned plate warrior with glowing-edged sword and shield, robed mage with bent hat and a floating arcane orb, priest with spinning halo, light wings and mace, hooded rogue with venom daggers. The world has bloom, colour grading, a low golden-hour sun, mountain ridgelines, dust motes and brazier embers (`scene.ts`, `arenaMap.ts`). None of this has been tuned on a real GPU yet. Swap for glTF later.
+
+## Ground zones and jumping (0.15)
+
+Space jumps. A jump is mostly cosmetic, but while airborne you can dodge **ground zones** (Flamestrike) pulses; dodging has a 1.5 s cooldown so hop-spamming does not work. Targeted spells and missiles (Fireball, Frostbolt, Smite...) always hit. Fire Blast was removed; Flamestrike took its slot on the Fire bar.

@@ -8,7 +8,7 @@ export const ABILITY_ICON: Record<string, string> = {
   stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', kidney_shot: '🥊', kick: '🦶', sprint: '💨',
   recklessness: '😡', intimidating_shout: '📢', bloodthirst: '💢', whirlwind: '🌪️', enraged_regeneration: '💖',
   shield_slam: '🔰', concussion_blow: '🔨', shield_wall: '🧱',
-  ice_barrier: '🥶', pyroblast: '☄️', fire_blast: '💥', arcane_blast: '🔮', arcane_barrage: '🌟', arcane_power: '⚡',
+  ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋', arcane_blast: '🔮', arcane_barrage: '🌟', arcane_power: '⚡',
   greater_heal: '💗', pain_suppression: '🙏', desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '💀', dispersion: '🌫️',
   mutilate: '🔪', vanish: '🌑', adrenaline_rush: '💉', shadowstep: '👣', evasion: '🌀',
 };

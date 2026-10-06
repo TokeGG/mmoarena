@@ -402,6 +402,7 @@ function frame(now: number) {
 
   scene.setPhase(snap.phase);
   scene.update(units, team, targetId);
+  effects.setZones(snap.zones ?? [], estNow);
   effects.update(
     dt,
     snap.units.map((s) => {

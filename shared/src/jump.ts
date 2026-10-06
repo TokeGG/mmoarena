@@ -15,4 +15,9 @@ export function jumpHeight(elapsedMs: number): number {
   return 4 * JUMP_HEIGHT * t * (1 - t);
 }
 
+/** Airborne at least this high when a ground effect pulses, and the unit avoids that pulse. */
+export const JUMP_DODGE_HEIGHT = 0.5;
+/** A jump only grants ground-effect immunity if the previous immune jump began at least this long ago (no hop-spamming). */
+export const JUMP_DODGE_CD = 1500;
+
 export const canStartJump = (sinceLastStartMs: number): boolean => sinceLastStartMs >= JUMP_MS + JUMP_GAP_MS;

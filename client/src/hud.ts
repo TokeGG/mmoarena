@@ -150,7 +150,7 @@ export class Hud {
       mk(3, 'Enemy', 1, foe, 0.45, { cast: { ability: Object.keys(ABILITIES).find((a) => ABILITIES[a].class === foe && ABILITIES[a].castTime > 0) ?? '', target: 1, start: now - 400, end: now + 1100 } }),
       mk(4, 'Enemy 2', 1, foe2, 0.9),
     ];
-    const snap: Snapshot = { tick: 0, time: now, phase: 'live', phaseEndsAt: now + 60000, winner: null, units };
+    const snap: Snapshot = { tick: 0, time: now, phase: 'live', phaseEndsAt: now + 60000, winner: null, units, zones: [] };
     this.setBar(classId, abilities);
     this.update({ snap, now, you: 1, targetId: 3 });
     this.nameplates([], now);
@@ -419,6 +419,9 @@ export class Hud {
         break;
       case 'dispel':
         this.float(ctx.project(ev.tgt), 'Dispelled', 'info');
+        break;
+      case 'dodge':
+        this.float(ctx.project(ev.unit), 'Dodged!', 'info', 22);
         break;
       case 'death':
         this.log(`${n(ev.unit)} dies`);
