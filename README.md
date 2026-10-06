@@ -1,4 +1,4 @@
-# WoW-style Arena (browser phase) · v0.4.6
+# WoW-style Arena (browser phase) · v0.5.0
 
 Third-person 3D arena combat in the style of WoW arena: tab-target, global cooldown, cast times, interrupts with school lockouts, crowd control with diminishing returns, line-of-sight pillars, stealth. The server decides every outcome; the browser is a renderer and input device.
 
@@ -32,6 +32,15 @@ npm run build && npm start     # uses $PORT, default 8080
 3. Open the Render URL. The same service serves the page and the WebSocket (`wss://<host>/ws`), so there is nothing else to configure and no CORS to set up.
 
 The free tier sleeps when idle, so the first visit after a while takes about a minute to wake. That is fine for testing with friends but not for a live queue.
+
+## Builds, gear and progress
+
+- **Specs:** 3 per class (e.g. Frost/Fire/Arcane), each with its own 6-ability bar and passive modifiers. **Talents:** 3 tiers, one pick per tier.
+- **Gear:** 5 slots, 4 tiers (Initiate, Veteran, Elite, Gladiator), 4 flavors. Tiers unlock by finishing matches (0 / 3 / 8 / 15); each stat bonus is capped at 15%, so higher tiers are a small edge.
+- **Progress without a database:** the server signs a token with your match count; the browser stores it and sends it on join. **Set the `ARENA_SECRET` env var on Render** to a long random string, otherwise a public dev secret is used and tokens can be forged.
+- A match counts only if it was live 20 s or more, was not dummy practice, and you did not forfeit.
+- **Tooltips:** hover abilities, buffs/debuffs, specs, talents, gear, stats and classes (numbers reflect your build).
+- **Main menu:** character-select layout with a live 3D preview of your class behind it.
 
 ## Practice with bots
 
@@ -85,5 +94,6 @@ Defaults: RMB-drag steer · LMB-drag orbit camera · W/S move · Q/E strafe · A
 
 - Numbers are a first pass. Bot-vs-bot runs say mages are weak against melee, two-healer teams stall, and matches with a healer run long. Treat that as a starting point and retune after you play.
 - Warriors and rogues need auto-attack on (R, or any melee ability) to build rage and deal steady damage.
-- No rating or Elo, no gear or catch-up system yet, no spell queueing window, no silence or combo points.
+- No rating or Elo yet, no spell queueing window, no silence or combo points.
+- Bots and dummies still use the classic ability bar and neutral gear; only humans get specs, talents and gear. New spec/ability numbers are untested against human play.
 - Characters are primitive-built low-poly models (`client/src/models.ts`): horned plate warrior with sword and shield, robed mage with hat and glowing staff, haloed priest with mace and tome, hooded rogue with twin daggers. They walk and raise their arms to cast. Swap for glTF later.

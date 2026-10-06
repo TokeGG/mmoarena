@@ -1,5 +1,5 @@
-import { ARENA, CLASSES, CLASS_IDS, PROTOCOL_VERSION, TUNING, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
-import type { Build, ClassId, ClientMsg, MoveInput, PracticeDifficulty, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import { ARENA, CLASSES, PROTOCOL_VERSION, TUNING, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
+import type { Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
 import type { RenderUnit } from './scene';
@@ -8,10 +8,11 @@ import { Hud } from './hud';
 import { Keybinds, SLOT_ACTIONS } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
-import { CLASS_ICON } from './icons';
+import { MainMenu } from './mainMenu';
+import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
-import { CLASS_BLURB, installTips, setTipMods, setTipProgress } from './tips';
-import { defaultBuild, loadBuild, loadProfile, progress, sanitize, saveBuild, saveProfile } from './profile';
+import { installTips, setTipMods, setTipProgress } from './tips';
+import { defaultBuild, loadProfile, progress, saveProfile } from './profile';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -66,7 +67,6 @@ const menu = new Menu(binds, {
 let leaving = false;
 const relabel = () => hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
 binds.onChange = relabel;
-document.getElementById('btn-keys')!.addEventListener('click', () => menu.open(false, 'keys'));
 
 // ------------------------------------------------------------------ networking
 
@@ -97,12 +97,13 @@ function onMessage(raw: MessageEvent) {
       hud.setBar(classId, bar);
       relabel();
       hud.show(true);
-      document.getElementById('join')!.classList.add('hidden');
+      mainMenu.show(false);
       joinMsg('');
       break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
+      mainMenu.refresh();
       break;
     case 'queued':
       joinMsg(`Waiting for players… ${m.waiting}/${m.needed}`);
@@ -117,7 +118,7 @@ function onMessage(raw: MessageEvent) {
       menu.close();
       hud.show(false);
       latest = null;
-      document.getElementById('join')!.classList.remove('hidden');
+      mainMenu.show(true);
       joinMsg(m.reason === 'match over' ? 'Match over. Queue again?' : m.reason);
       break;
   }
@@ -262,9 +263,13 @@ function frame(now: number) {
   lastT = now;
 
   if (!latest) {
-    scene.setCamera(ARENA.spawns[0][0].x, ARENA.spawns[0][0].z, ARENA.spawnFacing[0], 0.5, 16);
+    // Menu backdrop: the chosen class idles in the arena and sways gently towards the camera.
+    const t = now / 1000;
+    const spot = ARENA.spawns[0][0];
+    const face = ARENA.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
     scene.setPhase('prep');
-    scene.update([], 0, null);
+    scene.update([{ id: -1, classId: mainMenu.selectedClass, team: 0, x: spot.x, z: spot.z, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
+    scene.setCamera(spot.x, spot.z, ARENA.spawnFacing[0] + Math.sin(t * 0.6) * 0.1, 0.12, 6.5);
     scene.render();
     return;
   }
@@ -319,101 +324,47 @@ function frame(now: number) {
 }
 requestAnimationFrame(frame);
 
-// ------------------------------------------------------------------ join screen
+// ------------------------------------------------------------------ main menu
 
 loadProfile();
 setTipProgress(progress.matches);
 installTips();
 initTooltips();
-void CLASS_BLURB;
-void saveBuild;
-void sanitize;
-
-const nameInput = document.getElementById('name') as HTMLInputElement;
-const classBox = document.getElementById('classes')!;
-let selected: ClassId = 'mage';
 
 function joinMsg(text: string) {
-  document.getElementById('join-msg')!.textContent = text;
+  mainMenu.setMessage(text);
 }
 
-try {
-  nameInput.value = localStorage.getItem('arena.name') ?? '';
-  const saved = localStorage.getItem('arena.class') as ClassId | null;
-  if (saved && saved in CLASSES) selected = saved;
-} catch {
-  /* storage can be unavailable (private mode) */
-}
-
-const classButtons = CLASS_IDS.map((id) => {
-  const b = document.createElement('button');
-  const ci = document.createElement('span');
-  ci.className = 'ci';
-  ci.textContent = CLASS_ICON[id];
-  b.append(ci, document.createTextNode(CLASSES[id].name));
-  b.style.color = CLASSES[id].color;
-  b.addEventListener('click', () => {
-    selected = id;
-    refreshClassButtons();
-  });
-  classBox.append(b);
-  return { id, b };
-});
-function refreshClassButtons() {
-  for (const { id, b } of classButtons) b.classList.toggle('sel', id === selected);
-}
-refreshClassButtons();
-
-const foesSel = document.getElementById('foes') as HTMLSelectElement;
-const allySel = document.getElementById('ally') as HTMLSelectElement;
-const diffSel = document.getElementById('difficulty') as HTMLSelectElement;
-const PRACTICE_FIELDS: [string, HTMLSelectElement][] = [['arena.foes', foesSel], ['arena.ally', allySel], ['arena.difficulty', diffSel]];
-try {
-  for (const [key, sel] of PRACTICE_FIELDS) {
-    const v = localStorage.getItem(key);
-    if (v && [...sel.options].some((o) => o.value === v)) sel.value = v;
-  }
-} catch {
-  /* ignore */
-}
-document.getElementById('ver')!.textContent = `v${pkg.version}`;
-
-function join(mode: 'practice' | 'queue') {
-  const name = nameInput.value.trim() || 'Player';
-  try {
-    localStorage.setItem('arena.name', name);
-    localStorage.setItem('arena.class', selected);
-    for (const [key, sel] of PRACTICE_FIELDS) localStorage.setItem(key, sel.value);
-  } catch {
-    /* ignore */
-  }
-  myBuild = loadBuild(selected);
+function play(req: PlayRequest) {
+  classId = req.classId;
+  myBuild = req.build;
+  const profile = progress.token || undefined;
   const msg: ClientMsg =
-    mode === 'practice'
-      ? {
-          t: 'join', name, classId: selected, mode,
-          foes: foesSel.value.split(',') as ClassId[],
-          ally: allySel.value === 'none' ? null : (allySel.value as ClassId),
-          difficulty: diffSel.value as PracticeDifficulty,
-          build: myBuild,
-          profile: progress.token || undefined,
-        }
-      : { t: 'join', name, classId: selected, mode, build: myBuild, profile: progress.token || undefined };
-  const sendJoin = () => send(msg);
-  if (ws && ws.readyState === WebSocket.OPEN) return sendJoin();
+    req.mode === 'practice'
+      ? { t: 'join', name: req.name, classId: req.classId, mode: 'practice', foes: req.foes, ally: req.ally, difficulty: req.difficulty, build: req.build, profile }
+      : { t: 'join', name: req.name, classId: req.classId, mode: 'queue', build: req.build, profile };
+  if (ws && ws.readyState === WebSocket.OPEN) return send(msg);
 
   joinMsg('Connecting…');
   ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
-  ws.onopen = sendJoin;
+  ws.onopen = () => send(msg);
   ws.onmessage = onMessage;
   ws.onclose = () => {
     hud.show(false);
     latest = null;
     menu.close();
-    document.getElementById('join')!.classList.remove('hidden');
+    mainMenu.show(true);
+    mainMenu.refresh();
     joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
     leaving = false;
   };
 }
-document.getElementById('btn-practice')!.addEventListener('click', () => join('practice'));
-document.getElementById('btn-queue')!.addEventListener('click', () => join('queue'));
+
+const mainMenu = new MainMenu(document.getElementById('join')!, {
+  onPlay: play,
+  onControls: () => menu.open(false, 'keys'),
+  onSelect: (c, b) => setTipMods(compileMods(c, b)),
+});
+setTipMods(compileMods(mainMenu.selectedClass, mainMenu.currentBuild));
+const verEl = document.getElementById('ver');
+if (verEl) verEl.textContent = `v${pkg.version}`;
