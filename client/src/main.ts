@@ -17,6 +17,7 @@ import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuest
 import { LootUi } from './lootUi';
 import { AccountUi } from './accountUi';
 import { SettingsSync } from './settingsSync';
+import { FriendsUi } from './friendsUi';
 import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 
 const DT = TUNING.tickMs / 1000;
@@ -174,6 +175,19 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'history':
       accountUi.handle(m);
+      break;
+    case 'friends':
+    case 'party':
+    case 'invite':
+    case 'invite_gone':
+    case 'notice':
+      friendsUi.handle(m);
+      break;
+    case 'party_wait':
+      joinMsg(`Waiting for your party… ${m.ready}/${m.total} ready`);
+      break;
+    case 'duel_go':
+      void joinDuel(m.with);
       break;
     case 'live':
       livePicker.show(m.rows);
@@ -676,6 +690,7 @@ const accountUi = new AccountUi({
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
   },
   onAccount: (a) => {
+    friendsUi.setAccount(a?.name ?? null);
     setOwned(a?.inventory ?? []);
     if (a) applyAccountProgress(a.matches, a.wins);
     else {
@@ -688,6 +703,25 @@ const accountUi = new AccountUi({
   },
 });
 
+const friendsUi = new FriendsUi({
+  send: (m) => {
+    if (ws && ws.readyState === WebSocket.OPEN) send(m);
+    else void connect().then((ok) => ok && send(m));
+  },
+  signedIn: () => !!accountUi.account,
+  needSignIn: () => accountUi.openAuth(),
+});
+const menuExtras = document.createElement('div');
+menuExtras.className = 'menu-extras';
+menuExtras.append(accountUi.chip, friendsUi.button);
+
+/** Both friends agreed to a duel: join it with the class and build currently picked in the menu. */
+async function joinDuel(withName: string) {
+  joinMsg('Waiting for your friend…');
+  if (!(await connect())) return joinMsg('Could not reach the server.');
+  send({ t: 'join', name: accountUi.account?.name ?? 'Player', classId: mainMenu.selectedClass, map: mainMenu.selectedMap, mode: 'duel', duelWith: withName, size: 1, build: mainMenu.currentBuild });
+}
+
 const mainMenu = new MainMenu(document.getElementById('join')!, {
   onPlay: play,
   onControls: () => menu.open(false, 'keys'),
@@ -695,7 +729,7 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onWatch: () => void openLive(),
   onSelect: (c, b) => setTipMods(compileMods(c, b)),
   onDiscard: (id) => send({ t: 'discard', id }),
-  extras: accountUi.chip,
+  extras: menuExtras,
 });
 const replayParam = new URLSearchParams(location.search).get('replay');
 if (replayParam && /^[0-9a-f]{12,16}$/.test(replayParam)) void startReplay(replayParam);

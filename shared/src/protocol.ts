@@ -1,6 +1,6 @@
 import { ARENAS, CLASSES } from './data';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
-import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, LeaderRow, LiveMatch, MatchRecord, RosterEntry } from './accounts';
+import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
 export const PROTOCOL_VERSION = 6;
@@ -18,7 +18,9 @@ export type ClientMsg =
       t: 'join';
       name: string;
       classId: ClassId;
-      mode: 'practice' | 'queue';
+      mode: 'practice' | 'queue' | 'duel';
+      /** Duel only: the friend you agreed to fight (account name). */
+      duelWith?: string;
       /** Players per team (default 2). */
       size?: TeamSize;
       /** Practice only: enemy classes (up to the team size), ally bots (one fewer than the team size), and how they behave. */
@@ -58,6 +60,14 @@ export type ClientMsg =
   /** Ranked matches in progress that can be watched. */
   | { t: 'live' }
   | { t: 'spectate'; id: string }
+  /** Friends: your list and requests. */
+  | { t: 'friends' }
+  | { t: 'friend'; op: 'add' | 'accept' | 'decline' | 'remove'; name: string }
+  /** Ask a friend into your party (queue together) or to a 1v1 duel. */
+  | { t: 'invite'; kind: 'party' | 'duel'; name: string }
+  | { t: 'invite_reply'; id: string; accept: boolean }
+  | { t: 'party_leave' }
+  | { t: 'party_kick'; name: string }
   /** Owner only. Any field left out is unchanged; `custom: null` removes a custom style. */
   | { t: 'admin_set'; name: string; grants?: string[]; custom?: CustomStyle | null; useCustom?: boolean; resetPassword?: boolean };
 
@@ -84,6 +94,16 @@ export type ServerMsg =
   | { t: 'roster'; players: RosterEntry[] }
   | { t: 'owner'; ok: boolean; reason?: string }
   | { t: 'history'; rows: MatchRecord[] }
+  | { t: 'friends'; friends: FriendRow[]; requests: string[] }
+  | { t: 'invite'; id: string; kind: 'party' | 'duel'; from: string }
+  | { t: 'invite_gone'; id: string }
+  | { t: 'party'; party: PartyInfo | null }
+  /** Your party is not in the queue yet: `ready` of `total` members have pressed play. */
+  | { t: 'party_wait'; ready: number; total: number }
+  /** A duel was agreed: send a join with mode 'duel' and `duelWith`. */
+  | { t: 'duel_go'; with: string }
+  /** A short message to show the player. */
+  | { t: 'notice'; text: string }
   | { t: 'live'; rows: LiveMatch[] }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
@@ -118,7 +138,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
   if (!m || typeof m !== 'object') return null;
   switch (m.t) {
     case 'join':
-      if (typeof m.name !== 'string' || typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId) || (m.mode !== 'practice' && m.mode !== 'queue')) return null;
+      if (typeof m.name !== 'string' || typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId) || (m.mode !== 'practice' && m.mode !== 'queue' && m.mode !== 'duel')) return null;
     {
       const validClass = (c: unknown): c is ClassId => typeof c === 'string' && Object.hasOwn(CLASSES, c);
       const foes = Array.isArray(m.foes) ? (m.foes.filter(validClass).slice(0, 3) as ClassId[]) : undefined;
@@ -128,6 +148,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
         name: m.name.replace(/[^\w \-.]/g, '').trim().slice(0, 16) || 'Player',
         classId: m.classId,
         mode: m.mode,
+        duelWith: typeof m.duelWith === 'string' && NAME_RE.test(m.duelWith) ? m.duelWith : undefined,
         size: m.size === 1 || m.size === 2 || m.size === 3 ? m.size : undefined,
         foes: foes && foes.length ? foes : undefined,
         allies,
@@ -187,6 +208,22 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'admin_list' };
     case 'history':
       return { t: 'history' };
+    case 'friends':
+      return { t: 'friends' };
+    case 'friend':
+      if (!['add', 'accept', 'decline', 'remove'].includes(m.op) || typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      return { t: 'friend', op: m.op, name: m.name };
+    case 'invite':
+      if ((m.kind !== 'party' && m.kind !== 'duel') || typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      return { t: 'invite', kind: m.kind, name: m.name };
+    case 'invite_reply':
+      if (typeof m.id !== 'string' || !/^[0-9a-f]{8,16}$/.test(m.id)) return null;
+      return { t: 'invite_reply', id: m.id, accept: m.accept === true };
+    case 'party_leave':
+      return { t: 'party_leave' };
+    case 'party_kick':
+      if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      return { t: 'party_kick', name: m.name };
     case 'live':
       return { t: 'live' };
     case 'spectate':

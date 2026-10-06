@@ -2,8 +2,10 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import type { WebSocket } from 'ws';
 import { ARENAS, ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
-import type { LiveMatch, MatchPlayer, MatchRecord, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
+import type { FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
+import { findMatch } from './matchmaking';
+import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import { validateBuild } from '@arena/shared';
@@ -44,7 +46,32 @@ export interface Player {
   size: TeamSize;
   /** The match this connection is watching, if any. */
   watching?: Room;
+  party?: Party;
+  /** Waiting for this friend to join a duel (account key), and since when. */
+  duelWith?: string;
+  duelAt?: number;
 }
+
+export interface Party {
+  id: string;
+  leader: Player;
+  members: Player[];
+  /** Members who pressed play and are waiting for the rest. */
+  ready: Set<Player>;
+}
+
+interface Invite {
+  id: string;
+  kind: 'party' | 'duel';
+  from: Player;
+  to: Player;
+  at: number;
+  /** For party invites: the party it was for. */
+  party?: Party;
+}
+
+const INVITE_TTL_MS = 60000;
+const DUEL_WAIT_MS = 30000;
 
 export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
@@ -67,6 +94,8 @@ export class Room {
   /** Players per team, for the match record. */
   size: TeamSize = 2;
   readonly spectators = new Set<Player>();
+  /** Set by the lobby so friends see who is in a match. */
+  notify: ((p: Player) => void) | null = null;
   private delayed: { snap: Snapshot; events: SimEvent[] }[] = [];
   private recorder: ReplayRecorder | null = null;
   private seed = 0;
@@ -91,6 +120,7 @@ export class Room {
     p.room = this;
     this.players.set(u.id, p);
     if (p.account) this.keys.set(u.id, p.account.key);
+    this.notify?.(p);
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, map: this.arenaId });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
   }
@@ -202,6 +232,7 @@ export class Room {
     p.room = undefined;
     p.unitId = undefined;
     if (this.players.size === 0) this.closed = true;
+    this.notify?.(p);
   }
 
   tick(): void {
@@ -285,12 +316,14 @@ export class Room {
 
   private close(reason: string): void {
     this.closed = true;
-    for (const p of this.players.values()) {
+    const were = [...this.players.values()];
+    for (const p of were) {
       send(p, { t: 'closed', reason });
       p.room = undefined;
       p.unitId = undefined;
     }
     this.players.clear();
+    for (const p of were) this.notify?.(p);
     for (const w of this.spectators) {
       send(w, { t: 'closed', reason });
       w.watching = undefined;
@@ -308,8 +341,12 @@ export interface LobbyConfig {
 
 export class Lobby {
   private rooms = new Set<Room>();
-  private queue: Player[] = [];
+  private queue: QEntry<Player>[] = [];
+  private invites = new Map<string, Invite>();
   private nextPlayerId = 1;
+  private inQueue(p: Player): boolean {
+    return this.queue.some((e) => e.members.includes(p));
+  }
 
   constructor(private cfg: LobbyConfig, private accounts?: Accounts) {}
 
@@ -345,7 +382,7 @@ export class Lobby {
         case 'register':
         case 'login':
         case 'resume': {
-          if (p.room || this.queue.includes(p)) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
+          if (p.room || this.inQueue(p)) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
           const r = msg.t === 'register' ? await acc.register(msg.name, msg.password, p.ip, msg.ownerCode) : msg.t === 'login' ? await acc.login(msg.name, msg.password, p.ip) : await acc.resume(msg.token);
           if (!r.ok) return void send(p, { t: 'auth_error', reason: r.reason });
           p.account = r.account;
@@ -355,14 +392,22 @@ export class Lobby {
           p.ownerOk = await acc.isOwnerSession(r.token, r.account);
           send(p, { t: 'account', account: publicInfo(r.account, p.ownerOk), token: msg.t === 'resume' ? undefined : r.token });
           send(p, { t: 'settings', data: r.account.settings ?? '' });
+          this.pushFriends(p);
+          this.changed(p);
           break;
         }
         case 'logout':
           if (p.token) await acc.logout(p.token);
-          p.account = undefined;
-          p.token = undefined;
-          p.ownerOk = false;
-          send(p, { t: 'logged_out' });
+          this.leaveParty(p);
+          this.dropInvites(p);
+          {
+            const was = p.account;
+            p.account = undefined;
+            p.token = undefined;
+            p.ownerOk = false;
+            send(p, { t: 'logged_out' });
+            if (was) this.changed(p, was);
+          }
           break;
         case 'customize': {
           if (!p.account) return;
@@ -405,6 +450,28 @@ export class Lobby {
           if (r.ok && p.account) send(p, { t: 'account', account: publicInfo(p.account, true) });
           break;
         }
+        case 'friends':
+          if (p.account) this.pushFriends(p);
+          break;
+        case 'friend': {
+          if (!p.account) return void send(p, { t: 'notice', text: 'Sign in to use friends.' });
+          const r = await acc.friendOp(p.account.key, msg.op, msg.name);
+          if (!r.ok) return void send(p, { t: 'notice', text: r.reason });
+          p.account = r.me;
+          if (r.other) {
+            for (const q of this.conns) {
+              if (q.account?.key !== r.other.key) continue;
+              q.account = r.other;
+              this.pushFriends(q);
+              if (msg.op === 'add' && r.note?.startsWith('Request sent')) send(q, { t: 'notice', text: `${p.account.name} sent you a friend request.` });
+              if (msg.op === 'accept' || (msg.op === 'add' && r.note?.startsWith('You and'))) send(q, { t: 'notice', text: `${p.account.name} is now your friend.` });
+            }
+          }
+          if (r.note) send(p, { t: 'notice', text: r.note });
+          this.pushFriends(p);
+          this.changed(p);
+          break;
+        }
         case 'history':
           if (!p.account) return;
           send(p, { t: 'history', rows: await acc.history(p.account.key) });
@@ -443,7 +510,7 @@ export class Lobby {
   handle(p: Player, msg: ClientMsg): void {
     switch (msg.t) {
       case 'join':
-        if (p.room || this.queue.includes(p)) return;
+        if (p.room || this.inQueue(p)) return;
         p.watching?.removeSpectator(p);
         {
           const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
@@ -465,6 +532,7 @@ export class Lobby {
         p.mapPref = msg.map ?? 'random';
         p.size = msg.size ?? 2;
         if (msg.mode === 'practice') this.startPractice(p, msg);
+        else if (msg.mode === 'duel') this.joinDuel(p, msg.duelWith);
         else this.enqueue(p);
         break;
       case 'leave':
@@ -474,11 +542,31 @@ export class Lobby {
         send(p, { t: 'live', rows: [...this.rooms].filter((r) => r.watchable).map((r) => r.live()) });
         break;
       case 'spectate': {
-        if (p.room || this.queue.includes(p)) return;
+        if (p.room || this.inQueue(p)) return;
         const room = [...this.rooms].find((r) => r.id === msg.id && r.watchable);
         if (!room) return void send(p, { t: 'closed', reason: 'That match is over.' });
         p.watching?.removeSpectator(p);
         room.addSpectator(p);
+        this.changed(p);
+        break;
+      }
+      case 'invite':
+        this.invite(p, msg.kind, msg.name);
+        break;
+      case 'invite_reply':
+        this.replyInvite(p, msg.id, msg.accept);
+        break;
+      case 'party_leave':
+        this.leaveParty(p);
+        break;
+      case 'party_kick': {
+        const party = p.party;
+        if (!party || party.leader !== p) return;
+        const target = party.members.find((m) => m.account?.key === msg.name.toLowerCase());
+        if (target && target !== p) {
+          this.leaveParty(target);
+          send(target, { t: 'notice', text: 'You were removed from the party.' });
+        }
         break;
       }
       case 'register':
@@ -493,6 +581,8 @@ export class Lobby {
       case 'admin_list':
       case 'admin_set':
       case 'history':
+      case 'friends':
+      case 'friend':
         this.account(p, msg);
         break;
       default:
@@ -503,16 +593,192 @@ export class Lobby {
   disconnect(p: Player): void {
     this.conns.delete(p);
     this.leave(p);
+    this.leaveParty(p);
+    this.dropInvites(p);
+    this.changed(p);
   }
 
   private leave(p: Player): void {
-    const i = this.queue.indexOf(p);
-    if (i >= 0) {
-      this.queue.splice(i, 1);
-      this.announceQueue();
-    }
+    this.dequeue(p);
+    p.duelWith = undefined;
     p.room?.removePlayer(p);
     p.watching?.removeSpectator(p);
+    if (p.party) {
+      p.party.ready.delete(p);
+      this.sendParty(p.party);
+    }
+    this.changed(p);
+  }
+
+  // ------------------------------------------------------------------ friends and presence
+
+  private statusOf(q: Player): FriendStatus {
+    if (q.room || q.watching) return 'match';
+    if (this.inQueue(q)) return 'queue';
+    if (q.party) return 'party';
+    return 'menu';
+  }
+
+  private friendRows(p: Player): FriendRow[] {
+    const rows: FriendRow[] = [];
+    for (const name of p.account?.friends ?? []) {
+      const q = [...this.conns].find((c) => c.account?.key === name.toLowerCase());
+      rows.push(q?.account ? { name: q.account.name, status: this.statusOf(q), rating: q.account.rating, cosmetics: q.account.cosmetics } : { name, status: 'offline' });
+    }
+    const rank: Record<FriendStatus, number> = { menu: 0, party: 0, queue: 1, match: 1, offline: 2 };
+    return rows.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name));
+  }
+
+  private pushFriends(p: Player): void {
+    if (p.account) send(p, { t: 'friends', friends: this.friendRows(p), requests: p.account.requests ?? [] });
+  }
+
+  /** Something about `p` changed (online, queueing, in a match...): tell the friends who are watching their list. */
+  private changed(p: Player, account = p.account): void {
+    if (!account) return;
+    const me = account.name.toLowerCase();
+    for (const q of this.conns) {
+      if (q !== p && q.account?.friends?.some((f) => f.toLowerCase() === me)) this.pushFriends(q);
+    }
+  }
+
+  // ------------------------------------------------------------------ parties and invites
+
+  private partyInfo(party: Party): PartyInfo {
+    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: party.ready.has(m) })) };
+  }
+
+  private sendParty(party: Party): void {
+    const info = this.partyInfo(party);
+    for (const m of party.members) send(m, { t: 'party', party: info });
+  }
+
+  private leaveParty(p: Player): void {
+    const party = p.party;
+    if (!party) return;
+    // anyone waiting in the queue as part of this party goes back to the menu
+    this.dequeueParty(party);
+    p.party = undefined;
+    party.members = party.members.filter((m) => m !== p);
+    party.ready.delete(p);
+    send(p, { t: 'party', party: null });
+    if (party.members.length <= 1) {
+      for (const m of party.members) {
+        m.party = undefined;
+        send(m, { t: 'party', party: null });
+        send(m, { t: 'notice', text: 'The party was disbanded.' });
+        this.changed(m);
+      }
+      party.members = [];
+    } else {
+      if (party.leader === p) party.leader = party.members[0];
+      party.ready.clear();
+      this.sendParty(party);
+    }
+    this.changed(p);
+  }
+
+  /** Take a party's queue entry (if any) back out and clear its ready marks. */
+  private dequeueParty(party: Party): void {
+    const before = this.queue.length;
+    this.queue = this.queue.filter((e) => !e.members.some((m) => party.members.includes(m) || m.party === party));
+    party.ready.clear();
+    if (this.queue.length !== before) {
+      for (const m of party.members) send(m, { t: 'notice', text: 'Your party left the queue.' });
+      this.announceQueue();
+    }
+  }
+
+  private dropInvites(p: Player): void {
+    for (const [id, inv] of this.invites) {
+      if (inv.from === p || inv.to === p) {
+        this.invites.delete(id);
+        send(inv.to === p ? inv.from : inv.to, { t: 'invite_gone', id });
+      }
+    }
+  }
+
+  private idle(q: Player): boolean {
+    return !q.room && !q.watching && !this.inQueue(q) && q.duelWith === undefined;
+  }
+
+  private invite(p: Player, kind: 'party' | 'duel', name: string): void {
+    if (!p.account) return void send(p, { t: 'notice', text: 'Sign in to invite friends.' });
+    const to = [...this.conns].find((c) => c.account?.key === name.toLowerCase());
+    if (!p.account.friends?.some((f) => f.toLowerCase() === name.toLowerCase())) return void send(p, { t: 'notice', text: 'You can only invite friends.' });
+    if (!to) return void send(p, { t: 'notice', text: `${name} is offline.` });
+    if (!this.idle(p)) return void send(p, { t: 'notice', text: 'Finish what you are doing first.' });
+    if (!this.idle(to)) return void send(p, { t: 'notice', text: `${to.account!.name} is busy right now.` });
+    if ([...this.invites.values()].some((i) => i.from === p && i.to === to)) return void send(p, { t: 'notice', text: 'Already invited.' });
+    let party: Party | undefined;
+    if (kind === 'party') {
+      if (to.party) return void send(p, { t: 'notice', text: `${to.account!.name} is already in a party.` });
+      party = p.party;
+      if (party && party.leader !== p) return void send(p, { t: 'notice', text: 'Only the party leader can invite.' });
+      const pending = [...this.invites.values()].filter((i) => i.kind === 'party' && i.from === p).length;
+      if (party && party.members.length + pending >= 3) return void send(p, { t: 'notice', text: 'A party holds at most three players.' });
+      if (!party) {
+        party = { id: crypto.randomBytes(4).toString('hex'), leader: p, members: [p], ready: new Set() };
+        p.party = party;
+        this.sendParty(party);
+        this.changed(p);
+      }
+    } else {
+      if (p.party || to.party) return void send(p, { t: 'notice', text: 'Leave your party before a duel.' });
+    }
+    const id = crypto.randomBytes(5).toString('hex');
+    this.invites.set(id, { id, kind, from: p, to, at: Date.now(), party });
+    send(to, { t: 'invite', id, kind, from: p.account.name });
+    send(p, { t: 'notice', text: `${kind === 'duel' ? 'Duel' : 'Party'} invite sent to ${to.account!.name}.` });
+  }
+
+  private replyInvite(p: Player, id: string, accept: boolean): void {
+    const inv = this.invites.get(id);
+    if (!inv || inv.to !== p) return;
+    this.invites.delete(id);
+    const from = inv.from;
+    if (!accept) return void send(from, { t: 'notice', text: `${p.account?.name ?? 'They'} declined.` });
+    if (!this.idle(p) || !this.idle(from)) return void send(p, { t: 'notice', text: 'That invite is no longer possible.' });
+    if (inv.kind === 'party') {
+      const party = inv.party;
+      if (!party || party.members.length === 0 || from.party !== party) return void send(p, { t: 'notice', text: 'That party is gone.' });
+      if (party.members.length >= 3) return void send(p, { t: 'notice', text: 'That party is full.' });
+      if (p.party) return;
+      party.members.push(p);
+      p.party = party;
+      party.ready.clear();
+      this.sendParty(party);
+      this.changed(p);
+    } else {
+      // both sides now send a join in duel mode with their current class and build
+      send(from, { t: 'duel_go', with: p.account!.name });
+      send(p, { t: 'duel_go', with: from.account!.name });
+    }
+  }
+
+  /** A duel starts once both friends have joined naming each other. Unranked, one on one. */
+  private joinDuel(p: Player, other: string | undefined): void {
+    if (!p.account || !other) return void send(p, { t: 'closed', reason: 'Duels need a signed-in friend.' });
+    p.duelWith = other.toLowerCase();
+    p.duelAt = Date.now();
+    const mate = [...this.conns].find((q) => q !== p && q.duelWith === p.account!.key && q.account?.key === p.duelWith);
+    if (!mate) return void send(p, { t: 'queued', waiting: 1, needed: 2 });
+    const first = (mate.duelAt ?? 0) <= (p.duelAt ?? 0) ? mate : p;
+    const room = this.makeRoom(this.cfg.queuePrepMs, true, false, pickMap(first.mapPref));
+    room.size = 1;
+    p.duelWith = mate.duelWith = undefined;
+    room.addPlayer(mate, 0);
+    room.addPlayer(p, 1);
+    room.broadcastRoster();
+    this.rooms.add(room);
+  }
+
+  // ------------------------------------------------------------------ rooms and the queue
+
+  private makeRoom(prepMs: number, counts: boolean, ranked: boolean, map: string): Room {
+    const room = new Room(prepMs, counts, this.cfg.minCountedMatchMs, ranked, this.accounts, map);
+    room.notify = (q) => this.changed(q);
+    return room;
   }
 
   /** Defaults (nothing specified): passive dummies; for 2v2 a priest ally, a warrior and a mage on the other side. */
@@ -524,7 +790,7 @@ export class Lobby {
     // explicit lists are honoured as sent (a lopsided practice is allowed); defaults follow the team size
     const foes = msg.foes && msg.foes.length ? msg.foes.slice(0, 3) : defaultFoes.slice(0, size);
     const allies = (msg.allies ?? (msg.ally === undefined ? defaultAllies.slice(0, size - 1) : msg.ally ? [msg.ally] : [])).slice(0, 2);
-    const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs, false, this.accounts, pickMap(p.mapPref));
+    const room = this.makeRoom(this.cfg.practicePrepMs, difficulty !== 'dummy', false, pickMap(p.mapPref));
     room.size = size;
     room.addPlayer(p, 0);
     room.broadcastRoster();
@@ -533,42 +799,66 @@ export class Lobby {
     this.rooms.add(room);
   }
 
+  /** Solo players queue straight away; a party queues once every member has pressed play. */
   private enqueue(p: Player): void {
-    this.queue.push(p);
-    const match = this.findMatch(p.size);
-    if (match) {
-      const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs, true, this.accounts, match.map);
-      room.size = p.size;
-      for (const player of match.group) this.queue.splice(this.queue.indexOf(player), 1);
-      match.group.forEach((player, i) => room.addPlayer(player, i < p.size ? 0 : 1));
+    const party = p.party;
+    if (party && party.members.length > 1) {
+      const leader = party.leader;
+      if (party.members.length > leader.size) return void send(p, { t: 'notice', text: `Your party has ${party.members.length} players: pick a mode with at least that many per team.` });
+      party.ready.add(p);
+      // the leader's mode and arena decide for everyone
+      if (party.ready.size < party.members.length) {
+        this.sendParty(party);
+        for (const m of party.members) send(m, { t: 'party_wait', ready: party.ready.size, total: party.members.length });
+        this.changed(p);
+        return;
+      }
+      for (const m of party.members) m.size = leader.size;
+      this.queue.push({ members: [...party.members], size: leader.size, pref: leader.mapPref, at: Date.now() });
+      party.ready.clear();
+      this.sendParty(party);
+      for (const m of party.members) this.changed(m);
+    } else {
+      this.queue.push({ members: [p], size: p.size, pref: p.mapPref, at: Date.now() });
+      this.changed(p);
+    }
+    this.tryMatch(this.queue[this.queue.length - 1].size);
+    this.announceQueue();
+  }
+
+  private tryMatch(size: TeamSize): void {
+    for (;;) {
+      const m = findMatch(this.queue, size, () => pickMap('random'));
+      if (!m) return;
+      const room = this.makeRoom(this.cfg.queuePrepMs, true, true, m.map);
+      room.size = size;
+      const taken = new Set([...m.teamA, ...m.teamB]);
+      this.queue = this.queue.filter((e) => !taken.has(e));
+      m.teamA.forEach((e) => e.members.forEach((pl) => room.addPlayer(pl, 0)));
+      m.teamB.forEach((e) => e.members.forEach((pl) => room.addPlayer(pl, 1)));
       room.broadcastRoster();
       this.rooms.add(room);
+    }
+  }
+
+  /** Take a player (and whoever queued with them) out of the queue. */
+  private dequeue(p: Player): void {
+    const e = this.queue.find((x) => x.members.includes(p));
+    if (!e) return;
+    this.queue = this.queue.filter((x) => x !== e);
+    for (const m of e.members) {
+      if (m !== p) send(m, { t: 'notice', text: 'Your party left the queue.' });
+      if (m.party) m.party.ready.delete(m);
+      this.changed(m);
     }
     this.announceQueue();
   }
 
-  /**
-   * Players who can share an arena at this team size (2 x size of them). Someone who picked a specific arena only plays
-   * there; 'random' players fill in anywhere. The arena with the longest-waiting specific player is tried first; all-random
-   * groups get a random arena.
-   */
-  private findMatch(size: TeamSize): { map: string; group: Player[] } | null {
-    const need = size * 2;
-    const q = this.queue.filter((p) => p.size === size);
-    const randoms = q.filter((p) => p.mapPref === 'random');
-    const ids = [...new Set(q.filter((p) => p.mapPref !== 'random').map((p) => p.mapPref))];
-    for (const id of ids) {
-      const group = [...q.filter((p) => p.mapPref === id), ...randoms].slice(0, need);
-      if (group.length >= need) return { map: id, group };
-    }
-    if (randoms.length >= need) return { map: pickMap('random'), group: randoms.slice(0, need) };
-    return null;
-  }
-
   private announceQueue(): void {
-    for (const p of this.queue) {
-      const waiting = this.queue.filter((q) => q.size === p.size && (q.mapPref === 'random' || p.mapPref === 'random' || q.mapPref === p.mapPref)).length;
-      send(p, { t: 'queued', waiting, needed: p.size * 2 });
+    for (const e of this.queue) {
+      const compatible = this.queue.filter((x) => x.size === e.size && (x.pref === 'random' || e.pref === 'random' || x.pref === e.pref));
+      const waiting = compatible.reduce((n, x) => n + x.members.length, 0);
+      for (const m of e.members) send(m, { t: 'queued', waiting, needed: e.size * 2 });
     }
   }
 
@@ -576,6 +866,19 @@ export class Lobby {
     for (const room of this.rooms) {
       room.tick();
       if (room.closed) this.rooms.delete(room);
+    }
+    const now = Date.now();
+    for (const [id, inv] of this.invites) {
+      if (now - inv.at > INVITE_TTL_MS) {
+        this.invites.delete(id);
+        send(inv.to, { t: 'invite_gone', id });
+      }
+    }
+    for (const q of this.conns) {
+      if (q.duelWith !== undefined && now - (q.duelAt ?? 0) > DUEL_WAIT_MS) {
+        q.duelWith = undefined;
+        send(q, { t: 'closed', reason: 'Your friend did not join the duel.' });
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { ABILITY_GRANTS, DEFAULT_COSMETICS, EMBLEMS, MAX_INVENTORY, NAME_COLORS, NAME_RE, TITLES, cleanCustom, isOwnerName, lootItem, rarityIndex, rollLoot, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
-import { MAX_HISTORY } from '@arena/shared';
+import { MAX_FRIENDS, MAX_HISTORY, MAX_REQUESTS } from '@arena/shared';
 import type { AccountInfo, AdminRow, CustomStyle, Cosmetics, LeaderRow, MatchRecord } from '@arena/shared';
 import type { Store } from './store';
 
@@ -23,6 +23,9 @@ export interface AccountRecord extends AccountInfo {
   epoch?: number;
   /** Drops since the last epic or better (bad-luck protection). */
   pity?: number;
+  /** Friends (display names) and requests other players have sent this account. */
+  friends?: string[];
+  requests?: string[];
 }
 
 export type AuthResult = { ok: true; account: AccountRecord; token: string } | { ok: false; reason: string };
@@ -79,6 +82,8 @@ export class Accounts {
       const a = JSON.parse(raw) as AccountRecord;
       a.inventory ??= [];
       a.grants ??= [];
+      a.friends ??= [];
+      a.requests ??= [];
       return a;
     } catch {
       return null;
@@ -98,7 +103,7 @@ export class Accounts {
     const salt = crypto.randomBytes(16);
     const record: AccountRecord = {
       key: name.toLowerCase(), name, salt: salt.toString('base64'), hash: await this.hash(password, salt), createdAt: Date.now(),
-      matches: 0, wins: 0, peak: START_RATING, rating: START_RATING, rated: 0, cosmetics: { ...DEFAULT_COSMETICS }, inventory: [], grants: [],
+      matches: 0, wins: 0, peak: START_RATING, rating: START_RATING, rated: 0, cosmetics: { ...DEFAULT_COSMETICS }, inventory: [], grants: [], friends: [], requests: [],
     };
     if (!(await this.store.setNx(`acct:${record.key}`, JSON.stringify(record)))) return { ok: false, reason: 'That name is taken.' };
     await this.store.zadd(LEADERBOARD_KEY, record.rating, record.name);
@@ -311,6 +316,73 @@ export class Accounts {
     }
     await this.save(a);
     return { ok: true, account: a, tempPassword };
+  }
+
+  // ------------------------------------------------------------------ friends
+
+  /**
+   * Friend requests work like the usual two-step: `add` asks (or accepts, if they already asked you), `accept` and `decline`
+   * answer a request, `remove` ends a friendship for both. Returns both fresh records so online sessions can be updated.
+   */
+  async friendOp(
+    meKey: string,
+    op: 'add' | 'accept' | 'decline' | 'remove',
+    name: string,
+  ): Promise<{ ok: true; me: AccountRecord; other?: AccountRecord; note?: string } | { ok: false; reason: string }> {
+    const me = await this.get(meKey);
+    if (!me) return { ok: false, reason: 'Sign in first.' };
+    const lc = (x: string) => x.toLowerCase();
+    const idx = (list: string[], n: string) => list.findIndex((x) => lc(x) === lc(n));
+    const friends = (me.friends ??= []);
+    const requests = (me.requests ??= []);
+    if (lc(name) === me.key) return { ok: false, reason: 'That is you.' };
+    if (op === 'decline') {
+      const i = idx(requests, name);
+      if (i >= 0) requests.splice(i, 1);
+      await this.save(me);
+      return { ok: true, me };
+    }
+    const other = await this.get(name);
+    if (op === 'remove') {
+      const i = idx(friends, name);
+      if (i >= 0) friends.splice(i, 1);
+      await this.save(me);
+      if (other?.friends) {
+        const j = idx(other.friends, me.name);
+        if (j >= 0) {
+          other.friends.splice(j, 1);
+          await this.save(other);
+        }
+      }
+      return { ok: true, me, other: other ?? undefined };
+    }
+    if (!other) return { ok: false, reason: 'No player with that name.' };
+    const becomeFriends = async (): Promise<{ ok: true; me: AccountRecord; other: AccountRecord; note: string } | { ok: false; reason: string }> => {
+      if (friends.length >= MAX_FRIENDS) return { ok: false, reason: `Your friends list is full (${MAX_FRIENDS}).` };
+      if ((other.friends ??= []).length >= MAX_FRIENDS) return { ok: false, reason: `${other.name}'s friends list is full.` };
+      const i = idx(requests, other.name);
+      if (i >= 0) requests.splice(i, 1);
+      if (idx(friends, other.name) < 0) friends.push(other.name);
+      if (idx(other.friends, me.name) < 0) other.friends.push(me.name);
+      const j = idx(other.requests ?? [], me.name);
+      if (j >= 0) other.requests!.splice(j, 1);
+      await this.save(me);
+      await this.save(other);
+      return { ok: true, me, other, note: `You and ${other.name} are now friends.` };
+    };
+    if (op === 'accept') {
+      if (idx(requests, other.name) < 0) return { ok: false, reason: 'No request from that player.' };
+      return becomeFriends();
+    }
+    // add
+    if (idx(friends, other.name) >= 0) return { ok: false, reason: `${other.name} is already your friend.` };
+    if (idx(requests, other.name) >= 0) return becomeFriends(); // they already asked: adding back accepts
+    const theirs = (other.requests ??= []);
+    if (idx(theirs, me.name) >= 0) return { ok: false, reason: 'Request already sent.' };
+    if (theirs.length >= MAX_REQUESTS) return { ok: false, reason: `${other.name} has too many pending requests.` };
+    theirs.push(me.name);
+    await this.save(other);
+    return { ok: true, me, other, note: `Request sent to ${other.name}.` };
   }
 
   // ------------------------------------------------------------------ match history and replays

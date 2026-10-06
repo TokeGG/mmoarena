@@ -312,3 +312,24 @@ export interface LiveMatch {
   elapsedMs: number;
   players: { name: string; classId: string; team: number }[];
 }
+
+// ---------------------------------------------------------------- friends and parties
+
+export const MAX_FRIENDS = 50;
+export const MAX_REQUESTS = 20;
+
+export type FriendStatus = 'offline' | 'menu' | 'queue' | 'match' | 'party';
+
+export interface FriendRow {
+  name: string;
+  status: FriendStatus;
+  /** Only known while they are online. */
+  rating?: number;
+  cosmetics?: Cosmetics;
+}
+
+export interface PartyInfo {
+  id: string;
+  leader: string;
+  members: { name: string; ready: boolean }[];
+}

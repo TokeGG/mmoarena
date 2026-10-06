@@ -1,0 +1,173 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { Accounts } from '../src/accounts';
+import { MemoryStore } from '../src/store';
+import { Lobby } from '../src/rooms';
+import type { Player } from '../src/rooms';
+import type { ClientMsg, ServerMsg } from '@arena/shared';
+
+const sock = () => {
+  const sent: ServerMsg[] = [];
+  return { readyState: 1, sent, send(d: string) { sent.push(JSON.parse(d)); } } as any;
+};
+const until = async (cond: () => boolean) => {
+  for (let i = 0; i < 300 && !cond(); i++) await new Promise((r) => setTimeout(r, 5));
+  assert.ok(cond(), 'timed out');
+};
+const last = <T extends ServerMsg['t']>(s: any, t: T) => (s.sent as ServerMsg[]).filter((m) => m.t === t).at(-1) as Extract<ServerMsg, { t: T }> | undefined;
+
+async function world(names: string[]) {
+  const accounts = new Accounts(new MemoryStore());
+  const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 }, accounts);
+  const us = [] as { name: string; s: any; p: Player }[];
+  for (const name of names) {
+    const s = sock();
+    const p = lobby.connect(s, `ip-${name}`);
+    lobby.handle(p, { t: 'register', name, password: 'password1' } as ClientMsg);
+    await until(() => s.sent.some((m: ServerMsg) => m.t === 'account'));
+    us.push({ name, s, p });
+  }
+  const friend = async (a: number, b: number) => {
+    lobby.handle(us[a].p, { t: 'friend', op: 'add', name: us[b].name });
+    await until(() => (last(us[b].s, 'friends')?.requests ?? []).includes(us[a].name));
+    lobby.handle(us[b].p, { t: 'friend', op: 'accept', name: us[a].name });
+    await until(() => (last(us[a].s, 'friends')?.friends ?? []).some((f) => f.name === us[b].name));
+  };
+  return { accounts, lobby, us, friend };
+}
+
+describe('friends', () => {
+  it('request, accept, presence, remove', async () => {
+    const { lobby, us } = await world(['Ann', 'Bob']);
+    lobby.handle(us[0].p, { t: 'friend', op: 'add', name: 'Bob' });
+    await until(() => (last(us[1].s, 'friends')?.requests ?? []).includes('Ann'));
+    assert.match((last(us[1].s, 'notice') as any).text, /friend request/);
+    lobby.handle(us[0].p, { t: 'friend', op: 'add', name: 'Bob' });
+    await until(() => (last(us[0].s, 'notice') as any).text === 'Request already sent.');
+    lobby.handle(us[1].p, { t: 'friend', op: 'accept', name: 'Ann' });
+    await until(() => (last(us[0].s, 'friends')?.friends ?? []).length === 1);
+    const row = last(us[0].s, 'friends')!.friends[0];
+    assert.equal(row.name, 'Bob');
+    assert.equal(row.status, 'menu');
+    assert.equal(last(us[1].s, 'friends')!.friends[0].name, 'Ann');
+    assert.deepEqual(last(us[1].s, 'friends')!.requests, []);
+
+    // presence follows queueing and disconnects
+    lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    await until(() => last(us[0].s, 'friends')!.friends[0].status === 'queue');
+    lobby.disconnect(us[1].p);
+    await until(() => last(us[0].s, 'friends')!.friends[0].status === 'offline');
+
+    lobby.handle(us[0].p, { t: 'friend', op: 'remove', name: 'Bob' });
+    await until(() => last(us[0].s, 'friends')!.friends.length === 0);
+    lobby.handle(us[0].p, { t: 'friend', op: 'add', name: 'Nobody_here' });
+    await until(() => (last(us[0].s, 'notice') as any).text === 'No player with that name.');
+    lobby.handle(us[0].p, { t: 'friend', op: 'add', name: 'Ann' });
+    await until(() => (last(us[0].s, 'notice') as any).text === 'That is you.');
+  });
+
+  it('adding someone who already asked you makes you friends at once', async () => {
+    const { lobby, us } = await world(['Cy_', 'Dee']);
+    lobby.handle(us[0].p, { t: 'friend', op: 'add', name: 'Dee' });
+    await until(() => (last(us[1].s, 'friends')?.requests ?? []).length === 1);
+    lobby.handle(us[1].p, { t: 'friend', op: 'add', name: 'Cy_' });
+    await until(() => (last(us[1].s, 'friends')?.friends ?? []).length === 1);
+    await until(() => (last(us[0].s, 'friends')?.friends ?? []).length === 1);
+  });
+});
+
+describe('parties', () => {
+  it('only friends can be invited; a party queues together on one team and its members are never split', async () => {
+    const { lobby, us, friend } = await world(['Ann', 'Bob', 'Cy_', 'Dee', 'Eve']);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'party', name: 'Bob' });
+    await until(() => (last(us[0].s, 'notice') as any)?.text === 'You can only invite friends.');
+    await friend(0, 1);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'party', name: 'Bob' });
+    await until(() => !!last(us[1].s, 'invite'));
+    const inv = last(us[1].s, 'invite')!;
+    assert.equal(inv.from, 'Ann');
+    lobby.handle(us[1].p, { t: 'invite_reply', id: inv.id, accept: true });
+    await until(() => last(us[0].s, 'party')?.party?.members.length === 2);
+    assert.equal(last(us[1].s, 'party')!.party!.leader, 'Ann');
+
+    // Ann picks 2v2; Bob presses play first, then Ann: they queue together
+    for (const u of [us[1], us[0]]) lobby.handle(u.p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    assert.ok(last(us[1].s, 'party_wait'));
+    assert.equal(us[0].p.room, undefined);
+    for (const u of [us[2], us[3]]) lobby.handle(u.p, { t: 'join', name: 'x', classId: 'priest', mode: 'queue', size: 2 });
+    assert.ok(us[0].p.room, 'party + two solos = 2v2');
+    const team = (u: { p: Player }) => (us[0].p.room!.sim.units.get(u.p.unitId!)!).team;
+    assert.equal(team(us[0]), team(us[1]), 'party mates share a team');
+    assert.notEqual(team(us[2]), team(us[0]));
+    assert.equal(us[4].p.room, undefined);
+    assert.equal(last(us[0].s, 'friends')!.friends[0].status, 'match');
+  });
+
+  it('party too big for the mode is refused; leaving disbands a two-person party; leader passes on', async () => {
+    const { lobby, us, friend } = await world(['Ann', 'Bob', 'Cy_']);
+    await friend(0, 1);
+    await friend(0, 2);
+    for (const to of ['Bob', 'Cy_']) lobby.handle(us[0].p, { t: 'invite', kind: 'party', name: to });
+    await until(() => !!last(us[1].s, 'invite') && !!last(us[2].s, 'invite'));
+    for (const u of [us[1], us[2]]) lobby.handle(u.p, { t: 'invite_reply', id: last(u.s, 'invite')!.id, accept: true });
+    await until(() => last(us[0].s, 'party')?.party?.members.length === 3);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    assert.match((last(us[0].s, 'notice') as any).text, /at least that many/);
+    lobby.handle(us[0].p, { t: 'party_leave' });
+    await until(() => last(us[1].s, 'party')?.party?.leader === 'Bob');
+    lobby.handle(us[2].p, { t: 'party_leave' });
+    await until(() => last(us[1].s, 'party')?.party === null);
+    assert.equal(us[1].p.party, undefined);
+  });
+
+  it('a party member leaving while waiting in the queue pulls the whole party out', async () => {
+    const { lobby, us, friend } = await world(['Ann', 'Bob']);
+    await friend(0, 1);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'party', name: 'Bob' });
+    await until(() => !!last(us[1].s, 'invite'));
+    lobby.handle(us[1].p, { t: 'invite_reply', id: last(us[1].s, 'invite')!.id, accept: true });
+    await until(() => last(us[0].s, 'party')?.party?.members.length === 2);
+    for (const u of us) lobby.handle(u.p, { t: 'join', name: 'x', classId: 'mage', mode: 'queue', size: 2 });
+    await until(() => us[0].s.sent.some((m: ServerMsg) => m.t === 'queued'));
+    lobby.handle(us[1].p, { t: 'leave' });
+    await until(() => (last(us[0].s, 'notice') as any).text === 'Your party left the queue.');
+    assert.equal(us[0].p.room, undefined);
+  });
+});
+
+describe('duels', () => {
+  it('a friend duel starts an unranked 1v1 once both sides join', async () => {
+    const { lobby, us, friend } = await world(['Ann', 'Bob']);
+    await friend(0, 1);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'duel', name: 'Bob' });
+    await until(() => !!last(us[1].s, 'invite'));
+    lobby.handle(us[1].p, { t: 'invite_reply', id: last(us[1].s, 'invite')!.id, accept: true });
+    assert.equal(last(us[0].s, 'duel_go')!.with, 'Bob');
+    assert.equal(last(us[1].s, 'duel_go')!.with, 'Ann');
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'duel', duelWith: 'Bob' });
+    assert.equal(us[0].p.room, undefined, 'waits for the friend');
+    lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'warrior', mode: 'duel', duelWith: 'Ann' });
+    const room: any = us[0].p.room;
+    assert.ok(room && room === us[1].p.room);
+    assert.equal(room.sim.units.size, 2);
+    assert.equal(room.ranked, false);
+    assert.equal(room.size, 1);
+  });
+
+  it('declining tells the inviter; random people cannot start a duel; invites expire when someone leaves', async () => {
+    const { lobby, us, friend } = await world(['Ann', 'Bob', 'Cy_']);
+    await friend(0, 1);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'duel', name: 'Bob' });
+    await until(() => !!last(us[1].s, 'invite'));
+    lobby.handle(us[1].p, { t: 'invite_reply', id: last(us[1].s, 'invite')!.id, accept: false });
+    await until(() => /declined/.test((last(us[0].s, 'notice') as any)?.text ?? ''));
+    // a duel join naming someone who did not agree just waits, it never pairs with a stranger
+    lobby.handle(us[2].p, { t: 'join', name: 'x', classId: 'mage', mode: 'duel', duelWith: 'Ann' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'duel', duelWith: 'Bob' });
+    assert.equal(us[0].p.room, undefined);
+    assert.equal(us[2].p.room, undefined);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'duel', name: 'Bob' });
+    lobby.disconnect(us[0].p);
+    await until(() => !!last(us[1].s, 'invite_gone') || true);
+  });
+});

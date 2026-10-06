@@ -120,3 +120,10 @@ Space jumps. A jump is mostly cosmetic, but while airborne you can dodge **groun
 - **History:** Profile → Matches lists your last 30 counted matches (ranked and practice vs bots) with result, rating change and a replay link.
 - **Replays:** the server records every command and input of a counted match (about 20-60 KB gzipped, kept 30 days) and the browser re-runs the exact match on the shared simulation, so you can pause, change speed, seek, and follow any player. A replay URL (`/?replay=<id>`) can be shared. Replays only play on the game data they were recorded with (`contentHash`); bump `SIM_REVISION` in `shared/src/replay.ts` whenever you change simulation code, because old replays would no longer play out the same. After a balance change, older replays say so instead of showing a wrong fight.
 - **Spectating:** "Watch live ranked matches" on the main menu. Spectators see the whole arena five seconds behind live, so watching cannot help the players.
+
+## Friends, parties, duels (0.19)
+
+- **Friends** (signed-in players): add by name; the other side gets a request and accepts or declines. The list shows who is online and what they are doing. If you add someone who already asked you, you are friends straight away.
+- **Parties** (up to 3 friends): the leader invites; everybody presses Ranked when ready; the leader's mode and arena apply, and the whole party is always on one team (parties are matched as one unit, never split).
+- **Duels:** challenge an online friend to an unranked 1v1; both sides join with the class and build they have selected in the menu.
+- Friend lists are stored on the account record; presence is in-memory only, so it costs no database reads.
