@@ -96,7 +96,7 @@ export class Hud {
   private target = new UnitFrame($('target-frame'), true);
   private partyFrames = new Map<number, UnitFrame>();
   private enemyFrames = new Map<number, UnitFrame>();
-  private slots: { root: HTMLElement; cd: HTMLElement; ability: string }[] = [];
+  private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
   private castBar = new Bar('#f1c40f');
   private plates = new Map<number, { root: HTMLElement; name: HTMLElement; bar: Bar }>();
   private errTimer = 0;
@@ -115,7 +115,8 @@ export class Hud {
     bar.replaceChildren();
     this.slots = CLASSES[classId].bar.map((ability, i) => {
       const root = el('div', 'slot');
-      root.append(el('span', 'key', String(i + 1)), document.createTextNode(ABILITIES[ability].name));
+      const key = el('span', 'key', String(i + 1));
+      root.append(key, document.createTextNode(ABILITIES[ability].name));
       const cd = el('div', 'cd hidden');
       root.append(cd);
       root.addEventListener('mousedown', (e) => {
@@ -123,8 +124,13 @@ export class Hud {
         this.handlers.onSlot(i);
       });
       bar.append(root);
-      return { root, cd, ability };
+      return { root, cd, key, ability };
     });
+  }
+
+  /** Action bar key captions, one per slot, e.g. from the player's keybinds. */
+  setKeyLabels(labels: string[]) {
+    this.slots.forEach((s, i) => (s.key.textContent = labels[i] ?? ''));
   }
 
   update(ctx: HudContext) {

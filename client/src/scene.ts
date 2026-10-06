@@ -1,6 +1,8 @@
 import * as THREE from 'three';
-import { ARENA, CLASSES } from '@arena/shared';
+import { ARENA } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
+import { createCharacter } from './models';
+import type { Character } from './models';
 
 export interface RenderUnit {
   id: number;
@@ -11,19 +13,24 @@ export interface RenderUnit {
   facing: number;
   alive: boolean;
   stealthed: boolean;
+  casting: boolean;
 }
 
 interface UnitMesh {
   group: THREE.Group;
-  body: THREE.Mesh;
+  character: Character;
   ring: THREE.Mesh;
   targetRing: THREE.Mesh;
   classId: ClassId;
+  lastX: number;
+  lastZ: number;
+  phase: number;
+  move: number;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
-/** Capsules per class for now. Swap `createUnitMesh` for a glTF loader once the sim feels good. */
+/** Units are low-poly class models from models.ts. Swap those for glTF later. */
 export class ArenaScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -32,6 +39,7 @@ export class ArenaScene {
   private pillars: THREE.Mesh[] = [];
   private raycaster = new THREE.Raycaster();
   private tmp = new THREE.Vector3();
+  private lastUpdate = performance.now() / 1000;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -98,18 +106,10 @@ export class ArenaScene {
     resize();
   }
 
-  private createUnitMesh(id: number, classId: ClassId): UnitMesh {
+  private createUnitMesh(id: number, classId: ClassId, x: number, z: number): UnitMesh {
     const group = new THREE.Group();
-    const color = new THREE.Color(CLASSES[classId].color);
-    const body = new THREE.Mesh(
-      new THREE.CapsuleGeometry(0.45, 1.1, 4, 12),
-      new THREE.MeshStandardMaterial({ color, roughness: 0.6 }),
-    );
-    body.position.y = 1.0;
-    body.userData.unitId = id;
-    // A small nub marks the front so facing is readable.
-    const nose = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.25, 0.4), new THREE.MeshStandardMaterial({ color: 0xffffff }));
-    nose.position.set(0, 1.5, 0.5);
+    const character = createCharacter(classId);
+    group.add(character.root);
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.7, 0.85, 32), new THREE.MeshBasicMaterial({ color: 0x3fbf5f, side: THREE.DoubleSide }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.04;
@@ -117,34 +117,36 @@ export class ArenaScene {
     targetRing.rotation.x = -Math.PI / 2;
     targetRing.position.y = 0.05;
     targetRing.visible = false;
-    group.add(body, nose, ring, targetRing);
+    group.add(ring, targetRing);
+    for (const mesh of [...character.meshes, ring, targetRing]) mesh.userData.unitId = id;
     this.scene.add(group);
-    return { group, body, ring, targetRing, classId };
+    return { group, character, ring, targetRing, classId, lastX: x, lastZ: z, phase: 0, move: 0 };
   }
 
   update(units: RenderUnit[], myTeam: TeamId, targetId: number | null): void {
+    const nowS = performance.now() / 1000;
+    const dt = Math.min(0.1, Math.max(0.001, nowS - this.lastUpdate));
+    this.lastUpdate = nowS;
     const seen = new Set<number>();
     for (const u of units) {
       seen.add(u.id);
       let m = this.meshes.get(u.id);
       if (!m) {
-        m = this.createUnitMesh(u.id, u.classId);
+        m = this.createUnitMesh(u.id, u.classId, u.x, u.z);
         this.meshes.set(u.id, m);
       }
+      // walk cycle driven by how far the unit actually moved this frame
+      const speed = Math.hypot(u.x - m.lastX, u.z - m.lastZ) / dt;
+      m.lastX = u.x;
+      m.lastZ = u.z;
+      const target = u.alive && speed > 0.6 ? Math.min(1, speed / 7) : 0;
+      m.move += (target - m.move) * Math.min(1, dt * 12);
+      m.phase += speed * dt * 1.5;
+
       m.group.position.set(u.x, 0, u.z);
       m.group.rotation.y = u.facing;
-      const mat = m.body.material as THREE.MeshStandardMaterial;
-      if (u.alive) {
-        m.body.rotation.x = 0;
-        m.body.position.y = 1.0;
-        mat.color.set(CLASSES[u.classId].color);
-      } else {
-        m.body.rotation.x = Math.PI / 2;
-        m.body.position.y = 0.45;
-        mat.color.set(0x555555);
-      }
-      mat.transparent = u.stealthed;
-      mat.opacity = u.stealthed ? 0.35 : 1;
+      m.character.setState(u.alive, u.stealthed);
+      m.character.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id });
       (m.ring.material as THREE.MeshBasicMaterial).color.set(u.team === myTeam ? 0x3fbf5f : 0xc0392b);
       m.ring.visible = u.alive;
       m.targetRing.visible = u.id === targetId;
@@ -192,8 +194,8 @@ export class ArenaScene {
     const ndc = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     this.raycaster.far = 200;
-    const bodies = [...this.meshes.values()].map((m) => m.body);
-    const hit = this.raycaster.intersectObjects(bodies, false)[0];
+    const groups = [...this.meshes.values()].map((m) => m.group);
+    const hit = this.raycaster.intersectObjects(groups, true)[0];
     return hit ? (hit.object.userData.unitId as number) : null;
   }
 

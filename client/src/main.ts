@@ -5,6 +5,8 @@ import { ArenaScene } from './scene';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
 import { Hud } from './hud';
+import { Keybinds, SLOT_ACTIONS } from './keybinds';
+import { Menu } from './menu';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -12,7 +14,8 @@ const INTERP_DELAY_MS = 100;
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const scene = new ArenaScene(canvas);
-const controls = new Controls(canvas);
+const binds = new Keybinds();
+const controls = new Controls(canvas, binds);
 
 // ------------------------------------------------------------------ state
 
@@ -37,6 +40,22 @@ const hud = new Hud({
   onTarget: (id) => setTarget(id),
   onSlot: (i) => castSlot(i),
 });
+
+const menu = new Menu(binds, {
+  onToggle: (open) => {
+    controls.enabled = !open;
+    if (open) controls.releaseAll();
+  },
+  onLeave: () => {
+    leaving = true;
+    ws?.close();
+  },
+  onSensitivity: (v) => (controls.sens = v),
+});
+let leaving = false;
+const relabel = () => hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
+binds.onChange = relabel;
+document.getElementById('btn-keys')!.addEventListener('click', () => menu.open(false, 'keys'));
 
 // ------------------------------------------------------------------ networking
 
@@ -63,6 +82,7 @@ function onMessage(raw: MessageEvent) {
       targetId = null;
       controls.yaw = controls.facing = ARENA.spawnFacing[team];
       hud.setClass(classId);
+      relabel();
       hud.show(true);
       document.getElementById('join')!.classList.add('hidden');
       joinMsg('');
@@ -77,6 +97,7 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      menu.close();
       hud.show(false);
       latest = null;
       document.getElementById('join')!.classList.remove('hidden');
@@ -189,11 +210,23 @@ controls.onClick = (x, y) => {
   if (id !== null) setTarget(id);
 };
 controls.onKey = (code, e) => {
-  if (code.startsWith('Digit')) castSlot(Number(code.slice(5)) - 1);
-  else if (code === 'Tab') cycleTarget(e.shiftKey ? -1 : 1);
-  else if (code === 'Escape') setTarget(null);
-  else if (code === 'KeyR') {
-    const me = latest?.units.find((u) => u.id === you);
+  if (code === 'Escape') {
+    // Esc closes the menu if open, else clears the target, else opens the menu (WoW behaviour).
+    if (menu.isOpen) menu.back();
+    else if (!latest) return;
+    else if (targetId !== null) setTarget(null);
+    else menu.open(true);
+    return;
+  }
+  if (!latest) return;
+  const action = binds.actionFor(code);
+  if (!action) return;
+  const slot = SLOT_ACTIONS.indexOf(action);
+  if (slot >= 0) castSlot(slot);
+  else if (action === 'nextTarget') cycleTarget(e.shiftKey ? -1 : 1);
+  else if (action === 'prevTarget') cycleTarget(-1);
+  else if (action === 'autoAttack') {
+    const me = latest.units.find((u) => u.id === you);
     send({ t: 'auto', on: !me?.autoAttack });
   }
 };
@@ -236,7 +269,7 @@ function frame(now: number) {
       z = pred.z;
       facing = controls.facing;
     }
-    return { id: u.id, classId: u.classId, team: u.team, x, z, facing, alive: u.alive, stealthed: u.stealthed };
+    return { id: u.id, classId: u.classId, team: u.team, x, z, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast };
   });
 
   renderPos.clear();
@@ -333,8 +366,10 @@ function join(mode: 'practice' | 'queue') {
   ws.onclose = () => {
     hud.show(false);
     latest = null;
+    menu.close();
     document.getElementById('join')!.classList.remove('hidden');
-    joinMsg('Disconnected from server.');
+    joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
+    leaving = false;
   };
 }
 document.getElementById('btn-practice')!.addEventListener('click', () => join('practice'));

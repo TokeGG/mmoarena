@@ -1,3 +1,5 @@
+import type { Action, Keybinds } from './keybinds';
+
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const TURN_SPEED = 2.6; // rad/s for A/D turning
 
@@ -14,6 +16,10 @@ export class Controls {
   facing = 0;
   rmb = false;
   private lmb = false;
+  /** False while a menu is open: keys and mouse steering are ignored (Escape still reaches `onKey`). */
+  enabled = true;
+  /** Mouse look sensitivity multiplier. */
+  sens = 1;
   private downX = 0;
   private downY = 0;
   private dragged = false;
@@ -21,10 +27,15 @@ export class Controls {
   onClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
 
-  constructor(canvas: HTMLCanvasElement) {
+  constructor(canvas: HTMLCanvasElement, private binds: Keybinds) {
     window.addEventListener('keydown', (e) => {
-      if ((e.target as HTMLElement).tagName === 'INPUT') return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === 'INPUT' || tag === 'SELECT') return;
       if (e.code === 'Tab') e.preventDefault();
+      if (!this.enabled) {
+        if (e.code === 'Escape' && !e.repeat) this.onKey(e.code, e);
+        return;
+      }
       if (!e.repeat) this.onKey(e.code, e);
       this.keys.add(e.code);
     });
@@ -36,6 +47,7 @@ export class Controls {
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('mousedown', (e) => {
+      if (!this.enabled) return;
       this.downX = e.clientX;
       this.downY = e.clientY;
       this.dragged = false;
@@ -47,8 +59,9 @@ export class Controls {
     });
     window.addEventListener('mouseup', (e) => {
       if (e.button === 0) {
+        const wasDown = this.lmb;
         this.lmb = false;
-        if (!this.dragged) this.onClick(e.clientX, e.clientY);
+        if (wasDown && this.enabled && !this.dragged) this.onClick(e.clientX, e.clientY);
       }
       if (e.button === 2) {
         this.rmb = false;
@@ -56,30 +69,38 @@ export class Controls {
       }
     });
     window.addEventListener('mousemove', (e) => {
-      if (!this.lmb && !this.rmb) return;
+      if (!this.enabled || (!this.lmb && !this.rmb)) return;
       if (Math.abs(e.clientX - this.downX) + Math.abs(e.clientY - this.downY) > 4) this.dragged = true;
-      this.yaw -= e.movementX * 0.005;
-      this.pitch = clamp(this.pitch + e.movementY * 0.005, -0.15, 1.35);
+      this.yaw -= e.movementX * 0.005 * this.sens;
+      this.pitch = clamp(this.pitch + e.movementY * 0.005 * this.sens, -0.15, 1.35);
     });
     canvas.addEventListener(
       'wheel',
       (e) => {
         e.preventDefault();
+        if (!this.enabled) return;
         this.dist = clamp(this.dist * Math.exp(e.deltaY * 0.001), 3, 30);
       },
       { passive: false },
     );
   }
 
-  private down(...codes: string[]): number {
-    return codes.some((c) => this.keys.has(c)) ? 1 : 0;
+  private down(action: Action): number {
+    return this.binds.codes(action).some((c) => this.keys.has(c)) ? 1 : 0;
+  }
+
+  /** Forget held keys, e.g. when a menu opens mid-run so the character does not keep walking. */
+  releaseAll() {
+    this.keys.clear();
+    this.rmb = this.lmb = false;
+    if (document.pointerLockElement) document.exitPointerLock();
   }
 
   /** Called once per fixed step. */
   sample(dtSec: number): { fwd: number; strafe: number; facing: number } {
-    const fwd = this.down('KeyW', 'ArrowUp') - this.down('KeyS', 'ArrowDown');
-    const turn = this.down('KeyA', 'ArrowLeft') - this.down('KeyD', 'ArrowRight');
-    let strafe = this.down('KeyE') - this.down('KeyQ');
+    const fwd = this.down('forward') - this.down('back');
+    const turn = this.down('turnLeft') - this.down('turnRight');
+    let strafe = this.down('strafeRight') - this.down('strafeLeft');
 
     if (this.rmb) {
       strafe -= turn; // A/D strafe while steering

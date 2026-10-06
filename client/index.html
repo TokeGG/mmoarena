@@ -69,6 +69,27 @@
   .row button { flex:1; padding:11px; border-radius:6px; border:0; background:#3b82f6; color:#fff; font-weight:600; font-size:14px; cursor:pointer; }
   .row button.alt { background:#2a3140; }
   #join-msg { margin-top:10px; min-height:18px; color:#f1c40f; }
+
+  #menu { position:fixed; inset:0; z-index:50; background:rgba(5,6,10,.72); display:flex; align-items:center; justify-content:center; }
+  #menu .card { width:440px; max-width:94vw; max-height:90vh; overflow:auto; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  #menu h2 { margin:0 0 12px; font-size:20px; }
+  #menu .stack { display:flex; flex-direction:column; gap:8px; }
+  #menu button.big { padding:11px; border-radius:6px; border:0; background:#2a3140; color:var(--text); font-size:14px; font-weight:600; cursor:pointer; }
+  #menu button.big:hover { background:#343c4f; }
+  #menu button.big.primary { background:#3b82f6; color:#fff; }
+  #menu button.big.danger { background:#7a2f28; color:#fff; }
+  .srow { display:flex; align-items:center; gap:10px; margin-top:6px; color:var(--dim); }
+  .srow input { flex:1; }
+  #keys-list { margin:8px 0; }
+  .kgroup { margin:12px 0 4px; font-size:11px; letter-spacing:.8px; text-transform:uppercase; color:var(--dim); }
+  .krow { display:grid; grid-template-columns:1fr 92px 92px; gap:6px; align-items:center; padding:2px 0; }
+  .kbtn { padding:6px 4px; border-radius:5px; border:1px solid var(--line); background:#1d222d; color:var(--text); cursor:pointer; font-size:12px; }
+  .kbtn:hover { border-color:#3b82f6; }
+  .kbtn.listening { border-color:#f1c40f; color:#f1c40f; }
+  #keys-note { min-height:18px; margin:6px 0; color:#f1c40f; font-size:12px; }
+  .kfoot { display:flex; gap:8px; }
+  .kfoot button { flex:1; }
+  .linkbtn { background:none; border:0; color:var(--dim); cursor:pointer; text-decoration:underline; font-size:12px; padding:0; margin-top:10px; }
 </style>
 </head>
 <body>
@@ -86,7 +107,7 @@
   <div id="cast" class="hidden"></div>
   <div id="actionbar"></div>
   <div id="log"></div>
-  <div id="help">RMB-drag: steer · W/S move · Q/E strafe · A/D turn · wheel: zoom<br />Tab: next enemy · click: target · 1-6: abilities · R: auto-attack · Esc: clear target</div>
+  <div id="help">RMB-drag: steer · LMB-drag: orbit camera · wheel: zoom · click: target<br />Esc: clear target, then menu · keys can be changed in the menu</div>
 </div>
 
 <div id="join">
@@ -132,8 +153,30 @@
       <button id="btn-practice">Practice</button>
       <button id="btn-queue" class="alt">Find 2v2 match</button>
     </div>
+    <button id="btn-keys" class="linkbtn">Controls &amp; keybinds</button>
     <div id="join-msg"></div>
     <div id="ver"></div>
+  </div>
+</div>
+
+<div id="menu" class="hidden">
+  <div class="card">
+    <div id="menu-main">
+      <h2>Menu</h2>
+      <div class="stack">
+        <button id="menu-resume" class="big primary">Resume</button>
+        <button id="menu-controls" class="big">Controls &amp; keybinds</button>
+        <div class="srow"><span>Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
+        <button id="menu-leave" class="big danger">Leave match</button>
+      </div>
+    </div>
+    <div id="menu-keys" class="hidden">
+      <h2>Controls</h2>
+      <div style="color:var(--dim);font-size:12px">Click a box, then press a key. Two keys per action. Right-click a box to clear it. Esc is reserved for this menu.</div>
+      <div id="keys-list"></div>
+      <div id="keys-note"></div>
+      <div class="kfoot"><button id="keys-reset" class="big">Reset to default</button><button id="keys-back" class="big primary">Done</button></div>
+    </div>
   </div>
 </div>
 <script type="module" src="/src/main.ts"></script>

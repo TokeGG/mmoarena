@@ -1,4 +1,4 @@
-# WoW-style Arena (browser phase) · v0.2.1
+# WoW-style Arena (browser phase) · v0.3.0
 
 Third-person 3D arena combat in the style of WoW arena: tab-target, global cooldown, cast times, interrupts with school lockouts, crowd control with diminishing returns, line-of-sight pillars, stealth. The server decides every outcome; the browser is a renderer and input device.
 
@@ -77,11 +77,13 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 
 ## Controls
 
-RMB-drag steer · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · wheel zoom · Tab next enemy · click to target · 1-6 abilities · R auto-attack · Esc clear target
+Defaults: RMB-drag steer · LMB-drag orbit camera · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · wheel zoom · Tab next enemy · click to target · 1-6 abilities · R auto-attack.
+
+**Esc** clears your target first, then opens the menu (Resume, Controls, mouse sensitivity, Leave match). In **Controls** click a box and press a key; every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. Bindings and sensitivity are saved in the browser. The same screen is on the join page under "Controls & keybinds".
 
 ## Known gaps
 
 - Numbers are a first pass. Bot-vs-bot runs say mages are weak against melee, two-healer teams stall, and matches with a healer run long. Treat that as a starting point and retune after you play.
 - Warriors and rogues need auto-attack on (R, or any melee ability) to build rage and deal steady damage.
 - No rating or Elo, no gear or catch-up system yet, no spell queueing window, no silence or combo points.
-- Units are capsules. Swap in low-poly models once 2v2 is fun.
+- Characters are primitive-built low-poly models (`client/src/models.ts`): horned plate warrior with sword and shield, robed mage with hat and glowing staff, haloed priest with mace and tome, hooded rogue with twin daggers. They walk and raise their arms to cast. Swap for glTF later.

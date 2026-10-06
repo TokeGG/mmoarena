@@ -1,6 +1,6 @@
 {
   "name": "wow-arena",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22 <25" },
@@ -10,7 +10,7 @@
     "dev:client": "npm -w client run dev",
     "build": "npm -w client run build",
     "start": "npm -w server run start",
-    "test": "node --import tsx --test shared/test/*.test.ts server/test/*.test.ts",
+    "test": "node --import tsx --test shared/test/*.test.ts server/test/*.test.ts client/test/*.test.ts",
     "duel": "tsx shared/scripts/duel.ts",
     "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p client --noEmit"
   },
