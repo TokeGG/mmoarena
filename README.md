@@ -4,7 +4,9 @@ A 3D third-person arena game in the style of WoW arena that runs in your browser
 
 ## Play now
 
-Open the game's Render link (the service is called `wow-arena`) in Chrome, Edge or Firefox on a computer (mouse and keyboard), pick a class, a spec and talents, then press **Practice** (bots) or **Ranked** (needs an account).
+**https://mmoarena.onrender.com**
+
+Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pick a class, a spec and talents, then press **Practice** (bots) or **Ranked** (needs an account).
 
 - The first visit after a quiet spell can take up to a minute while the server wakes up. If the page is slow, wait and reload.
 - Guests can play practice and everything else except ranked, rating, history, friends and the leaderboard. Sign up (name + password) in the menu to keep your rating, unlocks, loot, settings and history.
@@ -112,7 +114,7 @@ All audio is synthesised live in the browser (Web Audio), so there are no sound 
 
 ## For the owner (hosting and moderation)
 
-Players do not need any of this. The game is built from the GitHub repo `TokeGG/mmoarena` and hosted on Render as a web service named `wow-arena`; every push to `main` redeploys it (wait for **Deploy live**, then reload with Ctrl+Shift+R).
+Players do not need any of this. The game is built from the GitHub repo `TokeGG/mmoarena` and hosted on Render at https://mmoarena.onrender.com; every push to `main` redeploys it (wait for **Deploy live**, then reload with Ctrl+Shift+R).
 
 ### Environment variables (Render > Environment)
 
