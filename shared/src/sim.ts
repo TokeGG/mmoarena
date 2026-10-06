@@ -507,6 +507,7 @@ export class ArenaSim {
     if (tgt.resourceType === 'rage') tgt.resource = Math.min(tgt.resourceMax, tgt.resource + remaining * TUNING.rageFromTaken);
 
     if (remaining + absorbed > 0) {
+      if (tgt.charge) tgt.charge = null; // being hit stops a charge
       for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage) this.removeAura(tgt, a, 'damage');
       if (this.isStealthed(tgt)) this.breakStealth(tgt);
     }

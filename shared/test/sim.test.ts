@@ -314,6 +314,23 @@ describe('movement', () => {
     mustFail(sim.useAbility(war.id, 'charge', rogue.id), /too close/);
   });
 
+  it('charge stuns the target on cast, and being hit stops the charge', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 20, 0);
+    const mage = add(sim, 'mage', 1, 30, 10);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(war.id, 'charge', rogue.id).ok);
+    assert.ok(rogue.auras.some((a) => a.id === 'charge_stun'), 'target stunned the moment Charge is cast');
+    advance(sim, TICK * 3);
+    assert.ok(war.charge, 'still charging');
+    const at = war.pos.x;
+    sim.dealDamage(mage, war, 20, 'frost', 'frostbolt');
+    assert.equal(war.charge, null, 'a hit ends the charge');
+    advance(sim, TICK * 3);
+    assert.ok(Math.abs(war.pos.x - at) < 0.2, 'stopped where it was hit');
+  });
+
   it('movement input is ignored during a charge, and a stun stops it where it is', () => {
     const sim = live();
     const war = add(sim, 'warrior', 0, 0, 0);

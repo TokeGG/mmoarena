@@ -38,6 +38,10 @@
    {
     "type": "gain",
     "amount": 10
+   },
+   {
+    "type": "aura",
+    "aura": "charge_stun"
    }
   ]
  },

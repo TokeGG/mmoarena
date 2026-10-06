@@ -250,6 +250,13 @@
   "harmful": true,
   "dr": "stun"
  },
+ "charge_stun": {
+  "name": "Charge",
+  "kind": "stun",
+  "duration": 2000,
+  "harmful": true,
+  "dr": "stun"
+ },
  "hammer_stun": {
   "name": "Storm Bolt",
   "kind": "stun",
