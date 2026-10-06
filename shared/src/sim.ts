@@ -178,7 +178,7 @@ export class ArenaSim {
 
     if (tgt !== u) {
       const d = dist(u.pos, tgt.pos);
-      if (def.range > 0 && d > this.rangeOf(u, def) + TUNING.rangeTolerance) return fail('out of range');
+      if (def.range > 0 && d > this.reachOf(u, def)) return fail('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
@@ -359,7 +359,7 @@ export class ArenaSim {
         return;
       }
       if (tgt !== u) {
-        if (def.range > 0 && dist(u.pos, tgt.pos) > this.rangeOf(u, def) + TUNING.rangeTolerance) return this.cancelCast(u, 'out of range');
+        if (def.range > 0 && dist(u.pos, tgt.pos) > this.reachOf(u, def)) return this.cancelCast(u, 'out of range');
         // a channel that has started keeps ticking when the target steps behind a pillar or wall
         if (!this.canSee(u, tgt)) return this.cancelCast(u, 'target not visible');
       }
@@ -381,7 +381,7 @@ export class ArenaSim {
     const tgt = this.units.get(c.target);
     if (!tgt || !tgt.alive) return this.failCast(u, c.ability, 'target is dead');
     if (tgt !== u) {
-      if (def.range > 0 && dist(u.pos, tgt.pos) > this.rangeOf(u, def) + TUNING.rangeTolerance) return this.failCast(u, c.ability, 'out of range');
+      if (def.range > 0 && dist(u.pos, tgt.pos) > this.reachOf(u, def)) return this.failCast(u, c.ability, 'out of range');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return this.failCast(u, c.ability, 'no line of sight');
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
@@ -661,6 +661,10 @@ export class ArenaSim {
   }
   private rangeOf(u: Unit, def: AbilityDef): number {
     return def.range + (this.abilityMod(u, def).range ?? 0);
+  }
+  /** Furthest distance an ability can still land from: its range plus a small lag allowance (smaller for melee). */
+  private reachOf(u: Unit, def: AbilityDef): number {
+    return this.rangeOf(u, def) + (isMelee(def) ? TUNING.autoTolerance : TUNING.rangeTolerance);
   }
   private castTimeOf(u: Unit, def: AbilityDef): number {
     const m = this.modsOf(u);

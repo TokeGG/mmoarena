@@ -345,7 +345,7 @@ export class Bot {
     const toT = angleTo(u.pos, tgt.pos);
     const range = RANGED[u.classId];
     if (!range) {
-      if (d > 3.5) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
+      if (d > 2.9) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
       // in melee range: keep moving round the target instead of standing still
       return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.7 };
     }
