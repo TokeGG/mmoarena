@@ -1,0 +1,11 @@
+# Render Blueprint. Optional: you can also create the Web Service by hand with the same settings.
+services:
+  - type: web
+    name: wow-arena
+    runtime: node
+    region: virginia        # East coast, same fix as for Aim Arena
+    plan: free
+    # Vite is a devDependency, so install dev packages explicitly regardless of NODE_ENV.
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /healthz

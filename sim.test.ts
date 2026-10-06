@@ -1,0 +1,375 @@
+import { describe, it } from 'node:test';
+import assert from 'node:assert/strict';
+import { ArenaSim, AURAS, CLASSES, TUNING, parseClientMsg } from '../src/index';
+import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
+
+const TICK = TUNING.tickMs;
+
+/** A live match (no prep phase) with the first step already taken. */
+function live(seed = 1) {
+  const sim = new ArenaSim({ seed, prepMs: 0 });
+  return sim;
+}
+function add(sim: ArenaSim, classId: ClassId, team: TeamId, x: number, z: number, gearMult = 1): Unit {
+  const u = sim.addUnit({ name: `${classId}${team}`, classId, team, gearMult });
+  u.pos = { x, z };
+  return u;
+}
+function advance(sim: ArenaSim, ms: number): SimEvent[] {
+  const out: SimEvent[] = [];
+  for (let t = 0; t < ms; t += TICK) {
+    sim.step();
+    out.push(...sim.drainEvents());
+  }
+  return out;
+}
+function mustFail(r: { ok: boolean; reason?: string }, reason: RegExp) {
+  assert.equal(r.ok, false, 'expected failure');
+  assert.match((r as { reason: string }).reason, reason);
+}
+
+describe('global cooldown and resources', () => {
+  it('blocks a second GCD ability until 1.5s has passed', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 2, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(rogue.id, 'sinister_strike', war.id).ok);
+    mustFail(sim.useAbility(rogue.id, 'kidney_shot', war.id), /global cooldown/);
+    advance(sim, TUNING.gcdMs);
+    assert.ok(sim.useAbility(rogue.id, 'kidney_shot', war.id).ok);
+  });
+
+  it('refuses abilities you cannot afford', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 2, 0);
+    advance(sim, TICK);
+    mustFail(sim.useAbility(war.id, 'mortal_strike', rogue.id), /not enough rage/);
+  });
+});
+
+describe('casting, interrupts and school lockouts', () => {
+  it('interrupts a cast, locks only that school, and kick needs a casting target', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 3, 0);
+    advance(sim, TICK);
+    mustFail(sim.useAbility(rogue.id, 'kick', mage.id), /not casting/);
+
+    assert.ok(sim.useAbility(mage.id, 'fireball', rogue.id).ok);
+    advance(sim, 500);
+    assert.ok(mage.cast, 'mage should be mid-cast');
+    // rogue is in melee range after closing the gap
+    rogue.pos = { x: 1, z: 0 };
+    const r = sim.useAbility(rogue.id, 'kick', mage.id);
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(mage.cast, null);
+    const ev = sim.drainEvents();
+    assert.ok(ev.some((e) => e.t === 'interrupt' && e.school === 'fire'));
+
+    advance(sim, TUNING.gcdMs);
+    mustFail(sim.useAbility(mage.id, 'fireball', rogue.id), /fire school is locked out/);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', rogue.id).ok, 'frost must still be castable');
+  });
+
+  it('cancels a cast when the caster moves', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 10, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok);
+    sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: 0 });
+    const ev = advance(sim, TICK);
+    assert.equal(mage.cast, null);
+    assert.ok(ev.some((e) => e.t === 'cast_fail' && e.reason === 'moved'));
+  });
+
+  it('completes a cast and deals damage', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 10, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', war.id).ok);
+    advance(sim, 1500 + TICK);
+    assert.ok(war.health < war.maxHealth);
+    assert.ok(war.auras.some((a) => a.id === 'frostbolt_slow'));
+  });
+});
+
+describe('line of sight', () => {
+  it('blocks casts through a pillar and allows them around it', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, -14, -7);
+    const war = add(sim, 'warrior', 1, -6, -7); // pillar at (-10,-7) r=2.2 sits between them
+    advance(sim, TICK);
+    mustFail(sim.useAbility(mage.id, 'frostbolt', war.id), /line of sight/);
+    war.pos = { x: -6, z: 0 };
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', war.id).ok);
+  });
+});
+
+describe('crowd control and diminishing returns', () => {
+  it('gives 100% / 50% / 25% / immune, and resets 18s after the CC ends', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const tgt = add(sim, 'warrior', 1, 2, 0);
+    advance(sim, TICK);
+    const dur = () => {
+      const r = sim.applyAura(rogue, tgt, 'kidney_shot');
+      return r.applied ? r.duration : 'immune';
+    };
+    assert.equal(dur(), 4000);
+    advance(sim, 4100);
+    assert.equal(dur(), 2000);
+    advance(sim, 2100);
+    assert.equal(dur(), 1000);
+    advance(sim, 1100);
+    assert.equal(dur(), 'immune');
+    advance(sim, TUNING.drResetMs + TICK);
+    assert.equal(dur(), 4000, 'DR should have reset');
+  });
+
+  it('tracks each category separately', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const tgt = add(sim, 'warrior', 1, 5, 0);
+    advance(sim, TICK);
+    const a = sim.applyAura(mage, tgt, 'polymorph');
+    const b = sim.applyAura(mage, tgt, 'frost_nova_root');
+    assert.ok(a.applied && a.duration === 8000);
+    assert.ok(b.applied && b.duration === 6000);
+  });
+
+  it('polymorph breaks on damage; stuns stop movement and casting', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 5, 0);
+    advance(sim, TICK);
+    sim.applyAura(mage, war, 'polymorph');
+    assert.equal(sim.speedMult(war), 0);
+    sim.dealDamage(mage, war, 1, 'frost', null);
+    assert.ok(!war.auras.some((a) => a.id === 'polymorph'));
+
+    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok);
+    sim.applyAura(war, mage, 'kidney_shot');
+    assert.equal(mage.cast, null, 'stun cancels the cast');
+    mustFail(sim.useAbility(mage.id, 'frostbolt', war.id), /incapacitated/);
+  });
+
+  it('dispel removes crowd control from allies and shields from enemies', () => {
+    const sim = live();
+    const priest = add(sim, 'priest', 0, 0, 0);
+    const mageAlly = add(sim, 'mage', 0, 3, 0);
+    const enemy = add(sim, 'mage', 1, 10, 0);
+    advance(sim, TICK);
+    sim.applyAura(enemy, mageAlly, 'polymorph');
+    assert.ok(sim.useAbility(priest.id, 'dispel_magic', mageAlly.id).ok);
+    assert.ok(!mageAlly.auras.some((a) => a.id === 'polymorph'));
+
+    advance(sim, 8100);
+    mustFail(sim.useAbility(priest.id, 'dispel_magic', enemy.id), /nothing to dispel/);
+    sim.applyAura(enemy, enemy, 'pw_shield');
+    assert.ok(sim.useAbility(priest.id, 'dispel_magic', enemy.id).ok);
+    assert.ok(!enemy.auras.some((a) => a.id === 'pw_shield'));
+  });
+});
+
+describe('absorbs', () => {
+  it('shield soaks damage then expires', () => {
+    const sim = live();
+    const priest = add(sim, 'priest', 0, 0, 0);
+    const enemy = add(sim, 'rogue', 1, 3, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(priest.id, 'power_word_shield', priest.id).ok);
+    const absorb = AURAS.pw_shield.absorb!;
+    const hit = absorb - 50;
+    const full = priest.health;
+    sim.dealDamage(enemy, priest, hit, 'physical', null);
+    assert.equal(priest.health, full, 'first hit is fully absorbed');
+    sim.dealDamage(enemy, priest, hit, 'physical', null);
+    assert.equal(priest.health, full - (hit - 50), 'second hit only gets the 50 absorb left');
+    assert.ok(!priest.auras.some((a) => a.kind === 'absorb'));
+  });
+});
+
+describe('stealth', () => {
+  it('hides stealthed enemies beyond detect range and untargetable until close', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, -20, 0);
+    const mage = add(sim, 'mage', 1, 15, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(rogue.id, 'stealth').ok);
+    assert.ok(!sim.snapshot(1).units.some((u) => u.id === rogue.id), 'hidden from enemy team');
+    assert.ok(sim.snapshot(0).units.some((u) => u.id === rogue.id), 'own team always sees it');
+    mustFail(sim.useAbility(mage.id, 'frostbolt', rogue.id), /not visible/);
+    rogue.pos = { x: 10, z: 0 };
+    assert.ok(sim.snapshot(1).units.some((u) => u.id === rogue.id), 'revealed within 8 yards');
+  });
+
+  it('cheap shot needs stealth, stuns, and breaks stealth', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const mage = add(sim, 'mage', 1, 2, 0);
+    advance(sim, TICK);
+    mustFail(sim.useAbility(rogue.id, 'cheap_shot', mage.id), /requires stealth/);
+    assert.ok(sim.useAbility(rogue.id, 'stealth').ok);
+    assert.ok(sim.useAbility(rogue.id, 'cheap_shot', mage.id).ok);
+    assert.ok(mage.auras.some((a) => a.id === 'cheap_shot_stun'));
+    assert.ok(!sim.isStealthed(rogue));
+  });
+
+  it('cannot stealth while in combat', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 2, 0);
+    advance(sim, TICK);
+    sim.dealDamage(war, rogue, 10, 'physical', null);
+    mustFail(sim.useAbility(rogue.id, 'stealth'), /in combat/);
+  });
+});
+
+describe('movement', () => {
+  it('walls and pillars stop you', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, -10, -3);
+    add(sim, 'rogue', 1, 20, 0);
+    for (let i = 1; i <= 60; i++) {
+      sim.queueInput(war.id, { seq: i, fwd: 1, strafe: 0, facing: Math.PI }); // toward -z, into the pillar
+      sim.step();
+    }
+    const dz = Math.hypot(war.pos.x + 10, war.pos.z + 7);
+    assert.ok(dz >= 2.2 + 0.6 - 1e-6, `unit is inside the pillar (distance ${dz})`);
+  });
+
+  it('server applies speed: 7 yards/second', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, -25, 10);
+    add(sim, 'rogue', 1, 25, 10);
+    const start = war.pos.x;
+    for (let i = 1; i <= 20; i++) {
+      sim.queueInput(war.id, { seq: i, fwd: 1, strafe: 0, facing: Math.PI / 2 });
+      sim.step();
+    }
+    assert.ok(Math.abs(war.pos.x - start - 7) < 0.1, `moved ${war.pos.x - start}`);
+  });
+
+  it('prep phase holds teams behind the gate', () => {
+    const sim = new ArenaSim({ prepMs: 5000 });
+    const war = sim.addUnit({ name: 'w', classId: 'warrior', team: 0 });
+    for (let i = 1; i <= 90; i++) {
+      sim.queueInput(war.id, { seq: i, fwd: 1, strafe: 0, facing: Math.PI / 2 });
+      sim.step();
+    }
+    assert.equal(sim.phase, 'prep');
+    assert.ok(war.pos.x <= -20 + 1e-6, `crossed the gate: x=${war.pos.x}`);
+    assert.ok(war.pos.x >= -20 - 1e-6, 'should be pressed against the gate');
+  });
+
+  it('blink stops before a pillar', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, -16, -7);
+    add(sim, 'rogue', 1, 20, 0);
+    mage.facing = Math.PI / 2; // toward +x, into the pillar at x=-10
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'blink').ok);
+    assert.ok(mage.pos.x < -10 - 2.2, `blinked into the pillar: x=${mage.pos.x}`);
+    assert.ok(mage.pos.x > -16);
+  });
+
+  it('charge closes the gap, and refuses when too close', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 20, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(war.id, 'charge', rogue.id).ok);
+    assert.ok(Math.abs(war.pos.x - 18) < 0.01);
+    advance(sim, 16000);
+    mustFail(sim.useAbility(war.id, 'charge', rogue.id), /too close/);
+  });
+});
+
+describe('melee and auto-attack', () => {
+  it('melee abilities start auto-attack, and warriors build rage from hits', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 2, 0);
+    advance(sim, TICK);
+    war.resource = 30;
+    assert.ok(sim.useAbility(war.id, 'mortal_strike', rogue.id).ok);
+    assert.ok(war.autoAttack);
+    const rageAfterCast = war.resource;
+    assert.ok(rageAfterCast > 0, 'rage from dealing damage');
+    const hp = rogue.health;
+    advance(sim, 2100);
+    assert.ok(rogue.health < hp, 'auto-attack should land');
+  });
+});
+
+describe('gear cap and match flow', () => {
+  it('caps the gear multiplier at 1.15', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0, 5);
+    assert.equal(war.gearMult, TUNING.gearCap);
+    assert.equal(war.maxHealth, Math.round(CLASSES.warrior.maxHealth * TUNING.gearCap));
+    const low = add(sim, 'mage', 1, 5, 0, 0.1);
+    assert.equal(low.gearMult, 1, 'gear never reduces stats below base');
+  });
+
+  it('ends the match when a team is wiped, and a forfeit counts as a death', () => {
+    const sim = live();
+    const a1 = add(sim, 'warrior', 0, -20, 0);
+    const b1 = add(sim, 'mage', 1, 20, 0);
+    const b2 = add(sim, 'priest', 1, 20, 3);
+    advance(sim, TICK);
+    assert.equal(sim.phase, 'live');
+    sim.dealDamage(a1, b1, 1e6, 'physical', null);
+    assert.equal(sim.phase, 'live');
+    sim.forfeit(b2.id);
+    const ev = advance(sim, TICK);
+    assert.equal(sim.phase, 'ended');
+    assert.equal(sim.winner, 0);
+    assert.ok(ev.some((e) => e.t === 'phase' && e.phase === 'ended' && e.winner === 0));
+    mustFail(sim.useAbility(a1.id, 'hamstring', b1.id), /over/);
+  });
+
+  it('is deterministic for a given seed', () => {
+    const run = () => {
+      const sim = new ArenaSim({ seed: 42, prepMs: 0 });
+      const m = add(sim, 'mage', 0, 0, 0);
+      const w = add(sim, 'warrior', 1, 10, 0);
+      advance(sim, TICK);
+      sim.useAbility(m.id, 'frostbolt', w.id);
+      advance(sim, 1600);
+      sim.useAbility(m.id, 'polymorph', w.id);
+      advance(sim, 2000);
+      return JSON.stringify([sim.snapshot(), sim.drainEvents()]);
+    };
+    assert.equal(run(), run());
+  });
+});
+
+describe('protocol validation', () => {
+  it('rejects malformed and hostile messages', () => {
+    assert.equal(parseClientMsg('not json'), null);
+    assert.equal(parseClientMsg('{"t":"input","seq":"x","fwd":1,"strafe":0,"facing":0}'), null);
+    assert.equal(parseClientMsg('{"t":"input","seq":1,"fwd":null,"strafe":0,"facing":0}'), null);
+    assert.equal(parseClientMsg('{"t":"join","name":"a","classId":"__proto__","mode":"practice"}'), null);
+    assert.equal(parseClientMsg('{"t":"join","name":"a","classId":"mage","mode":"god"}'), null);
+    assert.equal(parseClientMsg('{"t":"nope"}'), null);
+    const j = parseClientMsg('{"t":"join","name":"  <b>Ev</b>il  ","classId":"mage","mode":"queue"}');
+    assert.ok(j && j.t === 'join' && !/[<>]/.test(j.name));
+  });
+
+  it('sanitizes practice options', () => {
+    const j = parseClientMsg(
+      '{"t":"join","name":"a","classId":"mage","mode":"practice","foes":["rogue","hax","priest","mage"],"ally":"toString","difficulty":"godlike"}',
+    );
+    assert.ok(j && j.t === 'join');
+    assert.deepEqual(j.foes, ['rogue', 'priest'], 'invalid classes dropped, at most two foes');
+    assert.equal(j.ally, null, 'invalid ally means no ally');
+    assert.equal(j.difficulty, undefined, 'unknown difficulty ignored');
+    const bare = parseClientMsg('{"t":"join","name":"a","classId":"mage","mode":"practice"}');
+    assert.ok(bare && bare.t === 'join' && bare.ally === undefined && bare.foes === undefined);
+  });
+});

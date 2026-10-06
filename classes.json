@@ -1,0 +1,26 @@
+{
+  "warrior": {
+    "name": "Warrior", "color": "#c79c6e", "maxHealth": 3400,
+    "resource": { "type": "rage", "max": 100, "start": 0, "regenPerSec": 0 },
+    "auto": { "interval": 2000, "damage": 60, "range": 5 },
+    "bar": ["mortal_strike", "charge", "pummel", "hamstring"]
+  },
+  "mage": {
+    "name": "Mage", "color": "#69ccf0", "maxHealth": 2400,
+    "resource": { "type": "mana", "max": 1000, "start": 1000, "regenPerSec": 12 },
+    "auto": null,
+    "bar": ["frostbolt", "fireball", "polymorph", "counterspell", "frost_nova", "blink"]
+  },
+  "priest": {
+    "name": "Priest", "color": "#ffffff", "maxHealth": 2600,
+    "resource": { "type": "mana", "max": 1000, "start": 1000, "regenPerSec": 8 },
+    "auto": null,
+    "bar": ["flash_heal", "power_word_shield", "smite", "dispel_magic", "psychic_scream"]
+  },
+  "rogue": {
+    "name": "Rogue", "color": "#fff569", "maxHealth": 2800,
+    "resource": { "type": "energy", "max": 100, "start": 100, "regenPerSec": 15 },
+    "auto": { "interval": 1800, "damage": 50, "range": 5 },
+    "bar": ["stealth", "cheap_shot", "sinister_strike", "kidney_shot", "kick", "sprint"]
+  }
+}

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Arena</title>
+<style>
+  :root { --bg:#0b0d12; --panel:rgba(18,21,28,.88); --line:#2a3140; --text:#e6e9ef; --dim:#8b93a5; --ally:#3fbf5f; --enemy:#c0392b; }
+  * { box-sizing: border-box; }
+  html, body { margin:0; height:100%; overflow:hidden; background:var(--bg); color:var(--text); font:13px/1.35 system-ui, sans-serif; user-select:none; }
+  canvas { position:fixed; inset:0; width:100%; height:100%; display:block; }
+  .hidden { display:none !important; }
+
+  .frame { position:fixed; background:var(--panel); border:1px solid var(--line); border-radius:6px; padding:6px 8px; width:230px; }
+  .frame .name { font-weight:600; margin-bottom:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .frame.clickable { cursor:pointer; }
+  .frame.dead { opacity:.45; }
+  .frame.targeted { border-color:#f1c40f; }
+  .bar { position:relative; height:14px; background:#1d222d; border-radius:3px; overflow:hidden; margin-top:3px; }
+  .bar .fill { position:absolute; inset:0 auto 0 0; width:0; }
+  .bar .blabel { position:absolute; inset:0; text-align:center; font-size:11px; line-height:14px; text-shadow:0 0 3px #000; }
+  .bar.thin { height:10px; } .bar.thin .blabel { line-height:10px; font-size:9px; }
+  .auras { display:flex; flex-wrap:wrap; gap:3px; margin-top:4px; min-height:0; }
+  .chip { font-size:10px; padding:1px 5px; border-radius:3px; border:1px solid var(--line); background:#1d222d; }
+  .chip.bad { border-color:#8e3a32; } .chip.good { border-color:#2f7d47; }
+
+  #self-frame { left:12px; top:12px; }
+  #target-frame { left:252px; top:12px; }
+  #party { left:12px; top:112px; display:flex; flex-direction:column; gap:6px; }
+  #party .frame, #enemies .frame { position:static; width:200px; }
+  #enemies { right:12px; top:12px; display:flex; flex-direction:column; gap:6px; position:fixed; }
+
+  #banner { position:fixed; top:14%; left:0; right:0; text-align:center; font-size:44px; font-weight:700; text-shadow:0 2px 12px #000; pointer-events:none; }
+  #banner small { display:block; font-size:16px; font-weight:400; color:var(--dim); }
+  #err { position:fixed; bottom:170px; left:0; right:0; text-align:center; color:#ff6b5e; font-weight:600; text-shadow:0 1px 4px #000; pointer-events:none; opacity:0; transition:opacity .4s; }
+  #err.show { opacity:1; transition:none; }
+
+  #cast { position:fixed; bottom:118px; left:50%; transform:translateX(-50%); width:300px; }
+  #actionbar { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
+  .slot { position:relative; width:64px; height:64px; background:var(--panel); border:1px solid var(--line); border-radius:6px; cursor:pointer; overflow:hidden; text-align:center; padding-top:20px; font-size:10px; }
+  .slot .key { position:absolute; left:4px; top:2px; font-size:11px; color:var(--dim); }
+  .slot .cd { position:absolute; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:700; }
+  .slot.unusable { opacity:.5; }
+  .slot.casting { border-color:#f1c40f; }
+
+  #labels, #ftext { position:fixed; inset:0; pointer-events:none; overflow:hidden; }
+  .plate { position:absolute; transform:translate(-50%,-100%); width:80px; text-align:center; font-size:11px; text-shadow:0 0 3px #000; }
+  .plate .bar { height:6px; margin-top:1px; }
+  .ft { position:absolute; transform:translate(-50%,-50%); font-weight:700; font-size:18px; text-shadow:0 0 4px #000; animation:rise 1.2s ease-out forwards; white-space:nowrap; }
+  .ft.in { color:#ff5a4d; } .ft.out { color:#fff; } .ft.heal { color:#5dff8a; } .ft.cc { color:#ffb347; font-size:15px; } .ft.info { color:#f1c40f; font-size:15px; } .ft.dim { color:#aab; font-size:14px; }
+  @keyframes rise { from { transform:translate(-50%,-50%); opacity:1; } to { transform:translate(-50%,-190%); opacity:0; } }
+
+  #log { position:fixed; left:12px; bottom:12px; width:360px; font-size:11px; color:var(--dim); pointer-events:none; text-shadow:0 0 3px #000; }
+  #help { position:fixed; right:12px; bottom:12px; font-size:11px; color:var(--dim); text-align:right; pointer-events:none; }
+
+  #join { position:fixed; inset:0; background:radial-gradient(circle at 50% 30%, #1a2030, #07080c); display:flex; align-items:center; justify-content:center; }
+  #join .card { width:420px; background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:22px; }
+  #join h1 { margin:0 0 4px; font-size:26px; letter-spacing:.5px; }
+  #join p { margin:0 0 14px; color:var(--dim); }
+  #join input[type=text] { width:100%; padding:9px 10px; background:#1d222d; color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:14px; user-select:text; }
+  #classes { display:grid; grid-template-columns:repeat(4,1fr); gap:6px; margin:12px 0; }
+  #classes button { padding:10px 4px; border-radius:6px; border:2px solid var(--line); background:#1d222d; color:var(--text); cursor:pointer; font-weight:600; }
+  #classes button.sel { border-color:currentColor; }
+  .opts { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin:0 0 12px; }
+  .opts label { display:block; font-size:11px; color:var(--dim); }
+  .opts select { width:100%; margin-top:3px; padding:7px 6px; background:#1d222d; color:var(--text); border:1px solid var(--line); border-radius:6px; font-size:12px; }
+  #ver { margin-top:12px; font-size:11px; color:var(--dim); text-align:right; }
+  .row { display:flex; gap:8px; }
+  .row button { flex:1; padding:11px; border-radius:6px; border:0; background:#3b82f6; color:#fff; font-weight:600; font-size:14px; cursor:pointer; }
+  .row button.alt { background:#2a3140; }
+  #join-msg { margin-top:10px; min-height:18px; color:#f1c40f; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="labels"></div>
+<div id="ftext"></div>
+
+<div id="hud" class="hidden">
+  <div id="self-frame" class="frame"></div>
+  <div id="target-frame" class="frame hidden"></div>
+  <div id="party"></div>
+  <div id="enemies"></div>
+  <div id="banner"></div>
+  <div id="err"></div>
+  <div id="cast" class="hidden"></div>
+  <div id="actionbar"></div>
+  <div id="log"></div>
+  <div id="help">RMB-drag: steer · W/S move · Q/E strafe · A/D turn · wheel: zoom<br />Tab: next enemy · click: target · 1-6: abilities · R: auto-attack · Esc: clear target</div>
+</div>
+
+<div id="join">
+  <div class="card">
+    <h1>Arena</h1>
+    <p>3D third-person arena combat. Server-authoritative.</p>
+    <input id="name" type="text" maxlength="16" placeholder="Name" />
+    <div id="classes"></div>
+    <div class="opts">
+      <label>Opponents
+        <select id="foes">
+          <option value="warrior,mage">Warrior + Mage</option>
+          <option value="rogue,priest">Rogue + Priest</option>
+          <option value="warrior,priest">Warrior + Priest</option>
+          <option value="mage,priest">Mage + Priest</option>
+          <option value="rogue,mage">Rogue + Mage</option>
+          <option value="warrior,rogue">Warrior + Rogue</option>
+          <option value="mage">Mage (alone)</option>
+          <option value="rogue">Rogue (alone)</option>
+          <option value="warrior">Warrior (alone)</option>
+          <option value="priest">Priest (alone)</option>
+        </select>
+      </label>
+      <label>Your partner
+        <select id="ally">
+          <option value="priest">Priest bot</option>
+          <option value="warrior">Warrior bot</option>
+          <option value="mage">Mage bot</option>
+          <option value="rogue">Rogue bot</option>
+          <option value="none">None</option>
+        </select>
+      </label>
+      <label>Bot skill
+        <select id="difficulty">
+          <option value="dummy">Dummies (passive)</option>
+          <option value="easy">Easy</option>
+          <option value="normal" selected>Normal</option>
+          <option value="hard">Hard</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <button id="btn-practice">Practice</button>
+      <button id="btn-queue" class="alt">Find 2v2 match</button>
+    </div>
+    <div id="join-msg"></div>
+    <div id="ver"></div>
+  </div>
+</div>
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>

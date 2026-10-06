@@ -1,0 +1,87 @@
+# WoW-style Arena (browser phase) · v0.2.0
+
+Third-person 3D arena combat in the style of WoW arena: tab-target, global cooldown, cast times, interrupts with school lockouts, crowd control with diminishing returns, line-of-sight pillars, stealth. The server decides every outcome; the browser is a renderer and input device.
+
+## Run it locally
+
+```bash
+npm install
+npm run dev:server        # game server on :8080
+npm run dev:client        # Vite on http://localhost:5173 (proxies /ws to :8080)
+```
+
+Production (one process serves the client and the WebSocket):
+
+```bash
+npm run build && npm start     # uses $PORT, default 8080
+```
+
+## Deploy: GitHub + Render
+
+1. Push this folder to a new GitHub repo. Commit `package-lock.json` too (it appears after your first `npm install`).
+2. Render: **New + → Blueprint**, pick the repo. `render.yaml` already sets Node, the Virginia region, the build and start commands and the health check. Or create a **Web Service** by hand with:
+
+| Setting | Value |
+|---|---|
+| Runtime | Node |
+| Region | Virginia |
+| Build command | `npm install --include=dev && npm run build` |
+| Start command | `npm start` |
+| Health check path | `/healthz` |
+
+3. Open the Render URL. The same service serves the page and the WebSocket (`wss://<host>/ws`), so there is nothing else to configure and no CORS to set up.
+
+The free tier sleeps when idle, so the first visit after a while takes about a minute to wake. That is fine for testing with friends but not for a live queue.
+
+## Practice with bots
+
+The join screen has three practice options: opponents (any 1 or 2 classes), your partner (a bot of any class, or none), and bot skill.
+
+| Skill | What changes |
+|---|---|
+| Dummies | They stand still and do nothing. Good for checking numbers and visuals. |
+| Easy | Slow reactions, answers about 40% of your casts with an interrupt. |
+| Normal | About 0.4s reaction, interrupts most casts. |
+| Hard | About 0.16s reaction, interrupts everything it can. |
+
+Bots use the same entry points as a human (move, target, cast), so they obey the global cooldown, range, line of sight, resources, lockouts and stealth. They path around pillars, interrupt casts, dispel crowd control off their partner, polymorph the enemy that is not the kill target, and stun or kick casters.
+
+## Tests and balance runs
+
+```bash
+npm test                  # sim rules, bots, protocol validation, real WebSocket end-to-end
+npm run duel              # headless bot-vs-bot win rates for every composition
+npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
+```
+
+`npm run duel` measures how the bots' playbook performs, not how humans will. Use it to catch broken classes, stuck bots and wildly lopsided numbers, then tune `shared/data/*.json`.
+
+## Layout
+
+| Path | What it is |
+|---|---|
+| `shared/data/*.json` | Classes, abilities, auras, arena, tuning. All game content lives here. A future Godot/Unity client or server reads the same files. |
+| `shared/src/sim.ts` | Headless simulation. No rendering, no I/O, no wall clock. Same seed and inputs give the same result. |
+| `shared/src/bot.ts` | Bot AI, driven through the same commands a player uses. |
+| `shared/src/geometry.ts` | Movement, collision, line of sight. Used by the server and by client prediction. |
+| `shared/src/protocol.ts` | Message types and validation of untrusted client input. |
+| `server/` | Node + `ws`. 20 Hz tick, practice rooms, 2v2 queue, per-socket rate limit. |
+| `client/` | Three.js + Vite. Orbit camera, HUD, prediction for own movement, interpolation for everyone else. |
+
+## Design rules
+
+- The client sends intents only (`cast X on Y`, movement input). It never decides hits, cooldowns or damage.
+- Own movement is predicted and reconciled against the server. Abilities are not predicted.
+- Enemy units you cannot see (stealthed, farther than 8 yards) are left out of your snapshots entirely.
+- Gear is a capped multiplier (`gearCap` in `tuning.json`, 1.15). Matchmaking is by rating, never by level, so nobody gets nerfed for being stronger.
+
+## Controls
+
+RMB-drag steer · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · wheel zoom · Tab next enemy · click to target · 1-6 abilities · R auto-attack · Esc clear target
+
+## Known gaps
+
+- Numbers are a first pass. Bot-vs-bot runs say mages are weak against melee, two-healer teams stall, and matches with a healer run long. Treat that as a starting point and retune after you play.
+- Warriors and rogues need auto-attack on (R, or any melee ability) to build rage and deal steady damage.
+- No rating or Elo, no gear or catch-up system yet, no spell queueing window, no silence or combo points.
+- Units are capsules. Swap in low-poly models once 2v2 is fun.

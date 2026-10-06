@@ -1,0 +1,12 @@
+{
+  "polymorph": { "name": "Polymorph", "kind": "incapacitate", "duration": 8000, "harmful": true, "dr": "incapacitate", "breaksOnDamage": true, "dispellable": true },
+  "frost_nova_root": { "name": "Frost Nova", "kind": "root", "duration": 6000, "harmful": true, "dr": "root", "dispellable": true },
+  "frostbolt_slow": { "name": "Frostbolt", "kind": "slow", "duration": 4000, "harmful": true, "slowPct": 40, "dispellable": true },
+  "hamstring_slow": { "name": "Hamstring", "kind": "slow", "duration": 8000, "harmful": true, "slowPct": 50 },
+  "cheap_shot_stun": { "name": "Cheap Shot", "kind": "stun", "duration": 4000, "harmful": true, "dr": "stun" },
+  "kidney_shot": { "name": "Kidney Shot", "kind": "stun", "duration": 4000, "harmful": true, "dr": "stun" },
+  "psychic_scream": { "name": "Psychic Scream", "kind": "fear", "duration": 6000, "harmful": true, "dr": "fear", "dispellable": true },
+  "pw_shield": { "name": "Power Word: Shield", "kind": "absorb", "duration": 15000, "harmful": false, "absorb": 350, "dispellable": true },
+  "stealth": { "name": "Stealth", "kind": "stealth", "duration": 0, "harmful": false, "speedPct": -30 },
+  "sprint": { "name": "Sprint", "kind": "speed", "duration": 8000, "harmful": false, "speedPct": 70 }
+}
