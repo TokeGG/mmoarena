@@ -275,3 +275,40 @@ export interface RosterEntry {
 export const NAME_RE = /^[A-Za-z0-9_]{3,16}$/;
 export const PASSWORD_MIN = 6;
 export const PASSWORD_MAX = 64;
+
+// ---------------------------------------------------------------- match history and live matches
+
+export interface MatchPlayer {
+  name: string;
+  classId: string;
+  spec: string | null;
+  team: number;
+  /** A person (not a bot or dummy). */
+  human: boolean;
+  /** Rating after the match and the change it caused (ranked matches of signed-in players only). */
+  rating?: number;
+  delta?: number;
+}
+
+export interface MatchRecord {
+  /** Also the replay id when `replay` is true. */
+  id: string;
+  at: number;
+  size: 1 | 2 | 3;
+  ranked: boolean;
+  map: string;
+  durationMs: number;
+  winner: number | 'draw' | null;
+  players: MatchPlayer[];
+  replay: boolean;
+}
+
+export const MAX_HISTORY = 30;
+
+export interface LiveMatch {
+  id: string;
+  map: string;
+  size: 1 | 2 | 3;
+  elapsedMs: number;
+  players: { name: string; classId: string; team: number }[];
+}

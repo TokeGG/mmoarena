@@ -1,6 +1,6 @@
 import { ARENAS, CLASSES } from './data';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
-import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, LeaderRow, RosterEntry } from './accounts';
+import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, LeaderRow, LiveMatch, MatchRecord, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
 export const PROTOCOL_VERSION = 6;
@@ -53,6 +53,11 @@ export type ClientMsg =
   /** Prove this session is the owner (needs the server's owner code). */
   | { t: 'owner_unlock'; code: string }
   | { t: 'admin_list' }
+  /** Your recent matches. */
+  | { t: 'history' }
+  /** Ranked matches in progress that can be watched. */
+  | { t: 'live' }
+  | { t: 'spectate'; id: string }
   /** Owner only. Any field left out is unchanged; `custom: null` removes a custom style. */
   | { t: 'admin_set'; name: string; grants?: string[]; custom?: CustomStyle | null; useCustom?: boolean; resetPassword?: boolean };
 
@@ -78,6 +83,10 @@ export type ServerMsg =
   /** Cosmetics of the signed-in players in your match, by unit id. */
   | { t: 'roster'; players: RosterEntry[] }
   | { t: 'owner'; ok: boolean; reason?: string }
+  | { t: 'history'; rows: MatchRecord[] }
+  | { t: 'live'; rows: LiveMatch[] }
+  /** You are now watching a match (snapshots follow, about 5 s behind). */
+  | { t: 'spectating'; id: string; map: string; size: number }
   | { t: 'admin_accounts'; rows: AdminRow[] }
   /** Result of an admin_set; `tempPassword` is shown once when a password was reset. */
   | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };
@@ -176,6 +185,13 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'owner_unlock', code: m.code };
     case 'admin_list':
       return { t: 'admin_list' };
+    case 'history':
+      return { t: 'history' };
+    case 'live':
+      return { t: 'live' };
+    case 'spectate':
+      if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
+      return { t: 'spectate', id: m.id };
     case 'admin_set': {
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       const out: Extract<ClientMsg, { t: 'admin_set' }> = { t: 'admin_set', name: m.name };

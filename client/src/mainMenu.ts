@@ -29,6 +29,8 @@ export interface MainMenuHooks {
   onPlay(req: PlayRequest): void;
   onControls(): void;
   onEditHud(): void;
+  /** Open the list of live ranked matches to watch. */
+  onWatch(): void;
   /** The previewed class or build changed (so the tooltip numbers and 3D model can follow). */
   onSelect(classId: ClassId, build: Build): void;
   /** The player threw away a loot item. */
@@ -241,7 +243,9 @@ export class MainMenu {
     controls.addEventListener('click', () => this.hooks.onControls());
     const hudBtn = el('button', 'mm-link', 'Edit HUD layout & style');
     hudBtn.addEventListener('click', () => this.hooks.onEditHud());
-    play.append(opts, row, controls, hudBtn, this.msg);
+    const watch = el('button', 'mm-link', '👁 Watch live ranked matches');
+    watch.addEventListener('click', () => this.hooks.onWatch());
+    play.append(opts, row, controls, hudBtn, watch, this.msg);
     right.append(play);
 
     this.modal.addEventListener('mousedown', (e) => {

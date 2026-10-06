@@ -1,5 +1,8 @@
+import crypto from 'node:crypto';
+import zlib from 'node:zlib';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
+import type { LiveMatch, MatchPlayer, MatchRecord, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
@@ -8,6 +11,8 @@ import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerM
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
+/** Spectators see ranked matches this far behind, so watching cannot help the players. */
+const SPECTATE_DELAY_TICKS = 20 * 5;
 const TICKS_AFTER_END = 20 * 8; // keep the room open 8s so everyone sees the result
 /** A match must have been live this long to count towards gear unlocks (stops instant-win farming). */
 const MIN_COUNTED_MATCH_MS = 20000;
@@ -37,6 +42,8 @@ export interface Player {
   mapPref: string;
   /** Players per team chosen at join. */
   size: TeamSize;
+  /** The match this connection is watching, if any. */
+  watching?: Room;
 }
 
 export function send(p: Player, msg: ServerMsg): void {
@@ -56,10 +63,26 @@ export class Room {
   private endedTicks = 0;
 
   private credited = false;
+  readonly id = crypto.randomBytes(6).toString('hex');
+  /** Players per team, for the match record. */
+  size: TeamSize = 2;
+  readonly spectators = new Set<Player>();
+  private delayed: { snap: Snapshot; events: SimEvent[] }[] = [];
+  private recorder: ReplayRecorder | null = null;
+  private seed = 0;
+  private prepMsUsed = 0;
+  private startedWall = Date.now();
+  /** Account key and rating change per unit, filled in as results arrive. */
+  private keys = new Map<number, string>();
+  private deltas = new Map<number, { rating: number; delta: number }>();
 
   /** `countsForProgress`: whether finishing this match earns gear-tier progress (not true for dummy practice). */
   constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, readonly arenaId: string = ARENAS[0].id) {
-    this.sim = new ArenaSim({ prepMs, seed: Math.floor(Math.random() * 2 ** 31), arena: arenaById(arenaId) });
+    this.seed = Math.floor(Math.random() * 2 ** 31);
+    this.prepMsUsed = prepMs;
+    this.sim = new ArenaSim({ prepMs, seed: this.seed, arena: arenaById(arenaId) });
+    // matches that count are recorded so they can be replayed; dummy practice is not worth storing
+    if (accounts && countsForProgress) this.recorder = new ReplayRecorder(this.sim, { arena: arenaId, seed: this.seed, prepMs });
   }
 
   addPlayer(p: Player, team: TeamId): void {
@@ -67,17 +90,50 @@ export class Room {
     p.unitId = u.id;
     p.room = this;
     this.players.set(u.id, p);
+    if (p.account) this.keys.set(u.id, p.account.key);
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, map: this.arenaId });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
   }
 
   /** Tell everyone in the room how the signed-in players want to be shown (emblem, title, name colour). */
-  broadcastRoster(): void {
-    const players = [...this.players.entries()]
+  roster(): RosterEntry[] {
+    return [...this.players.entries()]
       .filter(([, p]) => p.account)
       .map(([unitId, p]) => ({ unitId, rating: p.account!.rating, ...resolveCosmetics(p.account!.cosmetics), avatarUrl: p.account!.avatar ? `/avatar/${p.account!.key}?v=${p.account!.avatar}` : undefined }));
+  }
+
+  broadcastRoster(): void {
+    const players = this.roster();
     if (!players.length) return;
-    for (const p of this.players.values()) send(p, { t: 'roster', players });
+    for (const p of [...this.players.values(), ...this.spectators]) send(p, { t: 'roster', players });
+  }
+
+  /** Ranked matches can be watched while they run. */
+  get watchable(): boolean {
+    return this.ranked && !this.closed && this.sim.phase !== 'ended';
+  }
+
+  live(): LiveMatch {
+    return {
+      id: this.id,
+      map: this.arenaId,
+      size: this.size,
+      elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
+      players: [...this.sim.units.values()].map((u) => ({ name: u.name, classId: u.classId, team: u.team })),
+    };
+  }
+
+  addSpectator(p: Player): void {
+    this.spectators.add(p);
+    p.watching = this;
+    send(p, { t: 'spectating', id: this.id, map: this.arenaId, size: this.size });
+    const players = this.roster();
+    if (players.length) send(p, { t: 'roster', players });
+  }
+
+  removeSpectator(p: Player): void {
+    this.spectators.delete(p);
+    p.watching = undefined;
   }
 
   /** Average rating of the humans on a team; guests and bots count as the starting rating. */
@@ -132,6 +188,7 @@ export class Room {
             .recordForfeit(acc.name, this.teamAvg(1 - me.team))
             .then((a) => {
               if (a) {
+                this.deltas.set(me.id, { rating: a.rating, delta: a.rating - acc.rating });
                 p.account = a;
                 send(p, { t: 'account', account: publicInfo(a, p.ownerOk) });
               }
@@ -156,6 +213,14 @@ export class Room {
       if (!me) continue;
       send(p, { t: 'snapshot', snap: this.sim.snapshot(me.team), events });
     }
+    if (this.ranked) {
+      // spectators get the whole arena (nothing hidden), five seconds late
+      this.delayed.push({ snap: this.sim.snapshot(), events });
+      if (this.delayed.length > SPECTATE_DELAY_TICKS) {
+        const f = this.delayed.shift()!;
+        for (const w of this.spectators) send(w, { t: 'snapshot', snap: f.snap, events: f.events });
+      }
+    }
     if (this.sim.phase === 'ended') {
       this.creditProgress();
       if (++this.endedTicks >= TICKS_AFTER_END) this.close('match over');
@@ -168,29 +233,54 @@ export class Room {
     this.credited = true;
     if (!this.countsForProgress || this.sim.time - this.sim.prepEndsAt < this.minCountedMs) return;
     const draw = this.sim.winner === 'draw';
+    const replay = this.recorder?.finish(this.roster()) ?? null;
+    const jobs: Promise<void>[] = [];
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
       if (!me) continue;
       const won = this.sim.winner === me.team;
       if (p.account && this.accounts) {
         // signed in: the server-side account is the source of truth, and ranked matches move the rating
-        this.accounts
+        const before = p.account.rating;
+        jobs.push(this.accounts
           .recordMatch(p.account.name, { won, draw, rated: this.ranked, opponentAvg: this.teamAvg(1 - me.team) })
           .then(async (a) => {
             if (!a) return;
+            if (this.ranked) this.deltas.set(me.id, { rating: a.rating, delta: a.rating - before });
             p.account = a;
             const loot = await this.accounts!.grantLoot(a.name, this.ranked ? 'ranked' : 'practice', won);
             if (loot) p.account = loot.account;
             send(p, { t: 'account', account: publicInfo(p.account, p.ownerOk) });
             if (loot && loot.drops.length) send(p, { t: 'loot', drops: loot.drops, discarded: loot.discarded });
           })
-          .catch(() => {});
+          .catch(() => {}));
         continue;
       }
       p.matches++;
       if (won) p.wins++;
       send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     }
+    void Promise.all(jobs).then(() => this.saveRecord(replay)).catch(() => {});
+  }
+
+  /** Match history for every signed-in human who took part, plus the replay they can all open. */
+  private async saveRecord(replay: ReturnType<ReplayRecorder['finish']> | null): Promise<void> {
+    const acc = this.accounts;
+    if (!acc || this.keys.size === 0) return;
+    let stored = false;
+    if (replay) {
+      try {
+        stored = await acc.saveReplay(this.id, zlib.gzipSync(JSON.stringify(replay)));
+      } catch {
+        stored = false;
+      }
+    }
+    const players: MatchPlayer[] = [...this.sim.units.values()].map((u) => {
+      const d = this.deltas.get(u.id);
+      return { name: u.name, classId: u.classId, spec: u.spec, team: u.team, human: u.controller === 'player', ...(d ? { rating: d.rating, delta: d.delta } : {}) };
+    });
+    const rec: MatchRecord = { id: this.id, at: Date.now(), size: this.size, ranked: this.ranked, map: this.arenaId, durationMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)), winner: this.sim.winner, players, replay: stored };
+    await acc.addHistory([...this.keys.values()], rec);
   }
 
   private close(reason: string): void {
@@ -201,6 +291,11 @@ export class Room {
       p.unitId = undefined;
     }
     this.players.clear();
+    for (const w of this.spectators) {
+      send(w, { t: 'closed', reason });
+      w.watching = undefined;
+    }
+    this.spectators.clear();
   }
 }
 
@@ -310,6 +405,10 @@ export class Lobby {
           if (r.ok && p.account) send(p, { t: 'account', account: publicInfo(p.account, true) });
           break;
         }
+        case 'history':
+          if (!p.account) return;
+          send(p, { t: 'history', rows: await acc.history(p.account.key) });
+          break;
         case 'admin_list': {
           if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: 'Owner tools are locked.' });
           send(p, { t: 'admin_accounts', rows: await acc.adminList(this.onlineKeys()) });
@@ -345,6 +444,7 @@ export class Lobby {
     switch (msg.t) {
       case 'join':
         if (p.room || this.queue.includes(p)) return;
+        p.watching?.removeSpectator(p);
         {
           const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
           const build = msg.build;
@@ -370,6 +470,17 @@ export class Lobby {
       case 'leave':
         this.leave(p);
         break;
+      case 'live':
+        send(p, { t: 'live', rows: [...this.rooms].filter((r) => r.watchable).map((r) => r.live()) });
+        break;
+      case 'spectate': {
+        if (p.room || this.queue.includes(p)) return;
+        const room = [...this.rooms].find((r) => r.id === msg.id && r.watchable);
+        if (!room) return void send(p, { t: 'closed', reason: 'That match is over.' });
+        p.watching?.removeSpectator(p);
+        room.addSpectator(p);
+        break;
+      }
       case 'register':
       case 'login':
       case 'resume':
@@ -381,6 +492,7 @@ export class Lobby {
       case 'owner_unlock':
       case 'admin_list':
       case 'admin_set':
+      case 'history':
         this.account(p, msg);
         break;
       default:
@@ -400,6 +512,7 @@ export class Lobby {
       this.announceQueue();
     }
     p.room?.removePlayer(p);
+    p.watching?.removeSpectator(p);
   }
 
   /** Defaults (nothing specified): passive dummies; for 2v2 a priest ally, a warrior and a mage on the other side. */
@@ -412,6 +525,7 @@ export class Lobby {
     const foes = msg.foes && msg.foes.length ? msg.foes.slice(0, 3) : defaultFoes.slice(0, size);
     const allies = (msg.allies ?? (msg.ally === undefined ? defaultAllies.slice(0, size - 1) : msg.ally ? [msg.ally] : [])).slice(0, 2);
     const room = new Room(this.cfg.practicePrepMs, difficulty !== 'dummy', this.cfg.minCountedMatchMs, false, this.accounts, pickMap(p.mapPref));
+    room.size = size;
     room.addPlayer(p, 0);
     room.broadcastRoster();
     for (const ally of allies) room.addNpc(ally, 0, difficulty);
@@ -424,6 +538,7 @@ export class Lobby {
     const match = this.findMatch(p.size);
     if (match) {
       const room = new Room(this.cfg.queuePrepMs, true, this.cfg.minCountedMatchMs, true, this.accounts, match.map);
+      room.size = p.size;
       for (const player of match.group) this.queue.splice(this.queue.indexOf(player), 1);
       match.group.forEach((player, i) => room.addPlayer(player, i < p.size ? 0 : 1));
       room.broadcastRoster();

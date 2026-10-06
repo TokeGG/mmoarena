@@ -356,6 +356,14 @@
 .adm-head{display:flex;gap:8px;align-items:center;cursor:pointer;flex-wrap:wrap}.adm-head .dot{width:8px;height:8px;border-radius:50%;background:#555}.adm-head .dot.on{background:#4ade80}
 .adm-body{display:grid;gap:8px;margin-top:8px}.chk{display:flex;gap:6px;align-items:center;font-size:13px}.chk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px}
 .own-ok{color:#8fe3a2;font-size:13px}.own-temp{padding:8px;border-radius:6px;background:#1d2a1d;border:1px solid #3c7a3c;font-family:monospace;user-select:all}
+.spec-bar{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:30;background:rgba(14,17,24,.92);border:1px solid #3a4258;border-radius:10px;padding:8px 12px;display:grid;gap:6px;min-width:min(560px,94vw);backdrop-filter:blur(4px)}
+.sb-row{display:flex;gap:8px;align-items:center}.sb-row .sb-title{font-weight:700}.sb-row .sb-follow{flex:1;font-size:12px;color:#8b93a5;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-row input[type=range]{flex:1;min-width:0}.sb-time{font-size:12px;color:#8b93a5;min-width:78px;text-align:center}.sb-rates{display:flex;gap:4px}.sb-rates .sel{border-color:#7a5cff;color:#cdbfff}
+.live-list{display:grid;gap:8px;max-height:60vh;overflow:auto}.live-row{display:grid;gap:2px;text-align:left;background:#11151d;border:1px solid #2a3040;border-radius:8px;padding:10px;color:#e6e9ef;cursor:pointer}.live-row:hover{border-color:#7a5cff}.live-row small{color:#8b93a5}
+.hist-list{display:grid;gap:6px}.hist-row{display:grid;grid-template-columns:54px 1fr auto;gap:8px;align-items:center;background:#11151d;border:1px solid #2a3040;border-left-width:4px;border-radius:8px;padding:8px 10px}
+.hist-row.win{border-left-color:#4ade80}.hist-row.loss{border-left-color:#ef4444}.hist-row.draw{border-left-color:#9aa3b5}
+.hist-res{font-weight:800;font-size:13px}.hist-row.win .hist-res{color:#4ade80}.hist-row.loss .hist-res{color:#ef6a6a}.hist-sub{font-size:12px;color:#8b93a5}.hist-mid{min-width:0}.hist-mid div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-d.up{color:#4ade80}.hist-d.down{color:#ef6a6a}
 </style>
 </head>
 <body>

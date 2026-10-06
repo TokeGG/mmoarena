@@ -1,4 +1,4 @@
-import { ARENAS, CLASSES, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
+import { ARENAS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -17,6 +17,7 @@ import { applyAccountProgress, defaultBuild, loadProfile, progress, restoreGuest
 import { LootUi } from './lootUi';
 import { AccountUi } from './accountUi';
 import { SettingsSync } from './settingsSync';
+import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -39,6 +40,12 @@ let classId: ClassId = 'mage';
 let bar: string[] = CLASSES.mage.bar;
 let myBuild: Build = defaultBuild('mage');
 let targetId: number | null = null;
+
+/**
+ * Watching instead of playing: a live match (snapshots arrive from the server, 5 s late) or a replay (re-simulated here).
+ * `follow` is the unit whose view we show; it plays the role `you` has in a real match.
+ */
+let spec: { kind: 'live' | 'replay'; runner?: ReplayRunner; id?: string; rate: number; paused: boolean; clock: number } | null = null;
 
 let latest: Snapshot | null = null;
 let latestAt = 0;
@@ -71,6 +78,11 @@ const menu = new Menu(binds, {
     if (open) controls.releaseAll();
   },
   onLeave: () => {
+    if (spec) {
+      if (spec.kind === 'live') send({ t: 'leave' });
+      exitSpectate();
+      return;
+    }
     leaving = true;
     ws?.close();
   },
@@ -145,6 +157,9 @@ function onMessage(raw: MessageEvent) {
     case 'auth_error':
     case 'logged_out':
     case 'leaderboard':
+    case 'owner':
+    case 'admin_accounts':
+    case 'admin_result':
       accountUi.handle(m);
       break;
     case 'settings':
@@ -157,6 +172,15 @@ function onMessage(raw: MessageEvent) {
     case 'roster':
       hud.setRoster(m.players);
       break;
+    case 'history':
+      accountUi.handle(m);
+      break;
+    case 'live':
+      livePicker.show(m.rows);
+      break;
+    case 'spectating':
+      startSpectate('live', m.map, m.id);
+      break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
@@ -166,6 +190,7 @@ function onMessage(raw: MessageEvent) {
       joinMsg(`Waiting for players… ${m.waiting}/${m.needed}`);
       break;
     case 'snapshot':
+      if (!spec && you === 0) break; // a late frame from a match we already left
       onSnapshot(m.snap, m.events);
       break;
     case 'error':
@@ -175,6 +200,7 @@ function onMessage(raw: MessageEvent) {
       hud.setRoster([]);
       menu.close();
       hud.show(false);
+      endSpectateState();
       latest = null;
       mainMenu.show(true);
       joinMsg(m.reason === 'match over' ? 'Match over. Queue again?' : m.reason);
@@ -189,6 +215,10 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   if (snaps.length > 30) snaps.shift();
   latest = snap;
   latestAt = at;
+  if (spec && (!snap.units.some((u) => u.id === you) || you === 0)) {
+    const first = snap.units.find((u) => u.team === 0) ?? snap.units[0];
+    if (first) setFollow(first.id, snap);
+  }
 
   const me = snap.units.find((u) => u.id === you);
   if (me) {
@@ -234,7 +264,7 @@ function applyInput(i: MoveInput, me: UnitSnap) {
 
 /** Runs at exactly the server tick rate so one input is produced per server step. */
 function fixedStep() {
-  if (!latest) return;
+  if (!latest || spec) return;
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
   const sample = controls.sample(DT);
@@ -274,12 +304,17 @@ function interpolate(rt: number): Map<number, { x: number; z: number; y: number;
 // ------------------------------------------------------------------ targeting & abilities
 
 function setTarget(id: number | null) {
+  if (spec) {
+    if (id !== null) setFollow(id, latest);
+    return;
+  }
   targetId = id;
   send({ t: 'target', id });
 }
 
 function cycleTarget(dir: 1 | -1) {
   if (!latest) return;
+  if (spec) return cycleFollow(dir);
   const enemies = latest.units
     .filter((u) => u.team !== team && u.alive)
     .sort((a, b) => Math.hypot(a.x - pred.x, a.z - pred.z) - Math.hypot(b.x - pred.x, b.z - pred.z));
@@ -290,6 +325,7 @@ function cycleTarget(dir: 1 | -1) {
 }
 
 function castSlot(i: number) {
+  if (spec) return;
   const ability = bar[i];
   if (ability) send({ t: 'cast', ability, target: targetId });
 }
@@ -307,7 +343,7 @@ controls.onKey = (code, e) => {
     // Esc closes the menu if open, else clears the target, else opens the menu (WoW behaviour).
     if (menu.isOpen) menu.back();
     else if (!latest) return;
-    else if (targetId !== null) setTarget(null);
+    else if (!spec && targetId !== null) setTarget(null);
     else menu.open(true);
     return;
   }
@@ -319,6 +355,7 @@ controls.onKey = (code, e) => {
   else if (action === 'nextTarget') cycleTarget(e.shiftKey ? -1 : 1);
   else if (action === 'prevTarget') cycleTarget(-1);
   else if (action === 'autoAttack') {
+    if (spec) return;
     const me = latest.units.find((u) => u.id === you);
     send({ t: 'auto', on: !me?.autoAttack });
   }
@@ -334,6 +371,15 @@ function frame(now: number) {
   const dt = Math.min(0.25, (now - lastT) / 1000);
   lastT = now;
 
+  if (!latest && spec) {
+    // waiting for the first frame of a live match (it arrives 5 s late)
+    vis.yaw = controls.yaw;
+    scene.setPhase('prep');
+    scene.update([], 0, null);
+    scene.setCamera(0, 0, controls.yaw, 0.6, 30);
+    scene.render();
+    return;
+  }
   if (!latest) {
     // Menu backdrop: the chosen class idles in the arena and sways gently towards the camera.
     const t = now / 1000;
@@ -350,21 +396,44 @@ function frame(now: number) {
     return;
   }
 
+  if (spec?.runner && !spec.paused && !spec.runner.done) {
+    spec.clock += dt * 1000 * spec.rate;
+    const evs: Parameters<Hud['event']>[0][] = [];
+    let n = 0;
+    while (spec.clock >= TUNING.tickMs && !spec.runner.done) {
+      spec.clock -= TUNING.tickMs;
+      evs.push(...spec.runner.step());
+      n++;
+    }
+    if (n) onSnapshot(spec.runner.snapshot(), evs);
+  }
+
   acc += dt;
   while (acc >= DT) {
     acc -= DT;
     fixedStep();
   }
 
-  const snap = latest;
-  const estNow = snap.time + (performance.now() - latestAt);
-  const interp = interpolate(estNow - INTERP_DELAY_MS);
+  const snap = latest!;
+  const rate = !spec ? 1 : spec.paused || (spec.runner?.done ?? false) ? 0 : spec.rate;
+  const estNow = snap.time + (performance.now() - latestAt) * rate;
+  const interp = interpolate(estNow - (rate > 0 ? Math.max(INTERP_DELAY_MS * rate, 60) : 0));
+  if (spec) targetId = snap.units.find((u) => u.id === you)?.target ?? null;
 
   // our own unit: interpolate between the last two 20 Hz predictions, then ease towards that (hides corrections too)
   {
     const alpha = Math.min(1, Math.max(0, acc / DT));
-    const tx = prevPred.x + (pred.x - prevPred.x) * alpha;
-    const tz = prevPred.z + (pred.z - prevPred.z) * alpha;
+    let tx = prevPred.x + (pred.x - prevPred.x) * alpha;
+    let tz = prevPred.z + (pred.z - prevPred.z) * alpha;
+    if (spec) {
+      // watching: the camera follows the interpolated server position of the followed unit
+      const f = interp.get(you);
+      if (f) {
+        tx = f.x;
+        tz = f.z;
+        vis.facing = f.facing;
+      }
+    }
     if (!vis.ready || Math.hypot(tx - vis.x, tz - vis.z) > 4) {
       vis.x = tx;
       vis.z = tz;
@@ -374,7 +443,7 @@ function frame(now: number) {
       vis.x += (tx - vis.x) * k;
       vis.z += (tz - vis.z) * k;
     }
-    vis.facing = lerpAngle(vis.facing, controls.facing, 1 - Math.exp(-dt * 16));
+    if (!spec) vis.facing = lerpAngle(vis.facing, controls.facing, 1 - Math.exp(-dt * 16));
     // camera: a touch of ease on orbit and zoom so it glides
     vis.yaw = lerpAngle(vis.yaw, controls.yaw, 1 - Math.exp(-dt * 32));
     vis.pitch += (controls.pitch - vis.pitch) * (1 - Math.exp(-dt * 32));
@@ -388,7 +457,7 @@ function frame(now: number) {
     let y = u.y;
     const i = interp.get(u.id);
     if (i) ({ x, z, y, facing } = i);
-    if (u.id === you) {
+    if (!spec && u.id === you) {
       x = vis.x;
       z = vis.z;
       facing = vis.facing;
@@ -410,7 +479,8 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist, jumpHeight(performance.now() - myJumpAt) * 0.45);
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist, (spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45);
+  if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
   scene.render(); // render first so projection uses this frame's camera
 
   hud.update({ snap, now: estNow, you, targetId });
@@ -424,6 +494,114 @@ function frame(now: number) {
   );
 }
 requestAnimationFrame(frame);
+
+// ------------------------------------------------------------------ watching: live matches and replays
+
+const spectateBar = new SpectateBar({
+  onExit: () => {
+    if (spec?.kind === 'live') send({ t: 'leave' });
+    exitSpectate();
+  },
+  onPause: (p) => {
+    if (spec) spec.paused = p;
+  },
+  onRate: (r) => {
+    if (spec) spec.rate = r;
+  },
+  onSeek: (tick) => {
+    if (!spec?.runner) return;
+    spec.runner.seek(tick);
+    snaps.length = 0;
+    onSnapshot(spec.runner.snapshot(), []);
+  },
+});
+const livePicker = new LivePicker(
+  (id) => send({ t: 'spectate', id }),
+  () => send({ t: 'live' }),
+);
+
+function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
+  spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
+  arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
+  scene.setMap(arena.id);
+  you = 0;
+  team = 0;
+  latest = null;
+  snaps.length = 0;
+  pending = [];
+  targetId = null;
+  vis.ready = false;
+  controls.yaw = controls.facing = arena.spawnFacing[0];
+  vis.facing = vis.yaw = controls.yaw;
+  vis.pitch = controls.pitch;
+  vis.dist = controls.dist;
+  livePicker.close();
+  hud.show(true);
+  mainMenu.show(false);
+  joinMsg('');
+  document.body.classList.add('spectating');
+  if (kind === 'replay' && runner) {
+    hud.setRoster(runner.data.roster);
+    const names = runner.data.units.map((u) => u.name);
+    spectateBar.showReplay(runner.data.ticks, `${mapName(runner.data.arena)} · ${names.join(', ')}`, `${location.origin}/?replay=${id}`);
+    onSnapshot(runner.snapshot(), []);
+  } else spectateBar.showLive();
+}
+
+function setFollow(id: number, snap: Snapshot | null) {
+  const u = snap?.units.find((x) => x.id === id);
+  if (!u) return;
+  you = id;
+  team = u.team;
+  classId = u.classId;
+  bar = specOf(u.classId, u.spec ?? '')?.bar ?? CLASSES[u.classId].bar;
+  hud.setBar(classId, bar);
+  relabel();
+  vis.ready = false;
+}
+
+function cycleFollow(dir: 1 | -1) {
+  if (!latest) return;
+  const all = [...latest.units].sort((a, b) => a.id - b.id);
+  const i = all.findIndex((u) => u.id === you);
+  const next = all[(i + dir + all.length) % all.length];
+  if (next) setFollow(next.id, latest);
+}
+
+function endSpectateState() {
+  if (!spec) return;
+  spec = null;
+  spectateBar.hide();
+  document.body.classList.remove('spectating');
+  you = 0;
+}
+
+function exitSpectate() {
+  endSpectateState();
+  latest = null;
+  hud.show(false);
+  hud.setRoster([]);
+  menu.close();
+  mainMenu.show(true);
+  mainMenu.refresh();
+}
+
+async function startReplay(id: string) {
+  joinMsg('Loading replay…');
+  try {
+    const data = await loadReplay(id);
+    startSpectate('replay', data.arena, id, new ReplayRunner(data));
+  } catch (e) {
+    joinMsg((e as Error).message);
+    mainMenu.show(true);
+  }
+}
+
+async function openLive() {
+  if (!(await connect())) return joinMsg('Could not reach the server.');
+  livePicker.show(null);
+  send({ t: 'live' });
+}
 
 // ------------------------------------------------------------------ main menu
 
@@ -453,7 +631,8 @@ function connect(): Promise<boolean> {
       resolve(false);
       if (ws !== sock) return;
       ws = null;
-      const inMatch = !!latest;
+      const inMatch = !!latest && !spec;
+      if (spec?.kind === 'live') endSpectateState();
       hud.show(false);
       hud.setRoster([]);
       latest = null;
@@ -491,6 +670,7 @@ async function play(req: PlayRequest) {
 const lootUi = new LootUi();
 const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
+  onReplay: (id) => void startReplay(id),
   send: (m) => {
     if (ws && ws.readyState === WebSocket.OPEN) send(m);
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
@@ -512,11 +692,14 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onPlay: play,
   onControls: () => menu.open(false, 'keys'),
   onEditHud: editHudFromMenu,
+  onWatch: () => void openLive(),
   onSelect: (c, b) => setTipMods(compileMods(c, b)),
   onDiscard: (id) => send({ t: 'discard', id }),
   extras: accountUi.chip,
 });
-accountUi.promptIfNew();
+const replayParam = new URLSearchParams(location.search).get('replay');
+if (replayParam && /^[0-9a-f]{12,16}$/.test(replayParam)) void startReplay(replayParam);
+else accountUi.promptIfNew();
 if (accountUi.token) void connect();
 setTipMods(compileMods(mainMenu.selectedClass, mainMenu.currentBuild));
 const verEl = document.getElementById('ver');

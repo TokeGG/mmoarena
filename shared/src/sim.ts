@@ -15,6 +15,8 @@ const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
 export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef }
+/** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit. */
+export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4, unit: number, ...args: (number | string | boolean | null)[]];
 export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
 export type AuraResult = { applied: true; duration: number; dr: number } | { applied: false; immune: true };
 
@@ -36,6 +38,10 @@ export class ArenaSim {
   readonly arena: ArenaDef;
   time = 0;
   tickNo = 0;
+  /** Set to record commands for a replay. */
+  onCommand: ((c: SimCommand) => void) | null = null;
+  /** Set to record the units added, in order. */
+  onUnit: ((o: AddUnitOptions) => void) | null = null;
   phase: Phase = 'prep';
   winner: TeamId | 'draw' | null = null;
   readonly prepEndsAt: number;
@@ -57,6 +63,7 @@ export class ArenaSim {
   // ------------------------------------------------------------------ setup
 
   addUnit(o: AddUnitOptions): Unit {
+    this.onUnit?.(o);
     const cls = CLASSES[o.classId];
     const gear = clamp(o.gearMult ?? 1, 1, TUNING.gearCap);
     const slot = [...this.units.values()].filter((u) => u.team === o.team).length;
@@ -81,6 +88,7 @@ export class ArenaSim {
 
   /** A disconnect counts as a forfeit: the unit dies so match-end logic runs normally. */
   forfeit(id: number): void {
+    this.onCommand?.([this.tickNo, 4, id]);
     const u = this.units.get(id);
     if (u?.alive) this.die(u, null);
   }
@@ -90,17 +98,17 @@ export class ArenaSim {
   queueInput(id: number, input: MoveInput): void {
     const u = this.units.get(id);
     if (!u || !u.alive) return;
-    u.inputQueue.push({
-      seq: input.seq,
-      fwd: clamp(input.fwd, -1, 1),
-      strafe: clamp(input.strafe, -1, 1),
-      facing: input.facing,
-      jump: input.jump === true,
-    });
+    // quantised here (not just in the recorder) so a replay of the recorded numbers is bit-identical to the live match
+    const fwd = Math.round(clamp(input.fwd, -1, 1) * 100) / 100;
+    const strafe = Math.round(clamp(input.strafe, -1, 1) * 100) / 100;
+    const facing = Math.round(input.facing * 1000) / 1000;
+    this.onCommand?.([this.tickNo, 0, id, input.seq, fwd, strafe, facing, input.jump === true ? 1 : 0]);
+    u.inputQueue.push({ seq: input.seq, fwd, strafe, facing, jump: input.jump === true });
     while (u.inputQueue.length > 5) u.inputQueue.shift();
   }
 
   setTarget(id: number, targetId: number | null): Result {
+    this.onCommand?.([this.tickNo, 1, id, targetId]);
     const u = this.units.get(id);
     if (!u) return fail('no unit');
     if (targetId === null) {
@@ -115,11 +123,13 @@ export class ArenaSim {
   }
 
   setAutoAttack(id: number, on: boolean): void {
+    this.onCommand?.([this.tickNo, 3, id, on]);
     const u = this.units.get(id);
     if (u) u.autoAttack = on && !!CLASSES[u.classId].auto;
   }
 
   useAbility(id: number, abilityId: string, targetId?: number | null): Result {
+    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null]);
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
     const def = ABILITIES[abilityId];

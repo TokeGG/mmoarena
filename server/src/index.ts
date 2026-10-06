@@ -68,6 +68,16 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
         .catch(() => res.writeHead(500).end());
       return;
     }
+    if (url.pathname.startsWith('/api/replay/') && req.method === 'GET') {
+      accounts
+        .getReplay(url.pathname.slice('/api/replay/'.length))
+        .then((b) => {
+          if (!b) return void res.writeHead(404, { 'content-type': 'text/plain' }).end('replay not found (they are kept for 30 days)');
+          res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'public, max-age=86400', 'x-content-type-options': 'nosniff' }).end(b);
+        })
+        .catch(() => res.writeHead(500).end());
+      return;
+    }
     if (url.pathname === '/api/avatar' && (req.method === 'POST' || req.method === 'DELETE')) {
       const token = /^Bearer (\S{10,80})$/.exec(String(req.headers.authorization ?? ''))?.[1];
       const fail = (code: number, msg: string) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify({ error: msg }));

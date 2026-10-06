@@ -1,7 +1,8 @@
 import { OwnerPanel } from './ownerUi';
 import { applyName, avatarImg, avatarUrl } from './nameStyle';
 import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
-import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, ServerMsg } from '@arena/shared';
+import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, MatchRecord, ServerMsg } from '@arena/shared';
+import { classIcon, mapName } from './spectate';
 
 /**
  * Account chip, sign-in/register dialog and the profile screen (overview, cosmetics, leaderboard). All data comes from
@@ -16,6 +17,8 @@ export interface AccountHooks {
   /** Make sure the socket is open, then send. */
   send(msg: ClientMsg): void;
   onAccount(account: AccountInfo | null): void;
+  /** Open a recorded match for playback. */
+  onReplay(id: string): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -42,7 +45,7 @@ const store = {
   },
 };
 
-type Tab = 'overview' | 'customize' | 'leaders' | 'owner';
+type Tab = 'overview' | 'history' | 'customize' | 'leaders' | 'owner';
 
 export class AccountUi {
   readonly chip = el('button', 'acct-chip');
@@ -52,6 +55,7 @@ export class AccountUi {
   private authError = '';
   private authMode: 'login' | 'register' = 'login';
   private rows: LeaderRow[] = [];
+  private matches: MatchRecord[] | null = null;
   private pendingResume: ((v: void) => void) | null = null;
   private settledPromise: Promise<void> = Promise.resolve();
   private owner = new OwnerPanel({ send: (m) => this.hooks.send(m), token: () => this.token, rerender: () => this.modal && this.renderModal() });
@@ -144,6 +148,10 @@ export class AccountUi {
       case 'admin_accounts':
       case 'admin_result':
         this.owner.handle(m);
+        break;
+      case 'history':
+        this.matches = m.rows;
+        if (this.modal && this.tab === 'history') this.renderModal();
         break;
       case 'leaderboard':
         this.rows = m.rows;
@@ -322,13 +330,14 @@ export class AccountUi {
     head.append(emblem, who, rank, close);
 
     const tabs = el('div', 'acct-tabs');
-    const tabList: [Tab, string][] = [['overview', 'Overview'], ['customize', 'Customize'], ['leaders', 'Leaderboard']];
+    const tabList: [Tab, string][] = [['overview', 'Overview'], ['history', 'Matches'], ['customize', 'Customize'], ['leaders', 'Leaderboard']];
     if (a.role === 'owner') tabList.push(['owner', '★ Owner']);
     for (const [t, label] of tabList) {
       const b = el('button', this.tab === t ? 'sel' : '', label);
       b.addEventListener('click', () => {
         this.tab = t;
         if (t === 'leaders') this.hooks.send({ t: 'leaderboard' });
+        if (t === 'history') this.hooks.send({ t: 'history' });
         if (t === 'owner') this.owner.opened(a);
         this.renderModal();
       });
@@ -337,6 +346,7 @@ export class AccountUi {
     card.append(head, tabs);
 
     if (this.tab === 'overview') card.append(this.overview(a));
+    else if (this.tab === 'history') card.append(this.history(a));
     else if (this.tab === 'customize') card.append(this.customize(a));
     else if (this.tab === 'owner' && a.role === 'owner') card.append(this.owner.render(a));
     else card.append(this.leaders(a));
@@ -411,6 +421,45 @@ export class AccountUi {
     if (a.grants.includes('gif') && a.role !== 'owner') box.append(el('h3', '', 'Animated icon'), this.owner.gifBox(a));
     box.append(el('div', 'mm-modal-foot', 'Other players see your emblem, title and colour on your nameplate in matches. Unlock more by playing, winning and climbing the ranks.'));
     if (this.authError) box.append(el('div', 'auth-err', this.authError));
+    return box;
+  }
+
+  private history(a: AccountInfo): HTMLElement {
+    const box = el('div', 'hist-list');
+    if (!this.matches) {
+      box.append(el('p', 'mm-modal-foot', 'Loading…'));
+      return box;
+    }
+    if (!this.matches.length) {
+      box.append(el('p', 'mm-modal-foot', 'No matches yet. Ranked games and practice against bots show up here, newest first, with a replay when one was saved.'));
+      return box;
+    }
+    const ago = (t: number) => {
+      const m = Math.max(1, Math.round((Date.now() - t) / 60000));
+      return m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+    };
+    for (const r of this.matches) {
+      const me = r.players.find((p) => p.name === a.name);
+      const res = r.winner === 'draw' || r.winner === null ? 'draw' : me && r.winner === me.team ? 'win' : 'loss';
+      const row = el('div', `hist-row ${res}`);
+      row.append(el('div', 'hist-res', res === 'win' ? 'WIN' : res === 'loss' ? 'LOSS' : 'DRAW'));
+      const mid = el('div', 'hist-mid');
+      const team = (t: number) => r.players.filter((p) => p.team === t).map((p) => `${classIcon(p.classId)} ${p.name}`).join(', ');
+      const myTeam = me?.team ?? 0;
+      mid.append(el('div', '', `${r.size}v${r.size} · ${mapName(r.map)}${r.ranked ? ' · Ranked' : ' · Practice'}`), el('div', 'hist-sub', `${team(myTeam)}  vs  ${team(1 - myTeam)}`), el('div', 'hist-sub', `${ago(r.at)} · ${Math.floor(r.durationMs / 60000)}:${String(Math.floor(r.durationMs / 1000) % 60).padStart(2, '0')}`));
+      const right = el('div');
+      if (me?.delta !== undefined) right.append(el('div', `hist-d ${me.delta >= 0 ? 'up' : 'down'}`, `${me.delta >= 0 ? '+' : ''}${me.delta}`));
+      if (r.replay) {
+        const w = el('button', 'mm-small', '▶ Replay');
+        w.addEventListener('click', () => {
+          this.closeModal();
+          this.hooks.onReplay(r.id);
+        });
+        right.append(w);
+      }
+      row.append(mid, right);
+      box.append(row);
+    }
     return box;
   }
 

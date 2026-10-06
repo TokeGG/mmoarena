@@ -1,7 +1,8 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
 import { ABILITY_GRANTS, DEFAULT_COSMETICS, EMBLEMS, MAX_INVENTORY, NAME_COLORS, NAME_RE, TITLES, cleanCustom, isOwnerName, lootItem, rarityIndex, rollLoot, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
-import type { AccountInfo, AdminRow, CustomStyle, Cosmetics, LeaderRow } from '@arena/shared';
+import { MAX_HISTORY } from '@arena/shared';
+import type { AccountInfo, AdminRow, CustomStyle, Cosmetics, LeaderRow, MatchRecord } from '@arena/shared';
 import type { Store } from './store';
 
 const scrypt = promisify(crypto.scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
@@ -312,6 +313,39 @@ export class Accounts {
     return { ok: true, account: a, tempPassword };
   }
 
+  // ------------------------------------------------------------------ match history and replays
+
+  /** Put a finished match at the top of each listed account's history (newest first, capped). */
+  async addHistory(keys: string[], rec: MatchRecord): Promise<void> {
+    for (const key of new Set(keys)) {
+      const list = await this.history(key);
+      list.unshift(rec);
+      await this.store.set(`hist:${key}`, JSON.stringify(list.slice(0, MAX_HISTORY)));
+    }
+  }
+
+  async history(key: string): Promise<MatchRecord[]> {
+    const raw = await this.store.get(`hist:${key.toLowerCase()}`);
+    try {
+      return raw ? (JSON.parse(raw) as MatchRecord[]) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  /** `gz` is the gzip of the replay JSON. Kept for 30 days. */
+  async saveReplay(id: string, gz: Buffer): Promise<boolean> {
+    if (gz.length > REPLAY_MAX_BYTES) return false;
+    await this.store.set(`rp:${id}`, gz.toString('base64'), 30 * 24 * 3600);
+    return true;
+  }
+
+  async getReplay(id: string): Promise<Buffer | null> {
+    if (!/^[0-9a-f]{12,16}$/.test(id)) return null;
+    const raw = await this.store.get(`rp:${id}`);
+    return raw ? Buffer.from(raw, 'base64') : null;
+  }
+
   // ------------------------------------------------------------------ animated icon
 
   canGif(a: AccountRecord, ownerOk: boolean): boolean {
@@ -368,6 +402,8 @@ function isUnlockedGrant(def: { id: string; unlock: { kind: string } } | undefin
 }
 
 /** A GIF we are willing to store and serve: real GIF header, small, and no bigger than 256x256 pixels. */
+/** Replays bigger than this (compressed) are not stored. */
+export const REPLAY_MAX_BYTES = 600 * 1024;
 export const AVATAR_MAX_BYTES = 256 * 1024;
 export function validateGif(b: Buffer): string | null {
   if (b.length < 14) return 'Not a GIF.';

@@ -114,3 +114,9 @@ Space jumps. A jump is mostly cosmetic, but while airborne you can dodge **groun
 - **Accounts must be saved somewhere.** Without `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` on the server, accounts live in memory and vanish on every restart or redeploy (Render free services also restart after idling). The client shows a warning when that is the case; `/api/status` reports it.
 - **Owner tools** (Profile → ★ Owner, founder account only) need `ARENA_OWNER_CODE` set on the server. Enter the code once per session to unlock: your own free-text title with colours (gradient, glow), a GIF icon (max 256x256 px, 256 KB), and the accounts panel: grant owner-tier titles/emblems/colours or the GIF ability to friends, write a custom title and colours for a friend, reset a password (temporary password shown once, old sessions die).
 - All of it is enforced on the server; the founder name alone is not enough, the code must have been entered for that session.
+
+## Match history, replays, spectating (0.18)
+
+- **History:** Profile → Matches lists your last 30 counted matches (ranked and practice vs bots) with result, rating change and a replay link.
+- **Replays:** the server records every command and input of a counted match (about 20-60 KB gzipped, kept 30 days) and the browser re-runs the exact match on the shared simulation, so you can pause, change speed, seek, and follow any player. A replay URL (`/?replay=<id>`) can be shared. Replays only play on the game data they were recorded with (`contentHash`); bump `SIM_REVISION` in `shared/src/replay.ts` whenever you change simulation code, because old replays would no longer play out the same. After a balance change, older replays say so instead of showing a wrong fight.
+- **Spectating:** "Watch live ranked matches" on the main menu. Spectators see the whole arena five seconds behind live, so watching cannot help the players.
