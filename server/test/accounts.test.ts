@@ -240,3 +240,19 @@ describe('loot drops', () => {
     assert.equal(after.inventory.length, 1);
   });
 });
+
+describe('shared database', () => {
+  it('two games with different prefixes on one store never see each other', async () => {
+    const { PrefixedStore } = await import('../src/store');
+    const raw = new MemoryStore();
+    const wow = new Accounts(new PrefixedStore(raw, 'wowarena:'));
+    const aim = new Accounts(new PrefixedStore(raw, 'aim:'));
+    assert.ok((await wow.register('Toke', 'hunter22', '1.2.3.4')).ok);
+    assert.ok((await aim.register('Toke', 'different1', '1.2.3.5')).ok, 'same name is free in the other game');
+    assert.equal((await wow.login('Toke', 'different1', '1.2.3.4')).ok, false);
+    assert.ok((await wow.login('Toke', 'hunter22', '1.2.3.4')).ok);
+    assert.equal((await wow.leaderboard()).length, 1);
+    assert.ok(await raw.get('wowarena:acct:toke'), 'keys are stored under the prefix');
+    assert.equal(await raw.get('acct:toke'), null, 'nothing is written unprefixed');
+  });
+});

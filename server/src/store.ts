@@ -91,10 +91,43 @@ export class UpstashStore implements Store {
   }
 }
 
+/**
+ * Puts every key under a prefix so several games can share one database without touching each other's data.
+ * The prefix is fixed once data exists: changing it makes existing accounts invisible.
+ */
+export class PrefixedStore implements Store {
+  constructor(private inner: Store, private prefix: string) {}
+  get kind() {
+    return `${this.inner.kind} (keys prefixed "${this.prefix}")`;
+  }
+  private k = (key: string) => this.prefix + key;
+  get(key: string) {
+    return this.inner.get(this.k(key));
+  }
+  set(key: string, value: string, exSeconds?: number) {
+    return this.inner.set(this.k(key), value, exSeconds);
+  }
+  setNx(key: string, value: string) {
+    return this.inner.setNx(this.k(key), value);
+  }
+  del(key: string) {
+    return this.inner.del(this.k(key));
+  }
+  zadd(key: string, score: number, member: string) {
+    return this.inner.zadd(this.k(key), score, member);
+  }
+  ztop(key: string, count: number) {
+    return this.inner.ztop(this.k(key), count);
+  }
+}
+
+/** Default key prefix for this game. Override with ARENA_KEY_PREFIX only if you have a reason to. */
+export const DEFAULT_KEY_PREFIX = 'wowarena:';
+
 /** Upstash credentials from the environment (both the Upstash and the Vercel-KV variable names work). */
 export function createStore(env: NodeJS.ProcessEnv = process.env): Store {
   const url = env.UPSTASH_REDIS_REST_URL || env.KV_REST_API_URL;
   const token = env.UPSTASH_REDIS_REST_TOKEN || env.KV_REST_API_TOKEN;
-  if (url && token) return new UpstashStore(url, token);
+  if (url && token) return new PrefixedStore(new UpstashStore(url, token), env.ARENA_KEY_PREFIX ?? DEFAULT_KEY_PREFIX);
   return new MemoryStore();
 }
