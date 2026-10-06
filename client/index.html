@@ -148,6 +148,18 @@
   #classes button .ci { font-size:24px; }
   .row button { background:linear-gradient(#4a8cf0,#2b60c0); border:1px solid #1d3f80; font-family:var(--serif); letter-spacing:.5px; }
   .row button.alt { background:linear-gradient(#3a3f4d,#262a35); border:1px solid #14161c; }
+
+  /* ---------- tooltips ---------- */
+  #tooltip { position:fixed; z-index:200; max-width:320px; pointer-events:none; padding:8px 10px; background:linear-gradient(180deg,rgba(24,20,28,.97),rgba(10,9,13,.97)); border:1px solid var(--gold); border-radius:6px; box-shadow:0 6px 22px rgba(0,0,0,.75); font-size:12px; line-height:1.4; color:#d8d2c4; white-space:pre-line; }
+  #tooltip .tt-head { display:flex; justify-content:space-between; gap:14px; align-items:baseline; margin-bottom:3px; }
+  #tooltip .tt-title { font-family:var(--serif); font-size:15px; font-weight:700; color:#fff; }
+  #tooltip .tt-tag { font-size:11px; color:#a79d88; white-space:nowrap; }
+  #tooltip .tt-stat { color:#a79d88; }
+  #tooltip .tt-line { color:#ffd98a; margin-top:4px; }
+  #tooltip .tt-good { color:#7dff9a; margin-top:2px; }
+  #tooltip .tt-bad { color:#ff7a6a; margin-top:4px; }
+  #tooltip .tt-note { color:#e6c229; margin-top:3px; font-style:italic; }
+  #tooltip .tt-foot { color:#8b93a5; margin-top:5px; border-top:1px solid #2a3140; padding-top:4px; }
 </style>
 </head>
 <body>

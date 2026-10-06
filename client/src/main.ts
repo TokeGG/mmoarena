@@ -1,5 +1,5 @@
-import { ARENA, CLASSES, CLASS_IDS, PROTOCOL_VERSION, TUNING, clampToGate, stepMovement } from '@arena/shared';
-import type { ClassId, ClientMsg, MoveInput, PracticeDifficulty, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import { ARENA, CLASSES, CLASS_IDS, PROTOCOL_VERSION, TUNING, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
+import type { Build, ClassId, ClientMsg, MoveInput, PracticeDifficulty, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
 import type { RenderUnit } from './scene';
@@ -9,6 +9,9 @@ import { Keybinds, SLOT_ACTIONS } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
 import { CLASS_ICON } from './icons';
+import { initTooltips } from './tooltip';
+import { CLASS_BLURB, installTips, setTipMods, setTipProgress } from './tips';
+import { defaultBuild, loadBuild, loadProfile, progress, sanitize, saveBuild, saveProfile } from './profile';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -25,6 +28,9 @@ let ws: WebSocket | null = null;
 let you = 0;
 let team: TeamId = 0;
 let classId: ClassId = 'mage';
+/** The ability bar for the current spec (keys 1..6). */
+let bar: string[] = CLASSES.mage.bar;
+let myBuild: Build = defaultBuild('mage');
 let targetId: number | null = null;
 
 let latest: Snapshot | null = null;
@@ -80,17 +86,23 @@ function onMessage(raw: MessageEvent) {
       you = m.unitId;
       team = m.team;
       classId = m.classId;
+      bar = specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar;
+      setTipMods(compileMods(classId, myBuild));
       latest = null;
       snaps.length = 0;
       pending = [];
       seq = 0;
       targetId = null;
       controls.yaw = controls.facing = ARENA.spawnFacing[team];
-      hud.setClass(classId);
+      hud.setBar(classId, bar);
       relabel();
       hud.show(true);
       document.getElementById('join')!.classList.add('hidden');
       joinMsg('');
+      break;
+    case 'profile':
+      saveProfile(m.token, m.matches, m.wins);
+      setTipProgress(m.matches);
       break;
     case 'queued':
       joinMsg(`Waiting for players… ${m.waiting}/${m.needed}`);
@@ -209,7 +221,7 @@ function cycleTarget(dir: 1 | -1) {
 }
 
 function castSlot(i: number) {
-  const ability = CLASSES[classId].bar[i];
+  const ability = bar[i];
   if (ability) send({ t: 'cast', ability, target: targetId });
 }
 
@@ -309,6 +321,14 @@ requestAnimationFrame(frame);
 
 // ------------------------------------------------------------------ join screen
 
+loadProfile();
+setTipProgress(progress.matches);
+installTips();
+initTooltips();
+void CLASS_BLURB;
+void saveBuild;
+void sanitize;
+
 const nameInput = document.getElementById('name') as HTMLInputElement;
 const classBox = document.getElementById('classes')!;
 let selected: ClassId = 'mage';
@@ -367,6 +387,7 @@ function join(mode: 'practice' | 'queue') {
   } catch {
     /* ignore */
   }
+  myBuild = loadBuild(selected);
   const msg: ClientMsg =
     mode === 'practice'
       ? {
@@ -374,8 +395,10 @@ function join(mode: 'practice' | 'queue') {
           foes: foesSel.value.split(',') as ClassId[],
           ally: allySel.value === 'none' ? null : (allySel.value as ClassId),
           difficulty: diffSel.value as PracticeDifficulty,
+          build: myBuild,
+          profile: progress.token || undefined,
         }
-      : { t: 'join', name, classId: selected, mode };
+      : { t: 'join', name, classId: selected, mode, build: myBuild, profile: progress.token || undefined };
   const sendJoin = () => send(msg);
   if (ws && ws.readyState === WebSocket.OPEN) return sendJoin();
 

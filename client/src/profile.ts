@@ -1,0 +1,67 @@
+import { SPECS, TALENTS, bestGear, emptyBuild, itemById, tierUnlocked, validateBuild } from '@arena/shared';
+import type { Build, ClassId } from '@arena/shared';
+
+/** Client-side progress and saved builds. The server re-validates everything; this just remembers the player's picks. */
+
+export const progress = { token: '', matches: 0, wins: 0 };
+
+const PROFILE_KEY = 'arena.profile.v1';
+const buildKey = (c: ClassId) => `arena.build.v1.${c}`;
+
+export function loadProfile() {
+  try {
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if (raw) Object.assign(progress, JSON.parse(raw));
+  } catch {
+    /* storage unavailable: start fresh */
+  }
+}
+
+export function saveProfile(token: string, matches: number, wins: number) {
+  progress.token = token;
+  progress.matches = matches;
+  progress.wins = wins;
+  try {
+    localStorage.setItem(PROFILE_KEY, JSON.stringify(progress));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Drop anything unknown or still locked so a stale save can never get a join rejected. */
+export function sanitize(classId: ClassId, b: Build, matches = progress.matches): Build {
+  const spec = SPECS[classId].some((s) => s.id === b.spec) ? b.spec : SPECS[classId][0].id;
+  const tiers = TALENTS[classId];
+  const talents = tiers.map((tier, i) => (tier.some((t) => t.id === b.talents[i]) ? b.talents[i] : ''));
+  const gear: Record<string, string> = {};
+  for (const [slot, id] of Object.entries(b.gear ?? {})) {
+    const item = itemById(id);
+    if (item && item.slot === slot && tierUnlocked(item.tier, matches)) gear[slot] = id;
+  }
+  return { spec, talents, gear };
+}
+
+export function defaultBuild(classId: ClassId): Build {
+  return { ...emptyBuild(classId), talents: TALENTS[classId].map(() => ''), gear: bestGear('balance', progress.matches) };
+}
+
+export function loadBuild(classId: ClassId): Build {
+  try {
+    const raw = localStorage.getItem(buildKey(classId));
+    if (raw) {
+      const b = sanitize(classId, JSON.parse(raw) as Build);
+      if (validateBuild(classId, b, progress.matches).ok) return b;
+    }
+  } catch {
+    /* fall through */
+  }
+  return defaultBuild(classId);
+}
+
+export function saveBuild(classId: ClassId, b: Build) {
+  try {
+    localStorage.setItem(buildKey(classId), JSON.stringify(b));
+  } catch {
+    /* ignore */
+  }
+}

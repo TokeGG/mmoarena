@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { ABILITIES } from '@arena/shared';
-import type { School, SimEvent } from '@arena/shared';
+import { ABILITIES, AURAS } from '@arena/shared';
+import type { AbilityDef, School, SimEvent } from '@arena/shared';
 
 /**
  * Spell and combat visuals, driven entirely by sim events plus the aura list on each unit.
@@ -30,6 +30,11 @@ const SCHOOL_COLOR: Record<School, number> = {
   holy: 0xffe98a,
   shadow: 0x9a4dff,
   nature: 0x7dff7a,
+};
+
+const BUFF_COLOR: Record<string, number> = {
+  recklessness: 0xff4a2a, shield_wall: 0x9db4d8, arcane_power: 0xc58bff, pain_suppression: 0xfff1a8,
+  dispersion: 0x9a4dff, adrenaline_rush: 0xfff079, evasion: 0xb8c4d8,
 };
 
 const CHEST = 1.2;
@@ -325,7 +330,7 @@ export class Effects {
     });
   }
 
-  private projectile(srcId: number, tgtId: number, school: School, kind: 'frost' | 'fire' | 'holy', size = 1) {
+  private projectile(srcId: number, tgtId: number, school: School, kind: 'frost' | 'fire' | 'holy' | 'arcane' | 'shadow', size = 1) {
     const s = this.pos(srcId);
     if (!s) return 0;
     const color = SCHOOL_COLOR[school];
@@ -362,7 +367,7 @@ export class Effects {
           } else if (kind === 'frost') {
             this.particle(p.x + rnd(-0.12, 0.12), p.y + rnd(-0.12, 0.12), p.z + rnd(-0.12, 0.12), { tex: Math.random() < 0.3 ? 'star' : 'spark', color: Math.random() < 0.5 ? 0xbfeaff : 0x5cb8ff, vy: rnd(-0.4, 0.4), s0: 0.32 * size, life: 0.45, drag: 2 });
           } else {
-            this.particle(p.x + rnd(-0.15, 0.15), p.y + rnd(-0.15, 0.15), p.z + rnd(-0.15, 0.15), { tex: Math.random() < 0.4 ? 'star' : 'spark', color: 0xfff1a8, vy: rnd(0, 0.5), s0: 0.34, life: 0.5, drag: 2 });
+            this.particle(p.x + rnd(-0.15, 0.15), p.y + rnd(-0.15, 0.15), p.z + rnd(-0.15, 0.15), { tex: Math.random() < 0.4 ? 'star' : 'spark', color: kind === 'holy' ? 0xfff1a8 : color, vy: rnd(0, 0.5), s0: 0.34, life: 0.5, drag: 2 });
           }
         }
         return done;
@@ -728,8 +733,79 @@ export class Effects {
         this.ring(s.x, s.z, 0xfff079, 0.3, 1.8, 0.35);
         break;
       default:
-        if (t) this.ring(t.x, t.z, color, 0.3, 1.6, 0.4);
+        this.genericCast(unit, def, s, t, target);
     }
+  }
+
+  /** Visuals for any ability without a hand-made effect, chosen from what the ability does. */
+  private genericCast(unit: number, def: AbilityDef, s: Pos, t: Pos | null, target: number) {
+    const color = SCHOOL_COLOR[def.school];
+    const has = (type: string) => def.effects.some((e) => e.type === type);
+    const enemyTarget = def.target === 'enemy' || def.target === 'any';
+    const melee = enemyTarget && def.range <= 6;
+
+    if (has('dashToTarget') && t) {
+      const ox = s.x;
+      const oz = s.z;
+      this.puff(ox, 0.4, oz, 0x2b2b33, 6, 1.2);
+      this.later(0.05, () => {
+        const n = this.pos(unit);
+        if (!n) return;
+        for (let i = 0; i <= 12; i++) {
+          const f = i / 12;
+          this.particle(ox + (n.x - ox) * f, 1.0 + rnd(-0.3, 0.3), oz + (n.z - oz) * f, { color, s0: 0.8, s1: 0.2, life: 0.35, a: 0.6 });
+        }
+        this.burst(n.x, 0.5, n.z, color, 8, 3.5, 0.4, 0.45);
+        this.ring(n.x, n.z, color, 0.4, 2.4, 0.3);
+        this.onSwing(unit);
+      });
+      return;
+    }
+    if (def.target === 'aoe_enemy') {
+      const r = def.radius ?? 8;
+      this.ring(s.x, s.z, color, 0.5, r, 0.55, 0.08, 1);
+      this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.75, 0.4, 0.09, 0.7);
+      for (let i = 0; i < 22; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const sp = rnd(r * 0.9, r * 1.6);
+        this.particle(s.x, rnd(0.4, 1.5), s.z, { color, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(0, 1), s0: rnd(0.3, 0.6), life: 0.55, drag: 2.3 });
+      }
+      if (has('damage')) this.onSwing(unit);
+      return;
+    }
+    if (melee && t) {
+      this.onSwing(unit);
+      const heavy = def.effects.some((e) => e.type === 'damage' && e.amount >= 140);
+      this.slash(s.x, s.z, t.x, t.z, color, heavy ? 1.35 : 1.1);
+      this.burst(t.x, CHEST, t.z, color, 7, 3.6, 0.26, 0.4);
+      if (has('aura') && !has('damage')) this.burst(t.x, HEAD, t.z, 0xfff1a8, 8, 3, 0.3, 0.5, 0);
+      return;
+    }
+    if (enemyTarget && t && has('damage')) {
+      const kind = def.school === 'fire' ? 'fire' : def.school === 'frost' ? 'frost' : def.school === 'holy' ? 'holy' : def.school === 'shadow' ? 'shadow' : 'arcane';
+      if (def.castTime > 0) {
+        const big = def.effects.some((e) => e.type === 'damage' && e.amount >= 300) ? 1.35 : 1;
+        this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, big));
+      } else {
+        this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, color, 0.22, 0.08);
+      }
+      return;
+    }
+    if (enemyTarget && t) {
+      this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, color, 0.3, 0.07);
+      return;
+    }
+    if (has('heal')) {
+      const p = this.pos(target) ?? s;
+      this.column(p.x, p.z, def.school === 'holy' ? 0x9dffb4 : color, 0.8, 0.6, 5);
+      this.ring(p.x, p.z, 0xfff1a8, 0.3, 1.5, 0.6);
+      return;
+    }
+    // self or ally buff
+    const p = def.target === 'ally_or_self' && target ? this.pos(target) ?? s : s;
+    this.column(p.x, p.z, color, 0.7, 0.8, 4);
+    this.ring(p.x, p.z, color, 0.4, 2.0, 0.5);
+    this.burst(p.x, 1.0, p.z, color, 14, 3.2, 0.3, 0.6, 0);
   }
 
   // ------------------------------------------------------------ persistent aura visuals
@@ -771,11 +847,13 @@ export class Effects {
 
     switch (aura) {
       case 'cheap_shot_stun':
+      case 'concussion_stun':
       case 'kidney_shot': {
         const upd = orbiters('star', 0xffe65a, 3, 0.5, 2.35, 3.2, 0.45);
         return finish({ update: (_dt, t) => upd(t) });
       }
-      case 'psychic_scream': {
+      case 'psychic_scream':
+      case 'intimidating_shout': {
         const upd = orbiters('glow', 0xb06bff, 4, 0.55, 2.2, 5, 0.55);
         const exc = this.sprite('star', 0xd9a8ff);
         exc.scale.set(0.5, 0.5, 1);
@@ -788,8 +866,10 @@ export class Effects {
           },
         });
       }
+      case 'ice_barrier':
       case 'pw_shield': {
-        const mat = new THREE.MeshBasicMaterial({ color: 0xffe98a, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+        const tint = aura === 'ice_barrier' ? 0x9fe0ff : 0xffe98a;
+        const mat = new THREE.MeshBasicMaterial({ color: tint, transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
         const mat2 = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, wireframe: true, blending: THREE.AdditiveBlending, depthWrite: false });
         mats.push(mat, mat2);
         const a = new THREE.Mesh(this.sphereGeo, mat);
@@ -873,9 +953,31 @@ export class Effects {
             }
           },
         });
-      default:
-        this.scene.remove(group);
-        return null;
+      default: {
+        // Buff auras (cooldowns like Recklessness or Evasion): a glowing ground ring with rising sparks.
+        if (AURAS[aura]?.kind !== 'buff') {
+          this.scene.remove(group);
+          return null;
+        }
+        const col = BUFF_COLOR[aura] ?? 0xffe98a;
+        const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.6, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+        mats.push(mat);
+        const m = new THREE.Mesh(this.ringGeo, mat);
+        m.rotation.x = -Math.PI / 2;
+        m.position.y = 0.07;
+        group.add(m);
+        return finish({
+          update: (_dt, t) => {
+            const sc = 1.1 + Math.sin(t * 4) * 0.08;
+            m.scale.set(sc, sc, 1);
+            mat.opacity = 0.5 + Math.sin(t * 6) * 0.15;
+            if (Math.random() < 0.35) {
+              const a = Math.random() * Math.PI * 2;
+              this.particle(group.position.x + Math.cos(a) * 0.9, 0.1, group.position.z + Math.sin(a) * 0.9, { color: col, vy: rnd(1.2, 2.4), s0: 0.22, life: 0.7, drag: 0.3 });
+            }
+          },
+        });
+      }
     }
   }
 

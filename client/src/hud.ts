@@ -80,7 +80,8 @@ class UnitFrame {
       ...u.auras.slice(0, 8).map((a) => {
         const def = AURAS[a.id];
         const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`, AURA_ICON[a.id] ?? '✦');
-        icon.title = def?.name ?? a.id;
+        icon.dataset.tip = `aura:${a.id}`;
+        if (a.expiresAt > 0) icon.dataset.tipSub = `${Math.max(0, Math.ceil((a.expiresAt - now) / 1000))}s remaining`;
         if (a.expiresAt > 0) icon.append(el('i', '', String(Math.max(0, Math.ceil((a.expiresAt - now) / 1000)))));
         return icon;
       }),
@@ -127,15 +128,16 @@ export class Hud {
     $('hud').classList.toggle('hidden', !visible);
   }
 
-  setClass(classId: ClassId) {
+  setBar(classId: ClassId, abilities: string[]) {
     const bar = $('actionbar');
     bar.replaceChildren();
-    this.slots = CLASSES[classId].bar.map((ability, i) => {
+    this.slots = abilities.map((ability, i) => {
       const root = el('div', 'slot');
       const key = el('span', 'key', String(i + 1));
       const def = ABILITIES[ability];
       root.style.background = SCHOOL_GRADIENT[def.school];
-      root.title = `${def.name}${def.cost ? ` · ${def.cost} ${CLASSES[classId].resource.type}` : ''}${def.cooldown ? ` · ${def.cooldown / 1000}s cooldown` : ''}`;
+      root.dataset.tip = `ability:${ability}`;
+      void classId;
       const ico = el('span', 'ico', ABILITY_ICON[ability] ?? '✦');
       const nm = el('span', 'nm', def.name);
       const cd = el('div', 'cd');
@@ -152,7 +154,10 @@ export class Hud {
 
   /** Action bar key captions, one per slot, e.g. from the player's keybinds. */
   setKeyLabels(labels: string[]) {
-    this.slots.forEach((s, i) => (s.key.textContent = labels[i] ?? ''));
+    this.slots.forEach((s, i) => {
+      s.key.textContent = labels[i] ?? '';
+      s.root.dataset.tipSub = labels[i] ? `Hotkey: ${labels[i]}` : '';
+    });
   }
 
   update(ctx: HudContext) {
