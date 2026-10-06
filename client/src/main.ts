@@ -250,6 +250,7 @@ function frame(now: number) {
 
   if (!latest) {
     scene.setCamera(ARENA.spawns[0][0].x, ARENA.spawns[0][0].z, ARENA.spawnFacing[0], 0.5, 16);
+    scene.setPhase('prep');
     scene.update([], 0, null);
     scene.render();
     return;
@@ -282,6 +283,7 @@ function frame(now: number) {
   renderPos.clear();
   for (const u of units) renderPos.set(u.id, { x: u.x, z: u.z, facing: u.facing });
 
+  scene.setPhase(snap.phase);
   scene.update(units, team, targetId);
   effects.update(
     dt,

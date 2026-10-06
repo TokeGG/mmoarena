@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { ARENA } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
+import { buildArenaEnvironment } from './arenaMap';
+import type { ArenaEnvironment } from './arenaMap';
 import type { Character } from './models';
 
 export interface RenderUnit {
@@ -40,6 +42,7 @@ export class ArenaScene {
   readonly camera: THREE.PerspectiveCamera;
   private meshes = new Map<number, UnitMesh>();
   private pillars: THREE.Mesh[] = [];
+  private env: ArenaEnvironment;
   private raycaster = new THREE.Raycaster();
   private tmp = new THREE.Vector3();
   private lastUpdate = performance.now() / 1000;
@@ -47,58 +50,9 @@ export class ArenaScene {
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 200);
-    this.scene.background = new THREE.Color(0x0b0d12);
-    this.scene.fog = new THREE.Fog(0x0b0d12, 45, 110);
-
-    this.scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x20242e, 1.1));
-    const sun = new THREE.DirectionalLight(0xffffff, 1.2);
-    sun.position.set(-20, 40, 15);
-    this.scene.add(sun);
-
-    const b = ARENA.bounds;
-    const w = b.maxX - b.minX;
-    const d = b.maxZ - b.minZ;
-    const cx = (b.maxX + b.minX) / 2;
-    const cz = (b.maxZ + b.minZ) / 2;
-
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), new THREE.MeshStandardMaterial({ color: 0x1a1f2b, roughness: 1 }));
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.set(cx, 0, cz);
-    this.scene.add(floor);
-    const grid = new THREE.GridHelper(Math.max(w, d), Math.max(w, d) / 2, 0x2a3140, 0x232938);
-    grid.position.set(cx, 0.01, cz);
-    this.scene.add(grid);
-
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a3140 });
-    const wall = (sx: number, sz: number, x: number, z: number) => {
-      const m = new THREE.Mesh(new THREE.BoxGeometry(sx, 5, sz), wallMat);
-      m.position.set(x, 2.5, z);
-      this.scene.add(m);
-    };
-    wall(w + 2, 1, cx, b.minZ - 0.5);
-    wall(w + 2, 1, cx, b.maxZ + 0.5);
-    wall(1, d, b.minX - 0.5, cz);
-    wall(1, d, b.maxX + 0.5, cz);
-
-    // Start gates (only enforced during the prep phase).
-    for (const gx of [-ARENA.gateX, ARENA.gateX]) {
-      const gate = new THREE.Mesh(
-        new THREE.PlaneGeometry(0.2, d),
-        new THREE.MeshBasicMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.35, side: THREE.DoubleSide }),
-      );
-      gate.rotation.x = -Math.PI / 2;
-      gate.position.set(gx, 0.03, cz);
-      this.scene.add(gate);
-    }
-
-    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x3a4258, roughness: 0.9 });
-    for (const p of ARENA.pillars) {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(p.r, p.r, 8, 28), pillarMat);
-      m.position.set(p.x, 4, p.z);
-      this.scene.add(m);
-      this.pillars.push(m);
-    }
+    this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
+    this.env = buildArenaEnvironment(this.scene, this.renderer);
+    this.pillars = this.env.pillars;
 
     const resize = () => {
       this.renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -217,7 +171,12 @@ export class ArenaScene {
     return hit ? (hit.object.userData.unitId as number) : null;
   }
 
+  setPhase(phase: string): void {
+    this.env.setPhase(phase);
+  }
+
   render(): void {
+    this.env.update(performance.now() / 1000);
     this.renderer.render(this.scene, this.camera);
   }
 }
