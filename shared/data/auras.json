@@ -162,5 +162,82 @@
   "mods": {
    "damageTaken": 0.55
   }
+ },
+ "shockwave_stun": {
+  "name": "Shockwave",
+  "kind": "stun",
+  "duration": 2000,
+  "harmful": true,
+  "dr": "stun"
+ },
+ "howl_slow": {
+  "name": "Piercing Howl",
+  "kind": "slow",
+  "duration": 6000,
+  "harmful": true,
+  "slowPct": 50
+ },
+ "die_by_the_sword": {
+  "name": "Die by the Sword",
+  "kind": "buff",
+  "duration": 5000,
+  "harmful": false,
+  "mods": {
+   "damageTaken": 0.5
+  }
+ },
+ "cone_slow": {
+  "name": "Cone of Cold",
+  "kind": "slow",
+  "duration": 5000,
+  "harmful": true,
+  "slowPct": 50,
+  "dispellable": true
+ },
+ "evocation": {
+  "name": "Evocation",
+  "kind": "buff",
+  "duration": 6000,
+  "harmful": false,
+  "mods": {
+   "regen": 4,
+   "damageTaken": 0.85
+  },
+  "dispellable": true
+ },
+ "dragons_breath": {
+  "name": "Dragon's Breath",
+  "kind": "incapacitate",
+  "duration": 3000,
+  "harmful": true,
+  "dr": "incapacitate",
+  "dispellable": true
+ },
+ "power_infusion": {
+  "name": "Power Infusion",
+  "kind": "buff",
+  "duration": 12000,
+  "harmful": false,
+  "mods": {
+   "damageDone": 1.2,
+   "healingDone": 1.2,
+   "castTime": 0.85
+  },
+  "dispellable": true
+ },
+ "blind": {
+  "name": "Blind",
+  "kind": "incapacitate",
+  "duration": 5000,
+  "harmful": true,
+  "dr": "incapacitate",
+  "breaksOnDamage": true
+ },
+ "crippling_slow": {
+  "name": "Crippling Strike",
+  "kind": "slow",
+  "duration": 6000,
+  "harmful": true,
+  "slowPct": 40
  }
 }

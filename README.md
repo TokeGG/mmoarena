@@ -131,3 +131,17 @@ Space jumps. A jump is mostly cosmetic, but while airborne you can dodge **groun
 ## Sound (0.20)
 
 All audio is synthesised live with the Web Audio API (`client/src/audio.ts`); there are no asset files. It covers spell casts and impacts per school, melee swings, heals, crowd-control, deaths, jump and footsteps, countdown ticks, match start and result stingers, UI clicks and a quiet ambience per arena theme. Sounds are positional (distance gain and stereo pan). The Esc menu has master/effects/ambience sliders and there is a mute button on screen; the settings are stored in `arena.vol.*` and sync with your account like the other settings. Audio starts on the first click or key press, as browsers require.
+
+## More skills and talents (0.21)
+
+Every class now has five talent tiers instead of three.
+
+- **Tier IV (ability swaps):** pick one of three new abilities that replaces a slot on your bar (the tooltip lists what each spec gives up). The bar stays six slots, so no new keybinds.
+  - Warrior: Shockwave, Piercing Howl, Die by the Sword
+  - Mage: Cone of Cold, Evocation, Dragon's Breath
+  - Priest: Penance, Holy Word: Serenity, Power Infusion
+  - Rogue: Blind, Eviscerate, Crippling Strike
+- **Tier V (capstones):** three more passives per class, mostly strengthening the new abilities.
+- Swaps are data (`swap` on a talent in `shared/data/talents.json`), applied by `barFor`. A unit whose bar differs from its spec's default carries `bar` in snapshots, so spectators and replays show the right action bar.
+- `SIM_REVISION` is now 2: replays recorded before this version won't play back.
+- Numbers are a first guess, not tuned.

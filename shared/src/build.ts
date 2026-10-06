@@ -1,6 +1,6 @@
 import { AURAS, GEAR, SPECS, TALENTS, TUNING } from './data';
 import { lootItem, perkById } from './loot';
-import type { AbilityMod, Build, ClassId, GearItem, Mods, ModsInput, StatId } from './types';
+import type { AbilityMod, Build, ClassId, GearItem, Mods, ModsInput, StatId, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
 
@@ -165,9 +165,29 @@ export function compileMods(classId: ClassId, b: Build | undefined): Mods {
   return m;
 }
 
+/** The talent swap (if any) that applies to this spec, i.e. one whose `replaces` entry is on the spec's bar. */
+export function swapsFor(classId: ClassId, b: Build | undefined): { talent: TalentDef; from: string; to: string }[] {
+  const spec = b ? specOf(classId, b.spec) : undefined;
+  if (!b || !spec) return [];
+  const out: { talent: TalentDef; from: string; to: string }[] = [];
+  const tiers = TALENTS[classId] ?? [];
+  b.talents.forEach((id, i) => {
+    const t = tiers[i]?.find((x) => x.id === id);
+    const from = t?.swap?.replaces[spec.id];
+    if (t?.swap && from && spec.bar.includes(from)) out.push({ talent: t, from, to: t.swap.to });
+  });
+  return out;
+}
+
 export function barFor(classId: ClassId, b: Build | undefined, fallback: string[]): string[] {
   const spec = b ? specOf(classId, b.spec) : undefined;
-  return spec ? spec.bar : fallback;
+  if (!spec) return fallback;
+  const bar = [...spec.bar];
+  for (const s of swapsFor(classId, b)) {
+    const at = bar.indexOf(s.from);
+    if (at >= 0 && !bar.includes(s.to)) bar[at] = s.to;
+  }
+  return bar;
 }
 
 /** Combined modifiers of the active buff auras on a unit, multiplied onto its base mods. */
@@ -178,4 +198,10 @@ export function withAuraMods(base: Mods, auraIds: string[]): Mods {
   const m: Mods = { ...base, ability: Object.fromEntries(Object.entries(base.ability).map(([k, v]) => [k, { ...v }])), auraDuration: { ...base.auraDuration } };
   for (const id of auraIds) applyMods(m, AURAS[id]?.mods);
   return m;
+}
+
+/** True when a unit's bar differs from its spec's default (a talent swapped an ability). */
+export function barSwapped(classId: ClassId, spec: string | null, bar: readonly string[]): boolean {
+  const d = spec ? specOf(classId, spec) : undefined;
+  return !!d && (d.bar.length !== bar.length || d.bar.some((a, i) => a !== bar[i]));
 }

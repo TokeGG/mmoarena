@@ -873,5 +873,244 @@
     "delay": 800
    }
   ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 40000,
+  "gcd": true,
+  "range": 0,
+  "id": "shockwave",
+  "name": "Shockwave",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "radius": 8,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 40
+   },
+   {
+    "type": "aura",
+    "aura": "shockwave_stun"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "range": 0,
+  "id": "piercing_howl",
+  "name": "Piercing Howl",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "radius": 10,
+  "cost": 15,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "howl_slow"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 75000,
+  "gcd": false,
+  "range": 0,
+  "id": "die_by_the_sword",
+  "name": "Die by the Sword",
+  "class": "warrior",
+  "school": "physical",
+  "target": "self",
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "die_by_the_sword"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 20000,
+  "gcd": true,
+  "range": 0,
+  "id": "cone_of_cold",
+  "name": "Cone of Cold",
+  "class": "mage",
+  "school": "frost",
+  "target": "aoe_enemy",
+  "radius": 9,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 55
+   },
+   {
+    "type": "aura",
+    "aura": "cone_slow"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "range": 0,
+  "id": "evocation",
+  "name": "Evocation",
+  "class": "mage",
+  "school": "arcane",
+  "target": "self",
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "evocation"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "range": 0,
+  "id": "dragons_breath",
+  "name": "Dragon's Breath",
+  "class": "mage",
+  "school": "fire",
+  "target": "aoe_enemy",
+  "radius": 7,
+  "cost": 45,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 50
+   },
+   {
+    "type": "aura",
+    "aura": "dragons_breath"
+   }
+  ]
+ },
+ {
+  "castTime": 1500,
+  "cooldown": 10000,
+  "gcd": true,
+  "range": 30,
+  "id": "penance",
+  "name": "Penance",
+  "class": "priest",
+  "school": "holy",
+  "target": "enemy",
+  "cost": 45,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 45
+   }
+  ],
+  "channel": {
+   "ticks": 3
+  }
+ },
+ {
+  "castTime": 0,
+  "cooldown": 10000,
+  "gcd": true,
+  "range": 40,
+  "id": "holy_word",
+  "name": "Holy Word: Serenity",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally_or_self",
+  "cost": 70,
+  "effects": [
+   {
+    "type": "heal",
+    "amount": 300
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "range": 40,
+  "id": "power_infusion",
+  "name": "Power Infusion",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally_or_self",
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "power_infusion"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": true,
+  "range": 15,
+  "id": "blind",
+  "name": "Blind",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "cost": 30,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "blind"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 8000,
+  "gcd": true,
+  "range": 5,
+  "id": "eviscerate",
+  "name": "Eviscerate",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "cost": 65,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 230
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "range": 5,
+  "id": "crippling_strike",
+  "name": "Crippling Strike",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "cost": 35,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 60
+   },
+   {
+    "type": "aura",
+    "aura": "crippling_slow"
+   }
+  ]
  }
 ]

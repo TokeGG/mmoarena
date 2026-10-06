@@ -5,7 +5,7 @@
     "id": "brutality",
     "name": "Brutality",
     "desc": "Your damage is increased by 6%.",
-    "icon": "💪",
+    "icon": "\ud83d\udcaa",
     "mods": {
      "damageDone": 1.06
     }
@@ -14,7 +14,7 @@
     "id": "iron_will",
     "name": "Iron Will",
     "desc": "Damage you take is reduced by 6%.",
-    "icon": "🛡️",
+    "icon": "\ud83d\udee1\ufe0f",
     "mods": {
      "damageTaken": 0.94
     }
@@ -23,7 +23,7 @@
     "id": "fleet_footed",
     "name": "Fleet Footed",
     "desc": "Movement speed increased by 8%.",
-    "icon": "👟",
+    "icon": "\ud83d\udc5f",
     "mods": {
      "moveSpeed": 1.08
     }
@@ -34,7 +34,7 @@
     "id": "improved_charge",
     "name": "Improved Charge",
     "desc": "Charge cooldown reduced by 30%.",
-    "icon": "🐗",
+    "icon": "\ud83d\udc17",
     "mods": {
      "ability": {
       "charge": {
@@ -47,7 +47,7 @@
     "id": "improved_pummel",
     "name": "Improved Pummel",
     "desc": "Pummel cooldown reduced by 30%.",
-    "icon": "👊",
+    "icon": "\ud83d\udc4a",
     "mods": {
      "ability": {
       "pummel": {
@@ -60,7 +60,7 @@
     "id": "improved_hamstring",
     "name": "Improved Hamstring",
     "desc": "Hamstring slows for 50% longer.",
-    "icon": "🩸",
+    "icon": "\ud83e\ude78",
     "mods": {
      "auraDuration": {
       "hamstring_slow": 1.5
@@ -73,7 +73,7 @@
     "id": "executioner",
     "name": "Executioner",
     "desc": "Your damage is increased by 8%.",
-    "icon": "🪓",
+    "icon": "\ud83e\ude93",
     "mods": {
      "damageDone": 1.08
     }
@@ -82,7 +82,7 @@
     "id": "last_stand",
     "name": "Last Stand",
     "desc": "Maximum health increased by 12%.",
-    "icon": "❤️",
+    "icon": "\u2764\ufe0f",
     "mods": {
      "maxHealth": 1.12
     }
@@ -91,9 +91,109 @@
     "id": "relentless",
     "name": "Relentless",
     "desc": "Global cooldown reduced by 7%.",
-    "icon": "⏱️",
+    "icon": "\u23f1\ufe0f",
     "mods": {
      "gcd": 0.93
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_shockwave",
+    "name": "Shockwave",
+    "desc": "Learn Shockwave: a short stun and damage around you.",
+    "icon": "\ud83d\udca5",
+    "mods": {},
+    "swap": {
+     "to": "shockwave",
+     "replaces": {
+      "arms": "intimidating_shout",
+      "fury": "hamstring",
+      "protection": "hamstring"
+     }
+    }
+   },
+   {
+    "id": "tal_howl",
+    "name": "Piercing Howl",
+    "desc": "Learn Piercing Howl: slows every enemy near you.",
+    "icon": "\ud83d\udcef",
+    "mods": {},
+    "swap": {
+     "to": "piercing_howl",
+     "replaces": {
+      "arms": "hamstring",
+      "fury": "hamstring",
+      "protection": "hamstring"
+     }
+    }
+   },
+   {
+    "id": "tal_sword",
+    "name": "Die by the Sword",
+    "desc": "Learn Die by the Sword: take half damage for 5 seconds.",
+    "icon": "\ud83d\udde1\ufe0f",
+    "mods": {},
+    "swap": {
+     "to": "die_by_the_sword",
+     "replaces": {
+      "arms": "recklessness",
+      "fury": "enraged_regeneration",
+      "protection": "hamstring"
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_w_rage",
+    "name": "Bloodlust",
+    "desc": "Mortal Strike, Bloodthirst and Shield Slam hit 12% harder.",
+    "icon": "\ud83e\ude78",
+    "mods": {
+     "ability": {
+      "mortal_strike": {
+       "damage": 1.12
+      },
+      "bloodthirst": {
+       "damage": 1.12
+      },
+      "shield_slam": {
+       "damage": 1.12
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_w_wall",
+    "name": "Bulwark",
+    "desc": "Shield Wall and Die by the Sword are ready 25% sooner.",
+    "icon": "\ud83c\udff0",
+    "mods": {
+     "ability": {
+      "shield_wall": {
+       "cooldown": 0.75
+      },
+      "die_by_the_sword": {
+       "cooldown": 0.75
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_w_shout",
+    "name": "Booming Voice",
+    "desc": "Intimidating Shout lasts 25% longer and is ready 15% sooner.",
+    "icon": "\ud83d\udce2",
+    "mods": {
+     "auraDuration": {
+      "intimidating_shout": 1.25
+     },
+     "ability": {
+      "intimidating_shout": {
+       "cooldown": 0.85
+      }
+     }
     }
    }
   ]
@@ -104,7 +204,7 @@
     "id": "spell_power",
     "name": "Spell Power",
     "desc": "Your damage is increased by 6%.",
-    "icon": "✨",
+    "icon": "\u2728",
     "mods": {
      "damageDone": 1.06
     }
@@ -113,7 +213,7 @@
     "id": "mana_flow",
     "name": "Mana Flow",
     "desc": "Mana regeneration increased by 25%.",
-    "icon": "💧",
+    "icon": "\ud83d\udca7",
     "mods": {
      "regen": 1.25
     }
@@ -122,7 +222,7 @@
     "id": "winters_chill",
     "name": "Winter's Chill",
     "desc": "Frostbolt slows for 50% longer.",
-    "icon": "❄️",
+    "icon": "\u2744\ufe0f",
     "mods": {
      "auraDuration": {
       "frostbolt_slow": 1.5
@@ -135,7 +235,7 @@
     "id": "improved_counterspell",
     "name": "Improved Counterspell",
     "desc": "Counterspell cooldown reduced by 25%.",
-    "icon": "🚫",
+    "icon": "\ud83d\udeab",
     "mods": {
      "ability": {
       "counterspell": {
@@ -148,7 +248,7 @@
     "id": "improved_blink",
     "name": "Improved Blink",
     "desc": "Blink cooldown reduced by 30%.",
-    "icon": "🌀",
+    "icon": "\ud83c\udf00",
     "mods": {
      "ability": {
       "blink": {
@@ -161,7 +261,7 @@
     "id": "permafrost",
     "name": "Permafrost",
     "desc": "Frost Nova roots 25% longer and has a 15% shorter cooldown.",
-    "icon": "🧊",
+    "icon": "\ud83e\uddca",
     "mods": {
      "auraDuration": {
       "frost_nova_root": 1.25
@@ -179,7 +279,7 @@
     "id": "elemental_precision",
     "name": "Elemental Precision",
     "desc": "Fireball, Frostbolt and Pyroblast deal 12% more damage.",
-    "icon": "🎯",
+    "icon": "\ud83c\udfaf",
     "mods": {
      "ability": {
       "fireball": {
@@ -198,7 +298,7 @@
     "id": "arcane_mind",
     "name": "Arcane Mind",
     "desc": "Maximum health +6% and mana regeneration +15%.",
-    "icon": "🧠",
+    "icon": "\ud83e\udde0",
     "mods": {
      "maxHealth": 1.06,
      "regen": 1.15
@@ -208,9 +308,106 @@
     "id": "blazing_speed",
     "name": "Blazing Speed",
     "desc": "Movement speed increased by 8%.",
-    "icon": "💨",
+    "icon": "\ud83d\udca8",
     "mods": {
      "moveSpeed": 1.08
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_cone",
+    "name": "Cone of Cold",
+    "desc": "Learn Cone of Cold: damages and slows enemies around you.",
+    "icon": "\ud83c\udf2c\ufe0f",
+    "mods": {},
+    "swap": {
+     "to": "cone_of_cold",
+     "replaces": {
+      "frost": "ice_barrier",
+      "fire": "polymorph",
+      "arcane": "polymorph"
+     }
+    }
+   },
+   {
+    "id": "tal_evocation",
+    "name": "Evocation",
+    "desc": "Learn Evocation: restore mana fast and take 15% less damage for 6 seconds.",
+    "icon": "\ud83e\uddd8",
+    "mods": {},
+    "swap": {
+     "to": "evocation",
+     "replaces": {
+      "frost": "ice_barrier",
+      "fire": "polymorph",
+      "arcane": "polymorph"
+     }
+    }
+   },
+   {
+    "id": "tal_breath",
+    "name": "Dragon's Breath",
+    "desc": "Learn Dragon's Breath: burns and disorients enemies close to you.",
+    "icon": "\ud83d\udc09",
+    "mods": {},
+    "swap": {
+     "to": "dragons_breath",
+     "replaces": {
+      "frost": "ice_barrier",
+      "fire": "polymorph",
+      "arcane": "polymorph"
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_m_ice",
+    "name": "Deep Freeze",
+    "desc": "Frost Nova and Cone of Cold are ready 15% sooner.",
+    "icon": "\ud83e\uddca",
+    "mods": {
+     "ability": {
+      "frost_nova": {
+       "cooldown": 0.85
+      },
+      "cone_of_cold": {
+       "cooldown": 0.85
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_m_pyro",
+    "name": "Combustion",
+    "desc": "Flamestrike and Dragon's Breath deal 20% more damage.",
+    "icon": "\ud83c\udf0b",
+    "mods": {
+     "ability": {
+      "flamestrike": {
+       "damage": 1.2
+      },
+      "dragons_breath": {
+       "damage": 1.2
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_m_barrage",
+    "name": "Arcane Focus",
+    "desc": "Arcane Blast and Arcane Barrage deal 10% more damage.",
+    "icon": "\ud83c\udf1f",
+    "mods": {
+     "ability": {
+      "arcane_blast": {
+       "damage": 1.1
+      },
+      "arcane_barrage": {
+       "damage": 1.1
+      }
+     }
     }
    }
   ]
@@ -221,7 +418,7 @@
     "id": "holy_focus",
     "name": "Holy Focus",
     "desc": "Your healing and shields are 6% stronger.",
-    "icon": "💚",
+    "icon": "\ud83d\udc9a",
     "mods": {
      "healingDone": 1.06
     }
@@ -230,7 +427,7 @@
     "id": "shadow_focus",
     "name": "Shadow Focus",
     "desc": "Your damage is increased by 6%.",
-    "icon": "🌑",
+    "icon": "\ud83c\udf11",
     "mods": {
      "damageDone": 1.06
     }
@@ -239,7 +436,7 @@
     "id": "inner_peace",
     "name": "Inner Peace",
     "desc": "Mana regeneration increased by 25%.",
-    "icon": "🕊️",
+    "icon": "\ud83d\udd4a\ufe0f",
     "mods": {
      "regen": 1.25
     }
@@ -250,7 +447,7 @@
     "id": "improved_shield",
     "name": "Improved Shield",
     "desc": "Power Word: Shield cooldown reduced by 30%.",
-    "icon": "🛡️",
+    "icon": "\ud83d\udee1\ufe0f",
     "mods": {
      "ability": {
       "power_word_shield": {
@@ -263,7 +460,7 @@
     "id": "improved_dispel",
     "name": "Improved Dispel",
     "desc": "Dispel Magic cooldown reduced by 40%.",
-    "icon": "🪄",
+    "icon": "\ud83e\ude84",
     "mods": {
      "ability": {
       "dispel_magic": {
@@ -276,7 +473,7 @@
     "id": "psychic_horror",
     "name": "Psychic Horror",
     "desc": "Psychic Scream cooldown reduced by 20%.",
-    "icon": "😱",
+    "icon": "\ud83d\ude31",
     "mods": {
      "ability": {
       "psychic_scream": {
@@ -291,7 +488,7 @@
     "id": "focused_will",
     "name": "Focused Will",
     "desc": "Damage you take is reduced by 7%.",
-    "icon": "🧿",
+    "icon": "\ud83e\uddff",
     "mods": {
      "damageTaken": 0.93
     }
@@ -300,7 +497,7 @@
     "id": "swift_prayer",
     "name": "Swift Prayer",
     "desc": "Cast times reduced by 7%.",
-    "icon": "⏩",
+    "icon": "\u23e9",
     "mods": {
      "castTime": 0.93
     }
@@ -309,7 +506,7 @@
     "id": "empowered_healing",
     "name": "Empowered Healing",
     "desc": "Flash Heal and Greater Heal heal for 12% more.",
-    "icon": "🙏",
+    "icon": "\ud83d\ude4f",
     "mods": {
      "ability": {
       "flash_heal": {
@@ -317,6 +514,109 @@
       },
       "greater_heal": {
        "heal": 1.12
+      }
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_penance",
+    "name": "Penance",
+    "desc": "Learn Penance: a three-hit holy channel (stand still).",
+    "icon": "\ud83d\udd06",
+    "mods": {},
+    "swap": {
+     "to": "penance",
+     "replaces": {
+      "discipline": "smite",
+      "holy": "desperate_prayer",
+      "shadow": "smite"
+     }
+    }
+   },
+   {
+    "id": "tal_holyword",
+    "name": "Holy Word: Serenity",
+    "desc": "Learn Serenity: a strong instant heal.",
+    "icon": "\ud83c\udf1f",
+    "mods": {},
+    "swap": {
+     "to": "holy_word",
+     "replaces": {
+      "discipline": "smite",
+      "holy": "desperate_prayer",
+      "shadow": "smite"
+     }
+    }
+   },
+   {
+    "id": "tal_infusion",
+    "name": "Power Infusion",
+    "desc": "Learn Power Infusion: an ally (or you) deals and heals 20% more and casts 15% faster for 12 seconds.",
+    "icon": "\ud83d\ude4c",
+    "mods": {},
+    "swap": {
+     "to": "power_infusion",
+     "replaces": {
+      "discipline": "smite",
+      "holy": "desperate_prayer",
+      "shadow": "smite"
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_p_grace",
+    "name": "Grace",
+    "desc": "Greater Heal, Flash Heal and Serenity heal 8% more.",
+    "icon": "\ud83d\udd4a\ufe0f",
+    "mods": {
+     "ability": {
+      "greater_heal": {
+       "heal": 1.08
+      },
+      "flash_heal": {
+       "heal": 1.08
+      },
+      "holy_word": {
+       "heal": 1.08
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_p_dark",
+    "name": "Dark Arts",
+    "desc": "Mind Blast, Shadow Word: Death and Penance deal 10% more.",
+    "icon": "\ud83c\udf11",
+    "mods": {
+     "ability": {
+      "mind_blast": {
+       "damage": 1.1
+      },
+      "shadow_word_death": {
+       "damage": 1.1
+      },
+      "penance": {
+       "damage": 1.1
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_p_ward",
+    "name": "Divine Aegis",
+    "desc": "Power Word: Shield and Pain Suppression are ready 20% sooner.",
+    "icon": "\ud83d\udee1\ufe0f",
+    "mods": {
+     "ability": {
+      "power_word_shield": {
+       "cooldown": 0.8
+      },
+      "pain_suppression": {
+       "cooldown": 0.8
       }
      }
     }
@@ -329,7 +629,7 @@
     "id": "deadly_poisons",
     "name": "Deadly Poisons",
     "desc": "Your damage is increased by 6%.",
-    "icon": "☠️",
+    "icon": "\u2620\ufe0f",
     "mods": {
      "damageDone": 1.06
     }
@@ -338,7 +638,7 @@
     "id": "nimble",
     "name": "Nimble",
     "desc": "Damage you take is reduced by 6%.",
-    "icon": "🤸",
+    "icon": "\ud83e\udd38",
     "mods": {
      "damageTaken": 0.94
     }
@@ -347,7 +647,7 @@
     "id": "fleet",
     "name": "Fleet",
     "desc": "Movement speed increased by 6%.",
-    "icon": "👟",
+    "icon": "\ud83d\udc5f",
     "mods": {
      "moveSpeed": 1.06
     }
@@ -358,7 +658,7 @@
     "id": "improved_kick",
     "name": "Improved Kick",
     "desc": "Kick cooldown reduced by 30%.",
-    "icon": "🦶",
+    "icon": "\ud83e\uddb6",
     "mods": {
      "ability": {
       "kick": {
@@ -371,7 +671,7 @@
     "id": "improved_kidney",
     "name": "Improved Kidney Shot",
     "desc": "Kidney Shot stuns for 25% longer.",
-    "icon": "🥊",
+    "icon": "\ud83e\udd4a",
     "mods": {
      "auraDuration": {
       "kidney_shot": 1.25
@@ -382,7 +682,7 @@
     "id": "improved_sprint",
     "name": "Improved Sprint",
     "desc": "Sprint cooldown reduced by 30%.",
-    "icon": "💨",
+    "icon": "\ud83d\udca8",
     "mods": {
      "ability": {
       "sprint": {
@@ -397,7 +697,7 @@
     "id": "ruthlessness",
     "name": "Ruthlessness",
     "desc": "Sinister Strike and Mutilate deal 15% more damage.",
-    "icon": "🔪",
+    "icon": "\ud83d\udd2a",
     "mods": {
      "ability": {
       "sinister_strike": {
@@ -413,7 +713,7 @@
     "id": "vigor",
     "name": "Vigor",
     "desc": "Maximum health increased by 10%.",
-    "icon": "❤️",
+    "icon": "\u2764\ufe0f",
     "mods": {
      "maxHealth": 1.1
     }
@@ -422,9 +722,106 @@
     "id": "shadow_dance",
     "name": "Shadow Dance",
     "desc": "Global cooldown reduced by 7%.",
-    "icon": "⏱️",
+    "icon": "\u23f1\ufe0f",
     "mods": {
      "gcd": 0.93
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_blind",
+    "name": "Blind",
+    "desc": "Learn Blind: a 5 second disorient that breaks on damage.",
+    "icon": "\ud83d\ude35",
+    "mods": {},
+    "swap": {
+     "to": "blind",
+     "replaces": {
+      "assassination": "vanish",
+      "combat": "sprint",
+      "subtlety": "evasion"
+     }
+    }
+   },
+   {
+    "id": "tal_evis",
+    "name": "Eviscerate",
+    "desc": "Learn Eviscerate: a heavy finishing strike.",
+    "icon": "\ud83e\ude78",
+    "mods": {},
+    "swap": {
+     "to": "eviscerate",
+     "replaces": {
+      "assassination": "mutilate",
+      "combat": "sinister_strike",
+      "subtlety": "cheap_shot"
+     }
+    }
+   },
+   {
+    "id": "tal_cripple",
+    "name": "Crippling Strike",
+    "desc": "Learn Crippling Strike: a hit that slows the target by 40%.",
+    "icon": "\ud83e\uddb5",
+    "mods": {},
+    "swap": {
+     "to": "crippling_strike",
+     "replaces": {
+      "assassination": "mutilate",
+      "combat": "sinister_strike",
+      "subtlety": "cheap_shot"
+     }
+    }
+   }
+  ],
+  [
+   {
+    "id": "tal_r_assassin",
+    "name": "Murderous Intent",
+    "desc": "Mutilate, Sinister Strike and Eviscerate deal 10% more.",
+    "icon": "\ud83d\udde1\ufe0f",
+    "mods": {
+     "ability": {
+      "mutilate": {
+       "damage": 1.1
+      },
+      "sinister_strike": {
+       "damage": 1.1
+      },
+      "eviscerate": {
+       "damage": 1.1
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_r_cheat",
+    "name": "Cheat Death",
+    "desc": "Evasion and Vanish are ready 25% sooner.",
+    "icon": "\u2620\ufe0f",
+    "mods": {
+     "ability": {
+      "evasion": {
+       "cooldown": 0.75
+      },
+      "vanish": {
+       "cooldown": 0.75
+      }
+     }
+    }
+   },
+   {
+    "id": "tal_r_stun",
+    "name": "Prey on the Weak",
+    "desc": "Kidney Shot, Cheap Shot and Blind last 15% longer.",
+    "icon": "\ud83e\udd4a",
+    "mods": {
+     "auraDuration": {
+      "kidney_shot": 1.15,
+      "cheap_shot_stun": 1.15,
+      "blind": 1.15
+     }
     }
    }
   ]

@@ -74,7 +74,7 @@ export type ClientMsg =
 export const MAX_SETTINGS = 24000;
 
 export type ServerMsg =
-  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; map: string }
+  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string }
   /** Progress (matches played unlock gear tiers). Store `token` and send it back on join. */
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
@@ -117,7 +117,7 @@ export function parseBuild(raw: unknown): Build | undefined {
   const r = raw as Record<string, unknown>;
   const id = (v: unknown) => (typeof v === 'string' && /^[\w.]{1,40}$/.test(v) ? v : '');
   if (!id(r.spec)) return undefined;
-  const talents = Array.isArray(r.talents) ? r.talents.slice(0, 3).map(id) : [];
+  const talents = Array.isArray(r.talents) ? r.talents.slice(0, 8).map(id) : [];
   const gear: Record<string, string> = {};
   if (r.gear && typeof r.gear === 'object') {
     for (const [slot, v] of Object.entries(r.gear as Record<string, unknown>).slice(0, 8)) if (/^\w{1,12}$/.test(slot) && id(v)) gear[slot] = id(v);

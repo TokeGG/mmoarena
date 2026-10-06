@@ -143,7 +143,7 @@ function onMessage(raw: MessageEvent) {
       you = m.unitId;
       team = m.team;
       classId = m.classId;
-      bar = specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar;
+      bar = m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar;
       setTipMods(compileMods(classId, myBuild));
       latest = null;
       snaps.length = 0;
@@ -616,7 +616,7 @@ function setFollow(id: number, snap: Snapshot | null) {
   you = id;
   team = u.team;
   classId = u.classId;
-  bar = specOf(u.classId, u.spec ?? '')?.bar ?? CLASSES[u.classId].bar;
+  bar = u.bar ?? specOf(u.classId, u.spec ?? '')?.bar ?? CLASSES[u.classId].bar;
   hud.setBar(classId, bar);
   relabel();
   vis.ready = false;

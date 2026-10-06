@@ -8,7 +8,7 @@ import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
-import { validateBuild } from '@arena/shared';
+import { barSwapped, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
@@ -121,7 +121,7 @@ export class Room {
     this.players.set(u.id, p);
     if (p.account) this.keys.set(u.id, p.account.key);
     this.notify?.(p);
-    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, map: this.arenaId });
+    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
   }
 

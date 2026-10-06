@@ -40,14 +40,14 @@ describe('content data is consistent', () => {
   });
 
   it('every ability is on at least one spec bar, and every talent mod points at something real', () => {
-    const used = new Set(CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)));
+    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)), ...CLASS_IDS.flatMap((c) => TALENTS[c].flat().map((t) => t.swap?.to ?? ''))]);
     for (const id of Object.keys(ABILITIES)) assert.ok(used.has(id) || CLASSES[ABILITIES[id].class].bar.includes(id), `${id} unreachable`);
     const check = (m: any, where: string) => {
       for (const id of Object.keys(m?.ability ?? {})) assert.ok(ABILITIES[id], `${where}: ability ${id}`);
       for (const id of Object.keys(m?.auraDuration ?? {})) assert.ok(AURAS[id], `${where}: aura ${id}`);
     };
     for (const cls of CLASS_IDS) {
-      assert.equal(TALENTS[cls].length, 3, `${cls} has 3 talent tiers`);
+      assert.equal(TALENTS[cls].length, 5, `${cls} has 5 talent tiers`);
       const ids = new Set<string>();
       TALENTS[cls].forEach((tier, i) => {
         assert.equal(tier.length, 3, `${cls} tier ${i} has 3 choices`);
@@ -58,6 +58,15 @@ describe('content data is consistent', () => {
         }
       });
       for (const s of SPECS[cls]) check(s.mods, s.id);
+      for (const t of TALENTS[cls].flat()) {
+        if (!t.swap) continue;
+        assert.equal(ABILITIES[t.swap.to]?.class, cls, `${t.id}: swap target belongs to the class`);
+        for (const sp of SPECS[cls]) {
+          const from = t.swap.replaces[sp.id];
+          assert.ok(from && sp.bar.includes(from), `${t.id}: ${sp.id} must name an ability on its bar`);
+          assert.ok(!sp.bar.includes(t.swap.to), `${t.id}: ${sp.id} already has ${t.swap.to}`);
+        }
+      }
     }
     for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods, `${id} buff has mods`);
   });
@@ -261,7 +270,7 @@ describe('protocol carries a build', () => {
     assert.equal(m.build, undefined);
     assert.equal(m.profile, undefined);
     const big: any = parseClientMsg(JSON.stringify({ t: 'join', name: 'A', classId: 'mage', mode: 'queue', build: { spec: 'frost', talents: new Array(50).fill('a'), gear: {} } }));
-    assert.ok(big.build.talents.length <= 3);
+    assert.ok(big.build.talents.length <= 8);
   });
 });
 
@@ -307,5 +316,73 @@ describe('channelled abilities', () => {
       }
       assert.ok(n < def.channel!.ticks, 'moving cancelled the volley');
     }
+  });
+});
+
+describe('talent ability swaps', () => {
+  const swaps = CLASS_IDS.flatMap((cls) => TALENTS[cls].flatMap((tier, ti) => tier.filter((t) => t.swap).map((t) => ({ cls, ti, t }))));
+  it('there are swap talents for every class', () => {
+    for (const cls of CLASS_IDS) assert.equal(swaps.filter((s) => s.cls === cls).length, 3, cls);
+  });
+  it('a swap changes exactly one slot, keeps the bar at the same length and is valid', () => {
+    for (const { cls, ti, t } of swaps) {
+      for (const spec of SPECS[cls]) {
+        const talents = ['', '', '', '', ''];
+        talents[ti] = t.id;
+        const b = build(spec.id, talents);
+        assert.ok(validateBuild(cls, b, 0).ok, t.id);
+        const bar = barFor(cls, b, []);
+        assert.equal(bar.length, spec.bar.length);
+        assert.equal(bar.filter((a, i) => a !== spec.bar[i]).length, 1, `${t.id}/${spec.id}`);
+        assert.equal(bar[spec.bar.indexOf(t.swap!.replaces[spec.id])], t.swap!.to);
+        assert.equal(new Set(bar).size, bar.length);
+      }
+    }
+  });
+  it('every swapped-in ability can be cast and shows up in snapshots', () => {
+    for (const { cls, ti, t } of swaps) {
+      const spec = SPECS[cls][0];
+      const talents = ['', '', '', '', ''];
+      talents[ti] = t.id;
+      const sim = live(5);
+      const me = add(sim, cls, 0, 0, 0, build(spec.id, talents));
+      const to = t.swap!.to;
+      const def = ABILITIES[to];
+      const foe = add(sim, 'warrior', 1, def.range > 0 ? Math.min(4, def.range) : 3, 0);
+      me.resource = me.resourceMax;
+      advance(sim, TICK * 2);
+      assert.ok(me.bar.includes(to), t.id);
+      assert.deepEqual(sim.snapshot().units.find((u) => u.id === me.id)!.bar, me.bar);
+      assert.equal(sim.snapshot().units.find((u) => u.id === foe.id)!.bar, undefined, 'default bars are not sent');
+      const r = sim.useAbility(me.id, to, def.target === 'ally_or_self' ? me.id : foe.id);
+      assert.ok(r.ok, `${t.id}: ${(r as any).reason}`);
+      assert.doesNotThrow(() => advance(sim, 4000));
+      assert.ok(!sim.useAbility(me.id, spec.bar.find((a) => !me.bar.includes(a))!, foe.id).ok, 'the replaced ability is gone');
+    }
+  });
+  it('the new crowd control and buffs do what they say', () => {
+    const sim = live(7);
+    const war = add(sim, 'warrior', 0, 0, 0, build('arms', ['', '', '', 'tal_shockwave', '']));
+    const foe = add(sim, 'mage', 1, 3, 0);
+    war.resource = war.resourceMax;
+    advance(sim, TICK * 2);
+    assert.ok(sim.useAbility(war.id, 'shockwave', foe.id).ok);
+    advance(sim, TICK * 2);
+    assert.ok(foe.auras.some((a) => a.id === 'shockwave_stun'));
+    const sim2 = live(8);
+    const rg = add(sim2, 'rogue', 0, 0, 0, build('combat', ['', '', '', 'tal_cripple', '']));
+    const f2 = add(sim2, 'warrior', 1, 2, 0);
+    rg.resource = rg.resourceMax;
+    advance(sim2, TICK * 2);
+    assert.ok(sim2.useAbility(rg.id, 'crippling_strike', f2.id).ok);
+    advance(sim2, TICK * 2);
+    assert.ok(f2.auras.some((a) => a.id === 'crippling_slow'));
+    assert.ok(f2.health < f2.maxHealth);
+  });
+  it('capstone talents change the right numbers', () => {
+    const m = compileMods('rogue', build('assassination', ['', '', '', '', 'tal_r_stun']));
+    assert.ok(Math.abs(m.auraDuration.blind - 1.15) < 1e-9);
+    const w = compileMods('warrior', build('arms', ['', '', '', '', 'tal_w_rage']));
+    assert.ok(w.ability.mortal_strike.damage! > 1.1);
   });
 });

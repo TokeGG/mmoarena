@@ -33,7 +33,9 @@ export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration'>> & {
 };
 
 export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput }
-export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput }
+/** A talent that trades one bar ability for another. `replaces` maps spec id -> the ability given up (by spec). */
+export interface BarSwap { to: string; replaces: Record<string, string> }
+export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput; swap?: BarSwap }
 export type StatId = 'power' | 'vitality' | 'haste' | 'resilience';
 export interface GearDef {
   slots: { id: string; name: string; icon: string; weight: number; noun: string }[];
@@ -227,6 +229,8 @@ export interface UnitSnap {
   team: TeamId;
   classId: ClassId;
   spec: string | null;
+  /** Only present when talents changed the spec's default ability bar. */
+  bar?: string[];
   x: number;
   z: number;
   facing: number;

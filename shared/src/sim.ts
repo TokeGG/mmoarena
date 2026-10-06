@@ -1,5 +1,5 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
-import { barFor, compileMods, withAuraMods } from './build';
+import { barFor, barSwapped, compileMods, withAuraMods } from './build';
 import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
@@ -663,6 +663,7 @@ export class ArenaSim {
     const r2 = (n: number) => Math.round(n * 100) / 100;
     return {
       id: u.id, name: u.name, team: u.team, classId: u.classId, spec: u.spec,
+      ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}),
       x: r2(u.pos.x), z: r2(u.pos.z), facing: Math.round(u.facing * 1000) / 1000,
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,
       resource: Math.round(u.resource), resourceMax: u.resourceMax, resourceType: u.resourceType,

@@ -11,6 +11,8 @@ export const ABILITY_ICON: Record<string, string> = {
   ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋', arcane_blast: '🔮', arcane_barrage: '🌟', arcane_power: '⚡',
   greater_heal: '💗', pain_suppression: '🙏', desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '💀', dispersion: '🌫️',
   mutilate: '🔪', vanish: '🌑', adrenaline_rush: '💉', shadowstep: '👣', evasion: '🌀',
+  shockwave: '💥', piercing_howl: '📯', die_by_the_sword: '🗡️', cone_of_cold: '🌬️', evocation: '🧘', dragons_breath: '🐉',
+  penance: '🔆', holy_word: '🌟', power_infusion: '🙌', blind: '😵', eviscerate: '🩸', crippling_strike: '🦵',
 };
 
 export const AURA_ICON: Record<string, string> = {
@@ -18,6 +20,8 @@ export const AURA_ICON: Record<string, string> = {
   cheap_shot_stun: '💫', kidney_shot: '💫', psychic_scream: '😱', pw_shield: '🛡️', stealth: '👤', sprint: '💨',
   recklessness: '😡', shield_wall: '🧱', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
   pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
+  shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', cone_slow: '🌬️', evocation: '🧘', dragons_breath: '🐉',
+  power_infusion: '🙌', blind: '😵', crippling_slow: '🦵',
 };
 
 export const CLASS_ICON: Record<ClassId, string> = { warrior: '⚔️', mage: '🔮', priest: '✝️', rogue: '🗡️' };
