@@ -115,7 +115,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push('Rushes to the target.');
         break;
       case 'blink':
-        lines.push(`Teleports you ${e.distance} yards forward.`);
+        lines.push(`Teleports you ${e.distance} yards forward and frees you from stuns, roots and slows. Works while stunned.`);
         break;
       case 'gain':
         lines.push(`Generates ${e.amount} ${res}.`);

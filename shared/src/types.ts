@@ -152,6 +152,8 @@ export interface Tuning {
   gearCap: number;
   rangeTolerance: number;
   autoTolerance: number;
+  /** Width of the cone in front of a player inside which targets must be to cast on them or swing at them. */
+  castConeDeg: number;
   prepMs: number;
   maxMatchMs: number;
   damageVariance: number;

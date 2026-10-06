@@ -570,6 +570,7 @@ describe('v0.23 combat rules', () => {
     const before = { ...mage.pos };
     assert.ok(sim.useAbility(mage.id, 'blink').ok, 'blink while stunned');
     assert.ok(Math.hypot(mage.pos.x - before.x, mage.pos.z - before.z) > 5);
+    assert.ok(!mage.auras.some((a) => a.kind === 'stun'), 'blink breaks the stun');
     mage.auras = [];
     sim.applyAura(mage, w1, 'polymorph');
     sim.applyAura(mage, w2, 'polymorph');
@@ -664,5 +665,29 @@ describe('v0.24 damage over time, penance and ground spells', () => {
     m.cooldowns = {}; m.gcdEnd = 0; m.cast = null; m.pos = { x: -25, z: 0 };
     assert.ok(!sim.useAbility(m.id, 'flamestrike', null, { x: 80, z: 0 }).ok, 'out of range');
     assert.ok(!sim.useAbility(m.id, 'flamestrike').ok, 'needs a location');
+  });
+});
+
+describe('facing rule', () => {
+  it('casts and swings need the target inside a 90 degree cone in front of the player', () => {
+    const sim = new ArenaSim({ seed: 3, prepMs: 0, facing: true });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0 });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+    const face = (a: number) => { face(a);
+    m.pos = { x: 0, z: 0 };
+    w.pos = { x: 10, z: 0 }; // due +x
+    advance(sim, 100);
+    face(Math.atan2(1, 0) + Math.PI);
+    mustFail(sim.useAbility(m.id, 'frostbolt', w.id), /in front/);
+    face(Math.atan2(10, 0));
+    assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok);
+    advance(sim, 3000);
+    m.cooldowns = {}; m.gcdEnd = 0;
+    face(Math.atan2(10, 0) + 0.7);
+    assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok);
+    advance(sim, 3000);
+    m.cooldowns = {}; m.gcdEnd = 0;
+    face(Math.atan2(10, 0) + 0.9);
+    mustFail(sim.useAbility(m.id, 'frostbolt', w.id), /in front/);
   });
 });

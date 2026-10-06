@@ -109,7 +109,7 @@ export class Room {
   constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, readonly arenaId: string = ARENAS[0].id) {
     this.seed = Math.floor(Math.random() * 2 ** 31);
     this.prepMsUsed = prepMs;
-    this.sim = new ArenaSim({ prepMs, seed: this.seed, arena: arenaById(arenaId) });
+    this.sim = new ArenaSim({ prepMs, seed: this.seed, arena: arenaById(arenaId), facing: true });
     // matches that count are recorded so they can be replayed; dummy practice is not worth storing
     if (accounts && countsForProgress) this.recorder = new ReplayRecorder(this.sim, { arena: arenaId, seed: this.seed, prepMs });
   }

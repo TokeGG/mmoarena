@@ -14,7 +14,7 @@ const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
-export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef }
+export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef; /** Players must face what they cast on or swing at (a cone in front of them). Off by default so unit tests can place units freely. */ facing?: boolean }
 /** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit, 5 auto-attack setting. */
 export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4 | 5, unit: number, ...args: (number | string | boolean | null)[]];
 export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
@@ -50,11 +50,13 @@ export class ArenaSim {
   private events: SimEvent[] = [];
   private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean }[] = [];
   private nextZoneId = 1;
+  private facingRule = false;
   private nextId = 1;
   private rng: () => number;
 
   constructor(opts: SimOptions = {}) {
     this.arena = opts.arena ?? ARENA;
+    this.facingRule = opts.facing ?? false;
     this.rng = mulberry32(opts.seed ?? 1);
     this.prepEndsAt = opts.prepMs ?? TUNING.prepMs;
     this.matchEndsAt = this.prepEndsAt + TUNING.maxMatchMs;
@@ -171,6 +173,7 @@ export class ArenaSim {
       ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ) };
       if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return fail('out of range');
       if (!hasLOS(u.pos, ground, this.arena)) return fail('no line of sight');
+      if (!this.inFront(u, ground.x, ground.z)) return fail('that spot is not in front of you');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);
@@ -181,6 +184,7 @@ export class ArenaSim {
       if (def.range > 0 && d > this.reachOf(u, def)) return fail('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
+      if (def.target !== 'aoe_enemy' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return fail('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
@@ -468,6 +472,8 @@ export class ArenaSim {
       }
       case 'blink':
         u.pos = blinkDestination(u.pos, u.facing, eff.distance, this.arena);
+        // blinking out breaks you free of stuns, roots and slows
+        for (const a of [...u.auras]) if (a.kind === 'stun' || a.kind === 'root' || a.kind === 'slow') this.removeAura(u, a, 'blinked');
         break;
       case 'zone':
         this.zones.push({
@@ -577,6 +583,7 @@ export class ArenaSim {
     if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
     if (dist(u.pos, t.pos) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
     if (!hasLOS(u.pos, t.pos, this.arena)) return; // no swinging through pillars
+    if (!this.inFront(u, t.pos.x, t.pos.z)) return; // and no swinging at what is behind you
     u.nextSwing = this.time + auto.interval;
     if (this.isStealthed(u)) this.breakStealth(u);
     this.dealDamage(u, t, auto.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone, 'physical', null);
@@ -734,6 +741,17 @@ export class ArenaSim {
    * Ground effects pulse on a fixed beat (a short telegraph first). Enemies inside the circle take damage, unless they are
    * airborne at that instant: a well-timed jump dodges a pulse. Targeted spells never check this; only zones do.
    */
+  /** Is the point inside the cone in front of the unit? Bots and anything not player-controlled skip the rule. */
+  private inFront(u: Unit, x: number, z: number): boolean {
+    if (!this.facingRule || u.controller !== 'player') return true;
+    const dx = x - u.pos.x;
+    const dz = z - u.pos.z;
+    if (Math.hypot(dx, dz) < 0.6) return true;
+    let d = Math.atan2(dx, dz) - u.facing;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    return Math.abs(d) <= (TUNING.castConeDeg * Math.PI) / 360 + 0.03;
+  }
+
   /** True while the unit stands in an enemy smoke cloud: it cannot target. */
   inSmoke(u: Unit): boolean {
     return this.zones.some((z) => z.smoke && z.team !== u.team && this.time < z.end && Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r);
