@@ -92,6 +92,8 @@ interface Rig {
   legR: THREE.Group;
   armL: THREE.Group; // character's left = +x
   armR: THREE.Group;
+  /** Optional cloth that trails when moving. Pivots at the shoulders. */
+  cape?: THREE.Group;
 }
 
 function rig(b: Builder, o: { torso: number; torsoW: number; torsoD?: number; sleeve: number; pants: number; boots: number; legW?: number; armW?: number; hidden?: boolean }): Rig {
@@ -130,11 +132,25 @@ function rig(b: Builder, o: { torso: number; torsoW: number; torsoD?: number; sl
   return { root, upper, legL, legR, armL, armR };
 }
 
+function eyes(b: Builder, r: Rig, y = 0.94, z = 0.185, color = 0x1a1a22) {
+  for (const x of [-0.07, 0.07]) b.ball(r.upper, 0.03, b.m(color), x, y, z);
+}
+
+function addCape(b: Builder, r: Rig, color: number, trim: number, w: number, len: number) {
+  const pivot = new THREE.Group();
+  pivot.position.set(0, 0.68, -0.2);
+  b.box(pivot, w, len, 0.04, b.m(color, { rough: 0.95 }), 0, -len / 2, 0);
+  b.box(pivot, w + 0.02, 0.06, 0.05, b.m(trim, { metal: 0.5 }), 0, -len + 0.03, 0);
+  r.upper.add(pivot);
+  r.cape = pivot;
+}
+
 function warrior(b: Builder): Rig {
   const steel = 0x8a8f9a;
   const dark = 0x4d525c;
   const r = rig(b, { torso: steel, torsoW: 0.74, torsoD: 0.42, sleeve: steel, pants: dark, boots: 0x3a2f27, legW: 0.24, armW: 0.18 });
   const { upper } = r;
+  addCape(b, r, 0x8c2a24, 0xd4af37, 0.62, 1.15);
   // tabard in class colour
   b.box(upper, 0.34, 0.62, 0.05, b.m(0xc79c6e), 0, 0.3, 0.23);
   // pauldrons
@@ -180,6 +196,7 @@ function mage(b: Builder): Rig {
   hat.rotation.x = -0.18;
   hat.position.z = -0.05;
   b.cyl(upper, 0.275, 0.275, 0.07, b.m(0x69ccf0, { glow: 0.4 }), 0, 1.13, 0, 16);
+  eyes(b, r);
   // beard
   const beard = b.cone(upper, 0.14, 0.34, b.m(0xdcdcdc), 0, 0.68, 0.14, 10);
   beard.rotation.x = Math.PI;
@@ -206,6 +223,7 @@ function priest(b: Builder): Rig {
   // halo
   const halo = b.add(upper, new THREE.TorusGeometry(0.22, 0.025, 8, 24), b.m(0xfff0a0, { glow: 1.3 }), 0, 1.3, 0);
   halo.rotation.x = Math.PI / 2;
+  eyes(b, r, 0.96, 0.19);
   // gentle hair
   const hair = b.ball(upper, 0.215, b.m(0xd9c27a), 0, 0.96, -0.03);
   hair.scale.set(1, 0.9, 1);
@@ -232,6 +250,7 @@ function rogue(b: Builder): Rig {
   const r = rig(b, { torso: leather, torsoW: 0.5, torsoD: 0.3, sleeve: 0x23232a, pants: 0x1e1e24, boots: 0x14141a, legW: 0.18, armW: 0.13 });
   const { upper } = r;
   upper.rotation.x = 0.14; // permanent forward lean, set again in pose()
+  addCape(b, r, 0x1c1c22, 0x5a4a2a, 0.5, 0.9);
   // belt and bandolier in class colour
   b.box(upper, 0.52, 0.08, 0.32, b.m(0xfff569, { rough: 0.5 }), 0, 0.04, 0);
   const strap = b.box(upper, 0.08, 0.8, 0.34, b.m(0x5a4a2a), 0.05, 0.38, 0);
@@ -329,6 +348,7 @@ export function createCharacter(classId: ClassId): Character {
       const breathe = Math.sin(time * 2.2) * 0.02;
       r.upper.rotation.x = lean + move * 0.06 + breathe;
       r.upper.position.y = HIP + Math.abs(Math.sin(phase)) * 0.05 * move;
+      if (r.cape) r.cape.rotation.x = 0.08 + move * 0.45 + Math.sin(time * 2.4 + phase) * 0.05 * (0.4 + move);
       if (casting) {
         // both hands forward and up, with a slight shake of concentration
         const shake = Math.sin(time * 18) * 0.03;
