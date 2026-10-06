@@ -79,7 +79,7 @@ export class ArenaSim {
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
       autoAttack: false, nextSwing: 0, lastCombatAt: -1e9,
-      inputQueue: [], jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
+      inputQueue: [], charge: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
     this.units.set(u.id, u);
@@ -144,7 +144,7 @@ export class ArenaSim {
     if (u.resource < def.cost) return fail(`not enough ${u.resourceType}`);
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
-    if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget')) return fail('you are rooted');
+    if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget' || e.type === 'charge')) return fail('you are rooted');
 
     if (def.target === 'ground') {
       if (!ground && targetId !== undefined && targetId !== null) {
@@ -265,6 +265,25 @@ export class ArenaSim {
 
     // movement
     const before = { x: u.pos.x, z: u.pos.z };
+    if (u.charge) {
+      const ch = u.charge;
+      const tgt = this.units.get(ch.target);
+      const d = tgt ? dist(u.pos, tgt.pos) : 0;
+      if (!tgt || !tgt.alive || this.time > ch.until || !this.canAct(u) || this.hasAura(u, ['root']) || d <= ch.stop + 0.05) u.charge = null;
+      else {
+        const k = Math.min(ch.speed * DT, d - ch.stop);
+        const nx = u.pos.x + ((tgt.pos.x - u.pos.x) / d) * k;
+        const nz = u.pos.z + ((tgt.pos.z - u.pos.z) / d) * k;
+        u.facing = Math.atan2(tgt.pos.x - u.pos.x, tgt.pos.z - u.pos.z);
+        u.pos = resolveCollisions({ x: nx, z: nz }, this.arena);
+        // blocked by a pillar: stop rather than push against it
+        if (dist(before, u.pos) < k * 0.3) u.charge = null;
+        if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
+        if (u.cast && dist(before, u.pos) > 0.001) this.cancelCast(u, 'moved');
+        this.tryAutoAttack(u);
+        return;
+      }
+    }
     const feared = this.hasAura(u, ['fear']);
     const wandering = !feared && u.auras.some((a) => AURAS[a.id]?.wander);
     if (feared || wandering) {
@@ -407,6 +426,11 @@ export class ArenaSim {
           this.removeAura(t, a, 'dispelled');
           this.emit({ t: 'dispel', src: u.id, tgt: t.id, aura: a.id });
         }
+        break;
+      }
+      case 'charge': {
+        if (u.cast) this.cancelCast(u, 'moved');
+        u.charge = { target: t.id, stop: eff.stopDistance, speed: eff.speed, until: this.time + 2000 };
         break;
       }
       case 'dashToTarget': {
@@ -717,7 +741,7 @@ export class ArenaSim {
       stealthed: this.isStealthed(u),
       y: u.alive ? Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100 : 0,
       speedMult: this.speedMult(u),
-      controlled: !this.canAct(u),
+      controlled: !this.canAct(u) || !!u.charge,
       autoAttack: u.autoAttack,
       lastSeq: u.lastSeq,
     };

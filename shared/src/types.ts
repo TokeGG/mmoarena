@@ -82,6 +82,8 @@ export type Effect =
   | { type: 'interrupt'; lockout: number }
   | { type: 'dispel' }
   | { type: 'dashToTarget'; stopDistance: number }
+  /** A real run: the caster sprints at `speed` yards/s towards the target (uncontrollable) until `stopDistance` away. */
+  | { type: 'charge'; stopDistance: number; speed: number }
   | { type: 'blink'; distance: number }
   | { type: 'gain'; amount: number }
   /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. */
@@ -193,6 +195,8 @@ export interface Unit {
   dr: Partial<Record<DRCategory, DRState>>;
   lockouts: Partial<Record<School, number>>;
   autoAttack: boolean;
+  /** Set while running a Charge: the unit is carried to the target and ignores movement input. */
+  charge: { target: number; stop: number; speed: number; until: number } | null;
   nextSwing: number;
   lastCombatAt: number;
   inputQueue: MoveInput[];

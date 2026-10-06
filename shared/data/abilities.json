@@ -31,8 +31,9 @@
   "cost": 0,
   "effects": [
    {
-    "type": "dashToTarget",
-    "stopDistance": 2
+    "type": "charge",
+    "stopDistance": 2,
+    "speed": 34
    },
    {
     "type": "gain",

@@ -140,7 +140,7 @@ describe('skills and talents audit: every ability works in the sim', () => {
       if (has('aura')) assert.ok(t.auras.length > 0, 'no aura applied');
       if (has('dispel')) assert.ok(t.disp, 'nothing dispelled');
       if (has('interrupt')) assert.ok(t.intr, 'no interrupt');
-      if (has('blink') || has('dashToTarget')) assert.ok(t.moved > 1, 'did not move');
+      if (has('blink') || has('dashToTarget') || has('charge')) assert.ok(t.moved > 1, 'did not move');
       if (has('zone')) assert.ok(t.dmg > 0, 'zone did no damage');
     });
   }

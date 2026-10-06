@@ -285,9 +285,33 @@ describe('movement', () => {
     const rogue = add(sim, 'rogue', 1, 20, 0);
     advance(sim, TICK);
     assert.ok(sim.useAbility(war.id, 'charge', rogue.id).ok);
-    assert.ok(Math.abs(war.pos.x - 18) < 0.01);
+    assert.ok(war.pos.x < 1, 'a charge is a run, not a teleport');
+    advance(sim, TICK);
+    assert.ok(war.pos.x > 1 && war.pos.x < 3, `first step ${war.pos.x}`);
+    assert.equal(sim.snapshot().units.find((u) => u.id === war.id)!.controlled, true, 'steering is off while charging');
+    advance(sim, 1000);
+    assert.ok(Math.abs(war.pos.x - 18) < 0.2, `arrived at ${war.pos.x}`);
+    assert.equal(war.charge, null);
     advance(sim, 16000);
     mustFail(sim.useAbility(war.id, 'charge', rogue.id), /too close/);
+  });
+
+  it('movement input is ignored during a charge, and a stun stops it where it is', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 20, 0);
+    const mage = add(sim, 'mage', 1, 30, 10);
+    advance(sim, TICK);
+    sim.useAbility(war.id, 'charge', rogue.id);
+    sim.queueInput(war.id, { seq: 1, fwd: -1, strafe: 0, facing: Math.PI * 1.5 });
+    advance(sim, TICK * 3);
+    assert.ok(war.pos.x > 3, 'running towards the target despite the input');
+    const at = war.pos.x;
+    sim.applyAura(rogue, war, 'cheap_shot_stun');
+    advance(sim, TICK * 2);
+    assert.ok(Math.abs(war.pos.x - at) < 2, 'stunned mid-charge');
+    assert.equal(war.charge, null);
+    void mage;
   });
 });
 

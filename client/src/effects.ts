@@ -770,6 +770,26 @@ export class Effects {
     const enemyTarget = def.target === 'enemy' || def.target === 'any';
     const melee = enemyTarget && def.range <= 6;
 
+    if (has('charge') && t) {
+      // dust and a streak while the unit runs, then an impact where it lands
+      this.puff(s.x, 0.4, s.z, 0x8a7a60, 7, 1.4);
+      for (let k = 1; k <= 18; k++) {
+        this.later(k * 0.05, () => {
+          const n = this.pos(unit);
+          if (!n) return;
+          this.particle(n.x + rnd(-0.3, 0.3), 0.9 + rnd(-0.4, 0.4), n.z + rnd(-0.3, 0.3), { color, s0: 0.7, s1: 0.1, life: 0.35, a: 0.55 });
+          if (k % 3 === 0) this.puff(n.x, 0.2, n.z, 0x8a7a60, 2, 0.7);
+        });
+      }
+      this.later(0.95, () => {
+        const n = this.pos(unit);
+        if (!n) return;
+        this.burst(n.x, 0.5, n.z, color, 10, 4, 0.4, 0.5);
+        this.ring(n.x, n.z, color, 0.4, 2.8, 0.3);
+        this.onSwing(unit);
+      });
+      return;
+    }
     if (has('dashToTarget') && t) {
       const ox = s.x;
       const oz = s.z;
