@@ -78,7 +78,7 @@ export class ArenaSim {
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, auras: [], dr: {}, lockouts: {},
-      autoAttack: false, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
+      autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], charge: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
@@ -113,6 +113,7 @@ export class ArenaSim {
     if (!u) return fail('no unit');
     if (targetId === null) {
       u.target = null;
+      u.autoAttack = false; // clicking off the target stops swinging
       return ok;
     }
     const t = this.units.get(targetId);
@@ -125,7 +126,10 @@ export class ArenaSim {
   setAutoAttack(id: number, on: boolean): void {
     this.onCommand?.([this.tickNo, 3, id, on]);
     const u = this.units.get(id);
-    if (u) u.autoAttack = on && !u.autoDisabled && !!CLASSES[u.classId].auto;
+    if (!u) return;
+    const next = on && !u.autoDisabled && !!CLASSES[u.classId].auto;
+    if (next && !u.autoAttack) u.autoSince = this.time;
+    u.autoAttack = next;
   }
 
   /** The auto-attack setting: while disabled the unit never auto-attacks. Recorded in replays as op 5. */
@@ -240,6 +244,9 @@ export class ArenaSim {
       if (u.alive && a.expiresAt <= this.time) this.removeAura(u, a, 'expired');
     }
     if (!u.alive) return;
+
+    // auto-attack switches itself off once combat has been over for a while
+    if (u.autoAttack && this.time - Math.max(u.lastCombatAt, u.autoSince) > TUNING.outOfCombatMs) u.autoAttack = false;
 
     // resources
     if (u.resourceType === 'rage') {
@@ -408,7 +415,10 @@ export class ArenaSim {
     for (const t of targets) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
     this.ground = null;
 
-    if (isMelee(def) && CLASSES[u.classId].auto && !u.autoDisabled) u.autoAttack = true;
+    if (isMelee(def) && CLASSES[u.classId].auto && !u.autoDisabled) {
+      if (!u.autoAttack) u.autoSince = this.time;
+      u.autoAttack = true;
+    }
     if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
   }
 

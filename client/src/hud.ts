@@ -187,21 +187,47 @@ export class Hud {
       root.append(ico, nm, cd, key);
       root.addEventListener('mousedown', (e) => {
         e.stopPropagation();
-        if (e.shiftKey && this.handlers.onReorder) {
-          // Shift+drag rearranges the bar instead of casting
-          e.preventDefault();
-          root.classList.add('dragging');
-          const done = (up: MouseEvent) => {
-            window.removeEventListener('mouseup', done, true);
-            root.classList.remove('dragging');
-            const over = document.elementFromPoint(up.clientX, up.clientY)?.closest('.slot');
-            const to = over ? this.slots.findIndex((s) => s.root === over) : -1;
-            if (to >= 0 && to !== i) this.handlers.onReorder?.(i, to);
-          };
-          window.addEventListener('mouseup', done, true);
-          return;
-        }
-        this.handlers.onSlot(i);
+        if (e.button !== 0) return;
+        e.preventDefault();
+        // Press and drag (any distance past a few pixels) onto another slot to swap them; a plain click casts.
+        // Shift is no longer needed, but Shift+drag still works.
+        const sx = e.clientX;
+        const sy = e.clientY;
+        let ghost: HTMLElement | null = null;
+        let hover: Element | null = null;
+        const move = (m: MouseEvent) => {
+          if (!ghost) {
+            if (!this.handlers.onReorder || Math.abs(m.clientX - sx) + Math.abs(m.clientY - sy) < 8) return;
+            root.classList.add('dragging');
+            ghost = root.cloneNode(true) as HTMLElement;
+            ghost.classList.add('slot-ghost');
+            document.body.append(ghost);
+          }
+          ghost.style.left = `${m.clientX - 32}px`;
+          ghost.style.top = `${m.clientY - 32}px`;
+          const over = document.elementFromPoint(m.clientX, m.clientY)?.closest('.slot:not(.slot-ghost)') ?? null;
+          if (over !== hover) {
+            hover?.classList.remove('dropto');
+            over?.classList.add('dropto');
+            hover = over;
+          }
+        };
+        const up = (u: MouseEvent) => {
+          window.removeEventListener('mousemove', move, true);
+          window.removeEventListener('mouseup', up, true);
+          hover?.classList.remove('dropto');
+          root.classList.remove('dragging');
+          if (!ghost) {
+            this.handlers.onSlot(i);
+            return;
+          }
+          ghost.remove();
+          const over = document.elementFromPoint(u.clientX, u.clientY)?.closest('.slot');
+          const to = over ? this.slots.findIndex((x) => x.root === over) : -1;
+          if (to >= 0 && to !== i) this.handlers.onReorder?.(i, to);
+        };
+        window.addEventListener('mousemove', move, true);
+        window.addEventListener('mouseup', up, true);
       });
       bar.append(root);
       return { root, cd, key, ability };
@@ -219,7 +245,7 @@ export class Hud {
   setKeyLabels(labels: string[]) {
     this.slots.forEach((s, i) => {
       s.key.textContent = labels[i] ?? '';
-      s.root.dataset.tipSub = (labels[i] ? `Hotkey: ${labels[i]}  ·  ` : '') + 'Shift+drag to move';
+      s.root.dataset.tipSub = (labels[i] ? `Hotkey: ${labels[i]}  ·  ` : '') + 'Drag to move';
     });
   }
 

@@ -198,6 +198,8 @@ export interface Unit {
   dr: Partial<Record<DRCategory, DRState>>;
   lockouts: Partial<Record<School, number>>;
   autoAttack: boolean;
+  /** When auto-attack last switched on; it times out after the out-of-combat delay without any combat. */
+  autoSince: number;
   /** The player turned auto-attack off in settings: it never starts, not even from a melee ability. */
   autoDisabled: boolean;
   /** Set while running a Charge: the unit is carried to the target and ignores movement input. */

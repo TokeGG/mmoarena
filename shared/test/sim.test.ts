@@ -384,6 +384,24 @@ describe('melee and auto-attack', () => {
   });
 });
 
+describe('auto-attack lifecycle', () => {
+  it('stops when the target is cleared and after leaving combat, but gets time to start', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const rogue = add(sim, 'rogue', 1, 40, 0);
+    advance(sim, TICK);
+    sim.setTarget(war.id, rogue.id);
+    sim.setAutoAttack(war.id, true);
+    advance(sim, 4000);
+    assert.ok(war.autoAttack, 'a fresh auto-attack is not cancelled for being out of combat straight away');
+    advance(sim, 2000);
+    assert.ok(!war.autoAttack, 'times out with no combat');
+    sim.setAutoAttack(war.id, true);
+    sim.setTarget(war.id, null);
+    assert.ok(!war.autoAttack, 'clearing the target turns it off');
+  });
+});
+
 describe('auto-attack setting', () => {
   it('when disabled, auto-attack never starts, even from a melee ability', () => {
     const sim = live();

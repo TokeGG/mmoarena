@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.31.2
+# WoW-style Arena · v0.32.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against, ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -33,7 +33,7 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 
 ## Controls (rebindable)
 
-Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target (click yourself or your own frame to target yourself) · 1-8 abilities (Shift+drag one action slot onto another to rearrange; saved per spec) · R toggles auto-attack; right-click an enemy (a click, not a drag) targets it and starts auto-attack, left-click only targets.
+Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forward · W/S move · Q/E strafe · A/D turn (strafe while RMB held) · Space jump · wheel zoom (scroll all the way in for first person; the camera also drops into first person when a wall or pillar is right behind you) · Tab next enemy · click to target (click yourself or your own frame to target yourself) · 1-8 abilities (drag one action slot onto another to rearrange; saved per spec) · R toggles auto-attack (it also starts when you use a melee ability, and stops after 5 s out of combat or when you click off your target onto empty space, or press Esc to clear it); right-click an enemy (a click, not a drag) targets it and starts auto-attack, left-click only targets.
 
 **Esc** clears your target first, then opens the menu: Resume, Controls, an Auto-attack on/off toggle, mouse sensitivity, volume sliders, HUD editor, Leave match. In **Controls** click a box and press a key, or hold **Shift / Ctrl / Alt** and press one for a combo such as Shift+1 (a plain binding still fires with a modifier held unless that exact combo is bound; release a modifier on its own to bind the modifier itself; browsers may grab some Ctrl combos); every action has two slots, right-click clears a slot, binding a key that is in use moves it, and Esc itself is reserved. The same screen is on the join page. Signed in, your keybinds, HUD, volume and builds follow your account to any device.
 

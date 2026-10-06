@@ -426,6 +426,7 @@ controls.onClick = (x, y) => {
   if (aiming && !spec) return void confirmAim();
   const id = scene.pick(x, y, spec ? null : you);
   if (id !== null) setTarget(id);
+  else if (!spec && targetId !== null) setTarget(null); // clicking empty space drops the target (and auto-attack with it)
 };
 controls.onRightClick = (x, y) => {
   if (spec || aiming) return;
