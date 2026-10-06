@@ -73,7 +73,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   else if (def.range > 0) stats.push(`${def.range + (am.range ?? 0)} yd range`);
   else if (def.target === 'enemy' || def.target === 'any') stats.push('Melee range');
   if (def.minRange) stats.push(`min ${def.minRange} yd`);
-  if (def.castTime > 0) stats.push(`${sec(def.castTime * mods.castTime * (am.castTime ?? 1))} cast`);
+  if (def.castTime > 0) stats.push(`${sec(def.castTime * mods.castTime * (am.castTime ?? 1))} ${def.channel ? 'channel' : 'cast'}`);
   else stats.push('Instant');
   if (def.cooldown > 0) stats.push(`${sec(def.cooldown * (am.cooldown ?? 1))} cooldown`);
 
@@ -82,7 +82,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
     switch (e.type) {
       case 'damage': {
         const n = Math.round(e.amount * mods.damageDone * (am.damage ?? 1));
-        lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' ? ' to all enemies in range' : ''}.`);
+        if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing about ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
+        else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' ? ' to all enemies in range' : ''}.`);
         break;
       }
       case 'heal':

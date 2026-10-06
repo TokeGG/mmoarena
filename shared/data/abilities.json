@@ -635,16 +635,19 @@
   "school": "arcane",
   "target": "enemy",
   "range": 30,
-  "castTime": 0,
+  "castTime": 2000,
   "cooldown": 6000,
   "gcd": true,
   "cost": 35,
   "effects": [
    {
     "type": "damage",
-    "amount": 120
+    "amount": 34
    }
-  ]
+  ],
+  "channel": {
+   "ticks": 5
+  }
  },
  {
   "id": "arcane_power",

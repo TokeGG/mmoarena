@@ -1,4 +1,4 @@
-import { ARENA, CLASSES, PROTOCOL_VERSION, TUNING, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
+import { ARENA, CLASSES, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, specOf, stepMovement } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -74,7 +74,24 @@ const hudLayout = new HudLayout();
 hudLayout.onChange = (editing) => {
   controls.enabled = !editing;
   if (editing) controls.releaseAll();
+  if (!editing && !latest) {
+    // finished editing from the main menu: put the menu back
+    document.body.classList.remove('hud-demo');
+    hud.show(false);
+    mainMenu.show(true);
+  }
 };
+
+/** Edit the HUD before a match: show it filled with a pretend fight, over the menu's 3D backdrop. */
+function editHudFromMenu() {
+  document.body.classList.add('hud-demo');
+  const c = mainMenu.selectedClass;
+  mainMenu.show(false);
+  hud.demo(c, barFor(c, mainMenu.currentBuild, CLASSES[c].bar));
+  relabel();
+  hud.show(true);
+  hudLayout.start();
+}
 let leaving = false;
 const relabel = () => hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
 binds.onChange = relabel;
@@ -410,6 +427,7 @@ function play(req: PlayRequest) {
 const mainMenu = new MainMenu(document.getElementById('join')!, {
   onPlay: play,
   onControls: () => menu.open(false, 'keys'),
+  onEditHud: editHudFromMenu,
   onSelect: (c, b) => setTipMods(compileMods(c, b)),
 });
 setTipMods(compileMods(mainMenu.selectedClass, mainMenu.currentBuild));

@@ -264,3 +264,48 @@ describe('protocol carries a build', () => {
     assert.ok(big.build.talents.length <= 3);
   });
 });
+
+describe('channelled abilities', () => {
+  it('arcane barrage fires its missiles over time, costs up front, and stops when you move', async () => {
+    const { ArenaSim, ABILITIES } = await import('../src/index');
+    const def = ABILITIES.arcane_barrage;
+    assert.ok(def.channel && def.castTime > 0);
+    const mk = () => {
+      const sim = new ArenaSim({ prepMs: 0, seed: 7 });
+      const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'player', build: { spec: 'arcane', talents: [], gear: {} } });
+      const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1, controller: 'dummy' });
+      foe.pos = { x: mage.pos.x + 12, z: mage.pos.z };
+      mage.facing = Math.PI / 2;
+      for (let i = 0; i < 5; i++) sim.step();
+      return { sim, mage, foe };
+    };
+    {
+      const { sim, mage, foe } = mk();
+      const mana = mage.resource;
+      const hp = foe.health;
+      assert.ok(sim.useAbility(mage.id, 'arcane_barrage', foe.id).ok);
+      assert.equal(mage.resource, mana - def.cost, 'paid at the start');
+      assert.equal(foe.health, hp, 'no damage on the first instant');
+      const hits: number[] = [];
+      for (let i = 0; i < 60; i++) {
+        sim.step();
+        for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_barrage') hits.push(sim.time);
+      }
+      assert.equal(hits.length, def.channel!.ticks, 'one hit per tick');
+      assert.ok(hits[hits.length - 1] - hits[0] >= 1400, 'spread across the channel');
+      assert.equal(mage.cast, null);
+    }
+    {
+      const { sim, mage, foe } = mk();
+      sim.useAbility(mage.id, 'arcane_barrage', foe.id);
+      for (let i = 0; i < 10; i++) sim.step(); // 500 ms: one tick in
+      sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: mage.facing });
+      let n = 0;
+      for (let i = 0; i < 60; i++) {
+        sim.step();
+        for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_barrage') n++;
+      }
+      assert.ok(n < def.channel!.ticks, 'moving cancelled the volley');
+    }
+  });
+});

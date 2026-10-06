@@ -103,7 +103,7 @@
    "id": "arcane",
    "name": "Arcane",
    "role": "Sustain / utility",
-   "desc": "Strong mana regeneration and a damage cooldown. Arcane Barrage is instant.",
+   "desc": "Strong mana regeneration and a damage cooldown. Arcane Barrage channels a volley of missiles; stand still to finish it.",
    "icon": "🔮",
    "bar": [
     "arcane_blast",

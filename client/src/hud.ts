@@ -76,7 +76,7 @@ class UnitFrame {
     if (this.cast) {
       const c = u.cast;
       this.cast.root.classList.toggle('hidden', !c);
-      if (c) this.cast.set(now - c.start, c.end - c.start, ABILITIES[c.ability]?.name ?? c.ability);
+      if (c) this.cast.set(ABILITIES[c.ability]?.channel ? c.end - now : now - c.start, c.end - c.start, ABILITIES[c.ability]?.name ?? c.ability);
     }
     this.auras.replaceChildren(
       ...u.auras.slice(0, 8).map((a) => {
@@ -124,6 +124,33 @@ export class Hud {
 
   constructor(private handlers: HudHandlers) {
     $('cast').append(this.castBar.root);
+  }
+
+  /** Fill the HUD with a made-up fight so the layout editor has something to arrange outside a match. */
+  demo(classId: ClassId, abilities: string[]) {
+    const now = 100000;
+    const mk = (id: number, name: string, team: TeamId, c: ClassId, hp: number, extra: Partial<UnitSnap> = {}): UnitSnap => {
+      const cls = CLASSES[c];
+      return {
+        id, name, team, classId: c, spec: null, x: 0, z: 0, facing: 0, alive: true, health: Math.round(cls.maxHealth * hp), maxHealth: cls.maxHealth,
+        resource: Math.round(cls.resource.max * 0.7), resourceMax: cls.resource.max, resourceType: cls.resource.type, target: null, cast: null, gcdEnd: 0,
+        cooldowns: {}, auras: [], stealthed: false, speedMult: 1, controlled: false, autoAttack: false, lastSeq: 0, ...extra,
+      };
+    };
+    const ids = Object.keys(CLASSES) as ClassId[];
+    const foe = ids.find((c) => c !== classId) ?? classId;
+    const foe2 = ids.filter((c) => c !== classId && c !== foe)[0] ?? foe;
+    const ally = ids.filter((c) => c !== classId && c !== foe && c !== foe2)[0] ?? classId;
+    const units = [
+      mk(1, 'You', 0, classId, 0.82, { autoAttack: true, cast: { ability: abilities[0] ?? '', target: 3, start: now - 700, end: now + 900 } }),
+      mk(2, 'Ally', 0, ally, 0.6),
+      mk(3, 'Enemy', 1, foe, 0.45, { cast: { ability: Object.keys(ABILITIES).find((a) => ABILITIES[a].class === foe && ABILITIES[a].castTime > 0) ?? '', target: 1, start: now - 400, end: now + 1100 } }),
+      mk(4, 'Enemy 2', 1, foe2, 0.9),
+    ];
+    const snap: Snapshot = { tick: 0, time: now, phase: 'live', phaseEndsAt: now + 60000, winner: null, units };
+    this.setBar(classId, abilities);
+    this.update({ snap, now, you: 1, targetId: 3 });
+    this.nameplates([], now);
   }
 
   show(visible: boolean) {
@@ -192,7 +219,7 @@ export class Hud {
     $('cast').classList.toggle('hidden', !me.cast);
     if (me.cast) {
       const left = Math.max(0, me.cast.end - now) / 1000;
-      this.castBar.set(now - me.cast.start, me.cast.end - me.cast.start, `${ABILITIES[me.cast.ability]?.name ?? ''}  ${left.toFixed(1)}`);
+      this.castBar.set(ABILITIES[me.cast.ability]?.channel ? me.cast.end - now : now - me.cast.start, me.cast.end - me.cast.start, `${ABILITIES[me.cast.ability]?.name ?? ''}  ${left.toFixed(1)}`);
     }
 
     this.updateBanner(snap, now, me.team);
@@ -280,7 +307,7 @@ export class Hud {
       if (u.cast) {
         p.cast.root.classList.toggle('enemy', u.enemy);
         p.cast.setColor(u.enemy ? 'linear-gradient(#ff9a52,#d94a1c)' : 'linear-gradient(#ffd966,#d9962a)');
-        p.cast.set(now - u.cast.start, u.cast.end - u.cast.start, ABILITIES[u.cast.ability]?.name ?? u.cast.ability);
+        p.cast.set(ABILITIES[u.cast.ability]?.channel ? u.cast.end - now : now - u.cast.start, u.cast.end - u.cast.start, ABILITIES[u.cast.ability]?.name ?? u.cast.ability);
       }
     }
     for (const [id, p] of this.plates) {

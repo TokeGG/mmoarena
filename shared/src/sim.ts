@@ -146,6 +146,17 @@ export class ArenaSim {
 
     if (def.target === 'enemy') u.target = tgt.id;
 
+    if (def.channel && def.castTime > 0) {
+      // channels pay and go on cooldown up front, then fire their effects once per tick while the caster stands still
+      const castMs = this.castTimeOf(u, def);
+      u.resource -= def.cost;
+      if (def.cooldown > 0) u.cooldowns[def.id] = this.time + Math.round(def.cooldown * (this.modsOf(u).ability[def.id]?.cooldown ?? 1));
+      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks: def.channel.ticks, done: 0 };
+      if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
+      this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
+      return ok;
+    }
     if (def.castTime > 0) {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs };
@@ -220,6 +231,7 @@ export class ArenaSim {
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
     if (u.cast && dist(before, u.pos) > 0.001) this.cancelCast(u, 'moved');
 
+    if (u.cast?.ticks) this.tickChannel(u);
     if (u.cast && u.cast.end <= this.time) this.completeCast(u);
     this.tryAutoAttack(u);
   }
@@ -242,11 +254,39 @@ export class ArenaSim {
 
   // ------------------------------------------------------------------ casting
 
+  /** Fire every channel tick that has come due. A dead or unreachable target ends the channel. */
+  private tickChannel(u: Unit): void {
+    const c = u.cast;
+    if (!c || !c.ticks) return;
+    const def = ABILITIES[c.ability];
+    const span = c.end - c.start;
+    while (u.cast === c && (c.done ?? 0) < c.ticks && this.time >= c.start + (span * ((c.done ?? 0) + 1)) / c.ticks - 1e-6) {
+      const tgt = this.units.get(c.target);
+      if (!tgt || !tgt.alive) {
+        u.cast = null;
+        this.emit({ t: 'channel_end', unit: u.id, ability: def.id });
+        return;
+      }
+      if (tgt !== u) {
+        if (def.range > 0 && dist(u.pos, tgt.pos) > this.rangeOf(u, def) + TUNING.rangeTolerance) return this.cancelCast(u, 'out of range');
+        if (!hasLOS(u.pos, tgt.pos, this.arena)) return this.cancelCast(u, 'no line of sight');
+        if (!this.canSee(u, tgt)) return this.cancelCast(u, 'target not visible');
+      }
+      c.done = (c.done ?? 0) + 1;
+      this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
+      for (const eff of def.effects) this.applyEffect(u, def, tgt, eff);
+    }
+  }
+
   private completeCast(u: Unit): void {
     const c = u.cast;
     if (!c) return;
     u.cast = null;
     const def = ABILITIES[c.ability];
+    if (def.channel) {
+      this.emit({ t: 'channel_end', unit: u.id, ability: def.id });
+      return;
+    }
     const tgt = this.units.get(c.target);
     if (!tgt || !tgt.alive) return this.failCast(u, c.ability, 'target is dead');
     if (tgt !== u) {

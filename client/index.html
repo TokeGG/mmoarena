@@ -218,7 +218,7 @@
   .plate .pcast.enemy { box-shadow:0 0 6px rgba(255,150,60,.7); }
 
   /* ---------- HUD layout editor ---------- */
-  #hud-edit-bar { position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:150; display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel2); border:2px solid var(--gold); border-radius:10px; font:600 13px var(--serif); box-shadow:0 6px 24px rgba(0,0,0,.7); }
+  #hud-edit-bar { position:fixed; top:36%; left:50%; transform:translateX(-50%); z-index:150; display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--panel2); border:2px solid var(--gold); border-radius:10px; font:600 13px var(--serif); box-shadow:0 6px 24px rgba(0,0,0,.7); }
   #hud-edit-bar button { padding:6px 12px; border-radius:6px; border:1px solid var(--gold-d); background:#1d1b20; color:#e9dcc0; cursor:pointer; font:600 12px var(--serif); }
   #hud-edit-bar button.primary { background:linear-gradient(#f0c260,#b0781c); color:#2a1900; border-color:#5c3d08; }
   body.hud-edit [data-hud] { outline:2px dashed rgba(255,210,74,.85); outline-offset:3px; cursor:move; pointer-events:auto !important; user-select:none; touch-action:none; }
@@ -227,7 +227,40 @@
   body.hud-edit #target-frame.hidden, body.hud-edit #cast.hidden, body.hud-edit #autoind.hidden { display:flex !important; }
   body.hud-edit #target-frame, body.hud-edit #party, body.hud-edit #enemies { min-width:200px; min-height:44px; }
   body.hud-edit #cast { min-height:22px; background:rgba(255,210,74,.12); }
-  body.hud-edit #hud-edit-bar ~ * { }
+  #hud-edit-bar label { display:flex; align-items:center; gap:6px; } #hud-edit-bar select { padding:4px 6px; background:#14161c; color:var(--text); border:1px solid var(--gold-d); border-radius:5px; }
+  #hud-edit-bar small { max-width:230px; color:#a79d88; font:11px/1.25 system-ui; }
+  body.hud-demo #hud { z-index:40; }
+
+  /* ---------- HUD styles (skins) ---------- */
+  /* minimal: flat, dark, thin */
+  body[data-hud-style=minimal] .frame { background:rgba(10,11,15,.6); border:1px solid rgba(255,255,255,.12); border-radius:4px; box-shadow:none; }
+  body[data-hud-style=minimal] .portrait { display:none; }
+  body[data-hud-style=minimal] .frame .name { font-family:system-ui; font-weight:600; }
+  body[data-hud-style=minimal] .bar { border-radius:2px; box-shadow:none; height:11px; background:rgba(0,0,0,.5); border-color:transparent; }
+  body[data-hud-style=minimal] .bar .fill { box-shadow:none; }
+  body[data-hud-style=minimal] #actionbar { background:rgba(10,11,15,.55); border:1px solid rgba(255,255,255,.12); border-radius:6px; box-shadow:none; }
+  body[data-hud-style=minimal] .slot { border:1px solid rgba(255,255,255,.2); border-radius:4px; box-shadow:none; }
+  body[data-hud-style=minimal] .slot .nm { display:none; }
+  body[data-hud-style=minimal] .slot .ico { inset:0; }
+  /* glass: frosted cyan */
+  body[data-hud-style=glass] .frame { background:linear-gradient(135deg,rgba(60,90,120,.42),rgba(20,30,48,.5)); backdrop-filter:blur(8px); border:1px solid rgba(140,225,255,.5); border-radius:14px; box-shadow:0 6px 20px rgba(0,30,60,.5), inset 0 1px 0 rgba(255,255,255,.25); }
+  body[data-hud-style=glass] .portrait { border-color:#8fe3ff; box-shadow:0 0 10px rgba(120,220,255,.6); }
+  body[data-hud-style=glass] .frame .name { font-family:system-ui; letter-spacing:.8px; text-transform:uppercase; font-size:11px; }
+  body[data-hud-style=glass] .bar { border-radius:8px; background:rgba(0,10,25,.55); border-color:rgba(140,225,255,.25); box-shadow:none; }
+  body[data-hud-style=glass] .bar .fill { border-radius:8px; }
+  body[data-hud-style=glass] #actionbar { background:rgba(30,50,76,.45); backdrop-filter:blur(8px); border:1px solid rgba(140,225,255,.5); border-radius:18px; box-shadow:0 6px 22px rgba(0,30,60,.5); }
+  body[data-hud-style=glass] .slot { border:1px solid rgba(140,225,255,.55); border-radius:12px; background:rgba(10,20,40,.55); box-shadow:inset 0 0 12px rgba(120,220,255,.18); }
+  body[data-hud-style=glass] .slot:hover { border-color:#bff0ff; }
+  body[data-hud-style=glass] .slot .key { background:rgba(120,220,255,.25); color:#e8fbff; border-color:rgba(140,225,255,.6); }
+  /* compact: classic, but denser */
+  body[data-hud-style=compact] .portrait { width:30px; height:30px; font-size:15px; }
+  body[data-hud-style=compact] .frame { padding:4px; gap:5px; }
+  body[data-hud-style=compact] .slot .nm { display:none; }
+  body[data-hud-style=compact] .slot .ico { inset:0; }
+  /* arena: classic with heavier trim */
+  body[data-hud-style=arena] .frame { border-color:#a7822f; box-shadow:0 2px 14px rgba(0,0,0,.7), inset 0 0 0 1px rgba(255,220,150,.18); }
+  body[data-hud-style=arena] #actionbar { border-color:#a7822f; }
+
 
   /* ---------- tooltips ---------- */
   #tooltip { position:fixed; z-index:200; max-width:320px; pointer-events:none; padding:8px 10px; background:linear-gradient(180deg,rgba(24,20,28,.97),rgba(10,9,13,.97)); border:1px solid var(--gold); border-radius:6px; box-shadow:0 6px 22px rgba(0,0,0,.75); font-size:12px; line-height:1.4; color:#d8d2c4; white-space:pre-line; }

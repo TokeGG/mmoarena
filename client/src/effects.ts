@@ -330,7 +330,7 @@ export class Effects {
     });
   }
 
-  private projectile(srcId: number, tgtId: number, school: School, kind: 'frost' | 'fire' | 'holy' | 'arcane' | 'shadow', size = 1) {
+  private projectile(srcId: number, tgtId: number, school: School, kind: 'frost' | 'fire' | 'holy' | 'arcane' | 'shadow', size = 1, swirl = 0) {
     const s = this.pos(srcId);
     if (!s) return 0;
     const color = SCHOOL_COLOR[school];
@@ -338,7 +338,11 @@ export class Effects {
     const halo = this.sprite('glow', color);
     core.scale.set(0.7 * size, 0.7 * size, 1);
     halo.scale.set(1.7 * size, 1.7 * size, 1);
-    const p = new THREE.Vector3(s.x + Math.sin(s.facing) * 0.6, 1.5, s.z + Math.cos(s.facing) * 0.6);
+    // volley missiles leave from alternating sides of the caster and curve in towards the target
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const hand = swirl ? side * rnd(0.3, 0.6) : 0;
+    const p = new THREE.Vector3(s.x + Math.sin(s.facing) * 0.6 + Math.cos(s.facing) * hand, 1.5 + (swirl ? rnd(-0.1, 0.5) : 0), s.z + Math.cos(s.facing) * 0.6 - Math.sin(s.facing) * hand);
+    const q = p.clone();
     core.position.copy(p);
     halo.position.copy(p);
     const first = this.pos(tgtId);
@@ -353,21 +357,31 @@ export class Effects {
         const d = to.clone().sub(p);
         const step = PROJECTILE_SPEED * dt;
         const done = d.length() <= step + 0.4 || t > 3;
+        const remaining = d.length();
         if (!done) p.addScaledVector(d.normalize(), step);
-        core.position.copy(p);
-        halo.position.copy(p);
+        q.copy(p);
+        if (swirl) {
+          const prog = Math.min(1, Math.max(0, 1 - remaining / Math.max(1, flight * PROJECTILE_SPEED)));
+          const bend = Math.sin(Math.PI * prog) * swirl;
+          const len = Math.hypot(d.x, d.z) || 1;
+          q.x += (-d.z / len) * bend * side;
+          q.z += (d.x / len) * bend * side;
+          q.y += bend * 0.45;
+        }
+        core.position.copy(q);
+        halo.position.copy(q);
         const pulse = 1 + Math.sin(t * 40) * 0.12;
         halo.scale.set(1.7 * size * pulse, 1.7 * size * pulse, 1);
         trail += dt;
         while (trail > 0.016) {
           trail -= 0.016;
           if (kind === 'fire') {
-            this.particle(p.x + rnd(-0.1, 0.1), p.y + rnd(-0.1, 0.1), p.z + rnd(-0.1, 0.1), { color: Math.random() < 0.5 ? 0xff5a1a : 0xffb23a, vy: rnd(0, 0.8), s0: 0.5 * size, life: 0.35, drag: 2 });
-            if (Math.random() < 0.3) this.particle(p.x, p.y, p.z, { tex: 'smoke', color: 0x332a26, add: false, s0: 0.3, s1: 0.9, life: 0.6, a: 0.5, vy: 0.6 });
+            this.particle(q.x + rnd(-0.1, 0.1), q.y + rnd(-0.1, 0.1), q.z + rnd(-0.1, 0.1), { color: Math.random() < 0.5 ? 0xff5a1a : 0xffb23a, vy: rnd(0, 0.8), s0: 0.5 * size, life: 0.35, drag: 2 });
+            if (Math.random() < 0.3) this.particle(q.x, q.y, q.z, { tex: 'smoke', color: 0x332a26, add: false, s0: 0.3, s1: 0.9, life: 0.6, a: 0.5, vy: 0.6 });
           } else if (kind === 'frost') {
-            this.particle(p.x + rnd(-0.12, 0.12), p.y + rnd(-0.12, 0.12), p.z + rnd(-0.12, 0.12), { tex: Math.random() < 0.3 ? 'star' : 'spark', color: Math.random() < 0.5 ? 0xbfeaff : 0x5cb8ff, vy: rnd(-0.4, 0.4), s0: 0.32 * size, life: 0.45, drag: 2 });
+            this.particle(q.x + rnd(-0.12, 0.12), q.y + rnd(-0.12, 0.12), q.z + rnd(-0.12, 0.12), { tex: Math.random() < 0.3 ? 'star' : 'spark', color: Math.random() < 0.5 ? 0xbfeaff : 0x5cb8ff, vy: rnd(-0.4, 0.4), s0: 0.32 * size, life: 0.45, drag: 2 });
           } else {
-            this.particle(p.x + rnd(-0.15, 0.15), p.y + rnd(-0.15, 0.15), p.z + rnd(-0.15, 0.15), { tex: Math.random() < 0.4 ? 'star' : 'spark', color: kind === 'holy' ? 0xfff1a8 : color, vy: rnd(0, 0.5), s0: 0.34, life: 0.5, drag: 2 });
+            this.particle(q.x + rnd(-0.15, 0.15), q.y + rnd(-0.15, 0.15), q.z + rnd(-0.15, 0.15), { tex: Math.random() < 0.4 ? 'star' : 'spark', color: kind === 'holy' ? 0xfff1a8 : color, vy: rnd(0, 0.5), s0: 0.34, life: 0.5, drag: 2 });
           }
         }
         return done;
@@ -468,8 +482,11 @@ export class Effects {
         this.startCast(ev.unit, ev.ability);
         break;
       case 'cast':
-        this.stopCast(ev.unit);
+        if (!ABILITIES[ev.ability]?.channel) this.stopCast(ev.unit);
         this.onCast(ev.unit, ev.ability, ev.target);
+        break;
+      case 'channel_end':
+        this.stopCast(ev.unit);
         break;
       case 'cast_fail':
         this.stopCast(ev.unit);
@@ -792,7 +809,11 @@ export class Effects {
     }
     if (enemyTarget && t && has('damage')) {
       const kind = def.school === 'fire' ? 'fire' : def.school === 'frost' ? 'frost' : def.school === 'holy' ? 'holy' : def.school === 'shadow' ? 'shadow' : 'arcane';
-      if (def.castTime > 0) {
+      if (def.channel) {
+        // one small curving missile per tick of the volley
+        this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, 0.62, rnd(0.6, 1.3)));
+        this.onSwing(unit);
+      } else if (def.castTime > 0) {
         const big = def.effects.some((e) => e.type === 'damage' && e.amount >= 300) ? 1.35 : 1;
         this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, big));
       } else {

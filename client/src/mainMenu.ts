@@ -25,6 +25,7 @@ export interface PlayRequest {
 export interface MainMenuHooks {
   onPlay(req: PlayRequest): void;
   onControls(): void;
+  onEditHud(): void;
   /** The previewed class or build changed (so the tooltip numbers and 3D model can follow). */
   onSelect(classId: ClassId, build: Build): void;
 }
@@ -172,7 +173,9 @@ export class MainMenu {
     const controls = el('button', 'mm-link', 'Controls & keybinds');
     controls.id = 'btn-keys';
     controls.addEventListener('click', () => this.hooks.onControls());
-    play.append(opts, row, controls, this.msg);
+    const hudBtn = el('button', 'mm-link', 'Edit HUD layout & style');
+    hudBtn.addEventListener('click', () => this.hooks.onEditHud());
+    play.append(opts, row, controls, hudBtn, this.msg);
     right.append(play);
 
     this.modal.addEventListener('mousedown', (e) => {

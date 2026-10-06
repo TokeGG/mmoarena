@@ -94,6 +94,8 @@ export interface AbilityDef {
   prepOk?: boolean;
   ignoresLockout?: boolean;
   allowWhileRooted?: boolean;
+  /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
+  channel?: { ticks: number };
 }
 
 export interface ClassDef {
@@ -138,7 +140,7 @@ export interface MoveInput { seq: number; fwd: number; strafe: number; facing: n
 export type Result = { ok: true } | { ok: false; reason: string };
 
 export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number }
-export interface CastState { ability: string; target: number; start: number; end: number }
+export interface CastState { ability: string; target: number; start: number; end: number; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
 export interface DRState { count: number; resetAt: number }
 
 export interface Unit {
@@ -182,6 +184,8 @@ export type SimEvent =
   | { t: 'cast_start'; unit: number; ability: string; target: number; end: number }
   | { t: 'cast'; unit: number; ability: string; target: number }
   | { t: 'cast_fail'; unit: number; ability: string; reason: string }
+  /** A channel ran its course (or its target died). Interrupts and movement send cast_fail instead. */
+  | { t: 'channel_end'; unit: number; ability: string }
   | { t: 'damage'; src: number; tgt: number; amount: number; absorbed: number; ability: string | null; school: School }
   | { t: 'heal'; src: number; tgt: number; amount: number; overheal: number; ability: string }
   | { t: 'interrupt'; src: number; tgt: number; ability: string; school: School; lockout: number }
