@@ -342,13 +342,13 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
-  it("dragon's breath is a 14 yd, 60 degree cone that stuns for 4 s", () => {
+  it("dragon's breath is a 14 yd, 80 degree cone that stuns for 4 s", () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'dragons_breath'];
     const inFront = add(sim, 'warrior', 1, 0, 12);
     const edge = add(sim, 'warrior', 1, 4, 10); // ~22 degrees off, inside the cone
-    const wide = add(sim, 'warrior', 1, 8, 10); // ~39 degrees off, outside the cone
+    const wide = add(sim, 'warrior', 1, 9, 8); // ~48 degrees off, outside the 40 degree half-angle
     const behind = add(sim, 'warrior', 1, 0, -5);
     const far = add(sim, 'warrior', 1, 0, 15); // beyond 14 yd
     advance(sim, TICK);

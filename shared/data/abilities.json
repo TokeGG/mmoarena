@@ -1141,7 +1141,7 @@
   "castTime": 600,
   "cooldown": 0,
   "gcd": true,
-  "cost": 30,
+  "cost": 20,
   "effects": [
    {
     "type": "damage",
@@ -1339,7 +1339,7 @@
   "school": "fire",
   "target": "aoe_enemy",
   "radius": 14,
-  "coneDeg": 60,
+  "coneDeg": 80,
   "cost": 45,
   "effects": [
    {
