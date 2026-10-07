@@ -6,6 +6,7 @@ import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from 
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { flags, loadBuild, loadSpecTalents, progress, saveBuild, saveSpecTalents } from './profile';
 import { CLASS_BLURB, tipBuildKey } from './tips';
+import { patchTime } from './patchTime';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 
 /**
@@ -668,7 +669,7 @@ export class MainMenu {
     PATCHES.forEach((p, i) => {
       const box = el('section', `mm-patch${i === 0 ? ' latest' : ''}`);
       const h = el('h3', '');
-      h.append(el('span', 'pv', `v${p.version}`), el('span', 'pt', p.title), el('span', 'pd', p.date));
+      h.append(el('span', 'pv', `v${p.version}`), el('span', 'pt', p.title), el('span', 'pd', patchTime(p)));
       if (i === 0) h.append(el('span', 'pnew', 'Latest'));
       const ul = el('ul', '');
       for (const c of p.changes) ul.append(el('li', '', c));

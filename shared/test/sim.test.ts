@@ -1106,7 +1106,7 @@ describe('crowd control that breaks on damage', () => {
 });
 
 describe('smoke bomb', () => {
-  it('enemies inside lose their target and cannot target; the caster team can, and leaving restores it', () => {
+  it('no targeting into or out of the cloud for enemies; the caster team is unaffected', () => {
     const sim = live();
     const rogue = add(sim, 'rogue', 0, 0, 0);
     const ally = add(sim, 'mage', 0, 2, 0);
@@ -1121,14 +1121,19 @@ describe('smoke bomb', () => {
     assert.ok(sim.useAbility(rogue.id, 'choke_bomb').ok);
     advance(sim, TICK * 2);
     assert.equal(foe.target, null, 'target taken away inside the cloud');
-    assert.equal(far.target, rogue.id, 'outside the cloud nothing changes');
+    assert.equal(far.target, null, 'from outside, the rogue inside is lost from sight too');
+    mustFail(sim.setTarget(far.id, rogue.id), /not visible/);
+    mustFail(sim.setTarget(far.id, ally.id), /not visible/); // the rogue's partner in the cloud is hidden as well
     mustFail(sim.setTarget(foe.id, rogue.id), /smoke/);
     mustFail(sim.useAbility(foe.id, 'mortal_strike', rogue.id), /smoke/);
     assert.ok(sim.setTarget(ally.id, foe.id).ok, 'the caster team is not affected');
     assert.ok(sim.snapshot().zones.some((z) => z.smoke), 'the cloud is in the snapshot');
     foe.pos = { x: 20, z: 0 };
     advance(sim, TICK * 2);
-    assert.ok(sim.setTarget(foe.id, rogue.id).ok, 'can target again after leaving');
+    mustFail(sim.setTarget(foe.id, rogue.id), /not visible/); // out of the cloud, but the rogue is still in it
+    rogue.pos = { x: 12, z: 0 };
+    advance(sim, TICK);
+    assert.ok(sim.setTarget(foe.id, rogue.id).ok, 'once the rogue steps out it can be targeted again');
     advance(sim, 7000);
     assert.ok(!sim.snapshot().zones.some((z) => z.smoke), 'the cloud fades');
   });
@@ -1550,5 +1555,23 @@ describe('auto-attack persistence', () => {
     sim.setAutoAttack(war.id, true);
     advance(sim, TUNING.outOfCombatMs + 2000);
     assert.equal(war.autoAttack, false);
+  });
+});
+
+describe('dampening', () => {
+  it('healing and new shields get weaker from 90 s into the fight, by 0.5% a second, up to 90%', () => {
+    const sim = new ArenaSim({ seed: 1, prepMs: 0 });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, controller: 'player' });
+    sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    sim.step();
+    const heal = () => { p.health = 100; return sim.heal(p, p, 1000, 'flash_heal'); };
+    assert.equal(sim.dampening(), 0);
+    assert.equal(heal(), 1000, 'full healing at the start');
+    for (let t = 0; t < 150000; t += TUNING.tickMs) sim.step(); // 60 s past the start of dampening
+    assert.ok(Math.abs(sim.dampening() - 0.3) < 0.01, `dampening ${sim.dampening()}`);
+    assert.ok(Math.abs(heal() - 700) <= 6, 'healing 30% weaker');
+    assert.equal(sim.snapshot().damp, Math.round(sim.dampening() * 100) / 100, 'the HUD is told');
+    for (let t = 0; t < 400000; t += TUNING.tickMs) sim.step();
+    assert.equal(sim.dampening(), TUNING.dampenMax, 'capped');
   });
 });

@@ -288,6 +288,10 @@ export interface Tuning {
   fearSpeed: number;
   prepMs: number;
   maxMatchMs: number;
+  /** Dampening: when it starts (ms into the fight), how much weaker healing gets each second, and its cap. */
+  dampenStartMs: number;
+  dampenPerSec: number;
+  dampenMax: number;
   damageVariance: number;
   stealthDetect: number;
   outOfCombatMs: number;
@@ -328,6 +332,8 @@ export interface Unit {
   /** Build: ability bar, spec id and resolved passive modifiers. */
   bar: string[];
   spec: string | null;
+  /** The talent picked in each tier ('' for none), for showing a build to people watching. */
+  talents: string[];
   /** Cosmetic gear summary (see gearLook). */
   look: string;
   mods: Mods;
@@ -453,6 +459,10 @@ export interface Snapshot {
   units: UnitSnap[];
   /** Ground effects currently on the floor. */
   zones: ZoneSnap[];
+  /** Dampening: how much weaker healing and shields are right now (0.35 = 35% weaker). Absent until it starts. */
+  damp?: number;
+  /** A dev paused this match (dev tools, against bots only): nothing moves until it resumes. */
+  paused?: true;
 }
 
 export interface ZoneSnap {

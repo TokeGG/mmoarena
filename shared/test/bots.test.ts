@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ArenaSim, Bot, DEFAULT_BRAIN, TUNING, clampBrain, newPopulation, recordResult } from '../src/index';
+import { ABILITIES, ArenaSim, Bot, DEFAULT_BRAIN, TUNING, clampBrain, hasLOS, newPopulation, recordResult } from '../src/index';
 import type { ClassId, Difficulty, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -95,6 +95,55 @@ describe('bots play by the same rules as humans', () => {
     const ev = run(ctx, 1600);
     assert.ok(ev.some((e) => e.t === 'interrupt' && e.src === mage.id && e.ability === 'flash_heal'));
     assert.ok(!ev.some((e) => e.t === 'heal' && e.ability === 'flash_heal'), 'kicked before it landed');
+  });
+
+  it('a caster bot stops a cast once its target ducks out of sight, instead of finishing it into a pillar', () => {
+    const ctx = mk();
+    const mage = bot(ctx, 'mage', 0, -10, -16); // pillar at (-10, -7): the target hides straight behind it
+    const foe = dummy(ctx, 'priest', 1, -16, -7);
+    foe.maxHealth = foe.health = 1e6;
+    const evs: SimEvent[] = [];
+    // wait for a cast with a cast time to start on the foe
+    evs.push(...run(ctx, 6000, () => !!mage.cast && (ABILITIES[mage.cast.ability]?.castTime ?? 0) > 0 && !ABILITIES[mage.cast.ability]?.channel));
+    assert.ok(mage.cast, 'the mage started a cast');
+    const ability = mage.cast!.ability;
+    foe.pos = { x: -10, z: 1 }; // now behind the pillar from where the mage stands
+    assert.ok(!hasLOS(mage.pos, foe.pos, ctx.sim.arena), 'hidden behind the pillar');
+    const after = run(ctx, 1500);
+    assert.ok(after.some((e) => e.t === 'cast_fail' && e.unit === mage.id && e.ability === ability && e.reason === 'cancelled'), 'it stopped the cast itself');
+    assert.ok(!after.some((e) => e.t === 'cast_fail' && e.unit === mage.id && e.reason === 'no line of sight'), 'not finished into the pillar');
+  });
+
+  it('a bot runs out of an enemy Bladestorm instead of standing in it', () => {
+    const ctx = mk();
+    const r = bot(ctx, 'rogue', 0, 0, 0);
+    const w = ctx.sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'player', build: { spec: 'fury', talents: [], gear: {} } as never });
+    w.pos = { x: 2, z: 0 };
+    run(ctx, 1000);
+    w.resource = 100;
+    w.gcdEnd = 0;
+    const res = ctx.sim.useAbility(w.id, 'bladestorm');
+    assert.ok(res.ok, (res as { reason?: string }).reason);
+    run(ctx, 1500);
+    assert.ok(Math.hypot(r.pos.x - w.pos.x, r.pos.z - w.pos.z) > 7, `still in the spin at ${Math.hypot(r.pos.x - w.pos.x, r.pos.z - w.pos.z).toFixed(1)}`);
+  });
+
+  it('a spell cast on the move keeps the bot moving: a Bladestorming warrior chases its target', () => {
+    const ctx = mk();
+    const w = ctx.sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'bot', build: { spec: 'fury', talents: [], gear: {} } as never });
+    w.pos = { x: 0, z: 0 };
+    ctx.bots.push(new Bot(ctx.sim, w.id, 'hard', 5));
+    const foe = dummy(ctx, 'mage', 1, 2.5, 0);
+    foe.maxHealth = foe.health = 1e6;
+    run(ctx, TICK);
+    w.resource = 100;
+    w.gcdEnd = 0;
+    assert.ok(ctx.sim.useAbility(w.id, 'bladestorm').ok);
+    foe.pos = { x: 9, z: 0 }; // steps away mid-spin
+    const from = { ...w.pos };
+    run(ctx, 1200);
+    assert.ok(w.cast?.ability === 'bladestorm', 'still spinning');
+    assert.ok(Math.hypot(w.pos.x - from.x, w.pos.z - from.z) > 2.5, `followed it while spinning (moved ${Math.hypot(w.pos.x - from.x, w.pos.z - from.z).toFixed(1)})`);
   });
 
   it('a priest bot dispels crowd control off its partner', () => {

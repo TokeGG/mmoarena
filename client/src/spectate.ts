@@ -1,7 +1,8 @@
 import type { Popup } from './popups';
-import { ARENAS, contentHash } from '@arena/shared';
-import type { LiveMatch, ReplayData, StatRow } from '@arena/shared';
-import { CLASS_ICON } from './icons';
+import { ABILITIES, ARENAS, CLASSES, contentHash, specOf, talentsFor } from '@arena/shared';
+import type { LiveMatch, ReplayData, StatRow, UnitBuild } from '@arena/shared';
+import { ABILITY_ICON, CLASS_ICON } from './icons';
+import { tipBuildKey } from './tips';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -33,6 +34,105 @@ export interface SpectateHandlers {
   onSeek(tick: number): void;
   /** The key bound to switching targets (shown in the "follow" hint), e.g. "Tab". */
   switchKey?(): string;
+}
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+
+/**
+ * For people watching (live or a replay): everyone's spec, talents and ability bar, by team. Hover a talent or a skill
+ * for its tooltip (skills show that player's own numbers, talents included).
+ */
+export class BuildsPanel {
+  readonly root = el('div', 'builds hidden');
+  private units: UnitBuild[] = [];
+  /** Folded down to its title bar; remembered in this browser. */
+  private minimized = (() => {
+    try {
+      return localStorage.getItem('arena.buildsMin') === '1';
+    } catch {
+      return false;
+    }
+  })();
+  setMinimized(on: boolean) {
+    this.minimized = on;
+    try {
+      localStorage.setItem('arena.buildsMin', on ? '1' : '0');
+    } catch {
+      /* not remembered */
+    }
+    this.paint();
+  }
+  constructor() {
+    document.body.append(this.root);
+  }
+  get visible(): boolean {
+    return !this.root.classList.contains('hidden');
+  }
+  toggle(on = !this.visible) {
+    this.root.classList.toggle('hidden', !on || !this.units.length);
+  }
+  set(units: UnitBuild[]) {
+    this.units = units;
+    this.paint();
+  }
+  clear() {
+    this.units = [];
+    this.root.replaceChildren();
+    this.root.classList.add('hidden');
+  }
+  private paint() {
+    this.root.replaceChildren();
+    const head = el('div', 'bd-head', 'Builds');
+    const btns = el('span', 'bd-btns');
+    const min = el('button', 'mm-small', this.minimized ? '▢' : '–');
+    min.title = this.minimized ? 'Expand' : 'Minimize';
+    min.addEventListener('click', () => this.setMinimized(!this.minimized));
+    const close = el('button', 'mm-small', '✕');
+    close.title = 'Hide (N to show again)';
+    close.addEventListener('click', () => this.toggle(false));
+    btns.append(min, close);
+    head.append(btns);
+    head.addEventListener('dblclick', () => this.setMinimized(!this.minimized));
+    this.root.append(head);
+    this.root.classList.toggle('min', this.minimized);
+    if (this.minimized) return void this.root.classList.toggle('hidden', !this.units.length);
+    for (const team of [0, 1]) {
+      const units = this.units.filter((u) => u.team === team);
+      if (!units.length) continue;
+      this.root.append(el('div', `bd-team t${team}`, `Team ${team + 1}`));
+      for (const u of units) {
+        const card = el('div', 'bd-unit');
+        const spec = u.spec ? specOf(u.classId, u.spec) : undefined;
+        const name = el('div', 'bd-name');
+        name.append(el('span', '', `${CLASS_ICON[u.classId] ?? ''} ${u.name}`), el('small', '', spec ? `${spec.name} ${CLASSES[u.classId].name}` : CLASSES[u.classId].name));
+        name.style.color = CLASSES[u.classId].color;
+        card.append(name);
+        const bar = el('div', 'bd-bar');
+        const key = tipBuildKey(u.classId, { spec: u.spec ?? '', talents: u.talents, gear: {} });
+        for (const a of u.bar) {
+          const s = el('span', 'bd-skill', ABILITY_ICON[a] ?? '✦');
+          s.dataset.tip = `ability:${a}`;
+          s.dataset.tipBuild = key;
+          s.setAttribute('aria-label', ABILITIES[a]?.name ?? a);
+          bar.append(s);
+        }
+        card.append(bar);
+        const tiers = talentsFor(u.classId, u.spec ?? undefined);
+        const tal = el('div', 'bd-talents');
+        u.talents.forEach((id, i) => {
+          const t = tiers[i]?.find((x) => x.id === id);
+          if (!t) return;
+          const c = el('span', 'bd-talent', `${ROMAN[i]} ${t.name}`);
+          c.dataset.tip = `talent:${u.classId}:${t.id}`;
+          tal.append(c);
+        });
+        if (!tal.childNodes.length) tal.append(el('span', 'bd-none', 'No talents'));
+        card.append(tal);
+        this.root.append(card);
+      }
+    }
+    this.root.classList.toggle('hidden', !this.units.length);
+  }
 }
 
 /** The owner's live scoreboard: damage and healing totals per player, grouped by team. */
@@ -195,7 +295,14 @@ export class SpectateBar {
 export class LivePicker {
   private modal: HTMLElement | null = null;
   readonly popup: Popup = { isOpen: () => !!this.modal, close: () => this.close(), el: () => this.modal };
-  constructor(private onPick: (id: string) => void, private refresh: () => void, private signedIn: () => boolean = () => true, private needSignIn: () => void = () => {}) {}
+  constructor(
+    private onPick: (id: string) => void,
+    private refresh: () => void,
+    private signedIn: () => boolean = () => true,
+    private needSignIn: () => void = () => {},
+    /** Owner only: follow a player into every match they play (null stops). Absent for everyone else. */
+    private follow?: { isOwner: () => boolean; current: () => string | null; set: (name: string | null) => void },
+  ) {}
 
   show(rows: LiveMatch[] | null) {
     this.close();
@@ -210,6 +317,31 @@ export class LivePicker {
     again.addEventListener('click', () => this.refresh());
     head.append(again, close);
     card.append(head);
+    if (this.follow?.isOwner()) {
+      // the owner can follow someone: they are taken into each match that player starts, without coming back here
+      const row = el('div', 'live-follow');
+      const now = this.follow.current();
+      const input = el('input');
+      input.type = 'text';
+      input.placeholder = 'Player name';
+      input.maxLength = 16;
+      input.value = now ?? '';
+      const go = el('button', 'mm-small mm-go', 'Follow');
+      const submit = () => {
+        if (!input.value.trim()) return;
+        this.follow!.set(input.value.trim());
+        this.close();
+      };
+      go.addEventListener('click', submit);
+      input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
+      row.append(el('b', '', now ? `Following ${now}` : 'Follow a player'), input, go);
+      if (now) {
+        const stop = el('button', 'mm-small', 'Stop');
+        stop.addEventListener('click', () => { this.follow!.set(null); this.close(); });
+        row.append(stop);
+      }
+      card.append(row);
+    }
     if (!this.signedIn()) {
       again.disabled = true;
       const lock = el('div', 'sg-lock');
@@ -227,6 +359,20 @@ export class LivePicker {
         const row = el('button', 'live-row');
         const teams = [0, 1].map((t) => m.players.filter((p) => p.team === t).map((p) => `${classIcon(p.classId)} ${p.name}`).join(', '));
         row.append(el('b', '', `${m.ranked ? '🏆 Ranked ' : ''}${m.size}v${m.size} · ${mapName(m.map)}`), el('span', '', `${teams[0]}  vs  ${teams[1]}`), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
+        if (this.follow?.isOwner()) {
+          // a follow button for each person in the match (bots have nobody to follow)
+          const people = el('span', 'live-people');
+          for (const p of m.players.filter((x) => !x.name.startsWith('Bot ') && !x.name.startsWith('Dummy '))) {
+            const f = el('span', 'mm-small live-followbtn', `Follow ${p.name}`);
+            f.addEventListener('click', (e) => {
+              e.stopPropagation();
+              this.follow!.set(p.name);
+              this.close();
+            });
+            people.append(f);
+          }
+          if (people.childNodes.length) row.append(people);
+        }
         row.addEventListener('click', () => {
           this.close();
           this.onPick(m.id);

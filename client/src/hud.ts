@@ -428,6 +428,11 @@ export class Hud {
     }
 
     this.updateBanner(snap, now, me.team);
+    // Dampening: shown once it starts, with how much weaker healing is
+    const dp = $('damp');
+    const damp = snap.phase === 'live' ? snap.damp ?? 0 : 0;
+    dp.classList.toggle('hidden', damp <= 0);
+    if (damp > 0) dp.textContent = `Dampening ${Math.round(damp * 100)}%`;
   }
 
   setRoster(players: RosterEntry[]) {
@@ -460,7 +465,9 @@ export class Hud {
 
   private updateBanner(snap: Snapshot, now: number, myTeam: TeamId) {
     const b = $('banner');
-    if (snap.phase === 'prep') {
+    if (snap.paused) {
+      b.replaceChildren(document.createTextNode('Paused'), el('small', '', 'dev tools · F2'));
+    } else if (snap.phase === 'prep') {
       b.replaceChildren(document.createTextNode(`Gates open in ${Math.max(0, Math.ceil((snap.phaseEndsAt - now) / 1000))}`));
     } else if (snap.phase === 'ended') {
       const text = snap.winner === 'draw' ? 'Draw' : snap.winner === myTeam ? 'Victory' : 'Defeat';
@@ -488,6 +495,7 @@ export class Hud {
   clearLabels() {
     this.nameplates([], 0);
     $('labels').replaceChildren();
+    $('damp').classList.add('hidden');
   }
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */

@@ -4,5 +4,5 @@
 - Bump `SIM_REVISION` (shared/src/replay.ts) on sim/data changes, plus the version in README line 1, root `package.json` and `client/package.json`; keep versions below 1.0.
 - Before pushing: typecheck shared/server/client and run `npx tsx --test shared/test/*.test.ts server/test/*.test.ts client/test/*.test.ts`.
 - After a patch that changes abilities, re-run `npx tsx scripts/train-rotations.ts` (seconds) and `npx tsx scripts/train-bots.ts` (a few minutes) and commit the updated `shared/data/rotations.json` and `shared/data/botbrain.json`. When real replays are available (`scripts/study-replays.ts`, see DEVELOPING.md), study them first so training runs against player-like opponents.
-- Every version bump also adds an entry at the top of `shared/data/patches.json` (the main menu's Patch notes list); a test fails if its version differs from `package.json`.
+- Every version bump also adds an entry at the top of `shared/data/patches.json` (the main menu's Patch notes list) with `date` and `at` (the UTC time it goes out, e.g. `2026-10-07T21:24:05Z`; players see it in their own time zone); a test fails if its version differs from `package.json`. Owner-only tools are never listed in patch notes.
 - After changing abilities, auras, specs, talents or tooltip text, run `npx tsx scripts/gen-wiki.ts` and commit `WIKI.md` (a test fails while it is out of date).

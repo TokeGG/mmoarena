@@ -1,5 +1,5 @@
 import { ABILITIES, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
-import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
 import type { RenderUnit } from './scene';
@@ -24,7 +24,8 @@ import { FriendsUi } from './friendsUi';
 import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
-import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
+import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
+import { DataLayers, DevPanel } from './devPanel';
 import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
@@ -50,6 +51,8 @@ window.addEventListener('beforeunload', (e) => {
 let ws: WebSocket | null = null;
 /** The arena of the current match (or the menu preview). */
 let arena: ArenaDef = ARENAS[0];
+/** A match was joined and its first snapshot has not arrived yet. */
+let matchStarting = false;
 let you = 0;
 let team: TeamId = 0;
 let classId: ClassId = 'mage';
@@ -242,6 +245,13 @@ function onMessage(raw: MessageEvent) {
       }
       arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
       scene.setMap(arena.id);
+      matchStarting = true; // until its first snapshot, the menu backdrop must not swap the map back to the menu's pick
+      // dev tools start fresh in every match (test numbers never carry over)
+      devPanel.setAvailable(false);
+      buildsPanel.clear();
+      lastBuilds = [];
+      buildsAsked = false;
+      if (isDev()) devPanel.setAvailable(true);
       audio.ambience(arena.theme);
       you = m.unitId;
       team = m.team;
@@ -306,6 +316,29 @@ function onMessage(raw: MessageEvent) {
     case 'spectating':
       startSpectate('live', m.map, m.id);
       break;
+    case 'builds':
+      lastBuilds = m.units;
+      if (spec || isDev()) buildsPanel.set(m.units);
+      devPanel.refresh();
+      break;
+    case 'overrides':
+      dataLayers.setLive(m.patches);
+      accountUi.handle(m);
+      break;
+    case 'dev_state':
+      devPanel.handle(m);
+      break;
+    case 'dev_result':
+      devPanel.handle(m);
+      accountUi.handle(m);
+      break;
+    case 'admin_overview':
+      accountUi.handle(m);
+      break;
+    case 'following':
+      following = m.name;
+      if (!m.name) friendsUi.handle({ t: 'notice', text: 'Stopped following.' });
+      break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
@@ -316,6 +349,11 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'snapshot':
       if (!spec && you === 0) break; // a late frame from a match we already left
+      // a dev sees everyone's build in their own match too (asked once the bots are in)
+      if (!spec && !buildsAsked && isDev()) {
+        buildsAsked = true;
+        send({ t: 'dev_builds' });
+      }
       // a new round has started: the end scoreboard belongs to the end screen only
       if (endBoardUp && m.snap.phase === 'prep') {
         endBoardUp = false;
@@ -348,6 +386,9 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      matchStarting = false;
+      devPanel.setAvailable(false);
+      if (!spec) buildsPanel.clear();
       endBoardUp = false;
       endChoice.hide();
       spectateBar.board.toggle(false);
@@ -447,7 +488,7 @@ function ownHeight(u: UnitSnap | undefined, serverY?: number): number {
 
 /** Runs at exactly the server tick rate so one input is produced per server step. */
 function fixedStep() {
-  if (!latest || spec) return;
+  if (!latest || spec || latest.paused) return; // paused by a dev: nothing is sent, nothing is predicted
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
   const sample = controls.sample(DT);
@@ -558,8 +599,10 @@ function castSlot(i: number) {
   if (!ability) return;
   const def = ABILITIES[ability];
   if (def?.target === 'ground') {
-    // first press arms the spell (a ring follows the cursor); pressing it again or clicking places it
+    // first press arms the spell (a ring follows the cursor); pressing it again or clicking places it. A spell still on
+    // its cooldown never brings the ring up (a moment's slack for lag only)
     if (aiming === ability) confirmAim();
+    else if (groundCooldownLeft(ability) > GROUND_SLACK_MS) hud.error('That is not ready yet');
     else setAiming(ability);
     return;
   }
@@ -608,6 +651,16 @@ function flushQueue() {
   sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime(), ...(q.ground ? { x: q.ground.x, z: q.ground.z, ...(q.ground.lv === 1 ? { lv: 1 as const } : {}) } : {}) });
 }
 
+/** How long until a spell is off its own cooldown (not the global one), as far as this client can tell. */
+function groundCooldownLeft(ability: string): number {
+  const me = latest?.units.find((u) => u.id === you);
+  if (!me) return 0;
+  // being cast right now counts too: its cooldown only starts when the cast lands
+  if (me.cast?.ability === ability) return Infinity;
+  return Math.max(0, (me.cooldowns[ability] ?? 0) - estimatedNow());
+}
+const GROUND_SLACK_MS = 250;
+
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
 let aiming: string | null = null;
 function setAiming(id: string | null) {
@@ -643,7 +696,7 @@ controls.onClick = (x, y) => {
 };
 controls.onRightClick = (x, y) => {
   if (spec || aiming) return;
-  const id = scene.pick(x, y, you);
+  const id = scene.pick(x, y, you, false); // right-click is for enemies and allies, never yourself (your model is under the cursor whenever you steer)
   if (id === null) return;
   setTarget(id);
   const me = latest?.units.find((u) => u.id === you);
@@ -705,6 +758,15 @@ controls.onKey = (code, e) => {
   }
   if (!latest) return;
   if (code === 'KeyB' && (spec?.kind === 'live' || spectateBar.board.visible)) return void spectateBar.board.toggle();
+  // N: the builds panel (watching, or a dev in a match); F2: dev tools. Only when the key is not bound to something else
+  if (code === 'KeyN' && (spec || devPanel.button.isConnected && !devPanel.button.classList.contains('hidden')) && !binds.actionForEvent(e)) {
+    if (!spec) send({ t: 'dev_builds' });
+    return void buildsPanel.toggle();
+  }
+  if (code === 'F2' && !spec && !binds.actionForEvent(e)) {
+    e.preventDefault();
+    return void devPanel.toggle();
+  }
   const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);
@@ -744,7 +806,7 @@ function frame(now: number) {
     const t = now / 1000;
     // preview the arena picked in the menu (random shows the last one)
     const previewMap = mainMenu.selectedMap;
-    if (previewMap !== 'random') scene.setMap(previewMap);
+    if (previewMap !== 'random' && !matchStarting) scene.setMap(previewMap);
     const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
     const spot = prev.spawns[0][0];
     // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
@@ -774,6 +836,10 @@ function frame(now: number) {
     return;
   }
 
+  // the scene always shows the match's arena (Play again against bots moves to a new random map)
+  matchStarting = false;
+  scene.setMap(arena.id);
+
   if (spec?.runner && !spec.paused && !spec.runner.done) {
     spec.clock += dt * 1000 * spec.rate;
     const evs: Parameters<Hud['event']>[0][] = [];
@@ -792,6 +858,7 @@ function frame(now: number) {
     fixedStep();
   }
 
+  if (aiming && groundCooldownLeft(aiming) > GROUND_SLACK_MS) setAiming(null); // it went on cooldown: no ring for a spell you cannot cast
   flushQueue();
   const snap = latest!;
   const rate = !spec ? 1 : spec.paused || (spec.runner?.done ?? false) ? 0 : spec.rate;
@@ -923,6 +990,16 @@ requestAnimationFrame(frame);
 
 // ------------------------------------------------------------------ watching: live matches and replays
 
+/** Watching: everyone's spec, talents and skills, on the side. */
+const buildsPanel = new BuildsPanel();
+/** The last builds the server sent (watching, or a dev in a match). */
+let lastBuilds: UnitBuild[] = [];
+let buildsAsked = false;
+/** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
+const dataLayers = new DataLayers();
+const devPanel = new DevPanel({ send: (m) => send(m), builds: () => lastBuilds, myBar: () => bar }, dataLayers);
+/** The owner (unlocked this session) or an account with the dev tag. */
+const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
   switchKey: () => binds.label('nextTarget'),
   onExit: () => {
@@ -942,11 +1019,14 @@ const spectateBar = new SpectateBar({
     onSnapshot(spec.runner.snapshot(), []);
   },
 });
+/** Owner: who is being followed into their matches. */
+let following: string | null = null;
 const livePicker = new LivePicker(
   (id) => send({ t: 'spectate', id }),
   () => send({ t: 'live' }),
   () => !!accountUi.account,
   () => accountUi.openAuth(),
+  { isOwner: () => !!accountUi.account?.ownerOk, current: () => following, set: (name) => send({ t: 'follow', name }) },
 );
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
@@ -954,6 +1034,8 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
+  matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
+  devPanel.setAvailable(false); // dev tools are for your own match, not for watching
   audio.ambience(arena.theme);
   you = 0;
   team = 0;
@@ -977,6 +1059,8 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
     const names = runner.data.units.map((u) => u.name);
     spectateBar.showReplay(runner.data.ticks, `${mapName(runner.data.arena)} · ${names.join(', ')}`, `${location.origin}/?replay=${id}`);
     onSnapshot(runner.snapshot(), []);
+    // the recording has every unit's build: show it like a live watch does
+    buildsPanel.set(runner.data.units.map((o, i) => ({ id: i + 1, name: o.name, classId: o.classId, team: o.team, spec: o.build?.spec ?? null, talents: o.build?.talents ?? [], bar: barFor(o.classId, o.build, CLASSES[o.classId].bar) })));
   } else spectateBar.showLive();
 }
 
@@ -1005,6 +1089,7 @@ function endSpectateState() {
   if (!spec) return;
   spec = null;
   spectateBar.hide();
+  buildsPanel.clear();
   document.body.classList.remove('spectating');
   you = 0;
 }

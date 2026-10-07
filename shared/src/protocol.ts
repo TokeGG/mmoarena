@@ -1,4 +1,6 @@
-import { ARENAS, CLASSES } from './data';
+import { ABILITIES, ARENAS, CLASSES, SPECS } from './data';
+import { validPatch } from './devpatch';
+import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
@@ -7,6 +9,12 @@ export const PROTOCOL_VERSION = 9;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
+/** A running match in the owner's admin panel. */
+export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
+/** What a unit is playing with, shown to people watching a match. */
+export interface UnitBuild { id: number; name: string; classId: ClassId; team: TeamId; spec: string | null; talents: string[]; bar: string[] }
+/** One bot in an owner's bot match: its class and, if chosen, its spec (else a random one). */
+export interface BotPick { classId: ClassId; spec?: string }
 
 export type PracticeDifficulty = 'dummy' | 'easy' | 'normal' | 'hard';
 const DIFFICULTIES: PracticeDifficulty[] = ['dummy', 'easy', 'normal', 'hard'];
@@ -60,6 +68,27 @@ export type ClientMsg =
   /** Ranked matches in progress that can be watched. */
   | { t: 'live' }
   | { t: 'spectate'; id: string }
+  /**
+   * Owner only: a private match of bots against bots, watched live. Each side lists its bots (class and, optionally, spec);
+   * nobody else can see or join it, and it closes when the owner stops watching.
+   */
+  /** Dev tools (owner or the 'dev' tag), in a match where the dev is the only person: pause it, try numbers in it. */
+  | { t: 'dev_pause'; on: boolean }
+  | { t: 'dev_patch'; patches: DataPatch[] }
+  /** Dev tools: keep these numbers for everyone (live at once, and proposed for the data files). */
+  | { t: 'dev_save'; patches: DataPatch[]; note?: string }
+  /** Dev tools: a note on a skill, sent to the owner. */
+  | { t: 'dev_note'; ability: string; text: string }
+  /** Dev tools: everyone's build in the dev's own match. */
+  | { t: 'dev_builds' }
+  /** Owner admin panel. */
+  | { t: 'admin_overview' }
+  | { t: 'admin_announce'; text: string }
+  | { t: 'admin_end'; id: string }
+  | { t: 'overrides_clear' }
+  /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
+  | { t: 'follow'; name: string | null }
+  | { t: 'bot_match'; size: TeamSize; teams: [BotPick[], BotPick[]]; difficulty: 'easy' | 'normal' | 'hard'; map: string }
   /** Friends: your list and requests. */
   | { t: 'friends' }
   | { t: 'friend'; op: 'add' | 'accept' | 'decline' | 'remove'; name: string }
@@ -98,6 +127,17 @@ export type ServerMsg =
   | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'suggest_ack'; ok: boolean; reason?: string }
   | { t: 'suggestions'; rows: { at: number; name: string; text: string; note?: string }[] }
+  /** Numbers changed for everyone by a dev (applied over the data files). */
+  | { t: 'overrides'; patches: DataPatch[] }
+  /** Dev tools: the match's pause state and the test numbers in it. */
+  | { t: 'dev_state'; paused: boolean; patches: DataPatch[] }
+  | { t: 'dev_result'; ok: boolean; text: string; url?: string }
+  /** Owner admin panel: who is online and every match running (private ones included). */
+  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[] }
+  /** For people watching: every unit's spec, talents and ability bar. */
+  | { t: 'builds'; units: UnitBuild[] }
+  /** Who the owner is following into their matches (null: nobody). */
+  | { t: 'following'; name: string | null }
   /** Owner spectators only: running damage and healing totals for everyone in the match. */
   | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
@@ -127,6 +167,22 @@ export type ServerMsg =
   | { t: 'admin_accounts'; rows: AdminRow[] }
   /** Result of an admin_set; `tempPassword` is shown once when a password was reset. */
   | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };
+
+/** Number patches from a client: well formed, at most 200, each naming an existing number in the data. */
+export function parsePatches(raw: unknown): DataPatch[] | null {
+  if (!Array.isArray(raw) || raw.length > 200) return null;
+  const out: DataPatch[] = [];
+  for (const p of raw) {
+    if (!p || typeof p !== 'object') return null;
+    const { file, id, path, value } = p as Record<string, unknown>;
+    if ((file !== 'abilities' && file !== 'auras') || typeof id !== 'string' || id.length > 40 || typeof value !== 'number') return null;
+    if (!Array.isArray(path) || !path.every((k) => (typeof k === 'string' && k.length <= 32) || (typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < 32))) return null;
+    const patch: DataPatch = { file, id, path: path as (string | number)[], value };
+    if (!validPatch(patch)) return null;
+    out.push(patch);
+  }
+  return out;
+}
 
 /** Keep only a well-formed build: strings of sane length, at most 8 talent entries (there are 6 tiers) and one id per gear slot. */
 export function parseBuild(raw: unknown): Build | undefined {
@@ -278,6 +334,54 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'spectate':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
       return { t: 'spectate', id: m.id };
+    case 'dev_pause':
+      return { t: 'dev_pause', on: m.on === true };
+    case 'dev_patch':
+    case 'dev_save': {
+      const patches = parsePatches(m.patches);
+      if (!patches) return null;
+      if (m.t === 'dev_patch') return { t: 'dev_patch', patches };
+      const note = typeof m.note === 'string' ? m.note.slice(0, 600) : undefined;
+      return { t: 'dev_save', patches, ...(note ? { note } : {}) };
+    }
+    case 'dev_note':
+      if (typeof m.ability !== 'string' || !Object.hasOwn(ABILITIES, m.ability) || typeof m.text !== 'string' || !m.text.trim()) return null;
+      return { t: 'dev_note', ability: m.ability, text: m.text.trim().slice(0, 600) };
+    case 'dev_builds':
+      return { t: 'dev_builds' };
+    case 'admin_overview':
+      return { t: 'admin_overview' };
+    case 'admin_announce':
+      if (typeof m.text !== 'string' || !m.text.trim()) return null;
+      return { t: 'admin_announce', text: m.text.trim().slice(0, 200) };
+    case 'admin_end':
+      if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
+      return { t: 'admin_end', id: m.id };
+    case 'overrides_clear':
+      return { t: 'overrides_clear' };
+    case 'follow':
+      if (m.name === null) return { t: 'follow', name: null };
+      if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      return { t: 'follow', name: m.name };
+    case 'bot_match': {
+      const size = m.size === 1 || m.size === 2 || m.size === 3 ? (m.size as TeamSize) : null;
+      if (!size || !Array.isArray(m.teams) || m.teams.length !== 2) return null;
+      const side = (raw: unknown): BotPick[] | null => {
+        if (!Array.isArray(raw) || raw.length !== size) return null;
+        const out: BotPick[] = [];
+        for (const b of raw) {
+          if (!b || typeof b !== 'object' || typeof b.classId !== 'string' || !Object.hasOwn(CLASSES, b.classId)) return null;
+          if (b.spec !== undefined && (typeof b.spec !== 'string' || !SPECS[b.classId as ClassId].some((s) => s.id === b.spec))) return null;
+          out.push({ classId: b.classId as ClassId, ...(b.spec ? { spec: b.spec } : {}) });
+        }
+        return out;
+      };
+      const a = side(m.teams[0]);
+      const b = side(m.teams[1]);
+      const difficulty = m.difficulty === 'easy' || m.difficulty === 'normal' || m.difficulty === 'hard' ? m.difficulty : null;
+      if (!a || !b || !difficulty || typeof m.map !== 'string' || !(m.map === 'random' || ARENAS.some((x) => x.id === m.map))) return null;
+      return { t: 'bot_match', size, teams: [a, b], difficulty, map: m.map };
+    }
     case 'admin_set': {
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       const out: Extract<ClientMsg, { t: 'admin_set' }> = { t: 'admin_set', name: m.name };

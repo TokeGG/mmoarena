@@ -1,7 +1,30 @@
 [
  {
+  "version": "0.68.2",
+  "date": "2026-10-07",
+  "at": "2026-10-07T23:28:51Z",
+  "title": "Dampening, smoke that hides, targeting fixes",
+  "changes": [
+   "Dampening: from 90 seconds into a fight, all healing and new shields get 0.5% weaker every second (up to 90%), shown at the top of the screen. Two priests (or any healers) can no longer out-heal each other forever.",
+   "Smoke Bomb hides both ways: an enemy standing in the cloud cannot target anyone, and nobody outside it can target the rogue (or its partner) inside. Someone targeting them when they step in loses them, like losing a rogue to stealth, and bots go looking where they last saw them.",
+   "Bot priests break up enemy heals: a Psychic Scream or Hammer of Justice on an enemy who is casting a heal, unless their own side needs healing first.",
+   "Bots run out of an enemy's Bladestorm (or Slice and Dice) instead of standing in it trading swings, throwing instants on the way out.",
+   "Bots know which skills work on the move: while Bladestorm spins or Scorch casts they keep chasing, kiting, sidestepping and dodging instead of standing still, and a caster on the run counts Scorch as something to throw.",
+   "Ramps block sight like the solid wedges they are: standing on one, you cannot see (or be seen by) someone on the ground on its far side.",
+   "Bots stop a cast once its target has stepped out of sight, instead of finishing it into a pillar (stopping hands the global cooldown back, as it does for you).",
+   "Melee swings and melee skills no longer reach between floors: a bot (or you) on top of a walkway cannot hit someone on the ground just past its edge, and the other way round.",
+   "Play again against bots shows the arena you are really on. The menu backdrop could switch the scene back to the map picked in the menu while the next match loaded, so you saw one arena and bumped into another's walls.",
+   "A ground spell still on its cooldown no longer brings up its aiming ring (and an open ring goes away if the spell goes on cooldown).",
+   "Right-click never targets yourself, and holding a mouse button to steer or turn the camera is never taken as a click, however little the mouse moved.",
+   "Bots are named after their spec (Bot Rampager, Bot Pyromancy) so you can see what you are facing.",
+   "Watching a match or a replay shows a Builds panel on the right: every player's spec, skills and talents, with tooltips (N hides and shows it).",
+   "Patch notes show when each patch went out, in your own time zone."
+  ]
+ },
+ {
   "version": "0.68.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T22:08:30Z",
   "title": "Bots that move like players, warrior balance, clean-up",
   "changes": [
    "Bots move like players: melee circles its target at speed instead of shuffling in place (with the odd hop), casters run from a melee that can still chase them and throw instants on the way, and stop to cast once it is slowed, rooted or left behind. Healing priests stand and heal.",
@@ -21,6 +44,7 @@
  {
   "version": "0.68.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T21:24:05Z",
   "title": "Person-high barricades, bots learn how people beat them",
   "changes": [
    "Low barricades are now as tall as a person. On the ground you cannot see or cast past one. Jump and your line of sight rises over it for a moment: long enough for an instant spell from the top of the jump (both ways, so they can do it to you too). Spells with a cast time still need sight when they finish.",
@@ -40,6 +64,7 @@
  {
   "version": "0.67.2",
   "date": "2026-10-07",
+  "at": "2026-10-07T20:41:06Z",
   "title": "Slice and Dice holds, cast bars say why, tooltips say where",
   "changes": [
    "Slice and Dice holds its target for the whole channel: the first strike and its stun land the moment the spin starts, and each tick's stun lasts past the next, so there is no gap to walk out or swing back in. Diminishing returns shorten the hold as one block (at half, the target is held for the first two seconds, then free).",
@@ -53,6 +78,7 @@
  {
   "version": "0.67.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T20:29:53Z",
   "title": "Slice and Dice stuns and retrained bots",
   "changes": [
    "Slice and Dice: one cast is one step of stun diminishing returns. Its first tick sets the level and every later tick of that cast stuns for that same full length; the next cast is halved throughout (before, each tick stepped the count down, so the third and fourth ticks barely stunned).",
@@ -62,6 +88,7 @@
  {
   "version": "0.67.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T20:08:47Z",
   "title": "Smarter bots, learned rotations and balance",
   "changes": [
    "Bots learned to juke: a caster may start a cast while your interrupt is ready and stop it part way, so a kick thrown at it is wasted; the real cast follows. Interrupting bots wait into a cast before kicking, and wait longer against someone who has faked them before.",
@@ -87,6 +114,7 @@
  {
   "version": "0.66.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T19:44:04Z",
   "title": "Client polish: sync, keys, pop-ups and small screens",
   "changes": [
    "Settings sync is merged one setting at a time against what this browser last agreed with the server, kept per account: a device that synced once no longer overwrites what you changed on another device, and two accounts on one browser no longer share it. The server never drops your newest settings when you change things quickly.",
@@ -105,6 +133,7 @@
  {
   "version": "0.65.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T19:28:41Z",
   "title": "Combat fixes and an unstoppable Bladestorm",
   "changes": [
    "Bladestorm cannot be interrupted, and while it spins the warrior is immune to stuns, fears, incapacitates, roots, slows and Reel In. Bots no longer waste a kick on it.",
@@ -127,6 +156,7 @@
  {
   "version": "0.64.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T19:20:34Z",
   "title": "Ranked and server safety",
   "changes": [
    "Ranked is for signed-in players only. Guests still have Find match, an unrated queue of their own that never meets the ladder.",
@@ -152,6 +182,7 @@
  {
   "version": "0.63.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T18:56:26Z",
   "title": "Leap up, look down, new features on every map",
   "changes": [
    "Heroic Leap aimed on top of a walkway (a deck or a ramp) lands up there instead of on the ground below. Aiming any ground spell now picks the surface you point at, deck or ground.",
@@ -170,6 +201,7 @@
  {
   "version": "0.62.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T18:06:35Z",
   "title": "Jump off the walkway, three new arenas",
   "changes": [
    "Walkways: walking still stops at the rails, but a jump clears them and you drop to the ground. You can also jump onto the lower half of a ramp from the side.",
@@ -190,6 +222,7 @@
  {
   "version": "0.61.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T16:56:53Z",
   "title": "The Serpent walkway",
   "changes": [
    "The Serpent is now a raised, winding wooden walkway between the two start yards: a ramp up from each side, an S-shaped deck, and open ground with stone piers underneath.",
@@ -204,6 +237,7 @@
  {
   "version": "0.60.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T16:40:28Z",
   "title": "One look for the whole UI",
   "changes": [
    "Main menu right side is now a Look card and a Match panel (1v1/2v2/3v3 buttons, arena and bot skill rows, partners under Advanced).",
@@ -215,6 +249,7 @@
  {
   "version": "0.60.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T16:25:18Z",
   "title": "Menu overhaul, new look and The Serpent",
   "changes": [
    "New main menu: ARENA title, icon header (profile, friends, patch notes, watch live, suggestions) and a lobby party roster showing class, spec, side and ready state.",
@@ -230,6 +265,7 @@
  {
   "version": "0.59.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Patch notes",
   "changes": [
    "New Patch notes list in the main menu showing every recent patch."
@@ -238,6 +274,7 @@
  {
   "version": "0.59.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Pyroblast, mana and smarter retreats",
   "changes": [
    "Pyroblast now hits for 550.",
@@ -250,6 +287,7 @@
  {
   "version": "0.58.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Play again and bot fixes",
   "changes": [
    "Play again against bots always picks a different map and a different enemy class.",
@@ -261,6 +299,7 @@
  {
   "version": "0.58.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Bots that care for their lives",
   "changes": [
    "Bots use defensive spells, shields and escapes earlier, step out of Flamestrike and Blizzard, and keep their own shield up.",
@@ -271,6 +310,7 @@
  {
   "version": "0.57.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Twin Ramps with a tunnel",
   "changes": [
    "Twin Ramps rebuilt: a raised bridge deck with a ramp at each end and a walkable tunnel underneath, with line-of-sight rules for each level.",
@@ -283,6 +323,7 @@
  {
   "version": "0.56.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Twin Ramps duel map",
   "changes": [
    "New Twin Ramps duel map with a chasm, two ramps and a bridge. Duels are played there.",
@@ -292,6 +333,7 @@
  {
   "version": "0.55.5",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Rage and tooltips",
   "changes": [
    "Mortal Strike spends rage instead of generating it, and spenders no longer refund rage.",
@@ -302,6 +344,7 @@
  {
   "version": "0.55.4",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Exact damage",
   "changes": [
    "Damage has no random variance: every hit does exactly what the tooltip says.",
@@ -312,6 +355,7 @@
  {
   "version": "0.55.3",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Ground spells feel better",
   "changes": [
    "Flamestrike can be cast in any direction, and the aim dot is coloured by line of sight.",
@@ -321,6 +365,7 @@
  {
   "version": "0.55.2",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Priest and mage fixes",
   "changes": [
    "Devouring Plague's first hit no longer breaks fear.",
@@ -331,6 +376,7 @@
  {
   "version": "0.55.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Frost tweaks",
   "changes": [
    "Frost Nova grants Fingers of Frost.",
@@ -341,6 +387,7 @@
  {
   "version": "0.55.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Talent rows and random duel map",
   "changes": [
    "New talent row pattern, plus frost, priest and warrior changes.",
@@ -351,6 +398,7 @@
  {
   "version": "0.54.2",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Menu tidy",
   "changes": [
    "Suggestions can be deleted and the menu corner is tidier."
@@ -359,6 +407,7 @@
  {
   "version": "0.54.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Suggestions to Discord",
   "changes": [
    "Suggestions are sent to a Discord webhook.",
@@ -368,6 +417,7 @@
  {
   "version": "0.54.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Suggestion box",
   "changes": [
    "New suggestion box in the menu.",
@@ -377,6 +427,7 @@
  {
   "version": "0.53.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Barbarian and Arcane",
   "changes": [
    "Barbarian: Reel In pulls enemies in a cone, Deep Cuts generates rage and Axe Throw is buffed.",
@@ -386,6 +437,7 @@
  {
   "version": "0.53.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Rematch ready check",
   "changes": [
    "Everyone readies up on the end screen to play again.",
@@ -396,6 +448,7 @@
  {
   "version": "0.52.1",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Hot Streak procs",
   "changes": [
    "Fireball, Flamestrike and Dragon's Breath each have a 15% chance to grant Hot Streak.",
@@ -405,6 +458,7 @@
  {
   "version": "0.52.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Cryomancy rework",
   "changes": [
    "Cryomancy reworked around Fingers of Frost and Shatter.",
@@ -415,6 +469,7 @@
  {
   "version": "0.51.0",
   "date": "2026-10-07",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Warrior rework",
   "changes": [
    "Warriors share Charge, Pummel, Hamstring and Heroic Leap.",
@@ -424,6 +479,7 @@
  {
   "version": "0.50.3",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Party lobby",
   "changes": [
    "The lobby shows every party member with a name tag and ready check."
@@ -432,6 +488,7 @@
  {
   "version": "0.50.2",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Party looks",
   "changes": [
    "Party members' models and skins show in the lobby."
@@ -440,6 +497,7 @@
  {
   "version": "0.50.1",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Shadowstep and reconnect",
   "changes": [
    "Shadowstep lands behind the target and turns your camera.",
@@ -449,6 +507,7 @@
  {
   "version": "0.50.0",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Rogue rework and learning bots",
   "changes": [
    "Rogue rework.",
@@ -459,6 +518,7 @@
  {
   "version": "0.49.1",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Warrior spec swaps",
   "changes": [
    "Mortal Strike and Bloodthirst swap between warrior specs.",
@@ -469,6 +529,7 @@
  {
   "version": "0.49.0",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Warrior weapons",
   "changes": [
    "Warrior specs are weapons: dual wield, two-handed sword and polearm."
@@ -477,6 +538,7 @@
  {
   "version": "0.48.0",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "End scoreboard",
   "changes": [
    "A scoreboard at the end of every match.",
@@ -486,6 +548,7 @@
  {
   "version": "0.47.1",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Camera and shield bar",
   "changes": [
    "Steadier camera under crowd control.",
@@ -495,6 +558,7 @@
  {
   "version": "0.47.0",
   "date": "2026-10-06",
+  "at": "2026-10-07T14:45:11Z",
   "title": "Spell queue and spectating",
   "changes": [
    "The queue only repeats a spell in its last 0.25 s; conditional skills are blocked.",

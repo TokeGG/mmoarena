@@ -400,3 +400,41 @@ describe('bots and low barricades', () => {
     assert.ok(overTheTop, 'and cast an instant while in the air');
   });
 });
+
+describe('melee between floors', () => {
+  it('a bot on a walkway cannot swing at someone on the ground below its edge, and neither can a melee skill', () => {
+    const a = arenaById('overlook'); // plateau x -6..6, z -5..5
+    const sim = new ArenaSim({ seed: 1, prepMs: 0, arena: a });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'player', build: { spec: 'arms', talents: [], gear: {} } as never });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 1, controller: 'dummy' });
+    sim.step();
+    w.pos = { x: -6, z: -5 }; w.level = 1; // the deck's corner, up top (3.2 high)
+    m.pos = { x: -5, z: -5 }; m.level = 0; // on the ground just under it: in sight past the edge, and within 3D sword reach
+    assert.ok(hasLOS(w.pos, m.pos, a, 1, 0), 'the spot this test is about: sight passes the edge');
+    w.facing = Math.atan2(1, 0);
+    sim.setTarget(w.id, m.id);
+    sim.setAutoAttack(w.id, true);
+    const hp = m.health;
+    for (let i = 0; i < 80; i++) sim.step();
+    assert.equal(m.health, hp, 'no swing reaches down a floor');
+    w.resource = 100;
+    const r = sim.useAbility(w.id, 'mortal_strike', m.id);
+    assert.equal(r.ok, false);
+    // on the same floor it hits as usual
+    m.pos = { x: -10, z: -8 }; w.pos = { x: -12, z: -8 }; w.level = 0; w.facing = Math.PI / 2; // both out in the open on the ground
+    for (let i = 0; i < 80; i++) sim.step();
+    assert.ok(m.health < hp, 'and on the same floor it does');
+  });
+});
+
+describe('ramps and sight', () => {
+  it('a ramp is a solid wedge: from on it you cannot see someone on the ground on its far side, and the other way round', () => {
+    const a = arenaById('overlook'); // north ramp x -2.5..2.5, z 5..13, rising to the deck at z 5
+    const onRamp = { x: 2.2, z: 7 };
+    const across = { x: -5, z: 7 };
+    assert.equal(hasLOS(onRamp, across, a, 1, 0), false, 'the ramp body is in the way');
+    assert.equal(hasLOS(across, onRamp, a, 0, 1), false, 'both ways');
+    assert.equal(hasLOS(onRamp, { x: 6, z: 7 }, a, 1, 0), true, 'someone on the near side is seen');
+    assert.equal(hasLOS({ x: 0, z: 11 }, { x: 0, z: 3 }, a, 1, 1), true, 'up the ramp onto the deck is clear');
+  });
+});

@@ -17,9 +17,9 @@ import type { Brain } from './botbrain';
  * A bot's loadout: one of the class's specs (so bots field every weapon spec and bar that exists in the data) and a talent
  * in most tiers, picked from the seed, so the skill swaps of tiers IV to VI get played by bots too.
  */
-export function botBuild(classId: ClassId, seed: number, withTalents = true): Build {
+export function botBuild(classId: ClassId, seed: number, withTalents = true, specId?: string): Build {
   const specs = SPECS[classId];
-  const spec = specs[Math.abs(seed) % specs.length].id;
+  const spec = specId && specs.some((s) => s.id === specId) ? specId : specs[Math.abs(seed) % specs.length].id;
   if (!withTalents) return { spec, talents: [], gear: {} };
   const rng = mulberry32(seed * 7919 + 17);
   const talents = talentsFor(classId, spec).map((tier) => (rng() < 0.85 && tier.length ? tier[Math.floor(rng() * tier.length)].id : ''));
@@ -144,7 +144,7 @@ export class Bot {
 
     this.trail.push({ t: sim.time, x: u.pos.x, z: u.pos.z, walking: this.lastWalk });
     while (this.trail.length && sim.time - this.trail[0].t > 1200) this.trail.shift();
-    if (sim.time >= this.unstickUntil && this.trail.length >= 20 && this.trail.every((p) => p.walking) && sim.canMove(u) && !u.cast &&
+    if (sim.time >= this.unstickUntil && this.trail.length >= 20 && this.trail.every((p) => p.walking) && sim.canMove(u) && !this.castHolds(u) &&
         Math.hypot(u.pos.x - this.trail[0].x, u.pos.z - this.trail[0].z) < 0.4) {
       // walking into something (a pillar edge, a ramp wall, another unit): slide sideways for a moment
       this.unstickUntil = sim.time + 600;
@@ -172,11 +172,23 @@ export class Bot {
     this.watchJukes(enemies);
     this.moving = false;
 
+    // a cast whose target stepped out of sight fails when it ends: stop it (which hands back the global cooldown) once
+    // the target has been hidden for a moment, instead of standing there finishing it
+    const castDef = u.cast ? ABILITIES[u.cast.ability] : undefined;
+    const castTgt = u.cast && castDef && castDef.castTime > 0 && !castDef.channel ? sim.units.get(u.cast.target) : undefined;
+    if (castTgt && castTgt !== u && u.cast!.gx === undefined && !hasLOS(u.pos, castTgt.pos, sim.arena, u.level, castTgt.level, sim.airOf(u), sim.airOf(castTgt))) {
+      this.hiddenSince ??= sim.time;
+      if (sim.time - this.hiddenSince >= Math.max(150, this.P.react * 0.6) && u.cast!.end - sim.time > 200) {
+        sim.stopCast(u.id);
+        this.hiddenSince = undefined;
+      }
+    } else this.hiddenSince = undefined;
+
     // what it can see is all it knows: a stealthed or vanished rogue is remembered where it was last seen, never tracked
     for (const e of enemies) this.lastSeen.set(e.id, { pos: { ...e.pos }, lv: e.level, at: sim.time });
 
     // nobody in sight: go and look where an enemy was last seen, then search around there, like a player would
-    if (!enemies.length && sim.canMove(u) && !u.cast) {
+    if (!enemies.length && sim.canMove(u) && !this.castHolds(u)) {
       const c = this.searchPoint(u);
       if (c && !(u.classId === 'priest' && allies.length > 1)) {
         this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, c.pos, u.level, c.lv)), fwd: 1, strafe: 0 });
@@ -206,10 +218,26 @@ export class Bot {
       }
     }
 
+    // an enemy spinning or slicing around itself (Bladestorm, Slice and Dice): get out of its reach like a player would,
+    // (Bladestorm cannot be stopped, so distance is the only answer)
+    if (this.P.tricks > 0 && sim.canMove(u) && !this.castHolds(u)) {
+      const spinner = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.channel && ABILITIES[e.cast.ability]?.target === 'aoe_enemy' && dist(u.pos, e.pos) < sim.radiusOf(e, ABILITIES[e.cast.ability]) + 1.5);
+      if (spinner && this.noticed(`spin:${spinner.id}:${spinner.cast!.start}`)) {
+        const away = this.blinkAngle(u, spinner.pos) ?? angleTo(spinner.pos, u.pos);
+        this.moving = true;
+        if (sim.time >= this.nextThink) {
+          this.nextThink = sim.time + this.P.think * TUNING.tickMs;
+          this.decide(u, enemies, allies, tgt); // instants on the way out
+        }
+        this.send(u, { facing: away, fwd: 1, strafe: 0, guard: true });
+        return;
+      }
+    }
+
     // standing in an enemy's Flamestrike or Blizzard: step out (a bot with a long cast to protect only leaves when it is hurting)
     if (this.brain.dodge > 0.15 && sim.canMove(u)) {
       const hz = sim.hazardsFor(u.team).find((z) => dist(u.pos, z) < z.r + 0.6);
-      if (hz && (!u.cast || hpFrac(u) < this.brain.dodge * 0.9) && this.noticed(`zone:${hz.id}`)) {
+      if (hz && (!this.castHolds(u) || hpFrac(u) < this.brain.dodge * 0.9) && this.noticed(`zone:${hz.id}`)) {
         this.send(u, { facing: dist(u.pos, hz) < 0.2 ? u.facing : angleTo(hz, u.pos), fwd: 1, strafe: 0, guard: true });
         return;
       }
@@ -227,7 +255,7 @@ export class Bot {
     // a run, once started, lasts a moment, and so does a stand: switching every tick would only spin the bot round
     const kiteNow = this.kiteFrom(u, enemies);
     if (kiteNow && !this.kite && sim.time < this.kiteSwitchAt) this.kite = null;
-    else if (!kiteNow && this.kite && sim.time < this.kiteSwitchAt && this.kite.alive && sim.canMove(u) && !u.cast) {
+    else if (!kiteNow && this.kite && sim.time < this.kiteSwitchAt && this.kite.alive && sim.canMove(u) && !this.castHolds(u)) {
       /* keep running */
     } else {
       if (!!kiteNow !== !!this.kite) this.kiteSwitchAt = sim.time + (kiteNow ? 900 : 700);
@@ -249,6 +277,14 @@ export class Bot {
   private lastWalk = false;
   /** The route says jump now (a rail to clear, a barricade, the side of a ramp). */
   private jumpNow = false;
+  /**
+   * A cast that keeps the bot standing still. Spells cast on the move (Bladestorm, Scorch) do not: while one runs the
+   * bot keeps chasing, kiting, sidestepping and dodging like any player would.
+   */
+  private castHolds(u: Unit): boolean {
+    return !!u.cast && !ABILITIES[u.cast.ability]?.castWhileMoving;
+  }
+
   /** The melee enemy a caster is running from this tick, if any. */
   private kite: Unit | null = null;
   private kiteSwitchAt = 0;
@@ -260,13 +296,13 @@ export class Bot {
    * is held or left behind, the caster stands and casts again. How eagerly is the brain's `mobility`.
    */
   private kiteFrom(u: Unit, enemies: Unit[]): Unit | null {
-    if (!RANGED[u.classId] || !this.sim.canMove(u) || u.cast || this.brain.mobility < 0.25) return null;
+    if (!RANGED[u.classId] || !this.sim.canMove(u) || this.castHolds(u) || this.brain.mobility < 0.25) return null;
     if (u.classId === 'priest' && u.spec !== 'shadow') return null; // a healer's heals have cast times: it stands and heals
     const reach = 4.5 + 2.5 * this.brain.mobility;
     // running from a melee that is not slowed only pays while there is an instant to throw on the way (it keeps up)
     const instant = u.bar.some((id) => {
       const a = ABILITIES[id];
-      return !!a && a.castTime === 0 && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
+      return !!a && (a.castTime === 0 || !!a.castWhileMoving) && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
     });
     const slowReady = u.bar.some((id) => {
       const a = ABILITIES[id];
@@ -284,6 +320,8 @@ export class Bot {
 
   /** Jump on the spot to see over a barricade (jumpNow only fires while walking). */
   private popJump = false;
+  /** When the target of the cast in progress went out of sight. */
+  private hiddenSince: number | undefined;
   private nextPop = 0;
 
   /**
@@ -873,6 +911,12 @@ export class Bot {
     if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(u.id);
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
     if (this.tryInterrupt(u, enemies)) return; // Silence, if a talent put it on the bar
+    // an enemy healing (itself or a partner): break the cast with a fear or a stun, unless our side needs healing first
+    const mending = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.effects.some((x) => x.type === 'heal' || x.type === 'healMax' || x.type === 'healMissing') && !e.auras.some((a) => HARD_CC.includes(a.kind)));
+    if (mending && (!lowest || hpFrac(lowest) > 0.4)) {
+      if (dist(u.pos, mending.pos) <= 7.5 && this.use(u, 'psychic_scream')) return;
+      if (dist(u.pos, mending.pos) <= 20 && this.use(u, 'judgment_hammer', mending.id)) return;
+    }
     // Dispersion is for real lockdown (stun, fear, sheep) or low health, not for any root
     if ((u.auras.some((a) => LOCKED_DOWN.includes(a.kind)) || hpFrac(u) < this.brain.defHp) && this.use(u, 'dispersion')) return;
     if (hpFrac(u) < this.brain.defHp - 0.05 && this.use(u, 'desperate_prayer')) return;
@@ -1005,7 +1049,7 @@ export class Bot {
     const sim = this.sim;
     const idle: Cmd = { facing: u.facing, fwd: 0, strafe: 0 };
     if (this.forceFacing && sim.time < this.forceFacing.until) return { facing: this.forceFacing.angle, fwd: 0, strafe: 0 };
-    if (u.cast || !sim.canMove(u)) return idle;
+    if (this.castHolds(u) || !sim.canMove(u)) return idle;
 
     if (sim.time >= this.strafeFlipAt) {
       this.strafeSign = this.rng() < 0.5 ? -1 : 1;
@@ -1027,7 +1071,7 @@ export class Bot {
       if (c) return c; // null: a priest on its own fights like a caster, below
     }
     if (!tgt) return idle;
-    if (u.classId === 'priest' && sim.time < this.danceUntil && !u.cast) return { facing: angleTo(u.pos, tgt.pos), fwd: 0, strafe: this.strafeSign };
+    if (u.classId === 'priest' && sim.time < this.danceUntil && !this.castHolds(u)) return { facing: angleTo(u.pos, tgt.pos), fwd: 0, strafe: this.strafeSign };
 
     // casters that like the high ground make for the walkway first (once), then fight from it
     if (u.level === 1 && heightAt(sim.arena, u.pos.x, u.pos.z, 1) > 2) this.wasUp = true; // the foot of a ramp is not "up there"

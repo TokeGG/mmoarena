@@ -246,7 +246,7 @@ export interface AdminRow {
 }
 
 /** Abilities the owner can switch on for a friend (besides per-item grants). */
-export const ABILITY_GRANTS = [{ id: 'gif', name: 'Animated GIF icon' }] as const;
+export const ABILITY_GRANTS = [{ id: 'gif', name: 'Animated GIF icon' }, { id: 'dev', name: 'Dev tools (try and save numbers, skill notes)' }] as const;
 
 export interface LeaderRow {
   name: string;

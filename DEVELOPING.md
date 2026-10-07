@@ -89,6 +89,8 @@ The game is built from the GitHub repo `TokeGG/mmoarena` and hosted on Render at
 | `ARENA_SECRET` | Long random string that signs the guest progress tokens. Without it a public dev secret is used and tokens can be forged. |
 | `ARENA_KEY_PREFIX` | Prefix for every database key (default `wowarena:`). It lets this game share the Aim Arena Upstash database without conflicts. Do not change it once accounts exist. |
 | `SUGGESTION_WEBHOOK_URL` | A Discord webhook: every suggestion is also posted to that channel (mentions are stripped; an attached note goes as a file). It is a secret: set it in Render, never in the repo. |
+| `GITHUB_TOKEN` | Optional. A GitHub token (fine-grained: Contents and Pull requests read/write on this repository) so numbers a dev saves in game also open a pull request against the data files. Without it saved numbers are still live (database overrides), just not proposed for the files. `GITHUB_REPO` (default `TokeGG/mmoarena`) and `GITHUB_BASE` (default `main`) pick where. |
+| `DEV_NOTES_WEBHOOK_URL` | Optional Discord webhook for devs' skill notes (falls back to `SUGGESTION_WEBHOOK_URL`). Notes are also kept in the suggestion box. |
 | `PORT` | Port to listen on (Render sets it itself). |
 
 ### Upstash setup
@@ -108,8 +110,12 @@ Profile > **★ Owner**, founder account only (the name `Toke`). You must also e
 - **Accounts panel:** award owner-tier titles, emblems and colours to any player, give a friend a custom title and colours, switch on the **GIF icon ability per friend** (they then upload their own in the same place), and reset a password (a temporary password is shown once and old sessions end).
 - **Owner-only looks:** extra cosmetics (Founder's Crown, Void Horns, Dragon Pauldrons, Archon Wings and more) that only the founder account can wear; the server strips them from anyone else's build, but everyone sees them on the owner. They are hidden from everyone else's Look menu.
 - **Watching:** the owner watches matches with no delay and gets a scoreboard (button or **B**) with each player's damage, healing, damage taken, healing received and overheal, grouped by team.
+- **Server panel:** who is online, how many are queued, and every match running (private ones too): watch any of them live, or end one. **Announcement** sends a message every connected player sees.
+- **Bot match:** a private match of bots against bots (1v1 to 3v3, class, spec, difficulty, arena), watched live; it closes when you leave. **Follow** a player from the Watch live window and you are taken into each match they start.
+- **Dev tag:** in the Accounts panel, *Dev tools* gives a player the dev tools (the owner always has them). In a match where the dev is the only person (against bots or dummies), **F2** opens them: pause the match, pick any skill in the match and change any of its numbers (and the numbers of the effects it applies), try them at once (only that match runs on them, and it stops counting for progress, replays and bot learning), put them back, or **Save for everyone**: the numbers are applied over the data files on the server (kept in the database, sent to every client) and a pull request with the changed numbers is opened on GitHub (needs `GITHUB_TOKEN`). Merging it makes them a real patch (bump the version, notes, wiki, training as usual); **Live number changes** in this panel lists what is applied and clears it. Devs can also send a **note on a skill** to the owner's Discord. Devs see the **Builds** panel (everyone's spec, skills and talents, **N**) in their own matches too.
+- Owner and dev tools are never listed in the patch notes.
 - **Suggestions:** the owner sees every suggestion under the 💡 Suggest box (with any attached .txt note, up to 10,000 characters) and can delete them.
-- There are no co-admins by design. Password reset is the only account recovery.
+- There are no co-admins by design (the dev tag only opens the tuning tools). Password reset is the only account recovery.
 
 ## Security measures
 

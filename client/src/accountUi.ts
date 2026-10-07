@@ -150,6 +150,9 @@ export class AccountUi {
       case 'owner':
       case 'admin_accounts':
       case 'admin_result':
+      case 'admin_overview':
+      case 'overrides':
+      case 'dev_result':
         this.owner.handle(m);
         break;
       case 'history':
