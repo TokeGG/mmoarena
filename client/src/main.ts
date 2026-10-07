@@ -404,6 +404,12 @@ function applyInput(i: MoveInput & { air: number }, me: UnitSnap) {
   pred.z = p.z;
 }
 
+/** How high your own character is in the air: your predicted jump, or (while the server moves you, e.g. Heroic Leap) its arc. */
+function ownHeight(u: UnitSnap | undefined, serverY?: number): number {
+  const jump = jumpHeight(performance.now() - myJumpAt);
+  return u?.controlled ? Math.max(jump, serverY ?? u.y ?? 0) : jump;
+}
+
 /** Runs at exactly the server tick rate so one input is produced per server step. */
 function fixedStep() {
   if (!latest || spec) return;
@@ -484,20 +490,23 @@ function cycleTarget(dir: 1 | -1) {
 }
 
 /** The ground point under the cursor for an aimed spell, pulled in to the spell's range from you. */
-function groundAim(range: number): { x: number; z: number } | null {
+function groundAim(range: number): { x: number; z: number; lv?: 1 } | null {
   const c = controls.cursor();
   const g = scene.groundPoint(c.x, c.y);
   if (!g) return null;
   const dx = g.x - pred.x;
   const dz = g.z - pred.z;
   const d = Math.hypot(dx, dz);
-  if (d > range - 0.3) return { x: pred.x + (dx / d) * (range - 0.3), z: pred.z + (dz / d) * (range - 0.3) };
+  if (d > range - 0.3) {
+    const p = { x: pred.x + (dx / d) * (range - 0.3), z: pred.z + (dz / d) * (range - 0.3) };
+    return g.lv === 1 && onRaised(arena, p.x, p.z) ? { ...p, lv: 1 } : p; // pulled in off the deck: back on the ground
+  }
   return g;
 }
 
-/** The level of a ground point you aim at: on the deck when you stand on it and aim over it, else the ground. */
-function aimLevel(g: { x: number; z: number }): 0 | 1 {
-  return predLevel === 1 && onRaised(arena, g.x, g.z) ? 1 : 0;
+/** The level of a ground point you aim at: on top of a walkway when the aim hit it, else the ground. */
+function aimLevel(g: { x: number; z: number; lv?: 1 }): 0 | 1 {
+  return g.lv === 1 ? 1 : 0;
 }
 
 /** The bar as it looks right now: slots with a stealth swap show the swapped ability while you are stealthed. */
@@ -576,7 +585,7 @@ function confirmAim() {
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
   if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g))) return; // red spot: nothing is sent, nothing is spent, still aiming
-  sendCast({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, vt: viewTime() });
+  sendCast({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}), vt: viewTime() });
   setAiming(null);
 }
 
@@ -792,7 +801,7 @@ function frame(now: number) {
       x = vis.x;
       z = vis.z;
       facing = vis.facing;
-      y = u.alive ? jumpHeight(performance.now() - myJumpAt) : 0;
+      y = u.alive ? ownHeight(u, i?.y) : 0; // a leap's arc comes from the server, a jump is predicted here
     }
     return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, lv: u.id === you && !spec ? predLevel : (u.lv ?? 0), facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
@@ -812,7 +821,7 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45) + (camFloor.y = fallToward(camFloor.y, heightAt(arena, vis.x, vis.z, predLevel), dt, camFloor)));
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : ownHeight(latest?.units.find((x) => x.id === you), interp.get(you)?.y)) * 0.45) + (camFloor.y = fallToward(camFloor.y, heightAt(arena, vis.x, vis.z, predLevel), dt, camFloor)));
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);

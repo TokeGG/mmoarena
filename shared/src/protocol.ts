@@ -39,7 +39,7 @@ export type ClientMsg =
     }
   | { t: 'input'; seq: number; fwd: number; strafe: number; facing: number; jump?: boolean }
   | { t: 'target'; id: number | null }
-  | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number; /** Sim time of the frame the player was looking at, so the server can judge range against what they saw. */ vt?: number }
+  | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number; /** 1 when the point is on top of a walkway (the aim hit the deck, not the ground under it). */ lv?: 1; /** Sim time of the frame the player was looking at, so the server can judge range against what they saw. */ vt?: number }
   | { t: 'auto'; on: boolean }
   /** The auto-attack setting: `off` stops it from ever starting. */
   | { t: 'autoOff'; off: boolean }
@@ -201,7 +201,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.target !== undefined && m.target !== null && !isNum(m.target)) return null;
       const gx = typeof m.x === 'number' && Number.isFinite(m.x) && Math.abs(m.x) < 1000 ? m.x : undefined;
       const gz = typeof m.z === 'number' && Number.isFinite(m.z) && Math.abs(m.z) < 1000 ? m.z : undefined;
-      return { t: 'cast', ability: m.ability, target: m.target ?? null, ...(gx !== undefined && gz !== undefined ? { x: gx, z: gz } : {}), ...(typeof m.vt === 'number' && Number.isFinite(m.vt) ? { vt: m.vt } : {}) };
+      return { t: 'cast', ability: m.ability, target: m.target ?? null, ...(gx !== undefined && gz !== undefined ? { x: gx, z: gz, ...(m.lv === 1 ? { lv: 1 as const } : {}) } : {}), ...(typeof m.vt === 'number' && Number.isFinite(m.vt) ? { vt: m.vt } : {}) };
     case 'auto':
       return { t: 'auto', on: !!m.on };
     case 'autoOff':

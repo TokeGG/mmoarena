@@ -1,5 +1,23 @@
 [
  {
+  "version": "0.63.0",
+  "date": "2026-10-07",
+  "title": "Leap up, look down, new features on every map",
+  "changes": [
+   "Heroic Leap aimed on top of a walkway (a deck or a ramp) lands up there instead of on the ground below. Aiming any ground spell now picks the surface you point at, deck or ground.",
+   "A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and you see them again once you can look past its edge.",
+   "Ground spells only reach the floor they were placed on: a Flamestrike on the deck no longer burns people underneath it, and the other way round. Bots aim theirs at their target's floor.",
+   "Barricades are chest-high now and longer, and need most of a jump to clear (rails still need only a hop).",
+   "Dusk Colosseum: an emperor's box on the north and south walls, each a small raised balcony with a ramp at each end.",
+   "Sunken Ruins: two crumbling stone platforms climb out of the rubble (replacing the two small columns north and south), and two broken walls you can vault.",
+   "Frostkeep Pit: a frozen bridge spans the pit from north to south through the ring of spires, and snowdrift walls guard the flanks.",
+   "Heroic Leap is a real leap on your own screen too: your character arcs up and lands on the spot (before, only others saw the arc).",
+   "The header icons on the menu are coloured: gold profile, green friends, blue patch notes, red watch live, yellow suggestions.",
+   "Training dummies come back fresh: no leftover diminishing returns or combo points after they stand up.",
+   "Fix: a malformed web address could crash the server for everyone; it now gets an error page."
+  ]
+ },
+ {
   "version": "0.62.0",
   "date": "2026-10-07",
   "title": "Jump off the walkway, three new arenas",

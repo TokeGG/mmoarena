@@ -16,8 +16,17 @@ export const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.z - b.z);
 export const dirOf = (facing: number): Vec2 => ({ x: Math.sin(facing), z: Math.cos(facing) });
 export const rightOf = (facing: number): Vec2 => ({ x: -Math.cos(facing), z: Math.sin(facing) });
 
-/** A unit this high in a jump clears deck rails and low barricades. */
+/** Sight lines between units run at this height above their floor. */
+const CHEST = 1.2;
+/** How thick a walkway's deck is (its underside is this far below the top). */
+export const DECK_THICKNESS = 0.6;
+/** A sight line that grazes the last bit of a deck's edge still gets through. */
+const LOS_EDGE = 0.15;
+
+/** A unit this high in a jump clears deck rails. */
 export const CLEAR_HEIGHT = 0.5;
+/** A unit this high in a jump clears a low barricade (chest-high walls: you need most of a jump). */
+export const LOW_CLEAR = 0.9;
 /** A slope this high you can step onto without jumping. */
 export const STEP_HEIGHT = 0.4;
 /** How thick a deck rail is (it stands just outside the edge it guards). */
@@ -26,7 +35,7 @@ export const RAIL_THICKNESS = 0.4;
 /**
  * Push a position out of walls and pillars, and whatever else is solid at that level: the ramps, piers and low barricades
  * on the ground, the rails up on a walkway. `air` is how high the unit is in a jump: from CLEAR_HEIGHT up it sails over
- * rails and barricades.
+ * rails, from LOW_CLEAR up over barricades.
  */
 export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, air = 0): Vec2 {
   const b = arena.bounds;
@@ -37,7 +46,7 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, ai
   const dk = arena.deck;
   const solids: Rect[] = [...(arena.walls ?? [])];
   if (dk) solids.push(...(level === 1 ? (clear ? [] : deckRails(arena)) : [...dk.ramps, ...deckPiers(arena)]));
-  if (level === 0 && !clear) solids.push(...(arena.lows ?? []));
+  if (level === 0 && air < LOW_CLEAR) solids.push(...(arena.lows ?? []));
   for (let i = 0; i < 2; i++) {
     for (const pl of arena.pillars) {
       const dx = x - pl.x;
@@ -278,11 +287,16 @@ export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Lev
   for (const w of arena.walls ?? []) if (segmentHitsRect(a, b, w.x0, w.x1, w.z0, w.z1)) return false;
   const dk = arena.deck;
   if (dk) {
-    if (la !== lb) {
-      // the deck is a ceiling: no sight between a unit under a flat piece and one up on the walkway
-      const g = la === 0 ? a : b;
-      if (dk.flats.some((f) => inBox(g.x, g.z, f))) return false;
-    } else if (la === 0) {
+    // the deck is a floor between levels: sight runs chest to chest, and it is blocked where that line passes through a
+    // flat piece (its top or its underside), so someone above you is hidden unless you see them past the edge
+    const ya = heightAt(arena, a.x, a.z, la) + CHEST, yb = heightAt(arena, b.x, b.z, lb) + CHEST;
+    for (const plane of [dk.height, dk.height - DECK_THICKNESS]) {
+      if ((ya - plane) * (yb - plane) >= 0) continue; // both on one side of it
+      const t = (plane - ya) / (yb - ya);
+      const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+      if (dk.flats.some((f) => x > f.x0 + LOS_EDGE && x < f.x1 - LOS_EDGE && z > f.z0 + LOS_EDGE && z < f.z1 - LOS_EDGE)) return false;
+    }
+    if (la === 0 && lb === 0) {
       for (const r of [...dk.ramps, ...deckPiers(arena)]) if (segmentHitsRect(a, b, r.x0, r.x1, r.z0, r.z1)) return false; // on the ground, the ramps and piers are walls
     }
   }

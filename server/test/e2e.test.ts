@@ -1,3 +1,4 @@
+import http from 'node:http';
 import { describe, it, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
@@ -96,6 +97,21 @@ describe('server end to end', () => {
     assert.ok(after.health < after.maxHealth, 'enemy lost health on the server');
     assert.ok(after.auras.some((a) => a.id === 'frostbolt_slow'));
     assert.ok(c.me().cooldowns.frostbolt === undefined, 'frostbolt has no cooldown');
+  });
+
+  it('a malformed URL gets a 400 and the server keeps running', async () => {
+    const own = await startServer({ port: 0, host: '127.0.0.1', practicePrepMs: 200, staticDir: '/nonexistent' });
+    const get = (path: string) =>
+      new Promise<number>((ok, bad) => {
+        const req = http.get({ host: '127.0.0.1', port: own.port, path, agent: false, headers: { connection: 'close' } }, (r) => {
+          r.resume();
+          ok(r.statusCode ?? 0);
+        });
+        req.on('error', bad);
+      });
+    assert.equal(await get('/avatar/%E0'), 400);
+    assert.equal(await get('/healthz'), 200, 'still up');
+    await own.close();
   });
 
   it('ignores garbage and cannot cast another class\'s ability', async () => {

@@ -3,7 +3,7 @@
   "id": "colosseum",
   "name": "Dusk Colosseum",
   "theme": "colosseum",
-  "desc": "Four great columns frame an open centre. Classic, balanced, easy to read.",
+  "desc": "Four great columns frame an open centre, and an emperor's box rises against the north and south walls with a ramp at each end. Classic and easy to read, with a little high ground to fight over.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -66,13 +66,60 @@
    1.5707963267948966,
    -1.5707963267948966
   ],
-  "gateX": 20
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -5,
+     "x1": 5,
+     "z0": 14,
+     "z1": 20
+    },
+    {
+     "x0": -5,
+     "x1": 5,
+     "z0": -20,
+     "z1": -14
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -11,
+     "x1": -5,
+     "z0": 16,
+     "z1": 20,
+     "rise": "+x"
+    },
+    {
+     "x0": 5,
+     "x1": 11,
+     "z0": 16,
+     "z1": 20,
+     "rise": "-x"
+    },
+    {
+     "x0": -11,
+     "x1": -5,
+     "z0": -20,
+     "z1": -16,
+     "rise": "+x"
+    },
+    {
+     "x0": 5,
+     "x1": 11,
+     "z0": -20,
+     "z1": -16,
+     "rise": "-x"
+    }
+   ]
+  }
  },
  {
   "id": "ruins",
   "name": "Sunken Ruins",
   "theme": "ruins",
-  "desc": "A fallen tower splits the middle and broken columns hide the corners. Lots of line of sight to break.",
+  "desc": "A fallen tower splits the middle and broken columns hide the corners. Two crumbling stone platforms climb out of the rubble, one on each side, and broken walls give cover you can vault. Lots of line of sight to break.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -104,16 +151,6 @@
     "x": 12,
     "z": 8.5,
     "r": 1.8
-   },
-   {
-    "x": 0,
-    "z": -13,
-    "r": 1.4
-   },
-   {
-    "x": 0,
-    "z": 13,
-    "r": 1.4
    }
   ],
   "spawns": [
@@ -150,13 +187,60 @@
    1.5707963267948966,
    -1.5707963267948966
   ],
-  "gateX": 20
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -14,
+     "x1": -6,
+     "z0": 12,
+     "z1": 18
+    },
+    {
+     "x0": 6,
+     "x1": 14,
+     "z0": -18,
+     "z1": -12
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -6,
+     "x1": 2,
+     "z0": 13,
+     "z1": 17,
+     "rise": "-x"
+    },
+    {
+     "x0": -2,
+     "x1": 6,
+     "z0": -17,
+     "z1": -13,
+     "rise": "+x"
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": -6.4,
+    "x1": -5.6,
+    "z0": 3,
+    "z1": 9
+   },
+   {
+    "x0": 5.6,
+    "x1": 6.4,
+    "z0": -9,
+    "z1": -3
+   }
+  ]
  },
  {
   "id": "frost",
   "name": "Frostkeep Pit",
   "theme": "frost",
-  "desc": "A ring of ice spires around an open pit. Fights spill around the ring, so positioning decides them.",
+  "desc": "A ring of ice spires around an open pit, with a frozen bridge spanning the pit from north to south. Fight around the ring, over it on the bridge, or under it; snowdrift walls guard the flanks.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -229,7 +313,48 @@
    1.5707963267948966,
    -1.5707963267948966
   ],
-  "gateX": 20
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": -9,
+     "z1": 9
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": 9,
+     "z1": 17,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": -17,
+     "z1": -9,
+     "rise": "+z"
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": -15.4,
+    "x1": -14.6,
+    "z0": 6,
+    "z1": 13
+   },
+   {
+    "x0": 14.6,
+    "x1": 15.4,
+    "z0": -13,
+    "z1": -6
+   }
+  ]
  },
  {
   "id": "serpent",
@@ -436,16 +561,16 @@
   },
   "lows": [
    {
-    "x0": -16.6,
-    "x1": -15.4,
-    "z0": -4,
-    "z1": 4
+    "x0": -16.4,
+    "x1": -15.6,
+    "z0": -5,
+    "z1": 5
    },
    {
-    "x0": 15.4,
-    "x1": 16.6,
-    "z0": -4,
-    "z1": 4
+    "x0": 15.6,
+    "x1": 16.4,
+    "z0": -5,
+    "z1": 5
    }
   ]
  },
@@ -569,16 +694,16 @@
   },
   "lows": [
    {
-    "x0": -4,
-    "x1": 4,
-    "z0": 15.4,
-    "z1": 16.6
+    "x0": -5,
+    "x1": 5,
+    "z0": 15.6,
+    "z1": 16.4
    },
    {
-    "x0": -4,
-    "x1": 4,
-    "z0": -16.6,
-    "z1": -15.4
+    "x0": -5,
+    "x1": 5,
+    "z0": -16.4,
+    "z1": -15.6
    }
   ]
  },
@@ -704,16 +829,16 @@
   },
   "lows": [
    {
-    "x0": -9.6,
-    "x1": -8.4,
-    "z0": -4,
-    "z1": 4
+    "x0": -9.4,
+    "x1": -8.6,
+    "z0": -5,
+    "z1": 5
    },
    {
-    "x0": 8.4,
-    "x1": 9.6,
-    "z0": -4,
-    "z1": 4
+    "x0": 8.6,
+    "x1": 9.4,
+    "z0": -5,
+    "z1": 5
    }
   ]
  }

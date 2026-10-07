@@ -5,7 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { arenaById, heightAt } from '@arena/shared';
+import { arenaById, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -265,25 +265,40 @@ export class ArenaScene {
     return false;
   }
 
-  /** Where the pointer touches the ground (y = 0), or null when it points at the sky. */
-  groundPoint(clientX: number, clientY: number): { x: number; z: number } | null {
+  /**
+   * Where the pointer touches the floor, or null when it points at the sky. From above a walkway's deck the ray stops on
+   * the deck or ramp it hits (lv 1); from under it (or on open ground) it is the ground.
+   */
+  groundPoint(clientX: number, clientY: number): { x: number; z: number; lv?: 1 } | null {
     const ndc = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     const o = this.raycaster.ray.origin;
     const dv = this.raycaster.ray.direction;
     if (dv.y >= -1e-4) return null;
-    let h = 0;
-    let p = { x: 0, z: 0 };
-    for (let i = 0; i < 3; i++) { // on a ramp or the bridge the ground is higher: settle on the surface the ray really hits
-      const t = (h - o.y) / dv.y;
-      p = { x: o.x + dv.x * t, z: o.z + dv.z * t };
-      h = heightAt(this.arena, p.x, p.z, this.viewLevel);
+    const at = (h: number) => ({ x: o.x + dv.x * ((h - o.y) / dv.y), z: o.z + dv.z * ((h - o.y) / dv.y) });
+    const deckH = this.arena.deck?.height ?? 0;
+    if (deckH > 0 && o.y > deckH) {
+      // the first raised surface along the ray: march down from the camera and stop where the ray meets a deck or ramp
+      const steps = 120;
+      const ground = at(0);
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        const p = { x: o.x + (ground.x - o.x) * t, z: o.z + (ground.z - o.z) * t };
+        const y = o.y + (0 - o.y) * t;
+        const h = heightAt(this.arena, p.x, p.z, 1);
+        if (h > 0.05 && y <= h && onRaised(this.arena, p.x, p.z)) {
+          let q = at(h); // settle on the surface (ramps slope)
+          for (let k = 0; k < 3; k++) q = at(heightAt(this.arena, q.x, q.z, 1));
+          return onRaised(this.arena, q.x, q.z) ? { ...q, lv: 1 } : { ...p, lv: 1 };
+        }
+      }
+      return ground;
     }
-    return p;
+    return at(0);
   }
 
   /** A ring on the ground showing where an aimed spell would land; null hides it. */
-  setReticle(p: { x: number; z: number } | null, radius = 5, ok = true): void {
+  setReticle(p: { x: number; z: number; lv?: 1 } | null, radius = 5, ok = true): void {
     if (!this.reticle) {
       this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 40), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
       this.reticle.rotation.x = -Math.PI / 2;
@@ -296,7 +311,7 @@ export class ArenaScene {
     this.reticle.visible = !!p;
     if (this.reticleDot) this.reticleDot.visible = !!p;
     if (p) {
-      const gh = heightAt(this.arena, p.x, p.z, this.viewLevel);
+      const gh = heightAt(this.arena, p.x, p.z, p.lv ?? 0);
       this.reticle.position.set(p.x, 0.07 + gh, p.z);
       this.reticle.scale.set(radius, radius, 1);
       this.reticleDot!.position.set(p.x, 0.1 + gh, p.z);

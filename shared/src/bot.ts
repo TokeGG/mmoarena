@@ -49,6 +49,9 @@ function mulberry32(seed: number) {
   };
 }
 
+/** A ground point at a unit's feet, on its floor (on top of a walkway when it stands there). */
+const feetOf = (t: Unit): Vec2 & { lv?: 1 } => ({ x: t.pos.x, z: t.pos.z, ...(t.level === 1 ? { lv: 1 as const } : {}) });
+
 interface Cmd { facing: number; fwd: number; strafe: number; /** retreating: look ahead for walls before committing */ guard?: boolean }
 
 /**
@@ -253,7 +256,7 @@ export class Bot {
     return best;
   }
 
-  private use(u: Unit, ability: string, target?: number, ground?: Vec2): boolean {
+  private use(u: Unit, ability: string, target?: number, ground?: Vec2 & { lv?: 1 }): boolean {
     if (this.wastesCC(u, ability, target)) return false;
     return this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
   }
@@ -480,14 +483,14 @@ export class Bot {
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
-    if (d > 25 && this.use(u, 'heroic_leap', undefined, { x: tgt.pos.x, z: tgt.pos.z })) return;
+    if (d > 25 && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
     if (hpFrac(u) < this.brain.defHp && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
     if (kiter && !slowed && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
     // Barbarian: drag a runner back in, fence a kiter in, throw axes while it is out of reach
     if (d >= 4 && d <= 9.5 && kiter && this.use(u, 'reel_in', tgt.id)) return; // a 10 yard cone in front: the bot already faces its target
-    if (d >= 6 && d <= 15 && kiter && this.use(u, 'not_going_anywhere', undefined, { x: tgt.pos.x, z: tgt.pos.z })) return;
+    if (d >= 6 && d <= 15 && kiter && this.use(u, 'not_going_anywhere', undefined, feetOf(tgt))) return;
     if (d > 4 && d <= 10 && this.use(u, 'axe_throw', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
     if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.useFirst(u, ['recklessness', 'bladestorm']); // not into a shield wall

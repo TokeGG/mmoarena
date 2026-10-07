@@ -1091,7 +1091,7 @@ export class Effects {
     let m = this.smokeMeshes.get(z.id);
     if (!m) {
       const group = new THREE.Group();
-      group.position.set(z.x, this.groundY(z.x, z.z), z.z);
+      group.position.set(z.x, z.y ?? 0, z.z); // on top of a walkway when cast there
       const mat = () => new THREE.MeshBasicMaterial({ color: 0x8b8f99, transparent: true, opacity: 0.4, depthWrite: false });
       const disc = new THREE.Mesh(this.discGeo, new THREE.MeshBasicMaterial({ color: 0x555a66, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
       disc.rotation.x = -Math.PI / 2;
@@ -1141,7 +1141,7 @@ export class Effects {
           const mat = new THREE.MeshBasicMaterial({ color: z.flag ? 0xffd34a : color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
           const mesh = new THREE.Mesh(geo, mat);
           mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(z.x, 0.06 + this.groundY(z.x, z.z), z.z);
+          mesh.position.set(z.x, 0.06 + (z.y ?? 0), z.z);
           mesh.scale.set(z.r, z.r, 1);
           this.scene.add(mesh);
           return mesh;

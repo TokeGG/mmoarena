@@ -53,7 +53,14 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL));
 
   const server = http.createServer((req, res) => {
-    const url = new URL(req.url ?? '/', 'http://localhost');
+    let url: URL;
+    try {
+      url = new URL(req.url ?? '/', 'http://localhost');
+      decodeURIComponent(url.pathname); // a malformed escape (e.g. /avatar/%E0) must be a 400, not a crash
+    } catch {
+      res.writeHead(400, { 'content-type': 'text/plain' }).end('bad request');
+      return;
+    }
     if (url.pathname === '/healthz') {
       res.writeHead(200, { 'content-type': 'text/plain' }).end('ok');
       return;

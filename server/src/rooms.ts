@@ -256,7 +256,7 @@ export class Room {
       }
       case 'cast': {
         const rewind = msg.vt !== undefined ? this.sim.time - msg.vt : 0; // how far behind live the player's screen was
-        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z } : null, rewind);
+        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z, ...(msg.lv === 1 ? { lv: 1 as const } : {}) } : null, rewind);
         if (!r.ok) send(p, { t: 'error', reason: r.reason, ability: msg.ability });
         break;
       }

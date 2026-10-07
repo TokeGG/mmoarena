@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, deckPiers, deckRails, dist, hasLOS, heightAt, jumpHeight, navStep, onRaised, resolveCollisions, stepMovementL, walkClear } from '../src/index';
+import { ABILITIES, ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, deckPiers, deckRails, dist, hasLOS, heightAt, jumpHeight, navStep, onRaised, resolveCollisions, stepMovementL, walkClear } from '../src/index';
 import type { ArenaDef } from '../src/index';
 
 describe('arenas', () => {
@@ -156,8 +156,9 @@ function walkL(a: ArenaDef, st: St, facing: number, ticks: number, jumpAt = -1):
 const toward = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.atan2(q.x - p.x, q.z - p.z);
 
 describe('raised walkways (every map with one)', () => {
-  it('there are four walkway maps and Twin Ramps is gone', () => {
-    assert.deepEqual(WALKWAY_MAPS.map((x) => x.id).sort(), ['overlook', 'ring', 'serpent', 'terraces']);
+  it('every map has a walkway now, and Twin Ramps is gone', () => {
+    assert.equal(WALKWAY_MAPS.length, ARENAS.length);
+    assert.ok(ARENAS.length >= 7);
     assert.ok(!ARENAS.some((x) => x.id === 'bridge'));
   });
 
@@ -182,10 +183,10 @@ describe('raised walkways (every map with one)', () => {
           const axis = r.rise[1], up = r.rise[0] === '+';
           const mid = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 };
           const foot = axis === 'x' ? { x: up ? r.x0 - 3 : r.x1 + 3, z: mid.z } : { x: mid.x, z: up ? r.z0 - 3 : r.z1 + 3 };
-          const top = axis === 'x' ? { x: up ? r.x1 - 0.5 : r.x0 + 0.5, z: mid.z } : { x: mid.x, z: up ? r.z1 - 0.5 : r.z0 + 0.5 };
+          const top = axis === 'x' ? { x: up ? r.x1 + 1 : r.x0 - 1, z: mid.z } : { x: mid.x, z: up ? r.z1 + 1 : r.z0 - 1 }; // a step onto the deck at its top
           const climb = walkL(a, { pos: foot, level: 0 }, toward(foot, top), Math.ceil(((dist(foot, top) - 0.2) / TUNING.runSpeed) * 20));
           assert.equal(climb.level, 1, `${a.id}: climbed ${r.rise} ramp`);
-          assert.ok(heightAt(a, climb.pos.x, climb.pos.z, 1) > dk.height * 0.9, `${a.id}: reached the top (${JSON.stringify(climb.pos)})`);
+          assert.ok(heightAt(a, climb.pos.x, climb.pos.z, 1) > dk.height * 0.95, `${a.id}: reached the top (${JSON.stringify(climb.pos)})`);
           const down = walkL(a, climb, toward(top, foot) , 60);
           assert.equal(down.level, 0, `${a.id}: walked off the foot`);
         }
@@ -195,8 +196,8 @@ describe('raised walkways (every map with one)', () => {
         const rails = deckRails(a).filter((r) => heightAt(a, (r.x0 + r.x1) / 2 + r.inward.x * 0.5, (r.z0 + r.z1) / 2 + r.inward.z * 0.5, 1) > dk.height * 0.9);
         assert.ok(rails.length >= 2, 'has rails on the high parts');
         let tried = 0;
-        for (const r of rails) {
-          const c = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 };
+        for (const r of rails.flatMap((r) => [0.25, 0.5, 0.75].map((f) => ({ ...r, c: { x: r.x0 + (r.x1 - r.x0) * f, z: r.z0 + (r.z1 - r.z0) * f } })))) {
+          const c = r.c;
           const start = { x: c.x + r.inward.x * 2, z: c.z + r.inward.z * 2 };
           const out = { x: c.x - r.inward.x * 6, z: c.z - r.inward.z * 6 };
           if (resolveCollisions(out, a, 0).x !== out.x || out.x < a.bounds.minX + 1 || out.x > a.bounds.maxX - 1 || out.z < a.bounds.minZ + 1 || out.z > a.bounds.maxZ - 1) continue;
@@ -282,6 +283,51 @@ describe('raised walkways (every map with one)', () => {
       });
     });
   }
+});
+
+describe('above and below a walkway', () => {
+  const a = arenaById('overlook'); // plateau x -6..6, z -5..5, ramps north and south
+  it('the deck hides someone above from someone below, except past its edge', () => {
+    assert.equal(hasLOS({ x: -9, z: 0 }, { x: 3, z: 0 }, a, 0, 1), false, 'from the ground beside it you cannot see the middle of the deck');
+    assert.equal(hasLOS({ x: -9, z: 0 }, { x: -5.2, z: 0 }, a, 0, 1), true, 'but you see someone standing at its edge');
+    assert.equal(hasLOS({ x: 0, z: 0 }, { x: 4, z: 3 }, a, 0, 1), false, 'under it you see nothing up top');
+    assert.equal(hasLOS({ x: -20, z: 0 }, { x: -5.2, z: 0 }, a, 0, 1), true, 'from far off you see over the edge');
+  });
+
+  it('Heroic Leap aimed on top of a walkway lands up there; aimed below, on the ground', () => {
+    for (const [lv, want] of [[1, 1], [undefined, 0]] as const) {
+      const sim = new ArenaSim({ prepMs: 0, seed: 1, arena: a });
+      const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'player', build: { spec: 'arms', talents: [], gear: {} } as never });
+      sim.addUnit({ name: 'd', classId: 'warrior', team: 1, controller: 'dummy' });
+      w.pos = { x: -16, z: 2 };
+      w.facing = Math.atan2(16, -1);
+      sim.step();
+      const r = sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 1, ...(lv ? { lv } : {}) });
+      assert.ok(r.ok, (r as { reason?: string }).reason);
+      for (let i = 0; i < 40; i++) sim.step();
+      assert.equal(w.level, want, `landed on level ${w.level}`);
+      assert.ok(Math.hypot(w.pos.x, w.pos.z - 1) < 1.5, `at the spot (${JSON.stringify(w.pos)})`);
+    }
+  });
+
+  it('a zone on the deck does not burn the ground below it, and one on the ground does not reach the deck', () => {
+    const sim = new ArenaSim({ prepMs: 0, seed: 1, arena: a });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'player', build: { spec: 'fire', talents: [], gear: {} } as never });
+    const up = sim.addUnit({ name: 'up', classId: 'warrior', team: 1, controller: 'dummy' });
+    const down = sim.addUnit({ name: 'down', classId: 'warrior', team: 1, controller: 'dummy' });
+    m.pos = { x: 0, z: 12 }; m.level = 1; m.facing = Math.PI; // top of the north ramp... on it
+    up.pos = { x: 0, z: 0 }; up.level = 1;
+    down.pos = { x: 0, z: 0.5 }; down.level = 0;
+    sim.step();
+    const fs = Object.keys(ABILITIES).find((k) => ABILITIES[k].effects.some((e) => e.type === 'zone' && (e as { amount?: number }).amount));
+    assert.ok(fs, 'a damaging ground spell exists');
+    m.resource = 9999;
+    const r = sim.useAbility(m.id, fs!, null, { x: 0, z: 0, lv: 1 });
+    assert.ok(r.ok, (r as { reason?: string }).reason);
+    for (let i = 0; i < 20 * 8; i++) sim.step();
+    assert.ok(up.health < up.maxHealth, 'the one on the deck burns');
+    assert.equal(down.health, down.maxHealth, 'the one underneath does not');
+  });
 });
 
 describe('low barricades', () => {

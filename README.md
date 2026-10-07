@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.62.0
+# WoW-style Arena · v0.63.0
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -90,15 +90,15 @@ Pick one on the menu or leave it on Random.
 
 | Arena | Layout |
 |---|---|
-| Dusk Colosseum | Four columns around an open centre. |
-| Sunken Ruins | A fallen tower and broken columns: lots of line-of-sight play. |
-| Frostkeep Pit | A ring of ice spires. |
+| Dusk Colosseum | Four columns around an open centre, with an emperor's box (a small raised balcony with a ramp at each end) on the north and south walls. |
+| Sunken Ruins | A fallen tower and broken columns: lots of line-of-sight play. Two crumbling stone platforms climb out of the rubble, and broken walls give cover you can vault. |
+| Frostkeep Pit | A ring of ice spires with a frozen bridge spanning the pit from north to south, and snowdrift walls on the flanks. |
 | The Serpent | An S-shaped raised wooden walkway between two start yards, with a ramp up from each yard and four pillars underneath for cover. |
 | The Overlook | A central raised plateau with ramps north and south, a shaded hall underneath and low barricades. Every duel is played here. |
 | Icebound Ring | A raised square walkway around an open courtyard with an ice spire, with ramps down towards each team. |
 | Sun Terraces | Two long raised terraces along the north and south walls with a ramp at each end, plus a centre obelisk and barricades. |
 
-**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. A raised deck is a ceiling for line of sight; ramps and piers block sight on the ground; barricades block walking but not sight.
+**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, Blizzard, the banner, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground; barricades are chest-high: they block walking but not sight, and need most of a jump to clear.
 
 ## Rules worth knowing
 

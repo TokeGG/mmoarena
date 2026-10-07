@@ -423,6 +423,12 @@
   .hdr-icons { display:flex; gap:10px; justify-content:flex-end; }
   .hdr-btn { position:relative; width:42px; height:42px; border-radius:50%; border:1px solid #6b5a35; background:#1d1b20; color:#f0c260; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; box-shadow:0 2px 8px rgba(0,0,0,.5); }
   .hdr-btn:hover { border-color:#c9a24a; background:#2a2518; box-shadow:0 0 14px rgba(240,194,96,.3); }
+  /* each icon has its own colour (stroke + a soft fill and ring in the same hue) */
+  .hdr-btn[data-icon="profile"] { --hc:#f0c260; } .hdr-btn[data-icon="friends"] { --hc:#6fdc8c; } .hdr-btn[data-icon="patches"] { --hc:#7fb6ff; }
+  .hdr-btn[data-icon="watch"] { --hc:#ff7a6a; } .hdr-btn[data-icon="suggest"] { --hc:#ffd84a; }
+  .hdr-btn[data-icon] { color:var(--hc); border-color:color-mix(in srgb, var(--hc) 55%, #1d1b20); background:radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--hc) 34%, #1d1b20), #1a171c 75%); }
+  .hdr-btn[data-icon] svg { fill:color-mix(in srgb, var(--hc) 40%, transparent); filter:drop-shadow(0 0 3px color-mix(in srgb, var(--hc) 60%, transparent)); }
+  .hdr-btn[data-icon]:hover { border-color:var(--hc); box-shadow:0 0 14px color-mix(in srgb, var(--hc) 45%, transparent); }
   .hdr-btn.hdr-signin { border-color:#f0c260; animation:hdrPulse 1.8s ease-in-out infinite; }
   @keyframes hdrPulse { 50% { box-shadow:0 0 16px rgba(240,194,96,.55); } }
   .hdr-btn .fr-badge { right:-4px; top:-4px; }

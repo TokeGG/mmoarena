@@ -1,12 +1,16 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, withAuraMods } from './build';
-import { CLEAR_HEIGHT, blinkDestination, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
+import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
 } from './types';
 
 const TICK = TUNING.tickMs;
+/** Height of a leap above the ground (absolute) part way through: a 5-yard arc from the floor you left to the floor you land on. */
+const leapHeight = (L: { fromH: number; toH: number }, p: number) => L.fromH + (L.toH - L.fromH) * p + Math.sin(Math.PI * p) * 5;
+/** A ground-targeted point; lv 1 = on top of a walkway (the aim hit the deck), else the ground. */
+type Ground = { x: number; z: number; lv?: 1 };
 const DT = TICK / 1000;
 /** A Counterspell pressed this long after a cast finished still locks that school out. */
 const INTERRUPT_GRACE_MS = 250;
@@ -53,7 +57,7 @@ export class ArenaSim {
   readonly matchEndsAt: number;
   readonly units = new Map<number, Unit>();
   private events: SimEvent[] = [];
-  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean; flag?: boolean; held?: Set<number> }[] = [];
+  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean; flag?: boolean; held?: Set<number>; /** Floor height it lies on (on top of a walkway or the ground). */ h: number }[] = [];
   private nextZoneId = 1;
   private facingRule = false;
   private nextId = 1;
@@ -151,16 +155,16 @@ export class ArenaSim {
   }
 
   /** Casts held back for a moment because the target was just out of range or not quite in front (online play only). */
-  private pending = new Map<number, { ability: string; target: number | null; ground: { x: number; z: number } | null; until: number; reason: string }>();
+  private pending = new Map<number, { ability: string; target: number | null; ground: Ground | null; until: number; reason: string }>();
 
   /**
    * Lag compensation: `rewindMs` is how far behind the live state the caster's screen was when they pressed the button. Range and facing are judged
    * against where the target stood then (capped at TUNING.maxRewindMs), because that is what the player saw and aimed at.
    */
-  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: { x: number; z: number } | null, rewindMs = 0): Result {
+  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: Ground | null, rewindMs = 0): Result {
     rewindMs = Number.isFinite(rewindMs) ? Math.max(0, Math.min(TUNING.maxRewindMs, Math.round(rewindMs))) : 0;
-    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs]);
-    if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100 };
+    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs, ...(ground?.lv === 1 ? [1] : [])]);
+    if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100, ...(ground.lv === 1 ? { lv: 1 as const } : {}) };
     this.pending.delete(id); // any new press replaces a held cast
     return this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false, rewindMs);
   }
@@ -178,7 +182,7 @@ export class ArenaSim {
     }
   }
 
-  private tryUse(id: number, abilityId: string, targetId: number | null, ground: { x: number; z: number } | null, retry: boolean, rewindMs: number): Result {
+  private tryUse(id: number, abilityId: string, targetId: number | null, ground: Ground | null, retry: boolean, rewindMs: number): Result {
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
     const soft = (reason: string): Result => {
@@ -215,13 +219,13 @@ export class ArenaSim {
     if (def.target === 'ground') {
       if (!ground && targetId !== undefined && targetId !== null) {
         const t0 = this.units.get(targetId);
-        if (t0) ground = { x: t0.pos.x, z: t0.pos.z };
+        if (t0) ground = { x: t0.pos.x, z: t0.pos.z, ...(t0.level === 1 && onRaised(this.arena, t0.pos.x, t0.pos.z) ? { lv: 1 as const } : {}) }; // at the target's feet, on its floor
       }
       if (!ground || !Number.isFinite(ground.x) || !Number.isFinite(ground.z)) return fail('no target location');
       const b = this.arena.bounds;
-      ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ) };
+      ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ), ...(ground.lv === 1 && onRaised(this.arena, ground.x, ground.z) ? { lv: 1 as const } : {}) };
       if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return soft('out of range');
-      if (!hasLOS(u.pos, ground, this.arena, u.level, u.level)) return fail('no line of sight');
+      if (!hasLOS(u.pos, ground, this.arena, u.level, ground.lv ?? 0)) return fail('no line of sight');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);
@@ -267,7 +271,7 @@ export class ArenaSim {
     }
     if (def.castTime > 0) {
       const castMs = this.castTimeOf(u, def);
-      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z } : {}) };
+      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z, ...(ground.lv === 1 ? { gl: 1 as const } : {}) } : {}) };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
@@ -395,7 +399,10 @@ export class ArenaSim {
       const L = u.leap;
       const p = Math.min(1, (this.time + DT * 1000 - L.start) / L.dur);
       u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
-      this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, Math.sin(Math.PI * p) * 5); // in the air: over rails and barricades
+      const yAbs = leapHeight(L, p);
+      this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, Math.max(0, yAbs - heightAt(this.arena, u.pos.x, u.pos.z, u.level))); // in the air: over rails and barricades
+      // coming down onto a walkway: once over it and no lower than its floor, you are on it
+      if (L.toLv === 1 && u.level === 0 && onRaised(this.arena, u.pos.x, u.pos.z) && yAbs >= heightAt(this.arena, u.pos.x, u.pos.z, 1) - STEP_HEIGHT) u.level = 1;
       if (p >= 1) {
         u.leap = null;
         this.emit({ t: 'leap_land', unit: u.id, x: u.pos.x, z: u.pos.z });
@@ -414,7 +421,7 @@ export class ArenaSim {
         const nx = u.pos.x + ((tgt.pos.x - u.pos.x) / d) * k;
         const nz = u.pos.z + ((tgt.pos.z - u.pos.z) / d) * k;
         u.facing = Math.atan2(tgt.pos.x - u.pos.x, tgt.pos.z - u.pos.z);
-        this.place(u, { x: nx, z: nz }, CLEAR_HEIGHT); // a charge bounds over rails and barricades (and off a walkway onto someone below)
+        this.place(u, { x: nx, z: nz }, LOW_CLEAR); // a charge bounds over rails and barricades (and off a walkway onto someone below)
         // blocked by a pillar: stop rather than push against it
         if (dist(before, u.pos) < k * 0.3) this.endCharge(u, false);
         if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
@@ -456,6 +463,9 @@ export class ArenaSim {
       u.pos = { ...(u.home ?? u.pos) };
       u.auras = [];
       u.cooldowns = {};
+      u.dr = {}; // a fresh dummy: no leftover diminishing returns
+      u.level = 0;
+      u.cp = 0;
       u.lastCombatAt = -1e9;
       this.emit({ t: 'respawn', unit: u.id });
     }
@@ -524,7 +534,7 @@ export class ArenaSim {
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
     if (u.resource < this.costOf(u, def)) return this.failCast(u, c.ability, `not enough ${u.resourceType}`);
-    this.execute(u, def, tgt, c.gx !== undefined && c.gz !== undefined ? { x: c.gx, z: c.gz } : undefined);
+    this.execute(u, def, tgt, c.gx !== undefined && c.gz !== undefined ? { x: c.gx, z: c.gz, ...(c.gl === 1 ? { lv: 1 as const } : {}) } : undefined);
   }
 
   cancelCast(u: Unit, reason: string): void {
@@ -580,7 +590,7 @@ export class ArenaSim {
     d = Math.atan2(Math.sin(d), Math.cos(d));
     return Math.abs(d) >= (110 * Math.PI) / 180;
   }
-  private ground: { x: number; z: number } | null = null;
+  private ground: Ground | null = null;
   /** Per-cast scratch values (see execute). */
   private cpSpent = 0;
   private rageMult = 1;
@@ -595,7 +605,7 @@ export class ArenaSim {
     return m;
   }
 
-  private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: { x: number; z: number }): void {
+  private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: Ground): void {
     this.ground = ground ?? null;
     this.rageMult = 1;
     if (def.rageSpend) {
@@ -666,9 +676,11 @@ export class ArenaSim {
         const g = this.ground;
         if (!g) break;
         const fromX = u.pos.x, fromZ = u.pos.z;
-        const to = resolveCollisions({ x: g.x, z: g.z }, this.arena, u.level);
+        // aimed on top of a walkway (the deck or a ramp): land up there; else on the ground
+        const toLv: 0 | 1 = g.lv === 1 && onRaised(this.arena, g.x, g.z) ? 1 : 0;
+        const to = resolveCollisions({ x: g.x, z: g.z }, this.arena, toLv);
         const dur = 450 + dist({ x: fromX, z: fromZ }, to) * 15;
-        u.leap = { fromX, fromZ, toX: to.x, toZ: to.z, start: this.time, dur, damage: eff.damage ?? 0, radius: eff.radius ?? 5 };
+        u.leap = { fromX, fromZ, toX: to.x, toZ: to.z, start: this.time, dur, damage: eff.damage ?? 0, radius: eff.radius ?? 5, fromH: heightAt(this.arena, fromX, fromZ, u.level), toH: heightAt(this.arena, to.x, to.z, toLv), toLv };
         if (u.cast) this.cancelCast(u, 'leapt');
         this.emit({ t: 'leap', unit: u.id, fromX, fromZ, x: to.x, z: to.z });
         break;
@@ -685,7 +697,7 @@ export class ArenaSim {
       case 'flag':
         this.zones.push({
           id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? u.pos.x, z: this.ground?.z ?? u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,
-          start: this.time, firstAt: this.time + eff.duration + 1, nextAt: Infinity, pulse: eff.duration, end: this.time + eff.duration, flag: true, held: new Set(),
+          start: this.time, firstAt: this.time + eff.duration + 1, nextAt: Infinity, pulse: eff.duration, end: this.time + eff.duration, flag: true, held: new Set(), h: this.zoneFloor(u),
         });
         break;
       case 'healMissing':
@@ -759,7 +771,7 @@ export class ArenaSim {
       case 'zone':
         this.zones.push({
           id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? t.pos.x, z: this.ground?.z ?? t.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: eff.amount,
-          start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration,
+          start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration, h: this.ground ? this.zoneFloor(u) : heightAt(this.arena, t.pos.x, t.pos.z, t.level),
         });
         if (eff.initial) {
           // the cast landing: everything standing in the area takes one big hit at once (the pulses that follow are the smaller ones)
@@ -767,8 +779,9 @@ export class ArenaSim {
           const zz = this.ground?.z ?? t.pos.z;
           const m = this.modsOf(u);
           let struck = 0;
+          const zone = this.zones[this.zones.length - 1];
           for (const v of [...this.units.values()]) {
-            if (!v.alive || v.team === u.team || Math.hypot(v.pos.x - zx, v.pos.z - zz) > eff.radius) continue;
+            if (!v.alive || v.team === u.team || Math.hypot(v.pos.x - zx, v.pos.z - zz) > eff.radius || !this.onZoneFloor(v, zone)) continue;
             struck++;
             this.dealDamage(u, v, eff.initial * u.gearMult * this.variance() * m.damageDone * (m.ability[def.id]?.damage ?? 1), def.school, def.id);
           }
@@ -793,7 +806,7 @@ export class ArenaSim {
       case 'smoke':
         this.zones.push({
           id: this.nextZoneId++, owner: u.id, team: u.team, x: u.pos.x, z: u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,
-          start: this.time, firstAt: this.time + eff.duration + 1, nextAt: Infinity, pulse: eff.duration, end: this.time + eff.duration, smoke: true,
+          start: this.time, firstAt: this.time + eff.duration + 1, nextAt: Infinity, pulse: eff.duration, end: this.time + eff.duration, smoke: true, h: heightAt(this.arena, u.pos.x, u.pos.z, u.level),
         });
         break;
       case 'gain':
@@ -868,6 +881,16 @@ export class ArenaSim {
     return remaining;
   }
 
+  /** The floor a ground spell lands on: the top of a walkway when aimed there, else the ground (no aim: the caster's floor). */
+  private zoneFloor(u: Unit): number {
+    const g = this.ground;
+    if (!g) return heightAt(this.arena, u.pos.x, u.pos.z, u.level);
+    return g.lv === 1 ? heightAt(this.arena, g.x, g.z, 1) : 0;
+  }
+  /** Is a unit on the same floor as a zone (a zone on the deck does not reach the ground below, and the other way round)? */
+  private onZoneFloor(v: Unit, z: { h: number }): boolean {
+    return Math.abs(heightAt(this.arena, v.pos.x, v.pos.z, v.level) - z.h) <= 1.6;
+  }
   /** Ground zones that hurt `team`'s units (Flamestrike and the like), for bots to step out of. */
   hazardsFor(team: TeamId): { x: number; z: number; r: number; id: number; firstAt: number }[] {
     return this.zones.filter((z) => z.team !== team && z.amount > 0 && !z.smoke && !z.flag && this.time < z.end).map((z) => ({ x: z.x, z: z.z, r: z.r, id: z.id, firstAt: z.firstAt }));
@@ -1142,7 +1165,7 @@ export class ArenaSim {
 
   /** True while the unit stands in an enemy smoke cloud: it cannot target. */
   inSmoke(u: Unit): boolean {
-    return this.zones.some((z) => z.smoke && z.team !== u.team && this.time < z.end && Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r);
+    return this.zones.some((z) => z.smoke && z.team !== u.team && this.time < z.end && Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r && this.onZoneFloor(u, z));
   }
 
   private tickZones(): void {
@@ -1160,7 +1183,7 @@ export class ArenaSim {
       if (z.flag) {
         // the banner's wall: an enemy inside the circle stays inside (blinks and dashes included) until it falls or the banner ends
         for (const v of this.units.values()) {
-          if (!v.alive || v.team === z.team) continue;
+          if (!v.alive || v.team === z.team || !this.onZoneFloor(v, z)) continue;
           const dx = v.pos.x - z.x, dz = v.pos.z - z.z;
           const d = Math.hypot(dx, dz);
           if (d <= z.r) z.held!.add(v.id);
@@ -1173,7 +1196,7 @@ export class ArenaSim {
         const owner = this.units.get(z.owner);
         for (const v of this.units.values()) {
           if (!v.alive || v.team === z.team || !owner) continue;
-          if (Math.hypot(v.pos.x - z.x, v.pos.z - z.z) > z.r) continue;
+          if (Math.hypot(v.pos.x - z.x, v.pos.z - z.z) > z.r || !this.onZoneFloor(v, z)) continue;
           if (this.time < v.dodgeUntil && jumpHeight(this.time - v.jumpStart) >= JUMP_DODGE_HEIGHT) {
             this.emit({ t: 'dodge', unit: v.id, ability: z.ability });
             continue;
@@ -1204,7 +1227,7 @@ export class ArenaSim {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
       winner: this.winner, units,
-      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}), ...(z.flag ? { flag: true } : {}) })),
+      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}), ...(z.flag ? { flag: true } : {}), ...(z.h > 0.05 ? { y: Math.round(z.h * 100) / 100 } : {}) })),
     };
   }
 
@@ -1226,7 +1249,7 @@ export class ArenaSim {
       ...(Object.values(u.lockouts).some((t) => (t ?? 0) > this.time) ? { lockouts: Object.fromEntries(Object.entries(u.lockouts).filter(([, t]) => (t ?? 0) > this.time)) } : {}),
       stealthed: this.isStealthed(u),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
-      y: u.alive ? (u.leap ? Math.round(Math.sin(Math.PI * Math.min(1, (this.time - u.leap.start) / u.leap.dur)) * 5 * 100) / 100 : Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100) : 0,
+      y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
       controlled: !this.canAct(u) || !!u.charge || !!u.leap,
       autoAttack: u.autoAttack,

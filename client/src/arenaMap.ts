@@ -806,19 +806,20 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     root.add(capStone, foot, band);
   }
 
-  // ---------------------------------------------------------- low barricades: waist-high stone with a wooden top (jump them; you see over them)
-  const lowStone = new THREE.MeshStandardMaterial({ map: pillarTex, color: new THREE.Color(th.floor).lerp(new THREE.Color(0x9a8f80), 0.5), roughness: 0.95 });
-  const lowWood = new THREE.MeshStandardMaterial({ color: 0x6b4c2e, roughness: 1 });
+  // ---------------------------------------------------------- low barricades: chest-high stone with a wooden top (jump them; you see over them)
+  const lowStone = new THREE.MeshStandardMaterial({ map: pillarTex, color: new THREE.Color(th.floor).lerp(new THREE.Color(ARENA.theme === 'frost' ? 0xe4f2ff : 0x9a8f80), 0.5), roughness: 0.95 });
+  const lowWood = new THREE.MeshStandardMaterial({ color: ARENA.theme === 'frost' ? 0xf4f9ff : 0x6b4c2e, roughness: ARENA.theme === 'frost' ? 0.6 : 1 });
   for (const lw of ARENA.lows ?? []) {
     const ww = lw.x1 - lw.x0;
     const wd = lw.z1 - lw.z0;
     const wx = (lw.x0 + lw.x1) / 2;
     const wz = (lw.z0 + lw.z1) / 2;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(ww, 0.85, wd), lowStone);
-    body.position.set(wx, 0.425, wz);
+    const LOW_H = 1.15;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(ww, LOW_H, wd), lowStone);
+    body.position.set(wx, LOW_H / 2, wz);
     body.castShadow = body.receiveShadow = true;
     const top = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.16, 0.14, wd + 0.16), lowWood);
-    top.position.set(wx, 0.92, wz);
+    top.position.set(wx, LOW_H + 0.07, wz);
     top.castShadow = true;
     root.add(body, top);
     // short wooden stakes along the top so it reads as a barricade, not a step
@@ -826,7 +827,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     for (let i = 0; i < n; i++) {
       const t = (i + 0.5) / n;
       const stake = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.42, 5), lowWood);
-      stake.position.set(ww > wd ? lw.x0 + ww * t : wx, 1.2, ww > wd ? wz : lw.z0 + wd * t);
+      stake.position.set(ww > wd ? lw.x0 + ww * t : wx, LOW_H + 0.35, ww > wd ? wz : lw.z0 + wd * t);
       root.add(stake);
     }
   }

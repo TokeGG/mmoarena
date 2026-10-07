@@ -295,7 +295,7 @@ export interface MoveInput { seq: number; fwd: number; strafe: number; facing: n
 export type Result = { ok: true } | { ok: false; reason: string };
 
 export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number; stacks?: number; /** Multiplier on this damage-over-time's ticks (Exsanguinate). */ dotMult?: number }
-export interface CastState { ability: string; target: number; start: number; end: number; /** Ground-targeted spells: where it lands. */ gx?: number; gz?: number; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
+export interface CastState { ability: string; target: number; start: number; end: number; /** Ground-targeted spells: where it lands (gl 1: on top of a walkway). */ gx?: number; gz?: number; gl?: 1; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
 export interface DRState { count: number; resetAt: number }
 
 export interface Unit {
@@ -344,7 +344,7 @@ export interface Unit {
   /** In the air after Heroic Leap: flies from -> to between start and start + dur, then slams down. */
   /** The spell this unit finished casting last, so a Counterspell pressed a moment late still counts. */
   lastCast: { ability: string; at: number } | null;
-  leap: { fromX: number; fromZ: number; toX: number; toZ: number; start: number; dur: number; damage: number; radius: number } | null;
+  leap: { fromX: number; fromZ: number; toX: number; toZ: number; start: number; dur: number; damage: number; radius: number; /** Floor heights at take-off and landing, and the landing level. */ fromH: number; toH: number; toLv: 0 | 1 } | null;
   charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
   lastCombatAt: number;
@@ -466,4 +466,6 @@ export interface ZoneSnap {
   firstAt: number;
   pulse: number;
   end: number;
+  /** Floor height when the zone lies on top of a walkway (absent on the ground). */
+  y?: number;
 }
