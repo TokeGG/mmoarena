@@ -10,3 +10,4 @@ export * from './describe';
 export * from './accounts';
 export * from './jump';
 export * from './replay';
+export * from './humanstyle';

@@ -1,8 +1,9 @@
-import { CLASS_IDS, newPopulation, pickVariant, recordResult } from '@arena/shared';
-import type { Brain, ClassId, Population } from '@arena/shared';
+import { CLASS_IDS, measureHumans, mergeStyle, newPopulation, pickVariant, recordResult, styledBrain } from '@arena/shared';
+import type { Brain, ClassId, HumanStyle, Population, ReplayData } from '@arena/shared';
 import type { Store } from './store';
 
 const KEY = (c: ClassId) => `botlearn:${c}`;
+const STYLE_KEY = (c: ClassId) => `humanstyle:${c}`;
 
 /**
  * Live learning for bots: each class keeps a small population of brains (see shared/src/botbrain.ts). Every bot a room
@@ -12,6 +13,7 @@ const KEY = (c: ClassId) => `botlearn:${c}`;
  */
 export class BotLearner {
   private pops = new Map<ClassId, Population>();
+  private styles = new Map<ClassId, HumanStyle>();
   private ready: Promise<void>;
   private saving = new Map<ClassId, Promise<void>>();
 
@@ -30,6 +32,12 @@ export class BotLearner {
       }
       if (!pop || pop.classId !== c || !Array.isArray(pop.variants) || !pop.variants.length) pop = newPopulation(c, this.rng);
       this.pops.set(c, pop);
+      try {
+        const raw = await this.store.get(STYLE_KEY(c));
+        if (raw) this.styles.set(c, JSON.parse(raw) as HumanStyle);
+      } catch {
+        /* no stored style yet */
+      }
     }
   }
 
@@ -55,6 +63,42 @@ export class BotLearner {
       classId,
       prev.then(() => this.store.set(KEY(classId), JSON.stringify(pop))).catch(() => undefined),
     );
+  }
+
+  /**
+   * Learn from a finished match: play its replay back, measure what each human did and fold it into that class's human
+   * style, then keep a "human" variant (the best bot brain pulled towards that style) in the population. It competes with
+   * the others like any variant, so people's habits only stick if they win against people.
+   */
+  learnFrom(replay: ReplayData): void {
+    let measured: ReturnType<typeof measureHumans>;
+    try {
+      measured = measureHumans(replay);
+    } catch {
+      return; // an unreadable recording teaches nothing
+    }
+    for (const { classId, sample } of measured) {
+      const pop = this.pops.get(classId);
+      if (!pop || !Object.keys(sample).length) continue;
+      const style = mergeStyle(this.styles.get(classId) ?? {}, sample);
+      this.styles.set(classId, style);
+      const rate = (v: { wins: number; games: number }) => (v.wins + 1) / (v.games + 2);
+      const base = [...pop.variants].filter((v) => v.id !== 'human').sort((a, b) => rate(b) - rate(a))[0] ?? pop.variants[0];
+      const brain = styledBrain(base.brain, style);
+      const mine = pop.variants.find((v) => v.id === 'human');
+      if (mine) mine.brain = brain;
+      else pop.variants.push({ id: 'human', brain, wins: 0, games: 0 });
+      const prev = this.saving.get(classId) ?? Promise.resolve();
+      this.saving.set(
+        classId,
+        prev.then(() => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(STYLE_KEY(classId), JSON.stringify(style))])).then(() => undefined).catch(() => undefined),
+      );
+    }
+  }
+
+  /** What has been learned from people so far, per class. */
+  humanStyles(): Record<string, HumanStyle> {
+    return Object.fromEntries(this.styles);
   }
 
   /** For the status endpoint and the owner: how each class's variants are doing. */

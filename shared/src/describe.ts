@@ -169,7 +169,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         {
           const dmg = (n: number) => Math.round(n * mods.damageDone * (mods.ability[def.id]?.damage ?? 1));
           const first = e.initial ? `Enemies in the area take ${dmg(e.initial)} ${def.school} damage the moment the cast lands. ` : '';
-          lines.push(`${first}Marks the ground at the chosen spot for ${e.duration / 1000} sec. Enemies ${e.initial ? 'still ' : ''}inside take ${dmg(e.amount)} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).`);
+          lines.push(`${first}Marks the ground at the chosen spot for ${e.duration / 1000} sec. Enemies ${e.initial ? 'still ' : ''}inside take ${dmg(e.amount)} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`);
         }
         break;
     }

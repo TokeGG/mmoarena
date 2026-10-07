@@ -460,7 +460,7 @@ export class ArenaSim {
     if (!c || !c.ticks) return;
     const def = ABILITIES[c.ability];
     const span = c.end - c.start;
-    while (u.cast === c && (c.done ?? 0) < c.ticks && this.time >= c.start + (span * ((c.done ?? 0) + 1)) / c.ticks - 1e-6) {
+    while (u.cast === c && (c.done ?? 0) < c.ticks && this.time >= c.start + (span * ((c.done ?? 0) + (def.channel?.immediate ? 0 : 1))) / c.ticks - 1e-6) {
       const tgt = this.units.get(c.target);
       if (!tgt || !tgt.alive) {
         u.cast = null;
@@ -735,10 +735,13 @@ export class ArenaSim {
           const zx = this.ground?.x ?? t.pos.x;
           const zz = this.ground?.z ?? t.pos.z;
           const m = this.modsOf(u);
+          let struck = 0;
           for (const v of [...this.units.values()]) {
             if (!v.alive || v.team === u.team || Math.hypot(v.pos.x - zx, v.pos.z - zz) > eff.radius) continue;
+            struck++;
             this.dealDamage(u, v, eff.initial * u.gearMult * this.variance() * m.damageDone * (m.ability[def.id]?.damage ?? 1), def.school, def.id);
           }
+          if (struck > 0 && eff.procOnHit) this.applyAura(u, u, eff.procOnHit);
         }
         break;
       case 'cleanse':

@@ -128,10 +128,11 @@
   "arcane_power": {
     "name": "Arcane Power",
     "kind": "buff",
-    "duration": 12000,
+    "duration": 15000,
     "harmful": false,
     "mods": {
-      "damageDone": 1.25
+      "damageDone": 1.25,
+      "castTime": 0.7
     },
     "dispellable": true
   },

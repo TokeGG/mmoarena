@@ -953,13 +953,8 @@
     "pulse": 1000,
     "amount": 70,
     "initial": 420,
-    "delay": 800
-   },
-   {
-    "type": "aura",
-    "aura": "hot_streak",
-    "chance": 0.15,
-    "self": true
+    "delay": 800,
+    "procOnHit": "hot_streak"
    }
   ]
  },
@@ -1209,7 +1204,7 @@
    {
     "type": "aura",
     "aura": "hot_streak",
-    "chance": 0.15,
+    "chance": 0.25,
     "self": true
    }
   ],
@@ -1453,6 +1448,12 @@
    {
     "type": "damage",
     "amount": 34
+   },
+   {
+    "type": "aura",
+    "aura": "arcane_charge",
+    "chance": 0.3,
+    "self": true
    }
   ],
   "channel": {
@@ -1624,7 +1625,8 @@
   "gcd": true,
   "cost": 30,
   "channel": {
-   "ticks": 4
+   "ticks": 4,
+   "immediate": true
   },
   "effects": [
    {

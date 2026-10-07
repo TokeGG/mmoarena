@@ -712,8 +712,10 @@ describe('warrior rework', () => {
     f.pos = { x: 0, z: 3 };
     const hp = f.health, hb = behind.health;
     assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
-    advance(sim, 1200);
-    assert.ok(f.auras.some((a) => a.id === 'slice_stun'), 'stunned');
+    advance(sim, TICK * 2);
+    assert.ok(f.auras.some((a) => a.id === 'slice_stun'), 'stunned straight away');
+    assert.ok(f.health < hp, 'first cut lands straight away');
+    advance(sim, 1000);
     advance(sim, 4000);
     assert.ok(hp - f.health > 200, `dealt ${hp - f.health}`);
     assert.equal(behind.health, hb, 'untouched behind');

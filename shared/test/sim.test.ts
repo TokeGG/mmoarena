@@ -349,7 +349,7 @@ describe('stealth', () => {
     advance(sim, 500);
     assert.equal(mage.cast, null);
     assert.ok(foe.health < 1e6, 'it landed');
-    // about 15% of casts grant Hot Streak (expect ~45 of 300)
+    // about 25% of casts grant Hot Streak (expect ~75 of 300)
     let procs = 0;
     for (let i = 0; i < 300; i++) {
       mage.resource = mage.resourceMax;
@@ -362,11 +362,11 @@ describe('stealth', () => {
       advance(sim, 700);
       if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
     }
-    assert.ok(procs >= 20 && procs <= 80, `procs ${procs}/300`);
+    assert.ok(procs >= 45 && procs <= 110, `procs ${procs}/300 (25%)`);
   });
 
-  it('Fireball, Flamestrike and Dragon\'s Breath each have a 15% chance per cast to grant Hot Streak', () => {
-    for (const ab of ['fireball', 'flamestrike', 'dragons_breath']) {
+  it('Fireball and Dragon\'s Breath each have a 15% chance per cast to grant Hot Streak', () => {
+    for (const ab of ['fireball', 'dragons_breath']) {
       const sim = live(9);
       const mage = add(sim, 'mage', 0, 0, 0);
       mage.bar = [...mage.bar.slice(0, 7), ab];
@@ -384,6 +384,42 @@ describe('stealth', () => {
       }
       assert.ok(procs >= 15 && procs <= 50, `${ab}: ${procs}/${N}`);
     }
+  });
+
+  it('Flamestrike always grants Hot Streak when its opening hit lands on an enemy, and never when it hits nothing', () => {
+    for (const hit of [true, false]) {
+      const sim = live(4);
+      const mage = add(sim, 'mage', 0, 0, 0);
+      mage.bar = [...mage.bar.slice(0, 7), 'flamestrike'];
+      const foe = add(sim, 'warrior', 1, 0, 6);
+      foe.maxHealth = foe.health = 1e9;
+      advance(sim, TICK);
+      assert.ok(sim.useAbility(mage.id, 'flamestrike', null, { x: hit ? 0 : 25, z: hit ? 6 : 6 }).ok);
+      advance(sim, 3300);
+      assert.equal(mage.auras.some((x) => x.id === 'hot_streak'), hit);
+    }
+  });
+
+  it('Arcane Missiles can add Arcane Charge on each missile; Arcane Power lasts 15 s and cuts cast times by 30%', () => {
+    const sim = live(6);
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'arcane', talents: [], gear: {} } });
+    const foe = add(sim, 'warrior', 1, 0, 8);
+    foe.maxHealth = foe.health = 1e9;
+    advance(sim, TICK);
+    let stacks = 0;
+    for (let i = 0; i < 20; i++) {
+      mage.auras = mage.auras.filter((x) => x.id !== 'arcane_charge'); mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; mage.pos = { x: 0, z: 0 };
+      assert.ok(sim.useAbility(mage.id, 'arcane_missiles', foe.id).ok);
+      advance(sim, 2300);
+      stacks += mage.auras.find((x) => x.id === 'arcane_charge')?.stacks ?? 0;
+    }
+    assert.ok(stacks >= 15 && stacks <= 50, `${stacks} charges over 20 volleys (5 missiles x 30% = 30 expected)`);
+    sim.applyAura(mage, mage, 'arcane_power');
+    const ap = mage.auras.find((x) => x.id === 'arcane_power')!;
+    assert.equal(ap.expiresAt - sim.time, 15000);
+    mage.cooldowns = {}; mage.gcdEnd = 0; mage.auras = mage.auras.filter((x) => x.id !== 'arcane_charge');
+    assert.ok(sim.useAbility(mage.id, 'arcane_blast', foe.id).ok);
+    assert.equal(mage.cast!.end - mage.cast!.start, Math.round(ABILITIES.arcane_blast.castTime * 0.7));
   });
 
   it('hot streak makes the next pyroblast instant and is used up', () => {

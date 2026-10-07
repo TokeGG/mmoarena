@@ -68,6 +68,8 @@ export type ClientMsg =
   | { t: 'invite'; kind: 'party' | 'duel'; name: string }
   | { t: 'invite_reply'; id: string; accept: boolean }
   | { t: 'party_leave' }
+  /** End screen: ready (or not) for another match with the same players. */
+  | { t: 'rematch'; on: boolean }
   /** Pick which side you play on in a party match. */
   | { t: 'party_side'; side: 0 | 1 }
   /** Party members other than the leader: mark yourself ready (with your current class and build) or not. */
@@ -87,6 +89,8 @@ export type ServerMsg =
   | { t: 'queued'; waiting: number; needed: number }
   | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
   /** Owner spectators only: running damage and healing totals for everyone in the match. */
+  /** How many of the people in the finished match are ready to play again. */
+  | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
   | { t: 'closed'; reason: string }
@@ -243,6 +247,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'invite_reply', id: m.id, accept: m.accept === true };
     case 'party_leave':
       return { t: 'party_leave' };
+    case 'rematch':
+      return { t: 'rematch', on: m.on !== false };
     case 'party_side':
       return { t: 'party_side', side: m.side === 1 ? 1 : 0 };
     case 'party_look':

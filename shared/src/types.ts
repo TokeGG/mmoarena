@@ -147,7 +147,7 @@ export type Effect =
   | { type: 'blink'; distance: number }
   | { type: 'gain'; amount: number }
   /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. `initial` is a one-off hit to everything inside the moment the cast lands (not dodgeable). */
-  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number; initial?: number }
+  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number; initial?: number; /** Self aura granted for certain when the opening hit lands on at least one enemy (Flamestrike -> Hot Streak). */ procOnHit?: string }
   /** A smoke cloud on the caster: enemies inside lose their target and cannot target anyone. */
   | { type: 'smoke'; radius: number; duration: number }
   /** Removes every harmful effect from the caster. */
@@ -205,7 +205,7 @@ export interface AbilityDef {
   ignoresControl?: boolean;
   allowWhileRooted?: boolean;
   /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
-  channel?: { ticks: number; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
+  channel?: { ticks: number; /** The first tick fires the moment the channel starts instead of one interval in (Slice and Dice). */ immediate?: boolean; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
 }
 
 export interface ClassDef {

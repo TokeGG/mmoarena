@@ -16,7 +16,7 @@ type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
 /** Spectators see ranked matches this far behind, so watching cannot help the players. */
 const SPECTATE_DELAY_TICKS = 20 * 5;
-const TICKS_AFTER_END = 20 * 20; // keep the room open 20s so everyone sees the result and the scoreboard
+const TICKS_AFTER_END = 20 * 300; // the end screen is a ready check: the room stays open until everyone is ready or leaves (or sits idle this long)
 /** A match must have been live this long to count towards gear unlocks (stops instant-win farming). */
 const MIN_COUNTED_MATCH_MS = 20000;
 
@@ -99,6 +99,10 @@ export class Room {
   private endedTicks = 0;
   private finalSent = false;
   private finalSentLate = false;
+  /** Who has pressed Play again, and what the lobby needs to rebuild the match when everyone has. */
+  private rematchVotes = new Set<Player>();
+  onRematch: ((room: Room) => void) | null = null;
+  private npcPlan: { classId: ClassId; team: TeamId; difficulty: PracticeDifficulty }[] = [];
 
   private credited = false;
   readonly id = crypto.randomBytes(6).toString('hex');
@@ -217,6 +221,7 @@ export class Room {
 
   /** A stand-in that never acts (difficulty 'dummy') or a bot that plays by the normal rules. */
   addNpc(classId: ClassId, team: TeamId, difficulty: PracticeDifficulty): void {
+    this.npcPlan.push({ classId, team, difficulty });
     const label = CLASSES[classId].name;
     if (difficulty === 'dummy') {
       this.sim.addUnit({ name: `Dummy ${label}`, classId, team, controller: 'dummy' });
@@ -253,10 +258,41 @@ export class Room {
       case 'autoOff':
         this.sim.setAutoDisabled(id, msg.off);
         break;
+      case 'rematch':
+        if (this.sim.phase !== 'ended') break;
+        if (msg.on) this.rematchVotes.add(p);
+        else this.rematchVotes.delete(p);
+        this.afterVote();
+        break;
     }
   }
 
+  /** Tell everyone how many are ready, and start the next match once all of them are. */
+  private afterVote(): void {
+    for (const q of this.players.values()) send(q, { t: 'rematch', ready: this.rematchVotes.size, total: this.players.size, you: this.rematchVotes.has(q) });
+    if (this.sim.phase === 'ended' && !this.closed && this.players.size > 0 && this.rematchVotes.size >= this.players.size) this.onRematch?.(this);
+  }
+
+  /** What the lobby needs to play this match again. */
+  rematchPlan() {
+    return {
+      prepMs: this.prepMsUsed, counts: this.countsForProgress, ranked: this.ranked, map: this.arenaId, size: this.size, npcs: this.npcPlan,
+      humans: [...this.players.entries()].map(([id, p]) => ({ p, team: this.sim.units.get(id)!.team })),
+    };
+  }
+
+  /** Hand every player over to the next match without telling them the room closed. */
+  release(): void {
+    for (const p of this.players.values()) {
+      p.room = undefined;
+      p.unitId = undefined;
+    }
+    this.players.clear();
+    this.close('match over');
+  }
+
   removePlayer(p: Player): void {
+    this.rematchVotes.delete(p);
     if (p.unitId !== undefined) {
       if (this.sim.phase !== 'ended') {
         // leaving a live ranked match is a loss
@@ -281,6 +317,7 @@ export class Room {
     p.room = undefined;
     p.unitId = undefined;
     if (this.players.size === 0) this.closed = true;
+    else if (this.sim.phase === 'ended') this.afterVote(); // the ones still here may all be ready already
     this.notify?.(p);
   }
 
@@ -365,6 +402,7 @@ export class Room {
     if (!this.countsForProgress || this.sim.time - this.sim.prepEndsAt < this.minCountedMs) return;
     const draw = this.sim.winner === 'draw';
     const replay = this.recorder?.finish(this.roster()) ?? null;
+    if (replay && this.learner) setImmediate(() => this.learner?.learnFrom(replay)); // the bots study how the people played
     const jobs: Promise<void>[] = [];
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
@@ -912,7 +950,20 @@ export class Lobby {
     const room = new Room(prepMs, counts, this.cfg.minCountedMatchMs, ranked, this.accounts, map);
     room.notify = (q) => this.changed(q);
     room.learner = this.learner;
+    room.onRematch = (old) => this.rematch(old);
     return room;
+  }
+
+  /** Everyone in a finished match pressed Play again: same players, sides and bots in a fresh room. */
+  private rematch(old: Room): void {
+    const plan = old.rematchPlan();
+    old.release();
+    const room = this.makeRoom(plan.prepMs, plan.counts, plan.ranked, plan.map);
+    room.size = plan.size;
+    for (const h of plan.humans) room.addPlayer(h.p, h.team);
+    room.broadcastRoster();
+    for (const n of plan.npcs) room.addNpc(n.classId, n.team, n.difficulty);
+    this.rooms.add(room);
   }
 
   /** Defaults (nothing specified): passive dummies; for 2v2 a priest ally, a warrior and a mage on the other side. */

@@ -28,7 +28,7 @@ const PARAMS: Record<Difficulty, { react: number; think: number; interruptChance
   hard: { react: 160, think: 1, interruptChance: 1 },
 };
 
-const RANGED: Partial<Record<ClassId, { min: number; max: number }>> = {
+export const RANGED: Partial<Record<ClassId, { min: number; max: number }>> = {
   mage: { min: 14, max: 26 },
   priest: { min: 15, max: 30 },
 };

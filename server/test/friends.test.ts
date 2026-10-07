@@ -186,6 +186,25 @@ describe('party play', () => {
     assert.ok(us[0].p.party!.ready.has(us[1].p), 'can ready up again without refreshing');
   });
 
+  it('the end screen is a ready check: the next match starts only once everyone pressed Play again, and leavers do not block it', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
+    for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: 'mage' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', size: 3 });
+    const old = us[0].p.room!;
+    assert.ok(old && us[1].p.room === old && us[2].p.room === old);
+    (old.sim as any).phase = 'ended';
+    lobby.handle(us[0].p, { t: 'rematch', on: true });
+    lobby.handle(us[1].p, { t: 'rematch', on: true });
+    assert.equal(us[0].p.room, old, 'still waiting for Cy_');
+    assert.deepEqual([last(us[0].s, 'rematch')!.ready, last(us[0].s, 'rematch')!.total], [2, 3]);
+    lobby.handle(us[2].p, { t: 'leave' }); // the last one leaves instead of readying
+    assert.ok(us[0].p.room && us[0].p.room !== old, 'a fresh room for the two who stayed');
+    assert.equal(us[0].p.room, us[1].p.room);
+    assert.equal(us[0].p.room!.players.size, 2);
+    assert.equal(us[2].p.room, undefined);
+    assert.equal(us[0].p.party?.members.length, 3, 'the party is untouched');
+  });
+
   it('a party match puts all three friends in a 2v2 on the sides they picked, with a bot filling the gap', async () => {
     const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
     for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: i === 1 ? 'priest' : 'rogue' });
