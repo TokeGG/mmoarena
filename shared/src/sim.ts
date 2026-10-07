@@ -548,6 +548,16 @@ export class ArenaSim {
           id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? t.pos.x, z: this.ground?.z ?? t.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: eff.amount,
           start: this.time, firstAt: this.time + (eff.delay ?? 800), nextAt: this.time + (eff.delay ?? 800), pulse: eff.pulse, end: this.time + eff.duration,
         });
+        if (eff.initial) {
+          // the cast landing: everything standing in the area takes one big hit at once (the pulses that follow are the smaller ones)
+          const zx = this.ground?.x ?? t.pos.x;
+          const zz = this.ground?.z ?? t.pos.z;
+          const m = this.modsOf(u);
+          for (const v of [...this.units.values()]) {
+            if (!v.alive || v.team === u.team || Math.hypot(v.pos.x - zx, v.pos.z - zz) > eff.radius) continue;
+            this.dealDamage(u, v, eff.initial * u.gearMult * this.variance() * m.damageDone * (m.ability[def.id]?.damage ?? 1), def.school, def.id);
+          }
+        }
         break;
       case 'cleanse':
         for (const a of [...u.auras]) if (AURAS[a.id].harmful) this.removeAura(u, a, 'cleansed');

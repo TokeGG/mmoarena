@@ -1118,6 +1118,14 @@ export class Effects {
         };
         m = { disc: mk(this.discGeo), ring: mk(this.ringGeo) };
         this.zoneMeshes.set(z.id, m);
+        // a zone with an opening hit (Flamestrike) lands with a blast: column, shockwave and sparks
+        const zone = ABILITIES[z.ability]?.effects.find((e) => e.type === 'zone');
+        if (zone && zone.type === 'zone' && zone.initial) {
+          this.column(z.x, z.z, color, 0.7, z.r * 0.5, 9);
+          this.ring(z.x, z.z, color, 0.5, z.r, 0.55, 0.08, 1);
+          this.ring(z.x, z.z, 0xffffff, 0.3, z.r * 0.7, 0.4, 0.09, 0.8);
+          this.burst(z.x, 0.8, z.z, color, 34, 7, 0.6, 0.7);
+        }
       }
       const armed = now >= z.firstAt;
       const sincePulse = armed ? ((now - z.firstAt) % z.pulse) / z.pulse : 0;

@@ -149,7 +149,11 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(`Drops a smoke cloud ${e.radius} yards wide for ${e.duration / 1000} sec. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.`);
         break;
       case 'zone':
-        lines.push(`Marks the ground at the chosen spot for ${e.duration / 1000} sec. Enemies inside take ${Math.round(e.amount * mods.damageDone * (mods.ability[def.id]?.damage ?? 1))} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).`);
+        {
+          const dmg = (n: number) => Math.round(n * mods.damageDone * (mods.ability[def.id]?.damage ?? 1));
+          const first = e.initial ? `Enemies in the area take ${dmg(e.initial)} ${def.school} damage the moment the cast lands. ` : '';
+          lines.push(`${first}Marks the ground at the chosen spot for ${e.duration / 1000} sec. Enemies ${e.initial ? 'still ' : ''}inside take ${dmg(e.amount)} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).`);
+        }
         break;
     }
   }

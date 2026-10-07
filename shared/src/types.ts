@@ -105,8 +105,8 @@ export type Effect =
   | { type: 'charge'; stopDistance: number; speed: number; /** Damage dealt on landing, when the target's stun ends. */ hit?: number }
   | { type: 'blink'; distance: number }
   | { type: 'gain'; amount: number }
-  /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. */
-  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number }
+  /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. `initial` is a one-off hit to everything inside the moment the cast lands (not dodgeable). */
+  | { type: 'zone'; radius: number; duration: number; pulse: number; amount: number; delay?: number; initial?: number }
   /** A smoke cloud on the caster: enemies inside lose their target and cannot target anyone. */
   | { type: 'smoke'; radius: number; duration: number }
   /** Removes every harmful effect from the caster. */

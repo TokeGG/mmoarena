@@ -903,7 +903,8 @@
     "radius": 5,
     "duration": 8000,
     "pulse": 1000,
-    "amount": 420,
+    "amount": 70,
+    "initial": 420,
     "delay": 800
    }
   ]
