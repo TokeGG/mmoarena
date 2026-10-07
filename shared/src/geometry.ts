@@ -316,6 +316,20 @@ export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Lev
     }
     if (la === 0 && lb === 0) {
       for (const r of [...dk.ramps, ...deckPiers(arena)]) if (segmentHitsRect(a, b, r.x0, r.x1, r.z0, r.z1)) return false; // on the ground, the ramps and piers are walls
+    } else {
+      // someone up on a ramp (or the deck) and someone on the far side of a ramp: the ramp is a solid wedge, so the line is
+      // blocked wherever it passes below the ramp's surface (sampled along the part of the line over the ramp)
+      for (const r of dk.ramps) {
+        const span = segmentRectSpan(a, b, r.x0, r.x1, r.z0, r.z1);
+        if (!span) continue;
+        const [t0, t1] = span;
+        const n = Math.max(4, Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) * (t1 - t0) * 2));
+        for (let i = 1; i < n; i++) {
+          const t = t0 + ((t1 - t0) * i) / n;
+          const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+          if (ya + (yb - ya) * t < rampHeight(r, x, z, dk.height) - 0.05) return false;
+        }
+      }
     }
   }
   return true;

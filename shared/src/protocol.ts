@@ -7,6 +7,8 @@ export const PROTOCOL_VERSION = 9;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
+/** What a unit is playing with, shown to people watching a match. */
+export interface UnitBuild { id: number; name: string; classId: ClassId; team: TeamId; spec: string | null; talents: string[]; bar: string[] }
 /** One bot in an owner's bot match: its class and, if chosen, its spec (else a random one). */
 export interface BotPick { classId: ClassId; spec?: string }
 
@@ -66,6 +68,8 @@ export type ClientMsg =
    * Owner only: a private match of bots against bots, watched live. Each side lists its bots (class and, optionally, spec);
    * nobody else can see or join it, and it closes when the owner stops watching.
    */
+  /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
+  | { t: 'follow'; name: string | null }
   | { t: 'bot_match'; size: TeamSize; teams: [BotPick[], BotPick[]]; difficulty: 'easy' | 'normal' | 'hard'; map: string }
   /** Friends: your list and requests. */
   | { t: 'friends' }
@@ -105,6 +109,10 @@ export type ServerMsg =
   | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'suggest_ack'; ok: boolean; reason?: string }
   | { t: 'suggestions'; rows: { at: number; name: string; text: string; note?: string }[] }
+  /** For people watching: every unit's spec, talents and ability bar. */
+  | { t: 'builds'; units: UnitBuild[] }
+  /** Who the owner is following into their matches (null: nobody). */
+  | { t: 'following'; name: string | null }
   /** Owner spectators only: running damage and healing totals for everyone in the match. */
   | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
@@ -285,6 +293,10 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'spectate':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
       return { t: 'spectate', id: m.id };
+    case 'follow':
+      if (m.name === null) return { t: 'follow', name: null };
+      if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+      return { t: 'follow', name: m.name };
     case 'bot_match': {
       const size = m.size === 1 || m.size === 2 || m.size === 3 ? (m.size as TeamSize) : null;
       if (!size || !Array.isArray(m.teams) || m.teams.length !== 2) return null;

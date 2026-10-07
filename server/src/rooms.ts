@@ -53,6 +53,8 @@ export interface Player {
   size: TeamSize;
   /** The match this connection is watching, if any. */
   watching?: Room;
+  /** Owner: the account (key) this connection follows into every match it plays. */
+  follow?: string;
   party?: Party;
   /** Waiting for this friend to join a duel (account key), and since when. */
   duelWith?: string;
@@ -245,6 +247,7 @@ export class Room {
     const players = this.roster();
     if (players.length) send(p, { t: 'roster', players });
     if (p.ownerOk) send(p, { t: 'stats', rows: this.statRows() });
+    send(p, { t: 'builds', units: [...this.sim.units.values()].map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar })) });
   }
 
   /** An owner's private bot match: nobody plays in it, and it closes once nobody is watching. */
@@ -855,6 +858,21 @@ export class Lobby {
         this.changed(p);
         break;
       }
+      case 'follow': {
+        if (!p.ownerOk) return void send(p, { t: 'notice', text: 'Only the owner can follow players.' });
+        if (msg.name === null) {
+          p.follow = undefined;
+          return void send(p, { t: 'following', name: null });
+        }
+        const key = msg.name.toLowerCase();
+        p.follow = key;
+        send(p, { t: 'following', name: msg.name });
+        // already in a match: go and watch it now (dummy practice included: the owner sees everything)
+        const target = [...this.conns].find((q) => q.account?.key === key && q.room);
+        if (target && !this.busy(p)) this.pullFollowers(target);
+        else send(p, { t: 'notice', text: `Following ${msg.name}: you will join their next match as soon as it starts.` });
+        break;
+      }
       case 'bot_match': {
         // the owner's test bench: bots against bots, watched live, in a room nobody else can find
         if (!p.ownerOk) return void send(p, { t: 'notice', text: 'Only the owner can start a bot match.' });
@@ -972,6 +990,19 @@ export class Lobby {
   }
 
   /** Something about `p` changed (online, queueing, in a match...): tell the friends who are watching their list. */
+  /** `q` just went into a match: an owner following them comes along as a live spectator, wherever they were watching. */
+  private pullFollowers(q: Player): void {
+    const room = q.room;
+    const key = q.account?.key;
+    if (!room || !key) return;
+    for (const f of this.conns) {
+      if (f.follow !== key || !f.ownerOk || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
+      f.watching?.removeSpectator(f);
+      room.addSpectator(f);
+      send(f, { t: 'notice', text: `Following ${q.account!.name} into their match.` });
+    }
+  }
+
   private changed(p: Player, account = p.account): void {
     if (!account) return;
     const me = account.name.toLowerCase();
@@ -1134,7 +1165,10 @@ export class Lobby {
 
   private makeRoom(prepMs: number, counts: boolean, ranked: boolean, map: string): Room {
     const room = new Room(prepMs, counts, this.cfg.minCountedMatchMs, ranked, this.accounts, map);
-    room.notify = (q) => this.changed(q);
+    room.notify = (q) => {
+      this.changed(q);
+      this.pullFollowers(q);
+    };
     room.learner = this.learner;
     room.onRematch = (old) => this.rematch(old);
     room.onAbort = (r, leaver) => this.abortRanked(r, leaver);

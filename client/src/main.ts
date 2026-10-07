@@ -24,7 +24,7 @@ import { FriendsUi } from './friendsUi';
 import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
-import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
+import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
@@ -308,6 +308,13 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'spectating':
       startSpectate('live', m.map, m.id);
+      break;
+    case 'builds':
+      if (spec) buildsPanel.set(m.units);
+      break;
+    case 'following':
+      following = m.name;
+      if (!m.name) friendsUi.handle({ t: 'notice', text: 'Stopped following.' });
       break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
@@ -721,6 +728,7 @@ controls.onKey = (code, e) => {
   }
   if (!latest) return;
   if (code === 'KeyB' && (spec?.kind === 'live' || spectateBar.board.visible)) return void spectateBar.board.toggle();
+  if (code === 'KeyN' && spec) return void buildsPanel.toggle();
   const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);
@@ -944,6 +952,8 @@ requestAnimationFrame(frame);
 
 // ------------------------------------------------------------------ watching: live matches and replays
 
+/** Watching: everyone's spec, talents and skills, on the side. */
+const buildsPanel = new BuildsPanel();
 const spectateBar = new SpectateBar({
   switchKey: () => binds.label('nextTarget'),
   onExit: () => {
@@ -963,11 +973,14 @@ const spectateBar = new SpectateBar({
     onSnapshot(spec.runner.snapshot(), []);
   },
 });
+/** Owner: who is being followed into their matches. */
+let following: string | null = null;
 const livePicker = new LivePicker(
   (id) => send({ t: 'spectate', id }),
   () => send({ t: 'live' }),
   () => !!accountUi.account,
   () => accountUi.openAuth(),
+  { isOwner: () => !!accountUi.account?.ownerOk, current: () => following, set: (name) => send({ t: 'follow', name }) },
 );
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
@@ -999,6 +1012,8 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
     const names = runner.data.units.map((u) => u.name);
     spectateBar.showReplay(runner.data.ticks, `${mapName(runner.data.arena)} · ${names.join(', ')}`, `${location.origin}/?replay=${id}`);
     onSnapshot(runner.snapshot(), []);
+    // the recording has every unit's build: show it like a live watch does
+    buildsPanel.set(runner.data.units.map((o, i) => ({ id: i + 1, name: o.name, classId: o.classId, team: o.team, spec: o.build?.spec ?? null, talents: o.build?.talents ?? [], bar: barFor(o.classId, o.build, CLASSES[o.classId].bar) })));
   } else spectateBar.showLive();
 }
 
@@ -1027,6 +1042,7 @@ function endSpectateState() {
   if (!spec) return;
   spec = null;
   spectateBar.hide();
+  buildsPanel.clear();
   document.body.classList.remove('spectating');
   you = 0;
 }

@@ -332,6 +332,8 @@ export interface Unit {
   /** Build: ability bar, spec id and resolved passive modifiers. */
   bar: string[];
   spec: string | null;
+  /** The talent picked in each tier ('' for none), for showing a build to people watching. */
+  talents: string[];
   /** Cosmetic gear summary (see gearLook). */
   look: string;
   mods: Mods;

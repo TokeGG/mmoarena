@@ -426,3 +426,15 @@ describe('melee between floors', () => {
     assert.ok(m.health < hp, 'and on the same floor it does');
   });
 });
+
+describe('ramps and sight', () => {
+  it('a ramp is a solid wedge: from on it you cannot see someone on the ground on its far side, and the other way round', () => {
+    const a = arenaById('overlook'); // north ramp x -2.5..2.5, z 5..13, rising to the deck at z 5
+    const onRamp = { x: 2.2, z: 7 };
+    const across = { x: -5, z: 7 };
+    assert.equal(hasLOS(onRamp, across, a, 1, 0), false, 'the ramp body is in the way');
+    assert.equal(hasLOS(across, onRamp, a, 0, 1), false, 'both ways');
+    assert.equal(hasLOS(onRamp, { x: 6, z: 7 }, a, 1, 0), true, 'someone on the near side is seen');
+    assert.equal(hasLOS({ x: 0, z: 11 }, { x: 0, z: 3 }, a, 1, 1), true, 'up the ramp onto the deck is clear');
+  });
+});

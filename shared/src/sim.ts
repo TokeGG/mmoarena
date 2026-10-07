@@ -97,7 +97,7 @@ export class ArenaSim {
       pos: { x: spawn.x, z: spawn.z }, facing, alive: true,
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      level: 0, gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
+      level: 0, gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, talents: [...(o.build?.talents ?? [])], look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
       autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], charge: null, leap: null, lastCast: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
@@ -1242,8 +1242,21 @@ export class ArenaSim {
 
   /** Stealthed enemies are only visible up close (measured in 3D: a rogue on the deck above you is not "close"). */
   canSee(viewer: Unit, other: Unit): boolean {
-    if (viewer.team === other.team || !this.isStealthed(other)) return true;
+    if (viewer.team === other.team) return true;
+    if (this.smokeHides(viewer, other)) return false;
+    if (!this.isStealthed(other)) return true;
     return this.gap(viewer, other.pos, other.level) <= TUNING.stealthDetect;
+  }
+
+  /**
+   * Smoke Bomb, both ways: an enemy standing in the cloud cannot target anyone, and nobody outside a cloud can target an
+   * enemy of theirs inside it (the rogue who threw it, or its partner).
+   */
+  smokeHides(viewer: Unit, other: Unit): boolean {
+    if (viewer.team === other.team || !this.zones.length) return false;
+    if (this.inSmoke(viewer)) return true;
+    const inCloud = (u: Unit, z: (typeof this.zones)[number]) => Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r && this.onZoneFloor(u, z);
+    return this.zones.some((z) => z.smoke && this.time < z.end && z.team === other.team && inCloud(other, z) && !inCloud(viewer, z));
   }
 
   /** Enemy units that `team` cannot see right now: stealthed, and no living member of the team is close enough to spot them. */
@@ -1325,7 +1338,16 @@ export class ArenaSim {
   private tickZones(): void {
     if (!this.zones.length) return;
     for (const v of this.units.values()) {
-      if (!v.alive || !this.inSmoke(v)) continue;
+      if (!v.alive) continue;
+      // an enemy who stepped into its own team's smoke is lost from sight: the target drops, the swing and the cast stop
+      const t = v.target !== null ? this.units.get(v.target) : undefined;
+      if (t && t.team !== v.team && !this.inSmoke(v) && this.smokeHides(v, t)) {
+        v.target = null;
+        v.autoAttack = false;
+        if (v.cast && v.cast.target === t.id) this.cancelCast(v, 'target vanished');
+        continue;
+      }
+      if (!this.inSmoke(v)) continue;
       if (v.target !== null) v.target = null;
       v.autoAttack = false;
       if (v.cast) {

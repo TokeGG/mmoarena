@@ -29,5 +29,6 @@ export const COSMETICS = cosmeticsJson as unknown as CosmeticsDef;
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
 
 /** Patch notes, newest first. The top entry's version is always the game's version (a test checks it). */
-export interface PatchNote { version: string; date: string; title: string; changes: string[] }
+/** `at`: when it went out, in UTC (ISO 8601); shown in each viewer's own time zone. */
+export interface PatchNote { version: string; date: string; at?: string; title: string; changes: string[] }
 export const PATCHES = patchesJson as PatchNote[];

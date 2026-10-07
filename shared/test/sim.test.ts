@@ -1106,7 +1106,7 @@ describe('crowd control that breaks on damage', () => {
 });
 
 describe('smoke bomb', () => {
-  it('enemies inside lose their target and cannot target; the caster team can, and leaving restores it', () => {
+  it('no targeting into or out of the cloud for enemies; the caster team is unaffected', () => {
     const sim = live();
     const rogue = add(sim, 'rogue', 0, 0, 0);
     const ally = add(sim, 'mage', 0, 2, 0);
@@ -1121,14 +1121,19 @@ describe('smoke bomb', () => {
     assert.ok(sim.useAbility(rogue.id, 'choke_bomb').ok);
     advance(sim, TICK * 2);
     assert.equal(foe.target, null, 'target taken away inside the cloud');
-    assert.equal(far.target, rogue.id, 'outside the cloud nothing changes');
+    assert.equal(far.target, null, 'from outside, the rogue inside is lost from sight too');
+    mustFail(sim.setTarget(far.id, rogue.id), /not visible/);
+    mustFail(sim.setTarget(far.id, ally.id), /not visible/); // the rogue's partner in the cloud is hidden as well
     mustFail(sim.setTarget(foe.id, rogue.id), /smoke/);
     mustFail(sim.useAbility(foe.id, 'mortal_strike', rogue.id), /smoke/);
     assert.ok(sim.setTarget(ally.id, foe.id).ok, 'the caster team is not affected');
     assert.ok(sim.snapshot().zones.some((z) => z.smoke), 'the cloud is in the snapshot');
     foe.pos = { x: 20, z: 0 };
     advance(sim, TICK * 2);
-    assert.ok(sim.setTarget(foe.id, rogue.id).ok, 'can target again after leaving');
+    mustFail(sim.setTarget(foe.id, rogue.id), /not visible/); // out of the cloud, but the rogue is still in it
+    rogue.pos = { x: 12, z: 0 };
+    advance(sim, TICK);
+    assert.ok(sim.setTarget(foe.id, rogue.id).ok, 'once the rogue steps out it can be targeted again');
     advance(sim, 7000);
     assert.ok(!sim.snapshot().zones.some((z) => z.smoke), 'the cloud fades');
   });

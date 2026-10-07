@@ -7,11 +7,13 @@ describe('patch notes', () => {
   it('the newest entry is the current version, and entries are well formed, newest first', () => {
     const pkg = JSON.parse(fs.readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { version: string };
     assert.equal(PATCHES[0].version, pkg.version, 'add a patch note for this version to shared/data/patches.json');
+    assert.ok(PATCHES[0].at, 'the newest patch says when it went out (at, in UTC)');
     const key = (v: string) => v.split('.').map(Number);
     for (let i = 0; i < PATCHES.length; i++) {
       const p = PATCHES[i];
       assert.match(p.version, /^\d+\.\d+\.\d+$/);
       assert.match(p.date, /^\d{4}-\d{2}-\d{2}$/);
+      assert.ok(p.at === undefined || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(p.at), `${p.version}: at is a UTC time like 2026-10-07T21:24:05Z`);
       assert.ok(p.title && p.changes.length > 0 && p.changes.every((c) => c.trim()), `${p.version} needs a title and changes`);
       if (i > 0) {
         const [a, b] = [key(PATCHES[i - 1].version), key(p.version)];

@@ -173,6 +173,22 @@
   .slot.locked:hover, body[data-hud-style=glass] .slot.locked:hover { border-color:#8a7340; transform:none; cursor:not-allowed; }
   .slot.blocked { filter:grayscale(1) brightness(.35); } .slot.blocked:hover { transform:none; border-color:#8a7340; }
   .scoreboard { position:fixed; top:90px; left:50%; transform:translateX(-50%); z-index:30; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:10px 14px; min-width:520px; box-shadow:0 6px 24px rgba(0,0,0,.7); }
+  .builds { position:fixed; top:90px; right:12px; z-index:29; width:250px; max-height:calc(100vh - 200px); overflow:auto; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:12px; }
+  .builds.hidden { display:none; }
+  .builds.min { width:auto; padding:4px 8px; }
+  .builds .bd-btns { display:flex; gap:4px; }
+  .builds .bd-head { display:flex; justify-content:space-between; align-items:center; font:700 14px var(--serif, serif); letter-spacing:2px; margin-bottom:4px; }
+  .builds .bd-team { margin:8px 0 4px; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:#c9a24a; }
+  .builds .bd-team.t1 { color:#b58cff; }
+  .builds .bd-unit { padding:6px 0; border-top:1px solid #2a2a33; }
+  .builds .bd-name { display:flex; justify-content:space-between; gap:6px; font-weight:700; }
+  .builds .bd-name small { color:#9a9aa6; font-weight:400; }
+  .builds .bd-bar { display:flex; flex-wrap:wrap; gap:3px; margin:4px 0; }
+  .builds .bd-skill { width:24px; height:24px; display:grid; place-items:center; background:#1c1d25; border:1px solid #3a3a46; border-radius:5px; cursor:help; font-size:14px; }
+  .builds .bd-talents { display:flex; flex-wrap:wrap; gap:3px; }
+  .builds .bd-talent { padding:1px 6px; border:1px solid #4a3f1f; border-radius:8px; color:#ffd24a; cursor:help; font-size:11px; }
+  .builds .bd-none { color:#77778a; }
+  @media (max-width: 900px) { .builds { width:200px; top:auto; bottom:110px; max-height:40vh; } }
   .scoreboard .sb-head { font:700 16px var(--serif, serif); letter-spacing:2px; margin-bottom:6px; text-align:center; }
   .scoreboard small { display:block; margin-top:6px; text-align:center; color:#9a9aa6; }
   .sb-table { width:100%; border-collapse:collapse; font-size:13px; } .sb-table th { text-align:right; color:#9a9aa6; font-weight:600; padding:2px 8px; } .sb-table th:first-child, .sb-table td:first-child { text-align:left; }
@@ -595,6 +611,7 @@
 .sb-row{display:flex;gap:8px;align-items:center}.sb-row .sb-title{font-weight:700}.sb-row .sb-follow{flex:1;font-size:12px;color:#8b93a5;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sb-row input[type=range]{flex:1;min-width:0}.sb-time{font-size:12px;color:#8b93a5;min-width:78px;text-align:center}.sb-rates{display:flex;gap:4px}.sb-rates .sel{border-color:#7a5cff;color:#cdbfff}
 .live-list{display:grid;gap:8px;max-height:60vh;overflow:auto}.live-row{display:grid;gap:2px;text-align:left;background:#11151d;border:1px solid #2a3040;border-radius:8px;padding:10px;color:#e6e9ef;cursor:pointer}.live-row:hover{border-color:#7a5cff}.live-row small{color:#8b93a5}
+.live-follow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px;padding:8px 10px;border:1px solid #4a3a6a;border-radius:10px;background:#16121e}.live-follow input{flex:1;min-width:120px}.live-people{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}.live-followbtn{cursor:pointer;padding:2px 8px;border:1px solid #4a3a6a;border-radius:8px;font-size:11px;color:#d9b8ff}.live-followbtn:hover{border-color:#c9a24a}
 .hist-list{display:grid;gap:6px}.hist-row{display:grid;grid-template-columns:54px 1fr auto;gap:8px;align-items:center;background:#11151d;border:1px solid #2a3040;border-left-width:4px;border-radius:8px;padding:8px 10px}
 .hist-row.win{border-left-color:#4ade80}.hist-row.loss{border-left-color:#ef4444}.hist-row.draw{border-left-color:#9aa3b5}
 .hist-res{font-weight:800;font-size:13px}.hist-row.win .hist-res{color:#4ade80}.hist-row.loss .hist-res{color:#ef6a6a}.hist-sub{font-size:12px;color:#8b93a5}.hist-mid{min-width:0}.hist-mid div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
