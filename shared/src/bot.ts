@@ -3,6 +3,15 @@ import { angleTo, dist, distPointToSegment, hasLOS } from './geometry';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
+import { SPECS } from './data';
+import type { Build } from './types';
+
+/** A bot's loadout: one of the class's specs, so bots field every weapon spec and bar that exists in the data. */
+export function botBuild(classId: ClassId, seed: number): Build {
+  const specs = SPECS[classId];
+  return { spec: specs[Math.abs(seed) % specs.length].id, talents: [], gear: {} };
+}
+
 export type Difficulty = 'easy' | 'normal' | 'hard';
 
 /**
@@ -139,6 +148,12 @@ export class Bot {
     return this.sim.useAbility(u.id, ability, target).ok;
   }
 
+  /** First ability from the list that goes off: each spec's bar holds a different mix, and anything off the bar just fails. */
+  private useFirst(u: Unit, abilities: string[], target?: number): boolean {
+    for (const a of abilities) if (this.use(u, a, target)) return true;
+    return false;
+  }
+
   private isPolymorphed(e: Unit): boolean {
     return e.auras.some((a) => AURAS[a.id].breaksOnDamage);
   }
@@ -206,27 +221,41 @@ export class Bot {
     if (!tgt) return;
     this.sim.setAutoAttack(u.id, true); // rage and damage start from swinging, not only from abilities
     const d = dist(u.pos, tgt.pos);
+    const slowed = tgt.auras.some((a) => a.kind === 'slow');
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
+    if (hpFrac(u) < 0.45 && (this.use(u, 'enraged_regeneration') || this.use(u, 'shield_wall'))) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
-    if (kiter && !tgt.auras.some((a) => a.kind === 'slow') && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
-    if (this.use(u, 'mortal_strike', tgt.id)) return;
-    if (!tgt.auras.some((a) => a.kind === 'slow') && u.resource >= 40) this.use(u, 'hamstring', tgt.id);
+    if (kiter && !slowed && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
+    if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
+    if (d <= 8) this.use(u, 'recklessness');
+    if (!tgt.auras.some((a) => a.kind === 'stun') && d <= 8 && this.use(u, 'concussion_blow', tgt.id)) return;
+    if (d <= 8 && enemies.filter((e) => dist(u.pos, e.pos) <= 8).length >= 2 && this.use(u, 'whirlwind')) return;
+    // whichever main strike this spec carries
+    for (const strike of ['mortal_strike', 'bloodthirst', 'shield_slam']) if (this.use(u, strike, tgt.id)) return;
+    if (!slowed && u.resource >= 40) this.use(u, 'hamstring', tgt.id);
   }
 
   private rogue(u: Unit, enemies: Unit[], tgt?: Unit): void {
     for (const e of this.interruptible(enemies)) if (this.use(u, 'kick', e.id)) return;
     if (!tgt) return;
+    const d = dist(u.pos, tgt.pos);
     if (this.sim.isStealthed(u)) {
-      if (dist(u.pos, tgt.pos) > 12) this.use(u, 'sprint');
-      this.use(u, 'cheap_shot', tgt.id);
+      if (d > 12) this.use(u, 'sprint');
+      if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
+      this.useFirst(u, ['cheap_shot', 'garrote'], tgt.id);
       return;
     }
     this.sim.setAutoAttack(u.id, true);
-    if (u.cp >= 3 && !tgt.auras.some((a) => a.kind === 'stun') && this.use(u, 'kidney_shot', tgt.id)) return;
-    if (dist(u.pos, tgt.pos) > 12) this.use(u, 'sprint');
-    if (u.cp >= 4 && this.use(u, 'eviscerate', tgt.id)) return;
-    this.use(u, 'sinister_strike', tgt.id);
+    if (hpFrac(u) < 0.5) this.use(u, 'evasion');
+    if (d <= 8) this.use(u, 'adrenaline_rush');
+    if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
+    if (d > 12) this.use(u, 'sprint');
+    const stunned = tgt.auras.some((a) => a.kind === 'stun');
+    if (u.cp >= 4 && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
+    if (u.cp >= 3 && !stunned && this.use(u, 'kidney_shot', tgt.id)) return;
+    if (!tgt.auras.some((a) => a.id === 'garrote_bleed') && this.use(u, 'garrote', tgt.id)) return;
+    this.useFirst(u, ['mutilate', 'sinister_strike'], tgt.id);
   }
 
   private mage(u: Unit, enemies: Unit[], tgt?: Unit): void {
@@ -244,7 +273,8 @@ export class Bot {
       }
     }
     if (u.cast) return;
-    if (meleeNear.some((e) => dist(u.pos, e.pos) <= 9) && this.use(u, 'frost_nova')) return;
+    if (meleeNear.some((e) => dist(u.pos, e.pos) <= 9) && this.useFirst(u, ['frost_nova', 'dragons_breath', 'arcane_explosion'])) return;
+    if (hpFrac(u) < 0.75 && !u.auras.some((a) => a.kind === 'absorb') && this.use(u, 'ice_barrier')) return;
 
     const poly = this.polyTarget(u, enemies, tgt);
     if (poly && this.use(u, 'polymorph', poly.id)) return;
@@ -252,9 +282,9 @@ export class Bot {
     if (!tgt) return;
     const slowed = tgt.auras.some((a) => a.id === 'frostbolt_slow');
     if (!slowed && this.use(u, 'frostbolt', tgt.id)) return;
-    // Fireball is an instant with an 8 s cooldown: when it is not ready, keep casting Frostbolt instead of standing idle
-    if (this.use(u, 'fireball', tgt.id)) return;
-    this.use(u, 'frostbolt', tgt.id);
+    this.use(u, 'arcane_power');
+    // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
+    this.useFirst(u, ['deep_freeze', 'fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles'], tgt.id);
   }
 
   /** Sheep the enemy that is not the kill target, but only while it can still be sheeped. */
@@ -289,22 +319,26 @@ export class Bot {
     // Smite is filler: drop it when something urgent shows up.
     if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.cancelCast(u, 'cancelled');
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
+    if (u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return;
+    if (hpFrac(u) < 0.4 && this.use(u, 'desperate_prayer')) return;
     if (u.cast) return;
 
     // on its own the priest has to win the fight too: it heals later and spends the rest of its time on Smite
     const solo = allies.length <= 1;
     if (lowest) {
       const f = hpFrac(lowest);
+      if (f < 0.35 && lowest !== u && this.use(u, 'pain_suppression', lowest.id)) return;
       if (f < 0.45 && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
-      if (f < (solo ? 0.6 : 0.8) && this.use(u, 'flash_heal', lowest.id)) return;
+      if (f < (solo ? 0.6 : 0.8) && this.useFirst(u, f < 0.5 ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], lowest.id)) return;
       if (f < (solo ? 0.75 : 0.95) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
     }
 
     const meleeNear = enemies.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 7);
     // alone, a priest screams as soon as melee reaches it (the fear buys time to heal and cast); with a partner it waits until hurt
     if (meleeNear.length && (solo || hpFrac(u) < 0.75) && this.use(u, 'psychic_scream')) return;
+    if (meleeNear.length && this.use(u, 'holy_nova')) return;
 
-    if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) this.use(u, 'smite', tgt.id);
+    if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) this.useFirst(u, hpFrac(tgt) < 0.3 ? ['shadow_word_death', 'mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay'] : ['mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay'], tgt.id);
   }
 
   // ------------------------------------------------------------------ movement

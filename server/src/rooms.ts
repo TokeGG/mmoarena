@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, CLASSES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
 import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
@@ -215,8 +215,9 @@ export class Room {
       this.sim.addUnit({ name: `Dummy ${label}`, classId, team, controller: 'dummy' });
       return;
     }
-    const u = this.sim.addUnit({ name: `Bot ${label}`, classId, team, controller: 'bot' });
-    this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, Math.floor(Math.random() * 2 ** 31)));
+    const seed = Math.floor(Math.random() * 2 ** 31);
+    const u = this.sim.addUnit({ name: `Bot ${label}`, classId, team, controller: 'bot', build: botBuild(classId, seed) });
+    this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed));
   }
 
   command(p: Player, msg: ClientMsg): void {

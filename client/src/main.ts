@@ -52,6 +52,7 @@ let targetId: number | null = null;
  */
 let spec: { kind: 'live' | 'replay'; runner?: ReplayRunner; id?: string; rate: number; paused: boolean; clock: number } | null = null;
 
+let endBoardUp = false;
 let latest: Snapshot | null = null;
 let latestAt = 0;
 let lastCount = -1;
@@ -226,6 +227,11 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'snapshot':
       if (!spec && you === 0) break; // a late frame from a match we already left
+      // a new round has started: the end scoreboard belongs to the end screen only
+      if (endBoardUp && m.snap.phase === 'prep') {
+        endBoardUp = false;
+        spectateBar.board.toggle(false);
+      }
       onSnapshot(m.snap, m.events);
       break;
     case 'stats':
@@ -235,6 +241,7 @@ function onMessage(raw: MessageEvent) {
         const mine = latest?.units.find((u) => u.id === you)?.team;
         spectateBar.board.update(m.rows, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat');
         spectateBar.board.toggle(true);
+        endBoardUp = true;
       } else if (spec?.kind === 'live') spectateBar.setStats(m.rows);
       break;
     case 'error':
@@ -242,6 +249,8 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      endBoardUp = false;
+      spectateBar.board.toggle(false);
       audio.stopAmbience();
       hud.setRoster([]);
       menu.close();

@@ -459,3 +459,21 @@ describe('warrior weapon specs', () => {
     assert.ok(e.health < hp, 'polearm hit at 4.5 yd');
   });
 });
+
+describe('bots play every spec', () => {
+  it('a bot of each spec lands damage on a dummy using its own bar', async () => {
+    const { Bot, botBuild } = await import('../src/index');
+    for (const cls of CLASS_IDS) {
+      for (let i = 0; i < SPECS[cls].length; i++) {
+        const sim = new ArenaSim({ seed: 3, prepMs: 0 });
+        const u = sim.addUnit({ name: 'b', classId: cls, team: 0, controller: 'bot', build: botBuild(cls, i) });
+        const d = sim.addUnit({ name: 'd', classId: 'warrior', team: 1, controller: 'dummy' });
+        u.pos = { x: 0, z: 0 }; d.pos = { x: 6, z: 0 };
+        const bot = new Bot(sim, u.id, 'hard', 7);
+        const hp = d.health;
+        for (let t = 0; t < 20000; t += TICK) { bot.tick(); sim.step(); }
+        assert.ok(d.health < hp, `${cls}:${u.spec} bot did no damage`);
+      }
+    }
+  });
+});

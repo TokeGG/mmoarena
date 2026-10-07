@@ -149,12 +149,12 @@
     {
      "id": "warrior_arms_t4a",
      "name": "Heavy Hand",
-     "desc": "Replaces Whirlwind with Mortal Strike: one heavy overhand blow that trades your flurry of twin strikes for burst.",
+     "desc": "Replaces Whirlwind with Bloodthirst: a fast strike that builds rage and adds quick pressure between your twin-blade flurries.",
      "icon": "\ud83e\ude78",
      "mods": {},
      "swap": {
       "from": "whirlwind",
-      "to": "mortal_strike"
+      "to": "bloodthirst"
      }
     },
     {
@@ -171,7 +171,7 @@
     {
      "id": "warrior_arms_t4c",
      "name": "Ground Tremor",
-     "desc": "Replaces Whirlwind with Shockwave: a burst of damage that stuns nearby enemies to set up Bloodthirst.",
+     "desc": "Replaces Whirlwind with Shockwave: a burst of damage that stuns nearby enemies to set up Mortal Strike.",
      "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
@@ -184,7 +184,7 @@
     {
      "id": "warrior_arms_t5a",
      "name": "Banshee Howl",
-     "desc": "Replaces Intimidating Shout with Piercing Howl: slows enemies in range so you can keep them in Bloodthirst reach.",
+     "desc": "Replaces Intimidating Shout with Piercing Howl: slows enemies in range so you can keep them in Mortal Strike reach.",
      "icon": "\ud83d\udce3",
      "mods": {},
      "swap": {
@@ -393,12 +393,12 @@
     {
      "id": "warrior_fury_t4a",
      "name": "Twin Strikes",
-     "desc": "Replaces Whirlwind with Bloodthirst: a fast strike that builds rage and adds quick pressure between your heavy blows.",
+     "desc": "Replaces Whirlwind with Mortal Strike: one heavy overhand blow that trades your sweeping strikes for burst.",
      "icon": "\ud83d\udde1\ufe0f",
      "mods": {},
      "swap": {
       "from": "whirlwind",
-      "to": "bloodthirst"
+      "to": "mortal_strike"
      }
     },
     {
@@ -415,7 +415,7 @@
     {
      "id": "warrior_fury_t4c",
      "name": "Quake Rush",
-     "desc": "Replaces Whirlwind with Shockwave: a stun that gives you a safe window to chain Mortal Strike.",
+     "desc": "Replaces Whirlwind with Shockwave: a stun that gives you a safe window to chain Bloodthirst.",
      "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
@@ -439,7 +439,7 @@
     {
      "id": "warrior_fury_t5b",
      "name": "Skull Bash",
-     "desc": "Replaces Hamstring with Concussion Blow: a hard stun to stop a target and start a Mortal Strike chain.",
+     "desc": "Replaces Hamstring with Concussion Blow: a hard stun to stop a target and start a Bloodthirst chain.",
      "icon": "\ud83d\udcab",
      "mods": {},
      "swap": {
