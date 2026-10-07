@@ -6,6 +6,7 @@ import specsJson from '../data/specs.json' with { type: 'json' };
 import talentsJson from '../data/talents.json' with { type: 'json' };
 import cosmeticsJson from '../data/cosmetics.json' with { type: 'json' };
 import tuningJson from '../data/tuning.json' with { type: 'json' };
+import patchesJson from '../data/patches.json' with { type: 'json' };
 import type { AbilityDef, ArenaDef, AuraDef, ClassDef, ClassId, CosmeticsDef, SpecDef, TalentDef, Tuning } from './types';
 
 export const ABILITIES: Record<string, AbilityDef> = Object.fromEntries(
@@ -26,3 +27,7 @@ export const TALENTS = talentsJson as unknown as Record<ClassId, Record<string, 
 export const COSMETICS = cosmeticsJson as unknown as CosmeticsDef;
 
 export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
+
+/** Patch notes, newest first. The top entry's version is always the game's version (a test checks it). */
+export interface PatchNote { version: string; date: string; title: string; changes: string[] }
+export const PATCHES = patchesJson as PatchNote[];

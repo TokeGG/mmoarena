@@ -1,5 +1,5 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, SPECS, itemById, itemsForSlot, talentsFor,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, itemById, itemsForSlot, talentsFor,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -309,7 +309,10 @@ export class MainMenu {
     hudBtn.addEventListener('click', () => this.hooks.onEditHud());
     const watch = el('button', 'mm-link', '👁 Watch live matches');
     watch.addEventListener('click', () => this.hooks.onWatch());
-    play.append(this.partyBox, opts, row, controls, hudBtn, watch, this.msg);
+    const notes = el('button', 'mm-link', `📜 Patch notes (v${PATCHES[0]?.version ?? '?'})`);
+    notes.id = 'btn-patches';
+    notes.addEventListener('click', () => this.openPatches());
+    play.append(this.partyBox, opts, row, controls, hudBtn, watch, notes, this.msg);
     right.append(play);
 
     this.modal.addEventListener('mousedown', (e) => {
@@ -465,6 +468,29 @@ export class MainMenu {
   private closeGear() {
     this.openSlot = null;
     this.modal.classList.add('hidden');
+  }
+
+  // ------------------------------------------------------------------ patch notes
+
+  private openPatches() {
+    const card = el('div', 'mm-modal-card mm-patches');
+    const head = el('div', 'mm-modal-head');
+    const close = el('button', 'mm-small', 'Close');
+    close.addEventListener('click', () => this.closeGear());
+    head.append(el('h2', '', 'Patch notes'), close);
+    card.append(head);
+    PATCHES.forEach((p, i) => {
+      const box = el('section', `mm-patch${i === 0 ? ' latest' : ''}`);
+      const h = el('h3', '');
+      h.append(el('span', 'pv', `v${p.version}`), el('span', 'pt', p.title), el('span', 'pd', p.date));
+      if (i === 0) h.append(el('span', 'pnew', 'Latest'));
+      const ul = el('ul', '');
+      for (const c of p.changes) ul.append(el('li', '', c));
+      box.append(h, ul);
+      card.append(box);
+    });
+    this.modal.replaceChildren(card);
+    this.modal.classList.remove('hidden');
   }
 
   // ------------------------------------------------------------------ play

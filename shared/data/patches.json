@@ -1,0 +1,276 @@
+[
+ {
+  "version": "0.59.1",
+  "date": "2026-10-07",
+  "title": "Patch notes",
+  "changes": [
+   "New Patch notes list in the main menu showing every recent patch."
+  ]
+ },
+ {
+  "version": "0.59.0",
+  "date": "2026-10-07",
+  "title": "Pyroblast, mana and smarter retreats",
+  "changes": [
+   "Pyroblast now hits for 550.",
+   "A fully cast Pyroblast always grants Hot Streak (the free instant one does not chain into another).",
+   "Mana regeneration: mage 12 → 24 per second, priest 6 → 15.",
+   "Bots look ahead for walls when backing away or running to cover and slide along them instead of getting stuck.",
+   "Bot mages Blink toward open ground, never into a wall, and cast Hot Streak Pyroblast first."
+  ]
+ },
+ {
+  "version": "0.58.1",
+  "date": "2026-10-07",
+  "title": "Play again and bot fixes",
+  "changes": [
+   "Play again against bots always picks a different map and a different enemy class.",
+   "Bots no longer spin in circles: fixed the mage Blink-turn loop, rogue circling, tight melee strafing and ramp-foot wobble.",
+   "Bots respect diminishing returns and existing crowd control, hold burst for targets without defensives, and only interrupt casts that matter.",
+   "Bot brains retrained."
+  ]
+ },
+ {
+  "version": "0.58.0",
+  "date": "2026-10-07",
+  "title": "Bots that care for their lives",
+  "changes": [
+   "Bots use defensive spells, shields and escapes earlier, step out of Flamestrike and Blizzard, and keep their own shield up.",
+   "Bots learn from how close matches were, not only from wins and losses.",
+   "Play again against bots picks a random enemy class."
+  ]
+ },
+ {
+  "version": "0.57.0",
+  "date": "2026-10-07",
+  "title": "Twin Ramps with a tunnel",
+  "changes": [
+   "Twin Ramps rebuilt: a raised bridge deck with a ramp at each end and a walkable tunnel underneath, with line-of-sight rules for each level.",
+   "Specs no longer carry stat bonuses, so damage is flat for testing.",
+   "Casting needs the target within a 180° cone; Dragon's Breath is a 90° cone.",
+   "Walking backwards is 75% speed.",
+   "Pyromancy gets Cauterize: dropping to lethal damage leaves you at 35% health (3 minute cooldown)."
+  ]
+ },
+ {
+  "version": "0.56.0",
+  "date": "2026-10-07",
+  "title": "Twin Ramps duel map",
+  "changes": [
+   "New Twin Ramps duel map with a chasm, two ramps and a bridge. Duels are played there.",
+   "Rage gained from damage taken is halved."
+  ]
+ },
+ {
+  "version": "0.55.5",
+  "date": "2026-10-07",
+  "title": "Rage and tooltips",
+  "changes": [
+   "Mortal Strike spends rage instead of generating it, and spenders no longer refund rage.",
+   "Tooltips say exactly what a spell deals.",
+   "The match countdown is 5 seconds."
+  ]
+ },
+ {
+  "version": "0.55.4",
+  "date": "2026-10-07",
+  "title": "Exact damage",
+  "changes": [
+   "Damage has no random variance: every hit does exactly what the tooltip says.",
+   "No Blink while disoriented by Dragon's Breath.",
+   "Ground spells that cannot land are not cast, so no wasted cooldown."
+  ]
+ },
+ {
+  "version": "0.55.3",
+  "date": "2026-10-07",
+  "title": "Ground spells feel better",
+  "changes": [
+   "Flamestrike can be cast in any direction, and the aim dot is coloured by line of sight.",
+   "Ground spells cast on mouse down instead of release."
+  ]
+ },
+ {
+  "version": "0.55.2",
+  "date": "2026-10-07",
+  "title": "Priest and mage fixes",
+  "changes": [
+   "Devouring Plague's first hit no longer breaks fear.",
+   "Ice Barrier absorbs 40% of max health.",
+   "Dragon's Breath disorients and cannot be escaped with Blink."
+  ]
+ },
+ {
+  "version": "0.55.1",
+  "date": "2026-10-07",
+  "title": "Frost tweaks",
+  "changes": [
+   "Frost Nova grants Fingers of Frost.",
+   "Ice Lance has a 1 second cooldown.",
+   "Mind Blast hits for 340."
+  ]
+ },
+ {
+  "version": "0.55.0",
+  "date": "2026-10-07",
+  "title": "Talent rows and random duel map",
+  "changes": [
+   "New talent row pattern, plus frost, priest and warrior changes.",
+   "Suggestions can carry notes.",
+   "Duels use a random map."
+  ]
+ },
+ {
+  "version": "0.54.2",
+  "date": "2026-10-07",
+  "title": "Menu tidy",
+  "changes": [
+   "Suggestions can be deleted and the menu corner is tidier."
+  ]
+ },
+ {
+  "version": "0.54.1",
+  "date": "2026-10-07",
+  "title": "Suggestions to Discord",
+  "changes": [
+   "Suggestions are sent to a Discord webhook.",
+   "Kick and Pummel can miss."
+  ]
+ },
+ {
+  "version": "0.54.0",
+  "date": "2026-10-07",
+  "title": "Suggestion box",
+  "changes": [
+   "New suggestion box in the menu.",
+   "Counterspell can whiff."
+  ]
+ },
+ {
+  "version": "0.53.1",
+  "date": "2026-10-07",
+  "title": "Barbarian and Arcane",
+  "changes": [
+   "Barbarian: Reel In pulls enemies in a cone, Deep Cuts generates rage and Axe Throw is buffed.",
+   "Arcane Barrage deals +75% per Arcane Charge."
+  ]
+ },
+ {
+  "version": "0.53.0",
+  "date": "2026-10-07",
+  "title": "Rematch ready check",
+  "changes": [
+   "Everyone readies up on the end screen to play again.",
+   "Bots learn from human replays.",
+   "Mage and warrior tweaks."
+  ]
+ },
+ {
+  "version": "0.52.1",
+  "date": "2026-10-07",
+  "title": "Hot Streak procs",
+  "changes": [
+   "Fireball, Flamestrike and Dragon's Breath each have a 15% chance to grant Hot Streak.",
+   "End-of-match Play again and Leave buttons; shorter spec descriptions."
+  ]
+ },
+ {
+  "version": "0.52.0",
+  "date": "2026-10-07",
+  "title": "Cryomancy rework",
+  "changes": [
+   "Cryomancy reworked around Fingers of Frost and Shatter.",
+   "Heroic Leap is a real jump.",
+   "You keep your party when leaving a match."
+  ]
+ },
+ {
+  "version": "0.51.0",
+  "date": "2026-10-07",
+  "title": "Warrior rework",
+  "changes": [
+   "Warriors share Charge, Pummel, Hamstring and Heroic Leap.",
+   "New Warbringer, Rampager and Barbarian kits."
+  ]
+ },
+ {
+  "version": "0.50.3",
+  "date": "2026-10-06",
+  "title": "Party lobby",
+  "changes": [
+   "The lobby shows every party member with a name tag and ready check."
+  ]
+ },
+ {
+  "version": "0.50.2",
+  "date": "2026-10-06",
+  "title": "Party looks",
+  "changes": [
+   "Party members' models and skins show in the lobby."
+  ]
+ },
+ {
+  "version": "0.50.1",
+  "date": "2026-10-06",
+  "title": "Shadowstep and reconnect",
+  "changes": [
+   "Shadowstep lands behind the target and turns your camera.",
+   "Reconnect after matches; unsynced settings are kept."
+  ]
+ },
+ {
+  "version": "0.50.0",
+  "date": "2026-10-06",
+  "title": "Rogue rework and learning bots",
+  "changes": [
+   "Rogue rework.",
+   "Bots learn from the matches they play.",
+   "Louder party invites."
+  ]
+ },
+ {
+  "version": "0.49.1",
+  "date": "2026-10-06",
+  "title": "Warrior spec swaps",
+  "changes": [
+   "Mortal Strike and Bloodthirst swap between warrior specs.",
+   "Bots play the spec they are given.",
+   "The end scoreboard closes when a new match starts."
+  ]
+ },
+ {
+  "version": "0.49.0",
+  "date": "2026-10-06",
+  "title": "Warrior weapons",
+  "changes": [
+   "Warrior specs are weapons: dual wield, two-handed sword and polearm."
+  ]
+ },
+ {
+  "version": "0.48.0",
+  "date": "2026-10-06",
+  "title": "End scoreboard",
+  "changes": [
+   "A scoreboard at the end of every match.",
+   "Warrior damage up about 30%."
+  ]
+ },
+ {
+  "version": "0.47.1",
+  "date": "2026-10-06",
+  "title": "Camera and shield bar",
+  "changes": [
+   "Steadier camera under crowd control.",
+   "The shield bar is visible and white."
+  ]
+ },
+ {
+  "version": "0.47.0",
+  "date": "2026-10-06",
+  "title": "Spell queue and spectating",
+  "changes": [
+   "The queue only repeats a spell in its last 0.25 s; conditional skills are blocked.",
+   "Owner live spectating and scoreboard."
+  ]
+ }
+]

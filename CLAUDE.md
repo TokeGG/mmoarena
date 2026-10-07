@@ -4,3 +4,4 @@
 - Bump `SIM_REVISION` (shared/src/replay.ts) on sim/data changes, plus the version in README line 1, root `package.json` and `client/package.json`; keep versions below 1.0.
 - Before pushing: typecheck shared/server/client and run `npx tsx --test shared/test/*.test.ts server/test/*.test.ts client/test/*.test.ts`.
 - After a patch that changes abilities, re-run `npx tsx scripts/train-bots.ts` (a few minutes) and commit the updated `shared/data/botbrain.json`.
+- Every version bump also adds an entry at the top of `shared/data/patches.json` (the main menu's Patch notes list); a test fails if its version differs from `package.json`.
