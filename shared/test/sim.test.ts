@@ -1027,7 +1027,7 @@ describe('v0.24 damage over time, penance and ground spells', () => {
     run(sim, 100);
     const r = sim.useAbility(m.id, 'flamestrike', null, { x: 12, z: 3 });
     assert.ok(r.ok, (r as any).reason);
-    run(sim, 2000);
+    run(sim, 3200);
     const z = sim.snapshot().zones.find((q: any) => q.ability === 'flamestrike');
     assert.ok(z && Math.abs(z.x - 12) < 0.1 && Math.abs(z.z - 3) < 0.1);
     m.cooldowns = {}; m.gcdEnd = 0; m.cast = null; m.pos = { x: -25, z: 0 };

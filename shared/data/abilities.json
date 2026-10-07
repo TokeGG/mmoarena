@@ -893,7 +893,7 @@
   "school": "fire",
   "target": "ground",
   "range": 30,
-  "castTime": 1500,
+  "castTime": 3000,
   "cooldown": 12000,
   "gcd": true,
   "cost": 70,
@@ -903,7 +903,7 @@
     "radius": 5,
     "duration": 8000,
     "pulse": 1000,
-    "amount": 45,
+    "amount": 420,
     "delay": 800
    }
   ]

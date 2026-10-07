@@ -29,7 +29,7 @@ function setup() {
   assert.deepEqual(sim.setTarget(mage.id, victim.id), { ok: true });
   const r = sim.useAbility(mage.id, 'flamestrike', victim.id);
   assert.deepEqual(r, { ok: true }, JSON.stringify(r));
-  advance(sim, 1500 + TICK);
+  advance(sim, 3000 + TICK);
   const zone = sim.snapshot().zones[0];
   assert.ok(zone, 'zone placed');
   return { sim, mage, victim, zone };
