@@ -749,20 +749,39 @@ describe('warrior rework', () => {
   });
   it('Deep Cuts stacks its bleed up to three times; Axe Throw reaches 10 yards and costs rage', () => {
     const { sim, w, f } = war('protection');
-    for (let i = 0; i < 5; i++) { w.resource = 100; sim.useAbility(w.id, 'deep_cuts', f.id); advance(sim, 1600); }
+    assert.equal(ABILITIES.deep_cuts.cost, 0);
+    for (let i = 0; i < 5; i++) { w.resource = 0; assert.ok(sim.useAbility(w.id, 'deep_cuts', f.id).ok); advance(sim, 100); assert.ok(w.resource >= 10, `rage ${w.resource}`); advance(sim, 4000); }
     const cuts = f.auras.find((a) => a.id === 'deep_cuts_bleed');
     assert.equal(cuts?.stacks, 3);
     const t1 = war('protection', 9.5);
     assert.ok(t1.sim.useAbility(t1.w.id, 'axe_throw', t1.f.id).ok, 'Axe Throw at 9.5 yards');
-    assert.ok(ABILITIES.axe_throw.cost > 0);
+    assert.equal(ABILITIES.axe_throw.cost, 50);
+    assert.equal(ABILITIES.axe_throw.cooldown, 2000);
     const t2 = war('protection', 12);
     assert.ok(!t2.sim.useAbility(t2.w.id, 'axe_throw', t2.f.id).ok);
   });
-  it('Reel In drags the target in front of you', () => {
-    const { sim, w, f } = war('protection', 12);
-    assert.ok(sim.useAbility(w.id, 'reel_in', f.id).ok);
+  it('Reel In pulls everything in a 10 yard cone in front of you, and nothing behind or beyond', () => {
+    const { sim, w, f } = war('protection', 2);
+    const side = add(sim, 'mage', 1, 0, 9);
+    const behind = add(sim, 'mage', 1, 0, -8);
+    const far = add(sim, 'mage', 1, 0, 14);
+    f.pos = { x: 4, z: 8 };
+    w.facing = 0; w.lastInput = { ...w.lastInput, facing: 0 };
+    assert.equal(ABILITIES.reel_in.target, 'aoe_enemy');
+    assert.ok(sim.useAbility(w.id, 'reel_in').ok);
     advance(sim, TICK);
-    assert.ok(Math.hypot(f.pos.x - w.pos.x, f.pos.z - w.pos.z) < 3);
+    const d = (u: { pos: { x: number; z: number } }) => Math.hypot(u.pos.x - w.pos.x, u.pos.z - w.pos.z);
+    assert.ok(d(f) < 3 && d(side) < 3, 'both enemies in the cone were dragged in');
+    assert.ok(d(behind) > 7 && d(far) > 12, 'the ones behind and beyond stayed put');
+  });
+  it('Axe Throw hits for about 300', () => {
+    const { sim, w, f } = war('protection', 8);
+    f.maxHealth = f.health = 1e6;
+    const hp = f.health;
+    assert.ok(sim.useAbility(w.id, 'axe_throw', f.id).ok);
+    advance(sim, TICK);
+    const dealt = hp - f.health;
+    assert.ok(dealt > 250 && dealt < 380, `dealt ${dealt}`);
   });
   it('the banner traps enemies inside its circle and lets nobody out', () => {
     const { sim, w, f } = war('protection', 10);

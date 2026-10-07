@@ -242,7 +242,7 @@ export class Bot {
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
     if (kiter && !slowed && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
     // Barbarian: drag a runner back in, fence a kiter in, throw axes while it is out of reach
-    if (d >= 6 && d <= 20 && kiter && this.use(u, 'reel_in', tgt.id)) return;
+    if (d >= 4 && d <= 9.5 && kiter && this.use(u, 'reel_in', tgt.id)) return; // a 10 yard cone in front: the bot already faces its target
     if (d >= 6 && d <= 15 && kiter && this.use(u, 'not_going_anywhere', undefined, { x: tgt.pos.x, z: tgt.pos.z })) return;
     if (d > 4 && d <= 10 && this.use(u, 'axe_throw', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;

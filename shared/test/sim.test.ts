@@ -501,7 +501,7 @@ describe('stealth', () => {
     }
   });
 
-  it('arcane blast stacks Arcane Charge to 5 and arcane barrage spends them for +50% damage each', () => {
+  it('arcane blast stacks Arcane Charge to 5 and arcane barrage spends them for +75% damage each', () => {
     const sim = live();
     const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'arcane', talents: [], gear: {} } });
     mage.pos = { x: 0, z: 0 };
@@ -513,7 +513,7 @@ describe('stealth', () => {
     const bare = go('arcane_barrage');
     for (let i = 1; i <= 7; i++) { go('arcane_blast'); assert.equal(stacks(), Math.min(5, i), `after blast ${i}`); }
     const full = go('arcane_barrage');
-    assert.ok(full > bare * 3.3 && full < bare * 3.7, `${full} vs ${bare}`);
+    assert.ok(full > bare * 4.4 && full < bare * 5.1, `${full} vs ${bare}`);
     assert.equal(stacks(), 0, 'barrage spends the stacks');
     const snapStacks = (() => { go('arcane_blast'); go('arcane_blast'); return sim.snapshot().units.find((u) => u.id === mage.id)!.auras.find((x) => x.id === 'arcane_charge')?.stacks; })();
     assert.equal(snapStacks, 2, 'snapshots carry stacks');

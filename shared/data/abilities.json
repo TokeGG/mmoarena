@@ -686,7 +686,7 @@
   ],
   "consumes": {
    "aura": "arcane_charge",
-   "perStack": 0.5
+   "perStack": 0.75
   }
  },
  {
@@ -1685,9 +1685,8 @@
   "name": "Reel In",
   "class": "warrior",
   "school": "physical",
-  "target": "enemy",
-  "range": 20,
-  "minRange": 6,
+  "target": "aoe_enemy",
+  "range": 0,
   "castTime": 0,
   "cooldown": 25000,
   "gcd": true,
@@ -1701,7 +1700,9 @@
     "type": "pull",
     "stopDistance": 2.2
    }
-  ]
+  ],
+  "radius": 10,
+  "coneDeg": 90
  },
  {
   "id": "deep_cuts",
@@ -1711,9 +1712,9 @@
   "target": "enemy",
   "range": 3,
   "castTime": 0,
-  "cooldown": 0,
+  "cooldown": 4000,
   "gcd": true,
-  "cost": 10,
+  "cost": 0,
   "effects": [
    {
     "type": "damage",
@@ -1722,6 +1723,10 @@
    {
     "type": "aura",
     "aura": "deep_cuts_bleed"
+   },
+   {
+    "type": "gain",
+    "amount": 10
    }
   ]
  },
@@ -1733,13 +1738,13 @@
   "target": "enemy",
   "range": 10,
   "castTime": 0,
-  "cooldown": 5000,
+  "cooldown": 2000,
   "gcd": true,
-  "cost": 30,
+  "cost": 50,
   "effects": [
    {
     "type": "damage",
-    "amount": 60
+    "amount": 300
    }
   ]
  },
