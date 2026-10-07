@@ -138,9 +138,9 @@ export class Room {
     for (const p of [...this.players.values(), ...this.spectators]) send(p, { t: 'roster', players });
   }
 
-  /** Ranked matches can be watched while they run. */
+  /** Any match with a person in it can be watched while it runs (dummy training is private and skipped). */
   get watchable(): boolean {
-    return this.ranked && !this.closed && this.sim.phase !== 'ended';
+    return this.countsForProgress && this.players.size > 0 && !this.closed && this.sim.phase !== 'ended';
   }
 
   live(): LiveMatch {
@@ -149,6 +149,7 @@ export class Room {
       map: this.arenaId,
       size: this.size,
       elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
+      ranked: this.ranked,
       players: [...this.sim.units.values()].map((u) => ({ name: u.name, classId: u.classId, team: u.team })),
     };
   }
@@ -197,7 +198,8 @@ export class Room {
         break;
       }
       case 'cast': {
-        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z } : null);
+        const rewind = msg.vt !== undefined ? this.sim.time - msg.vt : 0; // how far behind live the player's screen was
+        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z } : null, rewind);
         if (!r.ok) send(p, { t: 'error', reason: r.reason, ability: msg.ability });
         break;
       }
@@ -254,12 +256,15 @@ export class Room {
       }
       if (p.ws.readyState === 1 /* OPEN */) p.ws.send(frame);
     }
-    if (this.ranked) {
+    if (this.countsForProgress) {
       // spectators get the whole arena (nothing hidden), five seconds late
       this.delayed.push({ snap: this.sim.snapshot(), events });
       if (this.delayed.length > SPECTATE_DELAY_TICKS) {
         const f = this.delayed.shift()!;
-        for (const w of this.spectators) send(w, { t: 'snapshot', snap: f.snap, events: f.events });
+        if (this.spectators.size) {
+          const frame = JSON.stringify({ t: 'snapshot', snap: f.snap, events: f.events });
+          for (const w of this.spectators) if (w.ws.readyState === 1) w.ws.send(frame);
+        }
       }
     }
     if (this.sim.phase === 'ended') {

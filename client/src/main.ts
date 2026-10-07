@@ -432,9 +432,13 @@ function castSlot(i: number) {
     return;
   }
   queued = null;
-  send({ t: 'cast', ability, target: targetId });
+  send({ t: 'cast', ability, target: targetId, vt: viewTime() });
 }
 
+/** Server time of the frame other players are drawn at right now; the server judges range against where they stood then (lag compensation). */
+function viewTime(): number {
+  return Math.round(estimatedNow() - INTERP_DELAY_MS);
+}
 let queued: { ability: string; target: number | null; until: number } | null = null;
 function estimatedNow(): number {
   return latest ? latest.time + (performance.now() - latestAt) : 0;
@@ -447,7 +451,7 @@ function flushQueue() {
   if (me.cast || me.gcdEnd > estimatedNow() + 25 || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + 25) return;
   const q = queued;
   queued = null;
-  send({ t: 'cast', ability: q.ability, target: q.target });
+  send({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime() });
 }
 
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
@@ -461,7 +465,7 @@ function confirmAim() {
   if (!aiming || !def) return;
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
-  send({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z });
+  send({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, vt: viewTime() });
   setAiming(null);
 }
 

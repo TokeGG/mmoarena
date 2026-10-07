@@ -197,6 +197,8 @@ export interface Tuning {
   castConeDeg: number;
   /** Online play: a cast that fails only on range or facing is retried for this long, so a target that stepped out of reach in transit still gets hit. */
   castGraceMs: number;
+  /** Furthest back, in ms, that a cast's range and facing check may look at where its target was (lag compensation). */
+  maxRewindMs: number;
   /** Feared units stumble around at this fraction of run speed. */
   fearSpeed: number;
   prepMs: number;

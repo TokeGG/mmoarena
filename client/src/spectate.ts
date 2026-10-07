@@ -125,7 +125,7 @@ export class SpectateBar {
   }
 }
 
-/** A picker listing ranked matches in progress. */
+/** A picker listing the matches in progress. */
 export class LivePicker {
   private modal: HTMLElement | null = null;
   constructor(private onPick: (id: string) => void, private refresh: () => void) {}
@@ -144,13 +144,13 @@ export class LivePicker {
     head.append(again, close);
     card.append(head);
     if (!rows) card.append(el('p', 'mm-modal-foot', 'Looking for matches…'));
-    else if (!rows.length) card.append(el('p', 'mm-modal-foot', 'No ranked matches are being played right now.'));
+    else if (!rows.length) card.append(el('p', 'mm-modal-foot', 'No matches are being played right now.'));
     else {
       const list = el('div', 'live-list');
       for (const m of rows) {
         const row = el('button', 'live-row');
         const teams = [0, 1].map((t) => m.players.filter((p) => p.team === t).map((p) => `${classIcon(p.classId)} ${p.name}`).join(', '));
-        row.append(el('b', '', `${m.size}v${m.size} · ${mapName(m.map)}`), el('span', '', `${teams[0]}  vs  ${teams[1]}`), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
+        row.append(el('b', '', `${m.ranked ? '🏆 Ranked ' : ''}${m.size}v${m.size} · ${mapName(m.map)}`), el('span', '', `${teams[0]}  vs  ${teams[1]}`), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
         row.addEventListener('click', () => {
           this.close();
           this.onPick(m.id);

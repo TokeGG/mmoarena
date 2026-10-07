@@ -11,6 +11,7 @@ const DT = TICK / 1000;
 const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
+const HISTORY_TICKS = 12;
 const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you'];
 const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 
@@ -149,11 +150,16 @@ export class ArenaSim {
   /** Casts held back for a moment because the target was just out of range or not quite in front (online play only). */
   private pending = new Map<number, { ability: string; target: number | null; ground: { x: number; z: number } | null; until: number; reason: string }>();
 
-  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: { x: number; z: number } | null): Result {
-    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null]);
+  /**
+   * Lag compensation: `rewindMs` is how far behind the live state the caster's screen was when they pressed the button. Range and facing are judged
+   * against where the target stood then (capped at TUNING.maxRewindMs), because that is what the player saw and aimed at.
+   */
+  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: { x: number; z: number } | null, rewindMs = 0): Result {
+    rewindMs = Number.isFinite(rewindMs) ? Math.max(0, Math.min(TUNING.maxRewindMs, Math.round(rewindMs))) : 0;
+    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs]);
     if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100 };
     this.pending.delete(id); // any new press replaces a held cast
-    return this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false);
+    return this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false, rewindMs);
   }
 
   /** Retry held casts each tick until they land or the grace window runs out. */
@@ -162,14 +168,14 @@ export class ArenaSim {
       const u = this.units.get(id);
       if (!u || !u.alive) { this.pending.delete(id); continue; }
       this.pending.delete(id);
-      const r = this.tryUse(id, p.ability, p.target, p.ground, true);
+      const r = this.tryUse(id, p.ability, p.target, p.ground, true, 0);
       if (r.ok) continue;
       if (this.time >= p.until || !GRACE_REASONS.includes(r.reason)) this.failCast(u, p.ability, this.time >= p.until ? p.reason : r.reason);
       else this.pending.set(id, p);
     }
   }
 
-  private tryUse(id: number, abilityId: string, targetId: number | null, ground: { x: number; z: number } | null, retry: boolean): Result {
+  private tryUse(id: number, abilityId: string, targetId: number | null, ground: { x: number; z: number } | null, retry: boolean, rewindMs: number): Result {
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
     const soft = (reason: string): Result => {
@@ -219,11 +225,13 @@ export class ArenaSim {
     if (typeof tgt === 'string') return fail(tgt);
 
     if (tgt !== u) {
-      const d = dist(u.pos, tgt.pos);
+      // judged where the target was on the caster's screen, not where it has moved to since
+      const seen = rewindMs > 0 && tgt.team !== u.team ? this.posAt(tgt, this.time - rewindMs) : tgt.pos;
+      const d = dist(u.pos, seen);
       if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
-      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return soft('target is not in front of you');
+      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
       if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
     }
@@ -274,8 +282,36 @@ export class ArenaSim {
     }
     for (const u of this.units.values()) if (u.alive) this.tickUnit(u);
     if (this.pending.size) this.retryPending();
+    this.recordHistory();
     this.tickZones();
     if (this.phase === 'live') this.checkEnd();
+  }
+
+  /** Where every unit stood over the last few ticks, for lag compensation. Derived from sim state only, so replays rebuild it exactly. */
+  private history: { time: number; pos: Map<number, { x: number; z: number }> }[] = [];
+
+  private recordHistory(): void {
+    const pos = new Map<number, { x: number; z: number }>();
+    for (const u of this.units.values()) pos.set(u.id, { x: u.pos.x, z: u.pos.z });
+    this.history.push({ time: this.time, pos });
+    if (this.history.length > HISTORY_TICKS) this.history.shift();
+  }
+
+  /** A unit's position at an earlier sim time (linear between recorded ticks; the oldest or current position outside the window). */
+  private posAt(u: Unit, time: number): { x: number; z: number } {
+    const h = this.history;
+    if (!h.length || time >= this.time) return u.pos;
+    if (time <= h[0].time) return h[0].pos.get(u.id) ?? u.pos;
+    for (let i = h.length - 1; i > 0; i--) {
+      if (h[i - 1].time <= time) {
+        const a = h[i - 1].pos.get(u.id);
+        const b = h[i].pos.get(u.id);
+        if (!a || !b) return u.pos;
+        const k = (time - h[i - 1].time) / Math.max(1, h[i].time - h[i - 1].time);
+        return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k };
+      }
+    }
+    return u.pos;
   }
 
   drainEvents(): SimEvent[] {

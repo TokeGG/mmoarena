@@ -308,6 +308,8 @@ export interface LiveMatch {
   map: string;
   size: 1 | 2 | 3;
   elapsedMs: number;
+  /** Ranked ladder match, as opposed to a casual queue game, duel or bot practice. */
+  ranked: boolean;
   players: { name: string; classId: string; team: number }[];
 }
 

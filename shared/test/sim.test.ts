@@ -1107,6 +1107,31 @@ describe('v0.24 damage over time, penance and ground spells', () => {
   });
 });
 
+describe('lag compensation', () => {
+  it('judges range against where the target stood on the caster\'s screen, within a cap, and replays reproduce it', () => {
+    const make = () => {
+      const sim = new ArenaSim({ seed: 3, prepMs: 0 });
+      const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'bot' });
+      const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+      m.pos = { x: 0, z: 0 };
+      for (let i = 0; i < 8; i++) { w.pos = { x: 28, z: 0 }; sim.step(); }
+      w.pos = { x: 33, z: 0 }; // it has since stepped out of reach (frostbolt reaches 30 plus a 1.5 allowance)
+      sim.step();
+      return { sim, m, w };
+    };
+    let { sim, m, w } = make();
+    assert.ok(!sim.useAbility(m.id, 'frostbolt', w.id).ok, 'no compensation: out of range');
+    ({ sim, m, w } = make());
+    assert.ok(sim.useAbility(m.id, 'frostbolt', w.id, null, 150).ok, 'saw it in range 150 ms ago');
+    ({ sim, m, w } = make());
+    assert.ok(!sim.useAbility(m.id, 'frostbolt', w.id, null, 0).ok);
+    ({ sim, m, w } = make());
+    w.pos = { x: 60, z: 0 };
+    for (let i = 0; i < 8; i++) { sim.step(); }
+    assert.ok(!sim.useAbility(m.id, 'frostbolt', w.id, null, 10000).ok, 'the rewind is capped, so a very old view cannot hit a far target');
+  });
+});
+
 describe('movement speed', () => {
   it('stealth no longer slows you and a feared unit stumbles at a fraction of run speed', () => {
     const run = (setup: (sim: ArenaSim, u: any) => void) => {

@@ -8,7 +8,7 @@ import type { SimEvent, Snapshot, TeamId } from './types';
  * Bump when the simulation's rules (code, not data) change in a way that alters outcomes: older replays would no longer
  * play out the same, so they are refused instead of showing something wrong. Data changes are caught by `contentHash`.
  */
-export const SIM_REVISION = 39;
+export const SIM_REVISION = 40;
 
 /** A small hash of every balance-relevant data file; a replay only plays on the data it was recorded with. */
 export function contentHash(): string {
@@ -83,7 +83,7 @@ export class ReplayRunner {
           this.sim.setTarget(id, a[0] as number | null);
           break;
         case 2:
-          this.sim.useAbility(id, a[0] as string, a[1] as number | null, typeof a[2] === 'number' && typeof a[3] === 'number' ? { x: a[2], z: a[3] } : null);
+          this.sim.useAbility(id, a[0] as string, a[1] as number | null, typeof a[2] === 'number' && typeof a[3] === 'number' ? { x: a[2], z: a[3] } : null, typeof a[4] === 'number' ? a[4] : 0);
           break;
         case 3:
           this.sim.setAutoAttack(id, a[0] === true);

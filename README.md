@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.44.0
+# WoW-style Arena · v0.45.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against (opponents are always random classes, rolled each time you press Practice), ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -19,7 +19,7 @@ Open the link in Chrome, Edge or Firefox on a computer (mouse and keyboard), pic
 - **Ranked** (needs an account): joins the queue for the size you picked (1v1, 2v2, 3v3). The server pairs waiting players in the order they queued; players who chose a specific arena only play there and Random players fit anywhere. Your rating changes with the result. Leaving a live ranked match is a loss.
 - **Parties** (up to 3 friends): the lobby lists who is in your party and who is ready. The leader picks the mode and arena (Practice or Ranked); everyone else presses Ready instead. A party plays on one team, in practice too (friends replace ally bots). A party larger than the team size (for example 2 friends in a 1v1) queues as separate players, so they can be matched against each other.
 - **Duels**: challenge an online friend to an unranked 1v1. Both of you use the class and build selected in the menu.
-- **Watch live**: the menu lists ranked matches in progress. Spectators see everything five seconds late, so watching cannot help the players.
+- **Watch live**: the menu lists every match in progress (ranked, queue games, duels and bot practice; solo dummy training is private). Spectators see everything five seconds late, so watching cannot help the players.
 - **Replays**: Profile > Matches keeps your last 30 counted matches, each with a replay button.
 - **Maps** (three arenas, each with its own layout and look; pick one or leave it on Random):
 
@@ -46,6 +46,7 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 - **Tier I (shared, 0.41.1):** the same three talents for all three specs of a class; they only modify the skills every spec of that class has (for example Mage: Polymorph, Counterspell, Blink). Your tier I pick carries over when you change spec.
 - **Tiers II and III:** buffs for that spec's own abilities (damage, healing, cooldowns, longer slows and stuns, survivability). Tier III is the utility tier; for mages it is the **Blink tier** (two blinks per cooldown, a run-speed burst after blinking, or faster casts after blinking).
 - **Tiers IV, V and VI (skill replacements):** each choice adds an ability that takes the place of one bar slot (tier IV, V and VI each replace a different slot, so you can take all three; the tooltip says what you give up). Every spec has nine abilities it can bring in this way. Switching spec clears your talent picks.
+- **Lag compensation and watching (0.45.0):** every cast now carries the server time of the frame you were looking at; the server keeps the last 12 ticks of positions and judges range, minimum range and facing against where the enemy stood on your screen (rewind capped at 300 ms, roughly your ping plus the 100 ms render delay; allies and your own position are never rewound, and line of sight, cooldowns and damage use live state). The rewind is written into the replay, so replays reproduce it exactly, and the 150 ms retry from 0.44.0 still covers what is left. Every match with a player in it can be watched (not just ranked): the list shows ranked ones with a trophy; solo dummy training stays private.
 - **Server feel (0.44.0):** a player cast that fails only on range or facing is now held for 150 ms (`castGraceMs`) and retried every tick, so a target that was in reach on your screen but stepped away in transit still gets hit; a different press replaces the held cast, and bots and training dummies are never held. Measured server cost is tiny (a 3v3 tick is about 0.03 ms of sim plus 0.3 ms of snapshots, around 58 KB/s per client). Stealth no longer slows movement; feared units now stumble at 35% of run speed (was 50%). Heal floating text shows what landed plus a dim "N overheal" line, so a Flash Heal that rolls 323-378 on a target missing 250 shows +250.
 - **Combo points (0.43.5):** combo points no longer drain out of combat. Kidney Shot is now a combo payoff (25 energy, 30 s cooldown): it stuns for 3 s plus 1 s per point spent, so 4 s on 1 point up to 8 s on 5 (diminishing returns still apply). Bots use it at 3+ points. **Dispersion (0.43.5)** can be used while stunned, feared or silenced (not while polymorphed) and removes every root and slow when cast; while it lasts you cannot use any ability (all slots black out).
 - **Heal numbers (0.43.4):** base Flash Heal 350 (70 mana, 1.5 s) and Greater Heal 580 (90 mana, 2.6 s). Actual heals roll within ±8% (the global damage/heal variance) and scale with gear and talents; tooltips show the base number with your modifiers.
@@ -107,7 +108,7 @@ Sign up in the menu (name + password). Passwords are never stored, only a salted
 
 - The server records every command and input of a counted match (about 20-60 KB gzipped, kept 30 days). The browser re-runs the exact match on the shared simulation, so you can pause, change speed, seek, and follow any player. A replay URL (`/?replay=<id>`) can be shared with anyone.
 - Replays only play on the game data they were recorded with. After a balance or rules change, older replays say so instead of showing a wrong fight.
-- Spectating is ranked matches only, up to the room's spectator cap, five seconds behind live.
+- Spectating covers every match with a player in it except dummy training, five seconds behind live.
 
 ## Sound
 
@@ -220,7 +221,7 @@ npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 - Numbers are a first pass and untuned, especially the 0.21 abilities and talents. Bot-vs-bot runs say mages are weak against melee and matches with a healer run long. Retune after you play.
 - Matchmaking pairs players in queue order; it does not use rating yet. One rating covers 1v1, 2v2 and 3v3.
 - Bots and dummies use the classic ability bar. They do not dodge ground zones, use Flamestrike, or pick specs and talents.
-- Duels are 1v1 only. Spectating covers ranked matches only; replays are saved for ranked and bot-practice matches of signed-in players.
+- Duels are 1v1 only. Spectating covers every match except dummy training; replays are saved for ranked and bot-practice matches of signed-in players.
 - The 3D scene (maps, zones, replay and spectate cameras) has been built and tested through the simulation but not tuned on a real GPU yet. Characters are rounded primitives with outlines (`client/src/models.ts`); swap for glTF later.
 - No combo points and no spell queueing window.
 - Replays recorded before a simulation change stop playing.

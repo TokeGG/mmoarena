@@ -22,5 +22,6 @@
  "rageFromTaken": 0.15,
  "rageDecayPerSec": 5,
  "castGraceMs": 150,
- "fearSpeed": 0.35
+ "fearSpeed": 0.35,
+ "maxRewindMs": 300
 }
