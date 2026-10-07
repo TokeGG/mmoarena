@@ -124,15 +124,15 @@ describe('crowd control and diminishing returns', () => {
       const r = sim.applyAura(rogue, tgt, 'kidney_shot');
       return r.applied ? r.duration : 'immune';
     };
-    assert.equal(dur(), 3000);
-    advance(sim, 3100);
-    assert.equal(dur(), 1500);
-    advance(sim, 1600);
-    assert.equal(dur(), 750);
-    advance(sim, 850);
+    assert.equal(dur(), 2000);
+    advance(sim, 2100);
+    assert.equal(dur(), 1000);
+    advance(sim, 1100);
+    assert.equal(dur(), 500);
+    advance(sim, 600);
     assert.equal(dur(), 'immune');
     advance(sim, TUNING.drResetMs + TICK);
-    assert.equal(dur(), 3000, 'DR should have reset');
+    assert.equal(dur(), 2000, 'DR should have reset');
   });
 
   it('tracks each category separately', () => {
@@ -265,13 +265,13 @@ describe('stealth', () => {
     assert.ok(mage.auras.some((x) => x.id === 'psychic_scream'), 'fear survived the opening hit');
   });
 
-  it('Ice Barrier absorbs 40% of max health', () => {
+  it('Ice Barrier absorbs 25% of max health', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     advance(sim, TICK);
     sim.applyAura(mage, mage, 'ice_barrier');
     const a = mage.auras.find((x) => x.id === 'ice_barrier')!;
-    assert.ok(Math.abs(a.absorbLeft - mage.maxHealth * 0.4 * mage.gearMult * sim.modsOf(mage).healingDone) < 1, `got ${a.absorbLeft}`);
+    assert.ok(Math.abs(a.absorbLeft - mage.maxHealth * 0.25 * mage.gearMult * sim.modsOf(mage).healingDone) < 1, `got ${a.absorbLeft}`);
   });
 
   it('Dragon\'s Breath disorients and Blink cannot be used through it', () => {
@@ -344,7 +344,7 @@ describe('stealth', () => {
     mage.facing = Math.PI; mage.lastInput = { ...mage.lastInput, facing: Math.PI }; // back turned to the foe
     assert.ok(sim.useAbility(foe.id, 'frostbolt', mage.id).ok);
     assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'works while locked out and facing away');
-    assert.ok(foe.lockouts.frost > sim.time, 'frost locked out');
+    assert.ok((foe.lockouts.frost ?? 0) > sim.time, 'frost locked out');
     // late: the frostbolt lands, then the press arrives within the grace window
     mage.cooldowns = {};
     foe.lockouts = {}; foe.gcdEnd = 0; foe.resource = foe.resourceMax; foe.cooldowns = {};
@@ -352,7 +352,7 @@ describe('stealth', () => {
     advance(sim, 1550);
     assert.equal(foe.cast, null, 'the cast just landed');
     assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'a late press still counts');
-    assert.ok(foe.lockouts.frost > sim.time, 'and still locks frost out');
+    assert.ok((foe.lockouts.frost ?? 0) > sim.time, 'and still locks frost out');
     advance(sim, 600);
     mage.cooldowns = {};
     assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'too late is no longer refused: it is castable, but whiffs');
@@ -750,8 +750,8 @@ describe('stealth', () => {
     foe.pos = { x: 0, z: 80 };
     advance(sim, 30000);
     assert.equal(rg.cp, 1, 'combo points stay');
-    // Kidney Shot: 4 s on 1 point up to 8 s on 5
-    for (const [cp, secs] of [[1, 4], [3, 6], [5, 8]] as const) {
+    // Kidney Shot: 2.8 s on 1 point up to 6 s on 5 (and never longer)
+    for (const [cp, secs] of [[1, 2.8], [3, 4.4], [5, 6], [8, 6]] as const) {
       foe.pos = { x: 0, z: 2 };
       foe.auras = []; foe.dr = {}; rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; rg.cp = cp;
       assert.ok(sim.useAbility(rg.id, 'kidney_shot', foe.id).ok, `${cp} cp`);
@@ -835,12 +835,13 @@ describe('stealth', () => {
     assert.ok(!sim.useAbility(priest.id, 'dispersion', null).ok, 'still not usable as a sheep');
   });
 
-  it('holy nova reaches 60 yards, healing allies more than it hurts enemies; mind flay is a damage channel; penance is no longer a talent', () => {
+  it('holy nova reaches 12 yards, healing allies more than it hurts enemies; mind flay is a damage channel; penance is no longer a talent', () => {
     const sim = live();
     const priest = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'holy', talents: [], gear: {} } });
     priest.pos = { x: 0, z: 0 };
-    const ally = add(sim, 'warrior', 0, 40, 0);
-    const foe = add(sim, 'mage', 1, 0, 55);
+    const ally = add(sim, 'warrior', 0, 10, 0);
+    const foe = add(sim, 'mage', 1, 0, 11);
+    const far = add(sim, 'mage', 1, 0, -30);
     ally.health = ally.maxHealth - 400;
     foe.maxHealth = foe.health = 5000;
     priest.resource = priest.resourceMax;
@@ -851,6 +852,7 @@ describe('stealth', () => {
     advance(sim, TICK);
     const healed = ally.health - ah, hurt = fh - foe.health;
     assert.ok(healed > 0 && hurt > 0 && healed > hurt, `healed ${healed} hurt ${hurt}`);
+    assert.equal(far.health, far.maxHealth, 'out of its 12 yards');
 
     const sim2 = live();
     const shadow = sim2.addUnit({ name: 's', classId: 'priest', team: 0, build: { spec: 'shadow', talents: [], gear: {} } });
@@ -1492,7 +1494,7 @@ describe('facing rule', () => {
     assert.equal(m.cast, null);
     w.pos = { x: 28, z: 0 }; // it steps back into reach during the grace window
     advance(sim, TICK * 2);
-    assert.equal(m.cast?.ability, 'frostbolt', 'the held cast started once in reach');
+    assert.equal((m.cast as { ability: string } | null)?.ability, 'frostbolt', 'the held cast started once in reach');
     // a later press replaces a held cast and bots are never held
     const bot = sim.addUnit({ name: 'b', classId: 'mage', team: 0, controller: 'bot' });
     bot.pos = { x: 0, z: 5 };

@@ -37,11 +37,11 @@
         {
           "id": "warrior_t1c",
           "name": "Battle Rush",
-          "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+          "desc": "Heroic Leap reaches 5 yards further and recharges 20% sooner.",
           "icon": "🐗",
           "mods": {
             "ability": {
-              "charge": {
+              "heroic_leap": {
                 "range": 5,
                 "cooldown": 0.8
               }
@@ -265,11 +265,11 @@
         {
           "id": "warrior_t1c",
           "name": "Battle Rush",
-          "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+          "desc": "Heroic Leap reaches 5 yards further and recharges 20% sooner.",
           "icon": "🐗",
           "mods": {
             "ability": {
-              "charge": {
+              "heroic_leap": {
                 "range": 5,
                 "cooldown": 0.8
               }
@@ -493,11 +493,11 @@
         {
           "id": "warrior_t1c",
           "name": "Battle Rush",
-          "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+          "desc": "Heroic Leap reaches 5 yards further and recharges 20% sooner.",
           "icon": "🐗",
           "mods": {
             "ability": {
-              "charge": {
+              "heroic_leap": {
                 "range": 5,
                 "cooldown": 0.8
               }
@@ -705,17 +705,14 @@
         },
         {
           "id": "mage_t1b",
-          "name": "Sheepish",
-          "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+          "name": "Fleet Step",
+          "desc": "Blink recharges 30% sooner.",
           "icon": "🐑",
           "mods": {
             "ability": {
-              "polymorph": {
-                "castTime": 0.75
+              "blink": {
+                "cooldown": 0.7
               }
-            },
-            "auraDuration": {
-              "polymorph": 1.25
             }
           }
         },
@@ -942,17 +939,14 @@
         },
         {
           "id": "mage_t1b",
-          "name": "Sheepish",
-          "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+          "name": "Fleet Step",
+          "desc": "Blink recharges 30% sooner.",
           "icon": "🐑",
           "mods": {
             "ability": {
-              "polymorph": {
-                "castTime": 0.75
+              "blink": {
+                "cooldown": 0.7
               }
-            },
-            "auraDuration": {
-              "polymorph": 1.25
             }
           }
         },
@@ -1179,17 +1173,14 @@
         },
         {
           "id": "mage_t1b",
-          "name": "Sheepish",
-          "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+          "name": "Fleet Step",
+          "desc": "Blink recharges 30% sooner.",
           "icon": "🐑",
           "mods": {
             "ability": {
-              "polymorph": {
-                "castTime": 0.75
+              "blink": {
+                "cooldown": 0.7
               }
-            },
-            "auraDuration": {
-              "polymorph": 1.25
             }
           }
         },
@@ -1796,33 +1787,33 @@
         {
           "id": "priest_holy_t5a",
           "name": "Hammer of Dawn",
-          "desc": "Replaces Psychic Scream with Hammer of Justice, a single-target stun to protect a struggling ally.",
+          "desc": "Replaces Desperate Prayer with Hammer of Justice, a single-target stun to protect a struggling ally.",
           "icon": "🔨",
           "mods": {},
           "swap": {
-            "from": "psychic_scream",
+            "from": "desperate_prayer",
             "to": "judgment_hammer"
           }
         },
         {
           "id": "priest_holy_t5b",
           "name": "Quiet the Chant",
-          "desc": "Replaces Psychic Scream with Silence, an interrupt that stops enemy casters.",
+          "desc": "Replaces Desperate Prayer with Silence, an interrupt that stops enemy casters.",
           "icon": "🤫",
           "mods": {},
           "swap": {
-            "from": "psychic_scream",
+            "from": "desperate_prayer",
             "to": "hush"
           }
         },
         {
           "id": "priest_holy_t5c",
           "name": "Final Verdict",
-          "desc": "Replaces Psychic Scream with Shadow Word: Pain, a damage-over-time to add pressure.",
+          "desc": "Replaces Desperate Prayer with Shadow Word: Pain, a damage-over-time to add pressure.",
           "icon": "💀",
           "mods": {},
           "swap": {
-            "from": "psychic_scream",
+            "from": "desperate_prayer",
             "to": "shadow_word_death"
           }
         }
@@ -2032,33 +2023,33 @@
         {
           "id": "priest_shadow_t5a",
           "name": "Sacrificial Guard",
-          "desc": "Replaces Power Word: Shield with Pain Suppression, a strong damage cut for 8 seconds.",
+          "desc": "Replaces Dispersion with Pain Suppression, a strong damage cut for 8 seconds.",
           "icon": "🪬",
           "mods": {},
           "swap": {
-            "from": "power_word_shield",
+            "from": "dispersion",
             "to": "pain_suppression"
           }
         },
         {
           "id": "priest_shadow_t5b",
           "name": "Purge the Light",
-          "desc": "Replaces Power Word: Shield with Dispel Magic, stripping buffs and cleansing your debuffs.",
+          "desc": "Replaces Dispersion with Dispel Magic, stripping buffs and cleansing your debuffs.",
           "icon": "🧼",
           "mods": {},
           "swap": {
-            "from": "power_word_shield",
+            "from": "dispersion",
             "to": "dispel_magic"
           }
         },
         {
           "id": "priest_shadow_t5c",
           "name": "Hush",
-          "desc": "Replaces Power Word: Shield with Silence, an interrupt to stop enemy healers.",
+          "desc": "Replaces Dispersion with Silence, an interrupt to stop enemy healers.",
           "icon": "🤫",
           "mods": {},
           "swap": {
-            "from": "power_word_shield",
+            "from": "dispersion",
             "to": "hush"
           }
         }
@@ -2067,33 +2058,33 @@
         {
           "id": "priest_shadow_t6a",
           "name": "Hammer of the Void",
-          "desc": "Replaces Psychic Scream with Hammer of Justice, a stun to set up burst and free Mind Flay channels.",
+          "desc": "Replaces Mind Flay with Hammer of Justice, a stun to set up burst.",
           "icon": "🔨",
           "mods": {},
           "swap": {
-            "from": "psychic_scream",
+            "from": "mind_flay",
             "to": "judgment_hammer"
           }
         },
         {
           "id": "priest_shadow_t6b",
           "name": "Dark Empowerment",
-          "desc": "Replaces Psychic Scream with Power Infusion, a burst buff to your damage and cast speed.",
+          "desc": "Replaces Mind Flay with Power Infusion, a burst buff to your damage and cast speed.",
           "icon": "✨",
           "mods": {},
           "swap": {
-            "from": "psychic_scream",
+            "from": "mind_flay",
             "to": "power_infusion"
           }
         },
         {
           "id": "priest_shadow_t6c",
           "name": "Holy Reprise",
-          "desc": "Replaces Psychic Scream with Smite, a reliable holy damage spell with no cooldown.",
+          "desc": "Replaces Mind Flay with Smite, a reliable holy damage spell with no cooldown.",
           "icon": "⚡",
           "mods": {},
           "swap": {
-            "from": "psychic_scream",
+            "from": "mind_flay",
             "to": "smite"
           }
         }
@@ -2505,33 +2496,33 @@
         {
           "id": "rogue_combat_t5a",
           "name": "Smoke Screen",
-          "desc": "Replaces Vanish with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+          "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
           "icon": "💨",
           "mods": {},
           "swap": {
-            "from": "vanish",
+            "from": "sprint",
             "to": "choke_bomb"
           }
         },
         {
           "id": "rogue_combat_t5b",
           "name": "Shadow Leap",
-          "desc": "Replaces Vanish with Shadowstep to close 25 yards on a target and open on them.",
+          "desc": "Replaces Sprint with Shadowstep to close 25 yards on a target and open on them.",
           "icon": "🌀",
           "mods": {},
           "swap": {
-            "from": "vanish",
+            "from": "sprint",
             "to": "shadowstep"
           }
         },
         {
           "id": "rogue_combat_t5c",
           "name": "Bleeding Wire",
-          "desc": "Replaces Vanish with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
+          "desc": "Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
           "icon": "🧵",
           "mods": {},
           "swap": {
-            "from": "vanish",
+            "from": "sprint",
             "to": "garrote"
           }
         }
@@ -2775,33 +2766,33 @@
         {
           "id": "rogue_subtlety_t6a",
           "name": "Gouging Thrust",
-          "desc": "Replaces Vanish with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
+          "desc": "Replaces Shadowstep with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
           "icon": "🩸",
           "mods": {},
           "swap": {
-            "from": "vanish",
+            "from": "shadowstep",
             "to": "mutilate"
           }
         },
         {
           "id": "rogue_subtlety_t6b",
           "name": "Blade Storm",
-          "desc": "Replaces Vanish with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
+          "desc": "Replaces Shadowstep with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
           "icon": "🌪️",
           "mods": {},
           "swap": {
-            "from": "vanish",
+            "from": "shadowstep",
             "to": "fan_of_knives"
           }
         },
         {
           "id": "rogue_subtlety_t6c",
           "name": "Blood Price",
-          "desc": "Replaces Vanish with Exsanguinate, a payoff that cashes in your bleeds and then triples them.",
+          "desc": "Replaces Shadowstep with Exsanguinate, a payoff that cashes in your bleeds and then triples them.",
           "icon": "🩸",
           "mods": {},
           "swap": {
-            "from": "vanish",
+            "from": "shadowstep",
             "to": "exsanguinate"
           }
         }

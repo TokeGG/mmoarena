@@ -49,9 +49,10 @@
   "kidney_shot": {
     "name": "Kidney Shot",
     "kind": "stun",
-    "duration": 3000,
+    "duration": 2000,
     "harmful": true,
-    "dr": "stun"
+    "dr": "stun",
+    "maxDuration": 6000
   },
   "psychic_scream": {
     "name": "Psychic Scream",
@@ -122,7 +123,7 @@
     "kind": "absorb",
     "duration": 12000,
     "harmful": false,
-    "absorbPct": 0.4,
+    "absorbPct": 0.25,
     "dispellable": true
   },
   "arcane_power": {
@@ -241,7 +242,7 @@
     "kind": "stun",
     "duration": 2500,
     "harmful": true,
-    "dr": "stun"
+    "dr": "charge"
   },
   "hammer_stun": {
     "name": "Storm Bolt",
@@ -416,7 +417,8 @@
     "name": "Slice and Dice",
     "kind": "stun",
     "duration": 1100,
-    "harmful": true
+    "harmful": true,
+    "dr": "stun"
   },
   "deep_cuts_bleed": {
     "name": "Deep Cuts",

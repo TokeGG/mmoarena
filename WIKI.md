@@ -36,7 +36,7 @@ Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts
 |---|---|---|
 | I | 🦘 **Leaping Strides** | Heroic Leap recharges 25% sooner and Charge 15% sooner. |
 |  | 🦵 **Crippling Technique** | Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner. |
-|  | 🐗 **Battle Rush** | Charge reaches 5 yards further and recharges 20% sooner. |
+|  | 🐗 **Battle Rush** | Heroic Leap reaches 5 yards further and recharges 20% sooner. |
 | II | 🛡️ **Iron Constitution** | +8% maximum health. |
 |  | 👟 **Fleet of Foot** | +6% movement speed. |
 |  | 💪 **Savage Might** | +4% damage done. |
@@ -422,7 +422,7 @@ Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.
 | Tier | Talent | What it does |
 |---|---|---|
 | I | 🚫 **Quick Snuff** | Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter. |
-|  | 🐑 **Sheepish** | Polymorph casts 25% faster and lasts 25% longer. |
+|  | 🐑 **Fleet Step** | Blink recharges 30% sooner. |
 |  | 🔮 **Arcane Insight** | Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner. |
 | II | 💧 **Arcane Reserves** | +20% mana regeneration. |
 |  | ⏩ **Quick Casting** | Casts take 7% less time. |
@@ -605,7 +605,7 @@ On the bar: [Cryomancy](#mage-frost) (key 6), [Pyromancy](#mage-fire) (key 4), [
 
 *Frost* · 40 mana · Instant · 30s cooldown · 12s shield
 
-- Absorbs 40% of your max health.
+- Absorbs 25% of your max health.
 
 On the bar: [Cryomancy](#mage-frost) (key 7). Talent: Pyromancy tier VI *Ice Barrier* (replaces Flamestrike); Starweaving tier VI *Ice Barrier* (replaces Arcane Explosion).
 
@@ -821,7 +821,7 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 | 3 | [Power Word: Shield](#skill-power-word-shield) | 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield |
 | 4 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 8s cooldown |
 | 5 | [Psychic Scream](#skill-psychic-scream) | 50 mana · 8 yd radius · Instant · 30s cooldown · 6s fear |
-| 6 | [Holy Nova](#skill-holy-nova) | 70 mana · 60 yd radius · Instant · 12s cooldown |
+| 6 | [Holy Nova](#skill-holy-nova) | 70 mana · 12 yd radius · Instant · 12s cooldown |
 | 7 | [Smite](#skill-smite) | 25 mana · 30 yd range · 1.5s cast |
 | 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 90s cooldown |
 
@@ -835,9 +835,9 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 | IV | 🧠 **Searing Thought** | Replaces Smite with Mind Blast, giving you a real shadow nuke for damage. → [Mind Blast](#skill-mind-blast) |
 |  | 👁️ **Lingering Gaze** | Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown to add damage between heals. → [Mind Flay](#skill-mind-flay) |
 |  | ☠️ **Creeping Ruin** | Replaces Smite with Devouring Plague, adding damage over time without needing a long cast. → [Devouring Plague](#skill-plague-bloom) |
-| V | 🔨 **Hammer of Dawn** | Replaces Psychic Scream with Hammer of Justice, a single-target stun to protect a struggling ally. → [Hammer of Justice](#skill-judgment-hammer) |
-|  | 🤫 **Quiet the Chant** | Replaces Psychic Scream with Silence, an interrupt that stops enemy casters. → [Silence](#skill-hush) |
-|  | 💀 **Final Verdict** | Replaces Psychic Scream with Shadow Word: Pain, a damage-over-time to add pressure. → [Shadow Word: Pain](#skill-shadow-word-death) |
+| V | 🔨 **Hammer of Dawn** | Replaces Desperate Prayer with Hammer of Justice, a single-target stun to protect a struggling ally. → [Hammer of Justice](#skill-judgment-hammer) |
+|  | 🤫 **Quiet the Chant** | Replaces Desperate Prayer with Silence, an interrupt that stops enemy casters. → [Silence](#skill-hush) |
+|  | 💀 **Final Verdict** | Replaces Desperate Prayer with Shadow Word: Pain, a damage-over-time to add pressure. → [Shadow Word: Pain](#skill-shadow-word-death) |
 | VI | ✨ **Inspiring Hymn** | Replaces Dispel Magic with Power Infusion, boosting healing and speeding up casts. → [Power Infusion](#skill-power-infusion) |
 |  | 🙏 **Word of Serenity** | Replaces Dispel Magic with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds. → [Holy Word: Serenity](#skill-holy-word) |
 |  | 🌫️ **Veil of Static** | Replaces Dispel Magic with Dispersion, letting you survive focus fire yourself. → [Dispersion](#skill-dispersion) |
@@ -868,12 +868,12 @@ Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Bla
 | IV | 💖 **Greater Salvation** | Replaces Flash Heal with Greater Heal, a slow but big heal for recovering between fights. → [Greater Heal](#skill-greater-heal) |
 |  | 🙏 **Serenity Burst** | Replaces Flash Heal with Holy Word: Serenity, an instant 300 heal for emergencies. → [Holy Word: Serenity](#skill-holy-word) |
 |  | 🕊️ **Desperate Measures** | Replaces Flash Heal with Desperate Prayer, a huge heal on a long cooldown. → [Desperate Prayer](#skill-desperate-prayer) |
-| V | 🪬 **Sacrificial Guard** | Replaces Power Word: Shield with Pain Suppression, a strong damage cut for 8 seconds. → [Pain Suppression](#skill-pain-suppression) |
-|  | 🧼 **Purge the Light** | Replaces Power Word: Shield with Dispel Magic, stripping buffs and cleansing your debuffs. → [Dispel Magic](#skill-dispel-magic) |
-|  | 🤫 **Hush** | Replaces Power Word: Shield with Silence, an interrupt to stop enemy healers. → [Silence](#skill-hush) |
-| VI | 🔨 **Hammer of the Void** | Replaces Psychic Scream with Hammer of Justice, a stun to set up burst and free Mind Flay channels. → [Hammer of Justice](#skill-judgment-hammer) |
-|  | ✨ **Dark Empowerment** | Replaces Psychic Scream with Power Infusion, a burst buff to your damage and cast speed. → [Power Infusion](#skill-power-infusion) |
-|  | ⚡ **Holy Reprise** | Replaces Psychic Scream with Smite, a reliable holy damage spell with no cooldown. → [Smite](#skill-smite) |
+| V | 🪬 **Sacrificial Guard** | Replaces Dispersion with Pain Suppression, a strong damage cut for 8 seconds. → [Pain Suppression](#skill-pain-suppression) |
+|  | 🧼 **Purge the Light** | Replaces Dispersion with Dispel Magic, stripping buffs and cleansing your debuffs. → [Dispel Magic](#skill-dispel-magic) |
+|  | 🤫 **Hush** | Replaces Dispersion with Silence, an interrupt to stop enemy healers. → [Silence](#skill-hush) |
+| VI | 🔨 **Hammer of the Void** | Replaces Mind Flay with Hammer of Justice, a stun to set up burst. → [Hammer of Justice](#skill-judgment-hammer) |
+|  | ✨ **Dark Empowerment** | Replaces Mind Flay with Power Infusion, a burst buff to your damage and cast speed. → [Power Infusion](#skill-power-infusion) |
+|  | ⚡ **Holy Reprise** | Replaces Mind Flay with Smite, a reliable holy damage spell with no cooldown. → [Smite](#skill-smite) |
 
 ### Priest skills
 
@@ -905,7 +905,7 @@ On the bar: [Warden](#priest-discipline) (key 2), [Lightbearer](#priest-holy) (k
 - −40% damage taken.
 - *Does not trigger the global cooldown.*
 
-On the bar: [Warden](#priest-discipline) (key 3). Talent: Gloomweaver tier V *Sacrificial Guard* (replaces Power Word: Shield).
+On the bar: [Warden](#priest-discipline) (key 3). Talent: Gloomweaver tier V *Sacrificial Guard* (replaces Dispersion).
 
 <a id="skill-smite"></a>
 #### Smite
@@ -914,7 +914,7 @@ On the bar: [Warden](#priest-discipline) (key 3). Talent: Gloomweaver tier V *Sa
 
 - Deals 170 holy damage.
 
-On the bar: [Warden](#priest-discipline) (key 4), [Lightbearer](#priest-holy) (key 7). Talent: Gloomweaver tier VI *Holy Reprise* (replaces Psychic Scream).
+On the bar: [Warden](#priest-discipline) (key 4), [Lightbearer](#priest-holy) (key 7). Talent: Gloomweaver tier VI *Holy Reprise* (replaces Mind Flay).
 
 <a id="skill-dispel-magic"></a>
 #### Dispel Magic
@@ -923,7 +923,7 @@ On the bar: [Warden](#priest-discipline) (key 4), [Lightbearer](#priest-holy) (k
 
 - Removes one magic effect: a harmful one from allies, a beneficial one from enemies.
 
-On the bar: [Warden](#priest-discipline) (key 5), [Lightbearer](#priest-holy) (key 4). Talent: Gloomweaver tier V *Purge the Light* (replaces Power Word: Shield).
+On the bar: [Warden](#priest-discipline) (key 5), [Lightbearer](#priest-holy) (key 4). Talent: Gloomweaver tier V *Purge the Light* (replaces Dispersion).
 
 <a id="skill-psychic-scream"></a>
 #### Psychic Scream
@@ -966,7 +966,7 @@ On the bar: [Lightbearer](#priest-holy) (key 2). Talent: Gloomweaver tier IV *Gr
 <a id="skill-holy-nova"></a>
 #### Holy Nova
 
-*Holy* · 70 mana · 60 yd radius · Instant · 12s cooldown
+*Holy* · 70 mana · 12 yd radius · Instant · 12s cooldown
 
 - Deals 80 holy damage to all enemies in range.
 - On an ally: heals for 130.
@@ -989,7 +989,7 @@ On the bar: [Gloomweaver](#priest-shadow) (key 1). Talent: Warden tier IV *Mind 
 
 - Takes 30 shadow damage every 1s (300 total).
 
-On the bar: [Gloomweaver](#priest-shadow) (key 2). Talent: Lightbearer tier V *Final Verdict* (replaces Psychic Scream).
+On the bar: [Gloomweaver](#priest-shadow) (key 2). Talent: Lightbearer tier V *Final Verdict* (replaces Desperate Prayer).
 
 <a id="skill-plague-bloom"></a>
 #### Devouring Plague
@@ -1032,7 +1032,7 @@ On the bar: [Gloomweaver](#priest-shadow) (key 6). Talent: Warden tier VI *Fade 
 - *Target must be casting.*
 - *Does not trigger the global cooldown.*
 
-Talent: Warden tier V *Hush the Caster* (replaces Dispel Magic); Lightbearer tier V *Quiet the Chant* (replaces Psychic Scream); Gloomweaver tier V *Hush* (replaces Power Word: Shield).
+Talent: Warden tier V *Hush the Caster* (replaces Dispel Magic); Lightbearer tier V *Quiet the Chant* (replaces Desperate Prayer); Gloomweaver tier V *Hush* (replaces Dispersion).
 
 <a id="skill-judgment-hammer"></a>
 #### Hammer of Justice
@@ -1041,7 +1041,7 @@ Talent: Warden tier V *Hush the Caster* (replaces Dispel Magic); Lightbearer tie
 
 - Cannot move, cast or act.
 
-Talent: Warden tier V *Hammer of the Warden* (replaces Dispel Magic); Lightbearer tier V *Hammer of Dawn* (replaces Psychic Scream); Gloomweaver tier VI *Hammer of the Void* (replaces Psychic Scream).
+Talent: Warden tier V *Hammer of the Warden* (replaces Dispel Magic); Lightbearer tier V *Hammer of Dawn* (replaces Desperate Prayer); Gloomweaver tier VI *Hammer of the Void* (replaces Mind Flay).
 
 <a id="skill-power-infusion"></a>
 #### Power Infusion
@@ -1051,7 +1051,7 @@ Talent: Warden tier V *Hammer of the Warden* (replaces Dispel Magic); Lightbeare
 - +20% damage dealt. +20% healing and shields. −15% cast time.
 - *Does not trigger the global cooldown.*
 
-Talent: Warden tier V *Empowered Ally* (replaces Dispel Magic); Lightbearer tier VI *Inspiring Hymn* (replaces Dispel Magic); Gloomweaver tier VI *Dark Empowerment* (replaces Psychic Scream).
+Talent: Warden tier V *Empowered Ally* (replaces Dispel Magic); Lightbearer tier VI *Inspiring Hymn* (replaces Dispel Magic); Gloomweaver tier VI *Dark Empowerment* (replaces Mind Flay).
 
 <a id="skill-holy-word"></a>
 #### Holy Word: Serenity
@@ -1093,7 +1093,7 @@ Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate
 |---|---|---|
 | 1 | [Stealth](#skill-stealth) | Instant · 10s cooldown |
 | 2 | [Mutilate](#skill-mutilate) | 50 energy · 3 yd range · Instant · 6s bleed |
-| 3 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 3s stun (+1s per combo point) |
+| 3 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s) |
 | 4 | [Kick](#skill-kick) | 3 yd range · Instant · 15s cooldown |
 | 5 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
 | 6 | [Sprint](#skill-sprint) | Instant · 60s cooldown · 8s speed boost |
@@ -1128,7 +1128,7 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 |---|---|---|
 | 1 | [Stealth](#skill-stealth) | Instant · 10s cooldown |
 | 2 | [Sinister Strike](#skill-sinister-strike) | 40 energy · 3 yd range · Instant |
-| 3 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 3s stun (+1s per combo point) |
+| 3 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s) |
 | 4 | [Kick](#skill-kick) | 3 yd range · Instant · 15s cooldown |
 | 5 | [Adrenaline Rush](#skill-adrenaline-rush) | Instant · 15s cooldown · 4s buff (+1.5s per combo point) |
 | 6 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
@@ -1145,9 +1145,9 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 | IV | 🔪 **Throwing Knife** | Replaces Kick with Deadly Throw, a 20-yard ranged interrupt. → [Deadly Throw](#skill-knife-snipe) |
 |  | 🙈 **Blinding Powder** | Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight. → [Blind](#skill-blind) |
 |  | ⚗️ **Hobbling Dose** | Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%. → [Crippling Poison](#skill-crippling-strike) |
-| V | 💨 **Smoke Screen** | Replaces Vanish with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play. → [Smoke Bomb](#skill-choke-bomb) |
-|  | 🌀 **Shadow Leap** | Replaces Vanish with Shadowstep to close 25 yards on a target and open on them. → [Shadowstep](#skill-shadowstep) |
-|  | 🧵 **Bleeding Wire** | Replaces Vanish with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds. → [Garrote](#skill-garrote) |
+| V | 💨 **Smoke Screen** | Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play. → [Smoke Bomb](#skill-choke-bomb) |
+|  | 🌀 **Shadow Leap** | Replaces Sprint with Shadowstep to close 25 yards on a target and open on them. → [Shadowstep](#skill-shadowstep) |
+|  | 🧵 **Bleeding Wire** | Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds. → [Garrote](#skill-garrote) |
 | VI | ⚔️ **Finishing Cut** | Replaces Evasion with Eviscerate, a combo point finisher dealing 110 damage per combo point spent. → [Eviscerate](#skill-eviscerate) |
 |  | 🌪️ **Blade Storm** | Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
 |  | 🩸 **Gouging Thrust** | Replaces Evasion with Mutilate, a heavy strike that earns a combo point and leaves a bleed. → [Mutilate](#skill-mutilate) |
@@ -1162,7 +1162,7 @@ Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard f
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Stealth](#skill-stealth) | Instant · 10s cooldown |
-| 2 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 3s stun (+1s per combo point) |
+| 2 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s) |
 | 3 | [Kick](#skill-kick) | 3 yd range · Instant · 15s cooldown |
 | 4 | [Shadowstep](#skill-shadowstep) | 10 energy · 25 yd range · min 5 yd · Instant · 20s cooldown |
 | 5 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
@@ -1183,9 +1183,9 @@ Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard f
 | V | 💨 **Smoke Screen** | Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play. → [Smoke Bomb](#skill-choke-bomb) |
 |  | ⚡ **Fortune's Edge** | Replaces Sprint with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing. → [Adrenaline Rush](#skill-adrenaline-rush) |
 |  | 🧵 **Bleeding Wire** | Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds. → [Garrote](#skill-garrote) |
-| VI | 🩸 **Gouging Thrust** | Replaces Vanish with Mutilate, a heavy strike that earns a combo point and leaves a bleed. → [Mutilate](#skill-mutilate) |
-|  | 🌪️ **Blade Storm** | Replaces Vanish with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
-|  | 🩸 **Blood Price** | Replaces Vanish with Exsanguinate, a payoff that cashes in your bleeds and then triples them. → [Exsanguinate](#skill-exsanguinate) |
+| VI | 🩸 **Gouging Thrust** | Replaces Shadowstep with Mutilate, a heavy strike that earns a combo point and leaves a bleed. → [Mutilate](#skill-mutilate) |
+|  | 🌪️ **Blade Storm** | Replaces Shadowstep with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
+|  | 🩸 **Blood Price** | Replaces Shadowstep with Exsanguinate, a payoff that cashes in your bleeds and then triples them. → [Exsanguinate](#skill-exsanguinate) |
 
 ### Rogue skills
 
@@ -1212,12 +1212,12 @@ On the bar: [Cutthroat](#rogue-assassination) (key 1), [Duelist](#rogue-combat) 
 - *Awards 1 combo point.*
 - *While you are stealthed this slot becomes Cheap Shot.*
 
-On the bar: [Cutthroat](#rogue-assassination) (key 2). Talent: Duelist tier VI *Gouging Thrust* (replaces Evasion); Shade tier VI *Gouging Thrust* (replaces Vanish).
+On the bar: [Cutthroat](#rogue-assassination) (key 2). Talent: Duelist tier VI *Gouging Thrust* (replaces Evasion); Shade tier VI *Gouging Thrust* (replaces Shadowstep).
 
 <a id="skill-kidney-shot"></a>
 #### Kidney Shot
 
-*Physical* · 25 energy · 3 yd range · Instant · 30s cooldown · 3s stun (+1s per combo point)
+*Physical* · 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s)
 
 - Cannot move, cast or act.
 - *Spends all combo points (needs at least 1).*
@@ -1265,17 +1265,17 @@ On the bar: [Cutthroat](#rogue-assassination) (key 6), [Duelist](#rogue-combat) 
 - Deals 100 physical damage.
 - Bleeding: takes 50 physical damage every 1s (400 total).
 
-On the bar: [Cutthroat](#rogue-assassination) (key 7). Talent: Duelist tier V *Bleeding Wire* (replaces Vanish); Shade tier V *Bleeding Wire* (replaces Sprint).
+On the bar: [Cutthroat](#rogue-assassination) (key 7). Talent: Duelist tier V *Bleeding Wire* (replaces Sprint); Shade tier V *Bleeding Wire* (replaces Sprint).
 
 <a id="skill-exsanguinate"></a>
 #### Exsanguinate
 
 *Physical* · 35 energy · 3 yd range · Instant
 
-- Deals 60 damage per combo point spent plus 50% of the bleed damage remaining on the target, then increases all current bleeds by 200%.
+- Deals 60 damage per combo point spent plus 50% of the bleed damage remaining on the target, then makes every current bleed deal 3x damage (using it again does not stack).
 - *Spends all combo points (needs at least 1).*
 
-On the bar: [Cutthroat](#rogue-assassination) (key 8). Talent: Shade tier VI *Blood Price* (replaces Vanish).
+On the bar: [Cutthroat](#rogue-assassination) (key 8). Talent: Shade tier VI *Blood Price* (replaces Shadowstep).
 
 <a id="skill-sinister-strike"></a>
 #### Sinister Strike
@@ -1318,7 +1318,7 @@ On the bar: [Duelist](#rogue-combat) (key 8).
 - *Awards 3 combo points.*
 - *Does not trigger the global cooldown.*
 
-On the bar: [Shade](#rogue-subtlety) (key 4). Talent: Cutthroat tier V *Shadow Leap* (replaces Sprint); Duelist tier V *Shadow Leap* (replaces Vanish).
+On the bar: [Shade](#rogue-subtlety) (key 4). Talent: Cutthroat tier V *Shadow Leap* (replaces Sprint); Duelist tier V *Shadow Leap* (replaces Sprint).
 
 <a id="skill-backstab"></a>
 #### Backstab
@@ -1378,7 +1378,7 @@ Talent: Cutthroat tier IV *Hobbling Dose* (replaces Kick); Duelist tier IV *Hobb
 
 - Drops a smoke cloud with a 6-yard radius. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.
 
-Talent: Cutthroat tier V *Smoke Screen* (replaces Sprint); Duelist tier V *Smoke Screen* (replaces Vanish); Shade tier V *Smoke Screen* (replaces Sprint).
+Talent: Cutthroat tier V *Smoke Screen* (replaces Sprint); Duelist tier V *Smoke Screen* (replaces Sprint); Shade tier V *Smoke Screen* (replaces Sprint).
 
 <a id="skill-fan-of-knives"></a>
 #### Fan of Knives
@@ -1387,7 +1387,7 @@ Talent: Cutthroat tier V *Smoke Screen* (replaces Sprint); Duelist tier V *Smoke
 
 - Deals 90 physical damage to all enemies in range.
 
-Talent: Cutthroat tier V *Blade Storm* (replaces Sprint); Duelist tier VI *Blade Storm* (replaces Evasion); Shade tier VI *Blade Storm* (replaces Vanish).
+Talent: Cutthroat tier V *Blade Storm* (replaces Sprint); Duelist tier VI *Blade Storm* (replaces Evasion); Shade tier VI *Blade Storm* (replaces Shadowstep).
 
 <a id="skill-cheap-shot"></a>
 #### Cheap Shot
@@ -1433,9 +1433,9 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-hamstring-slow"></a>**Hamstring** | Debuff (slow) | 8s | Movement speed reduced by 50%. | [Hamstring](#skill-hamstring) |
 | <a id="effect-rogue-slow"></a>**Hobbled** | Debuff (slow) | 3s | Movement speed reduced by 10%. | talent *Crippling Cuts* ([Mutilate](#skill-mutilate)), talent *Hobbling Strikes* ([Sinister Strike](#skill-sinister-strike)), talent *Hobbling Backstab* ([Backstab](#skill-backstab)) |
 | <a id="effect-hot-streak"></a>**Hot Streak** | Buff | 10s | Your next Pyroblast is instant. | [Fireball](#skill-fireball), [Pyroblast](#skill-pyroblast), [Scorch](#skill-scorch), [Dragon's Breath](#skill-dragons-breath) |
-| <a id="effect-ice-barrier"></a>**Ice Barrier** | Buff (absorb), magic | 12s | Absorbs damage equal to 40% of max health. | [Ice Barrier](#skill-ice-barrier) |
+| <a id="effect-ice-barrier"></a>**Ice Barrier** | Buff (absorb), magic | 12s | Absorbs damage equal to 25% of max health. | [Ice Barrier](#skill-ice-barrier) |
 | <a id="effect-intimidating-shout"></a>**Intimidating Shout** | Debuff (fear) | 5s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Intimidating Shout](#skill-intimidating-shout) |
-| <a id="effect-kidney-shot"></a>**Kidney Shot** | Debuff (stun) | 3s | Cannot move, cast or act. | [Kidney Shot](#skill-kidney-shot) |
+| <a id="effect-kidney-shot"></a>**Kidney Shot** | Debuff (stun) | 2s | Cannot move, cast or act. | [Kidney Shot](#skill-kidney-shot) |
 | <a id="effect-mind-flay-slow"></a>**Mind Flay** | Debuff (slow) | 1.5s | Movement speed reduced by 30%. | [Mind Flay](#skill-mind-flay) |
 | <a id="effect-mortal-wounds"></a>**Mortal Wounds** | Debuff (mark) | 8s | −40% healing received. | [Mortal Strike](#skill-mortal-strike) |
 | <a id="effect-mutilate-bleed"></a>**Mutilate** | Debuff (dot) | 6s | Bleeding: takes 14 physical damage every 1s (84 total). | [Mutilate](#skill-mutilate) |

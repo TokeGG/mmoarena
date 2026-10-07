@@ -14,6 +14,8 @@ npm run typecheck
 npm run duel              # headless bot-vs-bot win rates for every composition
 npm run duel -- 30 hard   # 30 seeds per matchup, hard bots
 npx tsx scripts/gen-wiki.ts    # rebuild WIKI.md from the data (a test fails while it is out of date)
+npx tsx scripts/train-rotations.ts   # relearn every spec's damage rotation (seconds)
+npx tsx scripts/train-bots.ts  # relearn the bot brains by self-play (minutes)
 ```
 
 `npm run duel` measures how the bots' playbook performs, not how humans will. Use it to catch broken classes and wildly lopsided numbers, then tune `shared/data/*.json`.
@@ -24,13 +26,17 @@ The full list is in [CLAUDE.md](CLAUDE.md). In short:
 
 - **Replays:** whenever simulation code (`shared/src/sim.ts` and anything it uses) or game data changes, bump `SIM_REVISION` in `shared/src/replay.ts`, otherwise older replays would play out differently. Replays are also gated by a hash of the data files, so a stale one says so instead of showing a wrong fight.
 - **Versions:** bump the version in README line 1, the root `package.json` and `client/package.json` together (kept below 1.0), and add the matching entry at the top of `shared/data/patches.json` (the in-game Patch notes; a test checks the versions agree).
-- **Bots:** a change to abilities, specs, talents, weapons or class mechanics also updates `shared/src/bot.ts` so bots use the new skills, and the per-spec bot test must pass. Then re-train (below) and commit `shared/data/botbrain.json`.
+- **Bots:** a change to abilities, specs, talents, weapons or class mechanics also updates `shared/src/bot.ts` so bots use the new skills, and the per-spec bot test must pass. Then re-train (below) and commit `shared/data/rotations.json` and `shared/data/botbrain.json`.
 - **Wiki:** after changing abilities, auras, specs, talents or tooltip wording, run `npx tsx scripts/gen-wiki.ts` and commit `WIKI.md`.
 
 ## Bots and learning
 
 - Bots play from a tunable brain (cover and defensive thresholds, strafing, healer priority, focus fire, kiting range, heal timing, burst timing, chase, ground-zone dodging, pre-shielding).
-- `npx tsx scripts/train-bots.ts` runs bot-vs-bot self-play (a few minutes) and writes the trained baseline to `shared/data/botbrain.json`.
+- Bots take talents (a random pick in most tiers), so the tier IV to VI skill swaps are played by bots too; a test checks that every ability on a bot's bar gets used.
+- **Rotations:** `npx tsx scripts/train-rotations.ts` searches each spec's damage-ability order against a target dummy (the real cooldowns, costs, procs and combo points; several talent builds per spec) and keeps the order that deals the most damage, in `shared/data/rotations.json`. Bots press their filler in that order; finishers and rage dumps go off at their own thresholds, crowd control is spent on purpose.
+- **Player tricks:** casters fake casts (start one and stop it) while an enemy's interrupt is ready and in reach; interrupters wait into a cast before kicking, longer against someone who has faked before; bots step behind pillars, walls or decks to make a long cast at them fail, take cover the same way when hurt (on the walk grid, both floors), take the ramp up to someone on a walkway, and keep sidestepping between casts. How much of each they do is part of the brain (`jukeChance`, `jukeAt`, `kickAt`, `losUse`, `mobility`), so it is trained and learned like the rest.
+- **Difficulty:** Easy reacts in about 1.3 s, thinks less often, skips a third of its decisions, interrupts rarely and saves itself late; Normal is in between; Hard reacts in 0.16 s.
+- `npx tsx scripts/train-bots.ts` runs bot-vs-bot self-play (a few minutes) in 1v1, 2v2 and 3v3 on every arena in turn, and writes the trained baseline to `shared/data/botbrain.json`. Brains stored by the server are completed from that baseline when they load, so a brain saved by an older version never misses the newer traits.
 - Live, the server keeps six brain variants per class, hands one to every bot it spawns, credits each finished match against a human (20 s or longer, no draws) to that variant, and replaces the weakest with a mutation of the best. Variants are stored in the same Upstash store as accounts (memory only without it); `/api/status` shows them.
 - After each recorded match the server replays it, measures what every human did (strafing, distance to target, health when using a defensive, healer focus, team focus) and keeps a running per-class human style; each class gets a "human" brain variant pulled towards that style, which only survives if it wins.
 

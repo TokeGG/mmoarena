@@ -266,7 +266,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   const main = lasting.length === 1 ? lasting[0] : undefined;
   if (main?.type === 'aura') {
     const a = AURAS[main.aura];
-    stats.push(`${D(main)} ${a.kind === 'dot' && a.bleed ? 'bleed' : LASTING[a.kind]}${main.extraPerCp ? ` (+${sec(main.extraPerCp)} per combo point)` : ''}`);
+    stats.push(`${D(main)} ${a.kind === 'dot' && a.bleed ? 'bleed' : LASTING[a.kind]}${main.extraPerCp ? ` (+${sec(main.extraPerCp)} per combo point${a.maxDuration ? `, up to ${sec(a.maxDuration)}` : ''})` : ''}`);
   } else if (main) stats.push(`${fmtS(main.duration / 1000)} ${main.type === 'zone' ? 'ground effect' : main.type === 'flag' ? 'banner' : 'smoke cloud'}`);
 
   const ticks = def.channel?.ticks ?? 1;
@@ -300,7 +300,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const a = AURAS[e.aura];
         if (!a || e === chargeStun) return undefined;
         const dur = auraSecs(e, mods);
-        const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent)` : '';
+        const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent${a.maxDuration ? `, up to ${sec(a.maxDuration)} in all` : ''})` : '';
         const body = a.kind === 'absorb'
           ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${M((m) => Math.round((a.absorb ?? 0) * m.healingDone))} damage`}`
           : describeAura(e.aura, mods, o).replace(/\.$/, '');
@@ -317,7 +317,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
       }
       case 'exsanguinate':
-        return `Deals ${M(dmgOf(e.perCp))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then increases all current bleeds by ${Math.round((e.bleedMult - 1) * 100)}%.`;
+        return `Deals ${M(dmgOf(e.perCp))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then makes every current bleed deal ${e.bleedMult}x damage (using it again does not stack).`;
       case 'interrupt':
         return `Interrupts the target's spellcasting and locks out that school for ${sec(e.lockout)}.`;
       case 'dispel':

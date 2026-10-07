@@ -39,6 +39,16 @@ export interface Brain {
   dodge: number;
   /** Health fraction at or below which it keeps its own shield or barrier up while enemies are near (1 = always, even at full health). */
   preShield: number;
+  /** 0..1 how often a caster fakes a cast (starts it, then stops it) while an enemy's interrupt is ready and in reach. */
+  jukeChance: number;
+  /** How far into a fake cast (fraction of the cast time) it stops casting. */
+  jukeAt: number;
+  /** How far into an enemy cast (fraction) it waits before interrupting: later beats fakes, too late misses. */
+  kickAt: number;
+  /** 0..1 willingness to break line of sight: stepping behind a pillar or a deck from a big enemy cast, fighting from cover. */
+  losUse: number;
+  /** 0..1 how much it keeps moving while it fights: strafing between casts, circling in melee, hopping. */
+  mobility: number;
 }
 
 export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
@@ -58,18 +68,28 @@ export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
   ccEarly: [0, 1],
   dodge: [0, 1],
   preShield: [0.5, 1],
+  jukeChance: [0, 1],
+  jukeAt: [0.2, 0.7],
+  kickAt: [0, 0.85],
+  losUse: [0, 1],
+  mobility: [0, 1],
 };
 
 export const DEFAULT_BRAIN: Brain = {
   coverHp: 0.45, defHp: 0.45, strafe: 0.8, healerPrio: 20, focus: 10, killLow: 60,
   rangeBias: 0, healAt: 1, burstHp: 1, strafeFlip: 1.5, chase: 0.5,
   panicHp: 0.3, dangerAt: 0.35, ccEarly: 0.6, dodge: 0.7, preShield: 0.9,
+  jukeChance: 0.35, jukeAt: 0.4, kickAt: 0.45, losUse: 0.6, mobility: 0.7,
 };
 
 export const BRAIN_KEYS = Object.keys(DEFAULT_BRAIN) as (keyof Brain)[];
 
-export function clampBrain(b: Partial<Brain> | undefined): Brain {
-  const out = { ...DEFAULT_BRAIN };
+/**
+ * Every field in range, and anything missing filled in from `base` (by default the general defaults). A brain stored by
+ * an older version lacks the newer traits; without this they read as undefined and switch whole behaviours off.
+ */
+export function clampBrain(b: Partial<Brain> | undefined, base: Brain = DEFAULT_BRAIN): Brain {
+  const out = { ...DEFAULT_BRAIN, ...base };
   for (const k of BRAIN_KEYS) {
     const v = b?.[k];
     if (typeof v === 'number' && Number.isFinite(v)) out[k] = Math.min(BRAIN_BOUNDS[k][1], Math.max(BRAIN_BOUNDS[k][0], v));
@@ -80,6 +100,13 @@ export function clampBrain(b: Partial<Brain> | undefined): Brain {
 /** The trained baseline for a class (the defaults until offline training has been run). */
 export function brainFor(classId: ClassId): Brain {
   return clampBrain((botbrainJson as Record<string, Partial<Brain>>)[classId]);
+}
+
+/** A population loaded from storage, every brain completed against the class's trained baseline (older saves miss newer fields). */
+export function freshenPopulation(pop: Population): Population {
+  const base = brainFor(pop.classId);
+  for (const v of pop.variants) v.brain = clampBrain(v.brain, base);
+  return pop;
 }
 
 /** A nearby brain: each number moves by a random fraction of its range with probability `rate`. */

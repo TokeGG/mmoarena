@@ -237,7 +237,23 @@ export function navRoute(arena: ArenaDef, from: Vec2, fromLv: Level, to: Vec2, t
     const changesLevel = e.to >= N !== cur >= N;
     if (e.jump || changesLevel) {
       // the first step that needs a jump or a level change: head straight for it (walking there does the climb)
-      if (k === 0) return { point: p, jump: e.jump && dist(from, p) < (changesLevel ? HOP + 0.1 : 1.6) }; // a barricade: jump just before it
+      if (k === 0) {
+        if (e.jump && !changesLevel) {
+          // a barricade: aim at the open cell on its far side, not into the barricade (pressed against it, a jump aimed at
+          // its middle would come straight back down on this side)
+          let land = e.to;
+          for (let hop = 0; hop < 4 && g.open[land] === 2; hop++) {
+            let nx: Edge | null = null;
+            let nb = Infinity;
+            for (const x of g.out[land]) if (x.cost + f[x.to] < nb) { nb = x.cost + f[x.to]; nx = x; }
+            if (!nx) break;
+            land = nx.to;
+          }
+          const q = cellPos(g, land);
+          return { point: q, jump: dist(from, p) < 1.6 };
+        }
+        return { point: p, jump: e.jump && dist(from, p) < HOP + 0.1 };
+      }
       return { point: best, jump: false };
     }
     if (!straight(g, from, p, fromLv)) return { point: k === 0 ? p : best, jump: false };
@@ -255,4 +271,40 @@ export function highSpot(arena: ArenaDef, to: Vec2): Vec2 | null {
   if (n < 0) return null;
   const p = cellPos(g, n);
   return hasLOS(p, to, arena, 1, 0) && dist(p, to) < 26 ? p : null;
+}
+
+/**
+ * The nearest spot (by walking distance, ramps and jumps included) on either floor where `threat` cannot see a unit,
+ * within `maxWalk` yards: behind a pillar, round a wall, under or on top of a deck. Null when there is none in reach.
+ * Works on every arena (plain ones too: their grid is just the ground with pillars cut out).
+ */
+export function coverSpot(arena: ArenaDef, from: Vec2, fromLv: Level, threat: Vec2, threatLv: Level, maxWalk = 16, avoid?: Vec2): { point: Vec2; level: Level; walk: number } | null {
+  const g = gridOf(arena);
+  const start = nodeNear(g, from, fromLv);
+  if (start < 0) return null;
+  const N = g.cols * g.rows;
+  const best = new Map<number, number>([[start, 0]]);
+  const queue: [number, number][] = [[0, start]];
+  while (queue.length) {
+    // a small frontier: a linear pick of the cheapest is fine for the few hundred cells within reach
+    let k = 0;
+    for (let i = 1; i < queue.length; i++) if (queue[i][0] < queue[k][0]) k = i;
+    const [d, n] = queue.splice(k, 1)[0];
+    if (d > (best.get(n) ?? Infinity)) continue;
+    const p = cellPos(g, n);
+    const lv: Level = n >= N ? 1 : 0;
+    // hidden, and not right next to the threat (cover is no use with the enemy standing in it)
+    // hidden even a step off the exact spot (arriving is never exact), and not right next to the threat
+    const hidden = (x: number, z: number) => !hasLOS({ x, z }, threat, arena, lv, threatLv);
+    if (g.open[n] === 1 && dist(p, threat) > 4 && (!avoid || dist(p, avoid) > 3) && hidden(p.x, p.z) && hidden(p.x + 0.8, p.z) && hidden(p.x - 0.8, p.z) && hidden(p.x, p.z + 0.8) && hidden(p.x, p.z - 0.8)) {
+      return { point: p, level: lv, walk: d };
+    }
+    for (const e of g.out[n]) {
+      const nd = d + e.cost;
+      if (nd > maxWalk || nd >= (best.get(e.to) ?? Infinity)) continue;
+      best.set(e.to, nd);
+      queue.push([nd, e.to]);
+    }
+  }
+  return null;
 }

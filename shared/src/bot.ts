@@ -1,19 +1,27 @@
 import { ABILITIES, AURAS, TUNING } from './data';
-import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, navStep, stepMovementL } from './geometry';
-import { highSpot, navRoute, needsNavGrid } from './nav';
+import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, heightAt, navStep, stepMovementL } from './geometry';
+import { coverSpot, highSpot, navRoute, needsNavGrid } from './nav';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
 import { SPECS } from './data';
-import { autoFor } from './build';
+import { autoFor, talentsFor } from './build';
 import type { Build } from './types';
-import { brainFor } from './botbrain';
+import { brainFor, clampBrain } from './botbrain';
+import { rotationFor } from './rotation';
 import type { Brain } from './botbrain';
 
-/** A bot's loadout: one of the class's specs, so bots field every weapon spec and bar that exists in the data. */
-export function botBuild(classId: ClassId, seed: number): Build {
+/**
+ * A bot's loadout: one of the class's specs (so bots field every weapon spec and bar that exists in the data) and a talent
+ * in most tiers, picked from the seed, so the skill swaps of tiers IV to VI get played by bots too.
+ */
+export function botBuild(classId: ClassId, seed: number, withTalents = true): Build {
   const specs = SPECS[classId];
-  return { spec: specs[Math.abs(seed) % specs.length].id, talents: [], gear: {} };
+  const spec = specs[Math.abs(seed) % specs.length].id;
+  if (!withTalents) return { spec, talents: [], gear: {} };
+  const rng = mulberry32(seed * 7919 + 17);
+  const talents = talentsFor(classId, spec).map((tier) => (rng() < 0.85 && tier.length ? tier[Math.floor(rng() * tier.length)].id : ''));
+  return { spec, talents, gear: {} };
 }
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
@@ -22,11 +30,14 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
  * react: how long a bot needs to notice something (a cast, a crowd control on an ally) before it responds.
  * think: ticks between decisions (movement is still sent every tick).
  * interruptChance: fraction of enemy casts the bot even tries to interrupt.
+ * guard: multiplies the health thresholds for defensives and cover (lower = it waits longer before saving itself).
+ * tricks: multiplies its willingness to fake casts and to break line of sight.
+ * lapse: chance a decision is skipped (a slower, sloppier player presses fewer buttons).
  */
-const PARAMS: Record<Difficulty, { react: number; think: number; interruptChance: number }> = {
-  easy: { react: 700, think: 4, interruptChance: 0.4 },
-  normal: { react: 650, think: 3, interruptChance: 0.5 },
-  hard: { react: 160, think: 1, interruptChance: 1 },
+const PARAMS: Record<Difficulty, { react: number; think: number; interruptChance: number; guard: number; tricks: number; lapse: number }> = {
+  easy: { react: 1300, think: 6, interruptChance: 0.2, guard: 0.6, tricks: 0, lapse: 0.35 },
+  normal: { react: 550, think: 2, interruptChance: 0.6, guard: 0.9, tricks: 0.6, lapse: 0.08 },
+  hard: { react: 160, think: 1, interruptChance: 1, guard: 1, tricks: 1, lapse: 0 },
 };
 
 export const RANGED: Partial<Record<ClassId, { min: number; max: number }>> = {
@@ -35,6 +46,8 @@ export const RANGED: Partial<Record<ClassId, { min: number; max: number }>> = {
 };
 const MELEE = new Set<ClassId>(['warrior', 'rogue']);
 const HARD_CC = ['incapacitate', 'fear', 'stun', 'root'];
+/** Control that takes a unit out of the fight entirely (a root still lets it cast). */
+const LOCKED_DOWN = ['incapacitate', 'fear', 'stun'];
 
 const hpFrac = (u: Unit) => u.health / u.maxHealth;
 const angleDiff = (a: number, b: number) => ((((a - b + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
@@ -64,7 +77,7 @@ export class Bot {
   private nextThink = 0;
   private target: number | null = null;
   private retargetAt = 0;
-  private castSeen = new Map<number, { start: number; at: number; will: boolean }>();
+  private castSeen = new Map<number, { start: number; at: number; will: boolean; wait: number }>();
   private auraSeen = new Map<string, number>();
   private strafeSign = 1;
   private strafeFlipAt = 0;
@@ -90,10 +103,26 @@ export class Bot {
   readonly brain: Brain;
   private highGround = false;
   private wasUp = false;
+  private climbSince: number | undefined;
+
+  /** A fake cast in progress: stop it at `until` (the enemy's interrupt is ready and we want it wasted). */
+  private juke: { start: number; until: number } | null = null;
+  private lastJuke = -1e9;
+  /** Enemies seen faking casts at us: their next casts are kicked later. */
+  private jukers = new Map<number, number>();
+  /** Running to cover or out of a cast's sight: only instants (and spells cast on the move) are used meanwhile. */
+  private moving = false;
+  /** The enemy casts already weighed for a line-of-sight dodge (by cast start). */
+  private dodgeSeen = new Map<number, number>();
+  /** The floor the cover spot is on. */
+  private coverLv: 0 | 1 = 0;
 
   constructor(private sim: ArenaSim, readonly unitId: number, difficulty: Difficulty = 'normal', seed = 1, brain?: Brain) {
-    this.brain = brain ?? brainFor(sim.units.get(unitId)?.classId ?? 'warrior');
     this.P = PARAMS[difficulty];
+    // a brain from storage may be missing newer traits: those come from the class's trained baseline
+    const b = clampBrain(brain, brainFor(sim.units.get(unitId)?.classId ?? 'warrior'));
+    const g = this.P.guard;
+    this.brain = { ...b, defHp: b.defHp * g, panicHp: b.panicHp * g, coverHp: b.coverHp * g, jukeChance: b.jukeChance * this.P.tricks, losUse: b.losUse * this.P.tricks };
     this.rng = mulberry32(seed);
     // on a raised walkway, casters like the high ground about half the time
     this.highGround = sim.units.get(unitId)?.classId === 'mage' && this.rng() < 0.5;
@@ -133,6 +162,18 @@ export class Bot {
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
 
+    // a fake cast: stop it once it has drawn the kick (or at the planned moment)
+    if (this.juke) {
+      if (!u.cast || u.cast.start !== this.juke.start) this.juke = null;
+      else if (sim.time >= this.juke.until) {
+        sim.stopCast(u.id);
+        this.juke = null;
+        this.lastJuke = sim.time;
+      }
+    }
+    this.watchJukes(enemies);
+    this.moving = false;
+
     // nobody in sight (e.g. a stealthed rogue): walk towards where the nearest enemy is rather than standing about
     if (!enemies.length && sim.canMove(u) && !u.cast) {
       const hidden = all.filter((e) => e.alive && e.team !== u.team).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
@@ -142,18 +183,24 @@ export class Bot {
       }
     }
 
-    // hurt: duck behind a pillar to break line of sight, wait a moment, then come back (not every few seconds)
+    // hurt: duck behind a pillar (or under a deck, round a wall) to break line of sight, wait a moment, then come back
     const threat = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
     if (threat && hpFrac(u) < this.brain.coverHp && sim.time >= this.coverReadyAt && !this.cover) {
-      this.cover = this.coverPoint(u, threat.pos);
-      this.coverUntil = sim.time + 3500 + 3000 * (1 - hpFrac(u) / this.brain.coverHp); // the lower it is, the longer it stays hidden
+      this.takeCover(u, threat, 3500 + 3000 * (1 - hpFrac(u) / this.brain.coverHp)); // the lower it is, the longer it stays hidden
       this.coverReadyAt = sim.time + 9000;
     }
-    if (this.cover && (sim.time >= this.coverUntil || hpFrac(u) >= this.brain.coverHp + 0.25)) this.cover = null; // back out once healed up
+    // a big enemy cast aimed at us: step out of its sight before it lands, so it fails
+    if (!this.cover) this.dodgeCast(u, enemies);
+    if (this.cover && (sim.time >= this.coverUntil || (this.coverFromHp && hpFrac(u) >= this.brain.coverHp + 0.25))) this.cover = null; // back out once healed up
     if (this.cover && sim.canMove(u)) {
-      if (dist(u.pos, this.cover) > 0.9) {
-        // run for it, abandoning any cast (moving cancels it)
-        this.send(u, { facing: angleTo(u.pos, this.cover), fwd: 1, strafe: 0, guard: true });
+      if (dist(u.pos, this.cover) > 0.45 || u.level !== this.coverLv) {
+        // run for it, abandoning any cast (moving cancels it), and keep fighting with instants on the way
+        this.moving = true;
+        if (sim.time >= this.nextThink) {
+          this.nextThink = sim.time + this.P.think * TUNING.tickMs;
+          this.decide(u, enemies, allies, tgt);
+        }
+        this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, this.cover, u.level, this.coverLv)), fwd: 1, strafe: 0, guard: true });
         return;
       }
     }
@@ -175,7 +222,7 @@ export class Bot {
     // Decide first, move second: if a cast just started, movement sees it and stands still.
     if (sim.time >= this.nextThink) {
       this.nextThink = sim.time + this.P.think * TUNING.tickMs;
-      this.decide(u, enemies, allies, tgt);
+      if (this.P.lapse === 0 || this.rng() >= this.P.lapse) this.decide(u, enemies, allies, tgt);
     }
     this.send(u, this.movement(u, enemies, allies, tgt));
     if (this.auraSeen.size > 200) this.auraSeen.clear();
@@ -190,7 +237,7 @@ export class Bot {
     if (this.sim.time < this.unstickUntil && c.fwd > 0) c = { facing: c.facing + this.unstickSign * 1.2, fwd: 1, strafe: 0 };
     if (c.guard) c = this.wallGuard(u, c);
     this.lastWalk = c.fwd !== 0 || c.strafe !== 0 ? c.fwd > 0 : false;
-    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && c.fwd > 0) || undefined });
+    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && (c.fwd > 0 || c.strafe !== 0)) || undefined });
     this.jumpNow = false;
   }
 
@@ -257,8 +304,96 @@ export class Bot {
   }
 
   private use(u: Unit, ability: string, target?: number, ground?: Vec2 & { lv?: 1 }): boolean {
+    const def = ABILITIES[ability];
+    // on the run (to cover, out of a cast's sight) a cast would only be cancelled by the next step
+    if (this.moving && def && def.castTime > 0 && !def.castWhileMoving) return false;
     if (this.wastesCC(u, ability, target)) return false;
-    return this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
+    const ok = this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
+    if (ok && def && def.castTime > 0 && !def.channel && u.cast?.ability === ability) this.maybeJuke(u, def, target);
+    return ok;
+  }
+
+  /** Abilities on a unit's bar that interrupt (Kick, Pummel, Counterspell, and whatever a talent swapped in). */
+  private interruptsOf(x: Unit): string[] {
+    return x.bar.filter((id) => ABILITIES[id]?.effects.some((e) => e.type === 'interrupt'));
+  }
+
+  /** An enemy who could interrupt us right now: its interrupt is ready, it is in reach and it can see us. */
+  private kickThreat(u: Unit, enemies: Unit[]): boolean {
+    const sim = this.sim;
+    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => (e.cooldowns[id] ?? 0) <= sim.time && dist(e.pos, u.pos) <= ABILITIES[id].range + 2.5) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
+  }
+
+  /**
+   * The juke: a cast started while an enemy's interrupt is ready may be a fake. It is stopped part way, so a kick
+   * thrown at it is wasted (and its school is not locked), and the real cast follows once the interrupt is down.
+   */
+  private maybeJuke(u: Unit, def: (typeof ABILITIES)[string], target?: number): void {
+    const sim = this.sim;
+    if (this.brain.jukeChance <= 0 || sim.time - this.lastJuke < 4000 || !u.cast) return;
+    const tgt = target !== undefined ? sim.units.get(target) : undefined;
+    if (def.effects.some((e) => e.type === 'heal') && tgt && hpFrac(tgt) < 0.35) return; // no fooling about with a dying ally
+    const enemies = [...sim.units.values()].filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e));
+    if (!this.kickThreat(u, enemies) || this.rng() >= this.brain.jukeChance) return;
+    const span = u.cast.end - u.cast.start;
+    this.juke = { start: u.cast.start, until: u.cast.start + span * this.brain.jukeAt * (0.8 + 0.4 * this.rng()) };
+  }
+
+  /** Enemy casts as they start and stop: one stopped early without being kicked or controlled was a fake. */
+  private seenCasts = new Map<number, { start: number; end: number; ability: string }>();
+  private watchJukes(enemies: Unit[]): void {
+    const sim = this.sim;
+    for (const e of enemies) {
+      const prev = this.seenCasts.get(e.id);
+      if (e.cast) {
+        if (!prev || prev.start !== e.cast.start) this.seenCasts.set(e.id, { start: e.cast.start, end: e.cast.end, ability: e.cast.ability });
+        continue;
+      }
+      if (!prev) continue;
+      this.seenCasts.delete(e.id);
+      const school = ABILITIES[prev.ability]?.school;
+      const kicked = !!school && (e.lockouts[school] ?? 0) > sim.time;
+      if (sim.time < prev.end - 150 && !kicked && sim.canAct(e)) this.jukers.set(e.id, (this.jukers.get(e.id) ?? 0) + 1);
+    }
+  }
+
+  private coverFromHp = false;
+  /** Head for the nearest spot `threat` cannot see (walk grid, both floors) and stay there `ms`. */
+  private takeCover(u: Unit, threat: Unit, ms: number, fromHp = true, maxWalk = 16): boolean {
+    const c = coverSpot(this.sim.arena, u.pos, u.level, threat.pos, threat.level, maxWalk);
+    if (!c) return false;
+    this.cover = c.point;
+    this.coverLv = c.level;
+    this.coverUntil = this.sim.time + ms;
+    this.coverFromHp = fromHp;
+    return true;
+  }
+
+  /** A cast worth running from: crowd control, or a big hit. */
+  private dangerous(def: (typeof ABILITIES)[string]): boolean {
+    if (def.effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.harmful && ['stun', 'incapacitate', 'fear'].includes(AURAS[e.aura].kind))) return true;
+    return def.effects.reduce((n, e) => n + (e.type === 'damage' ? e.amount : 0), 0) >= 200;
+  }
+
+  /**
+   * Line of sight as a weapon: a long cast at this bot (a Polymorph, a Pyroblast) fails if it is out of the caster's sight
+   * when the cast ends, so it steps behind the nearest pillar or deck it can reach in time.
+   */
+  private dodgeCast(u: Unit, enemies: Unit[]): void {
+    const sim = this.sim;
+    if (this.brain.losUse <= 0 || !sim.canMove(u)) return;
+    for (const e of enemies) {
+      const c = e.cast;
+      if (!c || c.target !== u.id || this.dodgeSeen.get(e.id) === c.start || sim.time - c.start < this.P.react) continue;
+      this.dodgeSeen.set(e.id, c.start);
+      const def = ABILITIES[c.ability];
+      if (!def || def.channel || def.target !== 'enemy' || !this.dangerous(def)) continue;
+      if (u.cast && ABILITIES[u.cast.ability]?.effects.some((x) => x.type === 'heal')) continue; // landing a heal matters more
+      if (this.rng() >= this.brain.losUse) continue;
+      const left = c.end - sim.time;
+      const reach = (left / 1000) * TUNING.runSpeed * sim.speedMult(u) * 0.85;
+      if (reach >= 1.5 && this.takeCover(u, e, left + 400, false, reach)) return;
+    }
   }
 
   /** The strongest diminishing-returns category an ability's crowd control falls in, if it has any. */
@@ -296,8 +431,26 @@ export class Bot {
 
   /** First ability from the list that goes off: each spec's bar holds a different mix, and anything off the bar just fails. */
   private useFirst(u: Unit, abilities: string[], target?: number): boolean {
-    for (const a of abilities) if (this.use(u, a, target)) return true;
+    // with an enemy interrupt ready and in reach, instants go first: a cast is only started when there is nothing else (and may be a fake)
+    const list = this.kickRisk ? [...abilities].sort((a, b) => Number((ABILITIES[a]?.castTime ?? 0) > 0) - Number((ABILITIES[b]?.castTime ?? 0) > 0)) : abilities;
+    for (const a of list) if (this.use(u, a, target)) return true;
     return false;
+  }
+  private kickRisk = false;
+
+  /**
+   * The spec's damage rotation (learned offline: the order that deals the most damage with the real cooldowns and costs),
+   * falling back to the hand-written order. Area abilities only when an enemy is inside their reach.
+   */
+  private rotate(u: Unit, tgt: Unit, fallback: string[]): boolean {
+    const order = rotationFor(u.classId, u.spec, u.bar) ?? fallback;
+    const list = order.filter((id) => {
+      const d = ABILITIES[id];
+      if (d?.target !== 'aoe_enemy') return true;
+      const r = this.sim.radiusOf(u, d);
+      return [...this.sim.units.values()].some((e) => e.alive && e.team !== u.team && dist(u.pos, e.pos) <= r - 0.5);
+    });
+    return this.useFirst(u, list, tgt.id);
   }
 
   /** The ability is on the bar, off cooldown and nothing is locking abilities: pressing it now would work. Checked before turning to face an escape, so a bot never spins for a Blink it cannot cast. */
@@ -343,12 +496,27 @@ export class Bot {
       }
       let s = this.castSeen.get(e.id);
       if (!s || s.start !== e.cast.start) {
-        s = { start: e.cast.start, at: this.sim.time, will: this.rng() < this.P.interruptChance };
+        // how far into this cast to wait before kicking: later beats a fake, and a known faker is waited out longer
+        const wait = this.brain.kickAt + (this.rng() - 0.5) * 0.25 + Math.min(0.3, 0.12 * (this.jukers.get(e.id) ?? 0));
+        s = { start: e.cast.start, at: this.sim.time, will: this.rng() < this.P.interruptChance, wait: Math.max(0, Math.min(0.9, wait)) };
         this.castSeen.set(e.id, s);
       }
-      if (s.will && this.sim.time - s.at >= this.P.react && this.worthInterrupt(e)) out.push(e);
+      const span = Math.max(1, e.cast.end - e.cast.start);
+      const into = (this.sim.time - e.cast.start) / span;
+      const def = ABILITIES[e.cast.ability];
+      // a channel does its work as it goes: stop it early; a cast only lands at the end, so there is time to wait it out
+      const due = def?.channel ? into >= s.wait * 0.3 : into >= s.wait || e.cast.end - this.sim.time <= 300 + this.P.think * TUNING.tickMs;
+      if (s.will && this.sim.time - s.at >= this.P.react && due && this.worthInterrupt(e)) out.push(e);
     }
     return out;
+  }
+
+  /** Throw whichever interrupt is on the bar (a talent may have swapped Kick for Knife Snipe, Counterspell for Arcane Silence...). */
+  private tryInterrupt(u: Unit, enemies: Unit[]): boolean {
+    const mine = this.interruptsOf(u);
+    if (!mine.length) return false;
+    for (const e of this.interruptible(enemies)) for (const id of mine) if (this.use(u, id, e.id)) return true;
+    return false;
   }
 
   /** Kicks and counterspells are on a cooldown: spend them on heals, crowd control and big casts, not on filler. */
@@ -373,6 +541,7 @@ export class Bot {
   private decide(u: Unit, enemies: Unit[], allies: Unit[], tgt: Unit | undefined): void {
     // do not break crowd control that breaks on damage (a feared or blinded lone enemy is left alone until it wakes)
     if (tgt && this.isPolymorphed(tgt) && enemies.length === 1) tgt = undefined;
+    this.kickRisk = (u.classId === 'mage' || u.classId === 'priest') && this.brain.jukeChance > 0 && this.kickThreat(u, enemies);
     if (this.survive(u, enemies, allies, tgt)) return;
     switch (u.classId) {
       case 'warrior':
@@ -437,6 +606,7 @@ export class Bot {
           if (!u.auras.some((a) => a.kind === 'absorb') && (emergency || loss > B.dangerAt * 0.5 || (hurting && enemies.length)) && this.use(u, 'ice_barrier')) return true;
         }
         if (u.cast && !emergency) return false;
+        if (loss > B.dangerAt * 0.5 && this.use(u, 'evocation')) return true; // 15% less damage taken (and the mana) while it is being burst
         const close = byDist.filter((e) => dist(u.pos, e.pos) <= 9);
         if (close.length && hurting) {
           if (this.useFirst(u, ['frost_nova', 'dragons_breath', 'arcane_explosion'])) return true;
@@ -464,7 +634,9 @@ export class Bot {
         if (u.cast && !emergency) return false;
         if (!shielded && (emergency || loss > B.dangerAt * 0.5) && this.use(u, 'power_word_shield', u.id)) return true;
         if (melee.length && hurting && this.use(u, 'psychic_scream')) return true;
-        if (emergency && (f < B.panicHp * 0.7) && u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return true;
+        if (emergency && (f < B.panicHp * 0.7) && u.auras.some((a) => LOCKED_DOWN.includes(a.kind)) && this.use(u, 'dispersion')) return true;
+        if (attacker && hurting && !disabled(attacker) && this.use(u, 'judgment_hammer', attacker.id)) return true; // stun whoever is on us
+        if (emergency && this.use(u, 'holy_word', u.id)) return true;
         if (emergency && !u.cast) {
           const mine = allies.length > 0;
           if (mine && this.useFirst(u, f < 0.35 ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], u.id)) return true;
@@ -476,7 +648,7 @@ export class Bot {
   }
 
   private warrior(u: Unit, enemies: Unit[], tgt?: Unit): void {
-    for (const e of this.interruptible(enemies)) if (this.useFirst(u, ['pummel', 'harpoon_throw'], e.id)) return;
+    if (this.tryInterrupt(u, enemies)) return;
     if (!tgt) return;
     this.sim.setAutoAttack(u.id, true); // rage and damage start from swinging, not only from abilities
     const d = dist(u.pos, tgt.pos);
@@ -499,14 +671,13 @@ export class Bot {
     if (d <= 8 && near.length >= 2 && this.use(u, 'whirlwind')) return;
     // a rage payoff waits for a full bar; builders and the other strikes fill the gaps
     if (u.resource >= 70 && this.use(u, 'mortal_strike', tgt.id)) return;
-    for (const strike of ['bloodthirst', 'slam', 'deep_cuts', 'shield_slam']) if (this.use(u, strike, tgt.id)) return;
-    if (this.use(u, 'whirlwind')) return;
+    if (this.rotate(u, tgt, ['bloodthirst', 'slam', 'deep_cuts', 'whirlwind', 'axe_throw'])) return;
     if (u.resource >= 30 && this.use(u, 'mortal_strike', tgt.id)) return;
     if (!slowed && u.resource >= 40) this.use(u, 'hamstring', tgt.id);
   }
 
   private rogue(u: Unit, enemies: Unit[], tgt?: Unit): void {
-    for (const e of this.interruptible(enemies)) if (this.use(u, 'kick', e.id)) return;
+    if (this.tryInterrupt(u, enemies)) return;
     if (!tgt) return;
     const d = dist(u.pos, tgt.pos);
     if (this.sim.isStealthed(u)) {
@@ -522,15 +693,18 @@ export class Bot {
     if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
     if (d > 12) this.use(u, 'sprint');
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
+    // Fan of Knives whenever someone is within its 8 yards; Crippling Strike keeps a runner slowed
+    if (enemies.some((e) => dist(u.pos, e.pos) <= 7.5) && this.use(u, 'fan_of_knives')) return;
+    if (!tgt.auras.some((a) => a.kind === 'slow' || a.kind === 'root') && this.use(u, 'crippling_strike', tgt.id)) return;
     if (u.cp >= 4 && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
     if (u.cp >= 3 && !stunned && this.use(u, 'kidney_shot', tgt.id)) return;
     if (!tgt.auras.some((a) => a.id === 'garrote_bleed') && this.use(u, 'garrote', tgt.id)) return;
-    this.useFirst(u, ['mutilate', 'backstab', 'sinister_strike'], tgt.id);
+    this.rotate(u, tgt, ['mutilate', 'backstab', 'sinister_strike', 'garrote', 'crippling_strike', 'fan_of_knives']);
   }
 
   private mage(u: Unit, enemies: Unit[], tgt?: Unit): void {
     const sim = this.sim;
-    for (const e of this.interruptible(enemies)) if (this.use(u, 'counterspell', e.id)) return;
+    if (this.tryInterrupt(u, enemies)) return;
 
     const meleeNear = enemies.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 10);
     if (hpFrac(u) < 0.4 && meleeNear.length && this.ready(u, 'blink')) {
@@ -551,8 +725,22 @@ export class Bot {
 
     const poly = this.polyTarget(u, enemies, tgt);
     if (poly && this.use(u, 'polymorph', poly.id)) return;
+    // out of mana and nobody on top of us: Evocation
+    if (u.resource < u.resourceMax * 0.55 && !meleeNear.length && this.use(u, 'evocation')) return;
 
     if (!tgt) return;
+    // ground storms where the target cannot walk out in time: held in place, slowed, or standing still for the cast
+    {
+      const held = tgt.auras.filter((a) => HARD_CC.includes(a.kind) && !this.isPolymorphed(tgt)).reduce((m, a) => Math.max(m, a.expiresAt - sim.time), 0);
+      const slow = tgt.auras.some((a) => a.kind === 'slow' || a.kind === 'root');
+      for (const id of ['blizzard', 'flamestrike']) {
+        const def = ABILITIES[id];
+        if (!u.bar.includes(id) || dist(u.pos, tgt.pos) > def.range) continue;
+        if (held >= def.castTime + 300 || (slow && def.castTime <= 1500) || (meleeNear.length === 0 && enemies.length >= 2 && enemies.filter((e) => dist(e.pos, tgt.pos) < 6).length >= 2)) {
+          if (this.use(u, id, undefined, feetOf(tgt))) return;
+        }
+      }
+    }
     const slowed = tgt.auras.some((a) => a.id === 'frostbolt_slow');
     if (!slowed && this.use(u, 'frostbolt', tgt.id)) return;
     if (hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.use(u, 'arcane_power');
@@ -560,7 +748,8 @@ export class Bot {
     if (tgt.auras.some((a) => a.id === 'fingers_of_frost' || a.id === 'shatter') && (this.use(u, 'deep_freeze', tgt.id) || this.use(u, 'ice_lance', tgt.id))) return;
     // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
     if (u.auras.some((a) => a.id === 'hot_streak') && this.use(u, 'pyroblast', tgt.id)) return; // the free instant 550 first
-    this.useFirst(u, ['deep_freeze', 'fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles'], tgt.id);
+    if (this.use(u, 'deep_freeze', tgt.id)) return;
+    this.rotate(u, tgt, ['fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles']);
   }
 
   /** Sheep the enemy that is not the kill target, but only while it can still be sheeped. */
@@ -595,7 +784,9 @@ export class Bot {
     // Smite is filler: drop it when something urgent shows up.
     if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(u.id);
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
-    if (u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return;
+    if (this.tryInterrupt(u, enemies)) return; // Silence, if a talent put it on the bar
+    // Dispersion is for real lockdown (stun, fear, sheep) or low health, not for any root
+    if ((u.auras.some((a) => LOCKED_DOWN.includes(a.kind)) || hpFrac(u) < this.brain.defHp) && this.use(u, 'dispersion')) return;
     if (hpFrac(u) < this.brain.defHp - 0.05 && this.use(u, 'desperate_prayer')) return;
     // keep its own shield up while an enemy is on it or close
     if (!hasShield(u) && hpFrac(u) <= this.brain.preShield && enemies.some((e) => e.target === u.id || dist(u.pos, e.pos) <= 9) && this.use(u, 'power_word_shield', u.id)) return;
@@ -608,6 +799,10 @@ export class Bot {
     if (lowest) {
       const f = hpFrac(lowest);
       if (f < 0.35 && lowest !== u && this.use(u, 'pain_suppression', lowest.id)) return;
+      if (f < th(0.55) && this.use(u, 'holy_word', lowest.id)) return; // the instant heal first, then the casts
+      // someone is beating on the low ally: stun them
+      const onLow = enemies.find((e) => e.target === lowest.id && dist(e.pos, lowest.pos) <= 8 && !e.auras.some((a) => HARD_CC.includes(a.kind)));
+      if (f < th(0.5) && onLow && this.use(u, 'judgment_hammer', onLow.id)) return;
       if (f < th(0.45) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
       if (f < th(solo ? 0.6 : 0.8) && this.useFirst(u, f < th(0.5) ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], lowest.id)) return;
       if (f < th(solo ? 0.75 : 0.95) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
@@ -618,13 +813,38 @@ export class Bot {
     if (meleeNear.length && (solo || hpFrac(u) < 0.75) && this.use(u, 'psychic_scream')) return;
     if (meleeNear.length && this.use(u, 'holy_nova')) return;
 
-    if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) this.useFirst(u, hpFrac(tgt) < 0.3 ? ['shadow_word_death', 'mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay'] : ['mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay'], tgt.id);
+    // Power Infusion on whoever is about to burst: itself when it is the damage, else the partner with a target
+    if (tgt && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) {
+      const dps = allies.filter((a) => a !== u && a.classId !== 'priest' && a.target === tgt.id)[0];
+      if (this.use(u, 'power_infusion', (dps ?? u).id)) return;
+    }
+    // keep Shadow Word: Pain (its damage over time) rolling on the target, then the nukes
+    const dotted = tgt?.auras.some((a) => a.id === 'creeping_rot' && a.sourceId === u.id);
+    if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) {
+      if ((!dotted || hpFrac(tgt) < 0.3) && this.use(u, 'shadow_word_death', tgt.id)) return;
+      this.rotate(u, tgt, ['mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay']);
+    }
+    // a stun on a casting enemy that nothing else stopped
+    const caster = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.castTime >= 1500 && dist(u.pos, e.pos) <= 28);
+    if (caster) this.use(u, 'judgment_hammer', caster.id);
   }
 
   // ------------------------------------------------------------------ movement
 
   /** Steer around whatever is in the way: the walk grid on arenas with walkways or barricades, else round pillars and walls. */
+  /** The last route point and when it was chosen, so a route that flickers between two ways round is not followed both ways. */
+  private lastWp: { p: Vec2; at: number } | null = null;
   private waypoint(from: Vec2, to: Vec2, fromLv: 0 | 1 = 0, toLv: 0 | 1 = 0): Vec2 {
+    const p = this.route(from, to, fromLv, toLv);
+    const prev = this.lastWp;
+    const t = this.sim.time;
+    // a sudden about-turn within a moment of the last choice is the route flickering at a cell boundary: keep going the first way
+    if (prev && t - prev.at < 600 && dist(from, prev.p) > 0.8 && Math.abs(angleDiff(angleTo(from, p), angleTo(from, prev.p))) > 2) return prev.p;
+    this.lastWp = { p, at: t };
+    return p;
+  }
+
+  private route(from: Vec2, to: Vec2, fromLv: 0 | 1 = 0, toLv: 0 | 1 = 0): Vec2 {
     const arena = this.sim.arena;
     if (needsNavGrid(arena)) {
       // casters that like the high ground fight from the walkway when there is a spot up there that sees the target
@@ -660,28 +880,6 @@ export class Bot {
     return dist(a, to) < dist(b, to) ? a : b;
   }
 
-  /** A spot just behind a pillar, as seen from `threat`, where nothing can hit us (out of line of sight). */
-  private coverPoint(u: Unit, threat: Vec2): Vec2 | null {
-    const arena = this.sim.arena;
-    const b = arena.bounds;
-    let best: Vec2 | null = null;
-    let bestD = 24;
-    for (const pl of arena.pillars) {
-      const dx = pl.x - threat.x;
-      const dz = pl.z - threat.z;
-      const len = Math.hypot(dx, dz) || 1;
-      const p = { x: pl.x + (dx / len) * (pl.r + 1.4), z: pl.z + (dz / len) * (pl.r + 1.4) };
-      if (p.x < b.minX + 1 || p.x > b.maxX - 1 || p.z < b.minZ + 1 || p.z > b.maxZ - 1) continue;
-      if (hasLOS(p, threat, arena)) continue;
-      const d = dist(u.pos, p);
-      if (d < bestD) {
-        bestD = d;
-        best = p;
-      }
-    }
-    return best;
-  }
-
   private movement(u: Unit, enemies: Unit[], allies: Unit[], tgt?: Unit): Cmd {
     const sim = this.sim;
     const idle: Cmd = { facing: u.facing, fwd: 0, strafe: 0 };
@@ -695,7 +893,8 @@ export class Bot {
 
     if (this.cover && sim.time < this.coverUntil) return idle; // sitting in cover
 
-    if (u.classId === 'priest') {
+    // only a healing priest minds its partner first; a Shadow priest fights like any caster
+    if (u.classId === 'priest' && u.spec !== 'shadow') {
       const c = this.healerMove(u, enemies, allies, idle, tgt);
       if (c) return c; // null: a priest on its own fights like a caster, below
     }
@@ -703,10 +902,14 @@ export class Bot {
     if (u.classId === 'priest' && sim.time < this.danceUntil && !u.cast) return { facing: angleTo(u.pos, tgt.pos), fwd: 0, strafe: this.strafeSign };
 
     // casters that like the high ground make for the walkway first (once), then fight from it
-    if (this.highGround && sim.arena.deck && u.level === 0 && !this.wasUp && sim.time > 1500 && hpFrac(u) > 0.4) {
-      return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, 0, 1)), fwd: 1, strafe: 0 };
+    if (u.level === 1 && heightAt(sim.arena, u.pos.x, u.pos.z, 1) > 2) this.wasUp = true; // the foot of a ramp is not "up there"
+    // (all the way up: standing on the foot of a ramp is not the high ground; after 8 s of trying it gives up)
+    if (!this.wasUp && enemies.some((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) < 12)) this.wasUp = true; // melee arrived first: fight here, for good
+    if (this.highGround && sim.arena.deck && !this.wasUp && sim.time > 1500 && hpFrac(u) > 0.4) {
+      this.climbSince ??= sim.time;
+      if (sim.time - this.climbSince > 8000) this.wasUp = true;
+      else return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, 1)), fwd: 1, strafe: 0 };
     }
-    if (u.level === 1) this.wasUp = true;
     const d = dist(u.pos, tgt.pos);
     const toT = d < 0.8 ? u.facing : angleTo(u.pos, tgt.pos); // standing on top of someone: do not whip round
     const reach = Math.max(2.9, (autoFor(u.classId, u.spec)?.range ?? 3) - 0.1);
@@ -725,9 +928,12 @@ export class Bot {
         }
         if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
       }
-      if (d > reach) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
+      // out of reach includes a pillar in the way and a target on another floor (standing under someone on the deck is not melee range):
+      // the route goes round the pillar or up the ramp
+      const floorGap = Math.abs(heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));
+      if (d > reach || floorGap > 1.6 || !hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level)) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
       // in melee range: keep moving round the target instead of standing still
-      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.2 * this.brain.strafe }; // circling at this range only spins the bot, so it barely moves
+      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.2 * Math.max(this.brain.strafe, this.brain.mobility) }; // circling at this range only spins the bot, so it barely moves
     }
     if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d > range.max) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
@@ -737,9 +943,23 @@ export class Bot {
       (e) => MELEE.has(e.classId) && dist(u.pos, e.pos) < range.min && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root'),
     );
     if (d < range.min && kiteable) return { facing: toT, fwd: -1, strafe: this.strafeSign * 0.75 * this.brain.strafe, guard: true };
-    // between casts, sidestep so the bot is not a stationary target (moving never interrupts: casts return early above)
-    if (sim.time < u.gcdEnd) return { facing: toT, fwd: 0, strafe: this.strafeSign * this.brain.strafe };
-    return { facing: toT, fwd: 0, strafe: 0 };
+    // whenever it is not casting it keeps moving like a player does: sidestepping (and now and then a hop) so it is never a
+    // standing target. Decisions run before movement, so a cast that just started has already stopped this.
+    const sway = Math.max(this.brain.strafe, this.brain.mobility * 0.8);
+    if (sway < 0.15) return { facing: toT, fwd: 0, strafe: 0 };
+    if (this.rng() < 0.004 * this.brain.mobility) this.jumpNow = true;
+    // sidestep, but never into a wall or pillar, out of the target's sight round a pillar edge, or back into an enemy ground
+    // effect (stepping out and back every tick looks like a spinning top): try this way, then the other, else stand
+    const okSide = (sign: number) => {
+      const end = this.probe(u, { facing: toT, fwd: 0, strafe: sign * sway });
+      return Math.hypot(end.x - u.pos.x, end.z - u.pos.z) >= TUNING.runSpeed * 1.2 * sway * 0.5 && hasLOS(end, tgt.pos, sim.arena, u.level, tgt.level) && !sim.hazardsFor(u.team).some((z) => dist(end, z) < z.r + 1);
+    };
+    if (!okSide(this.strafeSign)) {
+      if (!okSide(-this.strafeSign)) return { facing: toT, fwd: 0, strafe: 0 };
+      this.strafeSign = -this.strafeSign;
+      this.strafeFlipAt = sim.time + this.brain.strafeFlip * 1000;
+    }
+    return { facing: toT, fwd: 0, strafe: this.strafeSign * sway };
   }
 
   /**

@@ -19,6 +19,8 @@ const fail = (reason: string): Result => ({ ok: false, reason });
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
 const HISTORY_TICKS = 12;
 const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
+/** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
+const GCD_REFUND = ['moved', 'cancelled', 'switched spell', 'target vanished', 'blinded by smoke'];
 /** A repeat of the spell being cast, pressed this close to the end of the cast, is held and cast right after it. */
 const REPEAT_HOLD_MS = 400;
 const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
@@ -253,7 +255,8 @@ export class ArenaSim {
       if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!this.sees(u, tgt)) return fail('no line of sight');
-      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !def.unmissable && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
+      // friendly spells need no facing (a shield on the ally behind you), only spells aimed at enemies do
+      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !def.unmissable && tgt.team !== u.team && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast && !(tgt.lastCast && this.time - tgt.lastCast.at <= INTERRUPT_GRACE_MS)) return fail('target is not casting');
       if (def.requiresTargetAura && !this.abilityMod(u, def).free && !tgt.auras.some((a) => def.requiresTargetAura!.includes(a.id))) return fail(`target needs ${def.requiresTargetAura.map((x) => AURAS[x]?.name ?? x).join(' or ')}`);
       if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
@@ -570,7 +573,11 @@ export class ArenaSim {
   cancelCast(u: Unit, reason: string): void {
     if (!u.cast) return;
     const ability = u.cast.ability;
+    const def = ABILITIES[ability];
     u.cast = null;
+    // a cast the caster stopped (moved, stopped, faked, lost its target) never went off: the global cooldown it started is given
+    // back, so the other skills are usable at once. Interrupts and crowd control keep it, and channels have already paid.
+    if (def?.gcd && !def.channel && GCD_REFUND.includes(reason) && u.gcdEnd > this.time) u.gcdEnd = this.time;
     this.failCast(u, ability, reason);
   }
 
@@ -764,7 +771,7 @@ export class ArenaSim {
           const d = AURAS[a.id];
           if (!d?.bleed || !d.dot) continue;
           bleed += d.dot.amount * (a.dotMult ?? 1) * Math.max(0, Math.ceil((a.expiresAt - this.time) / d.dot.interval));
-          a.dotMult = (a.dotMult ?? 1) * eff.bleedMult;
+          a.dotMult = Math.max(a.dotMult ?? 1, eff.bleedMult); // sets bleeds to x3; using it again does not compound (x9, x27)
         }
         this.dealDamage(u, t, (eff.perCp * Math.max(1, this.cpSpent) * this.modsOf(u).cpPower + bleed * eff.bleedFraction) * u.gearMult * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
         break;

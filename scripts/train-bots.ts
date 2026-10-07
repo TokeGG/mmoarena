@@ -1,14 +1,14 @@
 /**
  * Offline self-play training for bot brains. Usage:
- *   npx tsx scripts/train-bots.ts [--classes warrior,rogue] [--gens 4] [--mutants 5] [--seeds 8] [--minutes 20]
- * Each generation mutates the current champion, plays every candidate against the other classes' bots (1v1, hard,
- * specs rotating) on the same seeds, keeps the best, and writes shared/data/botbrain.json. Run it after every patch
- * that changes abilities, then commit the file (see CLAUDE.md).
+ *   npx tsx scripts/train-bots.ts [--classes warrior,rogue] [--gens 4] [--mutants 5] [--seeds 8] [--minutes 20] [--sizes 1,2,3]
+ * Each generation mutates the current champion, plays every candidate against the other classes' bots (hard, specs and
+ * talents rotating) on the same seeds, in 1v1, 2v2 and 3v3 and on every arena in turn, keeps the best, and writes
+ * shared/data/botbrain.json. Run it after every patch that changes abilities, then commit the file (see CLAUDE.md).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ArenaSim, Bot, CLASS_IDS, SPECS, brainFor, botBuild, mutateBrain, BRAIN_KEYS } from '../shared/src/index';
+import { ARENAS, ArenaSim, Bot, CLASS_IDS, SPECS, brainFor, botBuild, mutateBrain, BRAIN_KEYS } from '../shared/src/index';
 import type { Brain, ClassId } from '../shared/src/index';
 
 const arg = (k: string, d: string) => {
@@ -20,6 +20,7 @@ const GENS = Number(arg('gens', '4'));
 const MUTANTS = Number(arg('mutants', '5'));
 const SEEDS = Number(arg('seeds', '8'));
 const deadline = Date.now() + Number(arg('minutes', '20')) * 60000;
+const SIZES = arg('sizes', '1,2,3').split(',').map(Number).filter((n) => n >= 1 && n <= 3);
 
 function mulberry32(seed: number) {
   let a = seed | 0;
@@ -37,10 +38,20 @@ function evaluate(cls: ClassId, brain: Brain): number {
   let n = 0;
   for (const foe of CLASS_IDS) { // every class, the mirror included
     for (let seed = 1; seed <= SEEDS; seed++) {
-      const sim = new ArenaSim({ seed, prepMs: 3000 });
+      // team size and arena rotate with the seed: the brain has to work in every mode and on every map
+      const size = SIZES[seed % SIZES.length];
+      const sim = new ArenaSim({ seed, prepMs: 3000, arena: ARENAS[(seed + foe.length) % ARENAS.length] });
       const a = sim.addUnit({ name: cls, classId: cls, team: 0, controller: 'bot', build: botBuild(cls, seed) });
       const b = sim.addUnit({ name: foe, classId: foe, team: 1, controller: 'bot', build: botBuild(foe, seed + 7) });
       const bots = [new Bot(sim, a.id, 'hard', seed * 31 + a.id, brain), new Bot(sim, b.id, 'hard', seed * 31 + b.id)];
+      // the rest of each team: other classes on the same baseline brains (the trainee's teammates share its brain)
+      for (let i = 1; i < size; i++) {
+        const mate = CLASS_IDS[(CLASS_IDS.indexOf(cls) + i * 2 + seed) % CLASS_IDS.length];
+        const rival = CLASS_IDS[(CLASS_IDS.indexOf(foe) + i * 3 + seed) % CLASS_IDS.length];
+        const m = sim.addUnit({ name: mate, classId: mate, team: 0, controller: 'bot', build: botBuild(mate, seed * 3 + i) });
+        const r = sim.addUnit({ name: rival, classId: rival, team: 1, controller: 'bot', build: botBuild(rival, seed * 5 + i) });
+        bots.push(new Bot(sim, m.id, 'hard', seed * 37 + m.id, mate === cls ? brain : undefined), new Bot(sim, r.id, 'hard', seed * 41 + r.id));
+      }
       let ms = 0;
       while (sim.phase !== 'ended' && ms < 150000) {
         for (const x of bots) x.tick();
@@ -78,7 +89,9 @@ for (const cls of classes) {
   }
   const rounded: Record<string, number> = {};
   for (const k of BRAIN_KEYS) rounded[k] = Math.round(champ[k] * 1000) / 1000;
-  out[cls] = rounded;
-  fs.writeFileSync(file, JSON.stringify(out, null, 1) + '\n');
+  // re-read before writing: other classes may be training in parallel processes and writing the same file
+  const now = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, Partial<Brain>>;
+  now[cls] = rounded;
+  fs.writeFileSync(file, JSON.stringify(now, null, 1) + '\n');
 }
 void SPECS;

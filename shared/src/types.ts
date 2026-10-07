@@ -3,7 +3,8 @@ export interface Rect { x0: number; x1: number; z0: number; z1: number }
 export type TeamId = 0 | 1;
 export type ClassId = 'warrior' | 'mage' | 'priest' | 'rogue';
 export type School = 'physical' | 'fire' | 'frost' | 'arcane' | 'holy' | 'shadow' | 'nature';
-export type DRCategory = 'stun' | 'incapacitate' | 'fear' | 'root' | 'silence';
+/** 'charge': Charge's short stun has its own group, so it does not spend a step of the stun diminishing returns. */
+export type DRCategory = 'stun' | 'incapacitate' | 'fear' | 'root' | 'silence' | 'charge';
 export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff' | 'dot' | 'mark';
 export type ResourceType = 'mana' | 'rage' | 'energy';
 export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy' | 'aoe_all' | 'ground';

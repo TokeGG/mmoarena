@@ -138,7 +138,8 @@ export function withAuraMods(base: Mods, auraIds: string[]): Mods {
   for (const id of auraIds) if (AURAS[id]?.mods) any = true;
   if (!any) return base;
   const m: Mods = { ...base, ability: Object.fromEntries(Object.entries(base.ability).map(([k, v]) => [k, { ...v }])), auraDuration: { ...base.auraDuration }, auraExtend: { ...base.auraExtend } };
-  for (const id of auraIds) applyMods(m, AURAS[id]?.mods);
+  // the same effect from two sources counts once (two Mortal Wounds are not 0.36 healing taken, two Power Infusions do not stack)
+  for (const id of new Set(auraIds)) applyMods(m, AURAS[id]?.mods);
   return m;
 }
 
