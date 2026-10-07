@@ -104,7 +104,15 @@ The menu shows a warning while accounts are temporary, and `/api/status` reports
 
 ## Owner tools
 
-Profile > **★ Owner**, founder account only (the name `Toke`). You must also enter `ARENA_OWNER_CODE` once per session, and the name alone is never enough. Everything is checked on the server.
+The **🛡 Admin** button (top right, founder account only, the name `Toke`) opens the admin panel; Profile > **★ Owner** keeps your own style and GIF icon. You must also enter `ARENA_OWNER_CODE` once per session, and the name alone is never enough. Everything is checked on the server, and every admin action is written to the admin log.
+
+- **Dashboard:** online players, queue, matches by kind, uptime, version, live number changes, maintenance state, recent admin actions.
+- **Players:** search every account; per player: kick, ban (1 hour to for good, with a reason they see; banning ends their sessions and keeps them from signing in), mute (no suggestions, invites or friend requests), set rating, reset stats, reset password, unlocks and the **dev tag**, a private note, recent matches, follow.
+- **Matches:** every running match (private ones too): watch live, pause or resume (it stops counting), end.
+- **Moderation:** the suggestion box and skill notes, with delete.
+- **Tuning:** live number changes (clear), bot matches.
+- **Server:** announcements to everyone online, and **maintenance mode** (nobody but you can start a match; the message is shown and kept over restarts).
+- **Log:** the last 300 admin actions.
 
 - **Your own style:** a free-text title (up to 24 characters), colours (gradient and glow), and a **GIF icon** (max 256x256 px and 256 KB) that shows on your nameplate and profile.
 - **Accounts panel:** award owner-tier titles, emblems and colours to any player, give a friend a custom title and colours, switch on the **GIF icon ability per friend** (they then upload their own in the same place), and reset a password (a temporary password is shown once and old sessions end).

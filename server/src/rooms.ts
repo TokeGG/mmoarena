@@ -2,18 +2,20 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, CLASSES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
 import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
-import { REPLAY_MAX_BYTES, publicInfo } from './accounts';
+import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
 import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, specOf, validateBuild, withPatches, ABILITIES } from '@arena/shared';
 import type { AdminRoom, DataPatch, UnitBuild } from '@arena/shared';
 import type { DevTools } from './devtools';
+import type { AdminLog } from './adminlog';
+
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
@@ -628,7 +630,106 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools) {}
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog) {
+    // the saved state, unless the owner already changed it while it loaded
+    void this.adminLog?.maintenance().then((m) => {
+      if (!this.maintSet) this.maint = m;
+    });
+  }
+
+  /** Maintenance mode: while set, nobody but the owner starts a match; the text says why. */
+  private maint: string | null = null;
+  private maintSet = false;
+  private readonly startedAt = Date.now();
+
+  private overviewMsg(): ServerMsg {
+    return {
+      t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
+      uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
+    };
+  }
+
+  /** Every connection signed in to this account. */
+  private connsOf(key: string): Player[] {
+    return [...this.conns].filter((q) => q.account?.key === key);
+  }
+
+  /** The owner's moderation and server actions (admin panel). Everything is logged. */
+  private async adminAct(p: Player, msg: Extract<ClientMsg, { t: 'admin_act' }>): Promise<void> {
+    const acc = this.accounts;
+    const by = p.account?.name ?? p.name;
+    const log = (action: string, target?: string, detail?: string) => void this.adminLog?.add(by, action, target, detail);
+    const key = msg.name?.toLowerCase() ?? '';
+    switch (msg.act) {
+      case 'kick': {
+        const conns = this.connsOf(key);
+        for (const q of conns) {
+          send(q, { t: 'closed', reason: `You were removed from the server by the owner${msg.reason ? `: ${msg.reason}` : '.'}` });
+          q.ws.close();
+        }
+        log('kick', msg.name, msg.reason);
+        send(p, { t: 'dev_result', ok: true, text: conns.length ? `Kicked ${msg.name}.` : `${msg.name} is not online.` });
+        break;
+      }
+      case 'ban':
+      case 'unban':
+      case 'mute':
+      case 'unmute':
+      case 'set_rating':
+      case 'reset_stats':
+      case 'note': {
+        if (!acc) return;
+        const r = await acc.adminModerate(msg.name!, msg.act, { minutes: msg.minutes, reason: msg.reason, value: msg.value, text: msg.text, by });
+        if (!r.ok) return void send(p, { t: 'admin_result', ok: false, name: msg.name!, reason: r.reason });
+        for (const q of this.connsOf(r.account.key)) {
+          if (msg.act === 'ban') {
+            send(q, { t: 'closed', reason: bannedText(r.account) ?? 'Banned.' });
+            q.ws.close();
+            continue;
+          }
+          q.account = r.account;
+          send(q, { t: 'account', account: publicInfo(r.account, q.ownerOk) });
+          if (msg.act === 'mute') send(q, { t: 'notice', text: `You are muted${r.account.muted?.until ? ` until ${new Date(r.account.muted.until).toUTCString()}` : ''}: no suggestions, invites or friend requests.` });
+          if (msg.act === 'unmute') send(q, { t: 'notice', text: 'You are no longer muted.' });
+        }
+        const detail = msg.act === 'ban' || msg.act === 'mute' ? `${msg.minutes ? `${msg.minutes} min` : 'permanent'}${msg.reason ? `: ${msg.reason}` : ''}` : msg.act === 'set_rating' ? String(msg.value) : msg.act === 'note' ? msg.text : undefined;
+        log(msg.act.replace('_', ' '), r.account.name, detail);
+        send(p, { t: 'admin_result', ok: true, name: r.account.name, row: acc.adminRow(r.account, this.onlineKeys().has(r.account.key)) });
+        break;
+      }
+      case 'maintenance': {
+        const text = msg.on ? (msg.text?.trim() || 'The server is in maintenance. Matches are paused for a few minutes.') : null;
+        this.maint = text;
+        this.maintSet = true;
+        for (const q of this.conns) if (q !== p) send(q, { t: 'notice', text: text ? `🛠 ${text}` : 'Maintenance is over: matches are open again.' });
+        log(text ? 'maintenance on' : 'maintenance off', undefined, text ?? undefined);
+        await this.adminLog?.setMaintenance(text);
+        send(p, this.overviewMsg());
+        break;
+      }
+      case 'pause_match': {
+        const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed);
+        if (!room) return;
+        room.paused = !!msg.on;
+        room.devTest = true; // a paused match no longer counts
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+          if (q !== p) send(q, { t: 'notice', text: room.paused ? 'The owner paused the match (it no longer counts).' : 'The owner resumed the match.' });
+        }
+        log(msg.on ? 'pause match' : 'resume match', room.id);
+        send(p, this.overviewMsg());
+        break;
+      }
+      case 'history': {
+        if (!acc) return;
+        send(p, { t: 'admin_history', name: msg.name!, rows: await acc.history(key) });
+        break;
+      }
+      case 'log':
+        send(p, { t: 'admin_log', rows: (await this.adminLog?.list()) ?? [] });
+        break;
+    }
+  }
 
   /** The owner (with the code entered this session) or an account the owner gave the 'dev' tag. */
   private isDev(p: Player): boolean {
@@ -791,6 +892,7 @@ export class Lobby {
           break;
         case 'friend': {
           if (!p.account) return void send(p, { t: 'notice', text: 'Sign in to use friends.' });
+          if (msg.op === 'add' && acc.isMuted(p.account)) return void send(p, { t: 'notice', text: 'You are muted: no friend requests for now.' });
           const r = await acc.friendOp(p.account.key, msg.op, msg.name);
           if (!r.ok) return void send(p, { t: 'notice', text: r.reason });
           p.account = r.me;
@@ -834,6 +936,7 @@ export class Lobby {
               send(q, { t: 'account', account: publicInfo(r.account) });
             }
           }
+          void this.adminLog?.add(p.account?.name ?? p.name, msg.resetPassword ? 'reset password' : 'edit account', r.account.name, msg.grants ? `grants: ${msg.grants.join(', ') || 'none'}` : undefined);
           send(p, { t: 'admin_result', ok: true, name: r.account.name, row: acc.adminRow(r.account, this.onlineKeys().has(r.account.key)), tempPassword: r.tempPassword });
           break;
         }
@@ -870,6 +973,7 @@ export class Lobby {
     switch (msg.t) {
       case 'join': {
         if (p.room || this.inQueue(p)) return;
+        if (this.maint && !p.ownerOk) return void send(p, { t: 'closed', reason: this.maint });
         if (p.duelWith !== undefined && msg.mode !== 'duel') return void send(p, { t: 'closed', reason: 'You are waiting for a duel to start. It is called off after 30 seconds if your friend does not join.' });
         if (msg.mode !== 'practice' && this.accountBusyElsewhere(p)) return void send(p, { t: 'closed', reason: 'Your account is already playing in another window.' });
         p.watching?.removeSpectator(p);
@@ -960,6 +1064,7 @@ export class Lobby {
         if (!this.isDev(p) || !this.dev) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         const by = p.account?.name ?? p.name;
         const dev = this.dev;
+        void this.adminLog?.add(by, 'save numbers', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
         void (async () => {
           try {
             const all = await dev.save(msg.patches);
@@ -997,23 +1102,33 @@ export class Lobby {
       }
       case 'admin_overview': {
         if (!p.ownerOk) return;
-        send(p, { t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()) });
+        send(p, this.overviewMsg());
+        break;
+      }
+      case 'admin_act': {
+        if (!p.ownerOk) return;
+        void this.adminAct(p, msg).catch(() => send(p, { t: 'dev_result', ok: false, text: 'That did not work. Try again.' }));
         break;
       }
       case 'admin_announce': {
         if (!p.ownerOk) return;
         for (const q of this.conns) send(q, { t: 'notice', text: `📣 ${msg.text}` });
+        void this.adminLog?.add(p.account?.name ?? p.name, 'announce', undefined, msg.text);
         break;
       }
       case 'admin_end': {
         if (!p.ownerOk) return;
         const room = [...this.rooms].find((r) => r.id === msg.id);
-        if (room) room.close('The owner ended this match.');
-        send(p, { t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()) });
+        if (room) {
+          room.close('The owner ended this match.');
+          void this.adminLog?.add(p.account?.name ?? p.name, 'end match', room.id, room.adminRow().players.map((x) => x.name).join(', '));
+        }
+        send(p, this.overviewMsg());
         break;
       }
       case 'overrides_clear': {
         if (!p.ownerOk || !this.dev) return;
+        void this.adminLog?.add(p.account?.name ?? p.name, 'clear number overrides');
         void this.dev.clear().then(() => {
           for (const q of this.conns) send(q, { t: 'overrides', patches: [] });
           send(p, { t: 'dev_result', ok: true, text: 'Live number changes cleared: the data files rule again.' });
@@ -1050,6 +1165,7 @@ export class Lobby {
         break;
       }
       case 'invite':
+        if (this.accounts?.isMuted(p.account)) return void send(p, { t: 'notice', text: 'You are muted: no invites for now.' });
         this.invite(p, msg.kind, msg.name);
         break;
       case 'invite_reply':
@@ -1086,6 +1202,7 @@ export class Lobby {
       case 'suggest': {
         if (!p.account) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Sign in to send suggestions.' });
         if (!this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'The suggestion box is not available.' });
+        if (this.accounts?.isMuted(p.account)) return void send(p, { t: 'suggest_ack', ok: false, reason: 'You are muted: no suggestions for now.' });
         // limited per account and per address, so reconnecting (or a second account on the same network) does not reset it
         const now = Date.now();
         const keys = [`a:${p.account.key}`, `i:${p.ip}`];

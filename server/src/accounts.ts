@@ -1,8 +1,8 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { ABILITY_GRANTS, DEFAULT_COSMETICS, EMBLEMS, NAME_COLORS, NAME_RE, TITLES, cleanCustom, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
+import { ABILITY_GRANTS, sanctionActive, DEFAULT_COSMETICS, EMBLEMS, NAME_COLORS, NAME_RE, TITLES, cleanCustom, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
 import { MAX_FRIENDS, MAX_HISTORY, MAX_REQUESTS } from '@arena/shared';
-import type { AccountInfo, AdminRow, CustomStyle, Cosmetics, LeaderRow, MatchRecord } from '@arena/shared';
+import type { AccountInfo, AdminRow, Sanction, CustomStyle, Cosmetics, LeaderRow, MatchRecord } from '@arena/shared';
 import type { Store } from './store';
 
 const scrypt = promisify(crypto.scrypt) as (pw: string, salt: Buffer, len: number) => Promise<Buffer>;
@@ -22,11 +22,24 @@ export interface AccountRecord extends AccountInfo {
   /** Friends (display names) and requests other players have sent this account. */
   friends?: string[];
   requests?: string[];
+  /** Moderation by the owner: a ban keeps the account out, a mute stops suggestions, invites and friend requests. */
+  banned?: Sanction;
+  muted?: Sanction;
+  /** The owner's private note on this player. */
+  adminNote?: string;
+  lastSeen?: number;
 }
 
 export type AuthResult = { ok: true; account: AccountRecord; token: string } | { ok: false; reason: string };
 
 /** Simple in-memory limiter: at most `max` events per `windowMs` per key. Old keys are swept so the map never grows without bound. */
+/** The message a banned account gets when it tries to sign in, or null when it is not banned. */
+export function bannedText(a: AccountRecord, now = Date.now()): string | null {
+  if (!sanctionActive(a.banned, now)) return null;
+  const until = a.banned!.until ? ` until ${new Date(a.banned!.until).toUTCString()}` : '';
+  return `This account is banned${until}${a.banned!.reason ? `: ${a.banned!.reason}` : '.'}`;
+}
+
 export class Limiter {
   private hits = new Map<string, number[]>();
   private lastSweep = Date.now();
@@ -162,6 +175,9 @@ export class Accounts {
       return { ok: false, reason: 'Wrong name or password.' };
     }
     this.loginFails.clear(limitKey);
+    const banned = bannedText(a!);
+    if (banned) return { ok: false, reason: banned };
+    void this.touch(a!.key);
     return { ok: true, account: a!, token: await this.session(a!.key) };
   }
 
@@ -176,7 +192,10 @@ export class Accounts {
     const raw = await this.store.get(`sess:${token}`);
     const [key, ep] = raw ? [raw.slice(0, raw.lastIndexOf(':') < 0 ? raw.length : raw.lastIndexOf(':')), raw.includes(':') ? Number(raw.slice(raw.lastIndexOf(':') + 1)) : 0] : ['', 0];
     const a = key ? await this.get(key) : null;
+    const banned = a ? bannedText(a) : null; // said even though the ban also ended the session
+    if (banned) return { ok: false, reason: banned };
     if (!a || (a.epoch ?? 0) !== ep) return { ok: false, reason: 'Session expired. Please sign in again.' };
+    void this.touch(a.key);
     return { ok: true, account: a, token };
   }
 
@@ -267,7 +286,87 @@ export class Accounts {
   }
 
   adminRow(a: AccountRecord, online: boolean): AdminRow {
-    return { name: a.name, rating: a.rating, matches: a.matches, wins: a.wins, createdAt: a.createdAt, grants: a.grants ?? [], cosmetics: a.cosmetics, avatar: a.avatar, online };
+    return {
+      name: a.name, rating: a.rating, peak: a.peak, matches: a.matches, wins: a.wins, createdAt: a.createdAt, grants: a.grants ?? [], cosmetics: a.cosmetics, avatar: a.avatar, online,
+      ...(a.lastSeen ? { lastSeen: a.lastSeen } : {}),
+      ...(sanctionActive(a.banned) ? { banned: a.banned } : {}),
+      ...(sanctionActive(a.muted) ? { muted: a.muted } : {}),
+      ...(a.adminNote ? { note: a.adminNote } : {}),
+    };
+  }
+
+  /** When the account was last seen (sign-in or resumed session); at most one write a minute. */
+  private async touch(key: string): Promise<void> {
+    try {
+      await this.exclusive([key], async () => {
+        const a = await this.get(key);
+        if (!a || (a.lastSeen && Date.now() - a.lastSeen < 60000)) return;
+        a.lastSeen = Date.now();
+        await this.save(a);
+      });
+    } catch {
+      /* not worth failing a sign-in over */
+    }
+  }
+
+  isMuted(a: AccountRecord | undefined): boolean {
+    return !!a && sanctionActive(a.muted);
+  }
+
+  /**
+   * Owner moderation of one account: ban or mute for `minutes` (0 = for good), lift them, set the rating, reset the
+   * stats, or keep a private note. The founder account is never touched.
+   */
+  async adminModerate(
+    name: string,
+    act: 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note',
+    o: { minutes?: number; reason?: string; value?: number; text?: string; by: string },
+  ): Promise<{ ok: true; account: AccountRecord } | { ok: false; reason: string }> {
+    return this.exclusive([name], async () => {
+      const a = await this.get(name);
+      if (!a) return { ok: false, reason: 'No such account.' };
+      if (isOwnerName(a.name) && act !== 'note') return { ok: false, reason: 'The founder account cannot be changed here.' };
+      const now = Date.now();
+      const sanction = (): Sanction => ({ until: o.minutes && o.minutes > 0 ? now + o.minutes * 60000 : 0, reason: (o.reason ?? '').slice(0, 200), by: o.by, at: now });
+      switch (act) {
+        case 'ban':
+          a.banned = sanction();
+          a.epoch = (a.epoch ?? 0) + 1; // every session of the account ends
+          break;
+        case 'unban':
+          delete a.banned;
+          break;
+        case 'mute':
+          a.muted = sanction();
+          break;
+        case 'unmute':
+          delete a.muted;
+          break;
+        case 'set_rating': {
+          const v = Math.round(o.value ?? NaN);
+          if (!Number.isFinite(v) || v < 0 || v > 5000) return { ok: false, reason: 'Rating must be 0 to 5000.' };
+          a.rating = v;
+          a.peak = Math.max(a.peak ?? v, v);
+          await this.store.zadd(LEADERBOARD_KEY, a.rating, a.name);
+          this.board = null;
+          break;
+        }
+        case 'reset_stats':
+          a.rating = START_RATING;
+          a.peak = START_RATING;
+          a.rated = 0;
+          a.matches = 0;
+          a.wins = 0;
+          await this.store.zadd(LEADERBOARD_KEY, a.rating, a.name);
+          this.board = null;
+          break;
+        case 'note':
+          a.adminNote = (o.text ?? '').slice(0, 1000) || undefined;
+          break;
+      }
+      await this.save(a);
+      return { ok: true, account: a };
+    });
   }
 
   /** Grants this server knows how to honour. */

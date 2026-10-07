@@ -233,9 +233,14 @@ export interface AccountInfo extends Stats {
 }
 
 /** One row of the owner's account list. */
+/** A ban or a mute: until when (0 = for good), why, by whom, and when it was given. */
+export interface Sanction { until: number; reason: string; by: string; at: number }
+export const sanctionActive = (s: Sanction | undefined, now = Date.now()): boolean => !!s && (s.until === 0 || s.until > now);
+
 export interface AdminRow {
   name: string;
   rating: number;
+  peak?: number;
   matches: number;
   wins: number;
   createdAt: number;
@@ -243,7 +248,16 @@ export interface AdminRow {
   cosmetics: Cosmetics;
   avatar?: number;
   online: boolean;
+  /** When the account last signed in or resumed a session. */
+  lastSeen?: number;
+  banned?: Sanction;
+  muted?: Sanction;
+  /** The owner's private note on this player. */
+  note?: string;
 }
+
+/** One owner action, kept in the admin log. */
+export interface AdminLogRow { at: number; by: string; action: string; target?: string; detail?: string }
 
 /** Abilities the owner can switch on for a friend (besides per-item grants). */
 export const ABILITY_GRANTS = [{ id: 'gif', name: 'Animated GIF icon' }, { id: 'dev', name: 'Dev tools (try and save numbers, skill notes)' }] as const;

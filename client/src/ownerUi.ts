@@ -1,5 +1,5 @@
 import { ABILITIES, ABILITY_GRANTS, ARENAS, AURAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, resolveCosmetics } from '@arena/shared';
-import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, DataPatch, ServerMsg } from '@arena/shared';
+import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, DataPatch, MatchRecord, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -13,6 +13,11 @@ interface Hooks {
   send(m: ClientMsg): void;
   token(): string;
   rerender(): void;
+  /** Open the full admin panel (from the profile's Owner tab). */
+  openAdmin?(): void;
+  /** Watch a match / follow a player (from the admin panel). */
+  watch?(id: string): void;
+  follow?(name: string): void;
 }
 
 const MAX_GIF = 256 * 1024;
@@ -55,6 +60,10 @@ export class OwnerPanel {
         break;
       case 'dev_result':
         this.say(m.text, !m.ok);
+        break;
+      case 'admin_history':
+        this.histories.set(m.name, m.rows);
+        this.hooks.rerender();
         break;
       case 'admin_result':
         if (!m.ok) this.say(m.reason ?? 'Change refused.', true);
@@ -107,24 +116,25 @@ export class OwnerPanel {
     }
     const n = this.noticeEl();
     if (n) box.append(n);
-    box.append(el('h3', '', 'Server'), this.serverBox());
-    box.append(el('h3', '', 'Announcement'), this.announceBox());
-    box.append(el('h3', '', 'Bot match'), this.botMatch());
-    box.append(el('h3', '', 'Live number changes'), this.overridesBox());
+    // the server, players, matches and tuning live in the admin panel of their own
+    const go = el('button', 'mm-small mm-go', '🛡 Open the admin panel');
+    go.addEventListener('click', () => this.hooks.openAdmin?.());
+    box.append(go);
     box.append(el('h3', '', 'Your name style'));
     box.append(this.styleEditor(a.cosmetics.custom, !!a.cosmetics.useCustom, (custom, use) => this.hooks.send({ t: 'customize', cosmetics: { ...a.cosmetics, custom, useCustom: use } }), true));
     box.append(el('h3', '', 'Animated icon'), this.gifBox(a));
-    box.append(el('h3', '', 'Accounts'), this.adminList());
     return box;
   }
 
   // ------------------------------------------------------------------ admin: the server at a glance
 
-  private overview: Extract<ServerMsg, { t: 'admin_overview' }> | null = null;
+  overview: Extract<ServerMsg, { t: 'admin_overview' }> | null = null;
+  /** Recent matches per player, asked for from their admin row. */
+  private histories = new Map<string, MatchRecord[]>();
   private overrides: DataPatch[] = [];
 
   /** Who is online and every match running (private ones too): watch any of them live, or end one. */
-  private serverBox(): HTMLElement {
+  serverBox(): HTMLElement {
     const wrap = el('div', 'own-box own-server');
     const top = el('div', 'own-row');
     const refresh = el('button', 'mm-small', 'Refresh');
@@ -149,17 +159,19 @@ export class OwnerPanel {
         el('small', '', [r.watchers ? `${r.watchers} watching` : '', r.devTest ? 'dev test numbers' : '', r.paused ? 'paused' : ''].filter(Boolean).join(' · ')),
       );
       const watch = el('button', 'mm-small', 'Watch');
-      watch.addEventListener('click', () => this.hooks.send({ t: 'spectate', id: r.id }));
+      watch.addEventListener('click', () => (this.hooks.watch ? this.hooks.watch(r.id) : this.hooks.send({ t: 'spectate', id: r.id })));
+      const pause = el('button', 'mm-small', r.paused ? 'Resume' : 'Pause');
+      pause.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'pause_match', id: r.id, on: !r.paused }));
       const end = el('button', 'mm-small', 'End');
       end.addEventListener('click', () => window.confirm('End this match for everyone in it?') && this.hooks.send({ t: 'admin_end', id: r.id }));
-      row.append(info, watch, end);
+      row.append(info, watch, pause, end);
       wrap.append(row);
     }
     return wrap;
   }
 
   /** A message every connected player sees at once. */
-  private announceBox(): HTMLElement {
+  announceBox(): HTMLElement {
     const row = el('div', 'own-row');
     const input = el('input');
     input.type = 'text';
@@ -179,7 +191,7 @@ export class OwnerPanel {
   }
 
   /** Numbers devs saved for everyone, applied over the data files until they are merged or cleared. */
-  private overridesBox(): HTMLElement {
+  overridesBox(): HTMLElement {
     const wrap = el('div', 'own-box');
     if (!this.overrides.length) {
       wrap.append(el('p', 'mm-modal-foot', 'None: the game runs on its data files. Devs (give the Dev tools tag below) can try numbers in their own matches against bots (F2) and save them here.'));
@@ -210,7 +222,7 @@ export class OwnerPanel {
    * Pick both sides (class and spec of each bot), the difficulty and the arena, and watch them fight live in a private
    * room: it is not listed in Watch live and closes when you stop watching.
    */
-  private botMatch(): HTMLElement {
+  botMatch(): HTMLElement {
     const wrap = el('div', 'own-box own-bots');
     wrap.append(el('p', 'mm-modal-foot', 'Watch bots fight each other in a private match only you can see. It closes when you leave it.'));
     const select = (opts: [string, string][], value: string, on: (v: string) => void) => {
@@ -368,9 +380,84 @@ export class OwnerPanel {
     }
   }
 
+  // ------------------------------------------------------------------ admin: moderation of one player
+
+  /** Kick, ban, mute (for a while or for good, with a reason), rating and stats, a private note, recent matches. */
+  private moderation(r: AdminRow): HTMLElement {
+    const box = el('div', 'adm-mod');
+    const until = (u: number) => (u ? `until ${new Date(u).toLocaleString()}` : 'for good');
+    if (r.banned) box.append(el('div', 'adm-state bad', `Banned ${until(r.banned.until)} by ${r.banned.by}${r.banned.reason ? `: ${r.banned.reason}` : ''}`));
+    if (r.muted) box.append(el('div', 'adm-state warn', `Muted ${until(r.muted.until)} by ${r.muted.by}${r.muted.reason ? `: ${r.muted.reason}` : ''}`));
+    const act = (m: Omit<Extract<ClientMsg, { t: 'admin_act' }>, 't' | 'name'>) => this.hooks.send({ t: 'admin_act', name: r.name, ...m });
+    const reason = el('input');
+    reason.type = 'text';
+    reason.maxLength = 200;
+    reason.placeholder = 'Reason (shown to them)';
+    const dur = el('select');
+    for (const [v, label] of [['60', '1 hour'], ['1440', '1 day'], ['10080', '7 days'], ['43200', '30 days'], ['0', 'For good']]) {
+      const o = el('option', '', label);
+      o.value = v;
+      dur.append(o);
+    }
+    const row1 = el('div', 'own-row');
+    const kick = el('button', 'mm-small', 'Kick');
+    kick.disabled = !r.online;
+    kick.title = r.online ? 'Disconnect them now' : 'Not online';
+    kick.addEventListener('click', () => act({ act: 'kick', reason: reason.value }));
+    const ban = el('button', 'mm-small adm-danger', r.banned ? 'Unban' : 'Ban');
+    ban.addEventListener('click', () => {
+      if (r.banned) return act({ act: 'unban' });
+      if (window.confirm(`Ban ${r.name} (${dur.selectedOptions[0].textContent})? They are disconnected and cannot sign in.`)) act({ act: 'ban', minutes: Number(dur.value), reason: reason.value });
+    });
+    const mute = el('button', 'mm-small', r.muted ? 'Unmute' : 'Mute');
+    mute.addEventListener('click', () => (r.muted ? act({ act: 'unmute' }) : act({ act: 'mute', minutes: Number(dur.value), reason: reason.value })));
+    row1.append(dur, reason, kick, mute, ban);
+    box.append(el('b', '', 'Moderation'), row1);
+
+    const row2 = el('div', 'own-row');
+    const rating = el('input');
+    rating.type = 'number';
+    rating.value = String(r.rating);
+    rating.style.width = '80px';
+    const setR = el('button', 'mm-small', 'Set rating');
+    setR.addEventListener('click', () => act({ act: 'set_rating', value: Number(rating.value) }));
+    const resetS = el('button', 'mm-small', 'Reset stats');
+    resetS.addEventListener('click', () => window.confirm(`Reset ${r.name}'s rating, wins and matches?`) && act({ act: 'reset_stats' }));
+    const watch = el('button', 'mm-small', 'Follow');
+    watch.title = 'Be taken into every match they play';
+    watch.addEventListener('click', () => this.hooks.follow?.(r.name));
+    row2.append(rating, setR, resetS, watch);
+    box.append(row2);
+
+    const note = el('textarea', 'adm-note');
+    note.placeholder = 'Private note (only you see it)';
+    note.maxLength = 1000;
+    note.value = r.note ?? '';
+    const saveN = el('button', 'mm-small', 'Save note');
+    saveN.addEventListener('click', () => act({ act: 'note', text: note.value }));
+    box.append(note, saveN);
+
+    const hist = this.histories.get(r.name);
+    const histBtn = el('button', 'mm-small', hist ? 'Refresh matches' : 'Recent matches');
+    histBtn.addEventListener('click', () => act({ act: 'history' }));
+    box.append(histBtn);
+    if (hist) {
+      const key = r.name.toLowerCase();
+      const ul = el('ul', 'adm-hist');
+      for (const h of hist.slice(0, 15)) {
+        const me = h.players.find((x) => x.name.toLowerCase() === key);
+        const res = h.winner === 'draw' ? 'Draw' : me && h.winner === me.team ? 'Win' : 'Loss';
+        ul.append(el('li', '', `${new Date(h.at).toLocaleString()} · ${h.ranked ? 'Ranked ' : ''}${h.size}v${h.size} · ${res} · ${h.players.map((x) => x.name).join(', ')}`));
+      }
+      if (!hist.length) ul.append(el('li', '', 'No matches yet.'));
+      box.append(ul);
+    }
+    return box;
+  }
+
   // ------------------------------------------------------------------ admin: accounts
 
-  private adminList(): HTMLElement {
+  adminList(): HTMLElement {
     const box = el('div', 'own-box');
     if (this.temp) {
       box.append(el('div', 'own-ok', `Temporary password for ${this.temp.name} (shown once; they are signed out and must use it, then ask you if they want a new one):`), el('div', 'own-temp', this.temp.pw));
@@ -398,7 +485,10 @@ export class OwnerPanel {
       const rc = resolveCosmetics(r.cosmetics);
       const nm = el('b', '', `${rc.emblem} ${r.name}`);
       applyName(nm, rc);
-      head.append(dot, nm, el('small', '', `${r.rating} · ${r.wins}W/${r.matches}M · joined ${new Date(r.createdAt).toLocaleDateString()}`));
+      head.append(dot, nm, el('small', '', `${r.rating} · ${r.wins}W/${r.matches}M · joined ${new Date(r.createdAt).toLocaleDateString()}${r.lastSeen ? ` · seen ${new Date(r.lastSeen).toLocaleString()}` : ''}`));
+      if (r.banned) head.append(el('span', 'adm-badge bad', r.banned.until ? 'banned' : 'banned for good'));
+      if (r.muted) head.append(el('span', 'adm-badge warn', 'muted'));
+      if (r.grants.includes('dev')) head.append(el('span', 'adm-badge dev', 'dev'));
       head.addEventListener('click', () => {
         this.open = this.open === r.name ? '' : r.name;
         this.hooks.rerender();
@@ -415,9 +505,10 @@ export class OwnerPanel {
   private adminBody(r: AdminRow): HTMLElement {
     const body = el('div', 'adm-body');
     if (r.name.toLowerCase() === 'toke') {
-      body.append(el('p', 'mm-modal-foot', 'That is you. Use the sections above.'));
+      body.append(el('p', 'mm-modal-foot', 'That is you: the founder account cannot be moderated.'));
       return body;
     }
+    body.append(this.moderation(r));
     body.append(el('b', '', 'Unlocks and abilities'));
     const grants = new Set(r.grants);
     const grid = el('div', 'chk-grid');
