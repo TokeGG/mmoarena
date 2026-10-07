@@ -50,12 +50,17 @@ describe('global cooldown and resources', () => {
 });
 
 describe('casting, interrupts and school lockouts', () => {
-  it('interrupts a cast, locks only that school, and kick needs a casting target', () => {
+  it('interrupts a cast, locks only that school, and kick on an idle target just misses', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     const rogue = add(sim, 'rogue', 1, 3, 0);
     advance(sim, TICK);
-    mustFail(sim.useAbility(rogue.id, 'kick', mage.id), /not casting/);
+    rogue.pos = { x: 1, z: 0 };
+    assert.ok(sim.useAbility(rogue.id, 'kick', mage.id).ok, 'kick on an idle mage is allowed');
+    assert.ok(advance(sim, TICK).some((e) => e.t === 'miss'), 'and misses');
+    rogue.cooldowns = {};
+    rogue.gcdEnd = 0;
+    rogue.pos = { x: 3, z: 0 };
 
     assert.ok(sim.useAbility(mage.id, 'frostbolt', rogue.id).ok);
     advance(sim, 500);
@@ -444,6 +449,21 @@ describe('stealth', () => {
     mage.cooldowns = {}; mage.gcdEnd = 0; mage.auras = mage.auras.filter((x) => x.id !== 'arcane_charge');
     assert.ok(sim.useAbility(mage.id, 'arcane_blast', foe.id).ok);
     assert.equal(mage.cast!.end - mage.cast!.start, Math.round(ABILITIES.arcane_blast.castTime * 0.7));
+  });
+
+  it('Pummel and Kick can also be used on a target that is not casting: they miss and are spent', () => {
+    for (const [cls, ab] of [['warrior', 'pummel'], ['rogue', 'kick']] as const) {
+      const sim = live(8);
+      const me = add(sim, cls, 0, 0, 0);
+      const foe = add(sim, 'mage', 1, 0, 2);
+      me.facing = 0; me.lastInput = { ...me.lastInput, facing: 0 };
+      me.resource = me.resourceMax;
+      advance(sim, TICK);
+      assert.ok(!ABILITIES[ab].requiresTargetCasting, ab);
+      assert.ok(sim.useAbility(me.id, ab, foe.id).ok, `${ab} castable on an idle target`);
+      assert.ok(advance(sim, TICK).some((e) => e.t === 'miss' && e.src === me.id), `${ab} missed`);
+      assert.ok(!sim.useAbility(me.id, ab, foe.id).ok, `${ab} is on cooldown`);
+    }
   });
 
   it('Counterspell can be cast with nothing to interrupt: it misses and goes on cooldown; it still works while locked out', () => {

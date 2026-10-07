@@ -778,7 +778,7 @@ export class ArenaSim {
     // a cast that finished a moment before the button reached the server still gets locked out (lag must not make Counterspell miss)
     const late = !t.cast && t.lastCast && this.time - t.lastCast.at <= INTERRUPT_GRACE_MS ? t.lastCast : null;
     if (!t.cast && !late) {
-      if (def.id === 'counterspell' || !def.requiresTargetCasting) this.emit({ t: 'miss', src: src.id, tgt: t.id, ability: def.id }); // nothing to interrupt: the spell whiffs and is still spent
+      this.emit({ t: 'miss', src: src.id, tgt: t.id, ability: def.id }); // nothing to interrupt: the spell whiffs and is still spent
       return;
     }
     const live = !!t.cast;

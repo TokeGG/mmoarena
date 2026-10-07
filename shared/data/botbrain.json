@@ -32,11 +32,11 @@
   "healerPrio": 24.928,
   "focus": 6.138,
   "killLow": 78.801,
-  "rangeBias": 1.921,
-  "healAt": 1.281,
+  "rangeBias": 2.362,
+  "healAt": 1.3,
   "burstHp": 0.935,
   "strafeFlip": 0.6,
-  "chase": 0.388
+  "chase": 0.365
  },
  "priest": {
   "coverHp": 0.356,

@@ -61,7 +61,6 @@
   "cooldown": 10000,
   "gcd": false,
   "cost": 10,
-  "requiresTargetCasting": true,
   "effects": [
    {
     "type": "interrupt",
@@ -427,7 +426,6 @@
   "cooldown": 15000,
   "gcd": false,
   "cost": 0,
-  "requiresTargetCasting": true,
   "effects": [
    {
     "type": "interrupt",

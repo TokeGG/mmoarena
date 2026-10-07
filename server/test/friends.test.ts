@@ -333,3 +333,22 @@ describe('suggestion box', () => {
     assert.match(last(b, 'suggestions')!.rows[0].text, /fifth class/);
   });
 });
+
+describe('suggestion webhook', () => {
+  it('posts each suggestion to Discord without mentions, and only to a real webhook URL', async () => {
+    const { Suggestions } = await import('../src/suggestions');
+    const calls: { url: string; body: any }[] = [];
+    const fake = (async (url: string, init: any) => { calls.push({ url, body: JSON.parse(init.body) }); return new Response('', { status: 204 }); }) as any;
+    const hook = 'https://discord.com/api/webhooks/123456789/abc-DEF_ghi';
+    const s = new Suggestions(new MemoryStore(), hook, fake);
+    assert.ok(s.notifies);
+    await s.add('Ann', 'Nerf @everyone the mage');
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].url, hook);
+    assert.deepEqual(calls[0].body.allowed_mentions, { parse: [] });
+    assert.ok(!calls[0].body.content.includes('@everyone'), calls[0].body.content);
+    assert.ok(!new Suggestions(new MemoryStore(), 'https://evil.example/api/webhooks/1/x', fake).notifies);
+    const failing = new Suggestions(new MemoryStore(), hook, (async () => { throw new Error('down'); }) as any);
+    assert.equal(await failing.add('Bob', 'still saved when Discord is down'), true);
+  });
+});

@@ -50,7 +50,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const accounts = new Accounts(store, process.env.ARENA_OWNER_CODE);
   const botLearner = new BotLearner(store);
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts, botLearner, new Suggestions(store));
+  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL));
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
