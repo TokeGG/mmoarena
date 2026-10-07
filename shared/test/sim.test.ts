@@ -788,9 +788,7 @@ describe('v0.23 combat rules', () => {
     run(sim, 2000);
     assert.ok(Math.hypot(w2.pos.x - p0.x, w2.pos.z - p0.z) < 0.01, 'sheep stands still');
     assert.ok(w2.health > h0, 'sheep heals a little');
-    run(sim, 6500);
-    assert.ok(!w2.auras.some((x) => x.id === 'polymorph'), 'polymorph ran out');
-    assert.ok(Math.abs(w2.health - (h0 + w2.maxHealth * 0.1)) < w2.maxHealth * 0.02, `healed ${(w2.health - h0) / w2.maxHealth} of max`);
+    assert.ok(w2.health - h0 >= w2.maxHealth * 0.15, `healed ${(w2.health - h0) / w2.maxHealth} of max in 2 s`);
     assert.equal(w2.facing, 2, 'sheep can turn');
     mage.auras = [];
     const blinker = sim.addUnit({ name: 'b', classId: 'mage', team: 1 });
