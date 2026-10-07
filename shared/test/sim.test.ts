@@ -1107,6 +1107,27 @@ describe('v0.24 damage over time, penance and ground spells', () => {
   });
 });
 
+describe('movement speed', () => {
+  it('stealth no longer slows you and a feared unit stumbles at a fraction of run speed', () => {
+    const run = (setup: (sim: ArenaSim, u: any) => void) => {
+      const sim = new ArenaSim({ seed: 3, prepMs: 0 });
+      const u = sim.addUnit({ name: 'r', classId: 'rogue', team: 0 });
+      sim.addUnit({ name: 'e', classId: 'warrior', team: 1, controller: 'dummy' }).pos = { x: 60, z: 60 };
+      u.pos = { x: 0, z: 0 };
+      sim.step();
+      setup(sim, u);
+      const from = { ...u.pos };
+      for (let i = 0; i < 20; i++) { sim.queueInput(u.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 }); sim.step(); }
+      return Math.hypot(u.pos.x - from.x, u.pos.z - from.z);
+    };
+    const plain = run(() => {});
+    const hidden = run((sim, u) => sim.applyAura(u, u, 'stealth'));
+    assert.ok(Math.abs(hidden - plain) < 0.01, `${hidden} vs ${plain}`);
+    const feared = run((sim, u) => { const f = sim.units.get(2)!; sim.applyAura(f, u, 'psychic_scream'); });
+    assert.ok(feared < plain * 0.45, `feared ${feared} vs ${plain}`);
+  });
+});
+
 describe('facing rule', () => {
   it('casts and swings need the target inside a 90 degree cone in front of the player', () => {
     const sim = new ArenaSim({ seed: 3, prepMs: 0, facing: true });
@@ -1121,7 +1142,15 @@ describe('facing rule', () => {
     w.pos = { x: 10, z: 0 }; // due +x
     advance(sim, 100);
     face(Math.atan2(1, 0) + Math.PI);
-    mustFail(sim.useAbility(m.id, 'frostbolt', w.id), /in front/);
+    const missed = () => {
+      assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok, 'held for the lag grace');
+      assert.equal(m.cast, null, 'not casting while held');
+      const ev = advance(sim, TUNING.castGraceMs + 100);
+      assert.ok(ev.some((e: any) => e.t === 'cast_fail' && /in front/.test(e.reason)), 'fails once the grace is over');
+      assert.equal(m.cast, null);
+      assert.equal(ev.some((e: any) => e.t === 'cast_start'), false);
+    };
+    missed();
     face(Math.atan2(10, 0));
     assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok);
     advance(sim, 3000);
@@ -1131,6 +1160,26 @@ describe('facing rule', () => {
     advance(sim, 3000);
     m.cooldowns = {}; m.gcdEnd = 0;
     face(Math.atan2(10, 0) + 0.9);
-    mustFail(sim.useAbility(m.id, 'frostbolt', w.id), /in front/);
+    missed();
+  });
+
+  it('a cast that only misses on range or facing is held briefly and lands if the target comes back in reach', () => {
+    const sim = new ArenaSim({ seed: 3, prepMs: 0, facing: true });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0 });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
+    m.pos = { x: 0, z: 0 };
+    m.facing = Math.atan2(1, 0);
+    w.pos = { x: 33, z: 0 }; // frostbolt reaches 30 (+1.5 allowance)
+    advance(sim, 100);
+    assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok);
+    assert.equal(m.cast, null);
+    w.pos = { x: 28, z: 0 }; // it steps back into reach during the grace window
+    advance(sim, TICK * 2);
+    assert.equal(m.cast?.ability, 'frostbolt', 'the held cast started once in reach');
+    // a later press replaces a held cast and bots are never held
+    const bot = sim.addUnit({ name: 'b', classId: 'mage', team: 0, controller: 'bot' });
+    bot.pos = { x: 0, z: 5 };
+    w.pos = { x: 60, z: 0 };
+    assert.ok(!sim.useAbility(bot.id, 'frostbolt', w.id).ok, 'bots get an immediate failure');
   });
 });

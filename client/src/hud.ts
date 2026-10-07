@@ -520,6 +520,7 @@ export class Hud {
       }
       case 'heal':
         if (ev.amount > 0) this.float(ctx.project(ev.tgt), `+${ev.amount}`, 'heal', Math.round(Math.min(34, 16 + Math.sqrt(ev.amount) * 0.8)));
+        if (ev.overheal > 0 && (ev.src === ctx.you || ev.tgt === ctx.you)) this.float(ctx.project(ev.tgt), `${ev.overheal} overheal`, 'dim', 13);
         if (ev.tgt === ctx.you || ev.src === ctx.you) this.log(`${n(ev.src)}'s ${ab(ev.ability)} heals ${n(ev.tgt)} for ${ev.amount}`);
         break;
       case 'interrupt':

@@ -10,6 +10,8 @@ const TICK = TUNING.tickMs;
 const DT = TICK / 1000;
 const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
+/** Failures a player cast may be held through for TUNING.castGraceMs. */
+const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you'];
 const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
@@ -144,11 +146,40 @@ export class ArenaSim {
     if (disabled) u.autoAttack = false;
   }
 
+  /** Casts held back for a moment because the target was just out of range or not quite in front (online play only). */
+  private pending = new Map<number, { ability: string; target: number | null; ground: { x: number; z: number } | null; until: number; reason: string }>();
+
   useAbility(id: number, abilityId: string, targetId?: number | null, ground?: { x: number; z: number } | null): Result {
     this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null]);
     if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100 };
+    this.pending.delete(id); // any new press replaces a held cast
+    return this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false);
+  }
+
+  /** Retry held casts each tick until they land or the grace window runs out. */
+  private retryPending(): void {
+    for (const [id, p] of [...this.pending]) {
+      const u = this.units.get(id);
+      if (!u || !u.alive) { this.pending.delete(id); continue; }
+      this.pending.delete(id);
+      const r = this.tryUse(id, p.ability, p.target, p.ground, true);
+      if (r.ok) continue;
+      if (this.time >= p.until || !GRACE_REASONS.includes(r.reason)) this.failCast(u, p.ability, this.time >= p.until ? p.reason : r.reason);
+      else this.pending.set(id, p);
+    }
+  }
+
+  private tryUse(id: number, abilityId: string, targetId: number | null, ground: { x: number; z: number } | null, retry: boolean): Result {
     const u = this.units.get(id);
     if (!u || !u.alive) return fail('you are dead');
+    const soft = (reason: string): Result => {
+      // a player cast that only misses on range or facing is held for a moment (the target may have been in reach on their screen)
+      if (this.facingRule && u.controller === 'player' && TUNING.castGraceMs > 0 && !retry) {
+        this.pending.set(id, { ability: abilityId, target: targetId, ground, until: this.time + TUNING.castGraceMs, reason });
+        return ok;
+      }
+      return fail(reason);
+    };
     const def = ABILITIES[abilityId];
     if (def && !u.bar.includes(abilityId)) {
       // a slot can turn into another ability while stealthed (Sinister Strike and Mutilate become Cheap Shot)
@@ -179,9 +210,9 @@ export class ArenaSim {
       if (!ground || !Number.isFinite(ground.x) || !Number.isFinite(ground.z)) return fail('no target location');
       const b = this.arena.bounds;
       ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ) };
-      if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return fail('out of range');
+      if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return soft('out of range');
       if (!hasLOS(u.pos, ground, this.arena)) return fail('no line of sight');
-      if (!this.inFront(u, ground.x, ground.z)) return fail('that spot is not in front of you');
+      if (!this.inFront(u, ground.x, ground.z)) return soft('that spot is not in front of you');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);
@@ -189,10 +220,10 @@ export class ArenaSim {
 
     if (tgt !== u) {
       const d = dist(u.pos, tgt.pos);
-      if (def.range > 0 && d > this.reachOf(u, def)) return fail('out of range');
+      if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
-      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return fail('target is not in front of you');
+      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return soft('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
       if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
     }
@@ -242,6 +273,7 @@ export class ArenaSim {
       this.emit({ t: 'phase', phase: 'live', winner: null });
     }
     for (const u of this.units.values()) if (u.alive) this.tickUnit(u);
+    if (this.pending.size) this.retryPending();
     this.tickZones();
     if (this.phase === 'live') this.checkEnd();
   }
@@ -339,7 +371,7 @@ export class ArenaSim {
         u.facing = ang;
         u.fearRetargetAt = this.time + 1000;
       }
-      const k = 0.9 * TUNING.runSpeed * DT;
+      const k = TUNING.fearSpeed * TUNING.runSpeed * DT;
       u.pos = resolveCollisions({ x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k }, this.arena);
     } else {
       if ((this.canAct(u) || u.auras.some((a) => AURAS[a.id]?.canTurn)) && Number.isFinite(input.facing)) u.facing = input.facing;

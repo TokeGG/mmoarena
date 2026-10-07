@@ -1,24 +1,26 @@
 {
-  "tickMs": 50,
-  "gcdMs": 1000,
-  "runSpeed": 7,
-  "drResetMs": 18000,
-  "drSteps": [
-    1,
-    0.5,
-    0.25,
-    0
-  ],
-  "gearCap": 1.15,
-  "rangeTolerance": 1.5,
-  "autoTolerance": 0.5,
-  "castConeDeg": 90,
-  "prepMs": 10000,
-  "maxMatchMs": 600000,
-  "damageVariance": 0.08,
-  "stealthDetect": 2,
-  "outOfCombatMs": 5000,
-  "rageFromDealt": 0.15,
-  "rageFromTaken": 0.15,
-  "rageDecayPerSec": 5
+ "tickMs": 50,
+ "gcdMs": 1000,
+ "runSpeed": 7,
+ "drResetMs": 18000,
+ "drSteps": [
+  1,
+  0.5,
+  0.25,
+  0
+ ],
+ "gearCap": 1.15,
+ "rangeTolerance": 1.5,
+ "autoTolerance": 0.5,
+ "castConeDeg": 90,
+ "prepMs": 10000,
+ "maxMatchMs": 600000,
+ "damageVariance": 0.08,
+ "stealthDetect": 2,
+ "outOfCombatMs": 5000,
+ "rageFromDealt": 0.15,
+ "rageFromTaken": 0.15,
+ "rageDecayPerSec": 5,
+ "castGraceMs": 150,
+ "fearSpeed": 0.35
 }

@@ -191,7 +191,7 @@
    ],
    "mods": {
     "damageDone": 1.1,
-    "healingDone": 0.8
+    "healingDone": 1
    }
   }
  ],

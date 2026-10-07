@@ -242,10 +242,17 @@ export class Room {
     for (const bot of this.bots) bot.tick(); // bots queue their input for this tick, then the sim steps
     this.sim.step();
     const events = this.sim.drainEvents();
+    // everyone on a team gets the same view, so build and serialise it once per team
+    const frames = new Map<number, string>();
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
       if (!me) continue;
-      send(p, { t: 'snapshot', snap: this.sim.snapshot(me.team), events });
+      let frame = frames.get(me.team);
+      if (frame === undefined) {
+        frame = JSON.stringify({ t: 'snapshot', snap: this.sim.snapshot(me.team), events });
+        frames.set(me.team, frame);
+      }
+      if (p.ws.readyState === 1 /* OPEN */) p.ws.send(frame);
     }
     if (this.ranked) {
       // spectators get the whole arena (nothing hidden), five seconds late

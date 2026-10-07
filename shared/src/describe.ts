@@ -49,12 +49,12 @@ function describeBase(id: string): string {
   switch (a.kind) {
     case 'stun': return 'Cannot move, cast or act.';
     case 'incapacitate': return `Cannot move, cast or act${a.canTurn ? ' (can still turn)' : ''}${a.locksAbilities ? ', not even Blink' : ''}. Breaks on damage.${a.hot ? ` Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s.` : ''}`;
-    case 'fear': return `Runs around in fear. Cannot cast or act.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
+    case 'fear': return `Runs around in fear at ${Math.round(TUNING.fearSpeed * 100)}% speed. Cannot cast or act.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
     case 'root': return 'Cannot move.';
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
     case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;
-    case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Movement speed reduced by ${Math.abs(a.speedPct ?? 0)}%. Broken by damage or attacking.`;
+    case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Broken by damage or attacking.`;
     case 'buff': {
       if (a.instantFor) return `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.`;
       const parts = describeMods(a.mods).map(cap);

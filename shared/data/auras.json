@@ -73,8 +73,7 @@
   "name": "Stealth",
   "kind": "stealth",
   "duration": 0,
-  "harmful": false,
-  "speedPct": -30
+  "harmful": false
  },
  "sprint": {
   "name": "Sprint",

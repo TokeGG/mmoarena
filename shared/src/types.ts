@@ -195,6 +195,10 @@ export interface Tuning {
   autoTolerance: number;
   /** Width of the cone in front of a player inside which targets must be to cast on them or swing at them. */
   castConeDeg: number;
+  /** Online play: a cast that fails only on range or facing is retried for this long, so a target that stepped out of reach in transit still gets hit. */
+  castGraceMs: number;
+  /** Feared units stumble around at this fraction of run speed. */
+  fearSpeed: number;
   prepMs: number;
   maxMatchMs: number;
   damageVariance: number;
