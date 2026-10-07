@@ -102,6 +102,10 @@ const menu = new Menu(binds, {
       exitSpectate();
       return;
     }
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      send({ t: 'leave' }); // the server answers with 'closed'; the socket stays up so the party and presence survive
+      return;
+    }
     leaving = true;
     ws?.close();
   },

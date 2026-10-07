@@ -305,6 +305,8 @@ export class Bot {
     const slowed = tgt.auras.some((a) => a.id === 'frostbolt_slow');
     if (!slowed && this.use(u, 'frostbolt', tgt.id)) return;
     if (hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'arcane_power');
+    // Fingers of Frost / Shatter on the target: Deep Freeze to hold it, then Ice Lance for the 5x hit
+    if (tgt.auras.some((a) => a.id === 'fingers_of_frost' || a.id === 'shatter') && (this.use(u, 'deep_freeze', tgt.id) || this.use(u, 'ice_lance', tgt.id))) return;
     // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
     this.useFirst(u, ['deep_freeze', 'fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles'], tgt.id);
   }

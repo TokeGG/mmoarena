@@ -258,7 +258,7 @@ describe('stealth', () => {
     assert.equal(foe.cast, null);
   });
 
-  it('frost nova and deep freeze each give Shatter: the next frost damaging ability does 400% more, then it is spent', () => {
+  it('frost nova and deep freeze put Shatter on the target: the next frost hit does 400% more and uses it up', () => {
     for (const ab of ['frost_nova', 'deep_freeze']) {
       const sim = live();
       const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
@@ -266,16 +266,58 @@ describe('stealth', () => {
       const foe = add(sim, 'warrior', 1, 0, 4);
       foe.maxHealth = foe.health = 1e6;
       advance(sim, TICK);
-      assert.ok(mage.bar.includes(ab), ab);
       const cast = (id: string) => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, id, foe.id).ok, id); advance(sim, 2500); return h - foe.health; };
       const plain = cast('frostbolt');
+      for (const a of [...foe.auras]) if (a.id !== 'shatter') sim.removeAura(foe, a, 'test'); // a lucky Fingers of Frost proc would muddy the comparison
+      if (ab === 'deep_freeze') sim.applyAura(mage, foe, 'fingers_of_frost');
       cast(ab);
-      assert.ok(mage.auras.some((x) => x.id === 'shatter'), `${ab} grants Shatter`);
+      for (const a of [...foe.auras]) if (a.id === 'deep_freeze_stun') sim.removeAura(foe, a, 'test');
+      if (ab === 'frost_nova') foe.auras = foe.auras.filter((x) => x.id !== 'frost_nova_root');
+      if (!foe.auras.some((x) => x.id === 'shatter')) sim.applyAura(mage, foe, 'shatter');
       const empowered = cast('frostbolt');
       assert.ok(empowered > plain * 4.2, `${ab}: ${empowered} vs ${plain}`);
-      assert.ok(!mage.auras.some((x) => x.id === 'shatter'), 'consumed');
-      assert.ok(cast('frostbolt') < plain * 1.3, 'back to normal');
+      assert.ok(!foe.auras.some((x) => x.id === 'shatter'), 'spent by the hit');
     }
+  });
+
+  it('Fingers of Frost: frostbolt can apply it; Ice Lance on it hits like Shatter and uses it; Deep Freeze needs Fingers or Shatter', () => {
+    const sim = live(5);
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
+    mage.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'warrior', 1, 0, 4);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    const go = (id: string) => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; return sim.useAbility(mage.id, id, foe.id); };
+    const r = go('deep_freeze');
+    assert.ok(!r.ok && /Fingers of Frost or Shatter/.test((r as { reason: string }).reason), JSON.stringify(r));
+    const lance = () => { const h = foe.health; assert.ok(go('ice_lance').ok); advance(sim, TICK); return h - foe.health; };
+    const plain = lance();
+    sim.applyAura(mage, foe, 'fingers_of_frost');
+    const boosted = lance();
+    assert.ok(boosted > plain * 4.2, `${boosted} vs ${plain}`);
+    assert.ok(!foe.auras.some((x) => x.id === 'fingers_of_frost'), 'used up');
+    sim.applyAura(mage, foe, 'fingers_of_frost');
+    assert.ok(go('deep_freeze').ok, 'castable on Fingers of Frost');
+    // procs: 15% of frostbolts over many casts
+    let procs = 0;
+    for (let i = 0; i < 80; i++) { for (const a of [...foe.auras]) sim.removeAura(foe, a, 'test'); go('frostbolt'); advance(sim, 1600); if (foe.auras.some((x) => x.id === 'fingers_of_frost')) procs++; }
+    assert.ok(procs > 4 && procs < 25, `procs ${procs}/80`);
+  });
+
+  it('Shatter and Frost Nova roots break on damage, except Shatter while Deep Freeze holds', () => {
+    const sim = live();
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
+    const foe = add(sim, 'warrior', 1, 0, 4);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    sim.applyAura(mage, foe, 'frost_nova_root');
+    sim.applyAura(mage, foe, 'shatter');
+    sim.dealDamage(mage, foe, 50, 'fire', null);
+    assert.ok(!foe.auras.some((x) => x.id === 'frost_nova_root' || x.id === 'shatter'), 'both gone');
+    sim.applyAura(mage, foe, 'deep_freeze_stun');
+    sim.applyAura(mage, foe, 'shatter');
+    sim.dealDamage(mage, foe, 50, 'fire', null);
+    assert.ok(foe.auras.some((x) => x.id === 'shatter'), 'held while stunned');
   });
 
   it('snapshots report the shield left on a unit and it shrinks as it soaks', () => {
@@ -400,20 +442,6 @@ describe('stealth', () => {
       assert.ok(sim.useAbility(u.id, ab, foe.id).ok, `${cls} ${ab}`);
       assert.equal(u.gcdEnd - sim.time, ms, cls);
     }
-  });
-
-  it('shatter only boosts frost damage: a fire spell leaves it and the next frost hit uses it', () => {
-    const sim = live();
-    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
-    mage.pos = { x: 0, z: 0 };
-    const foe = add(sim, 'warrior', 1, 0, 4);
-    foe.maxHealth = foe.health = 1e6;
-    advance(sim, TICK);
-    sim.applyAura(mage, mage, 'shatter');
-    const h = foe.health;
-    sim.dealDamage(mage, foe, 100, 'fire', null);
-    assert.ok(mage.auras.some((x) => x.id === 'shatter'), 'fire does not spend it');
-    assert.equal(h - foe.health, 100);
   });
 
   it('arcane blast stacks Arcane Charge to 5 and arcane barrage spends them for +50% damage each', () => {

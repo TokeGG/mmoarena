@@ -84,7 +84,7 @@ export class ArenaSim {
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
       autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
-      inputQueue: [], charge: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
+      inputQueue: [], charge: null, leap: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
     this.units.set(u.id, u);
@@ -234,6 +234,7 @@ export class ArenaSim {
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
       if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
+      if (def.requiresTargetAura && !tgt.auras.some((a) => def.requiresTargetAura!.includes(a.id))) return fail(`target needs ${def.requiresTargetAura.map((x) => AURAS[x]?.name ?? x).join(' or ')}`);
       if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
@@ -380,6 +381,18 @@ export class ArenaSim {
 
     // movement
     const before = { x: u.pos.x, z: u.pos.z };
+    if (u.leap) {
+      const L = u.leap;
+      const p = Math.min(1, (this.time + DT * 1000 - L.start) / L.dur);
+      u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
+      u.pos = resolveCollisions({ x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, this.arena);
+      if (p >= 1) {
+        u.leap = null;
+        this.emit({ t: 'leap_land', unit: u.id, x: u.pos.x, z: u.pos.z });
+        if (L.damage > 0) for (const e of this.units.values()) if (e.alive && e.team !== u.team && dist(e.pos, u.pos) <= L.radius) this.dealDamage(u, e, L.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability['heroic_leap']?.damage ?? 1), 'physical', 'heroic_leap');
+      }
+      return;
+    }
     if (u.charge) {
       const ch = u.charge;
       const tgt = this.units.get(ch.target);
@@ -546,6 +559,14 @@ export class ArenaSim {
   private empowerMult = 1;
   private stackMult = 1;
 
+  /** Damage multiplier from marks on the target (Shatter) or an exploited aura (Fingers of Frost); they do not stack. */
+  private vulnMult(t: Unit, def: AbilityDef): number {
+    let m = 1;
+    for (const a of t.auras) { const v = AURAS[a.id]?.vulnerable; if (v && v.school === def.school) m = Math.max(m, v.mult); }
+    if (def.exploit && t.auras.some((a) => a.id === def.exploit!.aura)) m = Math.max(m, def.exploit.mult);
+    return m;
+  }
+
   private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: { x: number; z: number }): void {
     this.ground = ground ?? null;
     this.rageMult = 1;
@@ -586,6 +607,7 @@ export class ArenaSim {
     for (const t of targets) for (const eff of effects) this.applyEffect(u, def, t, eff);
     for (const id of this.modsOf(u).ability[def.id]?.after ?? []) this.applyAura(u, u, id);
     if (empowerAura) this.removeAura(u, empowerAura, 'consumed');
+    if (def.exploit) for (const t of targets) { const x = t.auras.find((a) => a.id === def.exploit!.aura); if (x) this.removeAura(t, x, 'consumed'); }
     if (eaten) this.removeAura(u, eaten, 'consumed');
     if (def.cpSpend) u.cp = 0;
     if (def.cpGain) u.cp = Math.min(5 + this.modsOf(u).maxCp, u.cp + def.cpGain + (abMod?.cpChance && this.rng() < abMod.cpChance ? 1 : 0));
@@ -607,7 +629,7 @@ export class ArenaSim {
       case 'damage':
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
-        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) * this.modsOf(u).cpPower : 1) * (def.behindMult && this.isBehind(u, t) ? def.behindMult : 1) * this.rageMult * this.empowerMult * this.stackMult, def.school, def.id);
+        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) * this.modsOf(u).cpPower : 1) * (def.behindMult && this.isBehind(u, t) ? def.behindMult : 1) * this.rageMult * this.empowerMult * this.stackMult * this.vulnMult(t, def), def.school, def.id);
         break;
       case 'healMax':
         this.heal(u, u, u.maxHealth * eff.pct, def.id);
@@ -616,8 +638,11 @@ export class ArenaSim {
         const g = this.ground;
         if (!g) break;
         const fromX = u.pos.x, fromZ = u.pos.z;
-        u.pos = resolveCollisions({ x: g.x, z: g.z }, this.arena);
-        this.emit({ t: 'leap', unit: u.id, fromX, fromZ, x: u.pos.x, z: u.pos.z });
+        const to = resolveCollisions({ x: g.x, z: g.z }, this.arena);
+        const dur = 450 + dist({ x: fromX, z: fromZ }, to) * 15;
+        u.leap = { fromX, fromZ, toX: to.x, toZ: to.z, start: this.time, dur, damage: eff.damage ?? 0, radius: eff.radius ?? 5 };
+        if (u.cast) this.cancelCast(u, 'leapt');
+        this.emit({ t: 'leap', unit: u.id, fromX, fromZ, x: to.x, z: to.z });
         break;
       }
       case 'pull': {
@@ -783,7 +808,7 @@ export class ArenaSim {
 
     if (remaining + absorbed > 0) {
       if (tgt.charge) this.endCharge(tgt, false); // being hit stops a charge
-      for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage && !(periodic && a.kind === 'fear')) this.removeAura(tgt, a, 'damage'); // damage-over-time ticks do not break fear
+      for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage && !(periodic && a.kind === 'fear') && !(AURAS[a.id].heldBy && tgt.auras.some((x) => x.id === AURAS[a.id].heldBy))) this.removeAura(tgt, a, 'damage'); // damage-over-time ticks do not break fear
       if (this.isStealthed(tgt)) this.breakStealth(tgt);
     }
     if (tgt.health <= 0) this.die(tgt, src?.id ?? null);
@@ -1103,9 +1128,9 @@ export class ArenaSim {
       ...(Object.values(u.lockouts).some((t) => (t ?? 0) > this.time) ? { lockouts: Object.fromEntries(Object.entries(u.lockouts).filter(([, t]) => (t ?? 0) > this.time)) } : {}),
       stealthed: this.isStealthed(u),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
-      y: u.alive ? Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100 : 0,
+      y: u.alive ? (u.leap ? Math.round(Math.sin(Math.PI * Math.min(1, (this.time - u.leap.start) / u.leap.dur)) * 5 * 100) / 100 : Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
-      controlled: !this.canAct(u) || !!u.charge,
+      controlled: !this.canAct(u) || !!u.charge || !!u.leap,
       autoAttack: u.autoAttack,
       lastSeq: u.lastSeq,
     };

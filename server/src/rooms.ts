@@ -635,9 +635,13 @@ export class Lobby {
         else if (msg.mode === 'party') this.startPartyMatch(p, msg);
         else this.enqueue(p);
         break;
-      case 'leave':
+      case 'leave': {
+        // leaving a match keeps the socket (and the party) alive: tell the client to go back to the menu
+        const inMatch = !!p.room;
         this.leave(p);
+        if (inMatch) send(p, { t: 'closed', reason: 'You left the match.' });
         break;
+      }
       case 'ready': {
         const party = p.party;
         if (!party || party.leader === p || p.room || this.inQueue(p)) return;

@@ -21,7 +21,8 @@
     "duration": 6000,
     "harmful": true,
     "dr": "root",
-    "dispellable": true
+    "dispellable": true,
+    "breaksOnDamage": true
   },
   "frostbolt_slow": {
     "name": "Frostbolt",
@@ -359,10 +360,12 @@
   },
   "shatter": {
     "name": "Shatter",
-    "kind": "buff",
+    "kind": "mark",
     "duration": 10000,
-    "harmful": false,
-    "empower": {
+    "harmful": true,
+    "breaksOnDamage": true,
+    "heldBy": "deep_freeze_stun",
+    "vulnerable": {
       "school": "frost",
       "mult": 5
     }
@@ -419,5 +422,11 @@
       "school": "physical",
       "ability": "deep_cuts"
     }
+  },
+  "fingers_of_frost": {
+    "name": "Fingers of Frost",
+    "kind": "mark",
+    "duration": 15000,
+    "harmful": true
   }
 }

@@ -172,6 +172,20 @@ describe('party play', () => {
     assert.equal(last(us[0].s, 'party')!.party!.members.every((m) => m.name === 'Ann' || !m.ready), true, 'ready marks cleared');
   });
 
+  it('leaving a party match keeps both players in the party and sends the leaver back to the menu', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob']);
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'priest' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', size: 2 });
+    assert.ok(us[0].p.room && us[1].p.room);
+    lobby.handle(us[1].p, { t: 'leave' });
+    assert.equal(us[1].p.room, undefined);
+    assert.match((last(us[1].s, 'closed') as any).reason, /You left the match/);
+    assert.equal(us[1].p.party, us[0].p.party, 'still the same party');
+    assert.equal(us[0].p.party?.members.length, 2);
+    lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'priest' });
+    assert.ok(us[0].p.party!.ready.has(us[1].p), 'can ready up again without refreshing');
+  });
+
   it('a party match puts all three friends in a 2v2 on the sides they picked, with a bot filling the gap', async () => {
     const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
     for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: i === 1 ? 'priest' : 'rogue' });

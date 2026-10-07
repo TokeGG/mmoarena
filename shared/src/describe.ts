@@ -51,6 +51,7 @@ function describeBase(id: string): string {
     case 'incapacitate': return `Cannot move, cast or act${a.canTurn ? ' (can still turn)' : ''}${a.locksAbilities ? ', not even Blink' : ''}. Breaks on damage.${a.hot ? ` Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s.` : ''}`;
     case 'fear': return `Runs around in fear at ${Math.round(TUNING.fearSpeed * 100)}% speed. Cannot cast or act.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
     case 'root': return 'Cannot move.';
+    case 'mark': return `${a.vulnerable ? `Takes ${a.vulnerable.mult}x damage from ${a.vulnerable.school} abilities.` : 'Marked.'}${a.breaksOnDamage ? ' Lost when damaged' : ''}${a.heldBy ? `, unless ${AURAS[a.heldBy]?.name ?? a.heldBy} is active` : ''}${a.breaksOnDamage ? '.' : ' Ice Lance treats it as Shatter and uses it up.'}`;
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
     case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;
@@ -138,7 +139,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(`Heals you for ${Math.round(e.pct * 100)}% of your maximum health.`);
         break;
       case 'leap':
-        lines.push('Leaps to the chosen spot.');
+        lines.push(`Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${e.damage} damage on landing` : ''}.`);
         break;
       case 'pull':
         lines.push(`Drags the target to ${e.stopDistance} yards in front of you.`);

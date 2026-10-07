@@ -156,6 +156,7 @@ describe('specs and talents in the sim', () => {
           if (ABILITIES[ability].requiresTargetCasting) foe.cast = { ability: 'frostbolt', target: me.id, start: 0, end: 99999 };
           if (ABILITIES[ability].maxTargetHealthPct) foe.health = Math.floor(foe.maxHealth * 0.1);
           if (ABILITIES[ability].minRange) foe.pos = { x: ABILITIES[ability].minRange! + 2, z: 0 };
+          for (const x of ABILITIES[ability].requiresTargetAura ?? []) sim.applyAura(me, foe, x);
           const r = sim.useAbility(me.id, ability, ABILITIES[ability].target === 'ally_or_self' ? me.id : foe.id);
           assert.ok(r.ok, `${spec.id}/${ability}: ${(r as any).reason}`);
           assert.doesNotThrow(() => advance(sim, 4000));
@@ -368,6 +369,7 @@ describe('talent ability swaps', () => {
       assert.ok(me.bar.includes(to), t.id);
       assert.deepEqual(sim.snapshot().units.find((u) => u.id === me.id)!.bar, me.bar);
       assert.equal(sim.snapshot().units.find((u) => u.id === foe.id)!.bar, undefined, 'default bars are not sent');
+      for (const x of def.requiresTargetAura ?? []) sim.applyAura(me, foe, x);
       const r = sim.useAbility(me.id, to, def.target === 'ally_or_self' ? me.id : foe.id);
       assert.ok(r.ok, `${t.id}: ${(r as any).reason}`);
       assert.doesNotThrow(() => advance(sim, 4000));
@@ -671,8 +673,15 @@ describe('warrior rework', () => {
     assert.ok(sim.useAbility(w.id, 'hamstring', f.id).ok);
     advance(sim, TICK);
     assert.ok(f.auras.some((a) => a.id === 'hamstring_slow'));
+    f.pos = { x: 0, z: 19 };
+    const hp = f.health;
     assert.ok(sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 20 }).ok);
+    advance(sim, 200);
+    assert.ok(w.pos.z > 1 && w.pos.z < 19, `still in the air at ${w.pos.z}`);
+    assert.ok(sim.snapshot().units.find((u) => u.id === w.id)!.y > 0.5, 'airborne');
+    advance(sim, 1000);
     assert.ok(Math.abs(w.pos.z - 20) < 1, `landed at ${w.pos.z}`);
+    assert.ok(f.health < hp, 'slam hurt the enemy at the landing spot');
     advance(sim, TICK);
     assert.ok(!sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 5 }).ok);
     assert.equal(ABILITIES.heroic_leap.cooldown, 60000);

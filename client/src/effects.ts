@@ -490,6 +490,8 @@ export class Effects {
         break;
       case 'leap':
         this.column(ev.fromX, ev.fromZ, 0xc9b99a, 0.5, 0.6, 3);
+        break;
+      case 'leap_land':
         this.column(ev.x, ev.z, 0xffd34a, 0.7, 1, 5);
         this.ring(ev.x, ev.z, 0xffd34a, 0.4, 3, 0.5, 0.08, 1);
         break;

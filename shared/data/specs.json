@@ -114,7 +114,7 @@
    "id": "frost",
    "name": "Cryomancy",
    "role": "Control / kiting",
-   "desc": "Slows and roots keep enemies away. Frost Nova and Deep Freeze apply Shatter, making your next frost damage hit five times as hard. Ice Barrier absorbs a burst.",
+   "desc": "Slows and roots keep enemies away. Frostbolt can leave Fingers of Frost on the target; Ice Lance then hits as if Shattered. Frost Nova (breaks on damage) and Deep Freeze apply Shatter, making frost damage on the target hit five times as hard until it is hit, or while Deep Freeze holds. Deep Freeze needs Fingers of Frost or Shatter. Ice Barrier absorbs a burst.",
    "icon": "\u2744\ufe0f",
    "bar": [
     "frostbolt",

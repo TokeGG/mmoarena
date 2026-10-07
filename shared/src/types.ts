@@ -3,7 +3,7 @@ export type TeamId = 0 | 1;
 export type ClassId = 'warrior' | 'mage' | 'priest' | 'rogue';
 export type School = 'physical' | 'fire' | 'frost' | 'arcane' | 'holy' | 'shadow' | 'nature';
 export type DRCategory = 'stun' | 'incapacitate' | 'fear' | 'root' | 'silence';
-export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff' | 'dot';
+export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff' | 'dot' | 'mark';
 export type ResourceType = 'mana' | 'rage' | 'energy';
 export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy' | 'aoe_all' | 'ground';
 export type Phase = 'prep' | 'live' | 'ended';
@@ -89,6 +89,10 @@ export interface AuraDef {
   harmful: boolean;
   dr?: DRCategory;
   breaksOnDamage?: boolean;
+  /** Does not break on damage while the unit also has this aura (Shatter holds through Deep Freeze). */
+  heldBy?: string;
+  /** The marked unit takes `mult` times damage from abilities of this school (Shatter). */
+  vulnerable?: { school: School; mult: number };
   /** Only one target at a time per caster: applying it again removes it from the previous target. */
   unique?: boolean;
   /** Damage over time that counts as a bleed (Exsanguinate feeds on these). */
@@ -133,7 +137,7 @@ export type Effect =
   /** Heals a fraction of the target's maximum health. */
   | { type: 'healMax'; pct: number }
   /** A jump to the chosen ground spot (Heroic Leap). */
-  | { type: 'leap' }
+  | { type: 'leap'; /** Damage to enemies around the landing spot. */ damage?: number; radius?: number }
   /** Drags the target in front of the caster, `stopDistance` yards away (Reel In). */
   | { type: 'pull'; stopDistance: number }
   /** Plants a banner at the chosen ground spot: enemies inside cannot leave the circle while it stands. */
@@ -185,6 +189,10 @@ export interface AbilityDef {
   /** Can be cast while moving (moving does not cancel it). */
   castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;
+  /** Only castable on a target that has at least one of these auras (Deep Freeze). */
+  requiresTargetAura?: string[];
+  /** Damage counts as if the target were marked by Shatter when it has this aura, and uses the aura up (Ice Lance on Fingers of Frost). */
+  exploit?: { aura: string; mult: number };
   /** Can only be used on a target whose health is below this percentage of its maximum (Execute). */
   maxTargetHealthPct?: number;
   outOfCombatOnly?: boolean;
@@ -297,6 +305,8 @@ export interface Unit {
   /** The player turned auto-attack off in settings: it never starts, not even from a melee ability. */
   autoDisabled: boolean;
   /** Set while running a Charge: the unit is carried to the target and ignores movement input. */
+  /** In the air after Heroic Leap: flies from -> to between start and start + dur, then slams down. */
+  leap: { fromX: number; fromZ: number; toX: number; toZ: number; start: number; dur: number; damage: number; radius: number } | null;
   charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
   lastCombatAt: number;
@@ -321,6 +331,8 @@ export type SimEvent =
   | { t: 'turn'; unit: number; facing: number }
   /** A jump landed (Heroic Leap): where from and where to, for the visuals. */
   | { t: 'leap'; unit: number; fromX: number; fromZ: number; x: number; z: number }
+  /** The leap came down. */
+  | { t: 'leap_land'; unit: number; x: number; z: number }
   /** A channel ran its course (or its target died). Interrupts and movement send cast_fail instead. */
   | { t: 'channel_end'; unit: number; ability: string }
   | { t: 'damage'; src: number; tgt: number; amount: number; absorbed: number; ability: string | null; school: School }
