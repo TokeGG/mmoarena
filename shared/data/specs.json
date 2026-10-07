@@ -69,7 +69,7 @@
    "id": "frost",
    "name": "Cryomancy",
    "role": "Control / kiting",
-   "desc": "Slows and roots keep enemies away. Deep Freeze locks one down, and Ice Lance shatters anything frozen for big damage. Ice Barrier absorbs a burst.",
+   "desc": "Slows and roots keep enemies away. Frost Nova and Deep Freeze apply Shatter, making your next frost damage hit five times as hard. Ice Barrier absorbs a burst.",
    "icon": "\u2744\ufe0f",
    "bar": [
     "frostbolt",
@@ -200,7 +200,7 @@
    "id": "assassination",
    "name": "Cutthroat",
    "role": "Burst melee",
-   "desc": "Stealth openers into heavy hits. Vanish to reset the fight.",
+   "desc": "Stealth openers into heavy hits. Mutilate leaves a bleed, Garrote is a deep instant bleed, and Exsanguinate cashes in your combo points on every bleed on the target.",
    "icon": "\ud83d\udde1\ufe0f",
    "bar": [
     "stealth",
@@ -209,8 +209,8 @@
     "kick",
     "vanish",
     "sprint",
-    "evasion",
-    "adrenaline_rush"
+    "garrote",
+    "exsanguinate"
    ],
    "mods": {
     "damageDone": 1.08
@@ -220,7 +220,7 @@
    "id": "combat",
    "name": "Duelist",
    "role": "Sustained melee",
-   "desc": "Steady damage with Adrenaline Rush and Sprint for pressure.",
+   "desc": "Steady damage with Sinister Strike and Sprint for pressure. Adrenaline Rush spends combo points for faster swings, more energy and healing; Evasion keeps you alive.",
    "icon": "\u26a1",
    "bar": [
     "stealth",
@@ -240,7 +240,7 @@
    "id": "subtlety",
    "name": "Shade",
    "role": "Control / mobility",
-   "desc": "Slippery: Shadowstep and Sprint for repositioning and survival.",
+   "desc": "Slippery: Shadowstep and Sprint for repositioning. Sinister Strike builds combo points and Eviscerate spends them for big instant damage.",
    "icon": "\ud83d\udc64",
    "bar": [
     "stealth",
@@ -250,7 +250,7 @@
     "vanish",
     "sprint",
     "sinister_strike",
-    "evasion"
+    "eviscerate"
    ],
    "mods": {
     "moveSpeed": 1.05,

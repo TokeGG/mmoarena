@@ -258,22 +258,24 @@ describe('stealth', () => {
     assert.equal(foe.cast, null);
   });
 
-  it('frost nova and deep freeze make frost damage hurt more, other schools unaffected', () => {
-    const sim = live();
-    const mage = add(sim, 'mage', 0, 0, 0);
-    const foe = add(sim, 'warrior', 1, 5, 0);
-    advance(sim, TICK);
-    const hit = (school: any) => { const h = foe.health; sim.dealDamage(mage, foe, 100, school, null); return h - foe.health; };
-    const plain = hit('frost');
-    foe.health = foe.maxHealth;
-    sim.applyAura(mage, foe, 'frost_nova_root');
-    const rooted = hit('frost');
-    foe.health = foe.maxHealth;
-    assert.ok(rooted > plain * 1.15, `rooted ${rooted} vs ${plain}`);
-    assert.equal(hit('fire'), plain, 'fire unchanged');
-    foe.health = foe.maxHealth;
-    sim.applyAura(mage, foe, 'deep_freeze_stun');
-    assert.ok(hit('frost') > rooted * 1.1, 'frozen solid hurts even more');
+  it('frost nova and deep freeze each give Shatter: the next frost damaging ability does 400% more, then it is spent', () => {
+    for (const ab of ['frost_nova', 'deep_freeze']) {
+      const sim = live();
+      const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
+      mage.pos = { x: 0, z: 0 };
+      const foe = add(sim, 'warrior', 1, 0, 4);
+      foe.maxHealth = foe.health = 1e6;
+      advance(sim, TICK);
+      assert.ok(mage.bar.includes(ab), ab);
+      const cast = (id: string) => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, id, foe.id).ok, id); advance(sim, 2500); return h - foe.health; };
+      const plain = cast('frostbolt');
+      cast(ab);
+      assert.ok(mage.auras.some((x) => x.id === 'shatter'), `${ab} grants Shatter`);
+      const empowered = cast('frostbolt');
+      assert.ok(empowered > plain * 4.2, `${ab}: ${empowered} vs ${plain}`);
+      assert.ok(!mage.auras.some((x) => x.id === 'shatter'), 'consumed');
+      assert.ok(cast('frostbolt') < plain * 1.3, 'back to normal');
+    }
   });
 
   it('snapshots report the shield left on a unit and it shrinks as it soaks', () => {
@@ -355,19 +357,90 @@ describe('stealth', () => {
     }
   });
 
-  it('shatter: ice lance hits frozen targets much harder, but not merely slowed ones', () => {
+  it('shatter only boosts frost damage: a fire spell leaves it and the next frost hit uses it', () => {
     const sim = live();
-    const mage = add(sim, 'mage', 0, 0, 0);
-    mage.bar = [...mage.bar.slice(0, 7), 'ice_lance'];
-    const foe = add(sim, 'warrior', 1, 0, 10);
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
+    mage.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'warrior', 1, 0, 4);
     foe.maxHealth = foe.health = 1e6;
     advance(sim, TICK);
-    const lance = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, 'ice_lance', foe.id).ok); advance(sim, TICK); return h - foe.health; };
-    const plain = lance();
-    sim.applyAura(mage, foe, 'frostbolt_slow');
-    assert.ok(lance() < plain * 1.2, 'a slow is not frozen');
-    sim.applyAura(mage, foe, 'frost_nova_root');
-    assert.ok(lance() > plain * 2.3, 'rooted by Frost Nova is frozen');
+    sim.applyAura(mage, mage, 'shatter');
+    const h = foe.health;
+    sim.dealDamage(mage, foe, 100, 'fire', null);
+    assert.ok(mage.auras.some((x) => x.id === 'shatter'), 'fire does not spend it');
+    assert.equal(h - foe.health, 100);
+  });
+
+  it('arcane blast stacks Arcane Charge to 5 and arcane barrage spends them for +50% damage each', () => {
+    const sim = live();
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'arcane', talents: [], gear: {} } });
+    mage.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'warrior', 1, 0, 4);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    const go = (id: string) => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, id, foe.id).ok, id); advance(sim, 3000); return h - foe.health; };
+    const stacks = () => mage.auras.find((x) => x.id === 'arcane_charge')?.stacks ?? 0;
+    const bare = go('arcane_barrage');
+    for (let i = 1; i <= 7; i++) { go('arcane_blast'); assert.equal(stacks(), Math.min(5, i), `after blast ${i}`); }
+    const full = go('arcane_barrage');
+    assert.ok(full > bare * 3.3 && full < bare * 3.7, `${full} vs ${bare}`);
+    assert.equal(stacks(), 0, 'barrage spends the stacks');
+    const snapStacks = (() => { go('arcane_blast'); go('arcane_blast'); return sim.snapshot().units.find((u) => u.id === mage.id)!.auras.find((x) => x.id === 'arcane_charge')?.stacks; })();
+    assert.equal(snapStacks, 2, 'snapshots carry stacks');
+  });
+
+  it('combo points: Mutilate and Sinister Strike earn them, payoffs scale with them and spend them, and they drain out of combat', () => {
+    const sim = live();
+    const rg = sim.addUnit({ name: 'r', classId: 'rogue', team: 0, build: { spec: 'assassination', talents: [], gear: {} } });
+    rg.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'warrior', 1, 0, 2);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    const go = (id: string) => { rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; const h = foe.health; const r = sim.useAbility(rg.id, id, foe.id); assert.ok(r.ok, id); advance(sim, 1200); return h - foe.health; };
+    rg.bar = [...rg.bar.slice(0, 5), 'eviscerate', 'sinister_strike', 'exsanguinate'];
+    assert.ok(!sim.useAbility(rg.id, 'eviscerate', foe.id).ok, 'needs combo points');
+    go('mutilate'); assert.equal(rg.cp, 1);
+    go('sinister_strike'); assert.equal(rg.cp, 2);
+    for (let i = 0; i < 6; i++) go('sinister_strike');
+    assert.equal(rg.cp, 5, 'capped at 5');
+    const five = go('eviscerate');
+    assert.equal(rg.cp, 0, 'spent');
+    go('sinister_strike');
+    const one = go('eviscerate');
+    assert.ok(five - one > 300, `${five} vs ${one}`);
+    go('sinister_strike'); assert.equal(rg.cp, 1);
+    sim.dealDamage(foe, rg, 1, 'physical', null);
+    rg.autoAttack = false;
+    foe.pos = { x: 0, z: 80 };
+    advance(sim, 20000);
+    assert.equal(rg.cp, 0, 'drained out of combat');
+  });
+
+  it('exsanguinate adds damage from the target\'s bleeds and then triples them; adrenaline rush lasts longer per combo point', () => {
+    const sim = live();
+    const rg = sim.addUnit({ name: 'r', classId: 'rogue', team: 0, build: { spec: 'assassination', talents: [], gear: {} } });
+    rg.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'warrior', 1, 0, 2);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    rg.bar = [...rg.bar.slice(0, 5), 'adrenaline_rush', 'garrote', 'exsanguinate'];
+    const burst = () => { rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; rg.cp = 3; const h = foe.health; assert.ok(sim.useAbility(rg.id, 'exsanguinate', foe.id).ok); advance(sim, TICK * 2); return h - foe.health; };
+    const none = burst();
+    rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax;
+    assert.ok(sim.useAbility(rg.id, 'garrote', foe.id).ok);
+    advance(sim, TICK);
+    const bled = foe.auras.find((x) => x.id === 'garrote_bleed')!;
+    assert.ok(bled);
+    const withBleed = burst();
+    assert.ok(withBleed > none + 100, `${withBleed} vs ${none}`);
+    assert.equal(foe.auras.find((x) => x.id === 'garrote_bleed')!.dotMult, 3, 'bleeds tripled');
+    for (const cp of [1, 5]) {
+      rg.cooldowns = {}; rg.gcdEnd = 0; rg.cp = cp; rg.auras = rg.auras.filter((x) => x.id !== 'adrenaline_rush');
+      assert.ok(sim.useAbility(rg.id, 'adrenaline_rush', null).ok);
+      const a = rg.auras.find((x) => x.id === 'adrenaline_rush')!;
+      assert.equal(Math.round((a.expiresAt - sim.time) / 100) / 10, 4 + 1.5 * cp, `${cp} CP`);
+      assert.equal(rg.cp, 0);
+    }
   });
 
   it('mage bars: frost has deep freeze, fire has dragons breath, arcane has missiles, barrage and its own explosion', () => {

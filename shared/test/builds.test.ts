@@ -56,7 +56,7 @@ describe('content data is consistent', () => {
       for (const sp of SPECS[cls]) for (const t of specTalents(cls, sp.id).flat()) check(t.mods, t.id);
       for (const s of SPECS[cls]) check(s.mods, s.id);
     }
-    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor, `${id} buff has mods`);
+    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor || a.empower || a.maxStacks, `${id} buff has mods`);
   });
 
   it('descriptions never contain NaN or undefined', () => {
@@ -151,6 +151,7 @@ describe('specs and talents in the sim', () => {
           me.resource = me.resourceMax;
           advance(sim, TICK * 2);
           if (ABILITIES[ability].requiresStealth) sim.applyAura(me, me, 'stealth');
+          if (ABILITIES[ability].cpSpend) me.cp = 3;
           if (ABILITIES[ability].effects.some((e) => e.type === 'dispel')) sim.applyAura(foe, foe, 'pw_shield');
           if (ABILITIES[ability].requiresTargetCasting) foe.cast = { ability: 'frostbolt', target: me.id, start: 0, end: 99999 };
           if (ABILITIES[ability].minRange) foe.pos = { x: ABILITIES[ability].minRange! + 2, z: 0 };
@@ -356,6 +357,7 @@ describe('talent ability swaps', () => {
       advance(sim, TICK * 2);
       if (def.requiresTargetCasting) foe.cast = { ability: 'frostbolt', target: me.id, start: 0, end: 99999 };
       if (def.requiresStealth) sim.applyAura(me, me, 'stealth');
+      if (def.cpSpend) me.cp = 3;
       if (def.minRange) foe.pos = { x: def.minRange + 2, z: 0 };
       if (def.effects.some((e) => e.type === 'dispel')) sim.applyAura(foe, foe, 'pw_shield');
       assert.ok(me.bar.includes(to), t.id);

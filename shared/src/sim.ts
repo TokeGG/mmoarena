@@ -79,7 +79,7 @@ export class ArenaSim {
       pos: { x: spawn.x, z: spawn.z }, facing, alive: true,
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, auras: [], dr: {}, lockouts: {},
+      gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
       autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], charge: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
@@ -164,6 +164,7 @@ export class ArenaSim {
     if ((u.cooldowns[def.id] ?? 0) > this.time && (u.chargesUsed[def.id] ?? 0) >= (this.modsOf(u).ability[def.id]?.charges ?? 0)) return fail('ability is on cooldown');
     if (def.gcd && u.gcdEnd > this.time) return fail('global cooldown');
     if (u.resource < def.cost) return fail(`not enough ${u.resourceType}`);
+    if (def.cpSpend && u.cp < 1) return fail('needs combo points');
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
     if ((def.target === 'enemy' || def.target === 'ally' || def.target === 'ally_or_self' || def.target === 'any') && this.inSmoke(u)) return fail('blinded by smoke');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
@@ -265,12 +266,15 @@ export class ArenaSim {
           a.nextTick += dot.interval;
           const src = this.units.get(a.sourceId) ?? null;
           const m = src ? this.modsOf(src) : null;
-          this.dealDamage(src, u, dot.amount * (src?.gearMult ?? 1) * this.variance() * (m?.damageDone ?? 1) * (m?.ability[dot.ability]?.damage ?? 1), dot.school, dot.ability, true);
+          this.dealDamage(src, u, dot.amount * (a.dotMult ?? 1) * (src?.gearMult ?? 1) * this.variance() * (m?.damageDone ?? 1) * (m?.ability[dot.ability]?.damage ?? 1), dot.school, dot.ability, true);
         }
       }
       if (u.alive && a.expiresAt <= this.time) this.removeAura(u, a, 'expired');
     }
     if (!u.alive) return;
+
+    // combo points drain once combat has been over a while
+    if (u.cp > 0 && this.time - u.lastCombatAt > TUNING.outOfCombatMs) u.cp = 0;
 
     // auto-attack switches itself off once combat has been over for a while
     if (u.autoAttack && this.time - Math.max(u.lastCombatAt, u.autoSince) > TUNING.outOfCombatMs) u.autoAttack = false;
@@ -433,6 +437,10 @@ export class ArenaSim {
   }
 
   private ground: { x: number; z: number } | null = null;
+  /** Per-cast scratch values (see execute). */
+  private cpSpent = 0;
+  private empowerMult = 1;
+  private stackMult = 1;
 
   private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: { x: number; z: number }): void {
     this.ground = ground ?? null;
@@ -440,6 +448,16 @@ export class ArenaSim {
     this.startCooldown(u, def);
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
+
+    // combo points spent, shatter-style empowering and stack eating, worked out once for the whole cast
+    this.cpSpent = def.cpSpend ? u.cp : 0;
+    this.empowerMult = 1;
+    this.stackMult = 1;
+    const hits = def.effects.some((e) => e.type === 'damage');
+    const empowerAura = hits ? u.auras.find((a) => AURAS[a.id]?.empower?.school === def.school && !def.effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.empower)) : undefined;
+    if (empowerAura) this.empowerMult = AURAS[empowerAura.id].empower!.mult;
+    const eaten = def.consumes ? u.auras.find((a) => a.id === def.consumes!.aura) : undefined;
+    if (eaten) this.stackMult = 1 + def.consumes!.perStack * (eaten.stacks ?? 1);
 
     const targets: Unit[] =
       def.target === 'aoe_enemy'
@@ -450,6 +468,13 @@ export class ArenaSim {
 
     for (const t of targets) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
     for (const id of this.modsOf(u).ability[def.id]?.after ?? []) this.applyAura(u, u, id);
+    if (empowerAura) this.removeAura(u, empowerAura, 'consumed');
+    if (eaten) this.removeAura(u, eaten, 'consumed');
+    if (def.cpSpend) u.cp = 0;
+    if (def.cpGain) u.cp = Math.min(5, u.cp + def.cpGain);
+    this.cpSpent = 0;
+    this.empowerMult = 1;
+    this.stackMult = 1;
     this.ground = null;
 
     if (isMelee(def) && CLASSES[u.classId].auto && !u.autoDisabled) {
@@ -464,7 +489,7 @@ export class ArenaSim {
       case 'damage':
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
-        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.shatter && t.auras.some((a) => AURAS[a.id]?.frozen) ? 1 + def.shatter : 1), def.school, def.id);
+        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) : 1) * this.empowerMult * this.stackMult, def.school, def.id);
         break;
       case 'heal':
         if (eff.only === 'enemy' && t.team === u.team) break;
@@ -473,8 +498,19 @@ export class ArenaSim {
         break;
       case 'aura':
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
-        this.applyAura(u, eff.self ? u : t, eff.aura);
+        this.applyAura(u, eff.self ? u : t, eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent);
         break;
+      case 'exsanguinate': {
+        let bleed = 0;
+        for (const a of t.auras) {
+          const d = AURAS[a.id];
+          if (!d?.bleed || !d.dot) continue;
+          bleed += d.dot.amount * (a.dotMult ?? 1) * Math.max(0, Math.ceil((a.expiresAt - this.time) / d.dot.interval));
+          a.dotMult = (a.dotMult ?? 1) * eff.bleedMult;
+        }
+        this.dealDamage(u, t, (eff.perCp * Math.max(1, this.cpSpent) + bleed * eff.bleedFraction) * u.gearMult * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
+        break;
+      }
       case 'interrupt':
         this.interrupt(u, t, def, eff.lockout);
         break;
@@ -560,9 +596,7 @@ export class ArenaSim {
   /** Returns damage that actually reached health (after absorbs). */
   dealDamage(src: Unit | null, tgt: Unit, raw: number, school: School, ability: string | null, periodic = false): number {
     if (!tgt.alive) return 0;
-    let vuln = 1;
-    for (const a of tgt.auras) { const v = AURAS[a.id]?.vuln; if (v && v.school === school) vuln *= 1 + v.pct / 100; }
-    let remaining = Math.max(0, Math.round(raw * vuln * this.modsOf(tgt).damageTaken));
+    let remaining = Math.max(0, Math.round(raw * this.modsOf(tgt).damageTaken));
     let absorbed = 0;
     for (const a of [...tgt.auras]) {
       if (a.kind !== 'absorb' || remaining <= 0) continue;
@@ -633,14 +667,14 @@ export class ArenaSim {
     if (dist(u.pos, t.pos) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
     if (!hasLOS(u.pos, t.pos, this.arena)) return; // no swinging through pillars
     if (!this.inFront(u, t.pos.x, t.pos.z)) return; // and no swinging at what is behind you
-    u.nextSwing = this.time + auto.interval;
+    u.nextSwing = this.time + auto.interval * this.modsOf(u).autoSpeed;
     if (this.isStealthed(u)) this.breakStealth(u);
     this.dealDamage(u, t, auto.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone, 'physical', null);
   }
 
   // ------------------------------------------------------------------ auras, crowd control, diminishing returns
 
-  applyAura(src: Unit, tgt: Unit, auraId: string): AuraResult {
+  applyAura(src: Unit, tgt: Unit, auraId: string, extraMs = 0): AuraResult {
     const def = AURAS[auraId];
     if (!def || !tgt.alive) return { applied: false, immune: true };
 
@@ -660,7 +694,9 @@ export class ArenaSim {
     }
 
     else duration = def.duration * (this.modsOf(src).auraDuration[auraId] ?? 1);
+    if (def.duration > 0) duration += extraMs;
 
+    const prior = tgt.auras.find((a) => a.id === auraId && a.sourceId === src.id);
     tgt.auras = tgt.auras.filter((a) => !(a.id === auraId && a.sourceId === src.id));
     if (def.unique) {
       for (const v of this.units.values()) {
@@ -672,6 +708,7 @@ export class ArenaSim {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
       absorbLeft: (def.absorb ?? 0) * src.gearMult * this.modsOf(src).healingDone,
+      ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + 1) } : {}),
       ...(def.dot ? { nextTick: this.time + def.dot.interval } : def.hot ? { nextTick: this.time + def.hot.interval } : {}),
     };
     tgt.auras.push(inst);
@@ -869,7 +906,8 @@ export class ArenaSim {
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,
       resource: Math.round(u.resource), resourceMax: u.resourceMax, resourceType: u.resourceType,
       target: u.target, cast: u.cast, gcdEnd: u.gcdEnd, cooldowns,
-      auras: u.auras.map((a) => ({ id: a.id, kind: a.kind, src: a.sourceId, expiresAt: isFinite(a.expiresAt) ? a.expiresAt : 0 })),
+      auras: u.auras.map((a) => ({ id: a.id, kind: a.kind, src: a.sourceId, expiresAt: isFinite(a.expiresAt) ? a.expiresAt : 0, ...(a.stacks ? { stacks: a.stacks } : {}) })),
+      ...(u.cp > 0 ? { cp: u.cp } : {}),
       stealthed: this.isStealthed(u),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
       y: u.alive ? Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100 : 0,

@@ -24,6 +24,8 @@ export interface Mods {
   gcd: number;
   regen: number;
   moveSpeed: number;
+  /** Auto-attack interval multiplier (0.7 = swings 43% faster). */
+  autoSpeed: number;
   ability: Record<string, AbilityMod>;
   auraDuration: Record<string, number>;
 }
@@ -65,10 +67,12 @@ export interface AuraDef {
   breaksOnDamage?: boolean;
   /** Only one target at a time per caster: applying it again removes it from the previous target. */
   unique?: boolean;
-  /** The holder takes this percent more damage of one school (Frost Nova and Deep Freeze make frost hurt more). */
-  vuln?: { school: School; pct: number };
-  /** Counts as frozen for shatter damage (Frost Nova's root, Deep Freeze). */
-  frozen?: boolean;
+  /** Damage over time that counts as a bleed (Exsanguinate feeds on these). */
+  bleed?: boolean;
+  /** Re-applying adds a stack up to this many (Arcane Charge). */
+  maxStacks?: number;
+  /** Your next damaging ability of this school does `mult` times damage and uses the aura up (Shatter). */
+  empower?: { school: School; mult: number };
   /** Your next cast of this ability is instant and uses this aura up (Hot Streak -> Pyroblast). */
   instantFor?: string;
   /** An incapacitated unit may still turn on the spot (Polymorph). */
@@ -91,7 +95,9 @@ export type Effect =
   /** `only` limits an effect to allies or enemies of the caster (Penance heals a friend and hurts a foe). */
   | { type: 'damage'; amount: number; only?: 'ally' | 'enemy' }
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
-  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean }
+  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number }
+  /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
+  | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }
   | { type: 'dispel' }
   | { type: 'dashToTarget'; stopDistance: number }
@@ -123,8 +129,14 @@ export interface AbilityDef {
   cost: number;
   effects: Effect[];
   requiresStealth?: boolean;
-  /** Extra damage multiplier (+150% = 1.5) against targets under a `frozen` aura (Ice Lance shatters). */
-  shatter?: number;
+  /** Combo points earned each time this lands. */
+  cpGain?: number;
+  /** A combo point payoff: needs at least one point and spends them all. */
+  cpSpend?: boolean;
+  /** Damage effects are multiplied by the combo points spent (Eviscerate). */
+  cpScale?: boolean;
+  /** Uses up all stacks of this aura for extra damage (+`perStack` per stack: Arcane Barrage eats Arcane Charge). */
+  consumes?: { aura: string; perStack: number };
   /** Can be cast while moving (moving does not cancel it). */
   castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;
@@ -190,7 +202,7 @@ export interface Tuning {
 export interface MoveInput { seq: number; fwd: number; strafe: number; facing: number; /** Start a (cosmetic) jump. */ jump?: boolean }
 export type Result = { ok: true } | { ok: false; reason: string };
 
-export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number }
+export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number; stacks?: number; /** Multiplier on this damage-over-time's ticks (Exsanguinate). */ dotMult?: number }
 export interface CastState { ability: string; target: number; start: number; end: number; /** Ground-targeted spells: where it lands. */ gx?: number; gz?: number; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
 export interface DRState { count: number; resetAt: number }
 
@@ -221,6 +233,8 @@ export interface Unit {
   cooldowns: Record<string, number>;
   /** Extra charges spent during each ability's current cooldown (talents that allow more than one use). */
   chargesUsed: Record<string, number>;
+  /** Combo points (rogue): earned by Mutilate and Sinister Strike, spent by payoff abilities. */
+  cp: number;
   auras: AuraInst[];
   dr: Partial<Record<DRCategory, DRState>>;
   lockouts: Partial<Record<School, number>>;
@@ -290,7 +304,9 @@ export interface UnitSnap {
   /** abilityId -> absolute server time (ms) when ready. Only entries still on cooldown. */
   cooldowns: Record<string, number>;
   /** expiresAt 0 = permanent */
-  auras: { id: string; kind: AuraKind; src: number; expiresAt: number }[];
+  auras: { id: string; kind: AuraKind; src: number; expiresAt: number; stacks?: number }[];
+  /** Rogue combo points (absent at zero). */
+  cp?: number;
   stealthed: boolean;
   /** Damage the unit's shields (Power Word: Shield, Ice Barrier) can still soak; absent when none. */
   absorb?: number;

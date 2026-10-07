@@ -4,14 +4,14 @@ import type { AbilityMod, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentD
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
 
 export const NEUTRAL_MODS: Mods = Object.freeze({
-  damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, ability: {}, auraDuration: {},
+  damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, ability: {}, auraDuration: {},
 }) as Mods;
 
 export function newMods(): Mods {
-  return { damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, ability: {}, auraDuration: {} };
+  return { damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, ability: {}, auraDuration: {} };
 }
 
-const SCALARS = ['damageDone', 'healingDone', 'damageTaken', 'maxHealth', 'castTime', 'gcd', 'regen', 'moveSpeed'] as const;
+const SCALARS = ['damageDone', 'healingDone', 'damageTaken', 'maxHealth', 'castTime', 'gcd', 'regen', 'moveSpeed', 'autoSpeed'] as const;
 
 /** Multiplies `into` by `add` (mutates and returns `into`). */
 export function applyMods(into: Mods, add: ModsInput | undefined): Mods {

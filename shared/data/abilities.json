@@ -184,6 +184,11 @@
    {
     "type": "aura",
     "aura": "frost_nova_root"
+   },
+   {
+    "type": "aura",
+    "aura": "shatter",
+    "self": true
    }
   ]
  },
@@ -356,7 +361,8 @@
     "amount": 110
    }
   ],
-  "stealthSwap": "cheap_shot"
+  "stealthSwap": "cheap_shot",
+  "cpGain": 1
  },
  {
   "id": "kidney_shot",
@@ -615,6 +621,11 @@
    {
     "type": "damage",
     "amount": 190
+   },
+   {
+    "type": "aura",
+    "aura": "arcane_charge",
+    "self": true
    }
   ]
  },
@@ -634,7 +645,11 @@
     "type": "damage",
     "amount": 150
    }
-  ]
+  ],
+  "consumes": {
+   "aura": "arcane_charge",
+   "perStack": 0.5
+  }
  },
  {
   "id": "arcane_power",
@@ -777,9 +792,14 @@
    {
     "type": "damage",
     "amount": 155
+   },
+   {
+    "type": "aura",
+    "aura": "mutilate_bleed"
    }
   ],
-  "stealthSwap": "cheap_shot"
+  "stealthSwap": "cheap_shot",
+  "cpGain": 1
  },
  {
   "id": "vanish",
@@ -814,16 +834,18 @@
   "target": "self",
   "range": 0,
   "castTime": 0,
-  "cooldown": 90000,
+  "cooldown": 15000,
   "gcd": false,
   "cost": 0,
   "effects": [
    {
     "type": "aura",
-    "aura": "adrenaline_rush"
+    "aura": "adrenaline_rush",
+    "extraPerCp": 1500
    }
   ],
-  "keepsStealth": true
+  "keepsStealth": true,
+  "cpSpend": true
  },
  {
   "id": "shadowstep",
@@ -1029,7 +1051,7 @@
  },
  {
   "castTime": 0,
-  "cooldown": 8000,
+  "cooldown": 0,
   "gcd": true,
   "range": 3,
   "id": "eviscerate",
@@ -1037,13 +1059,15 @@
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
-  "cost": 65,
+  "cost": 35,
   "effects": [
    {
     "type": "damage",
-    "amount": 260
+    "amount": 110
    }
-  ]
+  ],
+  "cpSpend": true,
+  "cpScale": true
  },
  {
   "castTime": 0,
@@ -1083,8 +1107,7 @@
     "type": "damage",
     "amount": 85
    }
-  ],
-  "shatter": 1.5
+  ]
  },
  {
   "id": "blizzard",
@@ -1148,6 +1171,11 @@
    {
     "type": "aura",
     "aura": "deep_freeze_stun"
+   },
+   {
+    "type": "aura",
+    "aura": "shatter",
+    "self": true
    }
   ]
  },
@@ -1393,10 +1421,14 @@
   "target": "enemy",
   "range": 3,
   "castTime": 0,
-  "cooldown": 12000,
+  "cooldown": 30000,
   "gcd": true,
-  "cost": 35,
+  "cost": 40,
   "effects": [
+   {
+    "type": "damage",
+    "amount": 100
+   },
    {
     "type": "aura",
     "aura": "garrote_bleed"
@@ -1467,5 +1499,26 @@
   "channel": {
    "ticks": 6
   }
+ },
+ {
+  "id": "exsanguinate",
+  "name": "Exsanguinate",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 35,
+  "cpSpend": true,
+  "effects": [
+   {
+    "type": "exsanguinate",
+    "perCp": 60,
+    "bleedFraction": 0.5,
+    "bleedMult": 3
+   }
+  ]
  }
 ]

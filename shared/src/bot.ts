@@ -225,6 +225,7 @@ export class Bot {
     this.sim.setAutoAttack(u.id, true);
     if (!tgt.auras.some((a) => a.kind === 'stun') && this.use(u, 'kidney_shot', tgt.id)) return;
     if (dist(u.pos, tgt.pos) > 12) this.use(u, 'sprint');
+    if (u.cp >= 4 && this.use(u, 'eviscerate', tgt.id)) return;
     this.use(u, 'sinister_strike', tgt.id);
   }
 

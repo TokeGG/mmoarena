@@ -2260,16 +2260,16 @@
     {
      "id": "rogue_t1c",
      "name": "Shadow Dancer",
-     "desc": "Evasion lasts 30% longer and recharges 15% sooner.",
+     "desc": "Sprint lasts 30% longer and Kidney Shot recharges 15% sooner.",
      "icon": "\ud83c\udf11",
      "mods": {
       "ability": {
-       "evasion": {
+       "kidney_shot": {
         "cooldown": 0.85
        }
       },
       "auraDuration": {
-       "evasion": 1.3
+       "sprint": 1.3
       }
      }
     }
@@ -2386,7 +2386,7 @@
      "id": "rogue_assassination_t4c",
      "name": "Hobbling Dose",
      "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
-     "icon": "\ud83e\uddea",
+     "icon": "\u2697\ufe0f",
      "mods": {},
      "swap": {
       "from": "kick",
@@ -2399,7 +2399,7 @@
      "id": "rogue_assassination_t5a",
      "name": "Shadow Leap",
      "desc": "Replaces Sprint with Shadowstep to close 25 yards on a target and open on them.",
-     "icon": "\ud83c\udf11",
+     "icon": "\ud83c\udf00",
      "mods": {},
      "swap": {
       "from": "sprint",
@@ -2408,24 +2408,24 @@
     },
     {
      "id": "rogue_assassination_t5b",
-     "name": "Bleeding Wire",
-     "desc": "Replaces Sprint with Garrote, a bleed dealing 34 damage per second for 8 seconds.",
-     "icon": "\ud83e\udea2",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "garrote"
-     }
-    },
-    {
-     "id": "rogue_assassination_t5c",
      "name": "Smoke Screen",
-     "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your burst.",
-     "icon": "\ud83c\udf2b\ufe0f",
+     "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+     "icon": "\ud83d\udca8",
      "mods": {},
      "swap": {
       "from": "sprint",
       "to": "choke_bomb"
+     }
+    },
+    {
+     "id": "rogue_assassination_t5c",
+     "name": "Blade Storm",
+     "desc": "Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
+     "icon": "\ud83c\udf2a\ufe0f",
+     "mods": {},
+     "swap": {
+      "from": "sprint",
+      "to": "fan_of_knives"
      }
     }
    ],
@@ -2433,33 +2433,33 @@
     {
      "id": "rogue_assassination_t6a",
      "name": "Finishing Cut",
-     "desc": "Replaces Evasion with Eviscerate, a 260 damage finisher to cap your burst.",
+     "desc": "Replaces Garrote with Eviscerate, a combo point finisher dealing 110 damage per combo point spent.",
      "icon": "\u2694\ufe0f",
      "mods": {},
      "swap": {
-      "from": "evasion",
+      "from": "garrote",
       "to": "eviscerate"
      }
     },
     {
      "id": "rogue_assassination_t6b",
-     "name": "Blade Storm",
-     "desc": "Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
-     "icon": "\ud83c\udf00",
+     "name": "Fortune's Edge",
+     "desc": "Replaces Garrote with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing.",
+     "icon": "\u26a1",
      "mods": {},
      "swap": {
-      "from": "evasion",
-      "to": "fan_of_knives"
+      "from": "garrote",
+      "to": "adrenaline_rush"
      }
     },
     {
      "id": "rogue_assassination_t6c",
      "name": "Sinister Edge",
-     "desc": "Replaces Evasion with Sinister Strike, a cheap 110 damage filler between Mutilates.",
+     "desc": "Replaces Garrote with Sinister Strike, a cheap 110 damage builder that earns a combo point.",
      "icon": "\ud83d\udde1\ufe0f",
      "mods": {},
      "swap": {
-      "from": "evasion",
+      "from": "garrote",
       "to": "sinister_strike"
      }
     }
@@ -2502,16 +2502,16 @@
     {
      "id": "rogue_t1c",
      "name": "Shadow Dancer",
-     "desc": "Evasion lasts 30% longer and recharges 15% sooner.",
+     "desc": "Sprint lasts 30% longer and Kidney Shot recharges 15% sooner.",
      "icon": "\ud83c\udf11",
      "mods": {
       "ability": {
-       "evasion": {
+       "kidney_shot": {
         "cooldown": 0.85
        }
       },
       "auraDuration": {
-       "evasion": 1.3
+       "sprint": 1.3
       }
      }
     }
@@ -2519,14 +2519,16 @@
    [
     {
      "id": "rogue_combat_t2a",
-     "name": "Riposte Stance",
-     "desc": "Evasion lasts 30% longer and you take 4% less damage.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "name": "Adrenal Gland",
+     "desc": "Adrenaline Rush recharges 20% faster and you take 4% less damage.",
+     "icon": "\u26a1",
      "mods": {
-      "auraDuration": {
-       "evasion": 1.3
-      },
-      "damageTaken": 0.96
+      "damageTaken": 0.96,
+      "ability": {
+       "adrenaline_rush": {
+        "cooldown": 0.8
+       }
+      }
      }
     },
     {
@@ -2616,7 +2618,7 @@
     {
      "id": "rogue_combat_t4b",
      "name": "Blinding Powder",
-     "desc": "Replaces Kick with Blind, a 15-yard disorient to break a duel open.",
+     "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
      "icon": "\ud83d\ude48",
      "mods": {},
      "swap": {
@@ -2627,8 +2629,8 @@
     {
      "id": "rogue_combat_t4c",
      "name": "Hobbling Dose",
-     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows by 40% to keep you on target.",
-     "icon": "\ud83e\uddea",
+     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
+     "icon": "\u2697\ufe0f",
      "mods": {},
      "swap": {
       "from": "kick",
@@ -2640,8 +2642,8 @@
     {
      "id": "rogue_combat_t5a",
      "name": "Smoke Screen",
-     "desc": "Replaces Vanish with Smoke Bomb, a 6-yard cloud for 6 seconds on a 45 second cooldown.",
-     "icon": "\ud83c\udf2b\ufe0f",
+     "desc": "Replaces Vanish with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+     "icon": "\ud83d\udca8",
      "mods": {},
      "swap": {
       "from": "vanish",
@@ -2651,8 +2653,8 @@
     {
      "id": "rogue_combat_t5b",
      "name": "Shadow Leap",
-     "desc": "Replaces Vanish with Shadowstep to dash 25 yards onto a target.",
-     "icon": "\ud83c\udf11",
+     "desc": "Replaces Vanish with Shadowstep to close 25 yards on a target and open on them.",
+     "icon": "\ud83c\udf00",
      "mods": {},
      "swap": {
       "from": "vanish",
@@ -2662,8 +2664,8 @@
     {
      "id": "rogue_combat_t5c",
      "name": "Bleeding Wire",
-     "desc": "Replaces Vanish with Garrote, a bleed dealing 34 damage per second for 8 seconds.",
-     "icon": "\ud83e\udea2",
+     "desc": "Replaces Vanish with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
+     "icon": "\ud83e\uddf5",
      "mods": {},
      "swap": {
       "from": "vanish",
@@ -2675,7 +2677,7 @@
     {
      "id": "rogue_combat_t6a",
      "name": "Finishing Cut",
-     "desc": "Replaces Evasion with Eviscerate, a 260 damage finisher on an 8 second cooldown.",
+     "desc": "Replaces Evasion with Eviscerate, a combo point finisher dealing 110 damage per combo point spent.",
      "icon": "\u2694\ufe0f",
      "mods": {},
      "swap": {
@@ -2687,7 +2689,7 @@
      "id": "rogue_combat_t6b",
      "name": "Blade Storm",
      "desc": "Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
-     "icon": "\ud83c\udf00",
+     "icon": "\ud83c\udf2a\ufe0f",
      "mods": {},
      "swap": {
       "from": "evasion",
@@ -2697,7 +2699,7 @@
     {
      "id": "rogue_combat_t6c",
      "name": "Gouging Thrust",
-     "desc": "Replaces Evasion with Mutilate, a heavier 155 damage strike to pair with Sinister Strike.",
+     "desc": "Replaces Evasion with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
      "icon": "\ud83e\ude78",
      "mods": {},
      "swap": {
@@ -2744,16 +2746,16 @@
     {
      "id": "rogue_t1c",
      "name": "Shadow Dancer",
-     "desc": "Evasion lasts 30% longer and recharges 15% sooner.",
+     "desc": "Sprint lasts 30% longer and Kidney Shot recharges 15% sooner.",
      "icon": "\ud83c\udf11",
      "mods": {
       "ability": {
-       "evasion": {
+       "kidney_shot": {
         "cooldown": 0.85
        }
       },
       "auraDuration": {
-       "evasion": 1.3
+       "sprint": 1.3
       }
      }
     }
@@ -2782,12 +2784,14 @@
     {
      "id": "rogue_subtlety_t2c",
      "name": "Phantom Guard",
-     "desc": "Maximum health is increased by 6% and Evasion lasts 25% longer.",
-     "icon": "\ud83d\udc7b",
+     "desc": "Maximum health is increased by 6% and Eviscerate deals 8% more damage.",
+     "icon": "\ud83d\udee1\ufe0f",
      "mods": {
       "maxHealth": 1.06,
-      "auraDuration": {
-       "evasion": 1.25
+      "ability": {
+       "eviscerate": {
+        "damage": 1.08
+       }
       }
      }
     }
@@ -2851,7 +2855,7 @@
     {
      "id": "rogue_subtlety_t4b",
      "name": "Blinding Powder",
-     "desc": "Replaces Kick with Blind, a 15-yard disorient for extra control.",
+     "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
      "icon": "\ud83d\ude48",
      "mods": {},
      "swap": {
@@ -2862,8 +2866,8 @@
     {
      "id": "rogue_subtlety_t4c",
      "name": "Hobbling Dose",
-     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows by 40% for kiting.",
-     "icon": "\ud83e\uddea",
+     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
+     "icon": "\u2697\ufe0f",
      "mods": {},
      "swap": {
       "from": "kick",
@@ -2874,70 +2878,70 @@
    [
     {
      "id": "rogue_subtlety_t5a",
-     "name": "Fortune's Edge",
-     "desc": "Replaces Evasion with Adrenaline Rush for a burst window of extra damage and energy.",
-     "icon": "\ud83c\udfb2",
-     "mods": {},
-     "swap": {
-      "from": "evasion",
-      "to": "adrenaline_rush"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t5b",
      "name": "Smoke Screen",
-     "desc": "Replaces Evasion with Smoke Bomb, a 6-yard cloud lasting 6 seconds to survive and reposition.",
-     "icon": "\ud83c\udf2b\ufe0f",
+     "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+     "icon": "\ud83d\udca8",
      "mods": {},
      "swap": {
-      "from": "evasion",
+      "from": "sprint",
       "to": "choke_bomb"
      }
     },
     {
-     "id": "rogue_subtlety_t5c",
-     "name": "Gouging Thrust",
-     "desc": "Replaces Evasion with Mutilate, a heavy 155 damage strike for a damage-leaning Shade.",
-     "icon": "\ud83e\ude78",
+     "id": "rogue_subtlety_t5b",
+     "name": "Fortune's Edge",
+     "desc": "Replaces Sprint with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing.",
+     "icon": "\u26a1",
      "mods": {},
      "swap": {
-      "from": "evasion",
-      "to": "mutilate"
+      "from": "sprint",
+      "to": "adrenaline_rush"
+     }
+    },
+    {
+     "id": "rogue_subtlety_t5c",
+     "name": "Bleeding Wire",
+     "desc": "Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
+     "icon": "\ud83e\uddf5",
+     "mods": {},
+     "swap": {
+      "from": "sprint",
+      "to": "garrote"
      }
     }
    ],
    [
     {
      "id": "rogue_subtlety_t6a",
-     "name": "Finishing Cut",
-     "desc": "Replaces Sprint with Eviscerate, a 260 damage finisher on an 8 second cooldown.",
-     "icon": "\u2694\ufe0f",
+     "name": "Gouging Thrust",
+     "desc": "Replaces Vanish with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
+     "icon": "\ud83e\ude78",
      "mods": {},
      "swap": {
-      "from": "sprint",
-      "to": "eviscerate"
+      "from": "vanish",
+      "to": "mutilate"
      }
     },
     {
      "id": "rogue_subtlety_t6b",
      "name": "Blade Storm",
-     "desc": "Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
-     "icon": "\ud83c\udf00",
+     "desc": "Replaces Vanish with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
+     "icon": "\ud83c\udf2a\ufe0f",
      "mods": {},
      "swap": {
-      "from": "sprint",
+      "from": "vanish",
       "to": "fan_of_knives"
      }
     },
     {
      "id": "rogue_subtlety_t6c",
-     "name": "Bleeding Wire",
-     "desc": "Replaces Sprint with Garrote, a bleed dealing 34 damage per second for 8 seconds.",
-     "icon": "\ud83e\udea2",
+     "name": "Blood Price",
+     "desc": "Replaces Vanish with Exsanguinate, a payoff that cashes in your bleeds and then triples them.",
+     "icon": "\ud83e\ude78",
      "mods": {},
      "swap": {
-      "from": "sprint",
-      "to": "garrote"
+      "from": "vanish",
+      "to": "exsanguinate"
      }
     }
    ]

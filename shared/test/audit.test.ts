@@ -138,6 +138,7 @@ function trial(a: AbilityDef, useAlly = false) {
   const step = (ms: number) => { for (let t = 0; t < ms; t += TICK) { sim.step(); ev.push(...sim.drainEvents()); } };
   step(TICK * 2);
   if (a.requiresStealth) sim.applyAura(c, c, 'stealth');
+  if (a.cpSpend) { c.cp = 3; sim.applyAura(c, f, 'garrote_bleed'); }
   if (a.requiresTargetCasting) { f.resource = 999; assert.ok(sim.useAbility(f.id, 'fireball', c.id).ok); }
   if (a.effects.some((e) => e.type === 'dispel')) {
     const buff = Object.keys(AURAS).find((k) => AURAS[k].dispellable && !AURAS[k].harmful)!;

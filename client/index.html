@@ -112,6 +112,9 @@
   .auras { gap:2px; margin-top:3px; }
   .aura { position:relative; width:22px; height:22px; border-radius:4px; font-size:13px; line-height:20px; text-align:center; background:#15171d; border:1px solid #5c5c66; }
   .aura.bad { border-color:#c0392b; box-shadow:0 0 5px rgba(192,57,43,.6); } .aura.good { border-color:#3fbf5f; box-shadow:0 0 5px rgba(63,191,95,.5); }
+  .aura b { position:absolute; left:1px; top:-1px; font:800 10px/10px system-ui; color:#ffe27a; text-shadow:0 0 2px #000, 0 0 2px #000; }
+  .combo { display:flex; gap:4px; margin:3px 0 1px; } .combo.hidden { display:none; }
+  .combo .pip { width:12px; height:12px; border-radius:50%; background:#2a2d36; border:1px solid #6b5a1f; } .combo .pip.on { background:radial-gradient(circle at 35% 30%,#fff3a8,#f1b92c 70%); box-shadow:0 0 6px rgba(255,200,60,.9); border-color:#ffe27a; }
   .aura i { position:absolute; right:1px; bottom:-1px; font:700 9px/9px system-ui; font-style:normal; color:#fff; text-shadow:0 0 2px #000, 0 0 2px #000; }
 
   #actionbar { gap:7px; padding:8px 10px; background:var(--panel2); border:2px solid var(--gold-d); border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.65); bottom:14px; }

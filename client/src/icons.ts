@@ -14,7 +14,7 @@ export const ABILITY_ICON: Record<string, string> = {
   shockwave: '💥', piercing_howl: '📯', die_by_the_sword: '🗡️', 
   ice_lance: '🗡️', blizzard: '🌨️', scorch: '🔥', deep_freeze: '🧊', arcane_silence: '🤐', hammer_toss: '🔨', harpoon_throw: '🪝',
   judgment_hammer: '⚖️', hush: '🤫', plague_bloom: '🦠', choke_bomb: '💨', knife_snipe: '🗡️', garrote: '🩸', holy_nova: '✨', mind_flay: '🧠', fan_of_knives: '🔪',
-  penance: '🔆', holy_word: '🌟', power_infusion: '🙌', blind: '😵', eviscerate: '🩸', crippling_strike: '🦵',
+  penance: '🔆', holy_word: '🌟', power_infusion: '🙌', blind: '😵', eviscerate: '🩸', exsanguinate: '🧛', crippling_strike: '🦵',
 };
 
 export const AURA_ICON: Record<string, string> = {
@@ -23,7 +23,7 @@ export const AURA_ICON: Record<string, string> = {
   recklessness: '😡', shield_wall: '🧱', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
   pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', 
-  power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', arcane_slow: '💥', garrote_bleed: '🩸', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥',
+  power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', arcane_slow: '💥', garrote_bleed: '🩸', mutilate_bleed: '🩸', shatter: '💎', arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥',
   deep_freeze_stun: '🧊', hammer_stun: '🔨', judgment_stun: '⚖️', choke_stun: '💨', creeping_rot: '☠️', plague_bloom: '🦠',
 };
 

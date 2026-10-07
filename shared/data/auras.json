@@ -21,12 +21,7 @@
   "duration": 6000,
   "harmful": true,
   "dr": "root",
-  "dispellable": true,
-  "vuln": {
-   "school": "frost",
-   "pct": 20
-  },
-  "frozen": true
+  "dispellable": true
  },
  "frostbolt_slow": {
   "name": "Frostbolt",
@@ -161,11 +156,15 @@
  "adrenaline_rush": {
   "name": "Adrenaline Rush",
   "kind": "buff",
-  "duration": 12000,
+  "duration": 4000,
   "harmful": false,
   "mods": {
-   "damageDone": 1.2,
-   "regen": 2
+   "regen": 1.6,
+   "autoSpeed": 0.7
+  },
+  "hot": {
+   "pct": 2,
+   "interval": 1000
   }
  },
  "evasion": {
@@ -233,12 +232,7 @@
   "kind": "stun",
   "duration": 3000,
   "harmful": true,
-  "dr": "stun",
-  "vuln": {
-   "school": "frost",
-   "pct": 40
-  },
-  "frozen": true
+  "dr": "stun"
  },
  "charge_stun": {
   "name": "Charge",
@@ -342,11 +336,42 @@
   "kind": "dot",
   "duration": 8000,
   "harmful": true,
+  "bleed": true,
   "dot": {
-   "amount": 34,
+   "amount": 50,
    "interval": 1000,
    "school": "physical",
    "ability": "garrote"
   }
+ },
+ "mutilate_bleed": {
+  "name": "Mutilate",
+  "kind": "dot",
+  "duration": 6000,
+  "harmful": true,
+  "bleed": true,
+  "dot": {
+   "amount": 14,
+   "interval": 1000,
+   "school": "physical",
+   "ability": "mutilate"
+  }
+ },
+ "shatter": {
+  "name": "Shatter",
+  "kind": "buff",
+  "duration": 10000,
+  "harmful": false,
+  "empower": {
+   "school": "frost",
+   "mult": 5
+  }
+ },
+ "arcane_charge": {
+  "name": "Arcane Charge",
+  "kind": "buff",
+  "duration": 12000,
+  "harmful": false,
+  "maxStacks": 5
  }
 }

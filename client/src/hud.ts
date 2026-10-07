@@ -55,12 +55,15 @@ class UnitFrame {
   private res = new Bar('#3b82f6', true);
   private cast: Bar | null;
   private auras = el('div', 'auras');
+  /** Rogue combo points: five pips under the resource bar, lit for each point held. */
+  private pips = el('div', 'combo hidden');
   private classShown = '';
   constructor(root: HTMLElement, withCast: boolean) {
     this.root = root;
     this.cast = withCast ? new Bar('#f1c40f', true) : null;
     const body = el('div', 'fbody');
-    body.append(this.nameEl, this.hp.root, this.res.root);
+    body.append(this.nameEl, this.hp.root, this.res.root, this.pips);
+    for (let i = 0; i < 5; i++) this.pips.append(el('span', 'pip'));
     if (this.cast) body.append(this.cast.root);
     body.append(this.auras);
     root.append(this.portrait, body);
@@ -81,6 +84,8 @@ class UnitFrame {
     this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}${u.absorb ? ` (+${u.absorb})` : ''}`, u.absorb ?? 0);
     this.res.setColor(RES_COLOR[u.resourceType]);
     this.res.set(u.resource, u.resourceMax, `${u.resource}`);
+    this.pips.classList.toggle('hidden', u.classId !== 'rogue');
+    [...this.pips.children].forEach((c, i) => c.classList.toggle('on', i < (u.cp ?? 0)));
     if (this.cast) {
       const c = u.cast;
       this.cast.root.classList.toggle('hidden', !c);
@@ -93,6 +98,7 @@ class UnitFrame {
         icon.dataset.tip = `aura:${a.id}`;
         if (a.expiresAt > 0) icon.dataset.tipSub = `${Math.max(0, Math.ceil((a.expiresAt - now) / 1000))}s remaining`;
         if (a.expiresAt > 0) icon.append(el('i', '', String(Math.max(0, Math.ceil((a.expiresAt - now) / 1000)))));
+        if ((a.stacks ?? 0) > 1) icon.append(el('b', '', String(a.stacks)));
         return icon;
       }),
     );

@@ -24,6 +24,7 @@ export function describeMods(m: ModsInput | undefined): string[] {
   if (m.gcd !== undefined && m.gcd !== 1) out.push(m.gcd < 1 ? `−${pct(m.gcd)} global cooldown` : `+${pct(m.gcd)} global cooldown`);
   up(m.regen, 'resource regeneration', 'resource regeneration');
   up(m.moveSpeed, 'movement speed', 'movement speed');
+  if (m.autoSpeed !== undefined && m.autoSpeed !== 1) out.push(m.autoSpeed < 1 ? `+${pct(1 / m.autoSpeed)} auto attack speed` : `−${pct(1 / m.autoSpeed)} auto attack speed`);
   for (const [id, a] of Object.entries(m.ability ?? {})) {
     const name = ABILITIES[id]?.name ?? id;
     if (a.damage) out.push(`${name}: ${a.damage > 1 ? '+' : '−'}${pct(a.damage)} damage`);
@@ -40,8 +41,7 @@ export function describeMods(m: ModsInput | undefined): string[] {
 export function describeAura(id: string): string {
   const a = AURAS[id];
   if (!a) return '';
-  const base = describeBase(id);
-  return a.vuln ? `${base} Takes ${a.vuln.pct}% more ${a.vuln.school} damage.` : base;
+  return describeBase(id);
 }
 
 function describeBase(id: string): string {
@@ -55,8 +55,15 @@ function describeBase(id: string): string {
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
     case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;
     case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Movement speed reduced by ${Math.abs(a.speedPct ?? 0)}%. Broken by damage or attacking.`;
-    case 'buff': return a.instantFor ? `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.` : describeMods(a.mods).map(cap).join('. ') + '.';
-    case 'dot': return a.dot ? `Takes about ${a.dot.amount} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${Math.round((a.duration / a.dot.interval) * a.dot.amount)} total)` : ''}.` : '';
+    case 'buff': {
+      if (a.instantFor) return `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.`;
+      const parts = describeMods(a.mods).map(cap);
+      if (a.empower) parts.push(`Your next ${a.empower.school} damage ability deals ${Math.round((a.empower.mult - 1) * 100)}% more damage and uses this up`);
+      if (a.hot) parts.push(`Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s`);
+      if (a.maxStacks) parts.push(`Stacks up to ${a.maxStacks} times`);
+      return parts.join('. ') + '.';
+    }
+    case 'dot': return a.dot ? `${a.bleed ? 'Bleeding: takes' : 'Takes'} about ${a.dot.amount} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${Math.round((a.duration / a.dot.interval) * a.dot.amount)} total)` : ''}.` : '';
   }
 }
 
@@ -93,7 +100,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const n = Math.round(e.amount * mods.damageDone * (am.damage ?? 1));
         if (def.channel && e.only) lines.push(`On an enemy: deals about ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total).`);
         else if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing about ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
-        else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' || def.target === 'aoe_all' ? ' to all enemies in range' : ''}.${def.shatter ? ` Shatter: ${Math.round(def.shatter * 100)}% more damage to frozen enemies (rooted by Frost Nova or held by Deep Freeze).` : ''}`);
+        else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' || def.target === 'aoe_all' ? ' to all enemies in range' : ''}.${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`);
         break;
       }
       case 'heal':
@@ -103,11 +110,15 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const a = AURAS[e.aura];
         if (!a) break;
         const dur = a.duration > 0 ? Math.round((a.duration * (mods.auraDuration[e.aura] ?? 1)) / 100) / 10 : 0;
+        const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent)` : '';
         const body = a.kind === 'absorb' ? `Absorbs ${Math.round((a.absorb ?? 0) * mods.healingDone)} damage` : describeAura(e.aura).replace(/\.$/, '');
         const who = e.self || def.target === 'self' ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
-        lines.push(`${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${dur}s` : ''}: ${body}.`);
+        lines.push(`${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${dur}s` : ''}${extra}: ${body}.`);
         break;
       }
+      case 'exsanguinate':
+        lines.push(`Deals ${Math.round(e.perCp * mods.damageDone * (am.damage ?? 1))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then increases all current bleeds by ${Math.round((e.bleedMult - 1) * 100)}%.`);
+        break;
       case 'interrupt':
         lines.push(`Interrupts the target's spellcasting and locks out that school for ${sec(e.lockout)}.`);
         break;
@@ -142,6 +153,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   }
 
   const notes: string[] = [];
+  if (def.cpGain) notes.push(`Awards ${def.cpGain} combo point${def.cpGain > 1 ? 's' : ''}.`);
+  if (def.cpSpend) notes.push('Spends all combo points (needs at least 1).');
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
