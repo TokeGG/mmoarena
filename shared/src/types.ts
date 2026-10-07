@@ -61,7 +61,7 @@ export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExt
 /** A weapon a spec is built around: it sets the auto-attack and how the character is drawn. */
 export interface WeaponDef { id: 'dual' | 'twohand' | 'polearm'; name: string }
 export interface AutoDef { interval: number; damage: number; range: number }
-export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput; weapon?: WeaponDef; /** Replaces the class auto-attack (dual wield swings fast, two-handers slowly, polearms reach further). */ auto?: AutoDef }
+export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput; /** A built-in effect with no button (Cauterize). */ passive?: 'cauterize'; weapon?: WeaponDef; /** Replaces the class auto-attack (dual wield swings fast, two-handers slowly, polearms reach further). */ auto?: AutoDef }
 /** A talent that trades one of the spec's bar abilities (`from`) for another (`to`). */
 export interface BarSwap { to: string; from: string }
 export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput; swap?: BarSwap }
@@ -95,6 +95,8 @@ export interface AuraDef {
   heldBy?: string;
   /** The marked unit takes `mult` times damage from abilities of this school (Shatter). */
   vulnerable?: { school: School; mult: number };
+  /** A line of text for the tooltip of an effect that has no stats of its own. */
+  note?: string;
   /** Only one target at a time per caster: applying it again removes it from the previous target. */
   unique?: boolean;
   /** Damage over time that counts as a bleed (Exsanguinate feeds on these). */
@@ -237,9 +239,7 @@ export interface ArenaDef {
   spawns: Vec2[][];
   spawnFacing: number[];
   gateX: number;
-  /** Rectangles nobody can walk into (chasms, bridge rails). They never block line of sight. */
-  voids?: { minX: number; maxX: number; minZ: number; maxZ: number }[];
-  /** A raised bridge along the x axis through the middle: ramps climb to a flat deck. Heights are for looks and camera only. */
+  /** A raised bridge along the x axis through the middle: a flat deck with a ramp up at each end, and a tunnel underneath (units are on level 0, the ground, or level 1, the deck and ramps). */
   bridge?: { halfWidth: number; deckHalf: number; rampLen: number; height: number };
   /** False keeps the arena out of the 'random' pick (it can still be chosen by name and is used for duels). */
   randomPool?: boolean;
@@ -256,6 +256,9 @@ export interface Tuning {
   autoTolerance: number;
   /** Width of the cone in front of a player inside which targets must be to cast on them or swing at them. */
   castConeDeg: number;
+  /** Cauterize (Pyromancy): health left after a killing blow, as a fraction of max, and how long until it can save you again. */
+  cauterizeHealth: number;
+  cauterizeCooldownMs: number;
   /** Online play: a cast that fails only on range or facing is retried for this long, so a target that stepped out of reach in transit still gets hit. */
   castGraceMs: number;
   /** Furthest back, in ms, that a cast's range and facing check may look at where its target was (lag compensation). */
@@ -282,6 +285,8 @@ export interface CastState { ability: string; target: number; start: number; end
 export interface DRState { count: number; resetAt: number }
 
 export interface Unit {
+  /** 0 = ground/tunnel, 1 = bridge deck and ramps (see ArenaDef.bridge). */
+  level: 0 | 1;
   id: number;
   name: string;
   team: TeamId;
@@ -378,6 +383,8 @@ export interface UnitSnap {
   bar?: string[];
   /** Cosmetic gear summary (see gearLook). */
   look: string;
+  /** 1 while on a bridge's deck or ramps; absent on the ground. */
+  lv?: 1;
   x: number;
   z: number;
   facing: number;

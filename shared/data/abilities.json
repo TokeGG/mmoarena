@@ -1410,7 +1410,7 @@
   "school": "fire",
   "target": "aoe_enemy",
   "radius": 14,
-  "coneDeg": 80,
+  "coneDeg": 90,
   "cost": 45,
   "effects": [
    {

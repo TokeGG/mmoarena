@@ -1,6 +1,6 @@
-import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
+import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, withAuraMods } from './build';
-import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
+import { blinkDestination, clamp, clampToGate, dist, hasLOS, moveTo, resolveCollisions, stepMovementL } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap,
@@ -84,7 +84,7 @@ export class ArenaSim {
       pos: { x: spawn.x, z: spawn.z }, facing, alive: true,
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
+      level: 0, gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
       autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], charge: null, leap: null, lastCast: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
@@ -220,7 +220,7 @@ export class ArenaSim {
       const b = this.arena.bounds;
       ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ) };
       if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return soft('out of range');
-      if (!hasLOS(u.pos, ground, this.arena)) return fail('no line of sight');
+      if (!hasLOS(u.pos, ground, this.arena, u.level, u.level)) return fail('no line of sight');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);
@@ -232,7 +232,7 @@ export class ArenaSim {
       const d = dist(u.pos, seen);
       if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
-      if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
+      if (!this.sees(u, tgt)) return fail('no line of sight');
       if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !def.unmissable && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast && !(tgt.lastCast && this.time - tgt.lastCast.at <= INTERRUPT_GRACE_MS)) return fail('target is not casting');
       if (def.requiresTargetAura && !tgt.auras.some((a) => def.requiresTargetAura!.includes(a.id))) return fail(`target needs ${def.requiresTargetAura.map((x) => AURAS[x]?.name ?? x).join(' or ')}`);
@@ -386,7 +386,7 @@ export class ArenaSim {
       const L = u.leap;
       const p = Math.min(1, (this.time + DT * 1000 - L.start) / L.dur);
       u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
-      u.pos = resolveCollisions({ x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, this.arena);
+      this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p });
       if (p >= 1) {
         u.leap = null;
         this.emit({ t: 'leap_land', unit: u.id, x: u.pos.x, z: u.pos.z });
@@ -405,7 +405,7 @@ export class ArenaSim {
         const nx = u.pos.x + ((tgt.pos.x - u.pos.x) / d) * k;
         const nz = u.pos.z + ((tgt.pos.z - u.pos.z) / d) * k;
         u.facing = Math.atan2(tgt.pos.x - u.pos.x, tgt.pos.z - u.pos.z);
-        u.pos = resolveCollisions({ x: nx, z: nz }, this.arena);
+        this.place(u, { x: nx, z: nz });
         // blocked by a pillar: stop rather than push against it
         if (dist(before, u.pos) < k * 0.3) this.endCharge(u, false);
         if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
@@ -423,11 +423,11 @@ export class ArenaSim {
         u.fearRetargetAt = this.time + 1000;
       }
       const k = TUNING.fearSpeed * TUNING.runSpeed * DT;
-      u.pos = resolveCollisions({ x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k }, this.arena);
+      this.place(u, { x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k });
     } else {
       if ((this.canAct(u) || u.auras.some((a) => AURAS[a.id]?.canTurn)) && Number.isFinite(input.facing)) u.facing = input.facing;
       const speed = TUNING.runSpeed * this.speedMult(u);
-      if (speed > 0) u.pos = stepMovement(u.pos, input, speed, DT, this.arena);
+      if (speed > 0) { const r = stepMovementL(u.pos, u.level, input, speed, DT, this.arena); u.pos = r.pos; u.level = r.level; }
     }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
     if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
@@ -494,7 +494,7 @@ export class ArenaSim {
     if (!tgt || !tgt.alive) return this.failCast(u, c.ability, 'target is dead');
     if (tgt !== u) {
       if (def.range > 0 && dist(u.pos, tgt.pos) > this.reachOf(u, def)) return this.failCast(u, c.ability, 'out of range');
-      if (!hasLOS(u.pos, tgt.pos, this.arena)) return this.failCast(u, c.ability, 'no line of sight');
+      if (!this.sees(u, tgt)) return this.failCast(u, c.ability, 'no line of sight');
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
     if (u.resource < def.cost) return this.failCast(u, c.ability, `not enough ${u.resourceType}`);
@@ -535,7 +535,7 @@ export class ArenaSim {
   /** Everyone an ability's effects land on: the area for aoe abilities, otherwise the one target. */
   private targetsOf(u: Unit, def: AbilityDef, tgt: Unit): Unit[] {
     if (def.target === 'aoe_enemy') return [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0) && this.inCone(u, v.pos, def.coneDeg));
-    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || hasLOS(u.pos, v.pos, this.arena)));
+    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || this.sees(u, v)));
     return [tgt];
   }
   private recharge = new Map<number, Record<string, number[]>>();
@@ -585,8 +585,8 @@ export class ArenaSim {
     const abMod = this.modsOf(u).ability[def.id];
     if (abMod?.shadowProc && tgt !== u && tgt.team !== u.team && this.rng() < abMod.shadowProc) {
       // a free Shadowstep first: land just behind the target (no combo points, unlike the real thing)
-      const p = resolveCollisions({ x: tgt.pos.x - Math.sin(tgt.facing) * 1.6, z: tgt.pos.z - Math.cos(tgt.facing) * 1.6 }, this.arena);
-      if (hasLOS(p, tgt.pos, this.arena)) {
+      const p = resolveCollisions({ x: tgt.pos.x - Math.sin(tgt.facing) * 1.6, z: tgt.pos.z - Math.cos(tgt.facing) * 1.6 }, this.arena, u.level);
+      if (u.level === tgt.level && hasLOS(p, tgt.pos, this.arena, u.level, tgt.level)) {
         u.pos = p;
         u.facing = Math.atan2(tgt.pos.x - p.x, tgt.pos.z - p.z);
         u.lastInput = { ...u.lastInput, facing: u.facing };
@@ -640,7 +640,7 @@ export class ArenaSim {
         const g = this.ground;
         if (!g) break;
         const fromX = u.pos.x, fromZ = u.pos.z;
-        const to = resolveCollisions({ x: g.x, z: g.z }, this.arena);
+        const to = resolveCollisions({ x: g.x, z: g.z }, this.arena, u.level);
         const dur = 450 + dist({ x: fromX, z: fromZ }, to) * 15;
         u.leap = { fromX, fromZ, toX: to.x, toZ: to.z, start: this.time, dur, damage: eff.damage ?? 0, radius: eff.radius ?? 5 };
         if (u.cast) this.cancelCast(u, 'leapt');
@@ -652,7 +652,7 @@ export class ArenaSim {
         const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z;
         const d = Math.hypot(dx, dz);
         if (d <= eff.stopDistance + 1e-6) break;
-        t.pos = resolveCollisions({ x: u.pos.x + (dx / d) * eff.stopDistance, z: u.pos.z + (dz / d) * eff.stopDistance }, this.arena);
+        t.pos = resolveCollisions({ x: u.pos.x + (dx / d) * eff.stopDistance, z: u.pos.z + (dz / d) * eff.stopDistance }, this.arena, t.level);
         if (t.cast) this.cancelCast(t, 'pulled');
         break;
       }
@@ -707,12 +707,12 @@ export class ArenaSim {
         const d = Math.hypot(dx, dz);
         if (d > 1e-6) {
           const travel = Math.max(0, d - eff.stopDistance);
-          let land = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena);
+          let land = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena, u.level);
           if (eff.behind) {
-            const back = resolveCollisions({ x: t.pos.x - Math.sin(t.facing) * eff.stopDistance, z: t.pos.z - Math.cos(t.facing) * eff.stopDistance }, this.arena);
-            if (hasLOS(back, t.pos, this.arena)) land = back;
+            const back = resolveCollisions({ x: t.pos.x - Math.sin(t.facing) * eff.stopDistance, z: t.pos.z - Math.cos(t.facing) * eff.stopDistance }, this.arena, u.level);
+            if (u.level === t.level && hasLOS(back, t.pos, this.arena, u.level, t.level)) land = back;
           }
-          u.pos = land;
+          this.place(u, land);
           u.facing = Math.atan2(t.pos.x - land.x, t.pos.z - land.z);
           u.lastInput = { ...u.lastInput, facing: u.facing };
           this.emit({ t: 'turn', unit: u.id, facing: u.facing });
@@ -723,7 +723,7 @@ export class ArenaSim {
         for (const a of [...u.auras]) if (a.kind === 'root' || a.kind === 'slow') this.removeAura(u, a, 'freed');
         break;
       case 'blink':
-        u.pos = blinkDestination(u.pos, u.facing, eff.distance, this.arena);
+        this.place(u, blinkDestination(u.pos, u.facing, eff.distance, this.arena, u.level));
         // blinking out breaks you free of stuns, roots and slows
         for (const a of [...u.auras]) if (a.kind === 'stun' || a.kind === 'root' || a.kind === 'slow') this.removeAura(u, a, 'blinked');
         break;
@@ -810,6 +810,15 @@ export class ArenaSim {
       absorbed += take;
       if (a.absorbLeft <= 0) this.removeAura(tgt, a, 'consumed');
     }
+    if (remaining >= tgt.health && tgt.alive && this.canCauterize(tgt)) {
+      // Cauterize: a killing blow leaves you at 35% health instead (once per cooldown)
+      tgt.cooldowns['cauterize'] = this.time + TUNING.cauterizeCooldownMs;
+      const before = tgt.health;
+      tgt.health = Math.round(tgt.maxHealth * TUNING.cauterizeHealth);
+      this.emit({ t: 'heal', src: tgt.id, tgt: tgt.id, amount: Math.max(0, tgt.health - before), overheal: 0, ability: 'cauterize' });
+      remaining = 0;
+      this.applyAura(tgt, tgt, 'cauterized');
+    }
     tgt.health = Math.max(0, tgt.health - remaining);
     tgt.lastCombatAt = this.time;
     if (src) src.lastCombatAt = this.time;
@@ -828,6 +837,23 @@ export class ArenaSim {
     }
     if (tgt.health <= 0) this.die(tgt, src?.id ?? null);
     return remaining;
+  }
+
+  /** Put a unit at a raw position: settles its bridge level, then pushes it out of anything solid at that level. */
+  private place(u: Unit, raw: { x: number; z: number }): void {
+    const r = moveTo(this.arena, u.level, u.pos, raw);
+    u.pos = r.pos;
+    u.level = r.level;
+  }
+
+  /** Line of sight between two units, which also respects bridge levels. */
+  private sees(a: Unit, b: Unit): boolean {
+    return hasLOS(a.pos, b.pos, this.arena, a.level, b.level);
+  }
+
+  private canCauterize(u: Unit): boolean {
+    if (!u.spec || (u.cooldowns['cauterize'] ?? 0) > this.time) return false;
+    return SPECS[u.classId]?.find((s) => s.id === u.spec)?.passive === 'cauterize';
   }
 
   heal(src: Unit, tgt: Unit, raw: number, ability: string): number {
@@ -872,7 +898,7 @@ export class ArenaSim {
     // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
     if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
     if (dist(u.pos, t.pos) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
-    if (!hasLOS(u.pos, t.pos, this.arena)) return; // no swinging through pillars
+    if (!this.sees(u, t)) return; // no swinging through pillars
     if (!this.inFront(u, t.pos.x, t.pos.z)) return; // and no swinging at what is behind you
     u.nextSwing = this.time + auto.interval * this.modsOf(u).autoSpeed;
     if (this.isStealthed(u)) this.breakStealth(u);
@@ -1082,7 +1108,7 @@ export class ArenaSim {
           const dx = v.pos.x - z.x, dz = v.pos.z - z.z;
           const d = Math.hypot(dx, dz);
           if (d <= z.r) z.held!.add(v.id);
-          else if (z.held!.has(v.id)) v.pos = resolveCollisions({ x: z.x + (dx / d) * (z.r - 0.05), z: z.z + (dz / d) * (z.r - 0.05) }, this.arena);
+          else if (z.held!.has(v.id)) v.pos = resolveCollisions({ x: z.x + (dx / d) * (z.r - 0.05), z: z.z + (dz / d) * (z.r - 0.05) }, this.arena, v.level);
         }
         continue;
       }
@@ -1133,6 +1159,7 @@ export class ArenaSim {
     return {
       id: u.id, name: u.name, team: u.team, classId: u.classId, spec: u.spec, look: u.look,
       ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}),
+      ...(u.level ? { lv: 1 as const } : {}),
       x: r2(u.pos.x), z: r2(u.pos.z), facing: Math.round(u.facing * 1000) / 1000,
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,
       resource: Math.round(u.resource), resourceMax: u.resourceMax, resourceType: u.resourceType,

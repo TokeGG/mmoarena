@@ -299,6 +299,42 @@ describe('stealth', () => {
     assert.ok(foe.health < foe.maxHealth, 'the strike landed behind the caster');
   });
 
+  it('Pyromancy cauterizes a killing blow once: 35% health left, then it is on a long cooldown', () => {
+    const sim = live();
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'fire', talents: [], gear: {} } });
+    const w = add(sim, 'warrior', 1, 0, 3);
+    m.pos = { x: 0, z: 0 };
+    advance(sim, TICK);
+    sim.dealDamage(w, m, 1e6, 'physical', null);
+    assert.ok(m.alive, 'survived the killing blow');
+    assert.equal(m.health, Math.round(m.maxHealth * TUNING.cauterizeHealth));
+    assert.ok(m.auras.some((x) => x.id === 'cauterized'));
+    sim.dealDamage(w, m, 1e6, 'physical', null);
+    assert.ok(!m.alive, 'the second one kills: it is on cooldown');
+    // other specs never get it
+    const f = sim.addUnit({ name: 'f', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
+    sim.dealDamage(w, f, 1e6, 'physical', null);
+    assert.ok(!f.alive);
+  });
+
+  it('specs carry no stat bonuses, and walking backwards is 75% speed', () => {
+    for (const specs of Object.values(SPECS)) for (const sp of specs) {
+      const { ability: _a, auraDuration: _d, ...stat } = sp.mods as Record<string, unknown>;
+      assert.deepEqual(stat, {}, `${sp.id} has a flat stat bonus`);
+    }
+    const sim = live();
+    const a = add(sim, 'warrior', 0, 0, 0);
+    advance(sim, TICK);
+    const run = (fwd: number) => {
+      a.pos = { x: 0, z: 0 };
+      sim.queueInput(a.id, { seq: Math.random() * 1e6 | 0, fwd, strafe: 0, facing: 0 });
+      advance(sim, 1000);
+      return Math.abs(a.pos.z);
+    };
+    const f = run(1), b = run(-1);
+    assert.ok(Math.abs(b / f - 0.75) < 0.03, `back ${b} vs forward ${f}`);
+  });
+
   it('Counterspell cannot be locked out, ignores facing, and still lands a moment after the cast finished', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
@@ -1393,7 +1429,7 @@ describe('movement speed', () => {
 });
 
 describe('facing rule', () => {
-  it('casts and swings need the target inside a 90 degree cone in front of the player', () => {
+  it('casts and swings need the target inside a 180 degree half-circle in front of the player', () => {
     const sim = new ArenaSim({ seed: 3, prepMs: 0, facing: true });
     const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0 });
     const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1 });
@@ -1419,11 +1455,11 @@ describe('facing rule', () => {
     assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok);
     advance(sim, 3000);
     m.cooldowns = {}; m.gcdEnd = 0;
-    face(Math.atan2(10, 0) + 0.7);
+    face(Math.atan2(10, 0) + 1.4);
     assert.ok(sim.useAbility(m.id, 'frostbolt', w.id).ok);
     advance(sim, 3000);
     m.cooldowns = {}; m.gcdEnd = 0;
-    face(Math.atan2(10, 0) + 0.9);
+    face(Math.atan2(10, 0) + 1.7);
     missed();
   });
 

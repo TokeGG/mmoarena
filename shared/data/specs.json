@@ -16,9 +16,7 @@
         "hamstring",
         "heroic_leap"
       ],
-      "mods": {
-        "damageDone": 1.05
-      },
+      "mods": {},
       "weapon": {
         "id": "dual",
         "name": "Twin Blades"
@@ -46,8 +44,6 @@
         "heroic_leap"
       ],
       "mods": {
-        "moveSpeed": 1.05,
-        "damageDone": 1.03,
         "ability": {
           "bloodthirst": {
             "range": 1.5
@@ -84,8 +80,6 @@
         "heroic_leap"
       ],
       "mods": {
-        "maxHealth": 1.05,
-        "damageTaken": 0.95,
         "ability": {
           "deep_cuts": {
             "range": 2
@@ -137,7 +131,7 @@
       "id": "fire",
       "name": "Pyromancy",
       "role": "Burst damage",
-      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Fragile.",
+      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Cauterize saves you from one killing blow.",
       "icon": "\ud83d\udd25",
       "bar": [
         "fireball",
@@ -149,16 +143,14 @@
         "scorch",
         "dragons_breath"
       ],
-      "mods": {
-        "damageDone": 1.08,
-        "maxHealth": 0.95
-      }
+      "mods": {},
+      "passive": "cauterize"
     },
     {
       "id": "arcane",
       "name": "Starweaving",
       "role": "Sustain / utility",
-      "desc": "Strong mana regeneration and a damage cooldown. Arcane Missiles and Barrage hit hard; Explosion slows what is close.",
+      "desc": "A damage cooldown and hard-hitting missiles. Arcane Missiles and Barrage hit hard; Explosion slows what is close.",
       "icon": "\ud83d\udd2e",
       "bar": [
         "arcane_blast",
@@ -170,9 +162,7 @@
         "arcane_explosion",
         "arcane_barrage"
       ],
-      "mods": {
-        "regen": 1.5
-      }
+      "mods": {}
     }
   ],
   "priest": [
@@ -192,15 +182,13 @@
         "penance",
         "desperate_prayer"
       ],
-      "mods": {
-        "healingDone": 1.1
-      }
+      "mods": {}
     },
     {
       "id": "holy",
       "name": "Lightbearer",
       "role": "Pure healer",
-      "desc": "The strongest direct healing and mana regeneration. Holy Nova heals your team and hurts every enemy. Low damage.",
+      "desc": "Direct healing. Holy Nova heals your team and hurts every enemy.",
       "icon": "\u2728",
       "bar": [
         "flash_heal",
@@ -212,17 +200,13 @@
         "smite",
         "desperate_prayer"
       ],
-      "mods": {
-        "healingDone": 1.12,
-        "regen": 1.2,
-        "damageDone": 0.8
-      }
+      "mods": {}
     },
     {
       "id": "shadow",
       "name": "Gloomweaver",
       "role": "Damage",
-      "desc": "Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Blast hit hard. Weaker healing.",
+      "desc": "Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Blast hit hard.",
       "icon": "\ud83c\udf11",
       "bar": [
         "mind_blast",
@@ -234,10 +218,7 @@
         "flash_heal",
         "power_word_shield"
       ],
-      "mods": {
-        "damageDone": 1.1,
-        "healingDone": 1
-      }
+      "mods": {}
     }
   ],
   "rogue": [
@@ -257,9 +238,7 @@
         "garrote",
         "exsanguinate"
       ],
-      "mods": {
-        "damageDone": 1.08
-      }
+      "mods": {}
     },
     {
       "id": "combat",
@@ -277,9 +256,7 @@
         "sprint",
         "evasion"
       ],
-      "mods": {
-        "maxHealth": 1.05
-      }
+      "mods": {}
     },
     {
       "id": "subtlety",
@@ -297,10 +274,7 @@
         "backstab",
         "eviscerate"
       ],
-      "mods": {
-        "moveSpeed": 1.05,
-        "damageDone": 0.95
-      }
+      "mods": {}
     }
   ]
 }

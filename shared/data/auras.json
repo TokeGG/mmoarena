@@ -306,6 +306,13 @@
     "harmful": false,
     "instantFor": "pyroblast"
   },
+  "cauterized": {
+    "name": "Cauterized",
+    "kind": "mark",
+    "duration": 4000,
+    "harmful": false,
+    "note": "Cheated death: a killing blow left you at 35% health. Cauterize is ready again in 3 minutes"
+  },
   "dragons_breath": {
     "name": "Dragon's Breath",
     "kind": "fear",

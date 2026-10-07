@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, hasLOS, heightAt, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, stepMovement } from '@arena/shared';
+import { ABILITIES, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -100,6 +100,8 @@ const snaps: { at: number; snap: Snapshot }[] = [];
 
 /** Client-side prediction for our own movement only. Abilities are never predicted. */
 const pred = { x: 0, z: 0 };
+/** Which bridge level we are on (0 ground/tunnel, 1 deck and ramps); predicted like the position. */
+let predLevel: 0 | 1 = 0;
 /** Previous predicted step, so rendering can interpolate between 20 Hz steps at full frame rate. */
 const prevPred = { x: 0, z: 0 };
 /** What is actually drawn for our unit and camera: interpolated, then eased, so motion is never stepped. */
@@ -111,7 +113,7 @@ let pending: MoveInput[] = [];
 
 const renderPos = new Map<number, { x: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
-effects.groundY = (x, z) => heightAt(arena, x, z);
+effects.groundY = (x, z) => heightAt(arena, x, z, predLevel);
 effects.onSwing = (id) => scene.swing(id);
 effects.onHit = (id) => scene.flash(id);
 
@@ -341,6 +343,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     }
     pred.x = me.x;
     pred.z = me.z;
+    predLevel = me.lv ?? 0;
     if (!vis.ready) {
       prevPred.x = vis.x = me.x;
       prevPred.z = vis.z = me.z;
@@ -384,7 +387,9 @@ function spatial(id: number): Spatial | null {
 function applyInput(i: MoveInput, me: UnitSnap) {
   const speed = TUNING.runSpeed * me.speedMult;
   if (speed <= 0) return;
-  let p = stepMovement({ x: pred.x, z: pred.z }, i, speed, DT, arena);
+  const step = stepMovementL({ x: pred.x, z: pred.z }, predLevel, i, speed, DT, arena);
+  let p = step.pos;
+  predLevel = step.level;
   if (latest?.phase === 'prep') p = clampToGate(p, team, arena);
   prevPred.x = pred.x;
   prevPred.z = pred.z;
@@ -481,6 +486,11 @@ function groundAim(range: number): { x: number; z: number } | null {
   return g;
 }
 
+/** The level of a ground point you aim at: on the deck when you stand on it and aim over it, else the ground. */
+function aimLevel(g: { x: number; z: number }): 0 | 1 {
+  return predLevel === 1 && onRaised(arena, g.x, g.z) ? 1 : 0;
+}
+
 /** The bar as it looks right now: slots with a stealth swap show the swapped ability while you are stealthed. */
 function shownBar(): string[] {
   const me = latest?.units.find((u) => u.id === you);
@@ -556,7 +566,7 @@ function confirmAim() {
   if (!aiming || !def) return;
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
-  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena)) return; // red spot: nothing is sent, nothing is spent, still aiming
+  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g))) return; // red spot: nothing is sent, nothing is spent, still aiming
   sendCast({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, vt: viewTime() });
   setAiming(null);
 }
@@ -683,6 +693,7 @@ function frame(now: number) {
   const snap = latest!;
   const rate = !spec ? 1 : spec.paused || (spec.runner?.done ?? false) ? 0 : spec.rate;
   const estNow = snap.time + (performance.now() - latestAt) * rate;
+  scene.viewLevel = predLevel;
   const interp = interpolate(estNow - (rate > 0 ? Math.max(INTERP_DELAY_MS * rate, 60) : 0));
   if (spec) targetId = snap.units.find((u) => u.id === you)?.target ?? null;
 
@@ -733,7 +744,7 @@ function frame(now: number) {
       facing = vis.facing;
       y = u.alive ? jumpHeight(performance.now() - myJumpAt) : 0;
     }
-    return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
+    return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, lv: u.id === you && !spec ? predLevel : (u.lv ?? 0), facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
 
   renderPos.clear();
@@ -751,7 +762,7 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45) + heightAt(arena, vis.x, vis.z));
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45) + heightAt(arena, vis.x, vis.z, predLevel));
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);
@@ -759,7 +770,7 @@ function frame(now: number) {
     const aimed = !spec && aiming ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
-    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena));
+    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g)));
   }
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
   // countdown ticks before the gates open, and our own footsteps

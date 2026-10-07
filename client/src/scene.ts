@@ -21,6 +21,8 @@ export interface RenderUnit {
   z: number;
   /** Height above the ground (jumping). */
   y: number;
+  /** Bridge level: 1 on the deck and ramps. */
+  lv?: number;
   facing: number;
   alive: boolean;
   stealthed: boolean;
@@ -195,7 +197,7 @@ export class ArenaScene {
       m.move += (target - m.move) * k;
       m.phase += Math.hypot(m.vf, m.vs) * dt * 1.5;
 
-      m.group.position.set(u.x, u.y + heightAt(this.arena, u.x, u.z), u.z); // climbs the ramps and bridge
+      m.group.position.set(u.x, u.y + heightAt(this.arena, u.x, u.z, u.lv ? 1 : 0), u.z); // climbs the ramps and bridge
       m.ring.position.y = 0.04 - u.y; // the team ring stays on the floor
       m.targetRing.position.y = 0.05 - u.y;
       m.group.rotation.y = u.facing;
@@ -266,7 +268,7 @@ export class ArenaScene {
     for (let i = 0; i < 3; i++) { // on a ramp or the bridge the ground is higher: settle on the surface the ray really hits
       const t = (h - o.y) / dv.y;
       p = { x: o.x + dv.x * t, z: o.z + dv.z * t };
-      h = heightAt(this.arena, p.x, p.z);
+      h = heightAt(this.arena, p.x, p.z, this.viewLevel);
     }
     return p;
   }
@@ -285,7 +287,7 @@ export class ArenaScene {
     this.reticle.visible = !!p;
     if (this.reticleDot) this.reticleDot.visible = !!p;
     if (p) {
-      const gh = heightAt(this.arena, p.x, p.z);
+      const gh = heightAt(this.arena, p.x, p.z, this.viewLevel);
       this.reticle.position.set(p.x, 0.07 + gh, p.z);
       this.reticle.scale.set(radius, radius, 1);
       this.reticleDot!.position.set(p.x, 0.1 + gh, p.z);
@@ -297,6 +299,8 @@ export class ArenaScene {
   }
   private reticle: THREE.Mesh | null = null;
   private reticleDot: THREE.Mesh | null = null;
+  /** The level the local player is on, for aiming and ground rings. */
+  viewLevel: 0 | 1 = 0;
 
   /** World point to screen pixels. */
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {

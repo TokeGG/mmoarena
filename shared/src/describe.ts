@@ -54,6 +54,7 @@ function describeBase(id: string, mods?: Mods): string {
     case 'root': return 'Cannot move.';
     case 'mark': {
       const parts: string[] = [];
+      if (a.note) parts.push(a.note);
       if (a.vulnerable) parts.push(`Takes ${a.vulnerable.mult}x damage from ${a.vulnerable.school} abilities`);
       parts.push(...describeMods(a.mods).map(cap));
       if (a.breaksOnDamage) parts.push(`Lost when damaged${a.heldBy ? `, unless ${AURAS[a.heldBy]?.name ?? a.heldBy} is active` : ''}`);

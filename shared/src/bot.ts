@@ -109,7 +109,7 @@ export class Bot {
     if (!enemies.length && sim.canMove(u) && !u.cast) {
       const hidden = all.filter((e) => e.alive && e.team !== u.team).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
       if (hidden && !(u.classId === 'priest' && allies.length > 1)) {
-        this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, hidden.pos)), fwd: 1, strafe: 0 });
+        this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, hidden.pos, u.level, hidden.level)), fwd: 1, strafe: 0 });
         return;
       }
     }
@@ -316,7 +316,7 @@ export class Bot {
     if (enemies.length < 2) return undefined;
     const sim = this.sim;
     return enemies.find((e) => {
-      if (e === tgt || dist(u.pos, e.pos) > 28 || !hasLOS(u.pos, e.pos, sim.arena)) return false;
+      if (e === tgt || dist(u.pos, e.pos) > 28 || !hasLOS(u.pos, e.pos, sim.arena, u.level, e.level)) return false;
       if (e.auras.some((a) => HARD_CC.includes(a.kind))) return false;
       const dr = e.dr.incapacitate;
       const used = dr && sim.time < dr.resetAt ? dr.count : 0;
@@ -328,7 +328,7 @@ export class Bot {
     const sim = this.sim;
     if (sim.time < this.danceUntil && !u.cast) return; // moving instead of casting for a moment
     const hasShield = (x: Unit) => x.auras.some((a) => a.kind === 'absorb');
-    const reachable = allies.filter((a) => dist(u.pos, a.pos) <= 38 && hasLOS(u.pos, a.pos, sim.arena)).sort((a, b) => hpFrac(a) - hpFrac(b));
+    const reachable = allies.filter((a) => dist(u.pos, a.pos) <= 38 && hasLOS(u.pos, a.pos, sim.arena, u.level, a.level)).sort((a, b) => hpFrac(a) - hpFrac(b));
     const lowest = reachable[0];
 
     // An ally that has been crowd controlled long enough for us to notice.
@@ -370,30 +370,22 @@ export class Bot {
   // ------------------------------------------------------------------ movement
 
   /** Steer around the pillar that blocks the way instead of pushing into it. */
-  /** On a chasm map the only way across is the bridge: head for the near ramp, then over the span to the far ramp. */
-  private bridgeWaypoint(from: Vec2, to: Vec2): Vec2 | null {
+  /** Between the ground and a bridge's deck the only way is a ramp: head for the foot of one (or out of the tunnel) first. */
+  private levelWaypoint(from: Vec2, fromLv: 0 | 1, to: Vec2, toLv: 0 | 1): Vec2 | null {
     const arena = this.sim.arena;
     const br = arena.bridge;
-    if (!br || !arena.voids?.length) return null;
-    const blocked = (p: Vec2) => arena.voids!.some((v) => p.x > v.minX - 0.7 && p.x < v.maxX + 0.7 && p.z > v.minZ - 0.7 && p.z < v.maxZ + 0.7);
-    const len = dist(from, to);
-    let crosses = false;
-    for (let t = 0; t <= len; t += 1) {
-      const k = len ? t / len : 0;
-      if (blocked({ x: from.x + (to.x - from.x) * k, z: from.z + (to.z - from.z) * k })) { crosses = true; break; }
-    }
-    if (!crosses) return null;
-    const end = br.deckHalf + br.rampLen + 1.5;
-    const onSpan = Math.abs(from.z) < br.halfWidth - 0.4 && Math.abs(from.x) <= end;
-    const side = (x: number) => (x < 0 ? -1 : 1);
-    return onSpan ? { x: side(to.x) * end, z: 0 } : { x: side(from.x) * end, z: 0 };
+    if (!br || fromLv === toLv) return null;
+    const foot = br.deckHalf + br.rampLen + 1.5;
+    if (fromLv === 1) return { x: (to.x === 0 ? Math.sign(from.x) || 1 : Math.sign(to.x)) * foot, z: 0 }; // down the ramp nearer the target
+    if (Math.abs(from.x) < br.deckHalf && Math.abs(from.z) < br.halfWidth) return { x: from.x, z: (to.z >= from.z ? 1 : -1) * (br.halfWidth + 2) }; // out of the tunnel first
+    return { x: (Math.sign(from.x) || 1) * foot, z: 0 };
   }
 
-  private waypoint(from: Vec2, to: Vec2): Vec2 {
+  private waypoint(from: Vec2, to: Vec2, fromLv: 0 | 1 = 0, toLv: 0 | 1 = 0): Vec2 {
     const arena = this.sim.arena;
-    const bw = this.bridgeWaypoint(from, to);
-    if (bw) return bw;
-    if (hasLOS(from, to, arena)) return to;
+    const lw = this.levelWaypoint(from, fromLv, to, toLv);
+    if (lw) return lw;
+    if (hasLOS(from, to, arena, fromLv, toLv)) return to;
     let best: { x: number; z: number; r: number } | undefined;
     for (const pl of arena.pillars) {
       if (distPointToSegment(pl, from, to) < pl.r && (!best || dist(from, pl) < dist(from, best))) best = pl;
@@ -461,15 +453,15 @@ export class Bot {
       // Backstab doubles from behind: run round to the target's back instead of strafing in front of it
       if (u.bar.includes('backstab') && !sim.isStealthed(u)) {
         const back = { x: tgt.pos.x - Math.sin(tgt.facing) * 2, z: tgt.pos.z - Math.cos(tgt.facing) * 2 };
-        if (dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back)), fwd: 1, strafe: 0 };
+        if (dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
         if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
       }
-      if (d > reach) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
+      if (d > reach) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
       // in melee range: keep moving round the target instead of standing still
       return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.9 * this.brain.strafe };
     }
-    if (!hasLOS(u.pos, tgt.pos, sim.arena) || d > range.max) {
-      return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
+    if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d > range.max) {
+      return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
     }
     // Walking away from a melee enemy only helps while it is slowed or rooted; otherwise stand and cast.
     const kiteable = enemies.some(
@@ -489,8 +481,8 @@ export class Bot {
     const sim = this.sim;
     const buddy = allies.filter((a) => a !== u && a.alive).sort((a, b) => hpFrac(a) - hpFrac(b))[0];
     if (!buddy) return null;
-    if (!hasLOS(u.pos, buddy.pos, sim.arena) || dist(u.pos, buddy.pos) > 30) {
-      return { facing: angleTo(u.pos, this.waypoint(u.pos, buddy.pos)), fwd: 1, strafe: 0 };
+    if (!hasLOS(u.pos, buddy.pos, sim.arena, u.level, buddy.level) || dist(u.pos, buddy.pos) > 30) {
+      return { facing: angleTo(u.pos, this.waypoint(u.pos, buddy.pos, u.level, buddy.level)), fwd: 1, strafe: 0 };
     }
     if (!tgt) return idle;
     const toT = angleTo(u.pos, tgt.pos);

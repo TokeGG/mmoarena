@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, stepMovement } from '../src/index';
+import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, stepMovementL } from '../src/index';
 
 describe('arenas', () => {
   it('has unique ids and valid layouts', () => {
@@ -86,25 +86,46 @@ describe('jumping', () => {
     assert.equal(sim.snapshot().units.find((x) => x.id === u.id)!.y, 0);
   });
 
-  it('Twin Ramps: the chasm blocks walking and blinking but not sight, and the only way over is the bridge', () => {
+  it('Twin Ramps: ramps climb to a deck, rails keep you on it, and the tunnel underneath is open ground', () => {
     const a = arenaById('bridge');
-    assert.ok(a.voids?.length && a.bridge);
-    // walking straight at the chasm from the side stops at its edge
-    let p = { x: -12, z: 10 };
-    for (let i = 0; i < 400; i++) p = stepMovement(p, { fwd: 1, strafe: 0, facing: Math.PI / 2 }, 7, 0.05, a); // toward +x, into the chasm
-    assert.ok(p.x < -8, `stopped at the chasm edge, x=${p.x}`);
-    // the span itself is walkable end to end
-    p = { x: -20, z: 0 };
-    for (let i = 0; i < 400; i++) p = stepMovement(p, { fwd: 1, strafe: 0, facing: Math.PI / 2 }, 7, 0.05, a);
-    assert.ok(p.x > 18, `crossed the bridge, x=${p.x}`);
-    // blink toward the chasm stops short
-    const land = blinkDestination({ x: -12, z: 10 }, Math.PI / 2, 20, a);
-    assert.ok(land.x < -8, 'blink does not enter the chasm');
-    assert.ok(hasLOS({ x: 0, z: 10 }, { x: 0, z: -10 }, a), 'you can see across the gap');
-    assert.equal(heightAt(a, 0, 0), a.bridge!.height);
-    assert.equal(heightAt(a, 20, 0), 0);
-    assert.ok(heightAt(a, 12, 0) > 0 && heightAt(a, 12, 0) < a.bridge!.height);
-    assert.equal(heightAt(a, 0, 10), 0);
+    const br = a.bridge!;
+    const walk = (pos: { x: number; z: number }, level: 0 | 1, facing: number, ticks: number, fwd = 1) => {
+      let st = { pos, level };
+      const trail: { x: number; z: number; level: 0 | 1 }[] = [];
+      for (let i = 0; i < ticks; i++) { st = stepMovementL(st.pos, st.level, { fwd, strafe: 0, facing }, 7, 0.05, a); trail.push({ ...st.pos, level: st.level }); }
+      return { ...st, trail };
+    };
+    // from the left spawn side, straight at the bridge: up the ramp, along the deck, down the far ramp
+    const across = walk({ x: -24, z: 0 }, 0, Math.PI / 2, 140);
+    assert.ok(across.trail.some((t) => t.level === 1 && Math.abs(t.x) < br.deckHalf), 'was on the deck');
+    assert.ok(across.pos.x > 18 && across.level === 0, `down the far ramp, x=${across.pos.x}`);
+    // beside the ramp you cannot climb it sideways, and walking into it from the side does not change level
+    const side = walk({ x: -12, z: 8 }, 0, Math.PI, 60);
+    assert.ok(side.pos.z >= br.halfWidth && side.level === 0, `stopped at the ramp wall, z=${side.pos.z}`);
+    // rails: on the deck you cannot walk off the side
+    const rail = walk({ x: 0, z: 0 }, 1, 0, 60); // facing +z
+    assert.ok(Math.abs(rail.pos.z) <= br.halfWidth && rail.level === 1, `kept on the deck, z=${rail.pos.z}`);
+    // the tunnel: level 0 walks straight through underneath, from one side to the other
+    const tunnel = walk({ x: 0, z: -10 }, 0, 0, 140);
+    assert.ok(tunnel.pos.z > 10 && tunnel.level === 0 && tunnel.trail.some((t) => Math.abs(t.z) < 1), `walked through the tunnel, z=${tunnel.pos.z}`);
+    // blink toward a ramp from the ground stops at its wall
+    const land = blinkDestination({ x: -24, z: 0 }, Math.PI / 2, 20, a, 0);
+    assert.ok(land.x < -br.deckHalf - br.rampLen + 0.01, 'a ground blink cannot go up a ramp');
+    // heights: flat on the ground, the deck is at full height, ramps slope between
+    assert.equal(heightAt(a, 0, 0, 1), br.height);
+    assert.equal(heightAt(a, 0, 0, 0), 0);
+    assert.ok(heightAt(a, 13, 0, 1) > 0 && heightAt(a, 13, 0, 1) < br.height);
+    assert.equal(heightAt(a, 24, 0, 1), 0);
+  });
+
+  it('Twin Ramps: the deck is a ceiling over the tunnel, and the ramps are walls on the ground', () => {
+    const a = arenaById('bridge');
+    assert.equal(hasLOS({ x: 0, z: 0 }, { x: 6, z: 0 }, a, 1, 1), true, 'deck to deck is clear');
+    assert.equal(hasLOS({ x: 0, z: 0 }, { x: 5, z: 2 }, a, 1, 0), false, 'no sight from the deck into the tunnel');
+    assert.equal(hasLOS({ x: 0, z: 1 }, { x: 3, z: 9 }, a, 0, 0), true, 'tunnel to the open ground at the side');
+    assert.equal(hasLOS({ x: -22, z: 0 }, { x: 22, z: 0 }, a, 0, 0), false, 'the ramps block sight along the ground');
+    assert.equal(hasLOS({ x: -22, z: 8 }, { x: 22, z: 8 }, a, 0, 0), true, 'clear beside the ramps');
+    assert.equal(hasLOS({ x: -22, z: 0 }, { x: 0, z: 0 }, a, 0, 1), true, 'from the ground you can see up the ramp onto the deck');
   });
 
   it('Twin Ramps: bots walk over the bridge to reach each other', () => {
