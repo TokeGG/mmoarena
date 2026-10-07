@@ -461,6 +461,8 @@ export interface Snapshot {
   zones: ZoneSnap[];
   /** Dampening: how much weaker healing and shields are right now (0.35 = 35% weaker). Absent until it starts. */
   damp?: number;
+  /** A dev paused this match (dev tools, against bots only): nothing moves until it resumes. */
+  paused?: true;
 }
 
 export interface ZoneSnap {

@@ -1,5 +1,5 @@
 import { ABILITIES, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
-import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
 import type { RenderUnit } from './scene';
@@ -25,6 +25,7 @@ import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
+import { DataLayers, DevPanel } from './devPanel';
 import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
@@ -245,6 +246,12 @@ function onMessage(raw: MessageEvent) {
       arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
       scene.setMap(arena.id);
       matchStarting = true; // until its first snapshot, the menu backdrop must not swap the map back to the menu's pick
+      // dev tools start fresh in every match (test numbers never carry over)
+      devPanel.setAvailable(false);
+      buildsPanel.clear();
+      lastBuilds = [];
+      buildsAsked = false;
+      if (isDev()) devPanel.setAvailable(true);
       audio.ambience(arena.theme);
       you = m.unitId;
       team = m.team;
@@ -310,7 +317,23 @@ function onMessage(raw: MessageEvent) {
       startSpectate('live', m.map, m.id);
       break;
     case 'builds':
-      if (spec) buildsPanel.set(m.units);
+      lastBuilds = m.units;
+      if (spec || isDev()) buildsPanel.set(m.units);
+      devPanel.refresh();
+      break;
+    case 'overrides':
+      dataLayers.setLive(m.patches);
+      accountUi.handle(m);
+      break;
+    case 'dev_state':
+      devPanel.handle(m);
+      break;
+    case 'dev_result':
+      devPanel.handle(m);
+      accountUi.handle(m);
+      break;
+    case 'admin_overview':
+      accountUi.handle(m);
       break;
     case 'following':
       following = m.name;
@@ -326,6 +349,11 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'snapshot':
       if (!spec && you === 0) break; // a late frame from a match we already left
+      // a dev sees everyone's build in their own match too (asked once the bots are in)
+      if (!spec && !buildsAsked && isDev()) {
+        buildsAsked = true;
+        send({ t: 'dev_builds' });
+      }
       // a new round has started: the end scoreboard belongs to the end screen only
       if (endBoardUp && m.snap.phase === 'prep') {
         endBoardUp = false;
@@ -359,6 +387,8 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'closed':
       matchStarting = false;
+      devPanel.setAvailable(false);
+      if (!spec) buildsPanel.clear();
       endBoardUp = false;
       endChoice.hide();
       spectateBar.board.toggle(false);
@@ -458,7 +488,7 @@ function ownHeight(u: UnitSnap | undefined, serverY?: number): number {
 
 /** Runs at exactly the server tick rate so one input is produced per server step. */
 function fixedStep() {
-  if (!latest || spec) return;
+  if (!latest || spec || latest.paused) return; // paused by a dev: nothing is sent, nothing is predicted
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
   const sample = controls.sample(DT);
@@ -728,7 +758,15 @@ controls.onKey = (code, e) => {
   }
   if (!latest) return;
   if (code === 'KeyB' && (spec?.kind === 'live' || spectateBar.board.visible)) return void spectateBar.board.toggle();
-  if (code === 'KeyN' && spec) return void buildsPanel.toggle();
+  // N: the builds panel (watching, or a dev in a match); F2: dev tools. Only when the key is not bound to something else
+  if (code === 'KeyN' && (spec || devPanel.button.isConnected && !devPanel.button.classList.contains('hidden')) && !binds.actionForEvent(e)) {
+    if (!spec) send({ t: 'dev_builds' });
+    return void buildsPanel.toggle();
+  }
+  if (code === 'F2' && !spec && !binds.actionForEvent(e)) {
+    e.preventDefault();
+    return void devPanel.toggle();
+  }
   const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);
@@ -954,6 +992,14 @@ requestAnimationFrame(frame);
 
 /** Watching: everyone's spec, talents and skills, on the side. */
 const buildsPanel = new BuildsPanel();
+/** The last builds the server sent (watching, or a dev in a match). */
+let lastBuilds: UnitBuild[] = [];
+let buildsAsked = false;
+/** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
+const dataLayers = new DataLayers();
+const devPanel = new DevPanel({ send: (m) => send(m), builds: () => lastBuilds, myBar: () => bar }, dataLayers);
+/** The owner (unlocked this session) or an account with the dev tag. */
+const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
   switchKey: () => binds.label('nextTarget'),
   onExit: () => {
@@ -989,6 +1035,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
+  devPanel.setAvailable(false); // dev tools are for your own match, not for watching
   audio.ambience(arena.theme);
   you = 0;
   team = 0;

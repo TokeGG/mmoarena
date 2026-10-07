@@ -1,5 +1,5 @@
-import { ABILITY_GRANTS, ARENAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, resolveCosmetics } from '@arena/shared';
-import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, ServerMsg } from '@arena/shared';
+import { ABILITIES, ABILITY_GRANTS, ARENAS, AURAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, resolveCosmetics } from '@arena/shared';
+import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, DataPatch, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -44,6 +44,17 @@ export class OwnerPanel {
       case 'admin_accounts':
         this.rows = m.rows;
         this.hooks.rerender();
+        break;
+      case 'admin_overview':
+        this.overview = m;
+        this.hooks.rerender();
+        break;
+      case 'overrides':
+        this.overrides = m.patches;
+        this.hooks.rerender();
+        break;
+      case 'dev_result':
+        this.say(m.text, !m.ok);
         break;
       case 'admin_result':
         if (!m.ok) this.say(m.reason ?? 'Change refused.', true);
@@ -96,12 +107,93 @@ export class OwnerPanel {
     }
     const n = this.noticeEl();
     if (n) box.append(n);
+    box.append(el('h3', '', 'Server'), this.serverBox());
+    box.append(el('h3', '', 'Announcement'), this.announceBox());
+    box.append(el('h3', '', 'Bot match'), this.botMatch());
+    box.append(el('h3', '', 'Live number changes'), this.overridesBox());
     box.append(el('h3', '', 'Your name style'));
     box.append(this.styleEditor(a.cosmetics.custom, !!a.cosmetics.useCustom, (custom, use) => this.hooks.send({ t: 'customize', cosmetics: { ...a.cosmetics, custom, useCustom: use } }), true));
-    box.append(el('h3', '', 'Bot match'), this.botMatch());
     box.append(el('h3', '', 'Animated icon'), this.gifBox(a));
     box.append(el('h3', '', 'Accounts'), this.adminList());
     return box;
+  }
+
+  // ------------------------------------------------------------------ admin: the server at a glance
+
+  private overview: Extract<ServerMsg, { t: 'admin_overview' }> | null = null;
+  private overrides: DataPatch[] = [];
+
+  /** Who is online and every match running (private ones too): watch any of them live, or end one. */
+  private serverBox(): HTMLElement {
+    const wrap = el('div', 'own-box own-server');
+    const top = el('div', 'own-row');
+    const refresh = el('button', 'mm-small', 'Refresh');
+    refresh.addEventListener('click', () => this.hooks.send({ t: 'admin_overview' }));
+    const o = this.overview;
+    top.append(el('b', '', o ? `${o.online} online · ${o.queued} in queue · ${o.rooms.length} match${o.rooms.length === 1 ? '' : 'es'}` : 'Press Refresh'), refresh);
+    wrap.append(top);
+    if (!o) {
+      this.hooks.send({ t: 'admin_overview' });
+      return wrap;
+    }
+    if (!o.rooms.length) wrap.append(el('p', 'mm-modal-foot', 'No matches running.'));
+    const kindName: Record<string, string> = { ranked: '🏆 Ranked', practice: 'Practice', party: 'Party', bots: '🤖 Bot match', dummies: 'Dummies' };
+    for (const r of o.rooms) {
+      const row = el('div', 'own-room');
+      const t = Math.round(r.elapsedMs / 1000);
+      const info = el('div', 'own-room-info');
+      const sides = [0, 1].map((team) => r.players.filter((x) => x.team === team).map((x) => (x.human ? `★${x.name}` : x.name)).join(', '));
+      info.append(
+        el('b', '', `${kindName[r.kind] ?? r.kind} ${r.size}v${r.size} · ${ARENAS.find((x) => x.id === r.map)?.name ?? r.map} · ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`),
+        el('span', '', `${sides[0]}  vs  ${sides[1]}`),
+        el('small', '', [r.watchers ? `${r.watchers} watching` : '', r.devTest ? 'dev test numbers' : '', r.paused ? 'paused' : ''].filter(Boolean).join(' · ')),
+      );
+      const watch = el('button', 'mm-small', 'Watch');
+      watch.addEventListener('click', () => this.hooks.send({ t: 'spectate', id: r.id }));
+      const end = el('button', 'mm-small', 'End');
+      end.addEventListener('click', () => window.confirm('End this match for everyone in it?') && this.hooks.send({ t: 'admin_end', id: r.id }));
+      row.append(info, watch, end);
+      wrap.append(row);
+    }
+    return wrap;
+  }
+
+  /** A message every connected player sees at once. */
+  private announceBox(): HTMLElement {
+    const row = el('div', 'own-row');
+    const input = el('input');
+    input.type = 'text';
+    input.maxLength = 200;
+    input.placeholder = 'Message to everyone online';
+    const go = el('button', 'mm-small', 'Send');
+    const submit = () => {
+      if (!input.value.trim()) return;
+      this.hooks.send({ t: 'admin_announce', text: input.value.trim() });
+      input.value = '';
+      this.say('Announcement sent.', false);
+    };
+    go.addEventListener('click', submit);
+    input.addEventListener('keydown', (e) => e.key === 'Enter' && submit());
+    row.append(input, go);
+    return row;
+  }
+
+  /** Numbers devs saved for everyone, applied over the data files until they are merged or cleared. */
+  private overridesBox(): HTMLElement {
+    const wrap = el('div', 'own-box');
+    if (!this.overrides.length) {
+      wrap.append(el('p', 'mm-modal-foot', 'None: the game runs on its data files. Devs (give the Dev tools tag below) can try numbers in their own matches against bots (F2) and save them here.'));
+      return wrap;
+    }
+    const list = el('ul', 'own-overrides');
+    for (const p of this.overrides) {
+      const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : AURAS[p.id]?.name;
+      list.append(el('li', '', `${name ?? p.id} · ${p.path.join('.')} = ${p.value}`));
+    }
+    const clear = el('button', 'mm-small', 'Clear all (back to the data files)');
+    clear.addEventListener('click', () => window.confirm('Put every saved number back to the data files, for everyone?') && this.hooks.send({ t: 'overrides_clear' }));
+    wrap.append(list, clear);
+    return wrap;
   }
 
   // ------------------------------------------------------------------ bot match (owner's private test bench)

@@ -2,7 +2,7 @@
  {
   "version": "0.68.2",
   "date": "2026-10-07",
-  "at": "2026-10-07T23:08:04Z",
+  "at": "2026-10-07T23:28:51Z",
   "title": "Dampening, smoke that hides, targeting fixes",
   "changes": [
    "Dampening: from 90 seconds into a fight, all healing and new shields get 0.5% weaker every second (up to 90%), shown at the top of the screen. Two priests (or any healers) can no longer out-heal each other forever.",
