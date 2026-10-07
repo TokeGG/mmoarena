@@ -8,6 +8,8 @@
    "Bots fake casts more: a kicker closing in counts as a threat, not only one already in reach.",
    "Rogue bots spend combo points properly: Kidney Shot only with 4 or more and only while its stun lands in full, Eviscerate at 4 (at 3 on a target about to die). Before, Kidney Shot at 3 points ate every combo point.",
    "Warrior bots use Heroic Leap to close any gap Charge cannot (on cooldown, no line of sight, too far), not only from beyond 25 yards.",
+   "Coming down from a jump on top of a barricade puts you beside it, never inside it (stopping mid-hop could leave you standing in the wall with sight both ways).",
+   "Bots hop over a barricade to shoot only when their global cooldown will be ready at the top of the jump, and never start a cast with a cast time in mid-air over one (it would fail when they land). Casters with their slowing spell ready (Frostbolt) stand and land it before they run.",
    "Bot Shadow priests no longer recast Shadow Word: Pain on a low target every global cooldown (left over from when it was an execute).",
    "Cleave: 75 damage (was 85) and 8 rage (was 15). Free rage from Cleave was feeding Mortal Strike nonstop; Warbringer won about nine in ten bot duels.",
    "Rampager hits harder: Bloodthirst 150 damage (was 85), Slam 160 (was 120). It dealt about a third of Warbringer's damage.",

@@ -268,11 +268,16 @@ export class Bot {
       const a = ABILITIES[id];
       return !!a && a.castTime === 0 && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
     });
+    const slowReady = u.bar.some((id) => {
+      const a = ABILITIES[id];
+      return !!a && a.castTime > 0 && a.target === 'enemy' && a.effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.kind === 'slow') && this.ready(u, id) && u.resource >= a.cost;
+    });
     return enemies
       .filter((e) => MELEE.has(e.classId) && this.sim.canMove(e) && !e.auras.some((a) => HARD_CC.includes(a.kind)))
       .filter((e) => {
         const slowed = e.auras.some((a) => a.kind === 'slow');
-        return slowed ? dist(u.pos, e.pos) < Math.max(4.5, (RANGED[u.classId]!.min + this.brain.rangeBias) * 0.6) : instant && dist(u.pos, e.pos) < reach;
+        // a caster whose slowing spell is ready stands and lands it first (Frostbolt): running before it only lets the melee keep up
+        return slowed ? dist(u.pos, e.pos) < Math.max(4.5, (RANGED[u.classId]!.min + this.brain.rangeBias) * 0.6) : instant && !slowReady && dist(u.pos, e.pos) < reach;
       })
       .sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0] ?? null;
   }
@@ -296,10 +301,14 @@ export class Bot {
       const a = ABILITIES[id];
       return !!a && u.bar.includes(id) && a.castTime === 0 && a.target === 'enemy' && !a.effects.some((e) => e.type === 'interrupt') && d <= a.range && this.ready(u, id);
     });
+    if (sim.airOf(u) > 0) this.moving = true; // no casts started in the air over it either
     if (!shots.length) return false;
     const air = sim.airOf(u);
+    // in the air over a barricade: only instants (a cast started up here fails the moment it lands)
+    if (air > 0) this.moving = true;
     if (air > 0) return air >= 1 && hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, air, theirAir) && this.useFirst(u, shots, tgt.id);
-    if (sim.time >= this.nextPop && canStartJump(sim.time - u.jumpStart) && hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, JUMP_HEIGHT * 0.8, theirAir) && this.rng() < this.P.tricks) {
+    // only when the global cooldown will be free at the top of the jump, or the shot has nothing to fire with
+    if (sim.time >= this.nextPop && u.gcdEnd <= sim.time + 250 && canStartJump(sim.time - u.jumpStart) && hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, JUMP_HEIGHT * 0.8, theirAir) && this.rng() < this.P.tricks) {
       this.popJump = true;
       this.nextPop = sim.time + 900;
     }

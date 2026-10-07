@@ -485,6 +485,10 @@ export class ArenaSim {
       const speed = TUNING.runSpeed * this.speedMult(u);
       if (speed > 0) { const r = stepMovementL(u.pos, u.level, input, speed, DT, this.arena, jumpHeight(this.time - u.jumpStart)); u.pos = r.pos; u.level = r.level; } // high enough in a jump, rails and barricades are cleared
     }
+    // come down from a jump on top of a barricade (and stopped there): step off it, never stand inside it
+    if (u.level === 0 && this.arena.lows?.length && jumpHeight(this.time - u.jumpStart) < LOW_CLEAR && this.arena.lows.some((r) => u.pos.x > r.x0 - 0.3 && u.pos.x < r.x1 + 0.3 && u.pos.z > r.z0 - 0.3 && u.pos.z < r.z1 + 0.3)) {
+      u.pos = resolveCollisions(u.pos, this.arena, 0, jumpHeight(this.time - u.jumpStart));
+    }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
     if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
 
