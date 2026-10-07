@@ -415,7 +415,7 @@
    {
     "type": "aura",
     "aura": "kidney_shot",
-    "extraPerCp": 1000
+    "extraPerCp": 800
    }
   ],
   "cpSpend": true
@@ -1551,7 +1551,7 @@
   "school": "holy",
   "target": "aoe_all",
   "range": 0,
-  "radius": 60,
+  "radius": 12,
   "castTime": 0,
   "cooldown": 12000,
   "gcd": true,

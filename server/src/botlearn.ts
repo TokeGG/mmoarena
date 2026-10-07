@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { CLASS_IDS, measureHumans, mergeStyle, newPopulation, pickVariant, recordResult, styledBrain } from '@arena/shared';
+import { CLASS_IDS, freshenPopulation, measureHumans, mergeStyle, newPopulation, pickVariant, recordResult, styledBrain } from '@arena/shared';
 import type { Brain, ClassId, HumanStyle, Population, ReplayData } from '@arena/shared';
 import type { Store } from './store';
 
@@ -98,7 +98,7 @@ export class BotLearner {
         /* a bad or unreachable record just means starting fresh */
       }
       if (!pop || pop.classId !== c || !Array.isArray(pop.variants) || !pop.variants.length) pop = newPopulation(c, this.rng);
-      this.pops.set(c, pop);
+      this.pops.set(c, freshenPopulation(pop)); // brains saved by an older version get the newer traits from the trained baseline
       try {
         const raw = await this.store.get(STYLE_KEY(c));
         if (raw) this.styles.set(c, JSON.parse(raw) as HumanStyle);

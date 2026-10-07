@@ -67,7 +67,7 @@ describe('skills and talents audit: data', () => {
         // every combination of the three swap tiers (27) is valid with a full distinct bar
         for (const a of tiers[3]) for (const b of tiers[4]) for (const c of tiers[5]) {
           const build: Build = { spec: sp.id, talents: ['', '', '', a.id, b.id, c.id], gear: {} };
-          assert.ok(validateBuild(cid, build, 99).ok);
+          assert.ok(validateBuild(cid, build, false, 99).ok);
           const bar = barFor(cid, build, []);
           assert.equal(bar.length, 8);
           assert.equal(new Set(bar).size, 8, `${a.id} ${b.id} ${c.id}`);

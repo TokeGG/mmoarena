@@ -361,7 +361,7 @@ describe('talent ability swaps', () => {
       const talents = ['', '', '', '', '', ''];
       talents[ti] = t.id;
       const b = build(spec.id, talents);
-      assert.ok(validateBuild(cls, b, 0).ok, t.id);
+      assert.ok(validateBuild(cls, b, false, 0).ok, t.id);
       const bar = barFor(cls, b, []);
       assert.equal(bar.length, spec.bar.length);
       assert.equal(bar.filter((a, i) => a !== spec.bar[i]).length, 1, `${t.id}/${spec.id}`);
@@ -495,9 +495,9 @@ describe('bots play every spec', () => {
         const d = sim.addUnit({ name: 'd', classId: 'warrior', team: 1, controller: 'dummy' });
         u.pos = { x: 0, z: 0 }; d.pos = { x: 6, z: 0 };
         const bot = new Bot(sim, u.id, 'hard', 7);
-        const hp = d.health;
-        for (let t = 0; t < 20000; t += TICK) { bot.tick(); sim.step(); }
-        assert.ok(d.health < hp, `${cls}:${u.spec} bot did no damage`);
+        let dealt = 0; // counted from events: a dummy that is killed stands up again at full health
+        for (let t = 0; t < 20000; t += TICK) { bot.tick(); sim.step(); for (const e of sim.drainEvents()) if (e.t === 'damage' && e.src === u.id) dealt += e.amount + e.absorbed; }
+        assert.ok(dealt > 0, `${cls}:${u.spec} bot did no damage`);
       }
     }
   });
@@ -683,7 +683,7 @@ describe('warrior rework', () => {
     assert.equal(SPECS.warrior.find((s) => s.id === 'protection')!.name, 'Barbarian');
   });
   it('the two-hander reaches further than a sword', () => {
-    assert.ok(autoForTest('warrior', 'fury').range > autoForTest('warrior', 'arms').range);
+    assert.ok(autoForTest('warrior', 'fury')!.range > autoForTest('warrior', 'arms')!.range);
     const { sim, w, f } = war('fury', 4.2);
     assert.ok(sim.useAbility(w.id, 'slam', f.id).ok, 'Slam from 4.2 yards');
   });
