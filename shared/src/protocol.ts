@@ -85,7 +85,7 @@ export type ServerMsg =
   | { t: 'queued'; waiting: number; needed: number }
   | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
   /** Owner spectators only: running damage and healing totals for everyone in the match. */
-  | { t: 'stats'; rows: StatRow[] }
+  | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
   | { t: 'closed'; reason: string }
   /** The signed-in account (sent on login, resume, customize and after every counted match). `token` only on login/register. */

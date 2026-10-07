@@ -46,8 +46,10 @@ export class Scoreboard {
     this.root.classList.toggle('hidden', !on);
     if (on) this.paint();
   }
-  update(rows: StatRow[]) {
+  private title = 'Scoreboard';
+  update(rows: StatRow[], title = 'Scoreboard') {
     this.rows = rows;
+    this.title = title;
     if (this.visible) this.paint();
   }
   private paint() {
@@ -73,7 +75,7 @@ export class Scoreboard {
         table.append(row);
       }
     }
-    const title = el('div', 'sb-head', 'Scoreboard');
+    const title = el('div', 'sb-head', this.title);
     this.root.replaceChildren(title, table, el('small', '', 'Press B or the button to hide'));
   }
 }

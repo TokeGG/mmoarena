@@ -13,7 +13,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 170
+    "amount": 220
    }
   ]
  },
@@ -34,7 +34,7 @@
     "type": "charge",
     "stopDistance": 2,
     "speed": 34,
-    "hit": 40
+    "hit": 50
    },
    {
     "type": "gain",
@@ -79,7 +79,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 30
+    "amount": 40
    },
    {
     "type": "aura",
@@ -437,7 +437,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 500
+    "amount": 650
    }
   ]
  },
@@ -492,7 +492,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 150
+    "amount": 195
    },
    {
     "type": "gain",
@@ -514,7 +514,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 90
+    "amount": 115
    }
   ],
   "radius": 8
@@ -551,7 +551,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 110
+    "amount": 145
    }
   ]
  },
@@ -950,7 +950,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 40
+    "amount": 50
    },
    {
     "type": "aura",

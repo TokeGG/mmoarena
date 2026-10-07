@@ -2,7 +2,7 @@
   "warrior": {
     "name": "Warrior", "color": "#c79c6e", "maxHealth": 3400,
     "resource": { "type": "rage", "max": 100, "start": 0, "regenPerSec": 0 },
-    "auto": { "interval": 2000, "damage": 60, "range": 3 },
+    "auto": { "interval": 2000, "damage": 80, "range": 3 },
     "bar": ["mortal_strike", "charge", "pummel", "hamstring"]
   },
   "mage": {

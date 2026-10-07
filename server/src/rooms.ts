@@ -15,7 +15,7 @@ type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
 /** Spectators see ranked matches this far behind, so watching cannot help the players. */
 const SPECTATE_DELAY_TICKS = 20 * 5;
-const TICKS_AFTER_END = 20 * 8; // keep the room open 8s so everyone sees the result
+const TICKS_AFTER_END = 20 * 20; // keep the room open 20s so everyone sees the result and the scoreboard
 /** A match must have been live this long to count towards gear unlocks (stops instant-win farming). */
 const MIN_COUNTED_MATCH_MS = 20000;
 
@@ -90,6 +90,8 @@ export class Room {
   closed = false;
   private bots: Bot[] = [];
   private endedTicks = 0;
+  private finalSent = false;
+  private finalSentLate = false;
 
   private credited = false;
   readonly id = crypto.randomBytes(6).toString('hex');
@@ -306,11 +308,21 @@ export class Room {
         const late = [...this.spectators].filter((w) => !w.ownerOk);
         if (late.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap: f.snap, events: f.events });
-          for (const w of late) if (w.ws.readyState === 1) w.ws.send(frame);
+          // the delayed view reaches the end five seconds after the players do, and only then gets the scoreboard
+          const final = f.snap.phase === 'ended' && !this.finalSentLate ? JSON.stringify({ t: 'stats', rows: this.statRows(), final: true }) : null;
+          if (final) this.finalSentLate = true;
+          for (const w of late) if (w.ws.readyState === 1) { w.ws.send(frame); if (final) w.ws.send(final); }
         }
       }
     }
     if (this.sim.phase === 'ended') {
+      if (!this.finalSent) {
+        // everyone in the match (and the owner, who watches live) gets the final totals to put up as a scoreboard
+        this.finalSent = true;
+        const frame = JSON.stringify({ t: 'stats', rows: this.statRows(), final: true });
+        for (const p of this.players.values()) if (p.ws.readyState === 1) p.ws.send(frame);
+        for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
+      }
       this.creditProgress();
       if (++this.endedTicks >= TICKS_AFTER_END) this.close('match over');
     }

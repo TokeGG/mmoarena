@@ -229,7 +229,13 @@ function onMessage(raw: MessageEvent) {
       onSnapshot(m.snap, m.events);
       break;
     case 'stats':
-      if (spec?.kind === 'live') spectateBar.setStats(m.rows);
+      if (m.final) {
+        // the match is over: put the scoreboard up for everyone, with the result as its title
+        const w = latest?.winner;
+        const mine = latest?.units.find((u) => u.id === you)?.team;
+        spectateBar.board.update(m.rows, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat');
+        spectateBar.board.toggle(true);
+      } else if (spec?.kind === 'live') spectateBar.setStats(m.rows);
       break;
     case 'error':
       audio.ui('error');
@@ -517,7 +523,7 @@ controls.onKey = (code, e) => {
     return;
   }
   if (!latest) return;
-  if (code === 'KeyB' && spec?.kind === 'live') return void spectateBar.board.toggle();
+  if (code === 'KeyB' && (spec?.kind === 'live' || spectateBar.board.visible)) return void spectateBar.board.toggle();
   const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);

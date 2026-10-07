@@ -362,7 +362,7 @@ describe('stealth', () => {
     assert.ok(Math.abs(aura.expiresAt - sim.time - 4000) <= 100, `stun lasts about 4 s, got ${aura.expiresAt - sim.time} ms`);
   });
 
-  it('execute costs rage, hits for 500 and only works on targets below 20% health', () => {
+  it('execute costs rage, hits for 650 and only works on targets below 20% health', () => {
     const sim = live();
     const war = add(sim, 'warrior', 0, 0, 0);
     war.bar = [...war.bar.slice(0, 7), 'execute'];
@@ -384,7 +384,7 @@ describe('stealth', () => {
     assert.ok(r.ok, JSON.stringify(r));
     const dealt = hp - foe.health;
     const v = TUNING.damageVariance;
-    assert.ok(dealt >= 500 * (1 - v) - 1 && dealt <= 500 * (1 + v) + 1, `dealt ${dealt}`);
+    assert.ok(dealt >= 650 * (1 - v) - 1 && dealt <= 650 * (1 + v) + 1, `dealt ${dealt}`);
   });
 
   it('global cooldown is 1 s for every class', () => {
