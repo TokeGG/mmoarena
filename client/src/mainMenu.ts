@@ -12,7 +12,7 @@ import { CLASS_BLURB } from './tips';
  */
 
 export interface PlayRequest {
-  mode: 'practice' | 'queue';
+  mode: 'practice' | 'queue' | 'party';
   name: string;
   classId: ClassId;
   build: Build;
@@ -35,6 +35,8 @@ export interface MainMenuHooks {
   onSelect(classId: ClassId, build: Build): void;
   /** A non-leader party member toggled Ready. */
   onReady(on: boolean): void;
+  /** You picked a side for the party match. */
+  onSide(side: 0 | 1): void;
   /** The account chip, placed top right under the settings bar. */
   extras?: HTMLElement;
 }
@@ -98,6 +100,7 @@ export class MainMenu {
   private partyBox = el('div', 'mm-party hidden');
   private practiceBtn = el('button', 'mm-btn primary', 'Practice');
   private readyBtn = el('button', 'mm-btn primary rdy hidden', 'Ready');
+  private partyBtn = el('button', 'mm-btn hidden', 'Party match');
   private isReady = false;
   private openSlot: string | null = null;
 
@@ -146,6 +149,7 @@ export class MainMenu {
     this.practiceBtn.classList.toggle('hidden', !leader);
     this.queueBtn.classList.toggle('hidden', !leader);
     this.readyBtn.classList.toggle('hidden', leader);
+    this.partyBtn.classList.toggle('hidden', !leader || !info || info.members.length < 2);
     this.readyBtn.textContent = this.isReady ? 'Ready ✓ (click to cancel)' : 'Ready';
     this.readyBtn.classList.toggle('on', this.isReady);
     this.partyBox.replaceChildren();
@@ -156,6 +160,12 @@ export class MainMenu {
     for (const m of info.members) {
       const chip = el('span', `mm-pchip${m.ready ? ' ok' : ''}`, `${m.name === info.leader ? '👑 ' : ''}${m.name} ${m.ready ? '✓' : '…'}`);
       this.partyBox.append(chip);
+      // which side this friend plays on in a party match; click your own to switch
+      const side = el('button', `mm-pside s${m.side}`, m.side === 0 ? 'Team 1' : 'Team 2');
+      side.title = m.name === me ? 'Click to switch sides in a party match' : `${m.name}'s side in a party match`;
+      if (m.name === me) side.addEventListener('click', () => this.hooks.onSide(m.side === 0 ? 1 : 0));
+      else side.disabled = true;
+      this.partyBox.append(side);
     }
     this.partyBox.append(
       el('small', '', leader ? (waiting ? `Waiting for ${waiting} to ready up. You pick the mode and arena.` : 'Everyone is ready. Pick Practice or Ranked.') : `${info.leader} picks the mode and arena. Press Ready.`),
@@ -285,7 +295,9 @@ export class MainMenu {
       this.paintParty();
       this.hooks.onReady(this.isReady);
     });
-    row.append(practice, queue, this.readyBtn);
+    this.partyBtn.title = 'A friendly match with your whole party: pick sides, bots fill the empty places.';
+    this.partyBtn.addEventListener('click', () => this.play('party'));
+    row.append(practice, queue, this.partyBtn, this.readyBtn);
     const controls = el('button', 'mm-link', 'Controls & keybinds');
     controls.id = 'btn-keys';
     controls.addEventListener('click', () => this.hooks.onControls());
@@ -453,7 +465,7 @@ export class MainMenu {
 
   // ------------------------------------------------------------------ play
 
-  private play(mode: 'practice' | 'queue') {
+  private play(mode: 'practice' | 'queue' | 'party') {
     const name = this.account ? this.account.name : this.nameInput.value.trim() || 'Player';
     if (!this.account) store.set('arena.name', name);
     this.hooks.onPlay({

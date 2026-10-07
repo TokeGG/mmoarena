@@ -58,6 +58,8 @@ export interface Party {
   members: Player[];
   /** Members who pressed play and are waiting for the rest. */
   ready: Set<Player>;
+  /** Which side each member plays on in a party match. */
+  sides: Map<Player, 0 | 1>;
 }
 
 interface Invite {
@@ -547,6 +549,7 @@ export class Lobby {
         p.size = msg.size ?? 2;
         if (msg.mode === 'practice') this.startPractice(p, msg);
         else if (msg.mode === 'duel') this.joinDuel(p, msg.duelWith);
+        else if (msg.mode === 'party') this.startPartyMatch(p, msg);
         else this.enqueue(p);
         break;
       case 'leave':
@@ -559,6 +562,13 @@ export class Lobby {
           if (!this.applyIdentity(p, msg)) return;
           party.ready.add(p);
         } else party.ready.delete(p);
+        this.sendParty(party);
+        break;
+      }
+      case 'party_side': {
+        const party = p.party;
+        if (!party || p.room || this.inQueue(p)) return;
+        party.sides.set(p, msg.side);
         this.sendParty(party);
         break;
       }
@@ -668,7 +678,7 @@ export class Lobby {
   // ------------------------------------------------------------------ parties and invites
 
   private partyInfo(party: Party): PartyInfo {
-    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m) })) };
+    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m), side: party.sides.get(m) ?? 0 })) };
   }
 
   private sendParty(party: Party): void {
@@ -684,6 +694,7 @@ export class Lobby {
     p.party = undefined;
     party.members = party.members.filter((m) => m !== p);
     party.ready.delete(p);
+    party.sides.delete(p);
     send(p, { t: 'party', party: null });
     if (party.members.length <= 1) {
       for (const m of party.members) {
@@ -741,8 +752,9 @@ export class Lobby {
       const pending = [...this.invites.values()].filter((i) => i.kind === 'party' && i.from === p).length;
       if (party && party.members.length + pending >= 3) return void send(p, { t: 'notice', text: 'A party holds at most three players.' });
       if (!party) {
-        party = { id: crypto.randomBytes(4).toString('hex'), leader: p, members: [p], ready: new Set() };
+        party = { id: crypto.randomBytes(4).toString('hex'), leader: p, members: [p], ready: new Set(), sides: new Map() };
         p.party = party;
+        this.assignSide(party, p);
         this.sendParty(party);
         this.changed(p);
       }
@@ -769,6 +781,7 @@ export class Lobby {
       if (p.party) return;
       party.members.push(p);
       p.party = party;
+      this.assignSide(party, p);
       party.ready.clear();
       this.sendParty(party);
       this.changed(p);
@@ -831,6 +844,40 @@ export class Lobby {
     }
     for (const ally of allies) room.addNpc(ally, 0, difficulty);
     for (const foe of foes) room.addNpc(foe, 1, difficulty);
+    this.rooms.add(room);
+  }
+
+  /** A new party member joins whichever side has fewer players. */
+  private assignSide(party: Party, p: Player): void {
+    const on = (side: number) => [...party.sides].filter(([m, s]) => m !== p && s === side && party.members.includes(m)).length;
+    party.sides.set(p, on(0) <= on(1) ? 0 : 1);
+  }
+
+  /**
+   * A friendly match for the whole party: every member plays on the side they picked and bots fill the empty places, so nobody is left out
+   * of a 2v2 with three friends. A side with more friends than the chosen size grows the match (three on one side makes it 3v3).
+   */
+  private startPartyMatch(p: Player, msg: JoinMsg): void {
+    const party = p.party;
+    if (!party || party.members.length < 2) return void send(p, { t: 'closed', reason: 'Invite a friend to start a party match.' });
+    const wait = this.notReady(p);
+    if (wait) return void send(p, { t: 'closed', reason: wait });
+    const sideOf = (m: Player): 0 | 1 => party.sides.get(m) ?? 0;
+    const humans: [Player[], Player[]] = [party.members.filter((m) => sideOf(m) === 0), party.members.filter((m) => sideOf(m) === 1)];
+    const size = Math.min(3, Math.max(p.size, humans[0].length, humans[1].length)) as TeamSize;
+    const difficulty = msg.difficulty ?? 'normal';
+    const room = this.makeRoom(this.cfg.practicePrepMs, difficulty !== 'dummy', false, pickMap(p.mapPref));
+    room.size = size;
+    for (const side of [0, 1] as const) for (const h of humans[side]) { h.size = size; room.addPlayer(h, side); }
+    room.broadcastRoster();
+    const rotation: ClassId[] = ['priest', 'warrior', 'mage', 'rogue'];
+    for (const side of [0, 1] as const) {
+      const used = humans[side].map((h) => h.classId);
+      const spare = rotation.filter((c) => !used.includes(c));
+      for (let i = humans[side].length; i < size; i++) room.addNpc(spare[(i - humans[side].length) % spare.length] ?? rotation[i % rotation.length], side, difficulty);
+    }
+    party.ready.clear();
+    this.sendParty(party);
     this.rooms.add(room);
   }
 

@@ -331,5 +331,6 @@ export interface FriendRow {
 export interface PartyInfo {
   id: string;
   leader: string;
-  members: { name: string; ready: boolean }[];
+  /** `side` is the team (0 or 1) the member will play on in a party match. */
+  members: { name: string; ready: boolean; side: 0 | 1 }[];
 }

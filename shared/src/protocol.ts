@@ -18,7 +18,8 @@ export type ClientMsg =
       t: 'join';
       name: string;
       classId: ClassId;
-      mode: 'practice' | 'queue' | 'duel';
+      /** 'party': a friendly match for the whole party; each member picks a side and bots fill the empty places. */
+      mode: 'practice' | 'queue' | 'duel' | 'party';
       /** Duel only: the friend you agreed to fight (account name). */
       duelWith?: string;
       /** Players per team (default 2). */
@@ -67,6 +68,8 @@ export type ClientMsg =
   | { t: 'invite'; kind: 'party' | 'duel'; name: string }
   | { t: 'invite_reply'; id: string; accept: boolean }
   | { t: 'party_leave' }
+  /** Pick which side you play on in a party match. */
+  | { t: 'party_side'; side: 0 | 1 }
   /** Party members other than the leader: mark yourself ready (with your current class and build) or not. */
   | { t: 'ready'; on: boolean; name: string; classId: ClassId; build?: Build; profile?: string }
   | { t: 'party_kick'; name: string }
@@ -138,7 +141,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
   if (!m || typeof m !== 'object') return null;
   switch (m.t) {
     case 'join':
-      if (typeof m.name !== 'string' || typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId) || (m.mode !== 'practice' && m.mode !== 'queue' && m.mode !== 'duel')) return null;
+      if (typeof m.name !== 'string' || typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId) || (m.mode !== 'practice' && m.mode !== 'queue' && m.mode !== 'duel' && m.mode !== 'party')) return null;
     {
       const validClass = (c: unknown): c is ClassId => typeof c === 'string' && Object.hasOwn(CLASSES, c);
       const foes = Array.isArray(m.foes) ? (m.foes.filter(validClass).slice(0, 3) as ClassId[]) : undefined;
@@ -236,6 +239,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'invite_reply', id: m.id, accept: m.accept === true };
     case 'party_leave':
       return { t: 'party_leave' };
+    case 'party_side':
+      return { t: 'party_side', side: m.side === 1 ? 1 : 0 };
     case 'party_kick':
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       return { t: 'party_kick', name: m.name };

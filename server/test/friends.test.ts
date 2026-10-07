@@ -172,6 +172,38 @@ describe('party play', () => {
     assert.equal(last(us[0].s, 'party')!.party!.members.every((m) => m.name === 'Ann' || !m.ready), true, 'ready marks cleared');
   });
 
+  it('a party match puts all three friends in a 2v2 on the sides they picked, with a bot filling the gap', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
+    for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: i === 1 ? 'priest' : 'rogue' });
+    const sides = last(us[0].s, 'party')!.party!.members.map((m) => m.side);
+    assert.deepEqual(sides, [0, 1, 0], 'sides start balanced');
+    lobby.handle(us[2].p, { t: 'party_side', side: 1 });
+    await until(() => last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Cy_')!.side === 1);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'party', size: 2 });
+    const room = us[0].p.room!;
+    assert.ok(room && us[1].p.room === room && us[2].p.room === room, 'everyone is in the match');
+    const sim = room.sim;
+    const team = (u: { p: Player }) => sim.units.get(u.p.unitId!)!.team;
+    assert.equal(team(us[0]), 0);
+    assert.equal(team(us[1]), 1);
+    assert.equal(team(us[2]), 1);
+    const units = [...sim.units.values()];
+    assert.equal(units.length, 4, 'three friends plus one bot');
+    assert.equal(units.filter((u) => u.team === 0).length, 2);
+    assert.equal(units.filter((u) => u.team === 1).length, 2);
+  });
+
+  it('three friends on one side make the party match bigger instead of leaving anyone out', async () => {
+    const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
+    for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: 'mage' });
+    for (const i of [0, 1, 2]) lobby.handle(us[i].p, { t: 'party_side', side: 0 });
+    await until(() => last(us[0].s, 'party')!.party!.members.every((m) => m.side === 0));
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'party', size: 2 });
+    const room = us[0].p.room!;
+    assert.ok(room && us[1].p.room === room && us[2].p.room === room);
+    assert.equal(room.sim.units.size, 6, 'a 3v3 with three bots on the other side');
+  });
+
   it('two friends who queue a 1v1 get matched with each other', async () => {
     const { lobby, us } = await party(['Ann', 'Bob']);
     lobby.handle(us[1].p, { t: 'ready', on: true, name: 'x', classId: 'rogue' });

@@ -854,7 +854,9 @@ async function play(req: PlayRequest) {
   if (mainMenu.selectedClass === req.classId) myBuild = mainMenu.currentBuild;
   const profile = accountUi.account ? undefined : progress.token || undefined;
   const msg: ClientMsg =
-    req.mode === 'practice'
+    req.mode === 'party'
+      ? { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'party', size: req.size, difficulty: req.difficulty, build: myBuild, profile }
+      : req.mode === 'practice'
       ? { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'practice', size: req.size, foes: req.foes, allies: req.allies, difficulty: req.difficulty, build: myBuild, profile }
       : { t: 'join', name: req.name, classId: req.classId, map: req.map, mode: 'queue', size: req.size, build: myBuild, profile };
   send(msg);
@@ -919,6 +921,7 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
     if (mainMenu.ready) sendReady(true);
   },
   onReady: (on) => sendReady(on),
+  onSide: (side) => send({ t: 'party_side', side }),
   extras: menuExtras,
 });
 const replayParam = new URLSearchParams(location.search).get('replay');
