@@ -488,6 +488,11 @@ export class Effects {
       case 'channel_end':
         this.stopCast(ev.unit);
         break;
+      case 'leap':
+        this.column(ev.fromX, ev.fromZ, 0xc9b99a, 0.5, 0.6, 3);
+        this.column(ev.x, ev.z, 0xffd34a, 0.7, 1, 5);
+        this.ring(ev.x, ev.z, 0xffd34a, 0.4, 3, 0.5, 0.08, 1);
+        break;
       case 'cast_fail':
         this.stopCast(ev.unit);
         break;
@@ -646,6 +651,26 @@ export class Effects {
     };
 
     switch (ability) {
+      case 'slam':
+        melee(0xffaa40, 1.7);
+        if (t) this.ring(t.x, t.z, 0xffaa40, 0.3, 2.2, 0.3);
+        break;
+      case 'deep_cuts':
+        melee(0xc0202a, 1.2);
+        break;
+      case 'axe_throw':
+      case 'reel_in':
+        if (t) {
+          this.onSwing(unit);
+          this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, ability === 'axe_throw' ? 0xd7dbe4 : 0x9aa3b8, 0.25, 0.08);
+          this.burst(t.x, CHEST, t.z, 0xd7dbe4, 8, 4, 0.25, 0.35);
+        }
+        break;
+      case 'slice_and_dice':
+      case 'bladestorm':
+        this.onSwing(unit);
+        this.ring(s.x, s.z, 0xdfe6f2, 0.3, def.radius ?? 6, 0.3, 0.08, 0.9);
+        break;
       case 'frostbolt':
       case 'fireball':
       case 'smite': {
@@ -1109,7 +1134,7 @@ export class Effects {
       const color = SCHOOL_COLOR[z.school] ?? 0xff6a20;
       if (!m) {
         const mk = (geo: THREE.BufferGeometry) => {
-          const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
+          const mat = new THREE.MeshBasicMaterial({ color: z.flag ? 0xffd34a : color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
           const mesh = new THREE.Mesh(geo, mat);
           mesh.rotation.x = -Math.PI / 2;
           mesh.position.set(z.x, 0.06, z.z);

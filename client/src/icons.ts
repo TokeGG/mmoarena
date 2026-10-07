@@ -7,7 +7,8 @@ export const ABILITY_ICON: Record<string, string> = {
   flash_heal: '💚', power_word_shield: '🛡️', smite: '☀️', dispel_magic: '🪄', psychic_scream: '😱',
   stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', backstab: '🔪', kidney_shot: '🥊', kick: '🦶', sprint: '💨',
   recklessness: '😡', execute: '💀', intimidating_shout: '📢', bloodthirst: '💢', whirlwind: '🌪️', enraged_regeneration: '💖',
-  shield_slam: '🔰', concussion_blow: '🔨', shield_wall: '🧱',
+  concussion_blow: '🔨', shield_wall: '🧱',
+  heroic_leap: '🦘', slice_and_dice: '🌀', bladestorm: '🌪️', slam: '🔨', reel_in: '⛓️', deep_cuts: '🩸', axe_throw: '🪓', not_going_anywhere: '🚩',
   ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋', arcane_blast: '🔮', arcane_barrage: '🌟', arcane_missiles: '🌠', arcane_explosion: '💥', evocation: '🧘', dragons_breath: '🐉', arcane_power: '⚡',
   greater_heal: '💗', pain_suppression: '🙏', desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '💀', dispersion: '🌫️',
   mutilate: '🔪', vanish: '🌑', adrenaline_rush: '💉', shadowstep: '👣', evasion: '🌀',
@@ -20,7 +21,7 @@ export const ABILITY_ICON: Record<string, string> = {
 export const AURA_ICON: Record<string, string> = {
   polymorph: '🐑', frost_nova_root: '🧊', frostbolt_slow: '❄️', hamstring_slow: '🩸',
   cheap_shot_stun: '💫', kidney_shot: '💫', psychic_scream: '😱', pw_shield: '🛡️', stealth: '👤', sprint: '💨',
-  recklessness: '😡', shield_wall: '🧱', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
+  recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '🩸', slice_stun: '🌀', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
   pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', 
   power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', arcane_slow: '💥', garrote_bleed: '🩸', mutilate_bleed: '🩸', shatter: '💎', arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥',

@@ -4,17 +4,17 @@
    "id": "arms",
    "name": "Warbringer",
    "role": "Dual wield",
-   "desc": "Twin blades: fast, relentless swings and Mortal Strike. Execute finishes low-health targets, and Hamstring and Intimidating Shout keep them in reach.",
+   "desc": "Twin blades: fast, relentless swings. Cleave sweeps the front, Mortal Strike cashes in all your rage for one huge blow, Execute finishes weak targets and Slice and Dice stuns everything in front of you while it cuts.",
    "icon": "\u2694\ufe0f",
    "bar": [
+    "whirlwind",
     "mortal_strike",
-    "hamstring",
+    "execute",
+    "slice_and_dice",
     "charge",
     "pummel",
-    "execute",
-    "intimidating_shout",
-    "whirlwind",
-    "enraged_regeneration"
+    "hamstring",
+    "heroic_leap"
    ],
    "mods": {
     "damageDone": 1.05
@@ -25,7 +25,7 @@
    },
    "auto": {
     "interval": 1400,
-    "damage": 62,
+    "damage": 60,
     "range": 3
    }
   },
@@ -33,21 +33,29 @@
    "id": "fury",
    "name": "Rampager",
    "role": "Two-handed sword",
-   "desc": "A greatsword: slow, heavy blows and Bloodthirst. Recklessness opens a damage window, and Enraged Regeneration heals you back.",
+   "desc": "A greatsword with long reach: slow, heavy blows. Bloodthirst heals as it hits, Slam spends rage on a big strike, Bladestorm shreds everything near you and Enraged Regeneration cuts damage taken and supercharges Bloodthirst's healing.",
    "icon": "\ud83e\ude93",
    "bar": [
+    "bladestorm",
     "bloodthirst",
-    "whirlwind",
+    "enraged_regeneration",
+    "slam",
     "charge",
     "pummel",
     "hamstring",
-    "recklessness",
-    "intimidating_shout",
-    "enraged_regeneration"
+    "heroic_leap"
    ],
    "mods": {
     "moveSpeed": 1.05,
-    "damageDone": 1.03
+    "damageDone": 1.03,
+    "ability": {
+     "bloodthirst": {
+      "range": 1.5
+     },
+     "slam": {
+      "range": 1.5
+     }
+    }
    },
    "weapon": {
     "id": "twohand",
@@ -55,35 +63,31 @@
    },
    "auto": {
     "interval": 3000,
-    "damage": 165,
-    "range": 3
+    "damage": 85,
+    "range": 4.5
    }
   },
   {
    "id": "protection",
-   "name": "Bulwark",
-   "role": "Polearm / control",
-   "desc": "A halberd: strikes from 5 yards out, plus Concussion Blow and Fortress Stance. Tough and hard to kill, but deals less damage.",
-   "icon": "\ud83d\udee1\ufe0f",
+   "name": "Barbarian",
+   "role": "Control / reach",
+   "desc": "A halberd with axe-head reach (5 yards). Reel In drags enemies to you, Deep Cuts stacks bleeds, Axe Throw hits from 10 yards and the banner traps enemies inside a 5-yard circle.",
+   "icon": "\ud83e\ude93",
    "bar": [
-    "shield_slam",
-    "concussion_blow",
+    "reel_in",
+    "deep_cuts",
+    "axe_throw",
+    "not_going_anywhere",
     "charge",
     "pummel",
-    "shield_wall",
     "hamstring",
-    "whirlwind",
-    "enraged_regeneration"
+    "heroic_leap"
    ],
    "mods": {
-    "maxHealth": 1.15,
-    "damageTaken": 0.92,
-    "damageDone": 0.85,
+    "maxHealth": 1.05,
+    "damageTaken": 0.95,
     "ability": {
-     "shield_slam": {
-      "range": 2
-     },
-     "concussion_blow": {
+     "deep_cuts": {
       "range": 2
      },
      "hamstring": {
@@ -100,7 +104,7 @@
    },
    "auto": {
     "interval": 2400,
-    "damage": 95,
+    "damage": 45,
     "range": 5
    }
   }

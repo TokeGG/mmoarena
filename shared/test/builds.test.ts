@@ -225,7 +225,9 @@ describe('specs and talents in the sim', () => {
 
   it('buff cooldowns apply while active and wear off', () => {
     const sim = live();
-    const war = add(sim, 'warrior', 0, 0, 0, build('fury')); // Rampager still carries Recklessness
+    const war = add(sim, 'warrior', 0, 0, 0, build('fury'));
+    war.bar = [...war.bar.slice(0, 7), 'recklessness'];
+    const abilityBefore = JSON.stringify(war.mods.ability);
     add(sim, 'mage', 1, 25, 0);
     advance(sim, TICK);
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
@@ -236,7 +238,7 @@ describe('specs and talents in the sim', () => {
     advance(sim, AURAS.recklessness.duration + TICK * 2);
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
     // base mods must never be mutated by buffs
-    assert.ok(Object.keys(war.mods.ability).length === 0);
+    assert.equal(JSON.stringify(war.mods.ability), abilityBefore);
     assert.deepEqual(withAuraMods(war.mods, ['shield_wall', 'dispersion']).damageTaken, 0.6 * 0.1);
     assert.equal(war.mods.damageTaken, 1);
   });
@@ -244,6 +246,7 @@ describe('specs and talents in the sim', () => {
   it('defensive cooldown cuts damage and rogue vanish works in combat', () => {
     const sim = live(9);
     const war = add(sim, 'warrior', 0, 0, 0, build('protection'));
+    war.bar = [...war.bar.slice(0, 7), 'shield_wall'];
     const rogue = add(sim, 'rogue', 1, 2, 0, build('assassination'));
     advance(sim, TICK);
     rogue.lastCombatAt = sim.time;
@@ -638,3 +641,130 @@ describe('Shadowstep turns you round', () => {
     assert.ok(Math.abs(Math.sin(turn!.facing) + 1) < 0.2, 'now facing back towards -x, at the target');
   });
 });
+
+describe('warrior rework', () => {
+  const war = (spec: string, x = 2) => {
+    const sim = live(3);
+    const w = add(sim, 'warrior', 0, 0, 0, build(spec));
+    const f = add(sim, 'priest', 1, x, 0);
+    w.resource = 100;
+    advance(sim, TICK);
+    return { sim, w, f };
+  };
+  it('every spec shares Charge, Pummel, Hamstring and Heroic Leap, and has its own four', () => {
+    for (const sp of SPECS.warrior) for (const a of ['charge', 'pummel', 'hamstring', 'heroic_leap']) assert.ok(sp.bar.includes(a), `${sp.id} ${a}`);
+    const own = (id: string) => SPECS.warrior.find((s) => s.id === id)!.bar.filter((a) => !['charge', 'pummel', 'hamstring', 'heroic_leap'].includes(a)).sort();
+    assert.deepEqual(own('arms'), ['execute', 'mortal_strike', 'slice_and_dice', 'whirlwind']);
+    assert.deepEqual(own('fury'), ['bladestorm', 'bloodthirst', 'enraged_regeneration', 'slam']);
+    assert.deepEqual(own('protection'), ['axe_throw', 'deep_cuts', 'not_going_anywhere', 'reel_in']);
+    assert.equal(ABILITIES.whirlwind.name, 'Cleave');
+    assert.equal(SPECS.warrior.find((s) => s.id === 'protection')!.name, 'Barbarian');
+  });
+  it('the two-hander reaches further than a sword', () => {
+    assert.ok(autoForTest('warrior', 'fury').range > autoForTest('warrior', 'arms').range);
+    const { sim, w, f } = war('fury', 4.2);
+    assert.ok(sim.useAbility(w.id, 'slam', f.id).ok, 'Slam from 4.2 yards');
+  });
+  it('Hamstring slows but does no damage; Heroic Leap jumps to the spot on a 60 s cooldown', () => {
+    const { sim, w, f } = war('arms');
+    assert.ok(!ABILITIES.hamstring.effects.some((e) => e.type === 'damage'), 'no damage effect');
+    assert.ok(sim.useAbility(w.id, 'hamstring', f.id).ok);
+    advance(sim, TICK);
+    assert.ok(f.auras.some((a) => a.id === 'hamstring_slow'));
+    assert.ok(sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 20 }).ok);
+    assert.ok(Math.abs(w.pos.z - 20) < 1, `landed at ${w.pos.z}`);
+    advance(sim, TICK);
+    assert.ok(!sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 5 }).ok);
+    assert.equal(ABILITIES.heroic_leap.cooldown, 60000);
+  });
+  it('Mortal Strike spends all rage and hits harder the more you had', () => {
+    const hit = (rage: number) => {
+      const { sim, w, f } = war('arms');
+      w.resource = rage;
+      const hp = f.health;
+      assert.ok(sim.useAbility(w.id, 'mortal_strike', f.id).ok);
+      advance(sim, TICK);
+      return hp - f.health;
+    };
+    const lo = hit(30), hi = hit(100);
+    assert.ok(hi > lo * 1.8, `${hi} vs ${lo}`);
+    const { sim, w, f } = war('arms');
+    w.resource = 20;
+    assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs 30 rage');
+    w.resource = 80;
+    sim.useAbility(w.id, 'mortal_strike', f.id);
+    advance(sim, TICK);
+    assert.ok(w.resource < 80, `rage left ${w.resource}`);
+  });
+  it('Slice and Dice stuns and cuts everything in the cone over 4 seconds, and nothing behind', () => {
+    const { sim, w, f } = war('arms', 3);
+    const behind = add(sim, 'mage', 1, 0, -3);
+    w.facing = Math.atan2(0, 1); w.lastInput = { ...w.lastInput, facing: w.facing };
+    f.pos = { x: 0, z: 3 };
+    const hp = f.health, hb = behind.health;
+    assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
+    advance(sim, 1200);
+    assert.ok(f.auras.some((a) => a.id === 'slice_stun'), 'stunned');
+    advance(sim, 4000);
+    assert.ok(hp - f.health > 200, `dealt ${hp - f.health}`);
+    assert.equal(behind.health, hb, 'untouched behind');
+  });
+  it('Bladestorm hits everything near you and can move while it spins', () => {
+    const { sim, w, f } = war('fury', 3);
+    const hp = f.health;
+    assert.ok(sim.useAbility(w.id, 'bladestorm').ok);
+    for (let i = 0; i < 5; i++) { sim.queueInput(w.id, { seq: i + 1, fwd: 0, strafe: 1, facing: w.facing }); advance(sim, TICK); }
+    assert.ok(w.cast, 'still channelling while moving');
+    advance(sim, 4500);
+    assert.ok(hp - f.health > 150, `dealt ${hp - f.health}`);
+  });
+  it('Bloodthirst heals 3% and builds rage; Enraged Regeneration cuts damage by 30% and lifts the heal to 23%', () => {
+    const { sim, w, f } = war('fury');
+    w.health = Math.round(w.maxHealth * 0.5);
+    const before = w.health;
+    w.resource = 40;
+    sim.useAbility(w.id, 'bloodthirst', f.id);
+    advance(sim, TICK);
+    assert.ok(Math.abs(w.health - before - Math.round(w.maxHealth * 0.03)) <= 2, `healed ${w.health - before}`);
+    assert.ok(w.resource > 40 - 20, 'rage generated');
+    assert.equal(ABILITIES.bloodthirst.cooldown, 4500);
+    advance(sim, 5000);
+    assert.ok(sim.useAbility(w.id, 'enraged_regeneration').ok);
+    assert.ok(Math.abs(sim.modsOf(w).damageTaken - w.mods.damageTaken * 0.7) < 1e-9);
+    const h2 = w.health;
+    sim.useAbility(w.id, 'bloodthirst', f.id);
+    advance(sim, TICK);
+    assert.ok(Math.abs(w.health - h2 - Math.round(w.maxHealth * 0.23)) <= 2, `healed ${w.health - h2}`);
+  });
+  it('Deep Cuts stacks its bleed up to three times; Axe Throw reaches 10 yards and costs rage', () => {
+    const { sim, w, f } = war('protection');
+    for (let i = 0; i < 5; i++) { w.resource = 100; sim.useAbility(w.id, 'deep_cuts', f.id); advance(sim, 1600); }
+    const cuts = f.auras.find((a) => a.id === 'deep_cuts_bleed');
+    assert.equal(cuts?.stacks, 3);
+    const t1 = war('protection', 9.5);
+    assert.ok(t1.sim.useAbility(t1.w.id, 'axe_throw', t1.f.id).ok, 'Axe Throw at 9.5 yards');
+    assert.ok(ABILITIES.axe_throw.cost > 0);
+    const t2 = war('protection', 12);
+    assert.ok(!t2.sim.useAbility(t2.w.id, 'axe_throw', t2.f.id).ok);
+  });
+  it('Reel In drags the target in front of you', () => {
+    const { sim, w, f } = war('protection', 12);
+    assert.ok(sim.useAbility(w.id, 'reel_in', f.id).ok);
+    advance(sim, TICK);
+    assert.ok(Math.hypot(f.pos.x - w.pos.x, f.pos.z - w.pos.z) < 3);
+  });
+  it('the banner traps enemies inside its circle and lets nobody out', () => {
+    const { sim, w, f } = war('protection', 10);
+    f.pos = { x: 10, z: 0 };
+    assert.ok(sim.useAbility(w.id, 'not_going_anywhere', null, { x: 10, z: 0 }).ok);
+    advance(sim, TICK * 2);
+    // run for it
+    for (let i = 0; i < 60; i++) { sim.queueInput(f.id, { seq: i + 1, fwd: 1, strafe: 0, facing: Math.PI / 2 }); advance(sim, TICK); }
+    assert.ok(Math.hypot(f.pos.x - 10, f.pos.z - 0) <= 5.05, `escaped to ${f.pos.x},${f.pos.z}`);
+    advance(sim, 9000);
+    for (let i = 0; i < 40; i++) { sim.queueInput(f.id, { seq: 100 + i, fwd: 1, strafe: 0, facing: Math.PI / 2 }); advance(sim, TICK); }
+    assert.ok(f.pos.x > 16, 'free once the banner is gone');
+  });
+});
+
+import { autoFor as autoForTest } from '../src/index';

@@ -4,25 +4,56 @@
    [
     {
      "id": "warrior_t1a",
-     "name": "Hunter's Reach",
-     "desc": "Charge recharges 20% sooner and its stun lasts 20% longer; Hamstring's slow lasts 30% longer.",
-     "icon": "\ud83c\udff9",
+     "name": "Leaping Strides",
+     "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
+     "icon": "\ud83e\udd98",
      "mods": {
       "ability": {
+       "heroic_leap": {
+        "cooldown": 0.75
+       },
        "charge": {
-        "cooldown": 0.8
+        "cooldown": 0.85
        }
-      },
-      "auraDuration": {
-       "charge_stun": 1.2,
-       "hamstring_slow": 1.3
       }
      }
     },
     {
      "id": "warrior_t1b",
-     "name": "Whirling Fury",
-     "desc": "Whirlwind deals 20% more damage and recharges 15% sooner.",
+     "name": "Crippling Technique",
+     "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
+     "icon": "\ud83e\uddb5",
+     "mods": {
+      "auraDuration": {
+       "hamstring_slow": 1.4
+      },
+      "ability": {
+       "pummel": {
+        "cooldown": 0.8
+       }
+      }
+     }
+    },
+    {
+     "id": "warrior_t1c",
+     "name": "Battle Rush",
+     "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+     "icon": "\ud83d\udc17",
+     "mods": {
+      "ability": {
+       "charge": {
+        "range": 5,
+        "cooldown": 0.8
+       }
+      }
+     }
+    }
+   ],
+   [
+    {
+     "id": "warrior_arms_t2a",
+     "name": "Brutal Cleave",
+     "desc": "Cleave deals 20% more damage and recharges 15% faster.",
      "icon": "\ud83c\udf2a\ufe0f",
      "mods": {
       "ability": {
@@ -34,28 +65,35 @@
      }
     },
     {
-     "id": "warrior_t1c",
-     "name": "Hardened Veteran",
-     "desc": "Pummel recharges 20% sooner and Enraged Regeneration recharges 20% sooner and heals 15% more.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "id": "warrior_arms_t2b",
+     "name": "Rending Strike",
+     "desc": "Mortal Strike deals 15% more damage and recharges 15% faster.",
+     "icon": "\u2694\ufe0f",
      "mods": {
       "ability": {
-       "pummel": {
-        "cooldown": 0.8
-       },
-       "enraged_regeneration": {
-        "cooldown": 0.8,
-        "heal": 1.15
+       "mortal_strike": {
+        "damage": 1.15,
+        "cooldown": 0.85
        }
       }
+     }
+    },
+    {
+     "id": "warrior_arms_t2c",
+     "name": "Tempered Steel",
+     "desc": "You take 5% less damage and have 5% more maximum health.",
+     "icon": "\ud83d\udee1\ufe0f",
+     "mods": {
+      "damageTaken": 0.95,
+      "maxHealth": 1.05
      }
     }
    ],
    [
     {
-     "id": "warrior_arms_t2a",
-     "name": "Merciless Finisher",
-     "desc": "Execute deals 25% more damage and has a 20% shorter cooldown.",
+     "id": "warrior_arms_t3a",
+     "name": "Executioner",
+     "desc": "Execute deals 25% more damage and recharges 20% faster.",
      "icon": "\ud83d\udc80",
      "mods": {
       "ability": {
@@ -67,13 +105,13 @@
      }
     },
     {
-     "id": "warrior_arms_t2b",
-     "name": "Spiral of Steel",
-     "desc": "Whirlwind deals 25% more damage and has a 15% shorter cooldown.",
+     "id": "warrior_arms_t3b",
+     "name": "Whirling Edges",
+     "desc": "Slice and Dice deals 25% more damage and recharges 15% faster.",
      "icon": "\ud83c\udf00",
      "mods": {
       "ability": {
-       "whirlwind": {
+       "slice_and_dice": {
         "damage": 1.25,
         "cooldown": 0.85
        }
@@ -81,172 +119,118 @@
      }
     },
     {
-     "id": "warrior_arms_t2c",
-     "name": "Second Wind",
-     "desc": "Enraged Regeneration heals 20% more and has a 20% shorter cooldown.",
-     "icon": "\ud83d\udc9a",
-     "mods": {
-      "ability": {
-       "enraged_regeneration": {
-        "heal": 1.2,
-        "cooldown": 0.8
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_arms_t3a",
-     "name": "Crippling Grip",
-     "desc": "Hamstring slows last 40% longer and Hamstring deals 15% more damage.",
-     "icon": "\ud83e\uddb5",
-     "mods": {
-      "auraDuration": {
-       "hamstring_slow": 1.4
-      },
-      "ability": {
-       "hamstring": {
-        "damage": 1.15
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_arms_t3b",
-     "name": "Shield Breaker",
-     "desc": "Pummel has a 20% shorter cooldown and Charge has a 15% shorter cooldown.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "ability": {
-       "pummel": {
-        "cooldown": 0.8
-       },
-       "charge": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
      "id": "warrior_arms_t3c",
-     "name": "Dread Presence",
-     "desc": "Intimidating Shout lasts 30% longer and has a 20% shorter cooldown.",
-     "icon": "\ud83d\ude31",
+     "name": "Battle Trance",
+     "desc": "All damage is increased by 4% and maximum health by 4%.",
+     "icon": "\ud83d\udd25",
      "mods": {
-      "auraDuration": {
-       "intimidating_shout": 1.3
-      },
-      "ability": {
-       "intimidating_shout": {
-        "cooldown": 0.8
-       }
-      }
+      "damageDone": 1.04,
+      "maxHealth": 1.04
      }
     }
    ],
    [
     {
      "id": "warrior_arms_t4a",
-     "name": "Heavy Hand",
-     "desc": "Replaces Whirlwind with Bloodthirst: a fast strike that builds rage and adds quick pressure between your twin-blade flurries.",
-     "icon": "\ud83e\ude78",
+     "name": "Disrupting Cry",
+     "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
+     "icon": "\ud83e\ude9d",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "bloodthirst"
+      "from": "pummel",
+      "to": "harpoon_throw"
      }
     },
     {
      "id": "warrior_arms_t4b",
-     "name": "Bulwark Strike",
-     "desc": "Replaces Whirlwind with Halberd Slam: a solid hit that trades area damage for a reliable single-target strike.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "name": "Storm Bolt",
+     "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+     "icon": "\ud83d\udd28",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "shield_slam"
+      "from": "pummel",
+      "to": "hammer_toss"
      }
     },
     {
      "id": "warrior_arms_t4c",
-     "name": "Ground Tremor",
-     "desc": "Replaces Whirlwind with Shockwave: a burst of damage that stuns nearby enemies to set up Mortal Strike.",
-     "icon": "\ud83d\udca5",
+     "name": "Skull Bash",
+     "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
+     "icon": "\ud83d\udcab",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "shockwave"
+      "from": "pummel",
+      "to": "concussion_blow"
      }
     }
    ],
    [
     {
      "id": "warrior_arms_t5a",
-     "name": "Banshee Howl",
-     "desc": "Replaces Intimidating Shout with Piercing Howl: slows enemies in range so you can keep them in Mortal Strike reach.",
-     "icon": "\ud83d\udce3",
+     "name": "Ground Slam",
+     "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
+     "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
-      "from": "intimidating_shout",
-      "to": "piercing_howl"
+      "from": "charge",
+      "to": "shockwave"
      }
     },
     {
      "id": "warrior_arms_t5b",
-     "name": "Skull Cracker",
-     "desc": "Replaces Intimidating Shout with Concussion Blow: a single-target stun to lock down a healer and land a burst window.",
-     "icon": "\ud83d\udcab",
+     "name": "Terrifying Roar",
+     "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
+     "icon": "\ud83d\udce2",
      "mods": {},
      "swap": {
-      "from": "intimidating_shout",
-      "to": "concussion_blow"
+      "from": "charge",
+      "to": "intimidating_shout"
      }
     },
     {
      "id": "warrior_arms_t5c",
-     "name": "Thunder Hammer",
-     "desc": "Replaces Intimidating Shout with Hammer Toss: a ranged stun that catches kiting targets.",
-     "icon": "\ud83d\udd31",
+     "name": "Banshee Howl",
+     "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
+     "icon": "\ud83d\udce3",
      "mods": {},
      "swap": {
-      "from": "intimidating_shout",
-      "to": "hammer_toss"
+      "from": "charge",
+      "to": "piercing_howl"
      }
     }
    ],
    [
     {
      "id": "warrior_arms_t6a",
-     "name": "Parry Master",
-     "desc": "Replaces Enraged Regeneration with Die by the Sword: trade the heal for a defensive window during your burst.",
-     "icon": "\u2694\ufe0f",
+     "name": "Reckless Abandon",
+     "desc": "Replaces Execute with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+     "icon": "\ud83d\ude21",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "die_by_the_sword"
+      "from": "execute",
+      "to": "recklessness"
      }
     },
     {
      "id": "warrior_arms_t6b",
-     "name": "Last Bastion",
-     "desc": "Replaces Enraged Regeneration with Fortress Stance: heavy damage reduction instead of healing when focused.",
-     "icon": "\ud83c\udff0",
+     "name": "Stand Against Steel",
+     "desc": "Replaces Execute with Die by the Sword, a long defensive.",
+     "icon": "\ud83d\udde1\ufe0f",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "shield_wall"
+      "from": "execute",
+      "to": "die_by_the_sword"
      }
     },
     {
      "id": "warrior_arms_t6c",
-     "name": "Harpoon Hunter",
-     "desc": "Replaces Enraged Regeneration with Harpoon Throw: a ranged interrupt that adds to your control and pressure.",
-     "icon": "\ud83e\ude9d",
+     "name": "Fortress Stance",
+     "desc": "Replaces Execute with Fortress Stance: 40% less damage taken for 8 seconds.",
+     "icon": "\ud83e\uddf1",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "harpoon_throw"
+      "from": "execute",
+      "to": "shield_wall"
      }
     }
    ]
@@ -255,48 +239,46 @@
    [
     {
      "id": "warrior_t1a",
-     "name": "Hunter's Reach",
-     "desc": "Charge recharges 20% sooner and its stun lasts 20% longer; Hamstring's slow lasts 30% longer.",
-     "icon": "\ud83c\udff9",
+     "name": "Leaping Strides",
+     "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
+     "icon": "\ud83e\udd98",
      "mods": {
       "ability": {
+       "heroic_leap": {
+        "cooldown": 0.75
+       },
        "charge": {
-        "cooldown": 0.8
-       }
-      },
-      "auraDuration": {
-       "charge_stun": 1.2,
-       "hamstring_slow": 1.3
-      }
-     }
-    },
-    {
-     "id": "warrior_t1b",
-     "name": "Whirling Fury",
-     "desc": "Whirlwind deals 20% more damage and recharges 15% sooner.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {
-      "ability": {
-       "whirlwind": {
-        "damage": 1.2,
         "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "warrior_t1c",
-     "name": "Hardened Veteran",
-     "desc": "Pummel recharges 20% sooner and Enraged Regeneration recharges 20% sooner and heals 15% more.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "id": "warrior_t1b",
+     "name": "Crippling Technique",
+     "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
+     "icon": "\ud83e\uddb5",
      "mods": {
+      "auraDuration": {
+       "hamstring_slow": 1.4
+      },
       "ability": {
        "pummel": {
         "cooldown": 0.8
-       },
-       "enraged_regeneration": {
-        "cooldown": 0.8,
-        "heal": 1.15
+       }
+      }
+     }
+    },
+    {
+     "id": "warrior_t1c",
+     "name": "Battle Rush",
+     "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+     "icon": "\ud83d\udc17",
+     "mods": {
+      "ability": {
+       "charge": {
+        "range": 5,
+        "cooldown": 0.8
        }
       }
      }
@@ -305,15 +287,13 @@
    [
     {
      "id": "warrior_fury_t2a",
-     "name": "Reckless Abandon",
-     "desc": "Recklessness lasts 30% longer and has a 15% shorter cooldown.",
-     "icon": "\ud83d\udd25",
+     "name": "Storm Mastery",
+     "desc": "Bladestorm deals 20% more damage and recharges 15% faster.",
+     "icon": "\ud83c\udf2a\ufe0f",
      "mods": {
-      "auraDuration": {
-       "recklessness": 1.3
-      },
       "ability": {
-       "recklessness": {
+       "bladestorm": {
+        "damage": 1.2,
         "cooldown": 0.85
        }
       }
@@ -321,176 +301,170 @@
     },
     {
      "id": "warrior_fury_t2b",
-     "name": "Cyclone Fury",
-     "desc": "Whirlwind deals 25% more damage and has a 15% shorter cooldown.",
-     "icon": "\ud83c\udf00",
+     "name": "Bloodlust",
+     "desc": "Bloodthirst deals 15% more damage and recharges 10% faster.",
+     "icon": "\ud83d\udca2",
      "mods": {
       "ability": {
-       "whirlwind": {
-        "damage": 1.25,
-        "cooldown": 0.85
+       "bloodthirst": {
+        "damage": 1.15,
+        "cooldown": 0.9
        }
       }
      }
     },
     {
      "id": "warrior_fury_t2c",
-     "name": "Berserker Rage",
-     "desc": "Enraged Regeneration heals 20% more and has a 20% shorter cooldown.",
-     "icon": "\ud83d\udc9a",
+     "name": "Thick Hide",
+     "desc": "You take 5% less damage and have 5% more maximum health.",
+     "icon": "\ud83d\udee1\ufe0f",
      "mods": {
-      "ability": {
-       "enraged_regeneration": {
-        "heal": 1.2,
-        "cooldown": 0.8
-       }
-      }
+      "damageTaken": 0.95,
+      "maxHealth": 1.05
      }
     }
    ],
    [
     {
      "id": "warrior_fury_t3a",
-     "name": "Wild Charge",
-     "desc": "Charge has a 20% shorter cooldown and 4 more yards of range.",
-     "icon": "\ud83d\udc17",
+     "name": "Heavy Slam",
+     "desc": "Slam deals 25% more damage and costs 15% less rage.",
+     "icon": "\ud83d\udd28",
      "mods": {
       "ability": {
-       "charge": {
-        "cooldown": 0.8,
-        "range": 4
+       "slam": {
+        "damage": 1.25,
+        "cost": 0.85
        }
       }
      }
     },
     {
      "id": "warrior_fury_t3b",
-     "name": "Fleet of Foot",
-     "desc": "You move 8% faster.",
-     "icon": "\ud83d\udc5f",
+     "name": "Second Wind",
+     "desc": "Enraged Regeneration recharges 20% faster and you take 4% less damage.",
+     "icon": "\ud83d\udc96",
      "mods": {
-      "moveSpeed": 1.08
+      "damageTaken": 0.96,
+      "ability": {
+       "enraged_regeneration": {
+        "cooldown": 0.8
+       }
+      }
      }
     },
     {
      "id": "warrior_fury_t3c",
-     "name": "Dread Roar",
-     "desc": "Intimidating Shout lasts 30% longer and has a 20% shorter cooldown.",
-     "icon": "\ud83d\ude31",
+     "name": "Overwhelming Power",
+     "desc": "All damage is increased by 5%.",
+     "icon": "\ud83d\udcaa",
      "mods": {
-      "auraDuration": {
-       "intimidating_shout": 1.3
-      },
-      "ability": {
-       "intimidating_shout": {
-        "cooldown": 0.8
-       }
-      }
+      "damageDone": 1.05
      }
     }
    ],
    [
     {
      "id": "warrior_fury_t4a",
-     "name": "Twin Strikes",
-     "desc": "Replaces Whirlwind with Mortal Strike: one heavy overhand blow that trades your sweeping strikes for burst.",
-     "icon": "\ud83d\udde1\ufe0f",
+     "name": "Disrupting Cry",
+     "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
+     "icon": "\ud83e\ude9d",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "mortal_strike"
+      "from": "pummel",
+      "to": "harpoon_throw"
      }
     },
     {
      "id": "warrior_fury_t4b",
-     "name": "Bulwark Blow",
-     "desc": "Replaces Whirlwind with Halberd Slam: a dependable strike that gives up area damage for steadier hits.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "name": "Storm Bolt",
+     "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+     "icon": "\ud83d\udd28",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "shield_slam"
+      "from": "pummel",
+      "to": "hammer_toss"
      }
     },
     {
      "id": "warrior_fury_t4c",
-     "name": "Quake Rush",
-     "desc": "Replaces Whirlwind with Shockwave: a stun that gives you a safe window to chain Bloodthirst.",
-     "icon": "\ud83d\udca5",
+     "name": "Skull Bash",
+     "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
+     "icon": "\ud83d\udcab",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "shockwave"
+      "from": "pummel",
+      "to": "concussion_blow"
      }
     }
    ],
    [
     {
      "id": "warrior_fury_t5a",
-     "name": "Wailing Chase",
-     "desc": "Replaces Hamstring with Piercing Howl: slows everyone around you, keeping your targets in reach.",
-     "icon": "\ud83d\udce3",
+     "name": "Ground Slam",
+     "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
+     "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
-      "from": "hamstring",
-      "to": "piercing_howl"
+      "from": "charge",
+      "to": "shockwave"
      }
     },
     {
      "id": "warrior_fury_t5b",
-     "name": "Skull Bash",
-     "desc": "Replaces Hamstring with Concussion Blow: a hard stun to stop a target and start a Bloodthirst chain.",
-     "icon": "\ud83d\udcab",
+     "name": "Terrifying Roar",
+     "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
+     "icon": "\ud83d\udce2",
      "mods": {},
      "swap": {
-      "from": "hamstring",
-      "to": "concussion_blow"
+      "from": "charge",
+      "to": "intimidating_shout"
      }
     },
     {
      "id": "warrior_fury_t5c",
-     "name": "Hammer Throw",
-     "desc": "Replaces Hamstring with Hammer Toss: a ranged stun that catches targets running away.",
-     "icon": "\ud83d\udd31",
+     "name": "Banshee Howl",
+     "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
+     "icon": "\ud83d\udce3",
      "mods": {},
      "swap": {
-      "from": "hamstring",
-      "to": "hammer_toss"
+      "from": "charge",
+      "to": "piercing_howl"
      }
     }
    ],
    [
     {
      "id": "warrior_fury_t6a",
-     "name": "Blade Ward",
-     "desc": "Replaces Enraged Regeneration with Die by the Sword: a defensive window in place of healing.",
-     "icon": "\u2694\ufe0f",
+     "name": "Reckless Abandon",
+     "desc": "Replaces Slam with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+     "icon": "\ud83d\ude21",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "die_by_the_sword"
+      "from": "slam",
+      "to": "recklessness"
      }
     },
     {
      "id": "warrior_fury_t6b",
-     "name": "Iron Wall",
-     "desc": "Replaces Enraged Regeneration with Fortress Stance: heavy damage reduction instead of self-healing.",
-     "icon": "\ud83c\udff0",
+     "name": "Stand Against Steel",
+     "desc": "Replaces Slam with Die by the Sword, a long defensive.",
+     "icon": "\ud83d\udde1\ufe0f",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "shield_wall"
+      "from": "slam",
+      "to": "die_by_the_sword"
      }
     },
     {
      "id": "warrior_fury_t6c",
-     "name": "Harpoon Rush",
-     "desc": "Replaces Enraged Regeneration with Harpoon Throw: a ranged interrupt to match your mobility.",
-     "icon": "\ud83e\ude9d",
+     "name": "Fortress Stance",
+     "desc": "Replaces Slam with Fortress Stance: 40% less damage taken for 8 seconds.",
+     "icon": "\ud83e\uddf1",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "harpoon_throw"
+      "from": "slam",
+      "to": "shield_wall"
      }
     }
    ]
@@ -499,48 +473,46 @@
    [
     {
      "id": "warrior_t1a",
-     "name": "Hunter's Reach",
-     "desc": "Charge recharges 20% sooner and its stun lasts 20% longer; Hamstring's slow lasts 30% longer.",
-     "icon": "\ud83c\udff9",
+     "name": "Leaping Strides",
+     "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
+     "icon": "\ud83e\udd98",
      "mods": {
       "ability": {
+       "heroic_leap": {
+        "cooldown": 0.75
+       },
        "charge": {
-        "cooldown": 0.8
-       }
-      },
-      "auraDuration": {
-       "charge_stun": 1.2,
-       "hamstring_slow": 1.3
-      }
-     }
-    },
-    {
-     "id": "warrior_t1b",
-     "name": "Whirling Fury",
-     "desc": "Whirlwind deals 20% more damage and recharges 15% sooner.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {
-      "ability": {
-       "whirlwind": {
-        "damage": 1.2,
         "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "warrior_t1c",
-     "name": "Hardened Veteran",
-     "desc": "Pummel recharges 20% sooner and Enraged Regeneration recharges 20% sooner and heals 15% more.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "id": "warrior_t1b",
+     "name": "Crippling Technique",
+     "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
+     "icon": "\ud83e\uddb5",
      "mods": {
+      "auraDuration": {
+       "hamstring_slow": 1.4
+      },
       "ability": {
        "pummel": {
         "cooldown": 0.8
-       },
-       "enraged_regeneration": {
-        "cooldown": 0.8,
-        "heal": 1.15
+       }
+      }
+     }
+    },
+    {
+     "id": "warrior_t1c",
+     "name": "Battle Rush",
+     "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+     "icon": "\ud83d\udc17",
+     "mods": {
+      "ability": {
+       "charge": {
+        "range": 5,
+        "cooldown": 0.8
        }
       }
      }
@@ -549,197 +521,184 @@
    [
     {
      "id": "warrior_protection_t2a",
-     "name": "Unbreakable Wall",
-     "desc": "Fortress Stance lasts 25% longer and has a 15% shorter cooldown.",
-     "icon": "\ud83c\udff0",
+     "name": "Long Chain",
+     "desc": "Reel In reaches 4 yards further and recharges 20% faster.",
+     "icon": "\u26d3\ufe0f",
      "mods": {
-      "auraDuration": {
-       "shield_wall": 1.25
-      },
       "ability": {
-       "shield_wall": {
-        "cooldown": 0.85
+       "reel_in": {
+        "range": 4,
+        "cooldown": 0.8
        }
       }
      }
     },
     {
      "id": "warrior_protection_t2b",
-     "name": "Thick Hide",
-     "desc": "You take 6% less damage and have 6% more health.",
-     "icon": "\ud83e\udd8f",
+     "name": "Open Wounds",
+     "desc": "Deep Cuts deals 20% more damage.",
+     "icon": "\ud83e\ude78",
      "mods": {
-      "damageTaken": 0.94,
-      "maxHealth": 1.06
+      "ability": {
+       "deep_cuts": {
+        "damage": 1.2
+       }
+      }
      }
     },
     {
      "id": "warrior_protection_t2c",
-     "name": "Battle Recovery",
-     "desc": "Enraged Regeneration heals 25% more and has a 20% shorter cooldown.",
-     "icon": "\ud83d\udc9a",
+     "name": "Thick Hide",
+     "desc": "You take 5% less damage and have 5% more maximum health.",
+     "icon": "\ud83d\udee1\ufe0f",
      "mods": {
-      "ability": {
-       "enraged_regeneration": {
-        "heal": 1.25,
-        "cooldown": 0.8
-       }
-      }
+      "damageTaken": 0.95,
+      "maxHealth": 1.05
      }
     }
    ],
    [
     {
      "id": "warrior_protection_t3a",
-     "name": "Stunning Impact",
-     "desc": "Concussion Blow stun lasts 30% longer and has a 20% shorter cooldown.",
-     "icon": "\ud83d\udcab",
+     "name": "Sharpened Axes",
+     "desc": "Axe Throw deals 25% more damage and reaches 3 yards further.",
+     "icon": "\ud83e\ude93",
      "mods": {
-      "auraDuration": {
-       "concussion_stun": 1.3
-      },
       "ability": {
-       "concussion_blow": {
-        "cooldown": 0.8
+       "axe_throw": {
+        "damage": 1.25,
+        "range": 3
        }
       }
      }
     },
     {
      "id": "warrior_protection_t3b",
-     "name": "Rapid Intercept",
-     "desc": "Charge has a 20% shorter cooldown, Pummel a 20% shorter cooldown.",
-     "icon": "\ud83d\udc17",
+     "name": "Iron Banner",
+     "desc": "The banner recharges 20% faster and reaches 3 yards further.",
+     "icon": "\ud83d\udea9",
      "mods": {
       "ability": {
-       "charge": {
-        "cooldown": 0.8
-       },
-       "pummel": {
-        "cooldown": 0.8
+       "not_going_anywhere": {
+        "cooldown": 0.8,
+        "range": 3
        }
       }
      }
     },
     {
      "id": "warrior_protection_t3c",
-     "name": "Binding Chains",
-     "desc": "Hamstring slows last 40% longer and Hamstring deals 20% more damage.",
-     "icon": "\u26d3\ufe0f",
+     "name": "Brute",
+     "desc": "All damage is increased by 3% and maximum health by 7%.",
+     "icon": "\ud83e\udd8d",
      "mods": {
-      "auraDuration": {
-       "hamstring_slow": 1.4
-      },
-      "ability": {
-       "hamstring": {
-        "damage": 1.2
-       }
-      }
+      "damageDone": 1.03,
+      "maxHealth": 1.07
      }
     }
    ],
    [
     {
      "id": "warrior_protection_t4a",
-     "name": "Executioner's Stance",
-     "desc": "Replaces Whirlwind with Mortal Strike: a punishing single-target hit for a tank wanting more threat pressure.",
-     "icon": "\ud83d\udde1\ufe0f",
+     "name": "Disrupting Cry",
+     "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
+     "icon": "\ud83e\ude9d",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "mortal_strike"
+      "from": "pummel",
+      "to": "harpoon_throw"
      }
     },
     {
      "id": "warrior_protection_t4b",
-     "name": "Bloodied Guard",
-     "desc": "Replaces Whirlwind with Bloodthirst: a fast strike that builds rage while you hold the line.",
-     "icon": "\ud83e\ude78",
+     "name": "Storm Bolt",
+     "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+     "icon": "\ud83d\udd28",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "bloodthirst"
+      "from": "pummel",
+      "to": "hammer_toss"
      }
     },
     {
      "id": "warrior_protection_t4c",
-     "name": "Ground Slam",
-     "desc": "Replaces Whirlwind with Shockwave: an area stun that gives a tank breathing room.",
-     "icon": "\ud83d\udca5",
+     "name": "Skull Bash",
+     "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
+     "icon": "\ud83d\udcab",
      "mods": {},
      "swap": {
-      "from": "whirlwind",
-      "to": "shockwave"
+      "from": "pummel",
+      "to": "concussion_blow"
      }
     }
    ],
    [
     {
      "id": "warrior_protection_t5a",
-     "name": "Wailing Rally",
-     "desc": "Replaces Hamstring with Piercing Howl: slows everyone near you to control the fight.",
-     "icon": "\ud83d\udce3",
+     "name": "Ground Slam",
+     "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
+     "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
-      "from": "hamstring",
-      "to": "piercing_howl"
+      "from": "charge",
+      "to": "shockwave"
      }
     },
     {
      "id": "warrior_protection_t5b",
      "name": "Terrifying Roar",
-     "desc": "Replaces Hamstring with Intimidating Shout: fears enemies so you can reposition or peel.",
-     "icon": "\ud83d\ude31",
+     "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
+     "icon": "\ud83d\udce2",
      "mods": {},
      "swap": {
-      "from": "hamstring",
+      "from": "charge",
       "to": "intimidating_shout"
      }
     },
     {
      "id": "warrior_protection_t5c",
-     "name": "Hammer Throw",
-     "desc": "Replaces Hamstring with Hammer Toss: a ranged stun to pin down runners.",
-     "icon": "\ud83d\udd31",
+     "name": "Banshee Howl",
+     "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
+     "icon": "\ud83d\udce3",
      "mods": {},
      "swap": {
-      "from": "hamstring",
-      "to": "hammer_toss"
+      "from": "charge",
+      "to": "piercing_howl"
      }
     }
    ],
    [
     {
      "id": "warrior_protection_t6a",
-     "name": "Blade Ward",
-     "desc": "Replaces Enraged Regeneration with Die by the Sword: a second defensive cooldown instead of healing.",
-     "icon": "\u2694\ufe0f",
+     "name": "Reckless Abandon",
+     "desc": "Replaces Axe Throw with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+     "icon": "\ud83d\ude21",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "die_by_the_sword"
-     }
-    },
-    {
-     "id": "warrior_protection_t6b",
-     "name": "Battle Fury",
-     "desc": "Replaces Enraged Regeneration with Recklessness: trade sustain for a damage burst, at the cost of taking more damage.",
-     "icon": "\ud83d\udd25",
-     "mods": {},
-     "swap": {
-      "from": "enraged_regeneration",
+      "from": "axe_throw",
       "to": "recklessness"
      }
     },
     {
-     "id": "warrior_protection_t6c",
-     "name": "Harpoon Pull",
-     "desc": "Replaces Enraged Regeneration with Harpoon Throw: a ranged interrupt that adds control.",
-     "icon": "\ud83e\ude9d",
+     "id": "warrior_protection_t6b",
+     "name": "Stand Against Steel",
+     "desc": "Replaces Axe Throw with Die by the Sword, a long defensive.",
+     "icon": "\ud83d\udde1\ufe0f",
      "mods": {},
      "swap": {
-      "from": "enraged_regeneration",
-      "to": "harpoon_throw"
+      "from": "axe_throw",
+      "to": "die_by_the_sword"
+     }
+    },
+    {
+     "id": "warrior_protection_t6c",
+     "name": "Fortress Stance",
+     "desc": "Replaces Axe Throw with Fortress Stance: 40% less damage taken for 8 seconds.",
+     "icon": "\ud83e\uddf1",
+     "mods": {},
+     "swap": {
+      "from": "axe_throw",
+      "to": "shield_wall"
      }
     }
    ]

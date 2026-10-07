@@ -4,6 +4,7 @@ import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
 import { SPECS } from './data';
+import { autoFor } from './build';
 import type { Build } from './types';
 import { brainFor } from './botbrain';
 import type { Brain } from './botbrain';
@@ -149,8 +150,8 @@ export class Bot {
     this.sim.queueInput(u.id, { seq: ++this.seq, ...c });
   }
 
-  private use(u: Unit, ability: string, target?: number): boolean {
-    return this.sim.useAbility(u.id, ability, target).ok;
+  private use(u: Unit, ability: string, target?: number, ground?: Vec2): boolean {
+    return this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
   }
 
   /** First ability from the list that goes off: each spec's bar holds a different mix, and anything off the bar just fails. */
@@ -227,22 +228,32 @@ export class Bot {
   }
 
   private warrior(u: Unit, enemies: Unit[], tgt?: Unit): void {
-    for (const e of this.interruptible(enemies)) if (this.use(u, 'pummel', e.id)) return;
+    for (const e of this.interruptible(enemies)) if (this.useFirst(u, ['pummel', 'harpoon_throw'], e.id)) return;
     if (!tgt) return;
     this.sim.setAutoAttack(u.id, true); // rage and damage start from swinging, not only from abilities
     const d = dist(u.pos, tgt.pos);
     const slowed = tgt.auras.some((a) => a.kind === 'slow');
+    const stunned = tgt.auras.some((a) => a.kind === 'stun');
+    const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
-    if (hpFrac(u) < this.brain.defHp && (this.use(u, 'enraged_regeneration') || this.use(u, 'shield_wall'))) return;
+    if (d > 25 && this.use(u, 'heroic_leap', undefined, { x: tgt.pos.x, z: tgt.pos.z })) return;
+    if (hpFrac(u) < this.brain.defHp && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
     if (kiter && !slowed && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
+    // Barbarian: drag a runner back in, fence a kiter in, throw axes while it is out of reach
+    if (d >= 6 && d <= 20 && kiter && this.use(u, 'reel_in', tgt.id)) return;
+    if (d >= 6 && d <= 15 && kiter && this.use(u, 'not_going_anywhere', undefined, { x: tgt.pos.x, z: tgt.pos.z })) return;
+    if (d > 4 && d <= 10 && this.use(u, 'axe_throw', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
-    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'recklessness');
-    if (!tgt.auras.some((a) => a.kind === 'stun') && d <= 8 && this.use(u, 'concussion_blow', tgt.id)) return;
-    if (d <= 8 && enemies.filter((e) => dist(u.pos, e.pos) <= 8).length >= 2 && this.use(u, 'whirlwind')) return;
-    // whichever main strike this spec carries
-    for (const strike of ['mortal_strike', 'bloodthirst', 'shield_slam']) if (this.use(u, strike, tgt.id)) return;
+    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp) this.useFirst(u, ['recklessness', 'bladestorm']);
+    if (!stunned && d <= 8 && this.useFirst(u, ['concussion_blow', 'slice_and_dice'], tgt.id)) return;
+    if (d <= 8 && near.length >= 2 && this.use(u, 'whirlwind')) return;
+    // a rage payoff waits for a full bar; builders and the other strikes fill the gaps
+    if (u.resource >= 70 && this.use(u, 'mortal_strike', tgt.id)) return;
+    for (const strike of ['bloodthirst', 'slam', 'deep_cuts', 'shield_slam']) if (this.use(u, strike, tgt.id)) return;
+    if (this.use(u, 'whirlwind')) return;
+    if (u.resource >= 30 && this.use(u, 'mortal_strike', tgt.id)) return;
     if (!slowed && u.resource >= 40) this.use(u, 'hamstring', tgt.id);
   }
 
@@ -420,6 +431,7 @@ export class Bot {
 
     const d = dist(u.pos, tgt.pos);
     const toT = angleTo(u.pos, tgt.pos);
+    const reach = Math.max(2.9, (autoFor(u.classId, u.spec)?.range ?? 3) - 0.1);
     const base = RANGED[u.classId];
     const range = base && { min: base.min + this.brain.rangeBias, max: base.max + this.brain.rangeBias };
     if (!range) {
@@ -429,7 +441,7 @@ export class Bot {
         if (dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back)), fwd: 1, strafe: 0 };
         if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
       }
-      if (d > 2.9) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
+      if (d > reach) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
       // in melee range: keep moving round the target instead of standing still
       return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.9 * this.brain.strafe };
     }

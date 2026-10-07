@@ -130,6 +130,14 @@ export type Effect =
   | { type: 'dispel' }
   /** `behind`: land on the far side of the target (its back) rather than on the line you came in on. */
   | { type: 'dashToTarget'; stopDistance: number; behind?: boolean }
+  /** Heals a fraction of the target's maximum health. */
+  | { type: 'healMax'; pct: number }
+  /** A jump to the chosen ground spot (Heroic Leap). */
+  | { type: 'leap' }
+  /** Drags the target in front of the caster, `stopDistance` yards away (Reel In). */
+  | { type: 'pull'; stopDistance: number }
+  /** Plants a banner at the chosen ground spot: enemies inside cannot leave the circle while it stands. */
+  | { type: 'flag'; radius: number; duration: number }
   /** A real run: the caster sprints at `speed` yards/s towards the target (uncontrollable) until `stopDistance` away. */
   | { type: 'charge'; stopDistance: number; speed: number; /** Damage dealt on landing, when the target's stun ends. */ hit?: number }
   | { type: 'blink'; distance: number }
@@ -164,6 +172,8 @@ export interface AbilityDef {
   requiresStealth?: boolean;
   /** Damage multiplier when the caster is behind the target (Backstab). */
   behindMult?: number;
+  /** Rage payoff: needs at least `min` rage, spends all of it, and damage scales from x1 at `min` up to x`maxMult` at full rage. */
+  rageSpend?: { min: number; maxMult: number };
   /** Combo points earned each time this lands. */
   cpGain?: number;
   /** A combo point payoff: needs at least one point and spends them all. */
@@ -309,6 +319,8 @@ export type SimEvent =
   | { t: 'cast_fail'; unit: number; ability: string; reason: string }
   /** A teleport turned a unit to a new facing (Shadowstep landing behind a target): its player's camera follows. */
   | { t: 'turn'; unit: number; facing: number }
+  /** A jump landed (Heroic Leap): where from and where to, for the visuals. */
+  | { t: 'leap'; unit: number; fromX: number; fromZ: number; x: number; z: number }
   /** A channel ran its course (or its target died). Interrupts and movement send cast_fail instead. */
   | { t: 'channel_end'; unit: number; ability: string }
   | { t: 'damage'; src: number; tgt: number; amount: number; absorbed: number; ability: string | null; school: School }
@@ -385,6 +397,8 @@ export interface ZoneSnap {
   id: number;
   /** A smoke cloud (no damage): enemies inside cannot target. */
   smoke?: boolean;
+  /** A banner: enemies inside cannot leave. */
+  flag?: boolean;
   owner: number;
   team: TeamId;
   x: number;

@@ -1,384 +1,423 @@
 {
- "polymorph": {
-  "name": "Polymorph",
-  "kind": "incapacitate",
-  "duration": 8000,
-  "harmful": true,
-  "dr": "incapacitate",
-  "breaksOnDamage": true,
-  "dispellable": true,
-  "unique": true,
-  "canTurn": true,
-  "locksAbilities": true,
-  "hot": {
-   "pct": 10,
-   "interval": 1000
-  }
- },
- "frost_nova_root": {
-  "name": "Frost Nova",
-  "kind": "root",
-  "duration": 6000,
-  "harmful": true,
-  "dr": "root",
-  "dispellable": true
- },
- "frostbolt_slow": {
-  "name": "Frostbolt",
-  "kind": "slow",
-  "duration": 4000,
-  "harmful": true,
-  "slowPct": 40,
-  "dispellable": true
- },
- "hamstring_slow": {
-  "name": "Hamstring",
-  "kind": "slow",
-  "duration": 8000,
-  "harmful": true,
-  "slowPct": 50
- },
- "cheap_shot_stun": {
-  "name": "Cheap Shot",
-  "kind": "stun",
-  "duration": 4000,
-  "harmful": true,
-  "dr": "stun"
- },
- "kidney_shot": {
-  "name": "Kidney Shot",
-  "kind": "stun",
-  "duration": 3000,
-  "harmful": true,
-  "dr": "stun"
- },
- "psychic_scream": {
-  "name": "Psychic Scream",
-  "kind": "fear",
-  "duration": 6000,
-  "harmful": true,
-  "dr": "fear",
-  "dispellable": true,
-  "breaksOnDamage": true
- },
- "pw_shield": {
-  "name": "Power Word: Shield",
-  "kind": "absorb",
-  "duration": 15000,
-  "harmful": false,
-  "absorb": 250,
-  "dispellable": true
- },
- "stealth": {
-  "name": "Stealth",
-  "kind": "stealth",
-  "duration": 0,
-  "harmful": false
- },
- "sprint": {
-  "name": "Sprint",
-  "kind": "speed",
-  "duration": 8000,
-  "harmful": false,
-  "speedPct": 70
- },
- "recklessness": {
-  "name": "Recklessness",
-  "kind": "buff",
-  "duration": 10000,
-  "harmful": false,
-  "mods": {
-   "damageDone": 1.3,
-   "damageTaken": 1.15
-  }
- },
- "shield_wall": {
-  "name": "Shield Wall",
-  "kind": "buff",
-  "duration": 8000,
-  "harmful": false,
-  "mods": {
-   "damageTaken": 0.6
-  }
- },
- "intimidating_shout": {
-  "name": "Intimidating Shout",
-  "kind": "fear",
-  "duration": 5000,
-  "harmful": true,
-  "dr": "fear",
-  "breaksOnDamage": true
- },
- "concussion_stun": {
-  "name": "Concussion Blow",
-  "kind": "stun",
-  "duration": 3000,
-  "harmful": true,
-  "dr": "stun"
- },
- "ice_barrier": {
-  "name": "Ice Barrier",
-  "kind": "absorb",
-  "duration": 12000,
-  "harmful": false,
-  "absorb": 450,
-  "dispellable": true
- },
- "arcane_power": {
-  "name": "Arcane Power",
-  "kind": "buff",
-  "duration": 12000,
-  "harmful": false,
-  "mods": {
-   "damageDone": 1.25
+  "polymorph": {
+    "name": "Polymorph",
+    "kind": "incapacitate",
+    "duration": 8000,
+    "harmful": true,
+    "dr": "incapacitate",
+    "breaksOnDamage": true,
+    "dispellable": true,
+    "unique": true,
+    "canTurn": true,
+    "locksAbilities": true,
+    "hot": {
+      "pct": 10,
+      "interval": 1000
+    }
   },
-  "dispellable": true
- },
- "pain_suppression": {
-  "name": "Pain Suppression",
-  "kind": "buff",
-  "duration": 8000,
-  "harmful": false,
-  "mods": {
-   "damageTaken": 0.6
-  }
- },
- "dispersion": {
-  "name": "Dispersion",
-  "kind": "buff",
-  "duration": 6000,
-  "harmful": false,
-  "mods": {
-   "damageTaken": 0.1
+  "frost_nova_root": {
+    "name": "Frost Nova",
+    "kind": "root",
+    "duration": 6000,
+    "harmful": true,
+    "dr": "root",
+    "dispellable": true
   },
-  "noCast": true
- },
- "adrenaline_rush": {
-  "name": "Adrenaline Rush",
-  "kind": "buff",
-  "duration": 4000,
-  "harmful": false,
-  "mods": {
-   "regen": 1.6,
-   "autoSpeed": 0.7
+  "frostbolt_slow": {
+    "name": "Frostbolt",
+    "kind": "slow",
+    "duration": 4000,
+    "harmful": true,
+    "slowPct": 40,
+    "dispellable": true
   },
-  "hot": {
-   "pct": 2,
-   "interval": 1000
-  }
- },
- "evasion": {
-  "name": "Evasion",
-  "kind": "buff",
-  "duration": 6000,
-  "harmful": false,
-  "mods": {
-   "damageTaken": 0.55
-  }
- },
- "shockwave_stun": {
-  "name": "Shockwave",
-  "kind": "stun",
-  "duration": 2000,
-  "harmful": true,
-  "dr": "stun"
- },
- "howl_slow": {
-  "name": "Piercing Howl",
-  "kind": "slow",
-  "duration": 6000,
-  "harmful": true,
-  "slowPct": 50
- },
- "die_by_the_sword": {
-  "name": "Die by the Sword",
-  "kind": "buff",
-  "duration": 5000,
-  "harmful": false,
-  "mods": {
-   "damageTaken": 0.5
-  }
- },
- "power_infusion": {
-  "name": "Power Infusion",
-  "kind": "buff",
-  "duration": 12000,
-  "harmful": false,
-  "mods": {
-   "damageDone": 1.2,
-   "healingDone": 1.2,
-   "castTime": 0.85
+  "hamstring_slow": {
+    "name": "Hamstring",
+    "kind": "slow",
+    "duration": 8000,
+    "harmful": true,
+    "slowPct": 50
   },
-  "dispellable": true
- },
- "blind": {
-  "name": "Blind",
-  "kind": "incapacitate",
-  "duration": 5000,
-  "harmful": true,
-  "dr": "incapacitate",
-  "breaksOnDamage": true,
-  "unique": true
- },
- "crippling_slow": {
-  "name": "Crippling Poison",
-  "kind": "slow",
-  "duration": 6000,
-  "harmful": true,
-  "slowPct": 40
- },
- "deep_freeze_stun": {
-  "name": "Deep Freeze",
-  "kind": "stun",
-  "duration": 3000,
-  "harmful": true,
-  "dr": "stun"
- },
- "charge_stun": {
-  "name": "Charge",
-  "kind": "stun",
-  "duration": 2500,
-  "harmful": true,
-  "dr": "stun"
- },
- "hammer_stun": {
-  "name": "Storm Bolt",
-  "kind": "stun",
-  "duration": 2000,
-  "harmful": true,
-  "dr": "stun"
- },
- "judgment_stun": {
-  "name": "Hammer of Justice",
-  "kind": "stun",
-  "duration": 3000,
-  "harmful": true,
-  "dr": "stun"
- },
- "creeping_rot": {
-  "name": "Shadow Word: Death",
-  "kind": "dot",
-  "duration": 10000,
-  "harmful": true,
-  "dispellable": true,
-  "dot": {
-   "amount": 30,
-   "interval": 1000,
-   "school": "shadow",
-   "ability": "shadow_word_death"
-  }
- },
- "plague_bloom": {
-  "name": "Shadow Word: Pain",
-  "kind": "dot",
-  "duration": 10000,
-  "harmful": true,
-  "dispellable": true,
-  "dot": {
-   "amount": 42,
-   "interval": 1000,
-   "school": "shadow",
-   "ability": "plague_bloom"
-  }
- },
- "blink_speed": {
-  "name": "Phase Stride",
-  "kind": "speed",
-  "duration": 4000,
-  "harmful": false,
-  "speedPct": 40
- },
- "blink_haste": {
-  "name": "Arcane Surge",
-  "kind": "buff",
-  "duration": 5000,
-  "harmful": false,
-  "mods": {
-   "castTime": 0.7
-  }
- },
- "hot_streak": {
-  "name": "Hot Streak",
-  "kind": "buff",
-  "duration": 10000,
-  "harmful": false,
-  "instantFor": "pyroblast"
- },
- "dragons_breath": {
-  "name": "Dragon's Breath",
-  "kind": "stun",
-  "duration": 4000,
-  "harmful": true,
-  "dr": "stun",
-  "dispellable": true
- },
- "evocation": {
-  "name": "Evocation",
-  "kind": "buff",
-  "duration": 6000,
-  "harmful": false,
-  "mods": {
-   "regen": 4,
-   "damageTaken": 0.85
+  "cheap_shot_stun": {
+    "name": "Cheap Shot",
+    "kind": "stun",
+    "duration": 4000,
+    "harmful": true,
+    "dr": "stun"
   },
-  "dispellable": true
- },
- "arcane_slow": {
-  "name": "Arcane Explosion",
-  "kind": "slow",
-  "duration": 4000,
-  "harmful": true,
-  "slowPct": 40,
-  "dispellable": true
- },
- "garrote_bleed": {
-  "name": "Garrote",
-  "kind": "dot",
-  "duration": 8000,
-  "harmful": true,
-  "bleed": true,
-  "dot": {
-   "amount": 50,
-   "interval": 1000,
-   "school": "physical",
-   "ability": "garrote"
+  "kidney_shot": {
+    "name": "Kidney Shot",
+    "kind": "stun",
+    "duration": 3000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "psychic_scream": {
+    "name": "Psychic Scream",
+    "kind": "fear",
+    "duration": 6000,
+    "harmful": true,
+    "dr": "fear",
+    "dispellable": true,
+    "breaksOnDamage": true
+  },
+  "pw_shield": {
+    "name": "Power Word: Shield",
+    "kind": "absorb",
+    "duration": 15000,
+    "harmful": false,
+    "absorb": 250,
+    "dispellable": true
+  },
+  "stealth": {
+    "name": "Stealth",
+    "kind": "stealth",
+    "duration": 0,
+    "harmful": false
+  },
+  "sprint": {
+    "name": "Sprint",
+    "kind": "speed",
+    "duration": 8000,
+    "harmful": false,
+    "speedPct": 70
+  },
+  "recklessness": {
+    "name": "Recklessness",
+    "kind": "buff",
+    "duration": 10000,
+    "harmful": false,
+    "mods": {
+      "damageDone": 1.3,
+      "damageTaken": 1.15
+    }
+  },
+  "shield_wall": {
+    "name": "Shield Wall",
+    "kind": "buff",
+    "duration": 8000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.6
+    }
+  },
+  "intimidating_shout": {
+    "name": "Intimidating Shout",
+    "kind": "fear",
+    "duration": 5000,
+    "harmful": true,
+    "dr": "fear",
+    "breaksOnDamage": true
+  },
+  "concussion_stun": {
+    "name": "Concussion Blow",
+    "kind": "stun",
+    "duration": 3000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "ice_barrier": {
+    "name": "Ice Barrier",
+    "kind": "absorb",
+    "duration": 12000,
+    "harmful": false,
+    "absorb": 450,
+    "dispellable": true
+  },
+  "arcane_power": {
+    "name": "Arcane Power",
+    "kind": "buff",
+    "duration": 12000,
+    "harmful": false,
+    "mods": {
+      "damageDone": 1.25
+    },
+    "dispellable": true
+  },
+  "pain_suppression": {
+    "name": "Pain Suppression",
+    "kind": "buff",
+    "duration": 8000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.6
+    }
+  },
+  "dispersion": {
+    "name": "Dispersion",
+    "kind": "buff",
+    "duration": 6000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.1
+    },
+    "noCast": true
+  },
+  "adrenaline_rush": {
+    "name": "Adrenaline Rush",
+    "kind": "buff",
+    "duration": 4000,
+    "harmful": false,
+    "mods": {
+      "regen": 1.6,
+      "autoSpeed": 0.7
+    },
+    "hot": {
+      "pct": 2,
+      "interval": 1000
+    }
+  },
+  "evasion": {
+    "name": "Evasion",
+    "kind": "buff",
+    "duration": 6000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.55
+    }
+  },
+  "shockwave_stun": {
+    "name": "Shockwave",
+    "kind": "stun",
+    "duration": 2000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "howl_slow": {
+    "name": "Piercing Howl",
+    "kind": "slow",
+    "duration": 6000,
+    "harmful": true,
+    "slowPct": 50
+  },
+  "die_by_the_sword": {
+    "name": "Die by the Sword",
+    "kind": "buff",
+    "duration": 5000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.5
+    }
+  },
+  "power_infusion": {
+    "name": "Power Infusion",
+    "kind": "buff",
+    "duration": 12000,
+    "harmful": false,
+    "mods": {
+      "damageDone": 1.2,
+      "healingDone": 1.2,
+      "castTime": 0.85
+    },
+    "dispellable": true
+  },
+  "blind": {
+    "name": "Blind",
+    "kind": "incapacitate",
+    "duration": 5000,
+    "harmful": true,
+    "dr": "incapacitate",
+    "breaksOnDamage": true,
+    "unique": true
+  },
+  "crippling_slow": {
+    "name": "Crippling Poison",
+    "kind": "slow",
+    "duration": 6000,
+    "harmful": true,
+    "slowPct": 40
+  },
+  "deep_freeze_stun": {
+    "name": "Deep Freeze",
+    "kind": "stun",
+    "duration": 3000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "charge_stun": {
+    "name": "Charge",
+    "kind": "stun",
+    "duration": 2500,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "hammer_stun": {
+    "name": "Storm Bolt",
+    "kind": "stun",
+    "duration": 2000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "judgment_stun": {
+    "name": "Hammer of Justice",
+    "kind": "stun",
+    "duration": 3000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "creeping_rot": {
+    "name": "Shadow Word: Death",
+    "kind": "dot",
+    "duration": 10000,
+    "harmful": true,
+    "dispellable": true,
+    "dot": {
+      "amount": 30,
+      "interval": 1000,
+      "school": "shadow",
+      "ability": "shadow_word_death"
+    }
+  },
+  "plague_bloom": {
+    "name": "Shadow Word: Pain",
+    "kind": "dot",
+    "duration": 10000,
+    "harmful": true,
+    "dispellable": true,
+    "dot": {
+      "amount": 42,
+      "interval": 1000,
+      "school": "shadow",
+      "ability": "plague_bloom"
+    }
+  },
+  "blink_speed": {
+    "name": "Phase Stride",
+    "kind": "speed",
+    "duration": 4000,
+    "harmful": false,
+    "speedPct": 40
+  },
+  "blink_haste": {
+    "name": "Arcane Surge",
+    "kind": "buff",
+    "duration": 5000,
+    "harmful": false,
+    "mods": {
+      "castTime": 0.7
+    }
+  },
+  "hot_streak": {
+    "name": "Hot Streak",
+    "kind": "buff",
+    "duration": 10000,
+    "harmful": false,
+    "instantFor": "pyroblast"
+  },
+  "dragons_breath": {
+    "name": "Dragon's Breath",
+    "kind": "stun",
+    "duration": 4000,
+    "harmful": true,
+    "dr": "stun",
+    "dispellable": true
+  },
+  "evocation": {
+    "name": "Evocation",
+    "kind": "buff",
+    "duration": 6000,
+    "harmful": false,
+    "mods": {
+      "regen": 4,
+      "damageTaken": 0.85
+    },
+    "dispellable": true
+  },
+  "arcane_slow": {
+    "name": "Arcane Explosion",
+    "kind": "slow",
+    "duration": 4000,
+    "harmful": true,
+    "slowPct": 40,
+    "dispellable": true
+  },
+  "garrote_bleed": {
+    "name": "Garrote",
+    "kind": "dot",
+    "duration": 8000,
+    "harmful": true,
+    "bleed": true,
+    "dot": {
+      "amount": 50,
+      "interval": 1000,
+      "school": "physical",
+      "ability": "garrote"
+    }
+  },
+  "mutilate_bleed": {
+    "name": "Mutilate",
+    "kind": "dot",
+    "duration": 6000,
+    "harmful": true,
+    "bleed": true,
+    "dot": {
+      "amount": 14,
+      "interval": 1000,
+      "school": "physical",
+      "ability": "mutilate"
+    }
+  },
+  "shatter": {
+    "name": "Shatter",
+    "kind": "buff",
+    "duration": 10000,
+    "harmful": false,
+    "empower": {
+      "school": "frost",
+      "mult": 5
+    }
+  },
+  "arcane_charge": {
+    "name": "Arcane Charge",
+    "kind": "buff",
+    "duration": 12000,
+    "harmful": false,
+    "maxStacks": 5
+  },
+  "rogue_slow": {
+    "name": "Hobbled",
+    "kind": "slow",
+    "duration": 3000,
+    "harmful": true,
+    "slowPct": 10
+  },
+  "enraged_regeneration": {
+    "name": "Enraged Regeneration",
+    "kind": "buff",
+    "duration": 8000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.7,
+      "ability": {
+        "bloodthirst": {
+          "extra": [
+            {
+              "type": "healMax",
+              "pct": 0.2
+            }
+          ]
+        }
+      }
+    }
+  },
+  "slice_stun": {
+    "name": "Slice and Dice",
+    "kind": "stun",
+    "duration": 1100,
+    "harmful": true
+  },
+  "deep_cuts_bleed": {
+    "name": "Deep Cuts",
+    "kind": "dot",
+    "duration": 6000,
+    "harmful": true,
+    "bleed": true,
+    "maxStacks": 3,
+    "dot": {
+      "amount": 14,
+      "interval": 1000,
+      "school": "physical",
+      "ability": "deep_cuts"
+    }
   }
- },
- "mutilate_bleed": {
-  "name": "Mutilate",
-  "kind": "dot",
-  "duration": 6000,
-  "harmful": true,
-  "bleed": true,
-  "dot": {
-   "amount": 14,
-   "interval": 1000,
-   "school": "physical",
-   "ability": "mutilate"
-  }
- },
- "shatter": {
-  "name": "Shatter",
-  "kind": "buff",
-  "duration": 10000,
-  "harmful": false,
-  "empower": {
-   "school": "frost",
-   "mult": 5
-  }
- },
- "arcane_charge": {
-  "name": "Arcane Charge",
-  "kind": "buff",
-  "duration": 12000,
-  "harmful": false,
-  "maxStacks": 5
- },
- "rogue_slow": {
-  "name": "Hobbled",
-  "kind": "slow",
-  "duration": 3000,
-  "harmful": true,
-  "slowPct": 10
- }
 }

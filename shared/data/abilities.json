@@ -13,9 +13,13 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 220
+    "amount": 125
    }
-  ]
+  ],
+  "rageSpend": {
+   "min": 30,
+   "maxMult": 2.5
+  }
  },
  {
   "id": "charge",
@@ -77,10 +81,6 @@
   "gcd": true,
   "cost": 10,
   "effects": [
-   {
-    "type": "damage",
-    "amount": 40
-   },
    {
     "type": "aura",
     "aura": "hamstring_slow"
@@ -458,7 +458,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 650
+    "amount": 560
    }
   ]
  },
@@ -513,17 +513,21 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 195
+    "amount": 85
+   },
+   {
+    "type": "healMax",
+    "pct": 0.03
    },
    {
     "type": "gain",
-    "amount": 3
+    "amount": 8
    }
   ]
  },
  {
   "id": "whirlwind",
-  "name": "Whirlwind",
+  "name": "Cleave",
   "class": "warrior",
   "school": "physical",
   "target": "aoe_enemy",
@@ -535,7 +539,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 115
+    "amount": 85
    }
   ],
   "radius": 8
@@ -553,26 +557,8 @@
   "cost": 10,
   "effects": [
    {
-    "type": "heal",
-    "amount": 700
-   }
-  ]
- },
- {
-  "id": "shield_slam",
-  "name": "Halberd Slam",
-  "class": "warrior",
-  "school": "physical",
-  "target": "enemy",
-  "range": 3,
-  "castTime": 0,
-  "cooldown": 6000,
-  "gcd": true,
-  "cost": 20,
-  "effects": [
-   {
-    "type": "damage",
-    "amount": 145
+    "type": "aura",
+    "aura": "enraged_regeneration"
    }
   ]
  },
@@ -1573,6 +1559,173 @@
     "perCp": 60,
     "bleedFraction": 0.5,
     "bleedMult": 3
+   }
+  ]
+ },
+ {
+  "id": "heroic_leap",
+  "name": "Heroic Leap",
+  "class": "warrior",
+  "school": "physical",
+  "target": "ground",
+  "range": 25,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "leap"
+   }
+  ]
+ },
+ {
+  "id": "slice_and_dice",
+  "name": "Slice and Dice",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 6,
+  "coneDeg": 90,
+  "castTime": 4000,
+  "cooldown": 25000,
+  "gcd": true,
+  "cost": 30,
+  "channel": {
+   "ticks": 4
+  },
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 55
+   },
+   {
+    "type": "aura",
+    "aura": "slice_stun"
+   }
+  ]
+ },
+ {
+  "id": "bladestorm",
+  "name": "Bladestorm",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 7,
+  "castTime": 5000,
+  "cooldown": 60000,
+  "gcd": true,
+  "cost": 30,
+  "castWhileMoving": true,
+  "channel": {
+   "ticks": 10
+  },
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 22
+   }
+  ]
+ },
+ {
+  "id": "slam",
+  "name": "Slam",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 3000,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 120
+   }
+  ]
+ },
+ {
+  "id": "reel_in",
+  "name": "Reel In",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 20,
+  "minRange": 6,
+  "castTime": 0,
+  "cooldown": 25000,
+  "gcd": true,
+  "cost": 15,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 30
+   },
+   {
+    "type": "pull",
+    "stopDistance": 2.2
+   }
+  ]
+ },
+ {
+  "id": "deep_cuts",
+  "name": "Deep Cuts",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 10,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 30
+   },
+   {
+    "type": "aura",
+    "aura": "deep_cuts_bleed"
+   }
+  ]
+ },
+ {
+  "id": "axe_throw",
+  "name": "Axe Throw",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 10,
+  "castTime": 0,
+  "cooldown": 5000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 60
+   }
+  ]
+ },
+ {
+  "id": "not_going_anywhere",
+  "name": "You're Not Going Anywhere",
+  "class": "warrior",
+  "school": "physical",
+  "target": "ground",
+  "range": 15,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": true,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "flag",
+    "radius": 5,
+    "duration": 8000
    }
   ]
  }

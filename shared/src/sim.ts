@@ -51,7 +51,7 @@ export class ArenaSim {
   readonly matchEndsAt: number;
   readonly units = new Map<number, Unit>();
   private events: SimEvent[] = [];
-  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean }[] = [];
+  private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean; flag?: boolean; held?: Set<number> }[] = [];
   private nextZoneId = 1;
   private facingRule = false;
   private nextId = 1;
@@ -207,7 +207,7 @@ export class ArenaSim {
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
     if ((def.target === 'enemy' || def.target === 'ally' || def.target === 'ally_or_self' || def.target === 'any') && this.inSmoke(u)) return fail('blinded by smoke');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
-    if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget' || e.type === 'charge')) return fail('you are rooted');
+    if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget' || e.type === 'charge' || e.type === 'leap')) return fail('you are rooted');
 
     if (def.target === 'ground') {
       if (!ground && targetId !== undefined && targetId !== null) {
@@ -337,7 +337,7 @@ export class ArenaSim {
           a.nextTick += dot.interval;
           const src = this.units.get(a.sourceId) ?? null;
           const m = src ? this.modsOf(src) : null;
-          this.dealDamage(src, u, dot.amount * (a.dotMult ?? 1) * (src?.gearMult ?? 1) * this.variance() * (m?.damageDone ?? 1) * (m?.ability[dot.ability]?.damage ?? 1), dot.school, dot.ability, true);
+          this.dealDamage(src, u, dot.amount * (a.dotMult ?? 1) * (AURAS[a.id].maxStacks ? (a.stacks ?? 1) : 1) * (src?.gearMult ?? 1) * this.variance() * (m?.damageDone ?? 1) * (m?.ability[dot.ability]?.damage ?? 1), dot.school, dot.ability, true);
         }
       }
       if (u.alive && a.expiresAt <= this.time) this.removeAura(u, a, 'expired');
@@ -461,7 +461,8 @@ export class ArenaSim {
       }
       c.done = (c.done ?? 0) + 1;
       this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
-      for (const eff of def.effects) this.applyEffect(u, def, tgt, eff);
+      // area channels (Bladestorm, Slice and Dice) hit whoever stands in the area at each tick
+      for (const t of this.targetsOf(u, def, tgt)) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
     }
   }
 
@@ -516,6 +517,12 @@ export class ArenaSim {
     u.cooldowns[def.id] = this.time + Math.round(def.cooldown * (this.modsOf(u).ability[def.id]?.cooldown ?? 1));
   }
 
+  /** Everyone an ability's effects land on: the area for aoe abilities, otherwise the one target. */
+  private targetsOf(u: Unit, def: AbilityDef, tgt: Unit): Unit[] {
+    if (def.target === 'aoe_enemy') return [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0) && this.inCone(u, v.pos, def.coneDeg));
+    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || hasLOS(u.pos, v.pos, this.arena)));
+    return [tgt];
+  }
   private recharge = new Map<number, Record<string, number[]>>();
   private storedFull(u: Unit, def: AbilityDef): boolean {
     const stored = this.modsOf(u).ability[def.id]?.stored ?? 0;
@@ -535,12 +542,19 @@ export class ArenaSim {
   private ground: { x: number; z: number } | null = null;
   /** Per-cast scratch values (see execute). */
   private cpSpent = 0;
+  private rageMult = 1;
   private empowerMult = 1;
   private stackMult = 1;
 
   private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: { x: number; z: number }): void {
     this.ground = ground ?? null;
-    u.resource -= this.costOf(u, def);
+    this.rageMult = 1;
+    if (def.rageSpend) {
+      // a rage payoff: everything you have goes in, and the blow scales with it
+      const spent = Math.max(u.resource, def.rageSpend.min);
+      this.rageMult = 1 + (def.rageSpend.maxMult - 1) * Math.min(1, Math.max(0, (spent - def.rageSpend.min) / Math.max(1, u.resourceMax - def.rageSpend.min)));
+      u.resource = 0;
+    } else u.resource -= this.costOf(u, def);
     this.startCooldown(u, def);
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
@@ -566,12 +580,7 @@ export class ArenaSim {
     const eaten = def.consumes ? u.auras.find((a) => a.id === def.consumes!.aura) : undefined;
     if (eaten) this.stackMult = 1 + def.consumes!.perStack * (eaten.stacks ?? 1);
 
-    const targets: Unit[] =
-      def.target === 'aoe_enemy'
-        ? [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0) && this.inCone(u, v.pos, def.coneDeg))
-        : def.target === 'aoe_all'
-          ? [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || hasLOS(u.pos, v.pos, this.arena)))
-          : [tgt];
+    const targets = this.targetsOf(u, def, tgt);
 
     const effects = abMod?.extra ? [...def.effects, ...abMod.extra] : def.effects;
     for (const t of targets) for (const eff of effects) this.applyEffect(u, def, t, eff);
@@ -581,6 +590,7 @@ export class ArenaSim {
     if (def.cpSpend) u.cp = 0;
     if (def.cpGain) u.cp = Math.min(5 + this.modsOf(u).maxCp, u.cp + def.cpGain + (abMod?.cpChance && this.rng() < abMod.cpChance ? 1 : 0));
     this.cpSpent = 0;
+    this.rageMult = 1;
     this.empowerMult = 1;
     this.stackMult = 1;
     this.ground = null;
@@ -597,7 +607,33 @@ export class ArenaSim {
       case 'damage':
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
-        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) * this.modsOf(u).cpPower : 1) * (def.behindMult && this.isBehind(u, t) ? def.behindMult : 1) * this.empowerMult * this.stackMult, def.school, def.id);
+        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) * this.modsOf(u).cpPower : 1) * (def.behindMult && this.isBehind(u, t) ? def.behindMult : 1) * this.rageMult * this.empowerMult * this.stackMult, def.school, def.id);
+        break;
+      case 'healMax':
+        this.heal(u, u, u.maxHealth * eff.pct, def.id);
+        break;
+      case 'leap': {
+        const g = this.ground;
+        if (!g) break;
+        const fromX = u.pos.x, fromZ = u.pos.z;
+        u.pos = resolveCollisions({ x: g.x, z: g.z }, this.arena);
+        this.emit({ t: 'leap', unit: u.id, fromX, fromZ, x: u.pos.x, z: u.pos.z });
+        break;
+      }
+      case 'pull': {
+        if (t === u || t.team === u.team) break;
+        const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z;
+        const d = Math.hypot(dx, dz);
+        if (d <= eff.stopDistance + 1e-6) break;
+        t.pos = resolveCollisions({ x: u.pos.x + (dx / d) * eff.stopDistance, z: u.pos.z + (dz / d) * eff.stopDistance }, this.arena);
+        if (t.cast) this.cancelCast(t, 'pulled');
+        break;
+      }
+      case 'flag':
+        this.zones.push({
+          id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? u.pos.x, z: this.ground?.z ?? u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,
+          start: this.time, firstAt: this.time + eff.duration + 1, nextAt: Infinity, pulse: eff.duration, end: this.time + eff.duration, flag: true, held: new Set(),
+        });
         break;
       case 'healMissing':
         { const keep = u.lastCombatAt; this.heal(u, t, (t.maxHealth - t.health) * eff.pct, def.id); u.lastCombatAt = keep; } // a self-heal on Vanish must not put you back in combat
@@ -999,6 +1035,17 @@ export class ArenaSim {
       }
     }
     for (const z of this.zones) {
+      if (z.flag) {
+        // the banner's wall: an enemy inside the circle stays inside (blinks and dashes included) until it falls or the banner ends
+        for (const v of this.units.values()) {
+          if (!v.alive || v.team === z.team) continue;
+          const dx = v.pos.x - z.x, dz = v.pos.z - z.z;
+          const d = Math.hypot(dx, dz);
+          if (d <= z.r) z.held!.add(v.id);
+          else if (z.held!.has(v.id)) v.pos = resolveCollisions({ x: z.x + (dx / d) * (z.r - 0.05), z: z.z + (dz / d) * (z.r - 0.05) }, this.arena);
+        }
+        continue;
+      }
       if (z.smoke) continue;
       while (this.phase === 'live' && z.nextAt <= this.time && z.nextAt <= z.end) {
         const owner = this.units.get(z.owner);
@@ -1035,7 +1082,7 @@ export class ArenaSim {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
       winner: this.winner, units,
-      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}) })),
+      zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}), ...(z.flag ? { flag: true } : {}) })),
     };
   }
 

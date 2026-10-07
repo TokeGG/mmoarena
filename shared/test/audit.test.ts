@@ -145,7 +145,7 @@ function trial(a: AbilityDef, useAlly = false) {
     const buff = Object.keys(AURAS).find((k) => AURAS[k].dispellable && !AURAS[k].harmful)!;
     sim.applyAura(f, f, buff);
   }
-  if (a.coneDeg) c.facing = Math.atan2(f.pos.x - c.pos.x, f.pos.z - c.pos.z); // cone abilities only hit what the caster faces
+  if (a.coneDeg) { c.facing = Math.atan2(f.pos.x - c.pos.x, f.pos.z - c.pos.z); c.lastInput = { ...c.lastInput, facing: c.facing }; } // cone abilities only hit what the caster faces
   const target = useAlly ? al.id : a.target === 'self' || a.target === 'ground' ? null : f.id;
   const start = { ...c.pos };
   const r = sim.useAbility(c.id, a.id, target, a.target === 'ground' ? { x: f.pos.x, z: f.pos.z } : null);

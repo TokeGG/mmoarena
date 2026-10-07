@@ -132,7 +132,19 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(`Stuns the target as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${e.hit} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`);
         break;
       case 'dashToTarget':
-        lines.push('Rushes to the target.');
+        lines.push(e.behind ? 'Rushes to the target and lands behind it, turning you to face it.' : 'Rushes to the target.');
+        break;
+      case 'healMax':
+        lines.push(`Heals you for ${Math.round(e.pct * 100)}% of your maximum health.`);
+        break;
+      case 'leap':
+        lines.push('Leaps to the chosen spot.');
+        break;
+      case 'pull':
+        lines.push(`Drags the target to ${e.stopDistance} yards in front of you.`);
+        break;
+      case 'flag':
+        lines.push(`Plants a banner at the chosen spot for ${e.duration / 1000} sec. Enemies inside its ${e.radius}-yard circle cannot leave it.`);
         break;
       case 'blink':
         lines.push(`Teleports you ${e.distance} yards forward and frees you from stuns, roots and slows. Works while stunned.`);
@@ -164,6 +176,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
 
   const notes: string[] = [];
   if (def.cpGain) notes.push(`Awards ${def.cpGain} combo point${def.cpGain > 1 ? 's' : ''}.`);
+  if (def.rageSpend) notes.push(`Spends all your rage (needs ${def.rageSpend.min}): damage grows from x1 at ${def.rageSpend.min} rage to x${def.rageSpend.maxMult} at full rage.`);
   if (def.cpSpend) notes.push('Spends all combo points (needs at least 1).');
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
