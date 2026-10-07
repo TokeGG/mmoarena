@@ -821,7 +821,8 @@ export class ArenaSim {
 
     if (remaining + absorbed > 0) {
       if (tgt.charge) this.endCharge(tgt, false); // being hit stops a charge
-      for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage && !(periodic && a.kind === 'fear') && !(AURAS[a.id].heldBy && tgt.auras.some((x) => x.id === AURAS[a.id].heldBy))) this.removeAura(tgt, a, 'damage'); // damage-over-time ticks do not break fear
+      const soft = periodic || (ability !== null && ABILITIES[ability]?.noBreak === true);
+      for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage && !(soft && a.kind === 'fear') && !(AURAS[a.id].heldBy && tgt.auras.some((x) => x.id === AURAS[a.id].heldBy))) this.removeAura(tgt, a, 'damage'); // damage-over-time ticks do not break fear
       if (this.isStealthed(tgt)) this.breakStealth(tgt);
     }
     if (tgt.health <= 0) this.die(tgt, src?.id ?? null);
@@ -914,7 +915,7 @@ export class ArenaSim {
     const inst: AuraInst = {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
-      absorbLeft: (def.absorb ?? 0) * src.gearMult * this.modsOf(src).healingDone,
+      absorbLeft: ((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone,
       ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + 1) } : {}),
       ...(def.dot ? { nextTick: this.time + def.dot.interval } : def.hot ? { nextTick: this.time + def.hot.interval } : {}),
     };

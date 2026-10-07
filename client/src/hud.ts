@@ -322,7 +322,7 @@ export class Hud {
       let text = '';
       if (cc) {
         const left = cc.expiresAt > 0 ? ` ${Math.max(0, (cc.expiresAt - now) / 1000).toFixed(1)}s` : '';
-        text = `${cc.id === 'polymorph' ? 'POLYMORPHED' : cc.kind === 'stun' ? 'STUNNED' : cc.kind === 'fear' ? 'FEARED' : 'INCAPACITATED'}${left}`;
+        text = `${cc.id === 'polymorph' ? 'POLYMORPHED' : cc.kind === 'stun' ? 'STUNNED' : cc.id === 'dragons_breath' ? 'DISORIENTED' : cc.kind === 'fear' ? 'FEARED' : 'INCAPACITATED'}${left}`;
       } else if (lock) text = `${lock[0].toUpperCase()} LOCKED ${Math.max(0, ((lock[1] ?? 0) - now) / 1000).toFixed(1)}s`;
       const box = $('ccstate');
       box.classList.toggle('hidden', !text);

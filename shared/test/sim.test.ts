@@ -251,6 +251,41 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'psychic_scream'), 'a direct hit breaks it');
   });
 
+  it('Devouring Plague\'s initial hit does not break fear', () => {
+    const sim = live();
+    const priest = add(sim, 'priest', 0, 0, 0);
+    const mage = add(sim, 'mage', 1, 2, 0);
+    priest.bar = [...priest.bar.slice(0, 7), 'plague_bloom'];
+    advance(sim, TICK);
+    priest.facing = Math.PI / 2; priest.lastInput = { ...priest.lastInput, facing: Math.PI / 2 };
+    sim.applyAura(priest, mage, 'psychic_scream');
+    const hp = mage.health;
+    assert.ok(sim.useAbility(priest.id, 'plague_bloom', mage.id).ok);
+    assert.ok(mage.health < hp, 'the hit landed');
+    assert.ok(mage.auras.some((x) => x.id === 'psychic_scream'), 'fear survived the opening hit');
+  });
+
+  it('Ice Barrier absorbs 40% of max health', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    advance(sim, TICK);
+    sim.applyAura(mage, mage, 'ice_barrier');
+    const a = mage.auras.find((x) => x.id === 'ice_barrier')!;
+    assert.ok(Math.abs(a.absorbLeft - mage.maxHealth * 0.4 * mage.gearMult * sim.modsOf(mage).healingDone) < 1, `got ${a.absorbLeft}`);
+  });
+
+  it('Dragon\'s Breath disorients and Blink does not remove it', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'mage', 1, 2, 0);
+    advance(sim, TICK);
+    sim.applyAura(mage, foe, 'dragons_breath');
+    assert.equal(foe.auras.find((x) => x.id === 'dragons_breath')!.kind, 'fear');
+    foe.bar = [...foe.bar.slice(0, 7), 'blink'];
+    sim.useAbility(foe.id, 'blink', foe.id);
+    assert.ok(foe.auras.some((x) => x.id === 'dragons_breath'), 'still disoriented');
+  });
+
   it('Counterspell cannot be locked out, ignores facing, and still lands a moment after the cast finished', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
@@ -435,6 +470,7 @@ describe('stealth', () => {
       for (let i = 0; i < N; i++) {
         mage.resource = mage.resourceMax; mage.auras = mage.auras.filter((x) => x.id !== 'hot_streak'); mage.cooldowns = {}; mage.gcdEnd = 0;
         mage.pos = { x: 0, z: 0 }; mage.facing = 0; mage.lastInput = { ...mage.lastInput, facing: 0 };
+        foes.forEach((f, k) => { f.pos = { x: k - 1, z: 6 }; f.auras = []; }); // disoriented foes wander off
         if (!sim.useAbility(mage.id, ab, foes[0].id, { x: 0, z: 6 }).ok) { advance(sim, 100); continue; }
         advance(sim, 3300);
         if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
@@ -546,7 +582,7 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
-  it("dragon's breath is a 14 yd, 80 degree cone that stuns for 4 s", () => {
+  it("dragon's breath is a 14 yd, 80 degree cone that disorients for 4 s", () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'dragons_breath'];
@@ -560,10 +596,10 @@ describe('stealth', () => {
     const r = sim.useAbility(mage.id, 'dragons_breath', mage.id);
     assert.ok(r.ok, JSON.stringify(r));
     const stunned = (u: Unit) => u.auras.some((a) => a.id === 'dragons_breath');
-    assert.ok(stunned(inFront) && stunned(edge), 'enemies in the cone are stunned');
+    assert.ok(stunned(inFront) && stunned(edge), 'enemies in the cone are disoriented');
     assert.ok(!stunned(wide) && !stunned(behind) && !stunned(far), 'outside the cone or range is untouched');
     const aura = inFront.auras.find((a) => a.id === 'dragons_breath')!;
-    assert.ok(Math.abs(aura.expiresAt - sim.time - 4000) <= 100, `stun lasts about 4 s, got ${aura.expiresAt - sim.time} ms`);
+    assert.ok(Math.abs(aura.expiresAt - sim.time - 4000) <= 100, `disorient lasts about 4 s, got ${aura.expiresAt - sim.time} ms`);
   });
 
   it('execute costs rage, hits for its listed damage and only works on targets below 20% health', () => {

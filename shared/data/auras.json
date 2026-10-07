@@ -122,7 +122,7 @@
     "kind": "absorb",
     "duration": 12000,
     "harmful": false,
-    "absorb": 450,
+    "absorbPct": 0.4,
     "dispellable": true
   },
   "arcane_power": {
@@ -308,10 +308,10 @@
   },
   "dragons_breath": {
     "name": "Dragon's Breath",
-    "kind": "stun",
+    "kind": "fear",
     "duration": 4000,
     "harmful": true,
-    "dr": "stun",
+    "dr": "fear",
     "dispellable": true
   },
   "evocation": {

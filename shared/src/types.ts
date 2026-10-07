@@ -117,6 +117,8 @@ export interface AuraDef {
   slowPct?: number;
   speedPct?: number;
   absorb?: number;
+  /** Absorb as a fraction of the target's max health (added to `absorb`). */
+  absorbPct?: number;
   /** Damage over time: `amount` every `interval` ms while the aura lasts (credited to `ability` for talent modifiers). */
   dot?: { amount: number; interval: number; school: School; ability: string };
   /** Stat modifiers applied while the aura is active (kind 'buff'). */
@@ -205,6 +207,8 @@ export interface AbilityDef {
   stealthSwap?: string;
   prepOk?: boolean;
   ignoresLockout?: boolean;
+  /** Direct damage from this ability does not break fear-type effects (Devouring Plague). */
+  noBreak?: boolean;
   /** Can be used while stunned, feared or incapacitated (Blink). */
   ignoresControl?: boolean;
   allowWhileRooted?: boolean;

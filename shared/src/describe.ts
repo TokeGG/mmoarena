@@ -62,7 +62,7 @@ function describeBase(id: string): string {
     }
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
-    case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;
+    case 'absorb': return a.absorbPct ? `Absorbs damage equal to ${Math.round(a.absorbPct * 100)}% of max health.` : `Absorbs ${a.absorb ?? 0} damage.`;
     case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Broken by damage or attacking.`;
     case 'buff': {
       if (a.instantFor) return `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.`;
@@ -123,7 +123,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         if (!a) break;
         const dur = a.duration > 0 ? Math.round((a.duration * (mods.auraDuration[e.aura] ?? 1)) / 100) / 10 : 0;
         const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent)` : '';
-        const body = a.kind === 'absorb' ? `Absorbs ${Math.round((a.absorb ?? 0) * mods.healingDone)} damage` : describeAura(e.aura).replace(/\.$/, '');
+        const body = a.kind === 'absorb' ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${Math.round((a.absorb ?? 0) * mods.healingDone)} damage`}` : describeAura(e.aura).replace(/\.$/, '');
         const who = e.self || def.target === 'self' ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
         lines.push(`${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${dur}s` : ''}${extra}: ${body}.`);
         break;
