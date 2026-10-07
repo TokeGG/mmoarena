@@ -860,6 +860,7 @@ export class ArenaSim {
       target: u.target, cast: u.cast, gcdEnd: u.gcdEnd, cooldowns,
       auras: u.auras.map((a) => ({ id: a.id, kind: a.kind, src: a.sourceId, expiresAt: isFinite(a.expiresAt) ? a.expiresAt : 0 })),
       stealthed: this.isStealthed(u),
+      ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
       y: u.alive ? Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100 : 0,
       speedMult: this.speedMult(u),
       controlled: !this.canAct(u) || !!u.charge,

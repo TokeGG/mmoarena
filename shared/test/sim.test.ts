@@ -276,6 +276,20 @@ describe('stealth', () => {
     assert.ok(hit('frost') > rooted * 1.1, 'frozen solid hurts even more');
   });
 
+  it('snapshots report the shield left on a unit and it shrinks as it soaks', () => {
+    const sim = live();
+    const priest = add(sim, 'priest', 0, 0, 0);
+    const foe = add(sim, 'warrior', 1, 5, 0);
+    advance(sim, TICK);
+    const absorbOf = () => sim.snapshot().units.find((x) => x.id === priest.id)!.absorb;
+    assert.equal(absorbOf(), undefined);
+    sim.applyAura(priest, priest, 'pw_shield');
+    const full = absorbOf()!;
+    assert.ok(full > 0);
+    sim.dealDamage(foe, priest, 50, 'physical', null);
+    assert.ok(absorbOf()! < full, 'shield shrank');
+  });
+
   it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);

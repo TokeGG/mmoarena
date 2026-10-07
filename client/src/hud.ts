@@ -22,9 +22,10 @@ class Bar {
   readonly root: HTMLElement;
   private fill = el('div', 'fill');
   private label = el('div', 'blabel');
+  private shield = el('div', 'shield');
   constructor(color: string, thin = false) {
     this.root = el('div', thin ? 'bar thin' : 'bar');
-    this.root.append(this.fill, this.label);
+    this.root.append(this.fill, this.shield, this.label);
     this.fill.style.background = color;
   }
   setColor(c: string) {
@@ -33,8 +34,14 @@ class Bar {
       this.fill.style.background = c;
     }
   }
-  set(v: number, max: number, text: string) {
-    this.fill.style.width = `${max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0}%`;
+  /** `absorb` draws a pale segment after the health (pushed back from the right edge when it would overflow). */
+  set(v: number, max: number, text: string, absorb = 0) {
+    const hp = max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0;
+    this.fill.style.width = `${hp}%`;
+    const w = max > 0 ? Math.min(100, (absorb / max) * 100) : 0;
+    this.shield.style.display = w > 0 ? '' : 'none';
+    this.shield.style.width = `${w}%`;
+    this.shield.style.left = `${Math.min(hp, 100 - w)}%`;
     this.label.textContent = text;
   }
 }
@@ -71,7 +78,7 @@ class UnitFrame {
     this.nameEl.textContent = who ? `${who.emblem} ${u.name}` : u.name;
     applyName(this.nameEl, { color: who?.color || CLASSES[u.classId].color, color2: who?.color2, glow: who?.glow });
     this.hp.setColor(enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)');
-    this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}`);
+    this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}${u.absorb ? ` (+${u.absorb})` : ''}`, u.absorb ?? 0);
     this.res.setColor(RES_COLOR[u.resourceType]);
     this.res.set(u.resource, u.resourceMax, `${u.resource}`);
     if (this.cast) {
@@ -343,7 +350,7 @@ export class Hud {
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[] }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number }[],
     now: number,
   ) {
     const seen = new Set<number>();
@@ -380,7 +387,7 @@ export class Hud {
       p.title.textContent = who?.title ? `«${who.title}»` : '';
       p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);
-      p.bar.set(u.health, u.maxHealth, '');
+      p.bar.set(u.health, u.maxHealth, '', u.absorb ?? 0);
       // harmful effects on the unit (stuns, roots, slows, DoTs), each with its time left; rebuilt only when the set or a second changes
       const bad = (u.auras ?? []).filter((a) => AURAS[a.id]?.harmful).slice(0, 6);
       const dkey = bad.map((a) => `${a.id}:${a.expiresAt > 0 ? Math.ceil((a.expiresAt - now) / 1000) : ''}`).join();

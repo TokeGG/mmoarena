@@ -284,6 +284,8 @@ export interface UnitSnap {
   /** expiresAt 0 = permanent */
   auras: { id: string; kind: AuraKind; src: number; expiresAt: number }[];
   stealthed: boolean;
+  /** Damage the unit's shields (Power Word: Shield, Ice Barrier) can still soak; absent when none. */
+  absorb?: number;
   /** Height above the ground from a jump (cosmetic). */
   y: number;
   /** Movement multiplier on TUNING.runSpeed; 0 when rooted/stunned/feared. */
