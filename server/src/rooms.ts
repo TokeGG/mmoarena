@@ -439,6 +439,11 @@ export class Room {
           const me = this.sim.units.get(p.unitId!);
           if (me && p.ws.readyState === 1) p.ws.send(JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(me.team), paused: true }, events: [] }));
         }
+        // watchers see it paused too (late watchers stay on their delayed view, which stops moving)
+        if (this.spectators.size) {
+          const frame = JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(), paused: true }, events: [] });
+          for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
+        }
       }
       return;
     }
@@ -635,6 +640,8 @@ export class Lobby {
    * friends in practice, a party match or a duel). Everyone in it is told, and it stops counting for anything.
    */
   private devRoom(p: Player): Room | null {
+    // the owner can do it anywhere: in their own match or one they are watching, ranked included (it then stops counting)
+    if (p.ownerOk) return p.room ?? p.watching ?? null;
     const r = p.room;
     return r && this.isDev(p) && !r.isRanked ? r : null;
   }
@@ -932,14 +939,14 @@ export class Lobby {
       case 'dev_patch': {
         const room = this.devRoom(p);
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : p.room ? 'Not in ranked matches.' : 'Start a match first.' });
-        room.devTest = true; // from now on this match counts for nothing (progress, replays, bot learning)
+        room.devTest = true; // from now on this match counts for nothing (progress, rating, replays, bot learning)
         const by = p.account?.name ?? p.name;
         if (msg.t === 'dev_pause') room.paused = msg.on;
         else room.devPatches = msg.patches;
         // everyone in the match plays on the same numbers and sees them in their tooltips, and is told who changed what
         for (const q of [...room.players.values(), ...room.spectators]) {
           send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
-          if (q !== p) send(q, { t: 'notice', text: msg.t === 'dev_pause' ? `${by} ${msg.on ? 'paused' : 'resumed'} the match.` : msg.patches.length ? `${by} is testing ${msg.patches.length} changed number${msg.patches.length === 1 ? '' : 's'} in this match (it no longer counts).` : `${by} put the real numbers back.` });
+          if (q !== p) send(q, { t: 'notice', text: msg.t === 'dev_pause' ? `${by} ${msg.on ? 'paused' : 'resumed'} the match.` : msg.patches.length ? `${by} is testing ${msg.patches.length} changed number${msg.patches.length === 1 ? '' : 's'} in this match (it no longer counts${room.isRanked ? ' for rating' : ''}).` : `${by} put the real numbers back.` });
         }
         break;
       }

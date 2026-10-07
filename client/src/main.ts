@@ -764,7 +764,7 @@ controls.onKey = (code, e) => {
     if (!spec) send({ t: 'dev_builds' });
     return void buildsPanel.toggle();
   }
-  if (code === 'F2' && !spec && !binds.actionForEvent(e)) {
+  if (code === 'F2' && (!spec || spec.kind === 'live') && !binds.actionForEvent(e)) {
     e.preventDefault();
     return void devPanel.toggle();
   }
@@ -1036,7 +1036,8 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
-  devPanel.setAvailable(false); // dev tools are for your own match, not for watching
+  devPanel.setAvailable(false); // test numbers never carry over from a match you played
+  if (accountUi.account?.ownerOk && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched
   audio.ambience(arena.theme);
   you = 0;
   team = 0;
@@ -1091,6 +1092,7 @@ function endSpectateState() {
   spec = null;
   spectateBar.hide();
   buildsPanel.clear();
+  devPanel.setAvailable(false);
   document.body.classList.remove('spectating');
   you = 0;
 }
