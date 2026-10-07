@@ -1,3 +1,5 @@
+import { LOOK_OPTIONS, loadLook, look, resetLook, setLook } from './hudLook';
+
 /**
  * HUD layout editor. Every movable element gets a saved offset and scale applied through the CSS `translate` and
  * `scale` properties, which compose with each element's own positioning and transforms. Edit mode (from the Esc menu)
@@ -59,6 +61,8 @@ const PRESETS: Preset[] = [
   },
 ];
 const MARGIN = 6;
+const GRID_KEY = 'arena.hud.grid.v1';
+const GRID_SIZES = [8, 16, 24, 32, 48];
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
@@ -71,6 +75,11 @@ export class HudLayout {
   private style = 'classic';
   private styleSel!: HTMLSelectElement;
   private styleDesc!: HTMLElement;
+  /** Grid overlay and snapping, saved with the editor. */
+  private grid = { show: true, snap: true, size: 16 };
+  private gridEl!: HTMLElement;
+  private selected: string | null = null;
+  private lookSelects = new Map<string, HTMLSelectElement>();
 
   constructor() {
     try {
@@ -91,29 +100,27 @@ export class HudLayout {
     }
     document.body.dataset.hudStyle = this.style;
 
+    try {
+      const g = JSON.parse(localStorage.getItem(GRID_KEY) ?? '{}') as Partial<typeof this.grid>;
+      if (typeof g.show === 'boolean') this.grid.show = g.show;
+      if (typeof g.snap === 'boolean') this.grid.snap = g.snap;
+      if (typeof g.size === 'number' && GRID_SIZES.includes(g.size)) this.grid.size = g.size;
+    } catch {
+      /* defaults */
+    }
+    loadLook();
+
+    this.gridEl = document.createElement('div');
+    this.gridEl.id = 'hud-grid';
+    this.gridEl.className = 'hidden';
+    document.body.append(this.gridEl);
+
     this.bar = document.createElement('div');
     this.bar.id = 'hud-edit-bar';
     this.bar.className = 'hidden';
-    const text = document.createElement('span');
-    text.textContent = 'Drag to move, scroll to resize.';
-    this.styleSel = document.createElement('select');
-    for (const p of PRESETS) this.styleSel.append(new Option(p.name, p.id));
-    this.styleSel.value = this.style;
-    this.styleDesc = document.createElement('small');
-    this.styleDesc.textContent = PRESETS.find((p) => p.id === this.style)?.desc ?? '';
-    this.styleSel.addEventListener('change', () => this.setStyle(this.styleSel.value));
-    const label = document.createElement('label');
-    label.textContent = 'Style ';
-    label.append(this.styleSel);
-    const reset = document.createElement('button');
-    reset.textContent = 'Reset all';
-    reset.addEventListener('click', () => this.reset());
-    const done = document.createElement('button');
-    done.textContent = 'Done';
-    done.className = 'primary';
-    done.addEventListener('click', () => this.stop());
-    this.bar.append(text, label, this.styleDesc, reset, done);
+    this.bar.append(this.buildPanel());
     document.body.append(this.bar);
+    this.paintGrid();
 
     for (const [id, label] of TARGETS) {
       const e = document.getElementById(id);
@@ -133,6 +140,10 @@ export class HudLayout {
     this.editing = true;
     document.body.classList.add('hud-edit');
     this.bar.classList.remove('hidden');
+    this.selected = null;
+    this.paintSelection();
+    this.paintGrid();
+    window.addEventListener('keydown', this.keyHandler);
     this.onChange(true);
   }
 
@@ -142,6 +153,8 @@ export class HudLayout {
     this.drag = null;
     document.body.classList.remove('hud-edit');
     this.bar.classList.add('hidden');
+    this.gridEl.classList.add('hidden');
+    window.removeEventListener('keydown', this.keyHandler);
     this.save();
     this.onChange(false);
   }
@@ -186,7 +199,148 @@ export class HudLayout {
 
   reset() {
     this.setStyle('classic');
+    resetLook();
+    this.syncLookSelects();
   }
+
+  // ------------------------------------------------------------------ editor panel
+
+  private buildPanel(): HTMLElement {
+    const mk = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text) e.textContent = text;
+      return e;
+    };
+    const panel = mk('div', 'he-panel');
+    const head = mk('div', 'he-head');
+    head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Scroll to resize. Arrow keys nudge the last one you moved.'));
+    const done = mk('button', 'primary', 'Done');
+    done.addEventListener('click', () => this.stop());
+    const reset = mk('button', '', 'Reset all');
+    reset.addEventListener('click', () => this.reset());
+    head.append(reset, done);
+
+    // presets
+    const row1 = mk('div', 'he-row');
+    this.styleSel = document.createElement('select');
+    for (const p of PRESETS) this.styleSel.append(new Option(p.name, p.id));
+    this.styleSel.value = this.style;
+    this.styleDesc = mk('small');
+    this.styleDesc.textContent = PRESETS.find((p) => p.id === this.style)?.desc ?? '';
+    this.styleSel.addEventListener('change', () => this.setStyle(this.styleSel.value));
+    const presetLabel = mk('label', '', 'Layout preset ');
+    presetLabel.append(this.styleSel);
+    row1.append(presetLabel, this.styleDesc);
+
+    // grid and snapping
+    const row2 = mk('div', 'he-row');
+    const toggle = (text: string, get: () => boolean, set: (v: boolean) => void) => {
+      const l = mk('label', 'he-tgl');
+      const c = document.createElement('input');
+      c.type = 'checkbox';
+      c.checked = get();
+      c.addEventListener('change', () => {
+        set(c.checked);
+        this.saveGrid();
+        this.paintGrid();
+      });
+      l.append(c, document.createTextNode(` ${text}`));
+      return l;
+    };
+    const sizeSel = document.createElement('select');
+    for (const n of GRID_SIZES) sizeSel.append(new Option(`${n} px`, String(n)));
+    sizeSel.value = String(this.grid.size);
+    sizeSel.addEventListener('change', () => {
+      this.grid.size = Number(sizeSel.value);
+      this.saveGrid();
+      this.paintGrid();
+    });
+    const sizeLabel = mk('label', '', 'Grid size ');
+    sizeLabel.append(sizeSel);
+    row2.append(toggle('Show grid', () => this.grid.show, (v) => (this.grid.show = v)), toggle('Snap to grid and centre', () => this.grid.snap, (v) => (this.grid.snap = v)), sizeLabel, mk('small', '', 'Hold Alt while dragging to ignore snapping.'));
+
+    // look options
+    const details = document.createElement('details');
+    details.className = 'he-look';
+    details.append(mk('summary', '', 'Frames, bars and slots'));
+    const grid = mk('div', 'he-lookgrid');
+    for (const o of LOOK_OPTIONS) {
+      const l = mk('label', '', `${o.label} `);
+      const sel = document.createElement('select');
+      for (const [v, t] of o.choices) sel.append(new Option(t, v));
+      sel.value = look[o.id];
+      sel.addEventListener('change', () => setLook(o.id, sel.value));
+      this.lookSelects.set(o.id, sel);
+      l.append(sel);
+      grid.append(l);
+    }
+    details.append(grid);
+
+    panel.append(head, row1, row2, details);
+    return panel;
+  }
+
+  private syncLookSelects() {
+    for (const [id, sel] of this.lookSelects) sel.value = look[id];
+  }
+
+  private saveGrid() {
+    try {
+      localStorage.setItem(GRID_KEY, JSON.stringify(this.grid));
+    } catch {
+      /* ignore */
+    }
+  }
+
+  private paintGrid() {
+    this.gridEl.style.setProperty('--g', `${this.grid.size}px`);
+    this.gridEl.classList.toggle('hidden', !(this.editing && this.grid.show));
+  }
+
+  private paintSelection() {
+    for (const [tid] of TARGETS) document.getElementById(tid)?.classList.toggle('hud-selected', tid === this.selected);
+  }
+
+  /** Pull the element to the nearest grid line (its left or right edge) and to the screen centre when close. */
+  private snap(id: string) {
+    const e = document.getElementById(id);
+    const s = this.data[id];
+    if (!e || !s) return;
+    const r = e.getBoundingClientRect();
+    if (r.width === 0 || r.height === 0) return;
+    const g = this.grid.size;
+    const pick = (cands: number[]) => cands.reduce((a, b) => (Math.abs(b) < Math.abs(a) ? b : a), Infinity);
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const xs = [Math.round(r.left / g) * g - r.left, Math.round(r.right / g) * g - r.right];
+    const ys = [Math.round(r.top / g) * g - r.top, Math.round(r.bottom / g) * g - r.bottom];
+    const mx = window.innerWidth / 2 - cx;
+    const my = window.innerHeight / 2 - cy;
+    if (Math.abs(mx) <= 10) xs.push(mx);
+    if (Math.abs(my) <= 10) ys.push(my);
+    s.dx += pick(xs);
+    s.dy += pick(ys);
+    this.apply(id);
+  }
+
+  /** Arrow keys nudge the selected element by a pixel (a grid cell with Shift). */
+  private keyHandler = (ev: KeyboardEvent) => {
+    if (!this.editing || !this.selected) return;
+    const t = (ev.target as HTMLElement | null)?.tagName;
+    if (t === 'SELECT' || t === 'INPUT') return;
+    const step = ev.shiftKey ? this.grid.size : 1;
+    const d: Record<string, [number, number]> = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    const v = d[ev.code];
+    if (!v) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    const s = this.slot(this.selected);
+    s.dx += v[0];
+    s.dy += v[1];
+    this.apply(this.selected);
+    this.fit(this.selected);
+  };
 
   private slot(id: string): Slot {
     return (this.data[id] ??= { dx: 0, dy: 0, s: 1 });
@@ -229,6 +383,8 @@ export class HudLayout {
     ev.preventDefault();
     ev.stopPropagation();
     const s = this.slot(id);
+    this.selected = id;
+    this.paintSelection();
     this.drag = { id, px: ev.clientX, py: ev.clientY, dx: s.dx, dy: s.dy };
   }
 
@@ -239,6 +395,7 @@ export class HudLayout {
     s.dx = d.dx + (ev.clientX - d.px);
     s.dy = d.dy + (ev.clientY - d.py);
     this.apply(d.id);
+    if (this.grid.snap && !ev.altKey) this.snap(d.id); // hold Alt to drag freely
     this.fit(d.id);
   }
 

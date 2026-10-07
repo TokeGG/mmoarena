@@ -9,6 +9,19 @@ const sock = () => {
 };
 
 describe('watching', () => {
+  it('guests must sign in to see or watch live matches', () => {
+    const l = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 });
+    const s = sock();
+    const g = l.connect(s, '4.4.4.4');
+    l.handle(g, { t: 'live' } as ClientMsg);
+    const m = s.sent.at(-1) as any;
+    assert.equal(m.t, 'live');
+    assert.equal(m.signIn, true);
+    assert.equal(m.rows.length, 0);
+    l.handle(g, { t: 'spectate', id: 1 } as unknown as ClientMsg);
+    assert.ok(!s.sent.some((x: ServerMsg) => x.t === 'spectating'));
+  });
+
   it('any match with a player can be watched; the owner sees it live with running stats, everyone else five seconds late', () => {
     const l = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 });
     const s0 = sock();
@@ -21,6 +34,7 @@ describe('watching', () => {
     owner.ownerOk = true;
     const sg = sock();
     const guest = l.connect(sg, '3.3.3.3');
+    for (const [pl, n] of [[owner, 'Own'], [guest, 'Gst']] as const) (pl as any).account = { name: n, key: n.toLowerCase(), matches: 0 };
     l.handle(owner, { t: 'live' } as ClientMsg);
     const rows = (so.sent.at(-1) as any).rows;
     assert.equal(rows.length, 1, 'a casual bot match is listed');

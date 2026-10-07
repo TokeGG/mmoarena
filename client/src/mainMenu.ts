@@ -1,10 +1,11 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, itemById, itemsForSlot, talentsFor,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, canWear, itemById, itemsForSlot, talentsFor,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { flags, loadBuild, progress, saveBuild } from './profile';
 import { CLASS_BLURB } from './tips';
+import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 
 /**
  * Character-select style main menu. A 3D preview of the chosen class stands in the arena behind it (see
@@ -31,6 +32,8 @@ export interface MainMenuHooks {
   onEditHud(): void;
   /** Open the list of live matches to watch. */
   onWatch(): void;
+  /** Key label for action-bar slot n (1-8), from the player's keybinds. */
+  slotKey?(n: number): string;
   /** The previewed class or build changed (so the tooltip numbers and 3D model can follow). */
   onSelect(classId: ClassId, build: Build): void;
   /** A non-leader party member toggled Ready. */
@@ -84,6 +87,8 @@ export class MainMenu {
   private classRow = el('div', 'mm-classes');
   private blurb = el('div', 'mm-blurb');
   private specs = el('div', 'mm-specs');
+  private specPop = el('div', 'mm-specpop hidden');
+  private popHide = 0;
   private talents = el('div', 'mm-talents');
   private gearRow = el('div', 'mm-gear');
   private summary = el('div', 'mm-summary');
@@ -159,21 +164,28 @@ export class MainMenu {
     this.partyBox.replaceChildren();
     this.queueBtn.textContent = this.queueLabel(!!this.account);
     if (!info) return;
-    const waiting = info.members.filter((m) => !m.ready).length;
-    this.partyBox.append(el('b', '', `Party (${info.members.length}/3)`));
+    const waiting = info.members.filter((m) => !m.ready && m.name !== info.leader).length;
+    const head = el('div', 'pr-head');
+    head.append(el('b', '', `Party (${info.members.length}/3)`), el('small', '', leader ? 'You pick the mode and arena' : `${info.leader} picks the mode and arena`));
+    this.partyBox.append(head);
     for (const m of info.members) {
-      const chip = el('span', `mm-pchip${m.ready ? ' ok' : ''}`, `${m.name === info.leader ? '👑 ' : ''}${m.name} ${m.ready ? '✓' : '…'}`);
-      this.partyBox.append(chip);
-      // which side this friend plays on in a party match; click your own to switch
+      const lead = m.name === info.leader;
+      const row = el('div', `pr-row${m.name === me ? ' me' : ''}`);
+      const cls = m.classId ? CLASSES[m.classId as ClassId] : undefined;
+      const spec = m.classId ? SPECS[m.classId as ClassId]?.find((x) => x.id === m.spec) : undefined;
+      row.append(
+        el('span', 'pr-ico', m.classId ? (CLASS_ICON[m.classId as ClassId] ?? '✦') : '…'),
+        el('span', 'pr-name', `${lead ? '👑 ' : ''}${m.name}${m.name === me ? ' (you)' : ''}`),
+        el('small', 'pr-kit', cls ? `${cls.name}${spec ? ` · ${spec.name}` : ''}` : 'choosing…'),
+      );
       const side = el('button', `mm-pside s${m.side}`, m.side === 0 ? 'Team 1' : 'Team 2');
       side.title = m.name === me ? 'Click to switch sides in a party match' : `${m.name}'s side in a party match`;
       if (m.name === me) side.addEventListener('click', () => this.hooks.onSide(m.side === 0 ? 1 : 0));
       else side.disabled = true;
-      this.partyBox.append(side);
+      row.append(side, el('span', `pr-rdy${lead || m.ready ? ' ok' : ''}`, lead ? 'Leader' : m.ready ? 'Ready ✓' : 'Not ready'));
+      this.partyBox.append(row);
     }
-    this.partyBox.append(
-      el('small', '', leader ? (waiting ? `Waiting for ${waiting} to ready up. You pick the mode and arena.` : 'Everyone is ready. Pick Practice or Ranked.') : `${info.leader} picks the mode and arena. Press Ready.`),
-    );
+    this.partyBox.append(el('small', 'pr-foot', leader ? (waiting ? `Waiting for ${waiting} to ready up.` : 'Everyone is ready. Pick Practice or Ranked.') : 'Press Ready when you are set.'));
     this.queueBtn.textContent += (info.members.length > 1 ? ` (${info.members.length - waiting}/${info.members.length} ready)` : '');
   }
 
@@ -206,7 +218,7 @@ export class MainMenu {
 
   private buildDom() {
     const logo = el('div', 'mm-logo');
-    logo.append(el('h1', '', 'Arena'), el('p', '', 'Third-person arena combat · server-authoritative'));
+    logo.append(el('h1', '', 'ARENA'), el('p', '', 'Outplay. Outlast.'));
     const ver = el('div', 'mm-ver');
     ver.id = 'ver';
 
@@ -216,7 +228,7 @@ export class MainMenu {
     this.nameInput.maxLength = 16;
     this.nameInput.placeholder = 'Character name';
     this.nameInput.value = store.get('arena.name', '');
-    left.append(el('h2', '', 'Character'), this.nameInput, this.classRow, this.blurb, el('h3', '', 'Specialization'), this.specs, el('h3', '', 'Talents'), this.talents);
+    left.append(el('h2', '', 'Character'), this.classRow, this.blurb, this.sectionHead('Specialisation', 'hover for its skills'), this.specs, this.sectionHead('Talent tree · one per tier'), this.talents);
 
     // right: gear + play
     const right = el('section', 'mm-panel mm-right');
@@ -224,7 +236,7 @@ export class MainMenu {
     const random = el('button', 'mm-small', '🎲 Random look');
     random.addEventListener('click', () => {
       this.build.gear = Object.fromEntries(COSMETICS.slots.filter(() => Math.random() < 0.8).map((sl) => {
-        const list = itemsForSlot(sl.id).filter((i) => !i.owner || flags.owner);
+        const list = itemsForSlot(sl.id).filter((i) => canWear(i, flags.owner, progress.matches));
         return [sl.id, list[Math.floor(Math.random() * list.length)].id];
       }));
       this.commit();
@@ -307,21 +319,13 @@ export class MainMenu {
     controls.addEventListener('click', () => this.hooks.onControls());
     const hudBtn = el('button', 'mm-link', 'Edit HUD layout & style');
     hudBtn.addEventListener('click', () => this.hooks.onEditHud());
-    const watch = el('button', 'mm-link', '👁 Watch live matches');
-    watch.addEventListener('click', () => this.hooks.onWatch());
-    const notes = el('button', 'mm-link', `📜 Patch notes (v${PATCHES[0]?.version ?? '?'})`);
-    notes.id = 'btn-patches';
-    notes.addEventListener('click', () => this.openPatches());
-    play.append(this.partyBox, opts, row, controls, hudBtn, watch, notes, this.msg);
+    play.append(this.partyBox, opts, row, controls, hudBtn, this.msg);
     right.append(play);
 
     this.modal.addEventListener('mousedown', (e) => {
       if (e.target === this.modal) this.closeGear();
     });
     this.root.replaceChildren(logo, ver, left, right, this.modal);
-    this.nameInput.addEventListener('input', () => {
-      if (!this.account) store.set('arena.name', this.nameInput.value);
-    });
     if (this.hooks.extras) {
       const box = el('div', 'mm-acct');
       box.append(this.hooks.extras);
@@ -366,20 +370,20 @@ export class MainMenu {
     this.blurb.textContent = CLASS_BLURB[this.classId];
   }
 
+  private sectionHead(title: string, hint = ''): HTMLElement {
+    const h = el('div', 'mm-sec');
+    h.append(el('span', '', title));
+    if (hint) h.append(el('small', '', hint));
+    return h;
+  }
+
   private renderSpecs() {
     this.specs.replaceChildren(
       ...SPECS[this.classId].map((spec) => {
         const card = el('button', `mm-spec${spec.id === this.build.spec ? ' sel' : ''}`);
-        const head = el('div', 'mm-spec-head');
-        head.append(el('span', 'ci', spec.icon), el('b', '', spec.name), el('span', 'role', spec.role));
-        const kit = el('div', 'mm-kit');
-        for (const a of spec.bar) {
-          const k = el('span', 'kit-ico', ABILITY_ICON[a] ?? '✦');
-          tip(k, `ability:${a}`);
-          kit.append(k);
-        }
-        card.append(head, el('div', 'mm-spec-desc', spec.desc), kit);
-        tip(card, `spec:${this.classId}:${spec.id}`);
+        card.append(el('span', 'ci', spec.icon), el('b', '', spec.name));
+        card.addEventListener('mouseenter', () => this.showSpecPop(card, spec));
+        card.addEventListener('mouseleave', () => this.hideSpecPop());
         card.addEventListener('click', () => {
           if (this.build.spec !== spec.id) this.build.talents = talentsFor(this.classId, spec.id).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : '')); // talents belong to a spec; tier I is shared, so that pick stays
           this.build.spec = spec.id;
@@ -390,14 +394,79 @@ export class MainMenu {
     );
   }
 
+  /** The hover card of a spec: what it does, its skills in bar order with their keys. Drag a skill onto another slot to swap them. */
+  private showSpecPop(card: HTMLElement, spec: (typeof SPECS)[ClassId][number]) {
+    window.clearTimeout(this.popHide);
+    const order = applyOrder(spec.bar, loadOrder(this.classId, spec.id));
+    const pop = this.specPop;
+    pop.replaceChildren();
+    pop.dataset.spec = spec.id;
+    const head = el('div', 'sp-head');
+    const ico = el('span', 'sp-bigico', spec.icon);
+    const title = el('div', 'sp-title');
+    title.append(el('b', '', spec.name), el('span', 'role', spec.role));
+    head.append(ico, title);
+    const reset = el('button', 'mm-small', 'Reset order');
+    reset.addEventListener('click', () => {
+      saveOrder(this.classId, spec.id, spec.bar);
+      this.showSpecPop(card, spec);
+    });
+    const sub = el('div', 'sp-sub');
+    sub.append(el('span', '', `Its ${spec.bar.length} skills`), el('small', '', 'drag to reorder · talents can swap some'), reset);
+    const list = el('div', 'sp-list');
+    order.forEach((a, i) => {
+      const slot = el('div', 'sp-slot');
+      slot.draggable = true;
+      const tile = el('span', 'sp-tile', ABILITY_ICON[a] ?? '✦');
+      slot.append(el('span', 'be-key', this.hooks.slotKey?.(i + 1) ?? String(i + 1)), tile, el('span', 'sp-name', ABILITIES[a]?.name ?? a));
+      tip(slot, `ability:${a}`);
+      slot.addEventListener('dragstart', (e) => {
+        e.dataTransfer?.setData('text/plain', String(i));
+        slot.classList.add('drag');
+      });
+      slot.addEventListener('dragend', () => slot.classList.remove('drag'));
+      slot.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        slot.classList.add('over');
+      });
+      slot.addEventListener('dragleave', () => slot.classList.remove('over'));
+      slot.addEventListener('drop', (e) => {
+        e.preventDefault();
+        const from = Number(e.dataTransfer?.getData('text/plain'));
+        if (Number.isNaN(from)) return;
+        saveOrder(this.classId, spec.id, swapSlots(order, from, i));
+        this.showSpecPop(card, spec);
+      });
+      list.append(slot);
+    });
+    pop.append(head, el('div', 'sp-desc', spec.desc), sub, list);
+    if (!pop.isConnected) {
+      document.body.append(pop);
+      pop.addEventListener('mouseenter', () => window.clearTimeout(this.popHide));
+      pop.addEventListener('mouseleave', () => this.hideSpecPop());
+    }
+    pop.classList.remove('hidden');
+    const r = (card.closest('.mm-left') ?? card).getBoundingClientRect();
+    const cr = card.getBoundingClientRect();
+    const w = pop.offsetWidth;
+    const left = r.right + 16 + w < window.innerWidth ? r.right + 16 : Math.max(6, r.left - w - 16);
+    pop.style.left = `${left}px`;
+    pop.style.top = `${Math.max(6, Math.min(cr.top - 40, window.innerHeight - pop.offsetHeight - 6))}px`;
+  }
+
+  private hideSpecPop() {
+    window.clearTimeout(this.popHide);
+    this.popHide = window.setTimeout(() => this.specPop.classList.add('hidden'), 220);
+  }
+
   private renderTalents() {
     this.talents.replaceChildren(
       ...talentsFor(this.classId, this.build.spec).map((tier, i) => {
         const row = el('div', 'mm-tier');
-        row.append(el('span', 'tier-label', `Tier ${ROMAN[i]}`));
+        row.append(el('span', 'tier-label', ROMAN[i]));
         for (const t of tier) {
           const b = el('button', `mm-talent${this.build.talents[i] === t.id ? ' sel' : ''}`);
-          b.append(el('span', 'ci', t.icon), el('span', 'tn', t.name));
+          b.append(el('span', 'tn', t.name));
           tip(b, `talent:${this.classId}:${t.id}`);
           b.addEventListener('click', () => {
             this.build.talents[i] = this.build.talents[i] === t.id ? '' : t.id;
@@ -426,7 +495,7 @@ export class MainMenu {
   }
 
   private renderSummary() {
-    this.summary.replaceChildren(el('div', 'perk', 'Cosmetics change how you look to everyone. They never change how you fight, and they are all free.'));
+    this.summary.replaceChildren(el('div', 'perk', 'Cosmetics change how you look to everyone. They never change how you fight. Flashier ones unlock as you play matches.'));
     this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}`;
   }
 
@@ -448,11 +517,14 @@ export class MainMenu {
     const grid = el('div', 'mm-cos-grid');
     for (const item of itemsForSlot(slotId)) {
       if (item.owner && !flags.owner) continue; // owner-only looks stay hidden from everyone else
-      const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${item.owner ? ' owner' : ''}`);
+      const locked = !canWear(item, flags.owner, progress.matches);
+      const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${item.owner ? ' owner' : ''}${locked ? ' locked' : ''}`);
       b.style.setProperty('--q', item.color);
       b.append(el('span', 'sw'), el('span', 'ist', (item.owner ? '★ ' : '') + item.name));
+      if (locked) b.append(el('span', 'lk', `🔒 ${item.unlock} matches`));
       tip(b, `item:${item.id}`);
       b.addEventListener('click', () => {
+        if (locked) return;
         this.build.gear[slotId] = item.id;
         this.commit(); // keep the picker open so you can try several; the model behind it updates
         this.openGear(slotId);
@@ -472,7 +544,7 @@ export class MainMenu {
 
   // ------------------------------------------------------------------ patch notes
 
-  private openPatches() {
+  openPatches() {
     const card = el('div', 'mm-modal-card mm-patches');
     const head = el('div', 'mm-modal-head');
     const close = el('button', 'mm-small', 'Close');

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, stepMovementL } from '../src/index';
+import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, navStep, resolveCollisions, stepMovementL, walkClear } from '../src/index';
 
 describe('arenas', () => {
   it('has unique ids and valid layouts', () => {
@@ -144,3 +144,53 @@ describe('jumping', () => {
     assert.ok(met, `bots stuck at ${JSON.stringify(w.pos)} / ${JSON.stringify(r.pos)}`);
   });
 });
+
+describe('The Serpent (walls)', () => {
+  const a = arenaById('serpent');
+
+  it('is a real layout: spawns and route points stand in the open, walls stay inside the bounds', () => {
+    assert.ok(a.walls!.length >= 6 && a.nav!.length >= 10);
+    const b = a.bounds;
+    for (const w of a.walls!) assert.ok(w.x0 < w.x1 && w.z0 < w.z1 && w.x0 >= b.minX && w.x1 <= b.maxX && w.z0 >= b.minZ && w.z1 <= b.maxZ);
+    for (const p of [...a.spawns[0], ...a.spawns[1], ...a.nav!]) {
+      const r = resolveCollisions(p, a);
+      assert.ok(Math.hypot(r.x - p.x, r.z - p.z) < 1e-6, `(${p.x}, ${p.z}) is free`);
+    }
+  });
+
+  it('walls stop walking and Blink, and block line of sight', () => {
+    // straight across the long hook wall at x about 1.2
+    const left = { x: -6, z: 0 };
+    const right = { x: 6, z: 0 };
+    assert.equal(hasLOS(left, right, a), false);
+    let p = left;
+    for (let i = 0; i < 80; i++) p = stepMovementL(p, 0, { fwd: 1, strafe: 0, facing: Math.PI / 2 }, TUNING.runSpeed, 0.05, a).pos;
+    assert.ok(p.x < 0, 'the wall held');
+    const end = blinkDestination({ x: -6, z: 0 }, Math.PI / 2, 20, a);
+    assert.ok(end.x < 0.6, 'Blink stops at the wall');
+  });
+
+  it('bots route round the walls and meet in a mirror duel', () => {
+    for (const [c0, c1] of [['warrior', 'rogue'], ['mage', 'warrior']] as const) {
+      const sim = new ArenaSim({ prepMs: 0, seed: 11, arena: a });
+      const u0 = sim.addUnit({ name: 'a', classId: c0, team: 0, controller: 'bot' });
+      const u1 = sim.addUnit({ name: 'b', classId: c1, team: 1, controller: 'bot' });
+      const bots = [new Bot(sim, u0.id, 'hard', 1), new Bot(sim, u1.id, 'hard', 2)];
+      let first = Infinity;
+      for (let i = 0; i < 20 * 40 && !sim.winner; i++) {
+        for (const b of bots) b.tick();
+        sim.step();
+        if (hasLOS(u0.pos, u1.pos, a) && first === Infinity) first = i;
+      }
+      assert.ok(first < 20 * 25, `${c0} and ${c1} found each other (${first})`);
+    }
+  });
+
+  it('navStep goes round a wall and is silent when the way is clear', () => {
+    assert.equal(walkClear({ x: -8, z: 0 }, { x: -8, z: 5 }, a), true);
+    assert.equal(navStep({ x: -8, z: 0 }, { x: -8, z: 5 }, a), null);
+    const step = navStep({ x: -14, z: 0 }, { x: 14, z: 0 }, a);
+    assert.ok(step && walkClear({ x: -14, z: 0 }, step, a));
+  });
+});
+

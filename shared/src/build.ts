@@ -44,12 +44,18 @@ const ITEM_BY_ID = new Map(ITEMS.map((i) => [i.id, i]));
 export const itemById = (id: string): CosmeticItem | undefined => ITEM_BY_ID.get(id);
 export const itemsForSlot = (slot: string): CosmeticItem[] => ITEMS.filter((i) => i.slot === slot);
 
-/** Keep only cosmetics that exist, sit in the right slot and are allowed (owner-only items need `isOwner`). */
-export function cleanGear(gear: Record<string, string> | undefined, isOwner = false): Record<string, string> {
+/** Can this player wear the item? Owner-only items need `isOwner`; unlockable ones need enough matches played (the owner skips that). */
+export function canWear(item: CosmeticItem, isOwner = false, matches = Infinity): boolean {
+  if (item.owner) return isOwner;
+  return isOwner || !item.unlock || matches >= item.unlock;
+}
+
+/** Keep only cosmetics that exist, sit in the right slot and are allowed (see `canWear`). */
+export function cleanGear(gear: Record<string, string> | undefined, isOwner = false, matches = Infinity): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [slot, id] of Object.entries(gear ?? {})) {
     const item = itemById(id);
-    if (item && item.slot === slot && (isOwner || !item.owner)) out[slot] = id;
+    if (item && item.slot === slot && canWear(item, isOwner, matches)) out[slot] = id;
   }
   return out;
 }
@@ -64,7 +70,7 @@ export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(clas
 export type BuildCheck = { ok: true } | { ok: false; reason: string };
 
 /** Strict check used by the server for anything a client sends. */
-export function validateBuild(classId: ClassId, b: Build, isOwner = false): BuildCheck {
+export function validateBuild(classId: ClassId, b: Build, isOwner = false, matches = Infinity): BuildCheck {
   if (!specOf(classId, b.spec)) return { ok: false, reason: 'unknown spec' };
   const tiers = talentsFor(classId, b.spec);
   if (b.talents.length > tiers.length) return { ok: false, reason: 'too many talents' };
@@ -76,6 +82,7 @@ export function validateBuild(classId: ClassId, b: Build, isOwner = false): Buil
     const item = itemById(id);
     if (!SLOT_IDS.includes(slot) || !item || item.slot !== slot) return { ok: false, reason: 'invalid cosmetic' };
     if (item.owner && !isOwner) return { ok: false, reason: `${item.name} is owner only` };
+    if (!canWear(item, isOwner, matches)) return { ok: false, reason: `${item.name} unlocks after ${item.unlock} matches` };
   }
   return { ok: true };
 }

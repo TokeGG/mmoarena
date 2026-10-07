@@ -75,6 +75,8 @@ export interface CosmeticItem {
   color: string;
   /** Only the owner account may wear it. */
   owner?: boolean;
+  /** Matches the account must have played before it can be worn (a signed-in account; guests have none). */
+  unlock?: number;
 }
 export interface CosmeticsDef { slots: { id: string; name: string; icon: string }[]; items: CosmeticItem[] }
 /** A player's chosen build. Sent on join and validated by the server. */
@@ -241,6 +243,10 @@ export interface ArenaDef {
   gateX: number;
   /** A raised bridge along the x axis through the middle: a flat deck with a ramp up at each end, and a tunnel underneath (units are on level 0, the ground, or level 1, the deck and ramps). */
   bridge?: { halfWidth: number; deckHalf: number; rampLen: number; height: number };
+  /** Solid straight walls (axis-aligned boxes). They block movement, Blink and line of sight on every level. */
+  walls?: { x0: number; x1: number; z0: number; z1: number }[];
+  /** Walkable waypoints bots steer between when walls hide the target (the walkable links are worked out from the walls). */
+  nav?: Vec2[];
   /** False keeps the arena out of the 'random' pick (it can still be chosen by name and is used for duels). */
   randomPool?: boolean;
 }

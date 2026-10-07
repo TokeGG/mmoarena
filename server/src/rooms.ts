@@ -652,9 +652,9 @@ export class Lobby {
     const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
     // cosmetics that no longer exist (an old save) are dropped quietly rather than refusing the match
     const isOwner = !!p.account && isOwnerName(p.account.name);
-    const build = msg.build ? { ...msg.build, gear: cleanGear(msg.build.gear, isOwner) } : undefined;
+    const build = msg.build ? { ...msg.build, gear: cleanGear(msg.build.gear, isOwner, progress.matches) } : undefined;
     if (build) {
-      const check = validateBuild(msg.classId, build, isOwner);
+      const check = validateBuild(msg.classId, build, isOwner, progress.matches);
       if (!check.ok) {
         send(p, { t: 'error', reason: `Invalid build: ${check.reason}` });
         send(p, { t: 'closed', reason: `Invalid build: ${check.reason}` });
@@ -709,7 +709,7 @@ export class Lobby {
         // lenient on purpose: drop what is not allowed (an owner skin without the code) instead of hiding the whole model
         const build = msg.build ?? emptyBuild(msg.classId);
         const spec = specOf(msg.classId, build.spec) ? build.spec : emptyBuild(msg.classId).spec;
-        p.view = { classId: msg.classId, spec, look: gearLook(cleanGear(build.gear, !!p.ownerOk)) };
+        p.view = { classId: msg.classId, spec, look: gearLook(cleanGear(build.gear, !!p.ownerOk, p.account?.matches ?? p.matches ?? 0)) };
         this.sendParty(party);
         break;
       }
@@ -721,10 +721,12 @@ export class Lobby {
         break;
       }
       case 'live':
+        if (!p.account) return void send(p, { t: 'live', rows: [], signIn: true });
         send(p, { t: 'live', rows: [...this.rooms].filter((r) => r.watchable).map((r) => r.live()) });
         break;
       case 'spectate': {
         if (p.room || this.inQueue(p)) return;
+        if (!p.account) return void send(p, { t: 'notice', text: 'Sign in to watch live matches.' });
         const room = [...this.rooms].find((r) => r.id === msg.id && r.watchable);
         if (!room) return void send(p, { t: 'closed', reason: 'That match is over.' });
         p.watching?.removeSpectator(p);
@@ -768,10 +770,11 @@ export class Lobby {
         break;
       case 'suggest': {
         const last = this.lastSuggest.get(p.id) ?? 0;
+        if (!p.account) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Sign in to send suggestions.' });
         if (!this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'The suggestion box is not available.' });
         if (Date.now() - last < 20000) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Slow down: one suggestion every 20 seconds.' });
         this.lastSuggest.set(p.id, Date.now());
-        void this.suggestions.add(p.account?.name ?? p.name ?? 'guest', msg.text, msg.note).then((ok) => send(p, { t: 'suggest_ack', ok, reason: ok ? undefined : 'Could not save that, try again.' }));
+        void this.suggestions.add(p.account.name, msg.text, msg.note).then((ok) => send(p, { t: 'suggest_ack', ok, reason: ok ? undefined : 'Could not save that, try again.' }));
         break;
       }
       case 'suggestions':

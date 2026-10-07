@@ -1,5 +1,5 @@
-import { ABILITIES, AURAS, CLASSES, COSMETICS, SPECS, TALENTS, describeAbility, describeAura, describeMods, itemById, newMods, specOf } from '@arena/shared';
-import type { ClassId, Mods } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, COSMETICS, SPECS, TALENTS, compileMods, describeAbility, describeAura, describeMods, explainAbility, itemById, newMods, specOf, talentsFor } from '@arena/shared';
+import type { Build, ClassId, ModSource, Mods } from '@arena/shared';
 import { setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
 
@@ -10,24 +10,43 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** The player's current numbers, so ability tooltips show real damage (talents and gear included). */
 let mods: Mods = newMods();
-export function setTipMods(m: Mods) {
-  mods = m;
+let sources: ModSource[] = [];
+/** The build the tooltips describe: its modifiers, and which spec and talents each bonus comes from (for the Alt view). */
+export function setTipBuild(classId: ClassId, build: Build | undefined) {
+  mods = compileMods(classId, build);
+  sources = [];
+  const spec = build ? specOf(classId, build.spec) : undefined;
+  if (spec) sources.push({ label: spec.name, mods: spec.mods });
+  if (build) {
+    const tiers = talentsFor(classId, build.spec);
+    build.talents.forEach((id, i) => {
+      const t = tiers[i]?.find((x) => x.id === id);
+      if (t) sources.push({ label: t.name, mods: t.mods });
+    });
+  }
 }
-/** Kept for callers; tooltips no longer depend on progress (cosmetics are all unlocked). */
-export function setTipProgress(_matches: number) {}
+/** Matches played, so cosmetic tooltips can say what is still locked. */
+let played = 0;
+export function setTipProgress(matches: number) {
+  played = matches;
+}
 
 export function abilityTip(id: string): TipContent | null {
   const def = ABILITIES[id];
   if (!def) return null;
   const d = describeAbility(def, mods);
-  return { title: d.name, titleColor: SCHOOL_COLOR[def.school], tag: cap(d.school), stats: d.stats, lines: d.lines, notes: d.notes };
+  return { title: d.name, titleColor: SCHOOL_COLOR[def.school], tag: cap(d.school), stats: d.stats, lines: d.lines, notes: d.notes, more: explainAbility(def, mods, sources) };
 }
 
 export function itemTip(id: string): TipContent | null {
   const item = itemById(id);
   if (!item) return null;
   const slot = COSMETICS.slots.find((s) => s.id === item.slot)!;
-  return { title: item.name, titleColor: item.color, tag: slot.name, stats: [], good: ['Cosmetic only: changes how you look, never how you fight.'], bad: [] };
+  const notes: string[] = [];
+  const bad: string[] = [];
+  if (item.owner) notes.push('Founder only.');
+  else if (item.unlock) (played >= item.unlock ? notes : bad).push(played >= item.unlock ? `Unlocked at ${item.unlock} matches.` : `Locked: play ${item.unlock} matches (you have ${played}).`);
+  return { title: item.name, titleColor: item.color, tag: slot.name, stats: [], good: ['Cosmetic only: changes how you look, never how you fight.'], bad, notes };
 }
 
 export function installTips() {

@@ -124,7 +124,7 @@ export type ServerMsg =
   | { t: 'duel_go'; with: string }
   /** A short message to show the player. */
   | { t: 'notice'; text: string }
-  | { t: 'live'; rows: LiveMatch[] }
+  | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
   | { t: 'admin_accounts'; rows: AdminRow[] }

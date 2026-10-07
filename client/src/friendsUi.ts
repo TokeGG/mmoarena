@@ -23,7 +23,12 @@ const STATUS_TEXT: Record<FriendStatus, string> = { offline: 'Offline', menu: 'I
 /** Friends list, party panel and the invite/notice toasts. */
 export class FriendsUi {
   readonly button = el('button', 'acct-chip fr-btn', '👥 Friends');
-  private badge = el('span', 'fr-badge hidden');
+  /** Open the friends window (guests get the sign-in window instead). */
+  openOrSignIn() {
+    if (this.hooks.signedIn()) this.open();
+    else this.hooks.needSignIn();
+  }
+  readonly badge = el('span', 'fr-badge hidden');
   private modal: HTMLElement | null = null;
   private friends: FriendRow[] = [];
   private requests: string[] = [];

@@ -49,7 +49,7 @@ export function sanitize(classId: ClassId, b: Build): Build {
   const spec = SPECS[classId].some((s) => s.id === b.spec) ? b.spec : SPECS[classId][0].id;
   const tiers = talentsFor(classId, spec);
   const talents = tiers.map((tier, i) => (tier.some((t) => t.id === b.talents[i]) ? b.talents[i] : ''));
-  const gear = cleanGear(b.gear, flags.owner);
+  const gear = cleanGear(b.gear, flags.owner, progress.matches);
   return { spec, talents, gear };
 }
 
@@ -62,7 +62,7 @@ export function loadBuild(classId: ClassId): Build {
     const raw = localStorage.getItem(buildKey(classId));
     if (raw) {
       const b = sanitize(classId, JSON.parse(raw) as Build);
-      if (validateBuild(classId, b, flags.owner).ok) return b;
+      if (validateBuild(classId, b, flags.owner, progress.matches).ok) return b;
     }
   } catch {
     /* fall through */

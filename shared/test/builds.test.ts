@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ABILITIES, ArenaSim, AURAS, CLASSES, CLASS_IDS, COSMETICS, ITEMS, SPECS, TUNING,
-  barFor, cleanGear, compileMods, describeAbility, describeAura, describeMods, itemById, itemsForSlot, parseClientMsg,
+  barFor, canWear, cleanGear, compileMods, describeAbility, explainAbility, newMods, describeAura, describeMods, itemById, itemsForSlot, parseClientMsg,
   talentsFor, validateBuild, withAuraMods,
 } from '../src/index';
 import type { Build, ClassId, SimEvent, TeamId, Unit } from '../src/index';
@@ -73,13 +73,13 @@ describe('content data is consistent', () => {
 
 describe('cosmetics', () => {
   it('has a good number of items in every slot, each with a unique id and a valid colour', () => {
-    assert.ok(ITEMS.length >= 50);
+    assert.ok(ITEMS.length >= 130, 'cosmetics were doubled');
     assert.equal(new Set(ITEMS.map((i) => i.id)).size, ITEMS.length);
     for (const slot of COSMETICS.slots) assert.ok(itemsForSlot(slot.id).filter((i) => !i.owner).length >= 7, slot.id);
     for (const i of ITEMS) assert.match(i.color, /^#[0-9a-f]{6}$/i, i.id);
   });
 
-  it('every cosmetic is free for everyone (no unlocks), and bad picks are rejected', () => {
+  it('non-owner cosmetics validate, bad picks are rejected', () => {
     for (const i of ITEMS.filter((x) => !x.owner)) assert.equal(validateBuild('mage', build('frost', [], { [i.slot]: i.id })).ok, true, i.id);
     assert.equal(validateBuild('mage', build('frost', [], { head: 'cloak_azure' })).ok, false, 'wrong slot');
     assert.equal(validateBuild('mage', build('frost', [], { head: 'nope' })).ok, false);
@@ -93,7 +93,7 @@ describe('cosmetics', () => {
 
   it('owner-only cosmetics: a good number, rejected and stripped for everyone but the owner', () => {
     const own = ITEMS.filter((i) => i.owner);
-    assert.ok(own.length >= 8);
+    assert.ok(own.length >= 25);
     for (const i of own) {
       const gear = { [i.slot]: i.id };
       assert.equal(validateBuild('mage', build('frost', [], gear)).ok, false, i.id);
@@ -107,6 +107,26 @@ describe('cosmetics', () => {
       const firstOwner = list.findIndex((i) => i.owner);
       if (firstOwner >= 0) assert.ok(list.slice(firstOwner).every((i) => i.owner), `${slot.id}: owner items come last`);
     }
+  });
+
+  it('flashy cosmetics unlock with matches played, and the owner skips the wait', () => {
+    const locked = ITEMS.filter((i) => i.unlock);
+    assert.ok(locked.length >= 30);
+    for (const slot of COSMETICS.slots) {
+      assert.ok(itemsForSlot(slot.id).filter((i) => i.unlock).length >= 4, `${slot.id} has unlockables`);
+      assert.ok(itemsForSlot(slot.id).filter((i) => !i.owner && !i.unlock).length >= 9, `${slot.id} keeps free looks`);
+    }
+    for (const i of locked) {
+      const gear = { [i.slot]: i.id };
+      assert.equal(canWear(i, false, i.unlock! - 1), false, i.id);
+      assert.equal(canWear(i, false, i.unlock!), true, i.id);
+      assert.equal(validateBuild('mage', build('frost', [], gear), false, 0).ok, false, i.id);
+      assert.equal(validateBuild('mage', build('frost', [], gear), false, i.unlock!).ok, true, i.id);
+      assert.deepEqual(cleanGear(gear, false, 0), {});
+      assert.deepEqual(cleanGear(gear, true, 0), gear);
+    }
+    const free = ITEMS.find((i) => !i.owner && !i.unlock)!;
+    assert.deepEqual(cleanGear({ [free.slot]: free.id }, false, 0), { [free.slot]: free.id });
   });
 
   it('cleanGear drops anything that no longer exists', () => {
@@ -821,3 +841,16 @@ describe('warrior rework', () => {
 });
 
 import { autoFor as autoForTest } from '../src/index';
+
+describe('detailed tooltips', () => {
+  it('explainAbility shows how the numbers are worked out and names where bonuses come from', () => {
+    const lance = ABILITIES.ice_lance;
+    const lines = explainAbility(lance, newMods(), []);
+    assert.ok(lines.some((l) => l.startsWith(`Damage: base ${lance.effects.find((e) => e.type === 'damage')!.amount}`)));
+    assert.ok(lines.some((l) => l.includes('Fingers of Frost')), 'the Fingers bonus is explained');
+    const boosted = explainAbility(lance, { ...newMods(), damageDone: 1.1 }, [{ label: 'Test Talent', mods: { damageDone: 1.1 } }]);
+    assert.ok(boosted.some((l) => l.includes('x1.1 Test Talent')));
+    assert.ok(explainAbility(ABILITIES.polymorph, newMods(), []).some((l) => l.includes('Diminishing returns')));
+    assert.ok(!explainAbility(ABILITIES.ice_lance, newMods(), []).join(' ').includes('Recklessness'), 'a warrior buff does not show on a mage spell');
+  });
+});

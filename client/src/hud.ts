@@ -1,5 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { hpFill, hpText } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
@@ -80,8 +81,8 @@ class UnitFrame {
     this.portrait.classList.toggle('enemy', enemy);
     this.nameEl.textContent = who ? `${who.emblem} ${u.name}` : u.name;
     applyName(this.nameEl, { color: who?.color || CLASSES[u.classId].color, color2: who?.color2, glow: who?.glow });
-    this.hp.setColor(enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)');
-    this.hp.set(u.health, u.maxHealth, `${u.health} / ${u.maxHealth}${u.absorb ? ` (+${u.absorb})` : ''}`, u.absorb ?? 0);
+    this.hp.setColor(hpFill(enemy, u.maxHealth > 0 ? u.health / u.maxHealth : 0, CLASSES[u.classId].color));
+    this.hp.set(u.health, u.maxHealth, hpText(u.health, u.maxHealth, u.absorb ?? 0), u.absorb ?? 0);
     this.res.setColor(RES_COLOR[u.resourceType]);
     this.res.set(u.resource, u.resourceMax, `${u.resource}`);
     this.pips.classList.toggle('hidden', u.classId !== 'rogue');

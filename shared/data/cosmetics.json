@@ -108,6 +108,60 @@
    "color": "#8fd8ff"
   },
   {
+   "id": "helm_bronze",
+   "slot": "head",
+   "name": "Bronze Helm",
+   "style": "helm",
+   "color": "#b07a3a"
+  },
+  {
+   "id": "antlers_moss",
+   "slot": "head",
+   "name": "Mossy Antlers",
+   "style": "antlers",
+   "color": "#4f8f4f"
+  },
+  {
+   "id": "ember_flamecrown",
+   "slot": "head",
+   "name": "Ember Crown",
+   "style": "flamecrown",
+   "color": "#ff7a1a",
+   "unlock": 5
+  },
+  {
+   "id": "frost_shards",
+   "slot": "head",
+   "name": "Frost Shards",
+   "style": "shards",
+   "color": "#7fdcff",
+   "unlock": 15
+  },
+  {
+   "id": "storm_flamecrown",
+   "slot": "head",
+   "name": "Stormfire Crown",
+   "style": "flamecrown",
+   "color": "#6fa8ff",
+   "unlock": 30
+  },
+  {
+   "id": "spectral_shards",
+   "slot": "head",
+   "name": "Spectral Shards",
+   "style": "shards",
+   "color": "#b8ffd8",
+   "unlock": 60
+  },
+  {
+   "id": "solar_flamecrown",
+   "slot": "head",
+   "name": "Solar Crown",
+   "style": "flamecrown",
+   "color": "#ffd24a",
+   "unlock": 100
+  },
+  {
    "id": "founder_crown",
    "slot": "head",
    "name": "Founder's Crown",
@@ -121,6 +175,22 @@
    "name": "Void Horns",
    "style": "voidhorns",
    "color": "#9b3dff",
+   "owner": true
+  },
+  {
+   "id": "prism_diadem",
+   "slot": "head",
+   "name": "Prismatic Diadem",
+   "style": "prism",
+   "color": "#ff66cc",
+   "owner": true
+  },
+  {
+   "id": "eclipse_horns",
+   "slot": "head",
+   "name": "Eclipse Horns",
+   "style": "voidhorns",
+   "color": "#ffd24a",
    "owner": true
   },
   {
@@ -180,11 +250,81 @@
    "color": "#2ecc71"
   },
   {
+   "id": "plates_bronze",
+   "slot": "shoulders",
+   "name": "Bronze Pauldrons",
+   "style": "plates",
+   "color": "#b07a3a"
+  },
+  {
+   "id": "spikes_obsidian",
+   "slot": "shoulders",
+   "name": "Obsidian Spikes",
+   "style": "spikes",
+   "color": "#2b2b36"
+  },
+  {
+   "id": "orbs_fire",
+   "slot": "shoulders",
+   "name": "Ember Spheres",
+   "style": "orbs",
+   "color": "#ff7a1a",
+   "unlock": 5
+  },
+  {
+   "id": "orbs_frost",
+   "slot": "shoulders",
+   "name": "Frost Spheres",
+   "style": "orbs",
+   "color": "#7fdcff",
+   "unlock": 15
+  },
+  {
+   "id": "bolts_storm",
+   "slot": "shoulders",
+   "name": "Stormcallers",
+   "style": "bolts",
+   "color": "#ffe14a",
+   "unlock": 30
+  },
+  {
+   "id": "orbs_void",
+   "slot": "shoulders",
+   "name": "Void Spheres",
+   "style": "orbs",
+   "color": "#9b5cff",
+   "unlock": 60
+  },
+  {
+   "id": "bolts_azure",
+   "slot": "shoulders",
+   "name": "Azure Arcs",
+   "style": "bolts",
+   "color": "#6fa8ff",
+   "unlock": 100
+  },
+  {
    "id": "dragon_pauldrons",
    "slot": "shoulders",
    "name": "Dragon Pauldrons",
    "style": "dragon",
    "color": "#7a1418",
+   "owner": true
+  },
+  {
+   "id": "sunforged_pauldrons",
+   "slot": "shoulders",
+   "name": "Sunforged Pauldrons",
+   "style": "dragon",
+   "color": "#ffd24a",
+   "owner": true
+  },
+  {
+   "id": "aurora_pauldrons",
+   "slot": "shoulders",
+   "name": "Aurora Pauldrons",
+   "style": "bolts",
+   "color": "#5dffb0",
    "owner": true
   },
   {
@@ -244,6 +384,60 @@
    "color": "#c4252b"
   },
   {
+   "id": "cloak_violet",
+   "slot": "back",
+   "name": "Violet Cloak",
+   "style": "cloak",
+   "color": "#6a3bb8"
+  },
+  {
+   "id": "cloak_snow",
+   "slot": "back",
+   "name": "Snow Cloak",
+   "style": "cloak",
+   "color": "#e8eef5"
+  },
+  {
+   "id": "ribbons_ember",
+   "slot": "back",
+   "name": "Ember Ribbons",
+   "style": "ribbons",
+   "color": "#ff7a1a",
+   "unlock": 5
+  },
+  {
+   "id": "wings_frost",
+   "slot": "back",
+   "name": "Frostfeather Wings",
+   "style": "angel",
+   "color": "#7fdcff",
+   "unlock": 15
+  },
+  {
+   "id": "ribbons_aurora",
+   "slot": "back",
+   "name": "Aurora Ribbons",
+   "style": "ribbons",
+   "color": "#5dffb0",
+   "unlock": 30
+  },
+  {
+   "id": "wings_void",
+   "slot": "back",
+   "name": "Voidbat Wings",
+   "style": "bat",
+   "color": "#9b5cff",
+   "unlock": 60
+  },
+  {
+   "id": "wings_solar",
+   "slot": "back",
+   "name": "Solar Phoenix",
+   "style": "phoenix",
+   "color": "#ffd24a",
+   "unlock": 100
+  },
+  {
    "id": "archon_wings",
    "slot": "back",
    "name": "Archon Wings",
@@ -257,6 +451,22 @@
    "name": "Cloak of Embers",
    "style": "embercloak",
    "color": "#1a1218",
+   "owner": true
+  },
+  {
+   "id": "eclipse_wings",
+   "slot": "back",
+   "name": "Eclipse Wings",
+   "style": "archon",
+   "color": "#b08cff",
+   "owner": true
+  },
+  {
+   "id": "starfall_cloak",
+   "slot": "back",
+   "name": "Starfall Cloak",
+   "style": "embercloak",
+   "color": "#6fa8ff",
    "owner": true
   },
   {
@@ -316,11 +526,81 @@
    "color": "#bcd2ff"
   },
   {
+   "id": "glow_jade",
+   "slot": "weapon",
+   "name": "Jade Sparks",
+   "style": "sparks",
+   "color": "#3df08a"
+  },
+  {
+   "id": "glow_rose",
+   "slot": "weapon",
+   "name": "Rose Halo",
+   "style": "halo",
+   "color": "#ff9ad0"
+  },
+  {
+   "id": "lightning_azure",
+   "slot": "weapon",
+   "name": "Azure Lightning",
+   "style": "lightning",
+   "color": "#6fa8ff",
+   "unlock": 5
+  },
+  {
+   "id": "flame_azure",
+   "slot": "weapon",
+   "name": "Blue Flame",
+   "style": "flame",
+   "color": "#4a8bff",
+   "unlock": 15
+  },
+  {
+   "id": "lightning_violet",
+   "slot": "weapon",
+   "name": "Violet Lightning",
+   "style": "lightning",
+   "color": "#b08cff",
+   "unlock": 30
+  },
+  {
+   "id": "inferno_ice",
+   "slot": "weapon",
+   "name": "Glacial Inferno",
+   "style": "inferno",
+   "color": "#7fdcff",
+   "unlock": 60
+  },
+  {
+   "id": "lightning_gold",
+   "slot": "weapon",
+   "name": "Golden Lightning",
+   "style": "lightning",
+   "color": "#ffd24a",
+   "unlock": 100
+  },
+  {
    "id": "godfire",
    "slot": "weapon",
    "name": "Godfire",
    "style": "inferno",
    "color": "#ff7a1a",
+   "owner": true
+  },
+  {
+   "id": "starforge",
+   "slot": "weapon",
+   "name": "Starforge",
+   "style": "inferno",
+   "color": "#ffd24a",
+   "owner": true
+  },
+  {
+   "id": "voidstorm",
+   "slot": "weapon",
+   "name": "Voidstorm",
+   "style": "lightning",
+   "color": "#9b5cff",
    "owner": true
   },
   {
@@ -380,6 +660,60 @@
    "color": "#ff9d3a"
   },
   {
+   "id": "ring_jade",
+   "slot": "aura",
+   "name": "Jade Ring",
+   "style": "ring",
+   "color": "#3df08a"
+  },
+  {
+   "id": "petals_snow",
+   "slot": "aura",
+   "name": "Snowfall",
+   "style": "petals",
+   "color": "#f0f5ff"
+  },
+  {
+   "id": "pulse_azure",
+   "slot": "aura",
+   "name": "Azure Pulse",
+   "style": "pulse",
+   "color": "#6fa8ff",
+   "unlock": 5
+  },
+  {
+   "id": "pulse_ember",
+   "slot": "aura",
+   "name": "Ember Pulse",
+   "style": "pulse",
+   "color": "#ff7a1a",
+   "unlock": 15
+  },
+  {
+   "id": "helix_gold",
+   "slot": "aura",
+   "name": "Golden Helix",
+   "style": "helix",
+   "color": "#ffd24a",
+   "unlock": 30
+  },
+  {
+   "id": "helix_void",
+   "slot": "aura",
+   "name": "Void Helix",
+   "style": "helix",
+   "color": "#9b5cff",
+   "unlock": 60
+  },
+  {
+   "id": "storm_violet",
+   "slot": "aura",
+   "name": "Violet Tempest",
+   "style": "storm",
+   "color": "#b08cff",
+   "unlock": 100
+  },
+  {
    "id": "throne_light",
    "slot": "aura",
    "name": "Throne of Light",
@@ -393,6 +727,22 @@
    "name": "Stormlord",
    "style": "storm",
    "color": "#6fa8ff",
+   "owner": true
+  },
+  {
+   "id": "eclipse_throne",
+   "slot": "aura",
+   "name": "Eclipse Throne",
+   "style": "throne",
+   "color": "#b08cff",
+   "owner": true
+  },
+  {
+   "id": "emerald_tempest",
+   "slot": "aura",
+   "name": "Emerald Tempest",
+   "style": "storm",
+   "color": "#3df08a",
    "owner": true
   },
   {
@@ -466,11 +816,81 @@
    "color": "#f08a2a"
   },
   {
+   "id": "dye_mint",
+   "slot": "tint",
+   "name": "Mint Dye",
+   "style": "dye",
+   "color": "#7fe0b8"
+  },
+  {
+   "id": "dye_slate",
+   "slot": "tint",
+   "name": "Slate Dye",
+   "style": "dye",
+   "color": "#5a6678"
+  },
+  {
+   "id": "dye_neon_green",
+   "slot": "tint",
+   "name": "Neon Green Dye",
+   "style": "dye",
+   "color": "#39ff6a",
+   "unlock": 5
+  },
+  {
+   "id": "dye_neon_pink",
+   "slot": "tint",
+   "name": "Neon Pink Dye",
+   "style": "dye",
+   "color": "#ff3fb4",
+   "unlock": 15
+  },
+  {
+   "id": "dye_electric",
+   "slot": "tint",
+   "name": "Electric Blue Dye",
+   "style": "dye",
+   "color": "#2f9bff",
+   "unlock": 30
+  },
+  {
+   "id": "dye_chrome",
+   "slot": "tint",
+   "name": "Chrome Dye",
+   "style": "dye",
+   "color": "#d0d8e4",
+   "unlock": 60
+  },
+  {
+   "id": "dye_goldplate",
+   "slot": "tint",
+   "name": "Goldplate Dye",
+   "style": "dye",
+   "color": "#ffd24a",
+   "unlock": 100
+  },
+  {
    "id": "midas",
    "slot": "tint",
    "name": "Midas Gold",
    "style": "dye",
    "color": "#ffcc33",
+   "owner": true
+  },
+  {
+   "id": "dye_eclipse",
+   "slot": "tint",
+   "name": "Eclipse Dye",
+   "style": "dye",
+   "color": "#2a1a55",
+   "owner": true
+  },
+  {
+   "id": "dye_aurora",
+   "slot": "tint",
+   "name": "Aurora Dye",
+   "style": "dye",
+   "color": "#5dffb0",
    "owner": true
   },
   {
@@ -530,6 +950,60 @@
    "color": "#ffcf5a"
   },
   {
+   "id": "orb_jade",
+   "slot": "orbit",
+   "name": "Jade Orb",
+   "style": "orb",
+   "color": "#3df08a"
+  },
+  {
+   "id": "moon_gold",
+   "slot": "orbit",
+   "name": "Golden Moon",
+   "style": "moon",
+   "color": "#ffd24a"
+  },
+  {
+   "id": "comet_ember",
+   "slot": "orbit",
+   "name": "Ember Comet",
+   "style": "comet",
+   "color": "#ff7a1a",
+   "unlock": 5
+  },
+  {
+   "id": "comet_frost",
+   "slot": "orbit",
+   "name": "Frost Comet",
+   "style": "comet",
+   "color": "#7fdcff",
+   "unlock": 15
+  },
+  {
+   "id": "trio_void",
+   "slot": "orbit",
+   "name": "Void Trio",
+   "style": "trio",
+   "color": "#9b5cff",
+   "unlock": 30
+  },
+  {
+   "id": "satellites_azure",
+   "slot": "orbit",
+   "name": "Azure Satellites",
+   "style": "satellites",
+   "color": "#7fdcff",
+   "unlock": 60
+  },
+  {
+   "id": "sun_azure",
+   "slot": "orbit",
+   "name": "Blue Star",
+   "style": "sun",
+   "color": "#7fdcff",
+   "unlock": 100
+  },
+  {
    "id": "crown_satellites",
    "slot": "orbit",
    "name": "Crown Satellites",
@@ -543,6 +1017,22 @@
    "name": "Mini Sun",
    "style": "sun",
    "color": "#ffb52e",
+   "owner": true
+  },
+  {
+   "id": "eclipse_sun",
+   "slot": "orbit",
+   "name": "Eclipse Star",
+   "style": "sun",
+   "color": "#b08cff",
+   "owner": true
+  },
+  {
+   "id": "aurora_comet",
+   "slot": "orbit",
+   "name": "Aurora Comet",
+   "style": "comet",
+   "color": "#5dffb0",
    "owner": true
   }
  ]

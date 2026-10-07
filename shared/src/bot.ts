@@ -1,5 +1,5 @@
 import { ABILITIES, AURAS, TUNING } from './data';
-import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, stepMovementL } from './geometry';
+import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, navStep, stepMovementL } from './geometry';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
@@ -630,6 +630,8 @@ export class Bot {
     const arena = this.sim.arena;
     const lw = this.levelWaypoint(from, fromLv, to, toLv);
     if (lw) return lw;
+    const around = navStep(from, to, arena); // walls in the way: follow the route points round them
+    if (around) return around;
     if (hasLOS(from, to, arena, fromLv, toLv)) return to;
     let best: { x: number; z: number; r: number } | undefined;
     for (const pl of arena.pillars) {

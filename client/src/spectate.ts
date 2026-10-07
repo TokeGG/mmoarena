@@ -190,7 +190,7 @@ export class SpectateBar {
 /** A picker listing the matches in progress. */
 export class LivePicker {
   private modal: HTMLElement | null = null;
-  constructor(private onPick: (id: string) => void, private refresh: () => void) {}
+  constructor(private onPick: (id: string) => void, private refresh: () => void, private signedIn: () => boolean = () => true, private needSignIn: () => void = () => {}) {}
 
   show(rows: LiveMatch[] | null) {
     this.close();
@@ -205,7 +205,16 @@ export class LivePicker {
     again.addEventListener('click', () => this.refresh());
     head.append(again, close);
     card.append(head);
-    if (!rows) card.append(el('p', 'mm-modal-foot', 'Looking for matches…'));
+    if (!this.signedIn()) {
+      again.disabled = true;
+      const lock = el('div', 'sg-lock');
+      const msg = el('div', 'sg-lock-t');
+      msg.append(el('b', '', 'Sign in to watch live matches'), el('small', '', 'Watching is for signed-in players. It only takes a name and a password.'));
+      const go = el('button', 'mm-small mm-go', 'Sign in');
+      go.addEventListener('click', () => { this.close(); this.needSignIn(); });
+      lock.append(msg, go);
+      card.append(lock);
+    } else if (!rows) card.append(el('p', 'mm-modal-foot', 'Looking for matches…'));
     else if (!rows.length) card.append(el('p', 'mm-modal-foot', 'No matches are being played right now.'));
     else {
       const list = el('div', 'live-list');

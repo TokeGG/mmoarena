@@ -11,9 +11,12 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
 interface Hooks {
   send(m: ClientMsg): void;
   isOwner(): boolean;
+  signedIn(): boolean;
+  /** Opens the sign-in window. */
+  needSignIn(): void;
 }
 
-/** The suggestion box: anyone can send an idea; the owner also reads what has come in. */
+/** The suggestion box: signed-in players send ideas under their account name; the owner also reads what has come in. */
 export class SuggestUi {
   readonly button = el('button', 'acct-chip', '💡 Suggest');
   private modal: HTMLElement | null = null;
@@ -25,6 +28,7 @@ export class SuggestUi {
   constructor(private hooks: Hooks) {
     this.button.title = 'Send an idea for the game';
     this.button.addEventListener('click', () => this.open());
+    window.addEventListener('keydown', (e) => e.code === 'Escape' && this.modal && this.close());
   }
 
   handle(m: ServerMsg): void {
@@ -66,17 +70,19 @@ export class SuggestUi {
     }
   }
 
-  private open(): void {
+  open(): void {
     if (this.modal) return;
     const modal = el('div', 'mm-modal');
     modal.addEventListener('mousedown', (e) => e.target === modal && this.close());
     const card = el('div', 'mm-modal-card fr-card');
     const head = el('div', 'mm-modal-head');
-    head.append(el('h2', '', 'Suggestion box'));
+    head.append(el('h2', '', 'Suggestions'));
     const x = el('button', 'mm-small', 'Close');
     x.addEventListener('click', () => this.close());
     head.append(x);
+    const signed = this.hooks.signedIn();
     const ta = el('textarea');
+    ta.disabled = !signed;
     ta.maxLength = 600;
     ta.rows = 5;
     ta.placeholder = 'An ability, a balance change, a bug, anything you want to see…';
@@ -89,6 +95,7 @@ export class SuggestUi {
     file.accept = '.txt,text/plain';
     file.style.display = 'none';
     const attach = el('button', 'mm-small', '📎 Attach a note (.txt)');
+    attach.disabled = !signed;
     const attached = el('small', '');
     const clear = el('button', 'mm-small hidden', 'Remove');
     const showNote = () => {
@@ -97,9 +104,13 @@ export class SuggestUi {
     };
     attach.addEventListener('click', () => file.click());
     clear.addEventListener('click', () => { this.note = ''; file.value = ''; showNote(); });
-    file.addEventListener('change', async () => {
-      const f = file.files?.[0];
+    const take = async (f: File | undefined) => {
       if (!f) return;
+      if (!/\.txt$/i.test(f.name) && f.type !== 'text/plain') {
+        this.status.textContent = 'Only .txt files can be dropped here.';
+        this.status.style.color = '#f87171';
+        return;
+      }
       if (f.size > 200_000) {
         this.status.textContent = 'That file is too big: keep it under about 10,000 characters.';
         this.status.style.color = '#f87171';
@@ -110,9 +121,19 @@ export class SuggestUi {
       this.status.textContent = text.length > NOTE_MAX ? `Only the first ${NOTE_MAX.toLocaleString()} characters will be sent.` : '';
       this.status.style.color = '';
       showNote();
-    });
+    };
+    file.addEventListener('change', () => void take(file.files?.[0]));
+    const drop = el('div', 'sg-drop');
+    drop.append('Need more room? Drag and drop a ', el('b', '', '.txt'), ' file here for a longer suggestion');
+    if (signed) {
+      for (const ev of ['dragenter', 'dragover']) drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); });
+      for (const ev of ['dragleave', 'drop']) drop.addEventListener(ev, () => drop.classList.remove('over'));
+      drop.addEventListener('drop', (e) => { e.preventDefault(); void take((e as DragEvent).dataTransfer?.files?.[0]); });
+      drop.addEventListener('click', () => file.click());
+    }
     ta.addEventListener('input', () => (count.textContent = `${ta.value.length}/600`));
     const send = el('button', 'mm-small', 'Send');
+    send.disabled = !signed;
     send.addEventListener('click', () => {
       const text = ta.value.trim();
       if (text.length < 5) {
@@ -133,7 +154,15 @@ export class SuggestUi {
     row.append(send, count);
     const attachRow = el('div', 'own-row');
     attachRow.append(attach, attached, clear, file);
-    card.append(head, ta, attachRow, row, this.status);
+    if (!signed) {
+      const lock = el('div', 'sg-lock');
+      const msg = el('div', 'sg-lock-t');
+      msg.append(el('b', '', 'Sign in to send suggestions'), el('small', '', 'Ideas are sent under your account name, so the box stays locked until then.'));
+      const go = el('button', 'mm-small mm-go', 'Sign in');
+      go.addEventListener('click', () => { this.close(); this.hooks.needSignIn(); });
+      lock.append(msg, go);
+      card.append(head, lock, ta, drop, row, this.status);
+    } else card.append(head, ta, el('small', 'sg-as', 'Sent under your signed-in player name.'), drop, attachRow, row, this.status);
     if (this.hooks.isOwner()) {
       card.append(el('h3', '', 'Received'), this.list);
       this.rows = null;

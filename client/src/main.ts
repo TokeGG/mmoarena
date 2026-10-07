@@ -6,14 +6,16 @@ import type { RenderUnit } from './scene';
 import { Controls } from './input';
 import { Hud, blockedByCondition } from './hud';
 import { Keybinds, SLOT_ACTIONS } from './keybinds';
+import type { Action } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
 import { HudLayout } from './hudLayout';
 import { MainMenu } from './mainMenu';
 import { SuggestUi } from './suggestUi';
+import { buildHeaderBar } from './headerBar';
 import type { PlayRequest } from './mainMenu';
-import { initTooltips } from './tooltip';
-import { installTips, setTipMods, setTipProgress } from './tips';
+import { initTooltips, setDetailKey } from './tooltip';
+import { installTips, setTipBuild, setTipProgress } from './tips';
 import { applyAccountProgress, defaultBuild, flags, loadProfile, progress, restoreGuestProgress, saveProfile } from './profile';
 import { AccountUi } from './accountUi';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
@@ -94,6 +96,7 @@ const endChoice = (() => {
 let latest: Snapshot | null = null;
 let latestAt = 0;
 let lastCount = -1;
+let wasAir = false;
 let stepAcc = 0;
 const lastStepPos = { x: 0, z: 0 };
 const snaps: { at: number; snap: Snapshot }[] = [];
@@ -209,7 +212,7 @@ function onMessage(raw: MessageEvent) {
       send({ t: 'autoOff', off: !autoEnabled });
       barSpec = m.spec ?? myBuild.spec ?? null;
       bar = applyOrder(m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar, loadOrder(classId, barSpec));
-      setTipMods(compileMods(classId, myBuild));
+      setTipBuild(classId, myBuild);
       latest = null;
       snaps.length = 0;
       pending = [];
@@ -784,13 +787,17 @@ function frame(now: number) {
     const moved = Math.hypot(vis.x - lastStepPos.x, vis.z - lastStepPos.z);
     lastStepPos.x = vis.x;
     lastStepPos.z = vis.z;
-    if (me?.alive && !spec && moved < 3 && (interp.get(you)?.y ?? 0) < 0.15) {
+    const inAir = (interp.get(you)?.y ?? 0) >= 0.15;
+    if (me?.alive && !spec && moved < 3 && !inAir) {
       stepAcc += moved;
       if (stepAcc > 2.3) {
         stepAcc = 0;
-        audio.footstep();
+        audio.footstep(arena.theme);
       }
     }
+    if (wasAir && !inAir && me?.alive && !spec) audio.jumpLand();
+    wasAir = inAir;
+    audio.lowHealth(me && me.maxHealth > 0 ? me.health / me.maxHealth : 1, !!me?.alive && !spec);
   }
   scene.render(); // render first so projection uses this frame's camera
 
@@ -837,6 +844,8 @@ const spectateBar = new SpectateBar({
 const livePicker = new LivePicker(
   (id) => send({ t: 'spectate', id }),
   () => send({ t: 'live' }),
+  () => !!accountUi.account,
+  () => accountUi.openAuth(),
 );
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
@@ -920,6 +929,7 @@ async function startReplay(id: string) {
 }
 
 async function openLive() {
+  if (!accountUi.account) return livePicker.show([]);
   if (!(await connect())) return joinMsg('Could not reach the server.');
   livePicker.show(null);
   send({ t: 'live' });
@@ -931,6 +941,17 @@ loadProfile();
 setTipProgress(progress.matches);
 installTips();
 initTooltips();
+{
+  // the Detailed tooltips key works everywhere (menu and match), so it keeps its own record of held keys
+  const held = new Set<string>();
+  window.addEventListener('keydown', (e) => {
+    held.add(e.code);
+    if (e.code.startsWith('Alt') && binds.matches('detail', e)) e.preventDefault(); // Alt would otherwise focus the browser menu
+  });
+  window.addEventListener('keyup', (e) => held.delete(e.code));
+  window.addEventListener('blur', () => held.clear());
+  setDetailKey(() => binds.isHeld('detail', held));
+}
 
 function joinMsg(text: string) {
   mainMenu.setMessage(text);
@@ -1039,6 +1060,7 @@ const accountUi = new AccountUi({
   onAccount: (a) => {
     flags.owner = a?.role === 'owner';
     friendsUi.setAccount(a?.name ?? null);
+    paintHeader();
     if (a) applyAccountProgress(a.matches, a.wins);
     else {
       restoreGuestProgress();
@@ -1062,10 +1084,24 @@ const friendsUi = new FriendsUi({
     sendLook();
   },
 });
-const suggestUi = new SuggestUi({ send: (m) => send(m), isOwner: () => !!accountUi.account?.ownerOk });
+const suggestUi = new SuggestUi({ send: (m) => send(m), isOwner: () => !!accountUi.account?.ownerOk, signedIn: () => !!accountUi.account, needSignIn: () => accountUi.openAuth() });
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
-menuExtras.append(accountUi.chip, friendsUi.button, friendsUi.partyChip, suggestUi.button);
+const header = buildHeaderBar([
+  { icon: 'profile', label: 'Profile', onClick: () => (accountUi.account ? accountUi.openProfile() : accountUi.openAuth()) },
+  { icon: 'friends', label: 'Friends and party', onClick: () => friendsUi.openOrSignIn(), badge: friendsUi.badge },
+  { icon: 'patches', label: 'Patch notes', onClick: () => mainMenu.openPatches() },
+  { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive() },
+  { icon: 'suggest', label: 'Suggestions', onClick: () => suggestUi.open() },
+]);
+const paintHeader = () => {
+  const a = accountUi.account;
+  const b = header.buttons.profile;
+  b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
+  b.classList.toggle('hdr-signin', !a);
+};
+paintHeader();
+menuExtras.append(header.root, friendsUi.partyChip);
 
 /** Both friends agreed to a duel: join it with the class and build currently picked in the menu. */
 async function joinDuel(withName: string) {
@@ -1079,8 +1115,9 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onControls: () => menu.open(false, 'keys'),
   onEditHud: editHudFromMenu,
   onWatch: () => void openLive(),
+  slotKey: (n) => binds.label(`slot${n}` as Action),
   onSelect: (c, b) => {
-    setTipMods(compileMods(c, b));
+    setTipBuild(c, b);
     // a ready party member who changes class or build keeps their ready mark with the new setup
     if (mainMenu.ready) sendReady(true);
     sendLook();
@@ -1093,7 +1130,7 @@ const replayParam = new URLSearchParams(location.search).get('replay');
 if (replayParam && /^[0-9a-f]{12,16}$/.test(replayParam)) void startReplay(replayParam);
 else accountUi.promptIfNew();
 if (accountUi.token) void connect();
-setTipMods(compileMods(mainMenu.selectedClass, mainMenu.currentBuild));
+setTipBuild(mainMenu.selectedClass, mainMenu.currentBuild);
 // sound controls: mute button and the three volume sliders in the Esc menu
 {
   const muteBtn = document.getElementById('mute-btn') as HTMLButtonElement;

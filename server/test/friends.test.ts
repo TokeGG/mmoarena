@@ -364,12 +364,17 @@ describe('duels', () => {
 });
 
 describe('suggestion box', () => {
-  it('anyone can send a suggestion (rate limited), only the owner can read the box', async () => {
+  it('signed-in players can send a suggestion (rate limited), only the owner can read the box', async () => {
     const accounts = new Accounts(new MemoryStore());
     const { Suggestions } = await import('../src/suggestions');
     const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 }, accounts, undefined, new Suggestions(new MemoryStore()));
     const a = sock(), b = sock();
     const pa = lobby.connect(a, 'ip-a'), pb = lobby.connect(b, 'ip-b');
+    lobby.handle(pa, { t: 'suggest', text: 'Guests are turned away' });
+    assert.equal(last(a, 'suggest_ack')!.ok, false, 'sign in first');
+    assert.match(last(a, 'suggest_ack')!.reason!, /Sign in/);
+    lobby.handle(pa, { t: 'register', name: 'Sue', password: 'password1' } as ClientMsg);
+    await until(() => a.sent.some((m: ServerMsg) => m.t === 'account'));
     lobby.handle(pa, { t: 'suggest', text: 'Add a fifth class please' });
     await until(() => last(a, 'suggest_ack')?.ok === true);
     lobby.handle(pa, { t: 'suggest', text: 'And another one right away' });

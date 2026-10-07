@@ -7,7 +7,7 @@
 export type Action =
   | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
   | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8'
-  | 'nextTarget' | 'prevTarget' | 'autoAttack';
+  | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail';
 
 export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'forward', label: 'Move forward', group: 'Movement' },
@@ -28,6 +28,7 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'nextTarget', label: 'Next enemy', group: 'Targeting' },
   { id: 'prevTarget', label: 'Previous enemy', group: 'Targeting' },
   { id: 'autoAttack', label: 'Toggle auto-attack', group: 'Targeting' },
+  { id: 'detail', label: 'Detailed tooltips (hold while hovering)', group: 'Interface' },
 ];
 
 export const SLOT_ACTIONS: Action[] = ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8'];
@@ -54,6 +55,7 @@ const DEFAULTS: Record<Action, [string, string]> = {
   nextTarget: ['Tab', ''],
   prevTarget: ['', ''],
   autoAttack: ['KeyR', ''],
+  detail: ['AltLeft', 'AltRight'],
 };
 
 const STORE = 'arena.keybinds.v1';

@@ -35,6 +35,7 @@ describe('history, replays and spectating', () => {
     // a spectator can see the match listed, and gets frames only after the delay
     const ss = sock();
     const spec = lobby.connect(ss, '9.9.9.9');
+    (spec as any).account = { name: 'Eve', key: 'eve', matches: 0 };
     lobby.handle(spec, { t: 'live' });
     const live = ss.sent.find((m: ServerMsg) => m.t === 'live') as any;
     assert.equal(live.rows.length, 1);

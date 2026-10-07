@@ -16,9 +16,11 @@ export interface TipContent {
   bad?: string[];
   notes?: string[];
   footer?: string;
+  /** In-depth lines (how the numbers are worked out, what boosts it), shown only while the detail key is held. */
+  more?: string[];
 }
 
-export type TipResolver = (key: string, data: DOMStringMap) => TipContent | null;
+export type TipResolver = (key: string, data: DOMStringMap, detail: boolean) => TipContent | null;
 
 let resolver: TipResolver = () => null;
 let tipEl: HTMLElement | null = null;
@@ -26,6 +28,12 @@ let mx = 0;
 let my = 0;
 let shownKey = '';
 let timer = 0;
+let detailHeld: () => boolean = () => false;
+
+/** The tooltip shows its `more` lines while this returns true (the Detailed tooltips key). */
+export function setDetailKey(held: () => boolean) {
+  detailHeld = held;
+}
 
 export function setTipResolver(r: TipResolver) {
   resolver = r;
@@ -48,7 +56,7 @@ function row(cls: string, text: string): HTMLElement {
   return d;
 }
 
-function render(c: TipContent): HTMLElement[] {
+function render(c: TipContent, detail: boolean): HTMLElement[] {
   const out: HTMLElement[] = [];
   const head = document.createElement('div');
   head.className = 'tt-head';
@@ -64,7 +72,12 @@ function render(c: TipContent): HTMLElement[] {
   for (const s of c.good ?? []) out.push(row('tt-good', s));
   for (const s of c.bad ?? []) out.push(row('tt-bad', s));
   for (const s of c.notes ?? []) out.push(row('tt-note', s));
+  if (detail && c.more?.length) {
+    out.push(row('tt-more-h', 'In depth'));
+    for (const s of c.more) out.push(row('tt-more', s));
+  }
   if (c.footer) out.push(row('tt-foot', c.footer));
+  if (!detail && c.more?.length) out.push(row('tt-hint', 'Hold the Detailed tooltips key for more'));
   return out;
 }
 
@@ -91,16 +104,17 @@ function refresh() {
     return;
   }
   const key = host.dataset.tip!;
-  const sig = `${key}|${host.dataset.tipSub ?? ''}`;
+  const detail = detailHeld();
+  const sig = `${key}|${host.dataset.tipSub ?? ''}|${detail ? 1 : 0}`;
   if (sig !== shownKey || el.classList.contains('hidden')) {
-    const content = resolver(key, host.dataset);
+    const content = resolver(key, host.dataset, detail);
     if (!content) {
       el.classList.add('hidden');
       shownKey = '';
       return;
     }
     if (host.dataset.tipSub) content.footer = content.footer ? `${content.footer}\n${host.dataset.tipSub}` : host.dataset.tipSub;
-    el.replaceChildren(...render(content));
+    el.replaceChildren(...render(content, detail));
     el.classList.remove('hidden');
     shownKey = sig;
   }

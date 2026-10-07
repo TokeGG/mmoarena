@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.60.0",
+  "date": "2026-10-07",
+  "title": "Menu overhaul, new look and The Serpent",
+  "changes": [
+   "New main menu: ARENA title, icon header (profile, friends, patch notes, watch live, suggestions) and a lobby party roster showing class, spec, side and ready state.",
+   "Drag skills in the Skill bar order strip to rearrange your bar; each slot shows its key and the match uses your order.",
+   "Hold Alt over a skill for an in-depth tooltip: how damage is built, what boosts it and diminishing returns. Rebind it in Controls.",
+   "Suggestions and Watch live now require signing in. Drop a .txt file on the suggestion box for longer ideas.",
+   "Twice the cosmetics: new unlockable looks earned by matches played, plus owner-only items.",
+   "HUD editor works from the main menu with a grid, snapping and many more frame and bar looks.",
+   "Sound revamp: every ability has its own cast, impact and ambient voices, plus footsteps per arena, low-health heartbeat and landings.",
+   "New arena The Serpent: two interlocking walls form an S-shaped corridor. Bots navigate around walls."
+  ]
+ },
+ {
   "version": "0.59.1",
   "date": "2026-10-07",
   "title": "Patch notes",

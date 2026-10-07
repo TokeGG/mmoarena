@@ -1,5 +1,7 @@
 import { ABILITIES, AURAS } from '@arena/shared';
 import type { School, SimEvent } from '@arena/shared';
+import { ACTION_VOICE, STEP_SURFACE, castVoice, hitVoice, startVoice } from './voices';
+import type { Recipe } from './voices';
 
 /**
  * All sound is synthesised here with the Web Audio API (no audio files to ship or license).
@@ -217,6 +219,39 @@ export class Audio {
     src.stop(t0 + a + o.d + 0.05);
   }
 
+  // ------------------------------------------------------------------ recipes (see voices.ts)
+
+  /** Plays a recipe through the same panning and loudness as every other positional sound. */
+  private play(id: string, r: Recipe, sp: Spatial, power = 1, minGap = 40, vol = 0.7): void {
+    const ctx = this.ok(id, minGap);
+    if (!ctx) return;
+    const o = this.out(ctx, sp, 'sfx', vol);
+    r({ tone: (t) => this.tone(ctx, o, t), noise: (n) => this.noise(ctx, o, n) }, Math.max(0.4, Math.min(1.4, power)));
+  }
+
+  /** When each unit last released each ability, to tell a fresh hit from a damage-over-time or channel tick. */
+  private castAt = new Map<string, number>();
+  private heartAt = 0;
+
+  /** Call every frame with your health fraction: a heartbeat that speeds up as you get low. */
+  lowHealth(frac: number, alive: boolean): void {
+    if (!alive || frac >= 0.3) return;
+    const now = performance.now();
+    const gap = 650 + frac * 2600; // 650 ms at the brink, about 1.4 s at 30%
+    if (now - this.heartAt < gap) return;
+    this.heartAt = now;
+    this.play('heart', ACTION_VOICE.heartbeat, NEAR, 1.2 - frac, 200, 0.8);
+  }
+
+  jumpLand(sp: Spatial = NEAR): void {
+    this.play('jumpland', ACTION_VOICE.jumpLand, sp, 1, 150, 0.6);
+  }
+
+  /** A cooldown or proc lighting up (Hot Streak and friends). */
+  proc(): void {
+    this.play('proc', ACTION_VOICE.proc, NEAR, 1, 200, 0.7);
+  }
+
   // ------------------------------------------------------------------ sounds
 
   ui(kind: 'click' | 'error' | 'ping' | 'select'): void {
@@ -390,13 +425,15 @@ export class Audio {
     this.noise(ctx, o, { d: 0.1, f: 700, to: 1400, vol: 0.5 });
   }
 
-  footstep(): void {
+  /** A step; the floor of the current arena decides what it sounds like. */
+  footstep(theme = ''): void {
     const ctx = this.ok('step', 120);
     if (!ctx) return;
+    const sf = STEP_SURFACE[theme] ?? STEP_SURFACE.colosseum;
     const o = this.out(ctx, NEAR, 'sfx', 0.55);
     const j = 0.85 + Math.random() * 0.3;
-    this.noise(ctx, o, { d: 0.07, f: 420 * j, type: 'lowpass', vol: 0.5 });
-    this.tone(ctx, o, { f: 85 * j, to: 55, d: 0.08, vol: 0.4 });
+    this.noise(ctx, o, { d: 0.07, f: sf.f * j, type: sf.lp > 1 ? 'bandpass' : 'lowpass', vol: 0.5 });
+    this.tone(ctx, o, { f: sf.thud * j, to: sf.thud * 0.65, d: 0.08, vol: 0.4 });
   }
 
   /** The three-two-one before a match: pass the seconds left. */
@@ -432,18 +469,49 @@ export class Audio {
       case 'cast_start': {
         const s = sp(ev.unit);
         const def = ABILITIES[ev.ability];
-        if (s && def && def.castTime > 0) this.castStart(def.school, s);
+        if (!s || !def || def.castTime <= 0) break;
+        const v = startVoice(def);
+        if (v) this.play(`cs-${def.id}`, v, s, 1, 80, 0.6);
+        else this.castStart(def.school, s);
         break;
       }
       case 'cast': {
         const s = sp(ev.unit);
         const def = ABILITIES[ev.ability];
-        if (s && def) this.cast(def.school, def.range <= 6 && def.school === 'physical', s);
+        if (!def) break;
+        this.castAt.set(`${ev.unit}|${ev.ability}`, performance.now());
+        if (this.castAt.size > 300) this.castAt.clear();
+        if (!s) break;
+        const v = castVoice(def);
+        if (v) this.play(`c-${def.id}`, v, s, 1, 60, 0.7);
+        else this.cast(def.school, def.range <= 6 && def.school === 'physical', s);
         break;
       }
       case 'damage': {
-        const s = sp(ev.tgt);
-        if (s && ev.amount > 0) this.hit(ev.school, ev.amount, ev.tgt === you ? { ...s, gain: Math.max(s.gain, 0.9) } : s);
+        const s0 = sp(ev.tgt);
+        if (!s0) break;
+        const s = ev.tgt === you ? { ...s0, gain: Math.max(s0.gain, 0.9) } : s0;
+        if (ev.amount <= 0) {
+          if (ev.absorbed > 0) this.play('absorb', ACTION_VOICE.absorb, s, 0.9, 80);
+          break;
+        }
+        const power = 0.45 + Math.sqrt(Math.max(1, ev.amount)) / 28;
+        if (!ev.ability) {
+          // a swing of the weapon: a light whoosh and thud for physical, the school sound for anything else
+          if (ev.school === 'physical') this.play('auto', ACTION_VOICE.autoHit, s, power, 90, 0.6);
+          else this.hit(ev.school, ev.amount, s);
+          break;
+        }
+        const def = ABILITIES[ev.ability];
+        const fresh = performance.now() - (this.castAt.get(`${ev.src}|${ev.ability}`) ?? -1e9) < 350;
+        if (!fresh) {
+          this.play(`tick-${ev.ability}`, ACTION_VOICE.tick, s, power, 140, 0.55); // damage over time and channel ticks
+          break;
+        }
+        const hv = hitVoice(def);
+        if (hv) this.play(`hit-${ev.ability}`, hv, s, power, 35, 0.75);
+        else this.hit(ev.school, ev.amount, s);
+        if (ev.amount >= 320) this.play('big', ACTION_VOICE.land, s, 0.8, 150, 0.4); // a heavy blow gets a low boom under it
         break;
       }
       case 'heal': {
@@ -454,7 +522,41 @@ export class Audio {
       case 'aura': {
         const def = AURAS[ev.aura];
         const s = sp(ev.tgt);
-        if (s && def && ['stun', 'incapacitate', 'fear', 'root'].includes(def.kind)) this.control(def.kind, s);
+        if (!s || !def) break;
+        if (['stun', 'incapacitate', 'fear', 'root'].includes(def.kind)) this.control(def.kind, s);
+        else if (def.kind === 'stealth') this.play('stealth-in', ACTION_VOICE.stealthIn, s, 1, 200, 0.5);
+        else if (def.kind === 'speed') this.play('speed', ACTION_VOICE.speed, s, 1, 150, 0.5);
+        else if (def.kind === 'slow') this.play('slow', ACTION_VOICE.slow, s, 1, 150, 0.5);
+        else if (def.kind === 'buff' && !def.harmful && ev.tgt === you) this.play('buff', ACTION_VOICE.buff, s, 1, 200, 0.45);
+        if (def.kind === 'buff' && ev.tgt === you && ev.aura === 'hot_streak') this.proc();
+        break;
+      }
+      case 'aura_removed': {
+        const def = AURAS[ev.aura];
+        const s = sp(ev.tgt);
+        if (!s || !def) break;
+        if (def.kind === 'absorb' && ev.reason !== 'expired') this.play('shield-break', ACTION_VOICE.shieldBreak, s, 1, 150, 0.6);
+        else if (def.kind === 'stealth') this.play('stealth-out', ACTION_VOICE.stealthOut, s, 1, 200, 0.5);
+        break;
+      }
+      case 'leap': {
+        const s = sp(ev.unit);
+        if (s) this.play('leap', ACTION_VOICE.leap, s, 1, 200, 0.7);
+        break;
+      }
+      case 'leap_land': {
+        const s = sp(ev.unit);
+        if (s) this.play('land', ACTION_VOICE.land, s, 1, 200, 0.8);
+        break;
+      }
+      case 'immune': {
+        const s = sp(ev.tgt);
+        if (s) this.play('immune', ACTION_VOICE.immune, s, 1, 200, 0.6);
+        break;
+      }
+      case 'miss': {
+        const s = sp(ev.src);
+        if (s) this.play('miss', ACTION_VOICE.miss, s, 1, 150, 0.5);
         break;
       }
       case 'interrupt': {

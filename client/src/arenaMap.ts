@@ -768,6 +768,28 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     root.add(m);
   }
 
+  // ---------------------------------------------------------- walls (The Serpent): straight stone walls with a capstone
+  const SW_H = 5;
+  for (const wl of ARENA.walls ?? []) {
+    const ww = wl.x1 - wl.x0;
+    const wd = wl.z1 - wl.z0;
+    const wx = (wl.x0 + wl.x1) / 2;
+    const wz = (wl.z0 + wl.z1) / 2;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(ww, SW_H, wd), pillarMat);
+    body.position.set(wx, SW_H / 2, wz);
+    body.castShadow = body.receiveShadow = true;
+    root.add(body);
+    pillars.push(body); // the camera treats it like a pillar
+    const capStone = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.25, 0.4, wd + 0.25), trimMat);
+    capStone.position.set(wx, SW_H + 0.2, wz);
+    capStone.castShadow = true;
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.3, 0.5, wd + 0.3), trimMat);
+    foot.position.set(wx, 0.25, wz);
+    const band = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.08, 0.14, wd + 0.08), goldMat);
+    band.position.set(wx, SW_H - 0.7, wz);
+    root.add(capStone, foot, band);
+  }
+
   // ---------------------------------------------------------- theme dressing outside and inside the walls
   if (th.extras === 'forest') {
     // a ring of dark conifers beyond the walls and moss patches on the floor

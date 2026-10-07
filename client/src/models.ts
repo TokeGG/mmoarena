@@ -655,6 +655,52 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         b.rbox(upper, 0.03, 0.1, R * 2.1, metal(lighter(c, 0.2)), 0, brow + R * 1.08, 0, 0.01); // ridge
         break;
       }
+      case 'flamecrown': {
+        const band = b.torus(upper, R * 0.85, 0.03, metal(darker(c, 0.3)), 0, top - 0.06, 0);
+        band.rotation.x = Math.PI / 2;
+        const fl: THREE.Object3D[] = [];
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          fl.push(b.glow(upper, new THREE.ConeGeometry(0.06, 0.3 + (i % 3) * 0.08, 7), i % 2 ? lighter(c, 0.4) : c, 0.8, Math.cos(a) * R * 0.85, top + 0.1, Math.sin(a) * R * 0.85));
+        }
+        b.anim.push((t) => fl.forEach((f, i) => f.scale.set(1, 0.7 + 0.7 * Math.abs(Math.sin(t * 8 + i * 1.6)), 1)));
+        break;
+      }
+      case 'shards': {
+        const ss: THREE.Object3D[] = [];
+        for (let i = 0; i < 5; i++) {
+          const m = b.glow(upper, new THREE.OctahedronGeometry(0.06), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, 0, 0);
+          m.scale.set(0.6, 1.6, 0.6);
+          ss.push(m);
+        }
+        b.anim.push((t) => ss.forEach((m, i) => {
+          const a = t * 1.5 + (i / 5) * Math.PI * 2;
+          m.position.set(Math.cos(a) * (R + 0.14), top + 0.1 + Math.sin(t * 2 + i) * 0.05, Math.sin(a) * (R + 0.14));
+          m.rotation.y = t * 2 + i;
+        }));
+        break;
+      }
+      case 'prism': {
+        // a crown whose spikes slowly cycle through every colour, with a bright halo of the same shifting hue
+        const band = b.torus(upper, R * 0.85, 0.035, metal(0xffffff), 0, top - 0.08, 0);
+        band.rotation.x = Math.PI / 2;
+        const tips: THREE.Mesh[] = [];
+        for (let i = 0; i < 9; i++) {
+          const a = (i / 9) * Math.PI * 2;
+          const m = b.glow(upper, new THREE.ConeGeometry(0.045, 0.28 + (i % 2) * 0.1, 6), c, 0.9, Math.cos(a) * R * 0.85, top + 0.06, Math.sin(a) * R * 0.85);
+          m.material = (m.material as THREE.MeshBasicMaterial).clone();
+          tips.push(m);
+        }
+        const halo = b.glow(upper, new THREE.TorusGeometry(0.4, 0.02, 8, 48), c, 0.85, 0, top + 0.3, 0);
+        halo.material = (halo.material as THREE.MeshBasicMaterial).clone();
+        halo.rotation.x = Math.PI / 2;
+        b.anim.push((t) => {
+          tips.forEach((m, i) => (m.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.25 + i / 9) % 1, 1, 0.6));
+          (halo.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.25) % 1, 1, 0.65);
+          halo.position.y = top + 0.3 + Math.sin(t * 2) * 0.025;
+        });
+        break;
+      }
       case 'founder': {
         // a tall gold crown, a big ruby, a tilted spinning halo and sparks circling it
         const band = b.torus(upper, R * 0.85, 0.04, metal(c), 0, top - 0.08, 0);
@@ -745,6 +791,28 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           b.rbox(upper, 0.38, 0.03, 0.36, metal(0xf0c53a), x + sd * 0.02, y - 0.05, 0, 0.012).rotation.z = -sd * 0.28;
           break;
         }
+        case 'orbs': {
+          b.ball(upper, 0.14, metal(darker(c, 0.5)), x, y, 0).scale.set(1.2, 0.7, 1.1);
+          const o = b.glow(upper, new THREE.SphereGeometry(0.06, 8, 6), c, 0.95, x, y, 0);
+          const halo = b.glow(upper, new THREE.SphereGeometry(0.13, 10, 8), c, 0.25, x, y, 0);
+          b.anim.push((t) => {
+            const a = t * 2.2 * sd;
+            o.position.set(x + Math.cos(a) * 0.2, y + 0.16 + Math.sin(t * 3) * 0.03, Math.sin(a) * 0.2);
+            halo.position.copy(o.position);
+          });
+          break;
+        }
+        case 'bolts': {
+          b.ball(upper, 0.16, metal(darker(c, 0.45)), x, y, 0).scale.set(1.2, 0.7, 1.1);
+          const zs: THREE.Object3D[] = [];
+          for (let i = 0; i < 3; i++) {
+            const z = b.glow(upper, new THREE.BoxGeometry(0.025, 0.34, 0.025), lighter(c, 0.4), 0.95, x + sd * (0.03 + i * 0.08), y + 0.22, (i - 1) * 0.1);
+            z.rotation.z = -sd * (0.3 + i * 0.25);
+            zs.push(z);
+          }
+          b.anim.push((t) => zs.forEach((z, i) => (z.visible = Math.sin(t * 14 + i * 2.3 + sd) + Math.sin(t * 5.1 + i) > 0.2)));
+          break;
+        }
         case 'dragon': {
           b.ball(upper, 0.2, metal(c), x, y, 0).scale.set(1.2, 0.8, 1.15);
           const tips: THREE.Object3D[] = [];
@@ -809,6 +877,22 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         b.anim.push((t, move) => wings.forEach((g, i) => {
           const sd = i === 0 ? -1 : 1;
           g.rotation.y = sd * (0.5 + Math.sin(t * (back.style === 'bat' ? 3.2 : 2.2)) * 0.12 + move * 0.25);
+        }));
+        break;
+      }
+      case 'ribbons': {
+        // long glowing ribbons that stream out behind the runner
+        const rs: THREE.Group[] = [];
+        for (let i = 0; i < 4; i++) {
+          const pivot = new THREE.Group();
+          pivot.position.set((i - 1.5) * 0.12, 0.78, -fit.chestZ + 0.02);
+          b.glow(pivot, new THREE.BoxGeometry(0.07, 1.0 + (i % 2) * 0.25, 0.012), i % 2 ? lighter(c, 0.35) : c, 0.8, 0, -0.5 - (i % 2) * 0.12, 0);
+          upper.add(pivot);
+          rs.push(pivot);
+        }
+        b.anim.push((t, move) => rs.forEach((g, i) => {
+          g.rotation.x = 0.25 + move * 0.9 + Math.sin(t * 2.4 + i * 0.9) * 0.1;
+          g.rotation.z = Math.sin(t * 1.7 + i * 1.3) * 0.12;
         }));
         break;
       }
@@ -893,6 +977,18 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       b.anim.push((t) => fl.forEach((f, i) => {
         f.scale.set(1, 0.7 + 0.5 * Math.abs(Math.sin(t * 8 + i * 1.7)), 1);
         f.position.y = 0.12 + 0.05 * Math.sin(t * 6 + i);
+      }));
+    } else if (weapon.style === 'lightning') {
+      const zs: THREE.Object3D[] = [];
+      for (let i = 0; i < 6; i++) {
+        const z = b.glow(aura, new THREE.BoxGeometry(0.02, 0.38, 0.02), i % 2 ? lighter(c, 0.5) : c, 0.95, 0, 0, 0);
+        zs.push(z);
+      }
+      b.anim.push((t) => zs.forEach((z, i) => {
+        z.visible = Math.sin(t * 17 + i * 2.1) + Math.sin(t * 7.3 + i) > 0.1;
+        const a = Math.floor(t * 9 + i * 3) * 1.7 + i;
+        z.position.set(Math.cos(a) * 0.2, Math.sin(a * 1.3) * 0.18, Math.sin(a) * 0.2);
+        z.rotation.set(a, a * 0.7, a * 1.3);
       }));
     } else if (weapon.style === 'inferno') {
       b.glow(aura, new THREE.SphereGeometry(0.34, 16, 12), c, 0.2, 0, 0, 0);
@@ -1027,6 +1123,29 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         }));
         break;
       }
+      case 'pulse': {
+        const rs: THREE.Mesh[] = [];
+        for (let i = 0; i < 3; i++) rs.push(flat(b.glow(root, new THREE.TorusGeometry(1, 0.025, 8, 48), i === 1 ? lighter(c, 0.4) : c, 0.8, 0, 0.045, 0)));
+        flat(b.glow(root, new THREE.RingGeometry(0.15, 0.6, 32), c, 0.18, 0, 0.035, 0));
+        b.anim.push((t) => rs.forEach((m, i) => {
+          const k = (t * 0.6 + i / 3) % 1;
+          m.scale.setScalar(0.3 + k * 1.0);
+          m.visible = k < 0.95;
+        }));
+        break;
+      }
+      case 'helix': {
+        const hs: THREE.Object3D[] = [];
+        for (let i = 0; i < 16; i++) hs.push(b.glow(root, new THREE.SphereGeometry(0.04, 6, 5), i % 2 ? lighter(c, 0.4) : c, 0.95, 0, 0, 0));
+        flat(b.glow(root, new THREE.TorusGeometry(0.65, 0.02, 8, 40), c, 0.8, 0, 0.045, 0));
+        b.anim.push((t) => hs.forEach((h, i) => {
+          const k = (t * 0.4 + i / 16) % 1;
+          const a = k * Math.PI * 4 + (i % 2) * Math.PI;
+          h.position.set(Math.cos(a) * 0.6, 0.1 + k * 2.2, Math.sin(a) * 0.6);
+          h.scale.setScalar(1 - k * 0.5);
+        }));
+        break;
+      }
       case 'embers': {
         const es: THREE.Object3D[] = [];
         for (let i = 0; i < 14; i++) es.push(b.glow(root, new THREE.SphereGeometry(0.03, 6, 5), i % 2 ? lighter(c, 0.4) : c, 0.95, 0, 0, 0));
@@ -1111,6 +1230,20 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         b.anim.push((t) => {
           rays.rotation.z = t * 1.2;
           g.position.set(Math.cos(t * 0.8) * 0.5, fit.headTop + 0.55 + Math.sin(t * 1.6) * 0.06, Math.sin(t * 0.8) * 0.5);
+        });
+        break;
+      }
+      case 'comet': {
+        const g = make(0.07);
+        const tail: THREE.Object3D[] = [];
+        for (let i = 0; i < 6; i++) {
+          const m = b.glow(upper, new THREE.SphereGeometry(0.06 - i * 0.008, 6, 5), i % 2 ? lighter(c, 0.4) : c, 0.7 - i * 0.09, 0, 0, 0);
+          tail.push(m);
+        }
+        const pos = (t: number) => new THREE.Vector3(Math.cos(t * 1.7) * 0.85, 0.9 + Math.sin(t * 2.4) * 0.25, Math.sin(t * 1.7) * 0.85);
+        b.anim.push((t) => {
+          g.position.copy(pos(t));
+          tail.forEach((m, i) => m.position.copy(pos(t - (i + 1) * 0.07)));
         });
         break;
       }

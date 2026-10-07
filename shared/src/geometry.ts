@@ -37,6 +37,26 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0): V
         }
       }
     }
+    for (const w of arena.walls ?? []) {
+      const cx = clamp(x, w.x0, w.x1);
+      const cz = clamp(z, w.z0, w.z1);
+      const dx = x - cx;
+      const dz = z - cz;
+      const d = Math.hypot(dx, dz);
+      if (d >= R) continue;
+      if (d > 1e-6) {
+        x = cx + (dx / d) * R;
+        z = cz + (dz / d) * R;
+      } else {
+        // the centre is inside the box: leave through the nearest face
+        const l = x - w.x0, r = w.x1 - x, t = z - w.z0, bt = w.z1 - z;
+        const m = Math.min(l, r, t, bt);
+        if (m === l) x = w.x0 - R;
+        else if (m === r) x = w.x1 + R;
+        else if (m === t) z = w.z0 - R;
+        else z = w.z1 + R;
+      }
+    }
     ({ x, z } = bridgeCollide(arena, level, x, z));
     x = clamp(x, b.minX + R, b.maxX - R);
     z = clamp(z, b.minZ + R, b.maxZ - R);
@@ -133,6 +153,7 @@ export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Lev
   for (const pl of arena.pillars) {
     if (distPointToSegment(pl, a, b) < pl.r) return false;
   }
+  for (const w of arena.walls ?? []) if (segmentHitsRect(a, b, w.x0, w.x1, w.z0, w.z1)) return false;
   const br = arena.bridge;
   if (br) {
     // the deck is a ceiling over the tunnel: no sight between the tunnel and the raised part
@@ -198,4 +219,66 @@ export function blinkDestination(pos: Vec2, facing: number, distance: number, ar
 /** During the prep phase each team is held behind its gate. */
 export function clampToGate(p: Vec2, team: TeamId, arena: ArenaDef): Vec2 {
   return team === 0 ? { x: Math.min(p.x, -arena.gateX), z: p.z } : { x: Math.max(p.x, arena.gateX), z: p.z };
+}
+
+// ------------------------------------------------------------------ walking routes around walls (bots)
+
+const NAV_MARGIN = PLAYER_RADIUS + 0.35;
+/** Can a unit walk the straight line between two points without touching a wall? */
+export function walkClear(a: Vec2, b: Vec2, arena: ArenaDef): boolean {
+  for (const w of arena.walls ?? []) if (segmentHitsRect(a, b, w.x0 - NAV_MARGIN, w.x1 + NAV_MARGIN, w.z0 - NAV_MARGIN, w.z1 + NAV_MARGIN)) return false;
+  return true;
+}
+
+const navLinks = new WeakMap<ArenaDef, number[][]>();
+function linksOf(arena: ArenaDef): number[][] {
+  let l = navLinks.get(arena);
+  if (!l) {
+    const nav = arena.nav ?? [];
+    l = nav.map((p, i) => nav.flatMap((q, j) => (i !== j && walkClear(p, q, arena) ? [j] : [])));
+    navLinks.set(arena, l);
+  }
+  return l;
+}
+
+/**
+ * The next point to head for to get from `from` to `to` around the arena's walls, or null when the straight line is
+ * clear (or the arena has no walls or route points). Shortest route over the waypoint graph.
+ */
+export function navStep(from: Vec2, to: Vec2, arena: ArenaDef): Vec2 | null {
+  const nav = arena.nav;
+  if (!arena.walls?.length || !nav?.length || walkClear(from, to, arena)) return null;
+  const links = linksOf(arena);
+  const dst = nav.map(() => Infinity);
+  const prev = nav.map(() => -1);
+  const done = nav.map(() => false);
+  nav.forEach((p, i) => {
+    if (walkClear(from, p, arena)) dst[i] = dist(from, p);
+  });
+  let best = -1;
+  let bestCost = Infinity;
+  for (;;) {
+    let u = -1;
+    for (let i = 0; i < nav.length; i++) if (!done[i] && dst[i] < Infinity && (u < 0 || dst[i] < dst[u])) u = i;
+    if (u < 0) break;
+    done[u] = true;
+    if (walkClear(nav[u], to, arena)) {
+      const cost = dst[u] + dist(nav[u], to);
+      if (cost < bestCost) {
+        bestCost = cost;
+        best = u;
+      }
+    }
+    for (const v of links[u]) {
+      const nd = dst[u] + dist(nav[u], nav[v]);
+      if (nd < dst[v]) {
+        dst[v] = nd;
+        prev[v] = u;
+      }
+    }
+  }
+  if (best < 0) return null;
+  let at = best;
+  while (prev[at] >= 0) at = prev[at];
+  return nav[at];
 }

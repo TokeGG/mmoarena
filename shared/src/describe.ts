@@ -3,6 +3,12 @@ import { newMods } from './build';
 import { JUMP_DODGE_CD } from './jump';
 import type { AbilityDef, Mods, ModsInput } from './types';
 
+/** Where a modifier comes from, for the in-depth tooltip (the spec, a talent, a buff). */
+export interface ModSource {
+  label: string;
+  mods?: ModsInput;
+}
+
 /** Human-readable text for tooltips, generated from the same data the sim uses so it can never drift. */
 
 const sec = (ms: number) => `${Math.round(ms / 100) / 10}s`;
@@ -200,4 +206,80 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.ignoresLockout) notes.push('Usable while locked out.');
   if (!def.gcd) notes.push('Does not trigger the global cooldown.');
   return { name: def.name, school: def.school, stats, lines, notes };
+}
+
+const mult = (v: number) => `x${Math.round(v * 100) / 100}`;
+
+/**
+ * The in-depth tooltip text (hold Alt): how each number is worked out, what boosts it and what changes it. Built from the
+ * same data and the same modifiers the sim uses. `sources` lists the spec and talents so each bonus can be named.
+ */
+export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources: ModSource[] = []): string[] {
+  const out: string[] = [];
+  const am = mods.ability[def.id] ?? {};
+  const from = (pick: (m: ModsInput) => number | undefined) => sources.flatMap((s) => {
+    const v = s.mods ? pick(s.mods) : undefined;
+    return v !== undefined && v !== 1 ? [{ label: s.label, v }] : [];
+  });
+  const dmgSources = [...from((m) => m.damageDone), ...from((m) => m.ability?.[def.id]?.damage)];
+  const healSources = [...from((m) => m.healingDone), ...from((m) => m.ability?.[def.id]?.heal)];
+
+  for (const e of def.effects) {
+    if (e.type === 'damage') {
+      const base = e.amount;
+      const total = Math.round(base * mods.damageDone * (am.damage ?? 1));
+      out.push(`Damage: base ${base}${dmgSources.length ? ', ' + dmgSources.map((x) => `${mult(x.v)} ${x.label}`).join(', ') : ''} = ${total}${def.channel ? ' per pulse' : ''}.`);
+      break;
+    }
+  }
+  for (const e of def.effects) {
+    if (e.type === 'heal') {
+      const total = Math.round(e.amount * mods.healingDone * (am.heal ?? 1));
+      out.push(`Healing: base ${e.amount}${healSources.length ? ', ' + healSources.map((x) => `${mult(x.v)} ${x.label}`).join(', ') : ''} = ${total}. Healing on a target with a healing debuff is reduced by it.`);
+      break;
+    }
+  }
+  if (def.cpScale) out.push('Combo points: the damage is multiplied by the points you spend.');
+  if (def.rageSpend) out.push(`Rage: spends all of it. Damage goes from x1 at ${def.rageSpend.min} rage to x${def.rageSpend.maxMult} at full rage.`);
+  if (def.behindMult) out.push(`Position: x${def.behindMult} damage from behind the target.`);
+  if (def.consumes) out.push(`Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack, then all stacks are used up.`);
+  if (def.exploit) out.push(`Bonus: counts as ${mult(def.exploit.mult)} when the target has ${AURAS[def.exploit.aura]?.name ?? def.exploit.aura}, and uses it up.`);
+  if (def.requiresTargetAura) out.push(`Needs the target to have ${def.requiresTargetAura.map((a) => AURAS[a]?.name ?? a).join(' or ')}.`);
+
+  // buffs on you that raise it, debuffs on the target that make it hit harder
+  const boosts: string[] = [];
+  const weaknesses: string[] = [];
+  const usable = (auraId: string) => {
+    const givers = Object.values(ABILITIES).filter((ab) => ab.effects.some((e) => e.type === 'aura' && e.aura === auraId));
+    return !givers.length || givers.some((ab) => ab.class === def.class || ab.target === 'ally' || ab.target === 'any'); // a buff only counts when you can have it
+  };
+  for (const [auraId, a] of Object.entries(AURAS)) {
+    if (!usable(auraId)) continue;
+    if (a.harmful) {
+      if (a.vulnerable && a.vulnerable.school === def.school) weaknesses.push(`${a.name}: target takes ${mult(a.vulnerable.mult)} ${def.school} damage`);
+      continue;
+    }
+    const m = a.mods;
+    const v = (m?.damageDone ?? 1) * (m?.ability?.[def.id]?.damage ?? 1);
+    if (v > 1 && def.effects.some((e) => e.type === 'damage')) boosts.push(`${a.name} ${mult(v)}`);
+    const h = (m?.healingDone ?? 1) * (m?.ability?.[def.id]?.heal ?? 1);
+    if (h > 1 && def.effects.some((e) => e.type === 'heal')) boosts.push(`${a.name} ${mult(h)}`);
+    if (a.empower && a.empower.school === def.school) boosts.push(`${a.name} ${mult(a.empower.mult)} on your next hit`);
+    if (a.instantFor === def.id) boosts.push(`${a.name}: makes it instant`);
+  }
+  if (boosts.length) out.push(`Boosted by: ${boosts.join(', ')}.`);
+  if (weaknesses.length) out.push(`Hits harder on: ${weaknesses.join(', ')}.`);
+
+  // crowd control: diminishing returns
+  const cc = def.effects.flatMap((e) => (e.type === 'aura' && AURAS[e.aura] && ['stun', 'incapacitate', 'fear', 'root'].includes(AURAS[e.aura].kind) ? [AURAS[e.aura]] : []));
+  if (cc.length) {
+    const steps = TUNING.drSteps.map((v) => (v <= 0 ? 'immune' : `${Math.round(v * 100)}%`)).join(' → ');
+    out.push(`Diminishing returns: repeated crowd control of the same kind lasts ${steps}. The count resets after ${sec(TUNING.drResetMs)} without it.`);
+  }
+  if (def.effects.some((e) => e.type === 'interrupt')) out.push('Interrupts have their own lockout and do not share diminishing returns with other crowd control.');
+  if (mods.castTime !== 1 || am.castTime) out.push(`Cast time: ${def.castTime / 1000}s base, ${mult(mods.castTime * (am.castTime ?? 1))} from your build.`);
+  if (am.cooldown) out.push(`Cooldown: ${sec(def.cooldown)} base, ${mult(am.cooldown)} from your build.`);
+  if (am.cost) out.push(`Cost: ${def.cost} base, ${mult(am.cost)} from your build.`);
+  if (def.gcd) out.push(`Triggers the global cooldown (${sec(TUNING.gcdMs * mods.gcd)}).`);
+  return out;
 }
