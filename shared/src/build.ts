@@ -22,6 +22,8 @@ export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
       const cur: AbilityMod = (into.ability[id] ??= {});
       for (const key of ['damage', 'heal', 'cooldown', 'castTime'] as const) if (m[key] !== undefined) cur[key] = (cur[key] ?? 1) * m[key]!;
       if (m.range !== undefined) cur.range = (cur.range ?? 0) + m.range;
+      if (m.charges !== undefined) cur.charges = (cur.charges ?? 0) + m.charges;
+      if (m.after) cur.after = [...(cur.after ?? []), ...m.after];
     }
   }
   if (add.auraDuration) for (const [id, v] of Object.entries(add.auraDuration)) into.auraDuration[id] = (into.auraDuration[id] ?? 1) * v;

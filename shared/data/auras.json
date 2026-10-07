@@ -8,7 +8,12 @@
   "breaksOnDamage": true,
   "dispellable": true,
   "unique": true,
-  "wander": true
+  "canTurn": true,
+  "locksAbilities": true,
+  "hot": {
+   "pct": 3,
+   "interval": 1000
+  }
  },
  "frost_nova_root": {
   "name": "Frost Nova",
@@ -190,33 +195,6 @@
    "damageTaken": 0.5
   }
  },
- "cone_slow": {
-  "name": "Cone of Cold",
-  "kind": "slow",
-  "duration": 5000,
-  "harmful": true,
-  "slowPct": 50,
-  "dispellable": true
- },
- "evocation": {
-  "name": "Evocation",
-  "kind": "buff",
-  "duration": 6000,
-  "harmful": false,
-  "mods": {
-   "regen": 4,
-   "damageTaken": 0.85
-  },
-  "dispellable": true
- },
- "dragons_breath": {
-  "name": "Dragon's Breath",
-  "kind": "stun",
-  "duration": 2000,
-  "harmful": true,
-  "dr": "stun",
-  "dispellable": true
- },
  "power_infusion": {
   "name": "Power Infusion",
   "kind": "buff",
@@ -297,6 +275,22 @@
    "interval": 1000,
    "school": "shadow",
    "ability": "plague_bloom"
+  }
+ },
+ "blink_speed": {
+  "name": "Phase Stride",
+  "kind": "speed",
+  "duration": 4000,
+  "harmful": false,
+  "speedPct": 40
+ },
+ "blink_haste": {
+  "name": "Arcane Surge",
+  "kind": "buff",
+  "duration": 5000,
+  "harmful": false,
+  "mods": {
+   "castTime": 0.7
   }
  }
 }

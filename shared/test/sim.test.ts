@@ -230,6 +230,55 @@ describe('stealth', () => {
     mustFail(sim.useAbility(rogue.id, 'cheap_shot', mage.id), /unknown ability/);
   });
 
+  it('damage over time does not break fear, but direct damage does', () => {
+    const sim = live();
+    const priest = add(sim, 'priest', 0, 0, 0);
+    const mage = add(sim, 'mage', 1, 2, 0);
+    advance(sim, TICK);
+    sim.applyAura(priest, mage, 'psychic_scream');
+    assert.ok(mage.auras.some((x) => x.id === 'psychic_scream'));
+    sim.applyAura(priest, mage, 'creeping_rot');
+    const hp = mage.health;
+    advance(sim, 4000);
+    assert.ok(mage.health < hp, 'the rot ticked');
+    assert.ok(mage.auras.some((x) => x.id === 'psychic_scream'), 'fear survived the ticks');
+    sim.dealDamage(priest, mage, 20, 'holy', null);
+    assert.ok(!mage.auras.some((x) => x.id === 'psychic_scream'), 'a direct hit breaks it');
+  });
+
+  it('counterspell works in the middle of your own cast and does not cancel it', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'mage', 1, 0, 10);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(foe.id, 'frostbolt', mage.id).ok);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', foe.id).ok);
+    assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'interrupt while casting');
+    assert.equal(mage.cast?.ability, 'frostbolt', 'own cast keeps going');
+    assert.equal(foe.cast, null);
+  });
+
+  it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    add(sim, 'warrior', 1, 30, 0);
+    mage.mods.ability['blink'] = { charges: 1 };
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'blink').ok);
+    assert.ok(sim.useAbility(mage.id, 'blink').ok, 'second blink');
+    mustFail(sim.useAbility(mage.id, 'blink'), /cooldown/);
+  });
+
+  it('blink grants its talent buffs afterwards', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    add(sim, 'warrior', 1, 30, 0);
+    mage.mods.ability['blink'] = { after: ['blink_speed', 'blink_haste'] };
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'blink').ok);
+    assert.ok(mage.auras.some((x) => x.id === 'blink_speed') && mage.auras.some((x) => x.id === 'blink_haste'));
+  });
+
   it('cheap shot needs stealth, stuns, and breaks stealth', () => {
     const sim = live();
     const rogue = add(sim, 'rogue', 0, 0, 0);
@@ -618,7 +667,7 @@ describe('v0.23 combat rules', () => {
     assert.ok(r.ok);
     assert.equal(a.cast?.ability, 'frostbolt');
   });
-  it('blink works while stunned, polymorph is limited to one target and polymorphed units wander', () => {
+  it('blink works while stunned, polymorph is limited to one target, and a sheep stands still, turns, heals and cannot blink', () => {
     const sim = new ArenaSim({ seed: 3, prepMs: 0 });
     const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0 });
     const w1 = sim.addUnit({ name: 'w1', classId: 'warrior', team: 1 });
@@ -636,8 +685,19 @@ describe('v0.23 combat rules', () => {
     assert.ok(!w1.auras.some((x) => x.id === 'polymorph'), 'first target freed');
     assert.ok(w2.auras.some((x) => x.id === 'polymorph'));
     const p0 = { ...w2.pos };
+    w2.health = Math.floor(w2.maxHealth / 2);
+    const h0 = w2.health;
+    sim.queueInput(w2.id, { seq: 1, fwd: 1, strafe: 0, facing: 2 });
     run(sim, 2000);
-    assert.ok(Math.hypot(w2.pos.x - p0.x, w2.pos.z - p0.z) > 0.5, 'sheep wanders');
+    assert.ok(Math.hypot(w2.pos.x - p0.x, w2.pos.z - p0.z) < 0.01, 'sheep stands still');
+    assert.ok(w2.health > h0, 'sheep heals a little');
+    assert.equal(w2.facing, 2, 'sheep can turn');
+    mage.auras = [];
+    const blinker = sim.addUnit({ name: 'b', classId: 'mage', team: 1 });
+    blinker.pos = { x: 0, z: 8 };
+    run(sim, 100);
+    sim.applyAura(mage, blinker, 'polymorph');
+    assert.ok(!sim.useAbility(blinker.id, 'blink').ok, 'no blink while polymorphed');
   });
 });
 

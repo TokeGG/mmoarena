@@ -378,47 +378,45 @@
   ],
   [
    {
-    "id": "tal_cone",
-    "name": "Cone of Cold",
-    "desc": "Learn Cone of Cold: damages and slows enemies around you.",
-    "icon": "\ud83c\udf2c\ufe0f",
-    "mods": {},
-    "swap": {
-     "to": "cone_of_cold",
-     "replaces": {
-      "frost": "ice_barrier",
-      "fire": "scorch",
-      "arcane": "frost_nova"
+    "id": "tal_b_twin",
+    "name": "Twin Rift",
+    "icon": "\u2728",
+    "desc": "Blink can be cast twice before its cooldown starts counting down again: two blinks per cooldown.",
+    "mods": {
+     "ability": {
+      "blink": {
+       "charges": 1
+      }
      }
     }
    },
    {
-    "id": "tal_evocation",
-    "name": "Evocation",
-    "desc": "Learn Evocation: restore mana fast and take 15% less damage for 6 seconds.",
-    "icon": "\ud83e\uddd8",
-    "mods": {},
-    "swap": {
-     "to": "evocation",
-     "replaces": {
-      "frost": "ice_barrier",
-      "fire": "scorch",
-      "arcane": "frost_nova"
+    "id": "tal_b_stride",
+    "name": "Phase Stride",
+    "icon": "\ud83d\udca8",
+    "desc": "After you Blink you run 40% faster for 4 seconds.",
+    "mods": {
+     "ability": {
+      "blink": {
+       "after": [
+        "blink_speed"
+       ]
+      }
      }
     }
    },
    {
-    "id": "tal_breath",
-    "name": "Dragon's Breath",
-    "desc": "Learn Dragon's Breath: burns and disorients enemies close to you.",
-    "icon": "\ud83d\udc09",
-    "mods": {},
-    "swap": {
-     "to": "dragons_breath",
-     "replaces": {
-      "frost": "ice_barrier",
-      "fire": "scorch",
-      "arcane": "frost_nova"
+    "id": "tal_b_surge",
+    "name": "Arcane Surge",
+    "icon": "\u26a1",
+    "desc": "After you Blink your spells cast 30% faster for 5 seconds.",
+    "mods": {
+     "ability": {
+      "blink": {
+       "after": [
+        "blink_haste"
+       ]
+      }
      }
     }
    }
@@ -469,30 +467,28 @@
    {
     "id": "tal_m_ice",
     "name": "Flash Freeze",
-    "desc": "Frost Nova and Cone of Cold are ready 15% sooner.",
+    "desc": "Frost Nova is ready 25% sooner.",
     "icon": "\ud83e\uddca",
     "mods": {
      "ability": {
       "frost_nova": {
-       "cooldown": 0.85
-      },
-      "cone_of_cold": {
-       "cooldown": 0.85
+       "cooldown": 0.75
       }
      }
     }
    },
    {
     "id": "tal_m_pyro",
-    "name": "Inferno Heart",
-    "desc": "Flamestrike and Dragon's Breath deal 20% more damage.",
+    "name": "Elemental Fury",
+    "desc": "Your damage is increased by 4%, and Flamestrike and Blizzard deal 20% more.",
     "icon": "\ud83c\udf0b",
     "mods": {
+     "damageDone": 1.04,
      "ability": {
       "flamestrike": {
        "damage": 1.2
       },
-      "dragons_breath": {
+      "blizzard": {
        "damage": 1.2
       }
      }

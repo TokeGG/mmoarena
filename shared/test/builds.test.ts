@@ -328,7 +328,7 @@ describe('channelled abilities', () => {
 describe('talent ability swaps', () => {
   const swaps = CLASS_IDS.flatMap((cls) => TALENTS[cls].flatMap((tier, ti) => tier.filter((t) => t.swap).map((t) => ({ cls, ti, t }))));
   it('there are swap talents for every class', () => {
-    for (const cls of CLASS_IDS) assert.equal(swaps.filter((s) => s.cls === cls).length, 5, cls);
+    for (const cls of CLASS_IDS) assert.equal(swaps.filter((s) => s.cls === cls).length, cls === 'mage' ? 2 : 5, cls); // mage tier 4 is the Blink tier, with no swaps
   });
   it('a swap changes exactly one slot, keeps the bar at the same length and is valid', () => {
     for (const { cls, ti, t } of swaps) {
@@ -428,6 +428,7 @@ describe('control and swaps across tiers', () => {
   it('two swaps from different tiers never fight over the same slot', () => {
     for (const cls of CLASS_IDS) {
       const swapTalents = TALENTS[cls].map((tier, ti) => tier.filter((t) => t.swap).map((t) => ({ ti, t }))).filter((x) => x.length);
+      if (swapTalents.length < 2) continue;
       for (const spec of SPECS[cls]) {
         for (const a of swapTalents[0]) for (const b of swapTalents[1]) {
           const talents = ['', '', '', '', '', ''];

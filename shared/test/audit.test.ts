@@ -76,7 +76,7 @@ describe('skills and talents audit: data', () => {
           if (!can.has(id)) return false;
           const dot = Object.values(AURAS).some((a) => a.dot?.ability === id);
           return (!!mod.damage && (d.effects.some((e) => e.type === 'damage' || e.type === 'zone') || dot)) ||
-            (!!mod.heal && d.effects.some((e) => e.type === 'heal')) || (!!mod.cooldown && d.cooldown > 0) || (!!mod.castTime && d.castTime > 0) || (!!mod.range && d.range > 0);
+            (!!mod.heal && d.effects.some((e) => e.type === 'heal')) || (!!mod.cooldown && d.cooldown > 0) || (!!mod.castTime && d.castTime > 0) || (!!mod.range && d.range > 0) || !!mod.charges || !!mod.after?.length;
         });
         const au = Object.keys(m.auraDuration ?? {}).some((aid) => [...can].some((a) => ABILITIES[a].effects.some((e) => e.type === 'aura' && e.aura === aid)));
         assert.ok(general || ab || au || t.swap?.replaces[sp.id], `${t.id} is dead on ${sp.id}`);

@@ -651,7 +651,7 @@ function frame(now: number) {
     units.map((u) => {
       const s = scene.project(u.x, 2.7 + u.y, u.z);
       const meta = snap.units.find((x) => x.id === u.id)!;
-      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null };
+      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras };
     }),
     estNow,
   );

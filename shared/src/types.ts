@@ -11,7 +11,8 @@ export type Phase = 'prep' | 'live' | 'ended';
 // ---------- builds: specs, talents, gear ----------
 
 /** Per-ability tweaks. damage/heal/cooldown/castTime are multipliers, range is added yards. */
-export interface AbilityMod { damage?: number; heal?: number; cooldown?: number; castTime?: number; range?: number }
+/** `charges` = extra uses allowed while the cooldown runs; `after` = auras you gain on yourself each time the ability fires. */
+export interface AbilityMod { damage?: number; heal?: number; cooldown?: number; castTime?: number; range?: number; charges?: number; after?: string[] }
 
 /** Fully resolved modifiers a unit carries. Multipliers default to 1. */
 export interface Mods {
@@ -64,8 +65,12 @@ export interface AuraDef {
   breaksOnDamage?: boolean;
   /** Only one target at a time per caster: applying it again removes it from the previous target. */
   unique?: boolean;
-  /** Incapacitated units wander slowly instead of standing still (Polymorph). */
-  wander?: boolean;
+  /** An incapacitated unit may still turn on the spot (Polymorph). */
+  canTurn?: boolean;
+  /** While this is on you, abilities that normally work through crowd control (Blink) do not (Polymorph). */
+  locksAbilities?: boolean;
+  /** Heals the holder this percent of maximum health every interval. */
+  hot?: { pct: number; interval: number };
   dispellable?: boolean;
   slowPct?: number;
   speedPct?: number;
@@ -204,6 +209,8 @@ export interface Unit {
   cast: CastState | null;
   gcdEnd: number;
   cooldowns: Record<string, number>;
+  /** Extra charges spent during each ability's current cooldown (talents that allow more than one use). */
+  chargesUsed: Record<string, number>;
   auras: AuraInst[];
   dr: Partial<Record<DRCategory, DRState>>;
   lockouts: Partial<Record<School, number>>;

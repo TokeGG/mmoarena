@@ -121,7 +121,7 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string }>();
+  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
@@ -343,7 +343,7 @@ export class Hud {
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[] }[],
     now: number,
   ) {
     const seen = new Set<number>();
@@ -358,9 +358,10 @@ export class Hud {
         cast.root.classList.add('pcast', 'hidden');
         const title = el('div', 'ptitle');
         const icon = el('div', 'picon');
-        root.append(icon, name, title, bar.root, cast.root);
+        const debuffs = el('div', 'pdebuffs');
+        root.append(icon, name, title, bar.root, cast.root, debuffs);
         $('labels').append(root);
-        p = { root, name, title, bar, cast, icon, av: '' };
+        p = { root, name, title, bar, cast, icon, av: '', debuffs, dkey: '' };
         this.plates.set(u.id, p);
       }
       p.root.classList.toggle('hidden', !u.visible || !u.alive);
@@ -380,6 +381,17 @@ export class Hud {
       p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);
       p.bar.set(u.health, u.maxHealth, '');
+      // harmful effects on the unit (stuns, roots, slows, DoTs), each with its time left; rebuilt only when the set or a second changes
+      const bad = (u.auras ?? []).filter((a) => AURAS[a.id]?.harmful).slice(0, 6);
+      const dkey = bad.map((a) => `${a.id}:${a.expiresAt > 0 ? Math.ceil((a.expiresAt - now) / 1000) : ''}`).join();
+      if (p.dkey !== dkey) {
+        p.dkey = dkey;
+        p.debuffs.replaceChildren(...bad.map((a) => {
+          const ic = el('div', 'pdebuff', AURA_ICON[a.id] ?? '✦');
+          if (a.expiresAt > 0) ic.append(el('i', '', String(Math.max(0, Math.ceil((a.expiresAt - now) / 1000)))));
+          return ic;
+        }));
+      }
       // cast bar over the head: gold for allies, hot orange for enemies so you can see what to interrupt
       p.cast.root.classList.toggle('hidden', !u.cast);
       if (u.cast) {
