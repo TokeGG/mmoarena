@@ -271,9 +271,11 @@ describe('duels', () => {
     const bob = last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!;
     assert.equal(bob.classId, 'warrior');
     assert.equal(bob.spec, 'protection');
-    // a build that is not valid for the class is ignored
+    // a spec that does not belong to the class falls back to that class's first spec instead of hiding the model
     lobby.handle(us[1].p, { t: 'party_look', classId: 'mage', build: { spec: 'protection', talents: [], gear: {} } } as ClientMsg);
-    await new Promise((r) => setTimeout(r, 30));
-    assert.equal(last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!.classId, 'warrior');
+    await until(() => last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!.classId === 'mage');
+    assert.equal(last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!.spec, 'frost');
+    // everyone always has a model to draw, even before their client reports
+    assert.ok(last(us[1].s, 'party')!.party!.members.every((m) => !!m.classId));
   });
 });

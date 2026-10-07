@@ -9,7 +9,7 @@ import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
-import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, validateBuild } from '@arena/shared';
+import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, specOf, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
@@ -651,9 +651,10 @@ export class Lobby {
       case 'party_look': {
         const party = p.party;
         if (!party || p.room || this.inQueue(p)) return;
+        // lenient on purpose: drop what is not allowed (an owner skin without the code) instead of hiding the whole model
         const build = msg.build ?? emptyBuild(msg.classId);
-        if (!validateBuild(msg.classId, build, !!p.ownerOk).ok) return;
-        p.view = { classId: msg.classId, spec: build.spec, look: gearLook(cleanGear(build.gear, !!p.ownerOk)) };
+        const spec = specOf(msg.classId, build.spec) ? build.spec : emptyBuild(msg.classId).spec;
+        p.view = { classId: msg.classId, spec, look: gearLook(cleanGear(build.gear, !!p.ownerOk)) };
         this.sendParty(party);
         break;
       }
@@ -770,7 +771,7 @@ export class Lobby {
   // ------------------------------------------------------------------ parties and invites
 
   private partyInfo(party: Party): PartyInfo {
-    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m), side: party.sides.get(m) ?? 0, ...(m.view ?? {}) })) };
+    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m), side: party.sides.get(m) ?? 0, ...(m.view ?? { classId: m.classId, spec: emptyBuild(m.classId).spec, look: '' }) })) };
   }
 
   private sendParty(party: Party): void {

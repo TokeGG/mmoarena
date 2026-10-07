@@ -18,6 +18,7 @@ import { AccountUi } from './accountUi';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 import { SettingsSync } from './settingsSync';
 import { FriendsUi } from './friendsUi';
+import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
@@ -550,6 +551,7 @@ controls.onKey = (code, e) => {
 
 // ------------------------------------------------------------------ frame loop
 
+const lobbyTags = new LobbyTags();
 let lastT = performance.now();
 let acc = 0;
 
@@ -567,6 +569,7 @@ function frame(now: number) {
     scene.render();
     return;
   }
+  if (latest || spec) lobbyTags.hide();
   if (!latest) {
     // Menu backdrop: the chosen class idles in the arena and sways gently towards the camera.
     const t = now / 1000;
@@ -590,6 +593,12 @@ function frame(now: number) {
     });
     scene.update(menuUnits, 0, null);
     scene.setCamera(spot.x, spot.z, f0 + Math.sin(t * 0.6) * 0.1, 0.12, mates.length ? 9.5 : 6.5);
+    // everyone in the party: their model's name tag with a check once ready (the leader is always ready)
+    const party = mainMenu.currentParty;
+    if (party && me) {
+      const placed = [{ name: me, x: menuUnits[0].x, z: menuUnits[0].z }, ...mates.map((m, i) => ({ name: m.name, x: menuUnits[i + 1].x, z: menuUnits[i + 1].z }))];
+      lobbyTags.show(party, placed, (x, y, z) => scene.project(x, y, z));
+    } else lobbyTags.hide();
     scene.render();
     return;
   }
