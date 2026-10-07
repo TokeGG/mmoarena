@@ -1,5 +1,23 @@
 [
  {
+  "version": "0.66.0",
+  "date": "2026-10-07",
+  "title": "Client polish: sync, keys, pop-ups and small screens",
+  "changes": [
+   "Settings sync is merged one setting at a time against what this browser last agreed with the server, kept per account: a device that synced once no longer overwrites what you changed on another device, and two accounts on one browser no longer share it. The server never drops your newest settings when you change things quickly.",
+   "In a match every bound key belongs to the game: Ctrl+R with R bound, Ctrl+S and the like no longer reach the browser. Binding a shortcut the browser always keeps (Ctrl+W, Ctrl+T, Ctrl+Tab...) shows a warning, and reloading or closing the page mid-match asks first.",
+   "Nameplates and floating numbers from the last match are cleared when it closes, you disconnect or you stop watching. The end screen (Ready / Leave and the scoreboard) is hidden when the connection drops.",
+   "One pop-up manager: Escape closes the window on top (Friends, Watch live, suggestions, profile, the look picker, the spec card), even while typing or after touching a slider, without opening the settings menu behind it. A match starting closes every pop-up, the settings menu and the HUD editor.",
+   "Flamestrike, Blizzard and the banner can be aimed while you are casting something else, and placing one during a cast or the global cooldown queues it.",
+   "HUD positions are saved as fractions of the screen and fitted onto it whenever the HUD appears, so a layout made on a big screen never leaves the action bar off the edge of a laptop.",
+   "Joining a duel uses the class and build picked in the menu for the tooltips and the bar.",
+   "Guests have a name field again (it was removed but still read, so every guest was 'Player').",
+   "Small screens: the help text and combat log stay clear of the action bar, the main menu fits 1280x720 without scrolling, and the header icons stay in the corner below 1100 px wide.",
+   "Hints name the keys you bound (auto-attack, switching who you follow) instead of R and Tab.",
+   "Buff and debuff icons are only redrawn when they change, not every frame."
+  ]
+ },
+ {
   "version": "0.65.0",
   "date": "2026-10-07",
   "title": "Combat fixes and an unstoppable Bladestorm",

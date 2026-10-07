@@ -11,6 +11,12 @@ interface Slot {
   dy: number;
   s: number;
 }
+/** What is saved (and synced to other devices): the offset as a fraction of the screen, so a layout made on a big screen still fits a small one. */
+interface Saved {
+  fx: number;
+  fy: number;
+  s: number;
+}
 
 const TARGETS: [string, string][] = [
   ['self-frame', 'Your frame'],
@@ -81,13 +87,20 @@ export class HudLayout {
   private selected: string | null = null;
   private lookSelects = new Map<string, HTMLSelectElement>();
 
+  /** The saved layout as screen fractions; pixel offsets are worked out from it for the current window size. */
+  private saved: Record<string, Saved> = {};
+
   constructor() {
     try {
-      const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Partial<Slot>>;
+      const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Partial<Slot & Saved>>;
       for (const [id] of TARGETS) {
         const r = raw[id];
-        if (r && Number.isFinite(r.dx) && Number.isFinite(r.dy) && Number.isFinite(r.s)) this.data[id] = { dx: r.dx!, dy: r.dy!, s: clamp(r.s!, 0.6, 1.6) };
+        if (!r || !Number.isFinite(r.s)) continue;
+        const sc = clamp(r.s!, 0.6, 1.6);
+        if (Number.isFinite(r.fx) && Number.isFinite(r.fy)) this.saved[id] = { fx: clamp(r.fx!, -1, 1), fy: clamp(r.fy!, -1, 1), s: sc };
+        else if (Number.isFinite(r.dx) && Number.isFinite(r.dy)) this.saved[id] = { fx: r.dx! / window.innerWidth, fy: r.dy! / window.innerHeight, s: sc }; // an older pixel layout
       }
+      this.fromSaved();
     } catch {
       /* ignore */
     }
@@ -131,7 +144,10 @@ export class HudLayout {
     }
     window.addEventListener('pointermove', (ev) => this.move(ev));
     window.addEventListener('pointerup', () => (this.drag = null));
-    window.addEventListener('resize', () => this.fitAll());
+    window.addEventListener('resize', () => {
+      if (!this.editing) this.fromSaved();
+      this.fitAll();
+    });
     for (const [id] of TARGETS) this.apply(id);
     requestAnimationFrame(() => this.fitAll());
   }
@@ -378,6 +394,21 @@ export class HudLayout {
     for (const [id] of TARGETS) this.fit(id);
   }
 
+  /** Pixel offsets for this window size from the saved fractions. */
+  private fromSaved() {
+    this.data = {};
+    for (const [id, f] of Object.entries(this.saved)) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s };
+    for (const [id] of TARGETS) this.apply(id);
+  }
+
+  /**
+   * Call when the HUD has just been shown: elements hidden until now could not be measured, so anything a layout from
+   * another screen put off the edge is pulled back on (it is never left unreachable, even outside the editor).
+   */
+  refit() {
+    requestAnimationFrame(() => this.fitAll());
+  }
+
   private down(ev: PointerEvent, id: string) {
     if (!this.editing) return;
     ev.preventDefault();
@@ -409,8 +440,9 @@ export class HudLayout {
   }
 
   private save() {
+    this.saved = Object.fromEntries(Object.entries(this.data).map(([id, d]) => [id, { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s }]));
     try {
-      localStorage.setItem(KEY, JSON.stringify(this.data));
+      localStorage.setItem(KEY, JSON.stringify(this.saved));
     } catch {
       /* ignore */
     }

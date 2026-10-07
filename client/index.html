@@ -77,7 +77,7 @@
   @keyframes rise { from { transform:translate(-50%,-50%); opacity:1; } to { transform:translate(-50%,-190%); opacity:0; } }
 
   #log { position:fixed; left:12px; bottom:12px; width:360px; font-size:11px; color:var(--dim); pointer-events:none; text-shadow:0 0 3px #000; }
-  #help { position:fixed; right:12px; bottom:12px; font-size:11px; color:var(--dim); text-align:right; pointer-events:none; }
+  #help { position:fixed; right:12px; bottom:12px; font-size:11px; color:var(--dim); text-align:right; pointer-events:none; max-width:calc(50vw - 312px); }
 
   #menu { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at center, rgba(8,6,4,.55), rgba(3,3,6,.88)); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; animation:menuFade .15s ease-out; }
   @keyframes menuFade { from { opacity:0; } }
@@ -196,7 +196,9 @@
   #banner small { color:#e9dcc0; -webkit-text-fill-color:#e9dcc0; -webkit-text-stroke:0; }
   #err { font-family:var(--serif); font-size:16px; }
 
-  #log { padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:380px; bottom:12px; color:#cfc6b2; }
+  #log { padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:min(380px, calc(50vw - 360px)); bottom:12px; left:60px; color:#cfc6b2; } /* clear of the sound button in the corner */
+  /* small screens: the log and the help text keep clear of the action bar (about 570 px wide, centred) */
+  @media (max-width:1000px) { #help { display:none; } #log { width:300px; bottom:100px; } }
   #log:empty { display:none; }
   #help { color:#e9dcc0; text-shadow:0 0 3px #000, 0 0 6px #000, 0 1px 2px #000; }
 
@@ -341,6 +343,7 @@
   .mm-selrow.dash { border:1px dashed #6b5a35; }
   .mm-selrow select { appearance:none; -webkit-appearance:none; box-shadow:none; outline:0; background:transparent !important; border:0 !important; padding:6px 0 !important; flex:1; min-width:0; color:#e9dcc0; font:700 14px var(--serif); text-align:right; cursor:pointer; padding:6px 0; max-width:60%; }
   .mm-selrow select option { background:#15141a; }
+  .mm-namerow input { background:transparent; border:0; outline:0; flex:1; min-width:0; max-width:60%; color:#e9dcc0; font:700 14px var(--serif); text-align:right; padding:6px 0; text-transform:none; letter-spacing:0; }
   .mm-adv summary { cursor:pointer; color:#a79d88; font-size:12px; margin-bottom:8px; } .mm-adv .mm-selrow { margin-bottom:6px; }
   .mm-actions { margin-top:auto; display:flex; flex-direction:column; gap:10px; }
   .mm-actions .mm-btn { padding:0; height:50px; border-radius:12px; font-size:16px; }
@@ -440,7 +443,8 @@
   .sg-as { display:block; margin:4px 0; color:#8b8372; }
   textarea:disabled, .mm-small:disabled { opacity:.5; cursor:not-allowed; }
   .mm-acct { position:fixed; top:12px; right:16px; z-index:25; }
-  @media (max-width:1100px) { .mm-acct { position:static; grid-column:1 / -1; justify-self:center; } }
+  /* the header icons stay in the top-right corner (they used to drop below the fold under 1100 px); on a phone-narrow screen they sit above the logo */
+  @media (max-width:760px) { .mm-acct { position:static; grid-column:1 / -1; grid-row:1; justify-self:center; } .mm-logo { grid-row:2; } }
   .acct-chip { display:flex; align-items:center; gap:8px; padding:7px 12px; background:var(--panel2); border:1px solid var(--gold-d); border-radius:8px; color:#e9dcc0; cursor:pointer; font:600 13px var(--serif); box-shadow:0 4px 16px rgba(0,0,0,.6); }
   .acct-chip:hover { border-color:var(--gold); }
   .acct-chip .ci { font-size:18px; } .acct-chip .cs { font:11px sans-serif; color:#8b8372; } .acct-chip .cr { font-size:12px; }
@@ -617,6 +621,8 @@
 .menu-extras{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:stretch;gap:8px;max-width:min(520px,92vw)}.menu-extras .acct-chip{box-sizing:border-box;min-height:38px;white-space:nowrap;justify-content:center}.menu-extras .party-chip{order:5;flex:1 0 100%;justify-content:flex-start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:none;text-align:left}
 .fr-card input[type=text]{background:#10131a;border:1px solid #333b4d;color:#e6e9ef;border-radius:6px;padding:7px 9px;font-size:14px;min-width:0;flex:1 1 150px}.fr-card .own-row{display:flex;gap:8px;align-items:center}
 #mute-btn{position:fixed;left:10px;bottom:10px;z-index:45;width:38px;height:38px;border-radius:50%;border:1px solid #3a4258;background:rgba(14,17,24,.85);color:#e6e9ef;font-size:17px;cursor:pointer}#mute-btn:hover{border-color:#7a5cff}
+  /* short screens: the main menu fits without scrolling */
+  @media (max-height:800px) { .mm-logo h1 { font-size:40px; } .mm-logo::after { margin-top:4px; } #join { gap:10px 18px; padding:12px 22px; } .mm-match { min-height:0; gap:10px; padding:14px 18px; } .mm-actions .mm-btn.primary { height:54px; } .mm-actions .mm-btn { height:44px; } }
 </style>
 </head>
 <body>

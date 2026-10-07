@@ -1,5 +1,6 @@
 import { zoomStep } from './camera';
 import type { Action, Keybinds } from './keybinds';
+import { isTyping } from './popups';
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const TURN_SPEED = 2.6; // rad/s for A/D turning
@@ -37,17 +38,21 @@ export class Controls {
   /** A right-button click that did not turn the camera (WoW: target and auto-attack). */
   onRightClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
+  /** True while playing or watching a match: then every bound key is the game's, not the browser's. */
+  inMatch: () => boolean = () => false;
 
   constructor(canvas: HTMLCanvasElement, private binds: Keybinds) {
     window.addEventListener('keydown', (e) => {
-      const tag = (e.target as HTMLElement).tagName;
-      if (tag === 'INPUT' || tag === 'SELECT') return;
+      // typing in a text box is not playing; a focused slider or checkbox does not swallow the game's keys (Escape included)
+      if (isTyping(e.target)) return;
       if (e.code === 'Tab') e.preventDefault();
       if (!this.enabled) {
         if (e.code === 'Escape' && !e.repeat) this.onKey(e.code, e);
         return;
       }
       if (e.code === 'Space') e.preventDefault(); // never scroll or click a focused button
+      // in a match a bound key belongs to the game: Ctrl+R with R bound must not reload the page, Ctrl+S not save it
+      if (this.inMatch() && this.binds.actionForEvent(e)) e.preventDefault();
       if (!e.repeat && this.binds.matches('jump', e)) this.jumpQueued = true;
       if (!e.repeat) this.onKey(e.code, e);
       this.keys.add(e.code);

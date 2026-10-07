@@ -1,4 +1,4 @@
-import { ACTIONS, Keybinds, comboOf, isModifierCode, keyLabel } from './keybinds';
+import { ACTIONS, Keybinds, browserKeeps, comboOf, isModifierCode, keyLabel } from './keybinds';
 import type { Action } from './keybinds';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -131,7 +131,8 @@ export class Menu {
     const stolen = this.binds.set(action, slot, combo);
     this.stopListening();
     this.render();
-    this.say(stolen ? `${keyLabel(combo)} moved here from “${this.labelOf(stolen)}”.` : '');
+    const kept = browserKeeps(combo) ? ` Careful: your browser keeps ${keyLabel(combo)} for itself, so it may not reach the game.` : '';
+    this.say(`${stolen ? `${keyLabel(combo)} moved here from “${this.labelOf(stolen)}”.` : ''}${kept}`.trim());
   }
 
   get isOpen(): boolean {

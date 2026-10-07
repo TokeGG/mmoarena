@@ -1,3 +1,4 @@
+import type { Popup } from './popups';
 import { NAME_RE, resolveCosmetics } from '@arena/shared';
 import type { ClientMsg, FriendRow, FriendStatus, PartyInfo, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
@@ -30,6 +31,7 @@ export class FriendsUi {
   }
   readonly badge = el('span', 'fr-badge hidden');
   private modal: HTMLElement | null = null;
+  readonly popup: Popup = { isOpen: () => !!this.modal, close: () => this.close(), el: () => this.modal };
   private friends: FriendRow[] = [];
   private requests: string[] = [];
   private party: PartyInfo | null = null;

@@ -1,3 +1,4 @@
+import type { Popup } from './popups';
 import { OwnerPanel } from './ownerUi';
 import { applyName, avatarImg, avatarUrl } from './nameStyle';
 import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
@@ -51,6 +52,8 @@ export class AccountUi {
   readonly chip = el('button', 'acct-chip');
   account: AccountInfo | null = null;
   private modal: HTMLElement | null = null;
+  /** The sign-in or profile window, for the pop-up manager. */
+  readonly popup: Popup = { isOpen: () => !!this.modal, close: () => this.closeModal(), el: () => this.modal };
   private tab: Tab = 'overview';
   private authError = '';
   private authMode: 'login' | 'register' = 'login';
