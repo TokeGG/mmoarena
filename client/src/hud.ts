@@ -290,9 +290,34 @@ export class Hud {
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
       // a proc (Hot Streak) makes this slot glow while it is active
       s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability));
+      const locked = me.alive && ((me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
+      s.root.classList.toggle('locked', locked);
+      if (locked) {
+        const ccAura = me.auras.find((a) => ['stun', 'fear', 'incapacitate'].includes(a.kind) || AURAS[a.id]?.locksAbilities);
+        const end = me.controlled || def.ignoresControl ? ccAura?.expiresAt ?? 0 : me.lockouts?.[def.school] ?? 0;
+        s.root.dataset.lock = end > now ? ((end - now) / 1000).toFixed(1) : '';
+      } else delete s.root.dataset.lock;
       s.root.classList.toggle('unusable', me.resource < def.cost || !me.alive);
       s.root.classList.toggle('casting', me.cast?.ability === s.ability);
       s.root.classList.toggle('aiming', this.aimingId === s.ability);
+    }
+    // what is stopping you, in words: stun, fear, sheep, or a school lockout from an interrupt
+    {
+      const cc = me.alive ? me.auras.find((a) => ['stun', 'fear', 'incapacitate'].includes(a.kind)) : undefined;
+      const lock = me.alive ? Object.entries(me.lockouts ?? {}).filter(([, t]) => (t ?? 0) > now).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0] : undefined;
+      let text = '';
+      if (cc) {
+        const left = cc.expiresAt > 0 ? ` ${Math.max(0, (cc.expiresAt - now) / 1000).toFixed(1)}s` : '';
+        text = `${cc.id === 'polymorph' ? 'POLYMORPHED' : cc.kind === 'stun' ? 'STUNNED' : cc.kind === 'fear' ? 'FEARED' : 'INCAPACITATED'}${left}`;
+      } else if (lock) text = `${lock[0].toUpperCase()} LOCKED ${Math.max(0, ((lock[1] ?? 0) - now) / 1000).toFixed(1)}s`;
+      const box = $('ccstate');
+      box.classList.toggle('hidden', !text);
+      if (text) box.textContent = text;
+      // a pulsing screen-edge glow in the colour of what is holding you
+      const vig = $('ccvig');
+      const kind = !text ? '' : cc ? (cc.id === 'polymorph' ? 'sheep' : cc.kind) : 'lock';
+      vig.className = kind ? `cc-${kind}` : 'hidden';
+      box.className = kind ? `cc-${kind}` : 'hidden';
     }
     $('cast').classList.toggle('hidden', !me.cast);
     if (me.cast) {

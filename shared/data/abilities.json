@@ -227,7 +227,7 @@
   "effects": [
    {
     "type": "heal",
-    "amount": 160
+    "amount": 320
    }
   ]
  },

@@ -280,6 +280,8 @@ export type SimEvent =
   | { t: 'phase'; phase: Phase; winner: TeamId | 'draw' | null };
 
 export interface UnitSnap {
+  /** Schools you are locked out of (interrupted), with when each lockout ends. Only present while one is active. */
+  lockouts?: Partial<Record<School, number>>;
   id: number;
   name: string;
   team: TeamId;
