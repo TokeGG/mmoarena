@@ -48,7 +48,7 @@
  "kidney_shot": {
   "name": "Kidney Shot",
   "kind": "stun",
-  "duration": 4000,
+  "duration": 3000,
   "harmful": true,
   "dr": "stun"
  },
@@ -151,7 +151,8 @@
   "harmful": false,
   "mods": {
    "damageTaken": 0.1
-  }
+  },
+  "noCast": true
  },
  "adrenaline_rush": {
   "name": "Adrenaline Rush",

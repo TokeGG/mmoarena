@@ -372,15 +372,17 @@
   "target": "enemy",
   "range": 3,
   "castTime": 0,
-  "cooldown": 20000,
+  "cooldown": 30000,
   "gcd": true,
   "cost": 25,
   "effects": [
    {
     "type": "aura",
-    "aura": "kidney_shot"
+    "aura": "kidney_shot",
+    "extraPerCp": 1000
    }
-  ]
+  ],
+  "cpSpend": true
  },
  {
   "id": "kick",
@@ -791,10 +793,15 @@
   "cost": 0,
   "effects": [
    {
+    "type": "freeMove"
+   },
+   {
     "type": "aura",
     "aura": "dispersion"
    }
-  ]
+  ],
+  "ignoresControl": true,
+  "ignoresLockout": true
  },
  {
   "id": "mutilate",

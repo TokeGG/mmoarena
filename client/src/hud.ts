@@ -290,7 +290,7 @@ export class Hud {
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
       // a proc (Hot Streak) makes this slot glow while it is active
       s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability));
-      const locked = me.alive && ((me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
+      const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
       s.root.classList.toggle('locked', locked);
       if (locked) {
         const ccAura = me.auras.find((a) => ['stun', 'fear', 'incapacitate'].includes(a.kind) || AURAS[a.id]?.locksAbilities);

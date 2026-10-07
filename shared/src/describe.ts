@@ -60,6 +60,7 @@ function describeBase(id: string): string {
       const parts = describeMods(a.mods).map(cap);
       if (a.empower) parts.push(`Your next ${a.empower.school} damage ability deals ${Math.round((a.empower.mult - 1) * 100)}% more damage and uses this up`);
       if (a.hot) parts.push(`Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s`);
+      if (a.noCast) parts.push('You cannot use any ability while it lasts');
       if (a.maxStacks) parts.push(`Stacks up to ${a.maxStacks} times`);
       return parts.join('. ') + '.';
     }
@@ -138,6 +139,9 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         break;
       case 'gain':
         lines.push(`Generates ${e.amount} ${res}.`);
+        break;
+      case 'freeMove':
+        lines.push('Removes every root and slow from you.');
         break;
       case 'cleanse':
         lines.push('Removes every harmful effect from you.');

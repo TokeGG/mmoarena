@@ -119,15 +119,15 @@ describe('crowd control and diminishing returns', () => {
       const r = sim.applyAura(rogue, tgt, 'kidney_shot');
       return r.applied ? r.duration : 'immune';
     };
-    assert.equal(dur(), 4000);
-    advance(sim, 4100);
-    assert.equal(dur(), 2000);
-    advance(sim, 2100);
-    assert.equal(dur(), 1000);
-    advance(sim, 1100);
+    assert.equal(dur(), 3000);
+    advance(sim, 3100);
+    assert.equal(dur(), 1500);
+    advance(sim, 1600);
+    assert.equal(dur(), 750);
+    advance(sim, 850);
     assert.equal(dur(), 'immune');
     advance(sim, TUNING.drResetMs + TICK);
-    assert.equal(dur(), 4000, 'DR should have reset');
+    assert.equal(dur(), 3000, 'DR should have reset');
   });
 
   it('tracks each category separately', () => {
@@ -434,7 +434,7 @@ describe('stealth', () => {
     assert.equal(snapStacks, 2, 'snapshots carry stacks');
   });
 
-  it('combo points: Mutilate and Sinister Strike earn them, payoffs scale with them and spend them, and they drain out of combat', () => {
+  it('combo points: Mutilate and Sinister Strike earn them, payoffs scale with them and spend them, and they never decay', () => {
     const sim = live();
     const rg = sim.addUnit({ name: 'r', classId: 'rogue', team: 0, build: { spec: 'assassination', talents: [], gear: {} } });
     rg.pos = { x: 0, z: 0 };
@@ -454,11 +454,19 @@ describe('stealth', () => {
     const one = go('eviscerate');
     assert.ok(five - one > 300, `${five} vs ${one}`);
     go('sinister_strike'); assert.equal(rg.cp, 1);
-    sim.dealDamage(foe, rg, 1, 'physical', null);
     rg.autoAttack = false;
     foe.pos = { x: 0, z: 80 };
-    advance(sim, 20000);
-    assert.equal(rg.cp, 0, 'drained out of combat');
+    advance(sim, 30000);
+    assert.equal(rg.cp, 1, 'combo points stay');
+    // Kidney Shot: 4 s on 1 point up to 8 s on 5
+    for (const [cp, secs] of [[1, 4], [3, 6], [5, 8]] as const) {
+      foe.pos = { x: 0, z: 2 };
+      foe.auras = []; foe.dr = {}; rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; rg.cp = cp;
+      assert.ok(sim.useAbility(rg.id, 'kidney_shot', foe.id).ok, `${cp} cp`);
+      const st = foe.auras.find((x) => x.id === 'kidney_shot')!;
+      assert.equal(Math.round((st.expiresAt - sim.time) / 100) / 10, secs, `${cp} cp stun`);
+      assert.equal(rg.cp, 0);
+    }
   });
 
   it('exsanguinate adds damage from the target\'s bleeds and then triples them; adrenaline rush lasts longer per combo point', () => {
@@ -495,6 +503,44 @@ describe('stealth', () => {
     assert.ok(['arcane_missiles', 'arcane_barrage', 'arcane_explosion'].every((x) => bars.arcane.includes(x)) && !bars.arcane.includes('ice_barrier') && !bars.arcane.includes('frost_nova'));
     assert.equal(ABILITIES.arcane_missiles.channel?.ticks, 5);
     assert.equal(ABILITIES.arcane_barrage.castTime, 0);
+  });
+
+  it('while dispersed you cannot use any ability', () => {
+    const sim = live();
+    const priest = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'shadow', talents: [], gear: {} } });
+    priest.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'warrior', 1, 0, 5);
+    advance(sim, TICK);
+    priest.bar = [...priest.bar.slice(0, 6), 'dispersion', 'flash_heal'];
+    assert.ok(sim.useAbility(priest.id, 'dispersion', null).ok);
+    priest.gcdEnd = 0;
+    for (const ab of ['flash_heal', 'power_word_shield', 'dispersion']) assert.ok(!sim.useAbility(priest.id, ab, priest.id).ok, ab);
+    advance(sim, 6500);
+    priest.gcdEnd = 0; priest.resource = priest.resourceMax;
+    assert.ok(sim.useAbility(priest.id, 'flash_heal', priest.id).ok, 'back to normal afterwards');
+    void foe;
+  });
+
+  it('dispersion works while stunned, feared or silenced and frees you from roots and slows', () => {
+    const sim = live();
+    const priest = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'shadow', talents: [], gear: {} } });
+    priest.pos = { x: 0, z: 0 };
+    priest.bar = [...priest.bar.slice(0, 7), 'dispersion'];
+    const foe = add(sim, 'warrior', 1, 0, 3);
+    advance(sim, TICK);
+    for (const aura of ['kidney_shot', 'psychic_scream']) {
+      priest.auras = []; priest.cooldowns = {}; priest.gcdEnd = 0; priest.lockouts = { shadow: sim.time + 5000 };
+      sim.applyAura(foe, priest, aura);
+      sim.applyAura(foe, priest, 'frost_nova_root');
+      sim.applyAura(foe, priest, 'frostbolt_slow');
+      assert.ok(priest.auras.some((a) => a.kind === 'stun' || a.kind === 'fear'), `${aura} landed`);
+      assert.ok(sim.useAbility(priest.id, 'dispersion', null).ok, `usable under ${aura} and a shadow lockout`);
+      assert.ok(!priest.auras.some((a) => a.kind === 'root' || a.kind === 'slow'), 'roots and slows cleared');
+      assert.ok(priest.auras.some((a) => a.id === 'dispersion'));
+    }
+    priest.auras = []; priest.cooldowns = {};
+    sim.applyAura(foe, priest, 'polymorph');
+    assert.ok(!sim.useAbility(priest.id, 'dispersion', null).ok, 'still not usable as a sheep');
   });
 
   it('holy nova reaches 60 yards, healing allies more than it hurts enemies; mind flay is a damage channel; penance is no longer a talent', () => {

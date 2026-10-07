@@ -158,6 +158,7 @@ export class ArenaSim {
     } else if (!def) return fail('unknown ability');
     if (this.phase === 'ended') return fail('match is over');
     if (this.phase === 'prep' && !def.prepOk) return fail('match has not started');
+    if (u.auras.some((a) => AURAS[a.id]?.noCast)) return fail('you cannot act while dispersed');
     if (!this.canAct(u) && !def.ignoresControl) return fail('you are incapacitated');
     if (def.ignoresControl && u.auras.some((a) => AURAS[a.id]?.locksAbilities)) return fail('you are polymorphed');
     if (!def.ignoresLockout && (u.lockouts[def.school] ?? 0) > this.time) return fail(`${def.school} school is locked out`);
@@ -273,9 +274,6 @@ export class ArenaSim {
       if (u.alive && a.expiresAt <= this.time) this.removeAura(u, a, 'expired');
     }
     if (!u.alive) return;
-
-    // combo points drain once combat has been over a while
-    if (u.cp > 0 && this.time - u.lastCombatAt > TUNING.outOfCombatMs) u.cp = 0;
 
     // auto-attack switches itself off once combat has been over for a while
     if (u.autoAttack && this.time - Math.max(u.lastCombatAt, u.autoSince) > TUNING.outOfCombatMs) u.autoAttack = false;
@@ -539,6 +537,9 @@ export class ArenaSim {
         }
         break;
       }
+      case 'freeMove':
+        for (const a of [...u.auras]) if (a.kind === 'root' || a.kind === 'slow') this.removeAura(u, a, 'freed');
+        break;
       case 'blink':
         u.pos = blinkDestination(u.pos, u.facing, eff.distance, this.arena);
         // blinking out breaks you free of stuns, roots and slows

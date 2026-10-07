@@ -79,6 +79,8 @@ export interface AuraDef {
   canTurn?: boolean;
   /** While this is on you, abilities that normally work through crowd control (Blink) do not (Polymorph). */
   locksAbilities?: boolean;
+  /** While this is on you, you cannot use any ability at all (Dispersion). */
+  noCast?: boolean;
   /** Heals the holder this percent of maximum health every interval. */
   hot?: { pct: number; interval: number };
   dispellable?: boolean;
@@ -111,6 +113,8 @@ export type Effect =
   | { type: 'smoke'; radius: number; duration: number }
   /** Removes every harmful effect from the caster. */
   | { type: 'cleanse' }
+  /** Frees you from every root and slow (Dispersion). */
+  | { type: 'freeMove' }
   /** Drops combat: out of combat at once, and enemies lose their target on the caster. */
   | { type: 'dropCombat' };
 
