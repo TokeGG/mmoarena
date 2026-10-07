@@ -68,6 +68,8 @@ const CAST_STOP: Record<string, [string, string]> = {
   'target is dead': ['Target died', 'linear-gradient(#9aa0aa,#4b4f57)'],
 };
 const STOP_SHOWN_MS = 1000;
+/** Names of the units in the last snapshot, so an aura icon's tooltip can say who put it there. */
+const unitNames = new Map<number, string>();
 /** The cast each unit was last seen casting (and how far along), and casts that just stopped early. */
 const lastCast = new Map<number, { ability: string; frac: number }>();
 const stoppedCasts = new Map<number, { ability: string; label: string; color: string; frac: number; at: number }>();
@@ -160,7 +162,7 @@ class UnitFrame {
     // the icons are only rebuilt when the set of effects (or a seconds counter, or a stack count) changes, not every frame
     const shown = u.auras.slice(0, 8);
     const secsLeft = (x: { expiresAt: number }) => (x.expiresAt > 0 ? Math.max(0, Math.ceil((x.expiresAt - now) / 1000)) : -1);
-    const key = shown.map((x) => `${x.id}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|');
+    const key = shown.map((x) => `${x.id}:${x.src}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|');
     if (key === this.auraKey) return;
     this.auraKey = key;
     this.auras.replaceChildren(
@@ -168,6 +170,8 @@ class UnitFrame {
         const def = AURAS[a.id];
         const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`, AURA_ICON[a.id] ?? '✦');
         icon.dataset.tip = `aura:${a.id}`;
+        const who = unitNames.get(a.src);
+        if (who) icon.dataset.tipFrom = a.src === u.id ? `${who} (on itself)` : who;
         const left = secsLeft(a);
         if (left >= 0) icon.dataset.tipSub = `${left}s remaining`;
         if (left >= 0) icon.append(el('i', '', String(left)));
@@ -352,6 +356,7 @@ export class Hud {
   update(ctx: HudContext) {
     const { snap, now, you, targetId } = ctx;
     this.youId = you;
+    for (const u of snap.units) unitNames.set(u.id, u.id === you ? 'you' : u.name);
     const me = snap.units.find((u) => u.id === you);
     if (!me) return;
     this.self.update(me, now, false);

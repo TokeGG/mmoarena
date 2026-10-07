@@ -2,11 +2,13 @@
  {
   "version": "0.67.2",
   "date": "2026-10-07",
-  "title": "Slice and Dice holds, cast bars say why",
+  "title": "Slice and Dice holds, cast bars say why, tooltips say where",
   "changes": [
    "Slice and Dice holds its target for the whole channel: the first strike and its stun land the moment the spin starts, and each tick's stun lasts past the next, so there is no gap to walk out or swing back in. Diminishing returns shorten the hold as one block (at half, the target is held for the first two seconds, then free).",
    "Cast bars show why a cast stopped: it stays up for a second, frozen where it stopped, labelled and coloured Interrupted (red), Crowd controlled or Pulled (purple), Cancelled or Moved (grey), or Line of sight, Out of range, Target lost, Smoked (orange). Yours, the unit frames' and the nameplates'.",
-   "Bladestorm is no longer ended by pressing another skill (a bot was cancelling its own spin with Pummel): your other skills wait until it is over."
+   "Bladestorm is no longer ended by pressing another skill (a bot was cancelling its own spin with Pummel): your other skills wait until it is over.",
+   "Each spec's card and tooltip lists its passives: its built-in effect (Pyromancy's Cauterize), its weapon and auto-attack, and the bonuses it carries (Rampager's longer Bloodthirst and Slam).",
+   "Tooltips say where each bonus comes from: the spec's passive or a talent and its tier. A buff or debuff icon's tooltip says who put it on and what gives it (an ability, a spec passive or a talent)."
   ]
  },
  {

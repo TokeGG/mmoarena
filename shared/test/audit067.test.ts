@@ -383,3 +383,16 @@ describe('Slice and Dice and diminishing returns', () => {
     assert.ok(second.held >= 1800 && second.held <= 2300, `the second cast holds about half as long, in one piece (${second.held} ms)`);
   });
 });
+
+describe('passives and where effects come from', () => {
+  it('a spec lists its passives: built-in effect, weapon, and every bonus it carries', async () => {
+    const { specPassives, auraOrigins } = await import('../src/index');
+    assert.ok(specPassives('mage', 'fire').some((p) => p.startsWith('Cauterize')));
+    const fury = specPassives('warrior', 'fury');
+    assert.ok(fury.some((p) => /auto-attacks/.test(p)), 'its weapon');
+    assert.ok(fury.some((p) => /Bloodthirst: \+1\.5 yd range/.test(p)), 'its range bonus');
+    assert.deepEqual(specPassives('rogue', 'combat'), []);
+    assert.ok(auraOrigins('cauterized').some((o) => /Pyromancy/.test(o)), 'a spec passive');
+    assert.ok(auraOrigins('mortal_wounds').includes('Mortal Strike'), 'an ability');
+  });
+});

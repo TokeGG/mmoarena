@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, talentsFor,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, specPassives, talentsFor,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -499,7 +499,13 @@ export class MainMenu {
       });
       list.append(slot);
     });
-    pop.append(head, el('div', 'sp-desc', spec.desc), sub, list);
+    // the spec's passives: what it gives without a button (a built-in effect, its weapon, its bonuses)
+    const passives = specPassives(this.classId, spec.id);
+    const pas = el('div', 'sp-passives');
+    pas.append(el('div', 'sp-sub', 'Passives'));
+    if (passives.length) for (const p of passives) pas.append(el('div', 'sp-passive', p));
+    else pas.append(el('div', 'sp-passive dim', 'None: everything this spec does is on its bar.'));
+    pop.append(head, el('div', 'sp-desc', spec.desc), pas, sub, list);
     if (!pop.isConnected) {
       document.body.append(pop);
       pop.addEventListener('mouseenter', () => window.clearTimeout(this.popHide));
