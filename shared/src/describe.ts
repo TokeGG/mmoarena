@@ -389,7 +389,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.stealthSwap && ABILITIES[def.stealthSwap]) notes.push(`While you are stealthed this slot becomes ${ABILITIES[def.stealthSwap].name}.`);
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
-  if (def.unstoppable) notes.push('Cannot be interrupted. While it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls.');
+  if (def.unstoppable) notes.push('Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');

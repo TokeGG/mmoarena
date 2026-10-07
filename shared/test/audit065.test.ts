@@ -265,6 +265,14 @@ describe('Bladestorm', () => {
     return { sim, w, r, prot };
   };
 
+  it('is not ended by pressing another skill', () => {
+    const { sim, w, r } = setup();
+    w.cooldowns = {};
+    const p = sim.useAbility(w.id, 'pummel', r.id);
+    assert.equal(p.ok, false);
+    assert.equal(w.cast?.ability, 'bladestorm', 'still spinning');
+  });
+
   it('cannot be kicked', () => {
     const { sim, w, r } = setup();
     r.resource = 100;

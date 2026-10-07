@@ -246,7 +246,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 
 - Strikes every enemy in range 10 times, once every 0.5s, for 22 physical damage each (220 total). Interrupts and crowd control cannot stop it.
 - *Can be cast while moving.*
-- *Cannot be interrupted. While it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls.*
+- *Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.*
 
 On the bar: [Rampager](#warrior-fury) (key 1).
 

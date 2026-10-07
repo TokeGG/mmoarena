@@ -346,28 +346,40 @@ describe('global cooldown on a stopped cast', () => {
 });
 
 describe('Slice and Dice and diminishing returns', () => {
-  it('one cast is one diminishing-returns step: every tick of it stuns for the level its first tick set', () => {
+  it('holds its target for the whole channel; diminishing returns shorten the hold as one block', () => {
     const sim = new ArenaSim({ seed: 13, prepMs: 0 });
     const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'player', build: { spec: 'arms', talents: [], gear: {} } });
-    const t = sim.addUnit({ name: 't', classId: 'mage', team: 1, controller: 'dummy' });
+    const t = sim.addUnit({ name: 't', classId: 'rogue', team: 1, controller: 'player', build: { spec: 'assassination', talents: [], gear: {} } });
     t.maxHealth = t.health = 1e6;
     w.pos = { x: 0, z: 0 };
-    t.pos = { x: 0, z: 2 };
     sim.step();
+    let seq = 1;
+    /** Spin once with the target trying to walk away and swing; returns how long (ms) it was held from the start. */
     const spin = () => {
+      t.pos = { x: 0, z: 2.5 };
       w.facing = 0;
       w.lastInput = { ...w.lastInput, facing: 0 };
       w.resource = 100; w.cooldowns = {}; w.gcdEnd = 0;
       assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
-      const drs: number[] = [];
-      for (let i = 0; i < 90 && w.cast; i++) { sim.step(); for (const e of sim.drainEvents()) if (e.t === 'aura' && e.aura === 'slice_stun') drs.push(e.dr); }
-      return drs;
+      const start = sim.time;
+      let heldUntil = start;
+      let swung = false;
+      for (let i = 0; i < 100 && w.cast; i++) {
+        sim.queueInput(w.id, { seq, fwd: 0, strafe: 0, facing: 0 });
+        sim.queueInput(t.id, { seq: seq++, fwd: 0, strafe: 1, facing: Math.PI });
+        if (!sim.canAct(t)) heldUntil = sim.time;
+        else if (sim.useAbility(t.id, 'mutilate', w.id).ok) swung = true;
+        sim.step();
+        sim.drainEvents();
+      }
+      return { held: heldUntil - start, swung, moved: Math.hypot(t.pos.x, t.pos.z - 2.5) };
     };
     const first = spin();
-    assert.equal(first.length, 4, 'every tick stunned');
-    assert.ok(first.every((d) => d === 1), `the whole first cast is full length (${first})`);
-    assert.equal(t.dr.stun!.count, 1, 'and counts once');
+    assert.ok(first.held >= 3900, `held for the whole first channel (${first.held} ms)`);
+    assert.ok(!first.swung, 'could not swing back');
+    assert.ok(first.moved < 0.01, 'could not walk out');
+    assert.equal(t.dr.stun!.count, 1, 'and it counts as one step');
     const second = spin();
-    assert.ok(second.length === 4 && second.every((d) => d === 0.5), `the next cast is halved throughout (${second})`);
+    assert.ok(second.held >= 1800 && second.held <= 2300, `the second cast holds about half as long, in one piece (${second.held} ms)`);
   });
 });
