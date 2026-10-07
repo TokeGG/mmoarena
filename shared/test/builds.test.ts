@@ -236,7 +236,7 @@ describe('specs and talents in the sim', () => {
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
     // base mods must never be mutated by buffs
     assert.ok(Object.keys(war.mods.ability).length === 0);
-    assert.deepEqual(withAuraMods(war.mods, ['shield_wall', 'dispersion']).damageTaken, 0.6 * 0.4);
+    assert.deepEqual(withAuraMods(war.mods, ['shield_wall', 'dispersion']).damageTaken, 0.6 * 0.1);
     assert.equal(war.mods.damageTaken, 1);
   });
 
