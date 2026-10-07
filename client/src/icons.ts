@@ -13,7 +13,7 @@ export const ABILITY_ICON: Record<string, string> = {
   mutilate: '🔪', vanish: '🌑', adrenaline_rush: '💉', shadowstep: '👣', evasion: '🌀',
   shockwave: '💥', piercing_howl: '📯', die_by_the_sword: '🗡️', 
   ice_lance: '🗡️', blizzard: '🌨️', scorch: '🔥', deep_freeze: '🧊', arcane_silence: '🤐', hammer_toss: '🔨', harpoon_throw: '🪝',
-  judgment_hammer: '⚖️', hush: '🤫', plague_bloom: '🦠', choke_bomb: '💨', knife_snipe: '🗡️', garrote: '🩸', fan_of_knives: '🔪',
+  judgment_hammer: '⚖️', hush: '🤫', plague_bloom: '🦠', choke_bomb: '💨', knife_snipe: '🗡️', garrote: '🩸', holy_nova: '✨', mind_flay: '🧠', fan_of_knives: '🔪',
   penance: '🔆', holy_word: '🌟', power_infusion: '🙌', blind: '😵', eviscerate: '🩸', crippling_strike: '🦵',
 };
 

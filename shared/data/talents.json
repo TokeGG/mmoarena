@@ -1515,14 +1515,16 @@
     },
     {
      "id": "priest_t1b",
-     "name": "Holy Fire",
-     "desc": "Smite deals 20% more damage and casts 10% faster.",
-     "icon": "\ud83d\udd25",
+     "name": "Swift Prayer",
+     "icon": "\ud83d\ude4f",
+     "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
      "mods": {
       "ability": {
-       "smite": {
-        "damage": 1.2,
+       "flash_heal": {
         "castTime": 0.9
+       },
+       "power_word_shield": {
+        "cooldown": 0.85
        }
       }
      }
@@ -1585,17 +1587,15 @@
    [
     {
      "id": "priest_discipline_t3a",
-     "name": "Piercing Cry",
-     "desc": "Psychic Scream cooldown is 20% shorter and its fear lasts 25% longer.",
-     "icon": "\ud83d\ude31",
+     "name": "Zealous Penance",
+     "desc": "Penance deals 15% more damage and heals 12% more.",
+     "icon": "\ud83d\udd25",
      "mods": {
       "ability": {
-       "psychic_scream": {
-        "cooldown": 0.8
+       "penance": {
+        "damage": 1.15,
+        "heal": 1.12
        }
-      },
-      "auraDuration": {
-       "psychic_scream": 1.25
       }
      }
     },
@@ -1631,24 +1631,24 @@
    [
     {
      "id": "priest_discipline_t4a",
-     "name": "Penance Strike",
-     "desc": "Replaces Smite with Penance: a channel that hurts enemies and heals allies, giving you a steady damage and heal option.",
-     "icon": "\ud83d\udd25",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "penance"
-     }
-    },
-    {
-     "id": "priest_discipline_t4b",
      "name": "Mind Spike",
-     "desc": "Replaces Smite with Mind Blast, a harder-hitting but slower shadow nuke on a short cooldown.",
+     "desc": "Replaces Smite with Mind Blast, a harder-hitting shadow nuke on a short cooldown that adds burst to your Penance rotation.",
      "icon": "\ud83e\udde0",
      "mods": {},
      "swap": {
       "from": "smite",
       "to": "mind_blast"
+     }
+    },
+    {
+     "id": "priest_discipline_t4b",
+     "name": "Tormenting Gaze",
+     "desc": "Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown for constant pressure while you heal.",
+     "icon": "\ud83d\udc41\ufe0f",
+     "mods": {},
+     "swap": {
+      "from": "smite",
+      "to": "mind_flay"
      }
     },
     {
@@ -1702,7 +1702,7 @@
     {
      "id": "priest_discipline_t6a",
      "name": "Word of Serenity",
-     "desc": "Replaces Desperate Prayer with Holy Word: Serenity, an instant big heal on any ally every 10 seconds.",
+     "desc": "Replaces Desperate Prayer with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds.",
      "icon": "\ud83d\ude4f",
      "mods": {},
      "swap": {
@@ -1723,13 +1723,13 @@
     },
     {
      "id": "priest_discipline_t6c",
-     "name": "Executioner's Edict",
-     "desc": "Replaces Desperate Prayer with Shadow Word: Death, a cheap damage-over-time finisher.",
-     "icon": "\ud83d\udc80",
+     "name": "Radiant Burst",
+     "desc": "Replaces Desperate Prayer with Holy Nova, a 12 second instant that heals all allies for 130 and damages all enemies for 80.",
+     "icon": "\ud83c\udf1f",
      "mods": {},
      "swap": {
       "from": "desperate_prayer",
-      "to": "shadow_word_death"
+      "to": "holy_nova"
      }
     }
    ]
@@ -1754,14 +1754,16 @@
     },
     {
      "id": "priest_t1b",
-     "name": "Holy Fire",
-     "desc": "Smite deals 20% more damage and casts 10% faster.",
-     "icon": "\ud83d\udd25",
+     "name": "Swift Prayer",
+     "icon": "\ud83d\ude4f",
+     "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
      "mods": {
       "ability": {
-       "smite": {
-        "damage": 1.2,
+       "flash_heal": {
         "castTime": 0.9
+       },
+       "power_word_shield": {
+        "cooldown": 0.85
        }
       }
      }
@@ -1802,16 +1804,15 @@
     },
     {
      "id": "priest_holy_t2b",
-     "name": "Lasting Grace",
-     "desc": "Pain Suppression lasts 30% longer and its cooldown is 15% shorter.",
-     "icon": "\ud83e\udeac",
+     "name": "Radiant Nova",
+     "desc": "Holy Nova heals and damages 15% more and its cooldown is 10% shorter.",
+     "icon": "\ud83c\udf1f",
      "mods": {
-      "auraDuration": {
-       "pain_suppression": 1.3
-      },
       "ability": {
-       "pain_suppression": {
-        "cooldown": 0.85
+       "holy_nova": {
+        "heal": 1.15,
+        "damage": 1.15,
+        "cooldown": 0.9
        }
       }
      }
@@ -1858,33 +1859,22 @@
     },
     {
      "id": "priest_holy_t3c",
-     "name": "Terrifying Hymn",
-     "desc": "Psychic Scream cooldown is 20% shorter and you move 6% faster.",
-     "icon": "\ud83d\ude31",
+     "name": "Deep Reserves",
+     "desc": "Greater Heal heals 12% more and casts 8% faster.",
+     "icon": "\ud83d\udc96",
      "mods": {
       "ability": {
-       "psychic_scream": {
-        "cooldown": 0.8
+       "greater_heal": {
+        "heal": 1.12,
+        "castTime": 0.92
        }
-      },
-      "moveSpeed": 1.06
+      }
      }
     }
    ],
    [
     {
      "id": "priest_holy_t4a",
-     "name": "Penance Rite",
-     "desc": "Replaces Smite with Penance, a channel that heals allies for extra healing or punishes enemies.",
-     "icon": "\ud83d\udd25",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "penance"
-     }
-    },
-    {
-     "id": "priest_holy_t4b",
      "name": "Searing Thought",
      "desc": "Replaces Smite with Mind Blast, giving you a real shadow nuke for damage.",
      "icon": "\ud83e\udde0",
@@ -1892,6 +1882,17 @@
      "swap": {
       "from": "smite",
       "to": "mind_blast"
+     }
+    },
+    {
+     "id": "priest_holy_t4b",
+     "name": "Lingering Gaze",
+     "desc": "Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown to add damage between heals.",
+     "icon": "\ud83d\udc41\ufe0f",
+     "mods": {},
+     "swap": {
+      "from": "smite",
+      "to": "mind_flay"
      }
     },
     {
@@ -1945,33 +1946,33 @@
     {
      "id": "priest_holy_t6a",
      "name": "Inspiring Hymn",
-     "desc": "Replaces Pain Suppression with Power Infusion, boosting healing and speeding up casts.",
+     "desc": "Replaces Dispel Magic with Power Infusion, boosting healing and speeding up casts.",
      "icon": "\u2728",
      "mods": {},
      "swap": {
-      "from": "pain_suppression",
+      "from": "dispel_magic",
       "to": "power_infusion"
      }
     },
     {
      "id": "priest_holy_t6b",
      "name": "Word of Serenity",
-     "desc": "Replaces Pain Suppression with Holy Word: Serenity, a big instant heal on any ally.",
+     "desc": "Replaces Dispel Magic with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds.",
      "icon": "\ud83d\ude4f",
      "mods": {},
      "swap": {
-      "from": "pain_suppression",
+      "from": "dispel_magic",
       "to": "holy_word"
      }
     },
     {
      "id": "priest_holy_t6c",
      "name": "Veil of Static",
-     "desc": "Replaces Pain Suppression with Dispersion, letting you survive focus fire yourself.",
+     "desc": "Replaces Dispel Magic with Dispersion, letting you survive focus fire yourself.",
      "icon": "\ud83c\udf2b\ufe0f",
      "mods": {},
      "swap": {
-      "from": "pain_suppression",
+      "from": "dispel_magic",
       "to": "dispersion"
      }
     }
@@ -1997,14 +1998,16 @@
     },
     {
      "id": "priest_t1b",
-     "name": "Holy Fire",
-     "desc": "Smite deals 20% more damage and casts 10% faster.",
-     "icon": "\ud83d\udd25",
+     "name": "Swift Prayer",
+     "icon": "\ud83d\ude4f",
+     "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
      "mods": {
       "ability": {
-       "smite": {
-        "damage": 1.2,
+       "flash_heal": {
         "castTime": 0.9
+       },
+       "power_word_shield": {
+        "cooldown": 0.85
        }
       }
      }
@@ -2046,13 +2049,13 @@
     {
      "id": "priest_shadow_t2b",
      "name": "Consuming Dark",
-     "desc": "You deal 6% more damage and Smite deals 15% more damage.",
+     "desc": "You deal 6% more damage and Mind Flay deals 20% more damage.",
      "icon": "\ud83c\udf12",
      "mods": {
       "damageDone": 1.06,
       "ability": {
-       "smite": {
-        "damage": 1.15
+       "mind_flay": {
+        "damage": 1.2
        }
       }
      }
@@ -2071,17 +2074,17 @@
    [
     {
      "id": "priest_shadow_t3a",
-     "name": "Dread Chorus",
-     "desc": "Psychic Scream cooldown is 20% shorter and its fear lasts 25% longer.",
-     "icon": "\ud83d\ude31",
+     "name": "Gnawing Dark",
+     "desc": "Shadow Word: Death deals 20% more damage and its rot lasts 40% longer.",
+     "icon": "\ud83d\udc80",
      "mods": {
       "ability": {
-       "psychic_scream": {
-        "cooldown": 0.8
+       "shadow_word_death": {
+        "damage": 1.2
        }
       },
       "auraDuration": {
-       "psychic_scream": 1.25
+       "creeping_rot": 1.4
       }
      }
     },
@@ -2115,41 +2118,6 @@
    [
     {
      "id": "priest_shadow_t4a",
-     "name": "Chastise",
-     "desc": "Replaces Smite with Penance, a channel that damages enemies and can heal you in a pinch.",
-     "icon": "\ud83d\udd25",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "penance"
-     }
-    },
-    {
-     "id": "priest_shadow_t4b",
-     "name": "Dark Empowerment",
-     "desc": "Replaces Smite with Power Infusion, a burst buff to your damage and cast speed.",
-     "icon": "\u2728",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "power_infusion"
-     }
-    },
-    {
-     "id": "priest_shadow_t4c",
-     "name": "Hammer of the Void",
-     "desc": "Replaces Smite with Hammer of Justice, a stun to set up burst and get free casts.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "judgment_hammer"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_shadow_t5a",
      "name": "Greater Salvation",
      "desc": "Replaces Flash Heal with Greater Heal, a slow but big heal for recovering between fights.",
      "icon": "\ud83d\udc96",
@@ -2160,9 +2128,9 @@
      }
     },
     {
-     "id": "priest_shadow_t5b",
+     "id": "priest_shadow_t4b",
      "name": "Serenity Burst",
-     "desc": "Replaces Flash Heal with Holy Word: Serenity, an instant heal for emergencies.",
+     "desc": "Replaces Flash Heal with Holy Word: Serenity, an instant 300 heal for emergencies.",
      "icon": "\ud83d\ude4f",
      "mods": {},
      "swap": {
@@ -2171,7 +2139,7 @@
      }
     },
     {
-     "id": "priest_shadow_t5c",
+     "id": "priest_shadow_t4c",
      "name": "Desperate Measures",
      "desc": "Replaces Flash Heal with Desperate Prayer, a huge heal on a long cooldown.",
      "icon": "\ud83d\udd4a\ufe0f",
@@ -2184,7 +2152,7 @@
    ],
    [
     {
-     "id": "priest_shadow_t6a",
+     "id": "priest_shadow_t5a",
      "name": "Sacrificial Guard",
      "desc": "Replaces Power Word: Shield with Pain Suppression, a strong damage cut for 8 seconds.",
      "icon": "\ud83e\udeac",
@@ -2195,7 +2163,7 @@
      }
     },
     {
-     "id": "priest_shadow_t6b",
+     "id": "priest_shadow_t5b",
      "name": "Purge the Light",
      "desc": "Replaces Power Word: Shield with Dispel Magic, stripping buffs and cleansing your debuffs.",
      "icon": "\ud83e\uddfc",
@@ -2206,7 +2174,7 @@
      }
     },
     {
-     "id": "priest_shadow_t6c",
+     "id": "priest_shadow_t5c",
      "name": "Hush",
      "desc": "Replaces Power Word: Shield with Silence, an interrupt to stop enemy healers.",
      "icon": "\ud83e\udd2b",
@@ -2214,6 +2182,41 @@
      "swap": {
       "from": "power_word_shield",
       "to": "hush"
+     }
+    }
+   ],
+   [
+    {
+     "id": "priest_shadow_t6a",
+     "name": "Hammer of the Void",
+     "desc": "Replaces Psychic Scream with Hammer of Justice, a stun to set up burst and free Mind Flay channels.",
+     "icon": "\ud83d\udd28",
+     "mods": {},
+     "swap": {
+      "from": "psychic_scream",
+      "to": "judgment_hammer"
+     }
+    },
+    {
+     "id": "priest_shadow_t6b",
+     "name": "Dark Empowerment",
+     "desc": "Replaces Psychic Scream with Power Infusion, a burst buff to your damage and cast speed.",
+     "icon": "\u2728",
+     "mods": {},
+     "swap": {
+      "from": "psychic_scream",
+      "to": "power_infusion"
+     }
+    },
+    {
+     "id": "priest_shadow_t6c",
+     "name": "Holy Reprise",
+     "desc": "Replaces Psychic Scream with Smite, a reliable holy damage spell with no cooldown.",
+     "icon": "\u26a1",
+     "mods": {},
+     "swap": {
+      "from": "psychic_scream",
+      "to": "smite"
      }
     }
    ]

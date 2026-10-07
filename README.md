@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.41.1
+# WoW-style Arena · v0.42.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against (opponents are always random classes, rolled each time you press Practice), ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -46,6 +46,7 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 - **Tier I (shared, 0.41.1):** the same three talents for all three specs of a class; they only modify the skills every spec of that class has (for example Mage: Polymorph, Counterspell, Blink). Your tier I pick carries over when you change spec.
 - **Tiers II and III:** buffs for that spec's own abilities (damage, healing, cooldowns, longer slows and stuns, survivability). Tier III is the utility tier; for mages it is the **Blink tier** (two blinks per cooldown, a run-speed burst after blinking, or faster casts after blinking).
 - **Tiers IV, V and VI (skill replacements):** each choice adds an ability that takes the place of one bar slot (tier IV, V and VI each replace a different slot, so you can take all three; the tooltip says what you give up). Every spec has nine abilities it can bring in this way. Switching spec clears your talent picks.
+- **Priest bars (0.42):** Warden (Discipline) has Penance in place of Greater Heal; Lightbearer (Holy) has **Holy Nova** (instant, 60-yard radius: heals every ally in sight for 130 and hurts every enemy for 80, 12 s cooldown) in place of Pain Suppression; Gloomweaver (Shadow) has **Mind Flay** (a 3 s channel of six 45-damage ticks) in place of Smite. Penance is no longer a talent.
 - New abilities with the rework: Rogue **Garrote** (a bleed) and **Fan of Knives** (area hit).
 
 - **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Penance) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key to arm the spell (its slot lights up and a ring follows your pointer), then **click or press the key again to place it**; Esc, casting something else or a stun cancels. The ring only shows while a spell is armed. While steering with the right button the ring sits at the centre of the screen.

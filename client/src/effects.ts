@@ -807,8 +807,8 @@ export class Effects {
       });
       return;
     }
-    if (def.target === 'aoe_enemy') {
-      const r = def.radius ?? 8;
+    if (def.target === 'aoe_enemy' || def.target === 'aoe_all') {
+      const r = Math.min(def.radius ?? 8, 24);
       this.ring(s.x, s.z, color, 0.5, r, 0.55, 0.08, 1);
       this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.75, 0.4, 0.09, 0.7);
       for (let i = 0; i < 22; i++) {

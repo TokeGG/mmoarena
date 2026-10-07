@@ -5,7 +5,7 @@ export type School = 'physical' | 'fire' | 'frost' | 'arcane' | 'holy' | 'shadow
 export type DRCategory = 'stun' | 'incapacitate' | 'fear' | 'root' | 'silence';
 export type AuraKind = 'stun' | 'incapacitate' | 'fear' | 'root' | 'slow' | 'speed' | 'absorb' | 'stealth' | 'buff' | 'dot';
 export type ResourceType = 'mana' | 'rage' | 'energy';
-export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy' | 'ground';
+export type TargetType = 'self' | 'enemy' | 'ally' | 'ally_or_self' | 'any' | 'aoe_enemy' | 'aoe_all' | 'ground';
 export type Phase = 'prep' | 'live' | 'ended';
 
 // ---------- builds: specs, talents, gear ----------

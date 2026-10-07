@@ -77,7 +77,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   const res = classResource ?? CLASSES[def.class].resource.type;
   const stats: string[] = [];
   if (def.cost) stats.push(`${def.cost} ${res}`);
-  if (def.target === 'aoe_enemy') stats.push(`${def.radius} yd radius`);
+  if (def.target === 'aoe_enemy' || def.target === 'aoe_all') stats.push(`${def.radius} yd radius`);
   else if (def.target === 'ground') stats.push(`${def.range + (am.range ?? 0)} yd range`, 'Aimed at the cursor');
   else if (def.range > 0) stats.push(`${def.range + (am.range ?? 0)} yd range`);
   else if (def.target === 'enemy' || def.target === 'any') stats.push('Melee range');
@@ -93,7 +93,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const n = Math.round(e.amount * mods.damageDone * (am.damage ?? 1));
         if (def.channel && e.only) lines.push(`On an enemy: deals about ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total).`);
         else if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing about ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
-        else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' ? ' to all enemies in range' : ''}.${def.shatter ? ` Shatter: ${Math.round(def.shatter * 100)}% more damage to frozen enemies (rooted by Frost Nova or held by Deep Freeze).` : ''}`);
+        else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' || def.target === 'aoe_all' ? ' to all enemies in range' : ''}.${def.shatter ? ` Shatter: ${Math.round(def.shatter * 100)}% more damage to frozen enemies (rooted by Frost Nova or held by Deep Freeze).` : ''}`);
         break;
       }
       case 'heal':

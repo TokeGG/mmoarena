@@ -1,9 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, arenaById, parseClientMsg, talentsFor } from '../src/index';
-
-const discSwap = talentsFor('priest', 'discipline').flat().find((t) => t.swap?.to === 'penance')!;
-const discTier = talentsFor('priest', 'discipline').findIndex((tier) => tier.includes(discSwap));
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -380,6 +377,40 @@ describe('stealth', () => {
     assert.ok(['arcane_missiles', 'arcane_barrage', 'arcane_explosion'].every((x) => bars.arcane.includes(x)) && !bars.arcane.includes('ice_barrier') && !bars.arcane.includes('frost_nova'));
     assert.equal(ABILITIES.arcane_missiles.channel?.ticks, 5);
     assert.equal(ABILITIES.arcane_barrage.castTime, 0);
+  });
+
+  it('holy nova reaches 60 yards, healing allies more than it hurts enemies; mind flay is a damage channel; penance is no longer a talent', () => {
+    const sim = live();
+    const priest = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'holy', talents: [], gear: {} } });
+    priest.pos = { x: 0, z: 0 };
+    const ally = add(sim, 'warrior', 0, 40, 0);
+    const foe = add(sim, 'mage', 1, 0, 55);
+    ally.health = ally.maxHealth - 400;
+    foe.maxHealth = foe.health = 5000;
+    priest.resource = priest.resourceMax;
+    advance(sim, TICK);
+    assert.ok(priest.bar.includes('holy_nova') && !priest.bar.includes('pain_suppression'));
+    const ah = ally.health, fh = foe.health;
+    assert.ok(sim.useAbility(priest.id, 'holy_nova').ok);
+    advance(sim, TICK);
+    const healed = ally.health - ah, hurt = fh - foe.health;
+    assert.ok(healed > 0 && hurt > 0 && healed > hurt, `healed ${healed} hurt ${hurt}`);
+
+    const sim2 = live();
+    const shadow = sim2.addUnit({ name: 's', classId: 'priest', team: 0, build: { spec: 'shadow', talents: [], gear: {} } });
+    shadow.pos = { x: 0, z: 0 };
+    const foe2 = add(sim2, 'warrior', 1, 0, 10);
+    foe2.maxHealth = foe2.health = 5000;
+    advance(sim2, TICK);
+    assert.ok(!shadow.bar.includes('smite') && shadow.bar.includes('mind_flay'));
+    assert.ok(sim2.useAbility(shadow.id, 'mind_flay', foe2.id).ok);
+    advance(sim2, 1200);
+    const mid = foe2.maxHealth - foe2.health;
+    assert.ok(mid > 0 && mid < 270, 'ticks over time');
+    advance(sim2, 2500);
+    assert.ok(foe2.maxHealth - foe2.health >= 200, 'channel completes');
+    for (const sp of SPECS.priest) assert.ok(!talentsFor('priest', sp.id).flat().some((t) => t.swap?.to === 'penance'), `penance talent on ${sp.id}`);
+    assert.ok(SPECS.priest[0].bar.includes('penance') && !SPECS.priest[0].bar.includes('greater_heal'));
   });
 
   it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {
@@ -860,7 +891,7 @@ describe('v0.24 damage over time, penance and ground spells', () => {
   });
   it('sacred lash heals a friend and hurts a foe', () => {
     const sim = new ArenaSim({ seed: 6, prepMs: 0 });
-    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', '', '', ''].map((_, i) => (i === discTier ? discSwap.id : '')), gear: {} } });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: [], gear: {} } });
     const ally = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
     const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1 });
     p.pos = { x: 0, z: 0 }; ally.pos = { x: 5, z: 0 }; foe.pos = { x: -5, z: 0 };
@@ -878,7 +909,7 @@ describe('v0.24 damage over time, penance and ground spells', () => {
     const arena = arenaById('colosseum');
     const sim = new ArenaSim({ seed: 8, prepMs: 0, arena });
     const pil = arena.pillars[0];
-    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', '', '', ''].map((_, i) => (i === discTier ? discSwap.id : '')), gear: {} } });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: [], gear: {} } });
     const ally = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
     const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1 });
     foe.pos = { x: 25, z: 15 };

@@ -190,7 +190,7 @@ export class ArenaSim {
       if (def.range > 0 && d > this.reachOf(u, def)) return fail('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
-      if (def.target !== 'aoe_enemy' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return fail('target is not in front of you');
+      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return fail('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
@@ -444,7 +444,9 @@ export class ArenaSim {
     const targets: Unit[] =
       def.target === 'aoe_enemy'
         ? [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0))
-        : [tgt];
+        : def.target === 'aoe_all'
+          ? [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || hasLOS(u.pos, v.pos, this.arena)))
+          : [tgt];
 
     for (const t of targets) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
     for (const id of this.modsOf(u).ability[def.id]?.after ?? []) this.applyAura(u, u, id);
@@ -765,7 +767,7 @@ export class ArenaSim {
   }
 
   private resolveTarget(u: Unit, def: AbilityDef, targetId?: number | null): Unit | string {
-    if (def.target === 'self' || def.target === 'aoe_enemy' || def.target === 'ground') return u;
+    if (def.target === 'self' || def.target === 'aoe_enemy' || def.target === 'aoe_all' || def.target === 'ground') return u;
     const t = this.units.get(targetId ?? u.target ?? -1);
     switch (def.target) {
       case 'enemy':

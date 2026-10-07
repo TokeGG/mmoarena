@@ -135,7 +135,7 @@
    "id": "discipline",
    "name": "Warden",
    "role": "Shield healer",
-   "desc": "Wards and Pain Suppression keep allies alive. Good all-round control.",
+   "desc": "Wards and Pain Suppression keep allies alive, and Penance heals a friend or hurts a foe. Good all-round control.",
    "icon": "\ud83d\udee1\ufe0f",
    "bar": [
     "flash_heal",
@@ -144,7 +144,7 @@
     "smite",
     "dispel_magic",
     "psychic_scream",
-    "greater_heal",
+    "penance",
     "desperate_prayer"
    ],
    "mods": {
@@ -155,7 +155,7 @@
    "id": "holy",
    "name": "Lightbearer",
    "role": "Pure healer",
-   "desc": "The strongest direct healing and mana regeneration. Low damage.",
+   "desc": "The strongest direct healing and mana regeneration. Holy Nova heals your whole team and hurts every enemy in sight. Low damage.",
    "icon": "\u2728",
    "bar": [
     "flash_heal",
@@ -163,7 +163,7 @@
     "power_word_shield",
     "dispel_magic",
     "psychic_scream",
-    "pain_suppression",
+    "holy_nova",
     "smite",
     "desperate_prayer"
    ],
@@ -177,13 +177,13 @@
    "id": "shadow",
    "name": "Gloomweaver",
    "role": "Damage",
-   "desc": "Rot and Shadow Word: Pain wear enemies down over time, Mind Blast hits hard. Weaker healing.",
+   "desc": "Rot and Shadow Word: Pain wear enemies down over time, Mind Flay channels damage, Mind Blast hits hard. Weaker healing.",
    "icon": "\ud83c\udf11",
    "bar": [
     "mind_blast",
     "shadow_word_death",
     "plague_bloom",
-    "smite",
+    "mind_flay",
     "psychic_scream",
     "dispersion",
     "flash_heal",
