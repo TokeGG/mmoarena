@@ -425,7 +425,29 @@ function castSlot(i: number) {
     return;
   }
   setAiming(null);
+  // spell queue: pressing a global-cooldown spell while casting or on the GCD holds it and sends it the moment you are free
+  const me = latest?.units.find((u) => u.id === you);
+  if (me && def?.gcd && me.alive && (me.cast || me.gcdEnd > estimatedNow()) && (me.cooldowns[ability] ?? 0) - estimatedNow() < 1500) {
+    queued = { ability, target: targetId, until: performance.now() + 3000 };
+    return;
+  }
+  queued = null;
   send({ t: 'cast', ability, target: targetId });
+}
+
+let queued: { ability: string; target: number | null; until: number } | null = null;
+function estimatedNow(): number {
+  return latest ? latest.time + (performance.now() - latestAt) : 0;
+}
+/** Sends the queued spell once the current cast and global cooldown are over. */
+function flushQueue() {
+  if (!queued) return;
+  const me = latest?.units.find((u) => u.id === you);
+  if (spec || !me || !me.alive || performance.now() > queued.until) { queued = null; return; }
+  if (me.cast || me.gcdEnd > estimatedNow() + 25 || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + 25) return;
+  const q = queued;
+  queued = null;
+  send({ t: 'cast', ability: q.ability, target: q.target });
 }
 
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
@@ -539,6 +561,7 @@ function frame(now: number) {
     fixedStep();
   }
 
+  flushQueue();
   const snap = latest!;
   const rate = !spec ? 1 : spec.paused || (spec.runner?.done ?? false) ? 0 : spec.rate;
   const estNow = snap.time + (performance.now() - latestAt) * rate;
