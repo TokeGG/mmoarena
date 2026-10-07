@@ -246,7 +246,7 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'psychic_scream'), 'a direct hit breaks it');
   });
 
-  it('counterspell works in the middle of your own cast and does not cancel it', () => {
+  it('counterspell works in the middle of your own cast and stops that cast', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     const foe = add(sim, 'mage', 1, 0, 10);
@@ -254,7 +254,7 @@ describe('stealth', () => {
     assert.ok(sim.useAbility(foe.id, 'frostbolt', mage.id).ok);
     assert.ok(sim.useAbility(mage.id, 'frostbolt', foe.id).ok);
     assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'interrupt while casting');
-    assert.equal(mage.cast?.ability, 'frostbolt', 'own cast keeps going');
+    assert.equal(mage.cast, null, 'own cast is stopped by using another skill');
     assert.equal(foe.cast, null);
   });
 

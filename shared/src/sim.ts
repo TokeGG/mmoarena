@@ -195,8 +195,8 @@ export class ArenaSim {
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
 
-    // starting another cast or gcd ability cancels the one in progress (off-gcd instants like interrupts do not)
-    if (u.cast && (def.castTime > 0 || def.gcd)) this.cancelCast(u, 'switched spell');
+    // using any other ability stops the cast in progress, interrupts included (they can still be pressed mid-cast)
+    if (u.cast) this.cancelCast(u, 'switched spell');
     if (def.target === 'enemy') u.target = tgt.id;
 
     if (def.channel && def.castTime > 0) {
