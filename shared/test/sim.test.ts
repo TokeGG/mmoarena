@@ -258,6 +258,24 @@ describe('stealth', () => {
     assert.equal(foe.cast, null);
   });
 
+  it('frost nova and deep freeze make frost damage hurt more, other schools unaffected', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'warrior', 1, 5, 0);
+    advance(sim, TICK);
+    const hit = (school: any) => { const h = foe.health; sim.dealDamage(mage, foe, 100, school, null); return h - foe.health; };
+    const plain = hit('frost');
+    foe.health = foe.maxHealth;
+    sim.applyAura(mage, foe, 'frost_nova_root');
+    const rooted = hit('frost');
+    foe.health = foe.maxHealth;
+    assert.ok(rooted > plain * 1.15, `rooted ${rooted} vs ${plain}`);
+    assert.equal(hit('fire'), plain, 'fire unchanged');
+    foe.health = foe.maxHealth;
+    sim.applyAura(mage, foe, 'deep_freeze_stun');
+    assert.ok(hit('frost') > rooted * 1.1, 'frozen solid hurts even more');
+  });
+
   it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);

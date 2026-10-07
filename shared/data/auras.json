@@ -21,7 +21,11 @@
   "duration": 6000,
   "harmful": true,
   "dr": "root",
-  "dispellable": true
+  "dispellable": true,
+  "vuln": {
+   "school": "frost",
+   "pct": 20
+  }
  },
  "frostbolt_slow": {
   "name": "Frostbolt",
@@ -228,7 +232,11 @@
   "kind": "stun",
   "duration": 3000,
   "harmful": true,
-  "dr": "stun"
+  "dr": "stun",
+  "vuln": {
+   "school": "frost",
+   "pct": 40
+  }
  },
  "charge_stun": {
   "name": "Charge",

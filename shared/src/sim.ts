@@ -549,7 +549,9 @@ export class ArenaSim {
   /** Returns damage that actually reached health (after absorbs). */
   dealDamage(src: Unit | null, tgt: Unit, raw: number, school: School, ability: string | null, periodic = false): number {
     if (!tgt.alive) return 0;
-    let remaining = Math.max(0, Math.round(raw * this.modsOf(tgt).damageTaken));
+    let vuln = 1;
+    for (const a of tgt.auras) { const v = AURAS[a.id]?.vuln; if (v && v.school === school) vuln *= 1 + v.pct / 100; }
+    let remaining = Math.max(0, Math.round(raw * vuln * this.modsOf(tgt).damageTaken));
     let absorbed = 0;
     for (const a of [...tgt.auras]) {
       if (a.kind !== 'absorb' || remaining <= 0) continue;

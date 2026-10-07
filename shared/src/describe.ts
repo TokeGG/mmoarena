@@ -40,6 +40,12 @@ export function describeMods(m: ModsInput | undefined): string[] {
 export function describeAura(id: string): string {
   const a = AURAS[id];
   if (!a) return '';
+  const base = describeBase(id);
+  return a.vuln ? `${base} Takes ${a.vuln.pct}% more ${a.vuln.school} damage.` : base;
+}
+
+function describeBase(id: string): string {
+  const a = AURAS[id];
   switch (a.kind) {
     case 'stun': return 'Cannot move, cast or act.';
     case 'incapacitate': return `Cannot move, cast or act${a.canTurn ? ' (can still turn)' : ''}${a.locksAbilities ? ', not even Blink' : ''}. Breaks on damage.${a.hot ? ` Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s.` : ''}`;

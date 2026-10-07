@@ -65,6 +65,8 @@ export interface AuraDef {
   breaksOnDamage?: boolean;
   /** Only one target at a time per caster: applying it again removes it from the previous target. */
   unique?: boolean;
+  /** The holder takes this percent more damage of one school (Frost Nova and Deep Freeze make frost hurt more). */
+  vuln?: { school: School; pct: number };
   /** An incapacitated unit may still turn on the spot (Polymorph). */
   canTurn?: boolean;
   /** While this is on you, abilities that normally work through crowd control (Blink) do not (Polymorph). */
