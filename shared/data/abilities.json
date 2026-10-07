@@ -1649,13 +1649,13 @@
   "gcd": true,
   "cost": 30,
   "channel": {
-   "ticks": 4,
+   "ticks": 8,
    "immediate": true
   },
   "effects": [
    {
     "type": "damage",
-    "amount": 100
+    "amount": 50
    },
    {
     "type": "aura",

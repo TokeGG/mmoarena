@@ -192,7 +192,7 @@ On the bar: [Warbringer](#warrior-arms) (key 3).
 
 *Physical* · 30 rage · 6 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun
 
-- Strikes every enemy in range 4 times, once every 1s (the first at once), for 100 physical damage each (400 total). Moving or being interrupted stops it.
+- Strikes every enemy in range 8 times, once every 0.5s (the first at once), for 50 physical damage each (400 total). Moving or being interrupted stops it.
 - Cannot move, cast or act.
 
 On the bar: [Warbringer](#warrior-arms) (key 4).
@@ -1077,7 +1077,7 @@ Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.
 |---|---|---|
 | I | 💨 **Smoke Veil** | Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone. |
 |  | 🌫️ **Twin Vanish** | Vanish holds two charges, and each charge recharges on its own timer. |
-|  | 💚 **Shadow Mend** | Vanishing heals you for 75% of your missing health. |
+|  | 💚 **Shadow Mend** | Vanishing heals you for 50% of your missing health. |
 | II | ⚡ **Quiet Reserves** | Energy regenerates 20% faster. |
 |  | 👟 **Fleet Footed** | You move 10% faster. |
 |  | 🎯 **Deep Pockets** | Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point. |

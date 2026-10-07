@@ -116,7 +116,7 @@ export class Room {
   closed = false;
   private bots: Bot[] = [];
   /** Which learned brain each bot is playing with, to credit the result at the end. */
-  private botMeta: { unitId: number; classId: ClassId; variantId: string }[] = [];
+  private botMeta: { unitId: number; classId: ClassId; variantId: string; difficulty: string }[] = [];
   learner?: BotLearner;
   private botsReported = false;
   private endedTicks = 0;
@@ -271,7 +271,7 @@ export class Room {
     const u = this.sim.addUnit({ name: `Bot ${label}`, classId, team, controller: 'bot', build: botBuild(classId, seed) });
     const learned = this.learner?.pick(classId);
     this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed, learned?.brain));
-    if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId });
+    if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId, difficulty });
   }
 
   command(p: Player, msg: ClientMsg): void {
@@ -461,7 +461,8 @@ export class Room {
       const lasted = Math.min(1, (this.sim.time - this.sim.prepEndsAt) / 90000);
       // a win with health to spare counts for more; a loss counts for something if the bot stayed alive and lasted
       const score = w === team ? 0.7 + 0.3 * (bot.health / bot.maxHealth) : 0.3 * lasted + (bot.alive ? 0.1 : 0);
-      this.learner.report(m.classId, m.variantId, w === team, score);
+      const people = [...this.players.keys()].map((id) => this.sim.units.get(id)).filter((x) => x && x.team !== team).map((x) => x!.classId);
+      this.learner.report(m.classId, m.variantId, w === team, score, people, m.difficulty);
     }
   }
 
@@ -473,7 +474,7 @@ export class Room {
     if (!this.countsForProgress || this.sim.time - this.sim.prepEndsAt < this.minCountedMs) return;
     const draw = this.sim.winner === 'draw';
     const replay = this.recorder?.finish(this.roster()) ?? null;
-    if (replay && this.learner) this.learner.learnFrom(replay); // the bots study how the people played (on a worker thread)
+    if (replay && this.learner) void this.learner.learnFrom(replay, this.id); // the bots study how the people played and how they beat the bots (on a worker thread); kept for offline study too
     const jobs: Promise<void>[] = [];
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);

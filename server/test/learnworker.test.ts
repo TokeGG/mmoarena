@@ -25,7 +25,7 @@ describe('bot learner worker thread', () => {
     clearInterval(timer);
     await w.close();
     assert.deepEqual(fromWorker, await measureInline(replay));
-    assert.ok(fromWorker.length > 0);
+    assert.ok(fromWorker.humans.length > 0);
     assert.equal((w as any).broken, false, 'the worker started (no inline fallback)');
   });
 });

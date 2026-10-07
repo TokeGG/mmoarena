@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, specPassives, talentsFor,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, specPassives, switchTalents, talentsFor,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -416,10 +416,17 @@ export class MainMenu {
         card.dataset.spec = spec.id;
         card.append(el('span', 'ci', spec.icon), el('b', '', spec.name));
         card.addEventListener('mouseenter', () => this.showSpecPop(card, spec));
+        // leaving a spec you only looked at (not into its card) puts the card back on the spec you have picked
+        card.addEventListener('mouseleave', (e) => {
+          const to = e.relatedTarget;
+          if (to instanceof Node && this.specPop.contains(to)) return;
+          if (to instanceof Element && to.closest('.mm-spec')) return;
+          this.showSelectedSpec();
+        });
         card.addEventListener('click', () => {
           if (this.build.spec !== spec.id) {
             saveSpecTalents(this.classId, this.build.spec, this.build.talents); // keep what this spec had
-            this.build.talents = this.specBuild(spec.id).talents;
+            this.build.talents = switchTalents(this.classId, this.build.talents, spec.id, loadSpecTalents(this.classId, spec.id));
           }
           this.build.spec = spec.id;
           this.commit();
@@ -430,13 +437,12 @@ export class MainMenu {
   }
 
   /**
-   * The build a spec has: the current one for the picked spec, else the talents it had last time (talents belong to a
-   * spec), falling back to the shared tier picks of the current build.
+   * The build a spec's card describes: the current one for the picked spec, else only the talents picked now that its
+   * tree also has. Picks you cannot see (that spec's own tiers, remembered from last time) are never counted.
    */
   private specBuild(specId: string): Build {
     if (specId === this.build.spec) return this.build;
-    const talents = loadSpecTalents(this.classId, specId) ?? talentsFor(this.classId, specId).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : ''));
-    return { ...this.build, spec: specId, talents };
+    return { ...this.build, spec: specId, talents: previewTalents(this.classId, this.build.talents, specId) };
   }
 
   /**
@@ -506,11 +512,15 @@ export class MainMenu {
     if (passives.length) for (const p of passives) pas.append(el('div', 'sp-passive', p));
     else pas.append(el('div', 'sp-passive dim', 'None: everything this spec does is on its bar.'));
     pop.append(head, el('div', 'sp-desc', spec.desc), pas, sub, list);
+    // another spec's card counts only what you can see picked: its own tiers wait until you choose it
+    if (spec.id !== this.build.spec) pop.append(el('div', 'sp-note', 'Numbers count only the talents picked now that this spec shares (tiers I–II). Pick the spec to choose its own.'));
     if (!pop.isConnected) {
       document.body.append(pop);
       pop.addEventListener('mouseenter', () => window.clearTimeout(this.popHide));
       pop.addEventListener('mouseleave', (e) => {
-        if (!(e.relatedTarget instanceof Element && e.relatedTarget.closest('.mm-left'))) this.hideSpecPop();
+        const to = e.relatedTarget instanceof Element ? e.relatedTarget : null;
+        if (!to?.closest('.mm-left')) this.hideSpecPop();
+        else if (!to.closest('.mm-spec')) this.showSelectedSpec(); // back over the talents: show the spec they belong to
       });
     }
     pop.classList.remove('hidden');
@@ -520,6 +530,14 @@ export class MainMenu {
     const left = r.right + 8 + w < window.innerWidth ? r.right + 8 : Math.max(6, r.left - w - 8);
     pop.style.left = `${left}px`;
     pop.style.top = `${Math.max(6, Math.min(cr.top - 40, window.innerHeight - pop.offsetHeight - 6))}px`;
+  }
+
+  /** While the spec card is open, make it describe the picked spec again (not the last one hovered). */
+  private showSelectedSpec() {
+    if (this.specPop.classList.contains('hidden') || this.specPop.dataset.spec === this.build.spec) return;
+    const spec = SPECS[this.classId].find((x) => x.id === this.build.spec);
+    const card = this.specs.querySelector<HTMLElement>(`[data-spec="${this.build.spec}"]`);
+    if (spec && card) this.showSpecPop(card, spec);
   }
 
   private hideSpecPop() {

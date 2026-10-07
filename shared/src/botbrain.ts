@@ -127,7 +127,7 @@ export interface Population { classId: ClassId; variants: Variant[]; generation:
 
 export const POP_SIZE = 6;
 /** Games each variant needs before the worst can be replaced. */
-export const EVOLVE_GAMES = 8;
+export const EVOLVE_GAMES = 6;
 
 export function newPopulation(classId: ClassId, rng: () => number): Population {
   const base = brainFor(classId);
@@ -165,14 +165,14 @@ export function pickVariant(pop: Population, rng: () => number): Variant {
  * `score` (0..1) lets a result count for more than win or lose: a bot that lasted long and kept its health counts for
  * more in a loss, and one that won with health to spare counts for more than one that barely made it.
  */
-export function recordResult(pop: Population, variantId: string, won: boolean, rng: () => number, score?: number): boolean {
+export function recordResult(pop: Population, variantId: string, won: boolean, rng: () => number, score?: number, guide?: Guide): boolean {
   const v = pop.variants.find((x) => x.id === variantId);
   if (!v) return false; // the population moved on: that variant was already replaced
   v.games++;
   v.wins += score !== undefined ? Math.min(1, Math.max(0, score)) : won ? 1 : 0;
   pop.sinceEvolve++;
   if (pop.sinceEvolve >= EVOLVE_GAMES * POP_SIZE && pop.variants.every((x) => x.games >= EVOLVE_GAMES / 2)) {
-    evolve(pop, rng);
+    evolve(pop, rng, guide);
     return true;
   }
   return false;
@@ -180,15 +180,34 @@ export function recordResult(pop: Population, variantId: string, won: boolean, r
 
 const rate = (v: Variant) => (v.wins + 1) / (v.games + 2);
 
-/** Replace the weakest variant with a mutation of the best (or a blend of the top two) and age everyone's record. */
-export function evolve(pop: Population, rng: () => number): void {
+/** Evidence of where a brain number should go (what bots learned from losing to people): value and how much backs it. */
+export type Guide = Partial<Record<keyof Brain, { value: number; weight: number }>>;
+
+/**
+ * Replace the weakest variant with a mutation of the best (or a blend of the top two) and age everyone's record. With a
+ * `guide`, the mutation is also pulled part of the way towards it, so new variants try the fixes people's wins point at.
+ */
+export function evolve(pop: Population, rng: () => number, guide?: Guide): void {
   const ranked = [...pop.variants].sort((a, b) => rate(b) - rate(a));
   const [best, second] = ranked;
   const worst = ranked[ranked.length - 1];
   pop.generation++;
   const blend = { ...best.brain };
   if (second && rng() < 0.5) for (const k of BRAIN_KEYS) if (rng() < 0.5) blend[k] = second.brain[k];
-  const child: Variant = { id: `g${pop.generation}v${Math.floor(rng() * 1e6)}`, brain: mutateBrain(clampBrain(blend), rng, 0.12, 0.5), wins: 0, games: 0 };
+  let brain = mutateBrain(clampBrain(blend), rng, 0.12, 0.5);
+  if (guide) {
+    const pulled = { ...brain };
+    for (const k of BRAIN_KEYS) {
+      const g = guide[k];
+      if (!g || g.weight < 30 || !Number.isFinite(g.value)) continue;
+      // lessons point one way (see lessonBrain): only move when the guide is on the side it points to
+      const lower = k === 'jukeAt' || k === 'dangerAt';
+      if (lower ? g.value >= brain[k] : g.value <= brain[k]) continue;
+      pulled[k] = brain[k] + (g.value - brain[k]) * 0.5 * Math.min(1, g.weight / 150);
+    }
+    brain = clampBrain(pulled);
+  }
+  const child: Variant = { id: `g${pop.generation}v${Math.floor(rng() * 1e6)}`, brain, wins: 0, games: 0 };
   pop.variants[pop.variants.indexOf(worst)] = child;
   for (const v of pop.variants) {
     v.wins = Math.round((v.wins / 2) * 100) / 100;

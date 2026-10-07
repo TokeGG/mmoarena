@@ -12,3 +12,4 @@ export * from './jump';
 export * from './replay';
 export * from './humanstyle';
 export * from './rotation';
+export * from './outplay';

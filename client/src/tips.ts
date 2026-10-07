@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, CLASS_BLURB, COSMETICS, SPECS, TALENTS, auraOrigins, compileMods, describeAbility, describeAura, describeTalent, explainAbility, itemById, specOf, specPassives, talentsFor } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, CLASS_BLURB, COSMETICS, SPECS, TALENTS, auraOrigins, compileMods, describeAbility, describeAura, describeTalent, explainAbility, itemById, newMods, specOf, specPassives, talentsFor } from '@arena/shared';
 import type { Build, ClassId, ModSource, Mods } from '@arena/shared';
 import { invalidateTip, setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
@@ -47,6 +47,8 @@ export function tipBuildKey(classId: ClassId, build: Build): string {
   return `${classId}|${build.spec}|${build.talents.join(',')}`;
 }
 const cache = new Map<string, TipBuild>();
+/** No spec and no talents: the values an effect has when it is not yours. */
+const PLAIN = newMods();
 function fromKey(key: string | undefined): TipBuild {
   if (!key) return current;
   let b = cache.get(key);
@@ -100,7 +102,7 @@ export function resolveTip(key: string, data: DOMStringMap | Record<string, stri
       // where it came from: who put it there (on a unit frame), and what gives it (an ability, a spec passive, a talent)
       const origins = auraOrigins(a).filter((o) => o !== def.name); // Psychic Scream's fear comes from Psychic Scream: no need to say so
       const from = [data.tipFrom ? `From ${data.tipFrom}.` : '', origins.length ? `Comes from ${origins.join(', ')}.` : ''].filter(Boolean);
-      return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, current.mods)], stats: from.length ? from : undefined, notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
+      return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, data.tipPlain ? PLAIN : current.mods)], stats: from.length ? from : undefined, notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
     }
     case 'spec': {
       const spec = specOf(a as ClassId, b);

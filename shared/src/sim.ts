@@ -242,7 +242,7 @@ export class ArenaSim {
       const b = this.arena.bounds;
       ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ), ...(ground.lv === 1 && onRaised(this.arena, ground.x, ground.z) ? { lv: 1 as const } : {}) };
       if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return soft('out of range');
-      if (!hasLOS(u.pos, ground, this.arena, u.level, ground.lv ?? 0)) return fail('no line of sight');
+      if (!hasLOS(u.pos, ground, this.arena, u.level, ground.lv ?? 0, this.airOf(u))) return fail('no line of sight');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);
@@ -995,7 +995,13 @@ export class ArenaSim {
 
   /** Line of sight between two units, which also respects walkway levels. */
   private sees(a: Unit, b: Unit): boolean {
-    return hasLOS(a.pos, b.pos, this.arena, a.level, b.level);
+    // a jump lifts the sight line: over a low barricade for a moment
+    return hasLOS(a.pos, b.pos, this.arena, a.level, b.level, this.airOf(a), this.airOf(b));
+  }
+
+  /** How high a unit is in a jump right now (0 on its feet). */
+  airOf(u: Unit): number {
+    return jumpHeight(this.time - u.jumpStart);
   }
 
   private canCauterize(u: Unit): boolean {

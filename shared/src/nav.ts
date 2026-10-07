@@ -103,7 +103,7 @@ function gridOf(arena: ArenaDef): Grid {
           // jump off the walkway (over a rail if there is one)
           out[up].push({ to: gi, cost: len + 2, jump: true });
           // and jump onto a ramp's lower part from the side
-          if (onRamp && h <= JUMP_HEIGHT * 0.75) out[gi].push({ to: up, cost: len + 3, jump: true });
+          if (onRamp && h <= JUMP_HEIGHT * 0.6) out[gi].push({ to: up, cost: len + 3, jump: true });
         }
       }
     }

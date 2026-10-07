@@ -1,5 +1,5 @@
 import { parentPort } from 'node:worker_threads';
-import { measureHumans } from '@arena/shared';
+import { readReplay } from '@arena/shared';
 import type { ReplayData } from '@arena/shared';
 
 /**
@@ -8,7 +8,7 @@ import type { ReplayData } from '@arena/shared';
  */
 parentPort?.on('message', (m: { id: number; replay: ReplayData }) => {
   try {
-    parentPort!.postMessage({ id: m.id, ok: true, measured: measureHumans(m.replay) });
+    parentPort!.postMessage({ id: m.id, ok: true, measured: readReplay(m.replay) });
   } catch {
     parentPort!.postMessage({ id: m.id, ok: false });
   }
