@@ -128,7 +128,8 @@ export type Effect =
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }
   | { type: 'dispel' }
-  | { type: 'dashToTarget'; stopDistance: number }
+  /** `behind`: land on the far side of the target (its back) rather than on the line you came in on. */
+  | { type: 'dashToTarget'; stopDistance: number; behind?: boolean }
   /** A real run: the caster sprints at `speed` yards/s towards the target (uncontrollable) until `stopDistance` away. */
   | { type: 'charge'; stopDistance: number; speed: number; /** Damage dealt on landing, when the target's stun ends. */ hit?: number }
   | { type: 'blink'; distance: number }
@@ -306,6 +307,8 @@ export type SimEvent =
   | { t: 'cast_start'; unit: number; ability: string; target: number; end: number }
   | { t: 'cast'; unit: number; ability: string; target: number }
   | { t: 'cast_fail'; unit: number; ability: string; reason: string }
+  /** A teleport turned a unit to a new facing (Shadowstep landing behind a target): its player's camera follows. */
+  | { t: 'turn'; unit: number; facing: number }
   /** A channel ran its course (or its target died). Interrupts and movement send cast_fail instead. */
   | { t: 'channel_end'; unit: number; ability: string }
   | { t: 'damage'; src: number; tgt: number; amount: number; absorbed: number; ability: string | null; school: School }

@@ -911,7 +911,8 @@
   "effects": [
    {
     "type": "dashToTarget",
-    "stopDistance": 2
+    "stopDistance": 2,
+    "behind": true
    }
   ],
   "minRange": 5,

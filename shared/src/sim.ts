@@ -552,6 +552,8 @@ export class ArenaSim {
       if (hasLOS(p, tgt.pos, this.arena)) {
         u.pos = p;
         u.facing = Math.atan2(tgt.pos.x - p.x, tgt.pos.z - p.z);
+        u.lastInput = { ...u.lastInput, facing: u.facing };
+        this.emit({ t: 'turn', unit: u.id, facing: u.facing });
       }
     }
     // combo points spent, shatter-style empowering and stack eating, worked out once for the whole cast
@@ -642,8 +644,15 @@ export class ArenaSim {
         const d = Math.hypot(dx, dz);
         if (d > 1e-6) {
           const travel = Math.max(0, d - eff.stopDistance);
-          u.pos = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena);
-          u.facing = Math.atan2(dx, dz);
+          let land = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena);
+          if (eff.behind) {
+            const back = resolveCollisions({ x: t.pos.x - Math.sin(t.facing) * eff.stopDistance, z: t.pos.z - Math.cos(t.facing) * eff.stopDistance }, this.arena);
+            if (hasLOS(back, t.pos, this.arena)) land = back;
+          }
+          u.pos = land;
+          u.facing = Math.atan2(t.pos.x - land.x, t.pos.z - land.z);
+          u.lastInput = { ...u.lastInput, facing: u.facing };
+          this.emit({ t: 'turn', unit: u.id, facing: u.facing });
         }
         break;
       }

@@ -304,6 +304,8 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     },
   };
   for (const ev of events) {
+    // a teleport behind someone turns you round: the camera comes with you
+    if (ev.t === 'turn' && ev.unit === you && !spec) controls.yaw = controls.facing = ev.facing;
     hud.event(ev, ctx);
     effects.event(ev);
     audio.event(ev, you, team, spatial);
@@ -847,6 +849,22 @@ function joinMsg(text: string) {
 
 /** Open the socket (once) and resolve true when it is usable. A saved session is resumed on every open. */
 let connecting: Promise<boolean> | null = null;
+/**
+ * Signed in, you stay connected even at the menu: friends see you online and can invite you. Leaving a match closes the
+ * socket, so without this a friend who just finished a match showed as offline until they refreshed.
+ */
+let reconnectDelay = 1000;
+let reconnectTimer = 0;
+function keepPresence() {
+  window.clearTimeout(reconnectTimer);
+  if (!accountUi.account) return;
+  reconnectTimer = window.setTimeout(() => {
+    if (!accountUi.account || (ws && ws.readyState <= WebSocket.OPEN)) return;
+    reconnectDelay = Math.min(reconnectDelay * 2, 15000);
+    void connect();
+  }, reconnectDelay);
+}
+
 function connect(): Promise<boolean> {
   if (ws && ws.readyState === WebSocket.OPEN) return Promise.resolve(true);
   if (connecting && ws && ws.readyState === WebSocket.CONNECTING) return connecting;
@@ -854,6 +872,7 @@ function connect(): Promise<boolean> {
     const sock = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
     ws = sock;
     sock.onopen = () => {
+      reconnectDelay = 1000;
       accountUi.resume();
       resolve(true);
     };
@@ -874,6 +893,7 @@ function connect(): Promise<boolean> {
       // an idle socket dropping at the menu is silent; it reconnects when needed
       if (inMatch || leaving) joinMsg(leaving ? 'You left the match.' : 'Disconnected from server.');
       leaving = false;
+      keepPresence();
     };
   });
   return connecting;

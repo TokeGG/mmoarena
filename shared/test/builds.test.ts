@@ -622,3 +622,19 @@ describe('rogue rework', () => {
     assert.ok(dmg > 150, `backstab from behind ${dmg}`);
   });
 });
+
+describe('Shadowstep turns you round', () => {
+  it('lands behind the target, faces it, and tells the client to turn the camera', () => {
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('subtlety'));
+    const f = add(sim, 'warrior', 1, 12, 0);
+    f.facing = -Math.PI / 2; f.lastInput.facing = f.facing; // looking back at the rogue
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(r.id, 'shadowstep', f.id).ok);
+    const evs = advance(sim, TICK);
+    assert.ok(r.pos.x > f.pos.x, 'ended on the far side');
+    const turn = evs.find((e) => e.t === 'turn') as Extract<SimEvent, { t: 'turn' }> | undefined;
+    assert.ok(turn && turn.unit === r.id);
+    assert.ok(Math.abs(Math.sin(turn!.facing) + 1) < 0.2, 'now facing back towards -x, at the target');
+  });
+});

@@ -6,7 +6,8 @@
 import { MAX_SETTINGS } from '@arena/shared';
 
 /** Never synced: credentials, per-browser guest progress, the signed-in name, and the one-off login prompt flag. */
-const EXCLUDE = new Set(['arena.session.v1', 'arena.profile.v1', 'arena.setups.v1', 'arena.seenLogin.v1', 'arena.name']);
+const BASE_KEY = 'arena.syncBase';
+const EXCLUDE = new Set([BASE_KEY, 'arena.session.v1', 'arena.profile.v1', 'arena.setups.v1', 'arena.seenLogin.v1', 'arena.name']);
 const RELOAD_FLAG = 'arena.syncReload';
 
 export type Snapshot = Record<string, string>;
@@ -55,6 +56,27 @@ export function applySettings(snap: Snapshot): void {
   }
 }
 
+function hash(s: string): string {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) | 0;
+  return `${s.length}:${h >>> 0}`;
+}
+/** The snapshot this browser last knew the server to hold (null if never). Edits made since then are unsynced and must win over the server's older copy. */
+function readBase(): string | null {
+  try {
+    return localStorage.getItem(BASE_KEY);
+  } catch {
+    return null;
+  }
+}
+function writeBase(serialized: string) {
+  try {
+    localStorage.setItem(BASE_KEY, hash(serialized));
+  } catch {
+    /* ignore */
+  }
+}
+
 export type SyncResult = 'same' | 'uploaded' | 'reload';
 
 export class SettingsSync {
@@ -80,7 +102,15 @@ export class SettingsSync {
     }
     if (serialize(theirs) === now) {
       this.lastSent = now;
+      writeBase(now);
       return 'same';
+    }
+    // This browser changed something the server never received (a refresh right after picking talents loses the
+    // last upload): keep the local edits and send them, instead of rolling back to the server's older copy.
+    const base = readBase();
+    if (base !== null && base !== hash(now)) {
+      this.upload(now);
+      return 'uploaded';
     }
     // Apply the account's copy once. If we reloaded a moment ago and still differ (a system rewrote a key on
     // startup), keep what this browser has instead of looping.
@@ -97,6 +127,7 @@ export class SettingsSync {
     }
     applySettings(theirs);
     this.lastSent = serialize(theirs);
+    writeBase(this.lastSent);
     this.reload();
     return 'reload';
   }

@@ -71,4 +71,17 @@ describe('settings sync', () => {
     sync.flush();
     assert.equal(sent.length, 1);
   });
+
+  it('keeps edits the server never received instead of rolling them back on refresh', () => {
+    const sent: string[] = [];
+    let reloads = 0;
+    const sync = new SettingsSync((d) => sent.push(d), () => reloads++);
+    store.set('arena.build.v1.rogue', 'old');
+    assert.equal(sync.onServer(serialize({ 'arena.build.v1.rogue': 'old' })), 'same');
+    store.set('arena.build.v1.rogue', 'new talents'); // picked, then refreshed before the upload went out
+    const again = new SettingsSync((d) => sent.push(d), () => reloads++);
+    assert.equal(again.onServer(serialize({ 'arena.build.v1.rogue': 'old' })), 'uploaded');
+    assert.equal(reloads, 0);
+    assert.equal(store.get('arena.build.v1.rogue'), 'new talents');
+  });
 });
