@@ -49,6 +49,31 @@ describe('bots play by the same rules as humans', () => {
     assert.ok(ev.some((e) => e.t === 'interrupt' && e.src === rogue.id && e.tgt === mage.id), 'kick should land mid-cast');
   });
 
+  it('bots do not spin: facing changes slowly in every class pairing', () => {
+    const classes: ClassId[] = ['warrior', 'mage', 'priest', 'rogue'];
+    for (const a of classes) {
+      for (const b of ['warrior', 'mage', 'rogue'] as ClassId[]) {
+        const ctx = mk();
+        const ua = bot(ctx, a, 0, -10, 0);
+        bot(ctx, b, 1, 10, 0);
+        ctx.sim.step();
+        ctx.sim.drainEvents();
+        let last = ua.facing;
+        let turned = 0;
+        const secs = 20;
+        for (let t = 0; t < secs * 1000 && ctx.sim.phase !== 'ended'; t += TICK) {
+          for (const x of ctx.bots) x.tick();
+          ctx.sim.step();
+          let dA = Math.abs(ua.facing - last) % (Math.PI * 2);
+          if (dA > Math.PI) dA = Math.PI * 2 - dA;
+          turned += dA;
+          last = ua.facing;
+        }
+        assert.ok(turned / secs < 2.5, `${a} vs ${b} turned ${(turned / secs).toFixed(2)} rad/s`);
+      }
+    }
+  });
+
   it('a mage bot counterspells a healer mid-cast', () => {
     const ctx = mk();
     const mage = bot(ctx, 'mage', 0, -8, 0);

@@ -209,9 +209,12 @@ describe('party play', () => {
     const { lobby, us } = await world(['Ann']);
     lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1, map: 'colosseum' } as ClientMsg);
     const maps = new Set<string>();
+    let prev = '';
     for (let i = 0; i < 25; i++) {
       const room: any = us[0].p.room;
       assert.ok(room, 'in a match');
+      if (i > 0) assert.notEqual(room.arenaId, prev, 'Play again repeated the map');
+      prev = room.arenaId;
       maps.add(room.arenaId);
       (room.sim as any).phase = 'ended';
       lobby.handle(us[0].p, { t: 'rematch', on: true });
@@ -224,10 +227,13 @@ describe('party play', () => {
     const { lobby, us } = await world(['Ann']);
     lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1, foes: ['warrior'] } as ClientMsg);
     const foes = new Set<string>();
+    let prevFoe = '';
     for (let i = 0; i < 30; i++) {
       const room: any = us[0].p.room;
       assert.ok(room, 'in a match');
       const enemy = [...room.sim.units.values()].find((u: any) => u.team === 1 && u.controller === 'bot') as any;
+      if (i > 0) assert.notEqual(enemy.classId, prevFoe, 'Play again repeated the enemy class');
+      prevFoe = enemy.classId;
       foes.add(enemy.classId);
       (room.sim as any).phase = 'ended';
       lobby.handle(us[0].p, { t: 'rematch', on: true });

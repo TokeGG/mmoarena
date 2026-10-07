@@ -1,4 +1,4 @@
-import { AURAS, TUNING } from './data';
+import { ABILITIES, AURAS, TUNING } from './data';
 import { angleTo, dist, distPointToSegment, hasLOS } from './geometry';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
@@ -75,6 +75,13 @@ export class Bot {
   private nextDance = 0;
   /** Recent health samples, to tell a burst from a slow trade. */
   private hist: { t: number; hp: number }[] = [];
+  /** Recent positions, to notice being stuck against something while trying to walk. */
+  private trail: { t: number; x: number; z: number; walking: boolean }[] = [];
+  private unstickUntil = 0;
+  private unstickSign = 1;
+  /** Running round to a target's back is only worth a short try: a target that keeps turning just makes both spin. */
+  private backUntil = 0;
+  private backReadyAt = 0;
 
   readonly brain: Brain;
 
@@ -100,6 +107,15 @@ export class Bot {
       return;
     }
 
+    this.trail.push({ t: sim.time, x: u.pos.x, z: u.pos.z, walking: this.lastWalk });
+    while (this.trail.length && sim.time - this.trail[0].t > 1200) this.trail.shift();
+    if (sim.time >= this.unstickUntil && this.trail.length >= 20 && this.trail.every((p) => p.walking) && sim.canMove(u) && !u.cast &&
+        Math.hypot(u.pos.x - this.trail[0].x, u.pos.z - this.trail[0].z) < 0.4) {
+      // walking into something (a pillar edge, a ramp wall, another unit): slide sideways for a moment
+      this.unstickUntil = sim.time + 600;
+      this.unstickSign = this.rng() < 0.5 ? -1 : 1;
+      this.trail.length = 0;
+    }
     this.hist.push({ t: sim.time, hp: u.health });
     while (this.hist.length && sim.time - this.hist[0].t > 2500) this.hist.shift();
     const all = [...sim.units.values()];
@@ -159,18 +175,61 @@ export class Bot {
 
   // ------------------------------------------------------------------ helpers
 
+  private lastWalk = false;
   private send(u: Unit, c: Cmd): void {
+    if (this.sim.time < this.unstickUntil && c.fwd > 0) c = { facing: c.facing + this.unstickSign * 1.2, fwd: 1, strafe: 0 };
+    this.lastWalk = c.fwd !== 0 || c.strafe !== 0 ? c.fwd > 0 : false;
     this.sim.queueInput(u.id, { seq: ++this.seq, ...c });
   }
 
   private use(u: Unit, ability: string, target?: number, ground?: Vec2): boolean {
+    if (this.wastesCC(u, ability, target)) return false;
     return this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
+  }
+
+  /** The strongest diminishing-returns category an ability's crowd control falls in, if it has any. */
+  private ccCategory(ability: string): string | null {
+    for (const e of ABILITIES[ability]?.effects ?? []) if (e.type === 'aura') {
+      const a = AURAS[e.aura];
+      if (a?.harmful && a.dr) return a.dr;
+    }
+    return null;
+  }
+
+  /** Crowd control into a target that is immune to it (diminishing returns), or already locked down, is a wasted cooldown. */
+  private wastesCC(u: Unit, ability: string, target?: number): boolean {
+    const cat = this.ccCategory(ability);
+    if (!cat) return false;
+    const def = ABILITIES[ability];
+    const sim = this.sim;
+    const foes = def.target === 'enemy' ? [sim.units.get(target ?? -1)] : [...sim.units.values()].filter((e) => e.alive && e.team !== u.team && dist(u.pos, e.pos) <= (def.radius ?? 8));
+    const worth = (e?: Unit) => {
+      if (!e || e.team === u.team) return true;
+      const st = e.dr[cat as 'stun'];
+      const used = st && sim.time < st.resetAt ? st.count : 0;
+      if ((TUNING.drSteps[Math.min(used, TUNING.drSteps.length - 1)] ?? 1) <= 0) return false; // immune
+      return !e.auras.some((a) => a.kind === 'stun' || a.kind === 'fear' || a.kind === 'incapacitate'); // already out of the fight
+    };
+    return foes.length > 0 && !foes.some(worth);
+  }
+
+  /** How much of the damage aimed at this unit gets through right now (a shield wall or evasion lowers it). */
+  private reduction(e: Unit): number {
+    let r = 1;
+    for (const a of e.auras) r *= AURAS[a.id]?.mods?.damageTaken ?? 1;
+    return r;
   }
 
   /** First ability from the list that goes off: each spec's bar holds a different mix, and anything off the bar just fails. */
   private useFirst(u: Unit, abilities: string[], target?: number): boolean {
     for (const a of abilities) if (this.use(u, a, target)) return true;
     return false;
+  }
+
+  /** The ability is on the bar, off cooldown and nothing is locking abilities: pressing it now would work. Checked before turning to face an escape, so a bot never spins for a Blink it cannot cast. */
+  private ready(u: Unit, id: string): boolean {
+    if (!u.bar.includes(id) || (u.cooldowns[id] ?? 0) > this.sim.time) return false;
+    return !u.auras.some((a) => AURAS[a.id]?.locksAbilities);
   }
 
   private isPolymorphed(e: Unit): boolean {
@@ -192,7 +251,8 @@ export class Bot {
     const fleeing = (e: Unit) => e === cur && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root');
     const score = (e: Unit) =>
       hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? 10 : 0) -
-      (mates.some((a) => a.target === e.id) ? B.focus : 0) - (fleeing(e) ? B.chase * 15 : 0);
+      (mates.some((a) => a.target === e.id) ? B.focus : 0) - (fleeing(e) ? B.chase * 15 : 0) +
+      (this.reduction(e) < 0.65 ? 40 : 0); // someone behind a shield wall or evasion: hit the other one while it lasts
     list.sort((a, b) => score(a) - score(b));
     this.target = list[0].id;
     this.retargetAt = sim.time + 2500;
@@ -212,9 +272,19 @@ export class Bot {
         s = { start: e.cast.start, at: this.sim.time, will: this.rng() < this.P.interruptChance };
         this.castSeen.set(e.id, s);
       }
-      if (s.will && this.sim.time - s.at >= this.P.react) out.push(e);
+      if (s.will && this.sim.time - s.at >= this.P.react && this.worthInterrupt(e)) out.push(e);
     }
     return out;
+  }
+
+  /** Kicks and counterspells are on a cooldown: spend them on heals, crowd control and big casts, not on filler. */
+  private worthInterrupt(e: Unit): boolean {
+    const def = e.cast ? ABILITIES[e.cast.ability] : undefined;
+    if (!def) return true;
+    if (def.effects.some((x) => x.type === 'heal' || (x.type === 'aura' && AURAS[x.aura]?.harmful && AURAS[x.aura].dr))) return true;
+    if (def.castTime >= 1500) return true;
+    const victim = e.cast?.target !== undefined ? this.sim.units.get(e.cast.target) : undefined;
+    return !!victim && victim.team !== e.team && hpFrac(victim) < 0.85; // a hit on someone already hurt
   }
 
   private noticed(key: string): boolean {
@@ -296,7 +366,7 @@ export class Bot {
         if (close.length && hurting) {
           if (this.useFirst(u, ['frost_nova', 'dragons_breath', 'arcane_explosion'])) return true;
         }
-        if (emergency && (stuck || close.length) && enemies.length) {
+        if (emergency && (stuck || close.length) && enemies.length && this.ready(u, 'blink')) {
           // Blink needs to face away first; turning is free, so turn now and blink on the next decision.
           const away = angleTo(byDist[0].pos, u.pos);
           if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
@@ -347,7 +417,7 @@ export class Bot {
     if (d >= 6 && d <= 15 && kiter && this.use(u, 'not_going_anywhere', undefined, { x: tgt.pos.x, z: tgt.pos.z })) return;
     if (d > 4 && d <= 10 && this.use(u, 'axe_throw', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
-    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp) this.useFirst(u, ['recklessness', 'bladestorm']);
+    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.useFirst(u, ['recklessness', 'bladestorm']); // not into a shield wall
     if (!stunned && d <= 8 && this.useFirst(u, ['concussion_blow', 'slice_and_dice'], tgt.id)) return;
     if (d <= 8 && near.length >= 2 && this.use(u, 'whirlwind')) return;
     // a rage payoff waits for a full bar; builders and the other strikes fill the gaps
@@ -371,7 +441,7 @@ export class Bot {
     this.sim.setAutoAttack(u.id, true);
     if (hpFrac(u) < this.brain.defHp + 0.05 && this.use(u, 'evasion')) return;
     if (hpFrac(u) < this.brain.defHp * 0.6 && enemies.length && this.use(u, 'vanish')) return;
-    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'adrenaline_rush');
+    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.use(u, 'adrenaline_rush');
     if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
     if (d > 12) this.use(u, 'sprint');
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
@@ -386,7 +456,7 @@ export class Bot {
     for (const e of this.interruptible(enemies)) if (this.use(u, 'counterspell', e.id)) return;
 
     const meleeNear = enemies.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 10);
-    if (hpFrac(u) < 0.4 && meleeNear.length) {
+    if (hpFrac(u) < 0.4 && meleeNear.length && this.ready(u, 'blink')) {
       // Blink needs to face away first; turning is free, so turn this tick and blink on the next decision.
       const away = angleTo(meleeNear[0].pos, u.pos);
       if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
@@ -406,7 +476,7 @@ export class Bot {
     if (!tgt) return;
     const slowed = tgt.auras.some((a) => a.id === 'frostbolt_slow');
     if (!slowed && this.use(u, 'frostbolt', tgt.id)) return;
-    if (hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'arcane_power');
+    if (hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.use(u, 'arcane_power');
     // Fingers of Frost / Shatter on the target: Deep Freeze to hold it, then Ice Lance for the 5x hit
     if (tgt.auras.some((a) => a.id === 'fingers_of_frost' || a.id === 'shatter') && (this.use(u, 'deep_freeze', tgt.id) || this.use(u, 'ice_lance', tgt.id))) return;
     // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
@@ -479,10 +549,13 @@ export class Bot {
     const arena = this.sim.arena;
     const br = arena.bridge;
     if (!br || fromLv === toLv) return null;
-    const foot = br.deckHalf + br.rampLen + 1.5;
-    if (fromLv === 1) return { x: (to.x === 0 ? Math.sign(from.x) || 1 : Math.sign(to.x)) * foot, z: 0 }; // down the ramp nearer the target
+    const end = br.deckHalf + br.rampLen;
+    if (fromLv === 1) return { x: (to.x === 0 ? Math.sign(from.x) || 1 : Math.sign(to.x)) * (end + 2), z: 0 }; // down the ramp nearer the target
     if (Math.abs(from.x) < br.deckHalf && Math.abs(from.z) < br.halfWidth) return { x: from.x, z: (to.z >= from.z ? 1 : -1) * (br.halfWidth + 2) }; // out of the tunnel first
-    return { x: (Math.sign(from.x) || 1) * foot, z: 0 };
+    const s = Math.sign(from.x) || 1;
+    // line up with the ramp in the open, then walk straight in so the climb starts (the foot itself is the way on)
+    if (Math.abs(from.x) > end + 0.8 && Math.abs(from.z) > br.halfWidth - 1) return { x: s * (end + 2.5), z: 0 };
+    return { x: s * (end - 1.5), z: 0 };
   }
 
   private waypoint(from: Vec2, to: Vec2, fromLv: 0 | 1 = 0, toLv: 0 | 1 = 0): Vec2 {
@@ -549,7 +622,7 @@ export class Bot {
     if (u.classId === 'priest' && sim.time < this.danceUntil && !u.cast) return { facing: angleTo(u.pos, tgt.pos), fwd: 0, strafe: this.strafeSign };
 
     const d = dist(u.pos, tgt.pos);
-    const toT = angleTo(u.pos, tgt.pos);
+    const toT = d < 0.8 ? u.facing : angleTo(u.pos, tgt.pos); // standing on top of someone: do not whip round
     const reach = Math.max(2.9, (autoFor(u.classId, u.spec)?.range ?? 3) - 0.1);
     const base = RANGED[u.classId];
     const range = base && { min: base.min + this.brain.rangeBias, max: base.max + this.brain.rangeBias };
@@ -557,12 +630,18 @@ export class Bot {
       // Backstab doubles from behind: run round to the target's back instead of strafing in front of it
       if (u.bar.includes('backstab') && !sim.isStealthed(u)) {
         const back = { x: tgt.pos.x - Math.sin(tgt.facing) * 2, z: tgt.pos.z - Math.cos(tgt.facing) * 2 };
-        if (dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
+        const helpless = tgt.auras.some((a) => HARD_CC.includes(a.kind));
+        const turned = Math.abs(angleDiff(tgt.facing, angleTo(tgt.pos, u.pos))) > 1.6; // the target is not looking at us
+        if (sim.time >= this.backReadyAt && (helpless || turned) && d < 12) {
+          if (this.backUntil < sim.time) this.backUntil = sim.time + 1500; // one short try, then fight from the front
+          if (sim.time < this.backUntil && dist(u.pos, back) > 1.2) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
+          if (sim.time >= this.backUntil) this.backReadyAt = sim.time + 5000;
+        }
         if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
       }
       if (d > reach) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
       // in melee range: keep moving round the target instead of standing still
-      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.9 * this.brain.strafe };
+      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.2 * this.brain.strafe }; // circling at this range only spins the bot, so it barely moves
     }
     if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d > range.max) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
@@ -589,7 +668,7 @@ export class Bot {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, buddy.pos, u.level, buddy.level)), fwd: 1, strafe: 0 };
     }
     if (!tgt) return idle;
-    const toT = angleTo(u.pos, tgt.pos);
+    const toT = dist(u.pos, tgt.pos) < 0.8 ? u.facing : angleTo(u.pos, tgt.pos); // standing on top of someone: do not whip round
     return { facing: toT, fwd: 0, strafe: sim.time < u.gcdEnd ? this.strafeSign * this.brain.strafe : 0 };
   }
 }

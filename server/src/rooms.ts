@@ -87,10 +87,12 @@ export function send(p: Player, msg: ServerMsg): void {
 export const DUEL_MAP = 'bridge';
 
 /** An arena id, resolving 'random' (or anything unknown) to a random arena. */
-export function pickMap(pref: string): string {
+export function pickMap(pref: string, avoid?: string): string {
   if (ARENAS.some((a) => a.id === pref)) return pref;
   const pool = ARENAS.filter((a) => a.randomPool !== false);
-  return pool[Math.floor(Math.random() * pool.length)].id;
+  const fresh = pool.filter((a) => a.id !== avoid); // never the arena that was just played
+  const from = fresh.length ? fresh : pool;
+  return from[Math.floor(Math.random() * from.length)].id;
 }
 
 export class Room {
@@ -987,7 +989,7 @@ export class Lobby {
     const plan = old.rematchPlan();
     old.release();
     // against bots, Play again is a fresh random map; matches between people keep the arena they were on
-    const map = plan.npcs.length && !plan.ranked ? pickMap('random') : plan.map;
+    const map = plan.npcs.length && !plan.ranked ? pickMap('random', plan.map) : plan.map;
     const room = this.makeRoom(plan.prepMs, plan.counts, plan.ranked, map);
     room.size = plan.size;
     for (const h of plan.humans) room.addPlayer(h.p, h.team);
@@ -997,7 +999,8 @@ export class Lobby {
     const classes: ClassId[] = ['warrior', 'mage', 'priest', 'rogue'];
     for (const n of plan.npcs) {
       const foe = !ours.has(n.team) && n.difficulty !== 'dummy' && !plan.ranked;
-      room.addNpc(foe ? classes[Math.floor(Math.random() * classes.length)] : n.classId, n.team, n.difficulty);
+      const others = classes.filter((c) => c !== n.classId); // a different class than last match
+      room.addNpc(foe ? others[Math.floor(Math.random() * others.length)] : n.classId, n.team, n.difficulty);
     }
     this.rooms.add(room);
   }
