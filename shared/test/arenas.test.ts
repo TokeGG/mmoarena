@@ -299,8 +299,8 @@ describe('above and below a walkway', () => {
       const sim = new ArenaSim({ prepMs: 0, seed: 1, arena: a });
       const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'player', build: { spec: 'arms', talents: [], gear: {} } as never });
       sim.addUnit({ name: 'd', classId: 'warrior', team: 1, controller: 'dummy' });
-      w.pos = { x: -16, z: 2 };
-      w.facing = Math.atan2(16, -1);
+      w.pos = { x: -17, z: 7 }; // past the end of the barricade at x -16 (z -5..5), so it does not block the aim
+      w.facing = Math.atan2(17, -6);
       sim.step();
       const r = sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 1, ...(lv ? { lv } : {}) });
       assert.ok(r.ok, (r as { reason?: string }).reason);

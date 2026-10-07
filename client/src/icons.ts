@@ -19,13 +19,13 @@ export const ABILITY_ICON: Record<string, string> = {
 };
 
 export const AURA_ICON: Record<string, string> = {
-  polymorph: '🐑', frost_nova_root: '🧊', frostbolt_slow: '❄️', hamstring_slow: '🩸',
+  polymorph: '🐑', frost_nova_root: '🧊', frostbolt_slow: '❄️', hamstring_slow: '🩸', charge_stun: '💫', rogue_slow: '🦶',
   cheap_shot_stun: '💫', kidney_shot: '💫', psychic_scream: '😱', pw_shield: '🛡️', stealth: '👤', sprint: '💨',
   recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '🩸', slice_stun: '🌀', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
   pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', 
   power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', arcane_slow: '💥', garrote_bleed: '🩸', mutilate_bleed: '🩸', shatter: '💎', fingers_of_frost: '🖐️', arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', cauterized: '🔥', cauterize: '🔥',
-  deep_freeze_stun: '🧊', mortal_wounds: '🩸', mind_flay_slow: '🧠', hammer_stun: '🔨', judgment_stun: '⚖️', choke_stun: '💨', creeping_rot: '☠️', plague_bloom: '🦠',
+  deep_freeze_stun: '🧊', mortal_wounds: '🩸', mind_flay_slow: '🧠', hammer_stun: '🔨', judgment_stun: '⚖️', creeping_rot: '☠️', plague_bloom: '🦠',
 };
 
 export const CLASS_ICON: Record<ClassId, string> = { warrior: '⚔️', mage: '🔮', priest: '✝️', rogue: '🗡️' };

@@ -1,8 +1,8 @@
+import { clamp } from '@arena/shared';
 import { zoomStep } from './camera';
 import type { Action, Keybinds } from './keybinds';
 import { isTyping } from './popups';
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const TURN_SPEED = 2.6; // rad/s for A/D turning
 
 /**

@@ -1611,7 +1611,7 @@
         {
           "id": "priest_discipline_t6c",
           "name": "Radiant Burst",
-          "desc": "Replaces Desperate Prayer with Holy Nova, a 12 second instant that heals all allies for 130 and damages all enemies for 80.",
+          "desc": "Replaces Desperate Prayer with Holy Nova, an instant on a 12-second cooldown that heals all allies for 130 and damages all enemies for 80.",
           "icon": "🌟",
           "mods": {},
           "swap": {
@@ -1808,7 +1808,7 @@
         },
         {
           "id": "priest_holy_t5c",
-          "name": "Final Verdict",
+          "name": "Lingering Shadow",
           "desc": "Replaces Desperate Prayer with Shadow Word: Pain, a damage-over-time to add pressure.",
           "icon": "💀",
           "mods": {},
@@ -1954,7 +1954,7 @@
         {
           "id": "priest_shadow_t3b",
           "name": "Gnawing Dark",
-          "desc": "Shadow Word: Pain deals 20% more damage and its rot lasts 40% longer.",
+          "desc": "Shadow Word: Pain deals 20% more damage and its damage over time lasts 40% longer.",
           "icon": "💀",
           "mods": {
             "ability": {
@@ -2282,7 +2282,7 @@
         },
         {
           "id": "rogue_assassination_t5c",
-          "name": "Blade Storm",
+          "name": "Knife Flurry",
           "desc": "Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
           "icon": "🌪️",
           "mods": {},
@@ -2541,7 +2541,7 @@
         },
         {
           "id": "rogue_combat_t6b",
-          "name": "Blade Storm",
+          "name": "Knife Flurry",
           "desc": "Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
           "icon": "🌪️",
           "mods": {},
@@ -2776,7 +2776,7 @@
         },
         {
           "id": "rogue_subtlety_t6b",
-          "name": "Blade Storm",
+          "name": "Knife Flurry",
           "desc": "Replaces Shadowstep with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
           "icon": "🌪️",
           "mods": {},

@@ -7,7 +7,6 @@ export const PROTOCOL_VERSION = 9;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
-export const TEAM_SIZES: TeamSize[] = [1, 2, 3];
 
 export type PracticeDifficulty = 'dummy' | 'easy' | 'normal' | 'hard';
 const DIFFICULTIES: PracticeDifficulty[] = ['dummy', 'easy', 'normal', 'hard'];
@@ -95,11 +94,11 @@ export type ServerMsg =
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
   | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
-  /** Owner spectators only: running damage and healing totals for everyone in the match. */
   /** How many of the people in the finished match are ready to play again. */
   | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'suggest_ack'; ok: boolean; reason?: string }
   | { t: 'suggestions'; rows: { at: number; name: string; text: string; note?: string }[] }
+  /** Owner spectators only: running damage and healing totals for everyone in the match. */
   | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
   | { t: 'closed'; reason: string }
@@ -118,8 +117,6 @@ export type ServerMsg =
   | { t: 'invite'; id: string; kind: 'party' | 'duel'; from: string }
   | { t: 'invite_gone'; id: string }
   | { t: 'party'; party: PartyInfo | null }
-  /** Your party is not in the queue yet: `ready` of `total` members have pressed play. */
-  | { t: 'party_wait'; ready: number; total: number }
   /** A duel was agreed: send a join with mode 'duel' and `duelWith`. */
   | { t: 'duel_go'; with: string }
   /** A short message to show the player. */
@@ -131,7 +128,7 @@ export type ServerMsg =
   /** Result of an admin_set; `tempPassword` is shown once when a password was reset. */
   | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };
 
-/** Keep only a well-formed build: strings of sane length, at most 3 talent tiers and one id per gear slot. */
+/** Keep only a well-formed build: strings of sane length, at most 8 talent entries (there are 6 tiers) and one id per gear slot. */
 export function parseBuild(raw: unknown): Build | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;

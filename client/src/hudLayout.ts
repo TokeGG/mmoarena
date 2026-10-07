@@ -1,3 +1,4 @@
+import { clamp } from '@arena/shared';
 import { LOOK_OPTIONS, loadLook, look, resetLook, setLook } from './hudLook';
 
 /**
@@ -70,7 +71,6 @@ const MARGIN = 6;
 const GRID_KEY = 'arena.hud.grid.v1';
 const GRID_SIZES = [8, 16, 24, 32, 48];
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 
 export class HudLayout {
   editing = false;

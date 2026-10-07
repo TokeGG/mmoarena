@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.68.0
+# WoW-style Arena · v0.68.1
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -98,7 +98,7 @@ Pick one on the menu or leave it on Random.
 | Icebound Ring | A raised square walkway around an open courtyard with an ice spire, with ramps down towards each team. |
 | Sun Terraces | Two long raised terraces along the north and south walls with a ramp at each end, plus a centre obelisk and barricades. |
 
-**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, Blizzard, the banner, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground; barricades are chest-high: they block walking but not sight, and need most of a jump to clear.
+**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, Blizzard, the banner, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground. Barricades are as tall as a person: on the ground they block walking and sight, and a jump clears them and lifts your sight line over them for a moment, long enough for an instant spell (and for them to hit you back).
 
 ## Rules worth knowing
 
@@ -117,8 +117,8 @@ Pick one on the menu or leave it on Random.
 | Skill | What changes |
 |---|---|
 | Dummies | They stand still and do nothing, and a dummy you kill stands back up at full health after a moment. Good for checking numbers and visuals. |
-| Easy | Slow reactions, answers about 40% of your casts with an interrupt. |
-| Normal | About 0.4 s reaction, interrupts most casts. |
+| Easy | About 1.3 s reaction, answers about 20% of your casts with an interrupt. |
+| Normal | About 0.55 s reaction, interrupts most casts. |
 | Hard | About 0.16 s reaction, interrupts everything it can. |
 
 Bots use the same commands as a player, so they obey the global cooldown, range, line of sight, resources, lockouts and stealth. They play their spec's whole bar, walk around pillars and out of ground zones, interrupt casts, dispel crowd control off their partner, polymorph the enemy that is not the kill target, and stun or kick casters.

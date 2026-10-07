@@ -78,7 +78,7 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 |  | 🧱 **Fortress Stance** | 40% less damage taken for 8 seconds. Replaces Execute. → [Fortress Stance](#skill-shield-wall) |
 
 <a id="warrior-fury"></a>
-### 🪓 Rampager · Two-handed sword
+### 🗡️ Rampager · Two-handed sword
 
 Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.
 
@@ -160,9 +160,9 @@ Base numbers, before spec and talent changes (in game, hover a skill to see your
 
 *Physical* · 8 yd radius · Instant · 2.5s cooldown
 
-- Deals 85 physical damage to all enemies in range.
-- Generates 15 rage.
-- *Its damage builds rage: 15% of the damage dealt (13 per enemy hit).*
+- Deals 75 physical damage to all enemies in range.
+- Generates 8 rage.
+- *Its damage builds rage: 15% of the damage dealt (11 per enemy hit).*
 
 On the bar: [Warbringer](#warrior-arms) (key 1).
 
@@ -244,7 +244,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 
 *Physical* · 30 rage · 7 yd radius · 5s channel · 60s cooldown
 
-- Strikes every enemy in range 10 times, once every 0.5s, for 22 physical damage each (220 total). Interrupts and crowd control cannot stop it.
+- Strikes every enemy in range 10 times, once every 0.5s, for 22 physical damage each (220 total).
 - *Can be cast while moving.*
 - *Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.*
 
@@ -255,7 +255,7 @@ On the bar: [Rampager](#warrior-fury) (key 1).
 
 *Physical* · 20 rage · 3 yd range · Instant · 4.5s cooldown
 
-- Deals 85 physical damage.
+- Deals 150 physical damage.
 - Heals you for 3% of your maximum health.
 - Generates 8 rage.
 
@@ -276,7 +276,7 @@ On the bar: [Rampager](#warrior-fury) (key 3).
 
 *Physical* · 40 rage · 3 yd range · Instant · 3s cooldown
 
-- Deals 120 physical damage.
+- Deals 160 physical damage.
 
 On the bar: [Rampager](#warrior-fury) (key 4).
 
@@ -286,7 +286,7 @@ On the bar: [Rampager](#warrior-fury) (key 4).
 *Physical* · 15 rage · 10 yd range, 90° cone in front of you · Instant · 25s cooldown
 
 - Deals 30 physical damage to all enemies in range.
-- Drags the target to 2.2 yards in front of you.
+- Drags every enemy hit to 2.2 yards in front of you.
 
 On the bar: [Barbarian](#warrior-protection) (key 1).
 
@@ -400,11 +400,10 @@ Talent: Warbringer tier VI *Stand Against Steel* (replaces Execute); Rampager ti
 <a id="skill-shield-wall"></a>
 #### Fortress Stance
 
-*Physical* · Instant · 60s cooldown
+*Physical* · Instant · 60s cooldown · 8s buff
 
-- You gain Shield Wall for 8s: −40% damage taken.
+- −40% damage taken.
 - *Does not trigger the global cooldown.*
-- Effects: [Shield Wall](#effect-shield-wall)
 
 Talent: Warbringer tier VI *Fortress Stance* (replaces Execute); Rampager tier VI *Fortress Stance* (replaces Slam); Barbarian tier VI *Fortress Stance* (replaces Axe Throw).
 
@@ -807,7 +806,7 @@ Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a 
 |  | ✨ **Empowered Ally** | Replaces Dispel Magic with Power Infusion, a burst buff to your damage and healing. → [Power Infusion](#skill-power-infusion) |
 | VI | 🙏 **Word of Serenity** | Replaces Desperate Prayer with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds. → [Holy Word: Serenity](#skill-holy-word) |
 |  | 🌫️ **Fade to Static** | Replaces Desperate Prayer with Dispersion, a defensive that cuts damage taken for a few seconds. → [Dispersion](#skill-dispersion) |
-|  | 🌟 **Radiant Burst** | Replaces Desperate Prayer with Holy Nova, a 12 second instant that heals all allies for 130 and damages all enemies for 80. → [Holy Nova](#skill-holy-nova) |
+|  | 🌟 **Radiant Burst** | Replaces Desperate Prayer with Holy Nova, an instant on a 12-second cooldown that heals all allies for 130 and damages all enemies for 80. → [Holy Nova](#skill-holy-nova) |
 
 <a id="priest-holy"></a>
 ### ✨ Lightbearer · Pure healer
@@ -837,7 +836,7 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 |  | ☠️ **Creeping Ruin** | Replaces Smite with Devouring Plague, adding damage over time without needing a long cast. → [Devouring Plague](#skill-plague-bloom) |
 | V | 🔨 **Hammer of Dawn** | Replaces Desperate Prayer with Hammer of Justice, a single-target stun to protect a struggling ally. → [Hammer of Justice](#skill-judgment-hammer) |
 |  | 🤫 **Quiet the Chant** | Replaces Desperate Prayer with Silence, an interrupt that stops enemy casters. → [Silence](#skill-hush) |
-|  | 💀 **Final Verdict** | Replaces Desperate Prayer with Shadow Word: Pain, a damage-over-time to add pressure. → [Shadow Word: Pain](#skill-shadow-word-death) |
+|  | 💀 **Lingering Shadow** | Replaces Desperate Prayer with Shadow Word: Pain, a damage-over-time to add pressure. → [Shadow Word: Pain](#skill-shadow-word-death) |
 | VI | ✨ **Inspiring Hymn** | Replaces Dispel Magic with Power Infusion, boosting healing and speeding up casts. → [Power Infusion](#skill-power-infusion) |
 |  | 🙏 **Word of Serenity** | Replaces Dispel Magic with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds. → [Holy Word: Serenity](#skill-holy-word) |
 |  | 🌫️ **Veil of Static** | Replaces Dispel Magic with Dispersion, letting you survive focus fire yourself. → [Dispersion](#skill-dispersion) |
@@ -863,7 +862,7 @@ Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Bla
 | Tier | Talent | What it does |
 |---|---|---|
 | III | 🌑 **Void Embrace** | Dispersion lasts 40% longer and its cooldown is 15% shorter. |
-|  | 💀 **Gnawing Dark** | Shadow Word: Pain deals 20% more damage and its rot lasts 40% longer. |
+|  | 💀 **Gnawing Dark** | Shadow Word: Pain deals 20% more damage and its damage over time lasts 40% longer. |
 |  | 🩸 **Stolen Vitality** | Flash Heal heals 15% more and Power Word: Shield lasts 40% longer. |
 | IV | 💖 **Greater Salvation** | Replaces Flash Heal with Greater Heal, a slow but big heal for recovering between fights. → [Greater Heal](#skill-greater-heal) |
 |  | 🙏 **Serenity Burst** | Replaces Flash Heal with Holy Word: Serenity, an instant 300 heal for emergencies. → [Holy Word: Serenity](#skill-holy-word) |
@@ -969,7 +968,7 @@ On the bar: [Lightbearer](#priest-holy) (key 2). Talent: Gloomweaver tier IV *Gr
 *Holy* · 70 mana · 12 yd radius · Instant · 12s cooldown
 
 - Deals 80 holy damage to all enemies in range.
-- On an ally: heals for 130.
+- Heals you and every ally in range for 130.
 
 On the bar: [Lightbearer](#priest-holy) (key 6). Talent: Warden tier VI *Radiant Burst* (replaces Desperate Prayer).
 
@@ -989,7 +988,7 @@ On the bar: [Gloomweaver](#priest-shadow) (key 1). Talent: Warden tier IV *Mind 
 
 - Takes 30 shadow damage every 1s (300 total).
 
-On the bar: [Gloomweaver](#priest-shadow) (key 2). Talent: Lightbearer tier V *Final Verdict* (replaces Desperate Prayer).
+On the bar: [Gloomweaver](#priest-shadow) (key 2). Talent: Lightbearer tier V *Lingering Shadow* (replaces Desperate Prayer).
 
 <a id="skill-plague-bloom"></a>
 #### Devouring Plague
@@ -1112,7 +1111,7 @@ Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate
 |  | ⚗️ **Hobbling Dose** | Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%. → [Crippling Poison](#skill-crippling-strike) |
 | V | 🌀 **Shadow Leap** | Replaces Sprint with Shadowstep to close 25 yards on a target and open on them. → [Shadowstep](#skill-shadowstep) |
 |  | 💨 **Smoke Screen** | Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play. → [Smoke Bomb](#skill-choke-bomb) |
-|  | 🌪️ **Blade Storm** | Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
+|  | 🌪️ **Knife Flurry** | Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
 | VI | ⚔️ **Finishing Cut** | Replaces Garrote with Eviscerate, a combo point finisher dealing 110 damage per combo point spent. → [Eviscerate](#skill-eviscerate) |
 |  | ⚡ **Fortune's Edge** | Replaces Garrote with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing. → [Adrenaline Rush](#skill-adrenaline-rush) |
 |  | 🗡️ **Sinister Edge** | Replaces Garrote with Sinister Strike, a cheap 110 damage builder that earns a combo point. → [Sinister Strike](#skill-sinister-strike) |
@@ -1149,7 +1148,7 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 |  | 🌀 **Shadow Leap** | Replaces Sprint with Shadowstep to close 25 yards on a target and open on them. → [Shadowstep](#skill-shadowstep) |
 |  | 🧵 **Bleeding Wire** | Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds. → [Garrote](#skill-garrote) |
 | VI | ⚔️ **Finishing Cut** | Replaces Evasion with Eviscerate, a combo point finisher dealing 110 damage per combo point spent. → [Eviscerate](#skill-eviscerate) |
-|  | 🌪️ **Blade Storm** | Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
+|  | 🌪️ **Knife Flurry** | Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
 |  | 🩸 **Gouging Thrust** | Replaces Evasion with Mutilate, a heavy strike that earns a combo point and leaves a bleed. → [Mutilate](#skill-mutilate) |
 
 <a id="rogue-subtlety"></a>
@@ -1184,7 +1183,7 @@ Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard f
 |  | ⚡ **Fortune's Edge** | Replaces Sprint with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing. → [Adrenaline Rush](#skill-adrenaline-rush) |
 |  | 🧵 **Bleeding Wire** | Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds. → [Garrote](#skill-garrote) |
 | VI | 🩸 **Gouging Thrust** | Replaces Shadowstep with Mutilate, a heavy strike that earns a combo point and leaves a bleed. → [Mutilate](#skill-mutilate) |
-|  | 🌪️ **Blade Storm** | Replaces Shadowstep with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
+|  | 🌪️ **Knife Flurry** | Replaces Shadowstep with Fan of Knives, hitting all enemies within 8 yards for 90 damage. → [Fan of Knives](#skill-fan-of-knives) |
 |  | 🩸 **Blood Price** | Replaces Shadowstep with Exsanguinate, a payoff that cashes in your bleeds and then triples them. → [Exsanguinate](#skill-exsanguinate) |
 
 ### Rogue skills
@@ -1387,7 +1386,7 @@ Talent: Cutthroat tier V *Smoke Screen* (replaces Sprint); Duelist tier V *Smoke
 
 - Deals 90 physical damage to all enemies in range.
 
-Talent: Cutthroat tier V *Blade Storm* (replaces Sprint); Duelist tier VI *Blade Storm* (replaces Evasion); Shade tier VI *Blade Storm* (replaces Shadowstep).
+Talent: Cutthroat tier V *Knife Flurry* (replaces Sprint); Duelist tier VI *Knife Flurry* (replaces Evasion); Shade tier VI *Knife Flurry* (replaces Shadowstep).
 
 <a id="skill-cheap-shot"></a>
 #### Cheap Shot
@@ -1426,6 +1425,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-evasion"></a>**Evasion** | Buff | 6s | −45% damage taken. | [Evasion](#skill-evasion) |
 | <a id="effect-evocation"></a>**Evocation** | Buff, magic | 6s | −15% damage taken. +300% mana regeneration. | [Evocation](#skill-evocation) |
 | <a id="effect-fingers-of-frost"></a>**Fingers of Frost** | Debuff (mark) | 15s | Ice Lance treats it as Shatter and uses it up. | [Frostbolt](#skill-frostbolt), [Frost Nova](#skill-frost-nova) |
+| <a id="effect-shield-wall"></a>**Fortress Stance** | Buff | 8s | −40% damage taken. | [Fortress Stance](#skill-shield-wall) |
 | <a id="effect-frost-nova-root"></a>**Frost Nova** | Debuff (root), magic | 6s | Cannot move. Breaks on damage. | [Frost Nova](#skill-frost-nova) |
 | <a id="effect-frostbolt-slow"></a>**Frostbolt** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Frostbolt](#skill-frostbolt) |
 | <a id="effect-garrote-bleed"></a>**Garrote** | Debuff (dot) | 8s | Bleeding: takes 50 physical damage every 1s (400 total). | [Garrote](#skill-garrote) |
@@ -1448,7 +1448,6 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-recklessness"></a>**Recklessness** | Buff | 10s | +30% damage dealt. +15% damage taken. | [Recklessness](#skill-recklessness) |
 | <a id="effect-creeping-rot"></a>**Shadow Word: Pain** | Debuff (dot), magic | 10s | Takes 30 shadow damage every 1s (300 total). | [Shadow Word: Pain](#skill-shadow-word-death) |
 | <a id="effect-shatter"></a>**Shatter** | Debuff (mark) | 4s or 6s | Takes 5x damage from frost abilities. Lost when damaged, unless Deep Freeze is active. | [Frost Nova](#skill-frost-nova), [Deep Freeze](#skill-deep-freeze) |
-| <a id="effect-shield-wall"></a>**Shield Wall** | Buff | 8s | −40% damage taken. | [Fortress Stance](#skill-shield-wall) |
 | <a id="effect-shockwave-stun"></a>**Shockwave** | Debuff (stun) | 2s | Cannot move, cast or act. | [Shockwave](#skill-shockwave) |
 | <a id="effect-slice-stun"></a>**Slice and Dice** | Debuff (stun) | 1.1s | Cannot move, cast or act. | [Slice and Dice](#skill-slice-and-dice) |
 | <a id="effect-sprint"></a>**Sprint** | Buff (speed) | 8s | Movement speed increased by 70%. | [Sprint](#skill-sprint) |

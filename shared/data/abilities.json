@@ -527,7 +527,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 85
+    "amount": 150
    },
    {
     "type": "healMax",
@@ -553,11 +553,11 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 85
+    "amount": 75
    },
    {
     "type": "gain",
-    "amount": 15
+    "amount": 8
    }
   ],
   "radius": 8
@@ -1701,7 +1701,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 120
+    "amount": 160
    }
   ]
  },
