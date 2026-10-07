@@ -307,7 +307,7 @@
  "dragons_breath": {
   "name": "Dragon's Breath",
   "kind": "stun",
-  "duration": 2000,
+  "duration": 4000,
   "harmful": true,
   "dr": "stun",
   "dispellable": true

@@ -123,6 +123,8 @@ export interface AbilityDef {
   range: number;
   minRange?: number;
   radius?: number;
+  /** For `aoe_enemy`: only hits enemies inside this many degrees of arc in front of the caster (a cone `radius` yards long). Absent = full circle. */
+  coneDeg?: number;
   castTime: number;
   cooldown: number;
   gcd: boolean;

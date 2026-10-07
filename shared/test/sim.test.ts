@@ -342,6 +342,26 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
+  it("dragon's breath is a 14 yd, 60 degree cone that stuns for 4 s", () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'dragons_breath'];
+    const inFront = add(sim, 'warrior', 1, 0, 12);
+    const edge = add(sim, 'warrior', 1, 4, 10); // ~22 degrees off, inside the cone
+    const wide = add(sim, 'warrior', 1, 8, 10); // ~39 degrees off, outside the cone
+    const behind = add(sim, 'warrior', 1, 0, -5);
+    const far = add(sim, 'warrior', 1, 0, 15); // beyond 14 yd
+    advance(sim, TICK);
+    mage.facing = 0; // facing +z
+    const r = sim.useAbility(mage.id, 'dragons_breath', mage.id);
+    assert.ok(r.ok, JSON.stringify(r));
+    const stunned = (u: Unit) => u.auras.some((a) => a.id === 'dragons_breath');
+    assert.ok(stunned(inFront) && stunned(edge), 'enemies in the cone are stunned');
+    assert.ok(!stunned(wide) && !stunned(behind) && !stunned(far), 'outside the cone or range is untouched');
+    const aura = inFront.auras.find((a) => a.id === 'dragons_breath')!;
+    assert.ok(Math.abs(aura.expiresAt - sim.time - 4000) <= 100, `stun lasts about 4 s, got ${aura.expiresAt - sim.time} ms`);
+  });
+
   it('global cooldown is 1 s for every class', () => {
     for (const [cls, ms] of [['mage', 1000], ['priest', 1000], ['warrior', 1000], ['rogue', 1000]] as const) {
       const sim = live();

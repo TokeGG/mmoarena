@@ -461,7 +461,7 @@ export class ArenaSim {
 
     const targets: Unit[] =
       def.target === 'aoe_enemy'
-        ? [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0))
+        ? [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0) && this.inCone(u, v.pos, def.coneDeg))
         : def.target === 'aoe_all'
           ? [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || hasLOS(u.pos, v.pos, this.arena)))
           : [tgt];
@@ -827,6 +827,17 @@ export class ArenaSim {
    * Ground effects pulse on a fixed beat (a short telegraph first). Enemies inside the circle take damage, unless they are
    * airborne at that instant: a well-timed jump dodges a pulse. Targeted spells never check this; only zones do.
    */
+  /** Is the point inside a `coneDeg`-wide cone in front of the unit (always true when the ability has no cone)? */
+  private inCone(u: Unit, p: { x: number; z: number }, coneDeg?: number): boolean {
+    if (!coneDeg) return true;
+    const dx = p.x - u.pos.x;
+    const dz = p.z - u.pos.z;
+    if (Math.hypot(dx, dz) < 0.6) return true;
+    let d = Math.atan2(dx, dz) - u.facing;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    return Math.abs(d) <= (coneDeg * Math.PI) / 360 + 1e-6;
+  }
+
   /** Is the point inside the cone in front of the unit? Bots and anything not player-controlled skip the rule. */
   private inFront(u: Unit, x: number, z: number): boolean {
     if (!this.facingRule || u.controller !== 'player') return true;

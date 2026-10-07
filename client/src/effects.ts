@@ -809,6 +809,18 @@ export class Effects {
     }
     if (def.target === 'aoe_enemy' || def.target === 'aoe_all') {
       const r = Math.min(def.radius ?? 8, 24);
+      if (def.coneDeg) {
+        // a cone: a fan of flame out to full range along the caster's facing, instead of a ring
+        const half = (def.coneDeg * Math.PI) / 360;
+        for (let i = 0; i < 46; i++) {
+          const a = s.facing + rnd(-half, half);
+          const sp = rnd(r * 0.8, r * 1.9);
+          this.particle(s.x + Math.sin(a) * 0.8, rnd(0.6, 1.6), s.z + Math.cos(a) * 0.8, { color: i % 3 === 0 ? 0xffe066 : color, vx: Math.sin(a) * sp, vz: Math.cos(a) * sp, vy: rnd(-0.2, 0.8), s0: rnd(0.4, 0.8), life: 0.6, drag: 2.3 });
+        }
+        for (const e of [-half, 0, half]) this.beam(s.x, 1.2, s.z, s.x + Math.sin(s.facing + e) * r, 0.8, s.z + Math.cos(s.facing + e) * r, color, 0.35, 0.07);
+        if (has('damage')) this.onSwing(unit);
+        return;
+      }
       this.ring(s.x, s.z, color, 0.5, r, 0.55, 0.08, 1);
       this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.75, 0.4, 0.09, 0.7);
       for (let i = 0; i < 22; i++) {

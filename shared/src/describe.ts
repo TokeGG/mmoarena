@@ -84,7 +84,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   const res = classResource ?? CLASSES[def.class].resource.type;
   const stats: string[] = [];
   if (def.cost) stats.push(`${def.cost} ${res}`);
-  if (def.target === 'aoe_enemy' || def.target === 'aoe_all') stats.push(`${def.radius} yd radius`);
+  if (def.target === 'aoe_enemy' && def.coneDeg) stats.push(`${def.radius} yd range, ${def.coneDeg}° cone in front of you`);
+  else if (def.target === 'aoe_enemy' || def.target === 'aoe_all') stats.push(`${def.radius} yd radius`);
   else if (def.target === 'ground') stats.push(`${def.range + (am.range ?? 0)} yd range`, 'Aimed at the cursor');
   else if (def.range > 0) stats.push(`${def.range + (am.range ?? 0)} yd range`);
   else if (def.target === 'enemy' || def.target === 'any') stats.push('Melee range');

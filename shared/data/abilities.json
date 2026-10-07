@@ -1338,7 +1338,8 @@
   "class": "mage",
   "school": "fire",
   "target": "aoe_enemy",
-  "radius": 7,
+  "radius": 14,
+  "coneDeg": 60,
   "cost": 45,
   "effects": [
    {
