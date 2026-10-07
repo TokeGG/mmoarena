@@ -362,13 +362,38 @@ describe('stealth', () => {
     assert.ok(Math.abs(aura.expiresAt - sim.time - 4000) <= 100, `stun lasts about 4 s, got ${aura.expiresAt - sim.time} ms`);
   });
 
+  it('execute costs rage, hits for 500 and only works on targets below 20% health', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    war.bar = [...war.bar.slice(0, 7), 'execute'];
+    const foe = add(sim, 'warrior', 1, 1.5, 0);
+    war.facing = Math.PI / 2; // face the target (+x)
+    advance(sim, TICK);
+    war.facing = Math.PI / 2;
+    war.resource = 100;
+    mustFail(sim.useAbility(war.id, 'execute', foe.id), /below 20% health/);
+    foe.health = Math.floor(foe.maxHealth * 0.19);
+    war.resource = 39;
+    mustFail(sim.useAbility(war.id, 'execute', foe.id), /not enough rage/); // costs 40 rage
+    war.resource = 100;
+    foe.health = Math.floor(foe.maxHealth * 0.2); // exactly 20% is not below 20%
+    mustFail(sim.useAbility(war.id, 'execute', foe.id), /below 20% health/);
+    foe.health = Math.floor(foe.maxHealth * 0.19);
+    const hp = foe.health;
+    const r = sim.useAbility(war.id, 'execute', foe.id);
+    assert.ok(r.ok, JSON.stringify(r));
+    const dealt = hp - foe.health;
+    const v = TUNING.damageVariance;
+    assert.ok(dealt >= 500 * (1 - v) - 1 && dealt <= 500 * (1 + v) + 1, `dealt ${dealt}`);
+  });
+
   it('global cooldown is 1 s for every class', () => {
     for (const [cls, ms] of [['mage', 1000], ['priest', 1000], ['warrior', 1000], ['rogue', 1000]] as const) {
       const sim = live();
       const u = add(sim, cls, 0, 0, 0);
       const foe = add(sim, 'warrior', 1, 2, 0);
       advance(sim, TICK);
-      const ab = u.bar.find((id) => { const d = ABILITIES[id]; return d.gcd && d.castTime === 0 && !d.requiresStealth && !d.requiresTargetCasting && !d.outOfCombatOnly && (d.target === 'self' || d.target === 'aoe_enemy' || d.target === 'enemy') && !d.effects.some((e) => e.type === 'charge' || e.type === 'dashToTarget'); });
+      const ab = u.bar.find((id) => { const d = ABILITIES[id]; return d.gcd && d.castTime === 0 && !d.requiresStealth && !d.requiresTargetCasting && !d.maxTargetHealthPct && !d.outOfCombatOnly && (d.target === 'self' || d.target === 'aoe_enemy' || d.target === 'enemy') && !d.effects.some((e) => e.type === 'charge' || e.type === 'dashToTarget'); });
       assert.ok(ab, `${cls} has an instant gcd skill`);
       u.resource = u.resourceMax;
       u.facing = Math.PI / 2;

@@ -154,6 +154,7 @@ describe('specs and talents in the sim', () => {
           if (ABILITIES[ability].cpSpend) me.cp = 3;
           if (ABILITIES[ability].effects.some((e) => e.type === 'dispel')) sim.applyAura(foe, foe, 'pw_shield');
           if (ABILITIES[ability].requiresTargetCasting) foe.cast = { ability: 'frostbolt', target: me.id, start: 0, end: 99999 };
+          if (ABILITIES[ability].maxTargetHealthPct) foe.health = Math.floor(foe.maxHealth * 0.1);
           if (ABILITIES[ability].minRange) foe.pos = { x: ABILITIES[ability].minRange! + 2, z: 0 };
           const r = sim.useAbility(me.id, ability, ABILITIES[ability].target === 'ally_or_self' ? me.id : foe.id);
           assert.ok(r.ok, `${spec.id}/${ability}: ${(r as any).reason}`);
@@ -224,7 +225,7 @@ describe('specs and talents in the sim', () => {
 
   it('buff cooldowns apply while active and wear off', () => {
     const sim = live();
-    const war = add(sim, 'warrior', 0, 0, 0, build('arms'));
+    const war = add(sim, 'warrior', 0, 0, 0, build('fury')); // Rampager still carries Recklessness
     add(sim, 'mage', 1, 25, 0);
     advance(sim, TICK);
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
@@ -356,6 +357,7 @@ describe('talent ability swaps', () => {
       me.resource = me.resourceMax;
       advance(sim, TICK * 2);
       if (def.requiresTargetCasting) foe.cast = { ability: 'frostbolt', target: me.id, start: 0, end: 99999 };
+      if (def.maxTargetHealthPct) foe.health = Math.floor(foe.maxHealth * 0.1);
       if (def.requiresStealth) sim.applyAura(me, me, 'stealth');
       if (def.cpSpend) me.cp = 3;
       if (def.minRange) foe.pos = { x: def.minRange + 2, z: 0 };

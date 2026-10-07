@@ -164,6 +164,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
+  if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
   if (def.ignoresLockout) notes.push('Usable while locked out.');
   if (!def.gcd) notes.push('Does not trigger the global cooldown.');

@@ -193,6 +193,7 @@ export class ArenaSim {
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
       if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, tgt.pos.x, tgt.pos.z)) return fail('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
+      if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
 

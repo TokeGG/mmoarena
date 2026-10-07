@@ -4,14 +4,14 @@
    "id": "arms",
    "name": "Warbringer",
    "role": "Burst melee",
-   "desc": "Heavy hits and a big damage cooldown. Control with Hamstring and Intimidating Shout.",
+   "desc": "Heavy hits and Execute to finish low-health targets. Control with Hamstring and Intimidating Shout.",
    "icon": "\u2694\ufe0f",
    "bar": [
     "mortal_strike",
     "hamstring",
     "charge",
     "pummel",
-    "recklessness",
+    "execute",
     "intimidating_shout",
     "whirlwind",
     "enraged_regeneration"

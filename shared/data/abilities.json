@@ -421,6 +421,25 @@
   ]
  },
  {
+  "id": "execute",
+  "name": "Execute",
+  "class": "warrior",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 5000,
+  "gcd": true,
+  "cost": 40,
+  "maxTargetHealthPct": 20,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 500
+   }
+  ]
+ },
+ {
   "id": "recklessness",
   "name": "Recklessness",
   "class": "warrior",

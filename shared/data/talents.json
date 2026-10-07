@@ -54,16 +54,14 @@
    [
     {
      "id": "warrior_arms_t2a",
-     "name": "Unbridled Fury",
-     "desc": "Recklessness lasts 30% longer and has a 15% shorter cooldown.",
-     "icon": "\ud83d\udd25",
+     "name": "Merciless Finisher",
+     "desc": "Execute deals 25% more damage and has a 20% shorter cooldown.",
+     "icon": "\ud83d\udc80",
      "mods": {
-      "auraDuration": {
-       "recklessness": 1.3
-      },
       "ability": {
-       "recklessness": {
-        "cooldown": 0.85
+       "execute": {
+        "damage": 1.25,
+        "cooldown": 0.8
        }
       }
      }

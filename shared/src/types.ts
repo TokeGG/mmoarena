@@ -142,6 +142,8 @@ export interface AbilityDef {
   /** Can be cast while moving (moving does not cancel it). */
   castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;
+  /** Can only be used on a target whose health is below this percentage of its maximum (Execute). */
+  maxTargetHealthPct?: number;
   outOfCombatOnly?: boolean;
   keepsStealth?: boolean;
   /** While the caster is stealthed this ability's slot becomes the named ability (Sinister Strike turns into Cheap Shot). */
