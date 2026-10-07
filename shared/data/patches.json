@@ -16,7 +16,7 @@
    "Bot brains are trained in 1v1, 2v2 and 3v3 on every arena; brains stored by the server are completed from the trained baseline, so older ones no longer miss their emergency defensives, pre-shields and ground-effect dodging.",
    "A cast you stop before it finishes (moving, stopping, faking) gives the global cooldown back. Interrupts and crowd control keep it.",
    "Kidney Shot: 2 s plus 0.8 s per combo point, never longer than 6 s (was 3 s + 1 s per point, up to 12.2 s with talents).",
-   "Slice and Dice's stun is now in the stun diminishing-returns group; Charge's short stun has its own group.",
+   "Slice and Dice's stun is now in the stun diminishing-returns group, and one cast counts as one step: its first tick sets the level and every later tick of that cast stuns for the same full length. Charge's short stun has its own group.",
    "Exsanguinate sets your bleeds to triple damage; using it again no longer multiplies them further.",
    "Holy Nova reaches 12 yards (was 60). Ice Barrier absorbs 25% of maximum health (was 40%).",
    "Friendly spells no longer need facing: shielding or healing an ally behind you works.",

@@ -344,3 +344,30 @@ describe('global cooldown on a stopped cast', () => {
     assert.ok(m.gcdEnd > sim.time, 'kicked: the global cooldown stays');
   });
 });
+
+describe('Slice and Dice and diminishing returns', () => {
+  it('one cast is one diminishing-returns step: every tick of it stuns for the level its first tick set', () => {
+    const sim = new ArenaSim({ seed: 13, prepMs: 0 });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'player', build: { spec: 'arms', talents: [], gear: {} } });
+    const t = sim.addUnit({ name: 't', classId: 'mage', team: 1, controller: 'dummy' });
+    t.maxHealth = t.health = 1e6;
+    w.pos = { x: 0, z: 0 };
+    t.pos = { x: 0, z: 2 };
+    sim.step();
+    const spin = () => {
+      w.facing = 0;
+      w.lastInput = { ...w.lastInput, facing: 0 };
+      w.resource = 100; w.cooldowns = {}; w.gcdEnd = 0;
+      assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
+      const drs: number[] = [];
+      for (let i = 0; i < 90 && w.cast; i++) { sim.step(); for (const e of sim.drainEvents()) if (e.t === 'aura' && e.aura === 'slice_stun') drs.push(e.dr); }
+      return drs;
+    };
+    const first = spin();
+    assert.equal(first.length, 4, 'every tick stunned');
+    assert.ok(first.every((d) => d === 1), `the whole first cast is full length (${first})`);
+    assert.equal(t.dr.stun!.count, 1, 'and counts once');
+    const second = spin();
+    assert.ok(second.length === 4 && second.every((d) => d === 0.5), `the next cast is halved throughout (${second})`);
+  });
+});
