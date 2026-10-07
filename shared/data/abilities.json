@@ -129,6 +129,12 @@
    {
     "type": "damage",
     "amount": 210
+   },
+   {
+    "type": "aura",
+    "aura": "hot_streak",
+    "chance": 0.15,
+    "self": true
    }
   ]
  },
@@ -948,6 +954,12 @@
     "amount": 70,
     "initial": 420,
     "delay": 800
+   },
+   {
+    "type": "aura",
+    "aura": "hot_streak",
+    "chance": 0.15,
+    "self": true
    }
   ]
  },
@@ -1399,6 +1411,12 @@
    {
     "type": "aura",
     "aura": "dragons_breath"
+   },
+   {
+    "type": "aura",
+    "aura": "hot_streak",
+    "chance": 0.15,
+    "self": true
    }
   ]
  },

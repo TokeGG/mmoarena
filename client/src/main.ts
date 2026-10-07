@@ -54,6 +54,37 @@ let targetId: number | null = null;
 let spec: { kind: 'live' | 'replay'; runner?: ReplayRunner; id?: string; rate: number; paused: boolean; clock: number } | null = null;
 
 let endBoardUp = false;
+let lastReq: PlayRequest | null = null;
+/** Shown on the end screen: play another match straight away or go back to the menu, without waiting for the room to close. */
+const endChoice = (() => {
+  const box = document.createElement('div');
+  box.style.cssText = 'position:fixed;left:50%;bottom:9%;transform:translateX(-50%);display:none;gap:14px;z-index:60;';
+  const mk = (label: string, primary: boolean) => {
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.style.cssText = `padding:12px 28px;font-size:18px;font-weight:700;border-radius:8px;border:2px solid ${primary ? '#ffd34a' : '#8a93a6'};background:${primary ? '#ffd34a' : 'rgba(20,24,34,.9)'};color:${primary ? '#1a1a1a' : '#fff'};cursor:pointer;`;
+    box.append(b);
+    return b;
+  };
+  const again = mk('Play again', true);
+  const leave = mk('Leave', false);
+  document.body.append(box);
+  again.onclick = () => {
+    const req = lastReq;
+    box.style.display = 'none';
+    if (!req) return;
+    send({ t: 'leave' });
+    void play(req);
+  };
+  leave.onclick = () => {
+    box.style.display = 'none';
+    send({ t: 'leave' });
+  };
+  return {
+    show: (canAgain: boolean) => { again.style.display = canAgain ? '' : 'none'; box.style.display = 'flex'; },
+    hide: () => { box.style.display = 'none'; },
+  };
+})();
 let latest: Snapshot | null = null;
 let latestAt = 0;
 let lastCount = -1;
@@ -236,6 +267,7 @@ function onMessage(raw: MessageEvent) {
       if (endBoardUp && m.snap.phase === 'prep') {
         endBoardUp = false;
         spectateBar.board.toggle(false);
+        endChoice.hide();
       }
       onSnapshot(m.snap, m.events);
       break;
@@ -247,6 +279,7 @@ function onMessage(raw: MessageEvent) {
         spectateBar.board.update(m.rows, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat');
         spectateBar.board.toggle(true);
         endBoardUp = true;
+        if (!spec) endChoice.show(!!lastReq && lastReq.mode !== 'party');
       } else if (spec?.kind === 'live') spectateBar.setStats(m.rows);
       break;
     case 'error':
@@ -255,6 +288,7 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'closed':
       endBoardUp = false;
+      endChoice.hide();
       spectateBar.board.toggle(false);
       audio.stopAmbience();
       hud.setRoster([]);
@@ -926,6 +960,8 @@ function connect(): Promise<boolean> {
 async function play(req: PlayRequest) {
   classId = req.classId;
   myBuild = req.build;
+  lastReq = req;
+  endChoice.hide();
   joinMsg('Connecting…');
   if (!(await connect())) {
     joinMsg('Could not reach the server.');

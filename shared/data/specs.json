@@ -1,306 +1,306 @@
 {
- "warrior": [
-  {
-   "id": "arms",
-   "name": "Warbringer",
-   "role": "Dual wield",
-   "desc": "Twin blades: fast, relentless swings. Cleave sweeps the front, Mortal Strike cashes in all your rage for one huge blow, Execute finishes weak targets and Slice and Dice stuns everything in front of you while it cuts.",
-   "icon": "\u2694\ufe0f",
-   "bar": [
-    "whirlwind",
-    "mortal_strike",
-    "execute",
-    "slice_and_dice",
-    "charge",
-    "pummel",
-    "hamstring",
-    "heroic_leap"
-   ],
-   "mods": {
-    "damageDone": 1.05
-   },
-   "weapon": {
-    "id": "dual",
-    "name": "Twin Blades"
-   },
-   "auto": {
-    "interval": 1400,
-    "damage": 60,
-    "range": 3
-   }
-  },
-  {
-   "id": "fury",
-   "name": "Rampager",
-   "role": "Two-handed sword",
-   "desc": "A greatsword with long reach: slow, heavy blows. Bloodthirst heals as it hits, Slam spends rage on a big strike, Bladestorm shreds everything near you and Enraged Regeneration cuts damage taken and supercharges Bloodthirst's healing.",
-   "icon": "\ud83e\ude93",
-   "bar": [
-    "bladestorm",
-    "bloodthirst",
-    "enraged_regeneration",
-    "slam",
-    "charge",
-    "pummel",
-    "hamstring",
-    "heroic_leap"
-   ],
-   "mods": {
-    "moveSpeed": 1.05,
-    "damageDone": 1.03,
-    "ability": {
-     "bloodthirst": {
-      "range": 1.5
-     },
-     "slam": {
-      "range": 1.5
-     }
+  "warrior": [
+    {
+      "id": "arms",
+      "name": "Warbringer",
+      "role": "Dual wield",
+      "desc": "Dual wield: fast, relentless swings. Mortal Strike cashes in all your rage; Slice and Dice stuns the cone ahead.",
+      "icon": "\u2694\ufe0f",
+      "bar": [
+        "whirlwind",
+        "mortal_strike",
+        "execute",
+        "slice_and_dice",
+        "charge",
+        "pummel",
+        "hamstring",
+        "heroic_leap"
+      ],
+      "mods": {
+        "damageDone": 1.05
+      },
+      "weapon": {
+        "id": "dual",
+        "name": "Twin Blades"
+      },
+      "auto": {
+        "interval": 1400,
+        "damage": 60,
+        "range": 3
+      }
+    },
+    {
+      "id": "fury",
+      "name": "Rampager",
+      "role": "Two-handed sword",
+      "desc": "Two-handed greatsword with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.",
+      "icon": "\ud83e\ude93",
+      "bar": [
+        "bladestorm",
+        "bloodthirst",
+        "enraged_regeneration",
+        "slam",
+        "charge",
+        "pummel",
+        "hamstring",
+        "heroic_leap"
+      ],
+      "mods": {
+        "moveSpeed": 1.05,
+        "damageDone": 1.03,
+        "ability": {
+          "bloodthirst": {
+            "range": 1.5
+          },
+          "slam": {
+            "range": 1.5
+          }
+        }
+      },
+      "weapon": {
+        "id": "twohand",
+        "name": "Greatsword"
+      },
+      "auto": {
+        "interval": 3000,
+        "damage": 85,
+        "range": 4.5
+      }
+    },
+    {
+      "id": "protection",
+      "name": "Barbarian",
+      "role": "Control / reach",
+      "desc": "Polearm control with long reach. Reel In, a bleeding Deep Cuts and a banner that traps enemies in place.",
+      "icon": "\ud83e\ude93",
+      "bar": [
+        "reel_in",
+        "deep_cuts",
+        "axe_throw",
+        "not_going_anywhere",
+        "charge",
+        "pummel",
+        "hamstring",
+        "heroic_leap"
+      ],
+      "mods": {
+        "maxHealth": 1.05,
+        "damageTaken": 0.95,
+        "ability": {
+          "deep_cuts": {
+            "range": 2
+          },
+          "hamstring": {
+            "range": 2
+          },
+          "pummel": {
+            "range": 2
+          }
+        }
+      },
+      "weapon": {
+        "id": "polearm",
+        "name": "Halberd"
+      },
+      "auto": {
+        "interval": 2400,
+        "damage": 45,
+        "range": 5
+      }
     }
-   },
-   "weapon": {
-    "id": "twohand",
-    "name": "Greatsword"
-   },
-   "auto": {
-    "interval": 3000,
-    "damage": 85,
-    "range": 4.5
-   }
-  },
-  {
-   "id": "protection",
-   "name": "Barbarian",
-   "role": "Control / reach",
-   "desc": "A halberd with axe-head reach (5 yards). Reel In drags enemies to you, Deep Cuts stacks bleeds, Axe Throw hits from 10 yards and the banner traps enemies inside a 5-yard circle.",
-   "icon": "\ud83e\ude93",
-   "bar": [
-    "reel_in",
-    "deep_cuts",
-    "axe_throw",
-    "not_going_anywhere",
-    "charge",
-    "pummel",
-    "hamstring",
-    "heroic_leap"
-   ],
-   "mods": {
-    "maxHealth": 1.05,
-    "damageTaken": 0.95,
-    "ability": {
-     "deep_cuts": {
-      "range": 2
-     },
-     "hamstring": {
-      "range": 2
-     },
-     "pummel": {
-      "range": 2
-     }
+  ],
+  "mage": [
+    {
+      "id": "frost",
+      "name": "Cryomancy",
+      "role": "Control / kiting",
+      "desc": "Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance into a huge hit; Deep Freeze locks it in.",
+      "icon": "\u2744\ufe0f",
+      "bar": [
+        "frostbolt",
+        "ice_lance",
+        "polymorph",
+        "counterspell",
+        "frost_nova",
+        "blink",
+        "ice_barrier",
+        "deep_freeze"
+      ],
+      "mods": {
+        "auraDuration": {
+          "frostbolt_slow": 1.5,
+          "frost_nova_root": 1.15
+        }
+      }
+    },
+    {
+      "id": "fire",
+      "name": "Pyromancy",
+      "role": "Burst damage",
+      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Fragile.",
+      "icon": "\ud83d\udd25",
+      "bar": [
+        "fireball",
+        "pyroblast",
+        "flamestrike",
+        "blink",
+        "counterspell",
+        "polymorph",
+        "scorch",
+        "dragons_breath"
+      ],
+      "mods": {
+        "damageDone": 1.08,
+        "maxHealth": 0.95
+      }
+    },
+    {
+      "id": "arcane",
+      "name": "Starweaving",
+      "role": "Sustain / utility",
+      "desc": "Strong mana regeneration and a damage cooldown. Arcane Missiles and Barrage hit hard; Explosion slows what is close.",
+      "icon": "\ud83d\udd2e",
+      "bar": [
+        "arcane_blast",
+        "arcane_missiles",
+        "polymorph",
+        "counterspell",
+        "blink",
+        "arcane_power",
+        "arcane_explosion",
+        "arcane_barrage"
+      ],
+      "mods": {
+        "regen": 1.5
+      }
     }
-   },
-   "weapon": {
-    "id": "polearm",
-    "name": "Halberd"
-   },
-   "auto": {
-    "interval": 2400,
-    "damage": 45,
-    "range": 5
-   }
-  }
- ],
- "mage": [
-  {
-   "id": "frost",
-   "name": "Cryomancy",
-   "role": "Control / kiting",
-   "desc": "Slows and roots keep enemies away. Frostbolt can leave Fingers of Frost on the target; Ice Lance then hits as if Shattered. Frost Nova (breaks on damage) and Deep Freeze apply Shatter, making frost damage on the target hit five times as hard until it is hit, or while Deep Freeze holds. Deep Freeze needs Fingers of Frost or Shatter. Ice Barrier absorbs a burst.",
-   "icon": "\u2744\ufe0f",
-   "bar": [
-    "frostbolt",
-    "ice_lance",
-    "polymorph",
-    "counterspell",
-    "frost_nova",
-    "blink",
-    "ice_barrier",
-    "deep_freeze"
-   ],
-   "mods": {
-    "auraDuration": {
-     "frostbolt_slow": 1.5,
-     "frost_nova_root": 1.15
+  ],
+  "priest": [
+    {
+      "id": "discipline",
+      "name": "Warden",
+      "role": "Shield healer",
+      "desc": "Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a foe.",
+      "icon": "\ud83d\udee1\ufe0f",
+      "bar": [
+        "flash_heal",
+        "power_word_shield",
+        "pain_suppression",
+        "smite",
+        "dispel_magic",
+        "psychic_scream",
+        "penance",
+        "desperate_prayer"
+      ],
+      "mods": {
+        "healingDone": 1.1
+      }
+    },
+    {
+      "id": "holy",
+      "name": "Lightbearer",
+      "role": "Pure healer",
+      "desc": "The strongest direct healing and mana regeneration. Holy Nova heals your team and hurts every enemy. Low damage.",
+      "icon": "\u2728",
+      "bar": [
+        "flash_heal",
+        "greater_heal",
+        "power_word_shield",
+        "dispel_magic",
+        "psychic_scream",
+        "holy_nova",
+        "smite",
+        "desperate_prayer"
+      ],
+      "mods": {
+        "healingDone": 1.12,
+        "regen": 1.2,
+        "damageDone": 0.8
+      }
+    },
+    {
+      "id": "shadow",
+      "name": "Gloomweaver",
+      "role": "Damage",
+      "desc": "Rot and Shadow Word: Pain wear enemies down; Mind Flay and Mind Blast hit hard. Weaker healing.",
+      "icon": "\ud83c\udf11",
+      "bar": [
+        "mind_blast",
+        "shadow_word_death",
+        "plague_bloom",
+        "mind_flay",
+        "psychic_scream",
+        "dispersion",
+        "flash_heal",
+        "power_word_shield"
+      ],
+      "mods": {
+        "damageDone": 1.1,
+        "healingDone": 1
+      }
     }
-   }
-  },
-  {
-   "id": "fire",
-   "name": "Pyromancy",
-   "role": "Burst damage",
-   "desc": "Big fire damage: Pyroblast, instant Fireball and Scorch, and Flamestrike on the ground. Fragile.",
-   "icon": "\ud83d\udd25",
-   "bar": [
-    "fireball",
-    "pyroblast",
-    "flamestrike",
-    "blink",
-    "counterspell",
-    "polymorph",
-    "scorch",
-    "dragons_breath"
-   ],
-   "mods": {
-    "damageDone": 1.08,
-    "maxHealth": 0.95
-   }
-  },
-  {
-   "id": "arcane",
-   "name": "Starweaving",
-   "role": "Sustain / utility",
-   "desc": "Strong mana regeneration and a damage cooldown. Arcane Missiles channel a volley (stand still to finish it), Arcane Barrage is a quick heavy hit and Arcane Explosion slows what is close.",
-   "icon": "\ud83d\udd2e",
-   "bar": [
-    "arcane_blast",
-    "arcane_missiles",
-    "polymorph",
-    "counterspell",
-    "blink",
-    "arcane_power",
-    "arcane_explosion",
-    "arcane_barrage"
-   ],
-   "mods": {
-    "regen": 1.5
-   }
-  }
- ],
- "priest": [
-  {
-   "id": "discipline",
-   "name": "Warden",
-   "role": "Shield healer",
-   "desc": "Wards and Pain Suppression keep allies alive, and Penance heals a friend or hurts a foe. Good all-round control.",
-   "icon": "\ud83d\udee1\ufe0f",
-   "bar": [
-    "flash_heal",
-    "power_word_shield",
-    "pain_suppression",
-    "smite",
-    "dispel_magic",
-    "psychic_scream",
-    "penance",
-    "desperate_prayer"
-   ],
-   "mods": {
-    "healingDone": 1.1
-   }
-  },
-  {
-   "id": "holy",
-   "name": "Lightbearer",
-   "role": "Pure healer",
-   "desc": "The strongest direct healing and mana regeneration. Holy Nova heals your whole team and hurts every enemy in sight. Low damage.",
-   "icon": "\u2728",
-   "bar": [
-    "flash_heal",
-    "greater_heal",
-    "power_word_shield",
-    "dispel_magic",
-    "psychic_scream",
-    "holy_nova",
-    "smite",
-    "desperate_prayer"
-   ],
-   "mods": {
-    "healingDone": 1.12,
-    "regen": 1.2,
-    "damageDone": 0.8
-   }
-  },
-  {
-   "id": "shadow",
-   "name": "Gloomweaver",
-   "role": "Damage",
-   "desc": "Rot and Shadow Word: Pain wear enemies down over time, Mind Flay channels damage, Mind Blast hits hard. Weaker healing.",
-   "icon": "\ud83c\udf11",
-   "bar": [
-    "mind_blast",
-    "shadow_word_death",
-    "plague_bloom",
-    "mind_flay",
-    "psychic_scream",
-    "dispersion",
-    "flash_heal",
-    "power_word_shield"
-   ],
-   "mods": {
-    "damageDone": 1.1,
-    "healingDone": 1
-   }
-  }
- ],
- "rogue": [
-  {
-   "id": "assassination",
-   "name": "Cutthroat",
-   "role": "Burst melee",
-   "desc": "Stealth openers into heavy hits. Mutilate leaves a bleed, Garrote is a deep instant bleed, and Exsanguinate cashes in your combo points on every bleed on the target.",
-   "icon": "\ud83d\udde1\ufe0f",
-   "bar": [
-    "stealth",
-    "mutilate",
-    "kidney_shot",
-    "kick",
-    "vanish",
-    "sprint",
-    "garrote",
-    "exsanguinate"
-   ],
-   "mods": {
-    "damageDone": 1.08
-   }
-  },
-  {
-   "id": "combat",
-   "name": "Duelist",
-   "role": "Sustained melee",
-   "desc": "Steady damage with Sinister Strike and Sprint for pressure. Adrenaline Rush spends combo points for faster swings, more energy and healing; Evasion keeps you alive.",
-   "icon": "\u26a1",
-   "bar": [
-    "stealth",
-    "sinister_strike",
-    "kidney_shot",
-    "kick",
-    "adrenaline_rush",
-    "vanish",
-    "sprint",
-    "evasion"
-   ],
-   "mods": {
-    "maxHealth": 1.05
-   }
-  },
-  {
-   "id": "subtlety",
-   "name": "Shade",
-   "role": "Control / mobility",
-   "desc": "Slippery: Shadowstep (now worth 3 combo points) and Sprint for repositioning. Backstab hits twice as hard from behind the target and builds combo points; Eviscerate spends them for big instant damage.",
-   "icon": "\ud83d\udc64",
-   "bar": [
-    "stealth",
-    "kidney_shot",
-    "kick",
-    "shadowstep",
-    "vanish",
-    "sprint",
-    "backstab",
-    "eviscerate"
-   ],
-   "mods": {
-    "moveSpeed": 1.05,
-    "damageDone": 0.95
-   }
-  }
- ]
+  ],
+  "rogue": [
+    {
+      "id": "assassination",
+      "name": "Cutthroat",
+      "role": "Burst melee",
+      "desc": "Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate cashes in on them.",
+      "icon": "\ud83d\udde1\ufe0f",
+      "bar": [
+        "stealth",
+        "mutilate",
+        "kidney_shot",
+        "kick",
+        "vanish",
+        "sprint",
+        "garrote",
+        "exsanguinate"
+      ],
+      "mods": {
+        "damageDone": 1.08
+      }
+    },
+    {
+      "id": "combat",
+      "name": "Duelist",
+      "role": "Sustained melee",
+      "desc": "Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swings, energy and healing.",
+      "icon": "\u26a1",
+      "bar": [
+        "stealth",
+        "sinister_strike",
+        "kidney_shot",
+        "kick",
+        "adrenaline_rush",
+        "vanish",
+        "sprint",
+        "evasion"
+      ],
+      "mods": {
+        "maxHealth": 1.05
+      }
+    },
+    {
+      "id": "subtlety",
+      "name": "Shade",
+      "role": "Control / mobility",
+      "desc": "Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes.",
+      "icon": "\ud83d\udc64",
+      "bar": [
+        "stealth",
+        "kidney_shot",
+        "kick",
+        "shadowstep",
+        "vanish",
+        "sprint",
+        "backstab",
+        "eviscerate"
+      ],
+      "mods": {
+        "moveSpeed": 1.05,
+        "damageDone": 0.95
+      }
+    }
+  ]
 }

@@ -604,7 +604,7 @@ export class ArenaSim {
     const targets = this.targetsOf(u, def, tgt);
 
     const effects = abMod?.extra ? [...def.effects, ...abMod.extra] : def.effects;
-    for (const t of targets) for (const eff of effects) this.applyEffect(u, def, t, eff);
+    targets.forEach((t, i) => { for (const eff of effects) if (i === 0 || !(eff.type === 'aura' && eff.self)) this.applyEffect(u, def, t, eff); }); // a self aura is rolled once per cast, not once per enemy hit
     for (const id of this.modsOf(u).ability[def.id]?.after ?? []) this.applyAura(u, u, id);
     if (empowerAura) this.removeAura(u, empowerAura, 'consumed');
     if (def.exploit) for (const t of targets) { const x = t.auras.find((a) => a.id === def.exploit!.aura); if (x) this.removeAura(t, x, 'consumed'); }

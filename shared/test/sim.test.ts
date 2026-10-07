@@ -365,6 +365,27 @@ describe('stealth', () => {
     assert.ok(procs >= 20 && procs <= 80, `procs ${procs}/300`);
   });
 
+  it('Fireball, Flamestrike and Dragon\'s Breath each have a 15% chance per cast to grant Hot Streak', () => {
+    for (const ab of ['fireball', 'flamestrike', 'dragons_breath']) {
+      const sim = live(9);
+      const mage = add(sim, 'mage', 0, 0, 0);
+      mage.bar = [...mage.bar.slice(0, 7), ab];
+      const foes = [add(sim, 'warrior', 1, 0, 6), add(sim, 'warrior', 1, 1, 6), add(sim, 'warrior', 1, -1, 6)];
+      for (const f of foes) f.maxHealth = f.health = 1e9;
+      advance(sim, TICK);
+      let procs = 0;
+      const N = 200;
+      for (let i = 0; i < N; i++) {
+        mage.resource = mage.resourceMax; mage.auras = mage.auras.filter((x) => x.id !== 'hot_streak'); mage.cooldowns = {}; mage.gcdEnd = 0;
+        mage.pos = { x: 0, z: 0 }; mage.facing = 0; mage.lastInput = { ...mage.lastInput, facing: 0 };
+        if (!sim.useAbility(mage.id, ab, foes[0].id, { x: 0, z: 6 }).ok) { advance(sim, 100); continue; }
+        advance(sim, 3300);
+        if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
+      }
+      assert.ok(procs >= 15 && procs <= 50, `${ab}: ${procs}/${N}`);
+    }
+  });
+
   it('hot streak makes the next pyroblast instant and is used up', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
