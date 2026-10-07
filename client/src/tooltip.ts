@@ -63,11 +63,19 @@ function render(c: TipContent, detail: boolean): HTMLElement[] {
   const title = document.createElement('span');
   title.className = 'tt-title';
   title.textContent = c.title;
-  if (c.titleColor) title.style.color = c.titleColor;
+  if (c.titleColor) {
+    title.style.color = c.titleColor;
+    if (/^#[0-9a-f]{6}$/i.test(c.titleColor)) head.style.background = `linear-gradient(90deg, ${c.titleColor}33, transparent)`;
+  }
   head.append(title);
   if (c.tag) head.append(row('tt-tag', c.tag));
   out.push(head);
-  for (const s of c.stats ?? []) out.push(row('tt-stat', s));
+  if (c.stats?.length) {
+    const chips = document.createElement('div');
+    chips.className = 'tt-chips';
+    for (const s of c.stats) chips.append(row('tt-stat', s));
+    out.push(chips);
+  }
   for (const s of c.lines ?? []) out.push(row('tt-line', s));
   for (const s of c.good ?? []) out.push(row('tt-good', s));
   for (const s of c.bad ?? []) out.push(row('tt-bad', s));

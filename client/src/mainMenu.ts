@@ -91,6 +91,8 @@ export class MainMenu {
   private popHide = 0;
   private talents = el('div', 'mm-talents');
   private gearRow = el('div', 'mm-gear');
+  private lookCard = el('button', 'mm-lookcard');
+  private lookSlot = 'head';
   private summary = el('div', 'mm-summary');
   private progressEl = el('div', 'mm-progress');
   private msg = el('div', 'mm-msg');
@@ -207,7 +209,7 @@ export class MainMenu {
   refresh() {
     this.build = loadBuild(this.classId);
     this.renderAll();
-    if (this.openSlot) this.openGear(this.openSlot); // keep the picker in step after a discard
+    if (this.openSlot) this.openLook(this.openSlot); // keep the picker in step after a discard
   }
 
   show(visible: boolean) {
@@ -230,27 +232,11 @@ export class MainMenu {
     this.nameInput.value = store.get('arena.name', '');
     left.append(el('h2', '', 'Character'), this.classRow, this.blurb, this.sectionHead('Specialisation', 'hover for its skills'), this.specs, this.sectionHead('Talent tree · one per tier'), this.talents);
 
-    // right: gear + play
-    const right = el('section', 'mm-panel mm-right');
-    const autoRow = el('div', 'mm-auto');
-    const random = el('button', 'mm-small', '🎲 Random look');
-    random.addEventListener('click', () => {
-      this.build.gear = Object.fromEntries(COSMETICS.slots.filter(() => Math.random() < 0.8).map((sl) => {
-        const list = itemsForSlot(sl.id).filter((i) => canWear(i, flags.owner, progress.matches));
-        return [sl.id, list[Math.floor(Math.random() * list.length)].id];
-      }));
-      this.commit();
-    });
-    const clearAll = el('button', 'mm-small', 'Clear all');
-    clearAll.addEventListener('click', () => {
-      this.build.gear = {};
-      this.commit();
-    });
-    autoRow.append(random, clearAll);
-    right.append(el('h2', '', 'Appearance'), this.gearRow, autoRow, this.summary, this.progressEl);
-
-    const play = el('div', 'mm-play');
-    const opts = el('div', 'mm-opts');
+    // right: the Look card and the Match panel
+    const right = el('section', 'mm-right');
+    this.lookCard.addEventListener('click', () => this.openLook());
+    const matchPanel = el('div', 'mm-match');
+    const play = matchPanel;
     const mk = (label: string, sel: HTMLSelectElement) => {
       const l = el('label', '', label);
       l.append(sel);
@@ -300,8 +286,6 @@ export class MainMenu {
     };
     this.map.addEventListener('change', showMap);
     showMap();
-    opts.append(mk('Mode', this.size), mk('Arena', this.map), this.mapDesc, mk('Your partners (practice)', this.ally), mk('Bot skill', this.diff));
-    const row = el('div', 'mm-row');
     const practice = this.practiceBtn;
     const queue = this.queueBtn;
     practice.addEventListener('click', () => this.play('practice'));
@@ -313,14 +297,36 @@ export class MainMenu {
     });
     this.partyBtn.title = 'A friendly match with your whole party: pick sides, bots fill the empty places.';
     this.partyBtn.addEventListener('click', () => this.play('party'));
-    row.append(practice, queue, this.partyBtn, this.readyBtn);
-    const controls = el('button', 'mm-link', 'Controls & keybinds');
-    controls.id = 'btn-keys';
-    controls.addEventListener('click', () => this.hooks.onControls());
-    const hudBtn = el('button', 'mm-link', 'Edit HUD layout & style');
-    hudBtn.addEventListener('click', () => this.hooks.onEditHud());
-    play.append(this.partyBox, opts, row, controls, hudBtn, this.msg);
-    right.append(play);
+    // the size buttons drive the (hidden) select so the saved setting and partner list keep working
+    const segs = el('div', 'mm-seg');
+    const paintSeg = () => {
+      for (const b of [...segs.children] as HTMLButtonElement[]) b.classList.toggle('on', b.dataset.v === this.size.value);
+    };
+    for (const [v, t] of [['1', '1v1'], ['2', '2v2'], ['3', '3v3']]) {
+      const bt = el('button', '', t);
+      bt.dataset.v = v;
+      bt.addEventListener('click', () => {
+        this.size.value = v;
+        this.size.dispatchEvent(new Event('change'));
+        paintSeg();
+      });
+      segs.append(bt);
+    }
+    this.size.addEventListener('change', paintSeg);
+    paintSeg();
+    const rowSel = (label: string, sel: HTMLSelectElement, cls = '') => {
+      const r = el('label', `mm-selrow ${cls}`);
+      r.append(el('span', '', label), sel);
+      return r;
+    };
+    const adv = el('details', 'mm-adv');
+    adv.append(el('summary', '', 'Advanced: partners and foes'), rowSel('PARTNERS (PRACTICE)', this.ally), this.mapDesc);
+    const actions = el('div', 'mm-actions');
+    actions.append(this.partyBtn, this.readyBtn, practice, queue);
+    const hint = el('div', 'mm-esc');
+    hint.append('Press ', el('b', '', 'Esc'), ' for controls, HUD and sound');
+    matchPanel.append(el('div', 'mm-match-h', 'MATCH'), this.partyBox, segs, rowSel('ARENA', this.map, 'dash'), rowSel('BOT SKILL', this.diff), adv, this.msg, actions, hint);
+    right.append(this.lookCard, matchPanel);
 
     this.modal.addEventListener('mousedown', (e) => {
       if (e.target === this.modal) this.closeGear();
@@ -480,45 +486,72 @@ export class MainMenu {
   }
 
   private renderGear() {
-    this.gearRow.replaceChildren(
-      ...COSMETICS.slots.map((slot) => {
-        const id = this.build.gear[slot.id];
-        const item = id ? itemById(id) : undefined;
-        const b = el('button', 'mm-slot');
-        if (item) b.style.setProperty('--q', item.color);
-        b.append(el('span', 'ci', slot.icon), el('span', 'sn', slot.name), el('span', 'in', item ? item.name : 'None'));
-        if (item) tip(b, `item:${item.id}`);
-        b.addEventListener('click', () => this.openGear(slot.id));
-        return b;
-      }),
-    );
+    const worn = COSMETICS.slots.filter((sl) => this.build.gear[sl.id]).length;
+    this.lookCard.replaceChildren();
+    const ico = el('span', 'lc-ico', '🎭');
+    const txt = el('span', 'lc-txt');
+    txt.append(el('span', 'lc-t', 'Look'), el('span', 'lc-s', worn ? `${worn} of ${COSMETICS.slots.length} slots dressed · ${progress.matches} matches played` : 'Headwear, shoulders, back, glow and 3 more'));
+    this.lookCard.append(ico, txt, el('span', 'lc-go', '›'));
+    if (this.openSlot) this.openLook(this.openSlot);
   }
 
   private renderSummary() {
-    this.summary.replaceChildren(el('div', 'perk', 'Cosmetics change how you look to everyone. They never change how you fight. Flashier ones unlock as you play matches.'));
-    this.progressEl.textContent = `Matches played: ${progress.matches} · Wins: ${progress.wins}`;
+    /* the Look menu carries the unlock text now */
   }
 
-  // ------------------------------------------------------------------ cosmetic picker
+  // ------------------------------------------------------------------ the Look menu
 
-  private openGear(slotId: string) {
-    const slot = COSMETICS.slots.find((s) => s.id === slotId)!;
-    const card = el('div', 'mm-modal-card');
-    const head = el('div', 'mm-modal-head');
-    const close = el('button', 'mm-small', 'Close');
-    close.addEventListener('click', () => this.closeGear());
-    const clear = el('button', 'mm-small', 'None');
-    clear.addEventListener('click', () => {
-      delete this.build.gear[slotId];
-      this.closeGear();
+  /** Slots down the left, the options of the picked slot as a grid on the right. Click to try one on; Done closes. */
+  private openLook(slotId = this.lookSlot) {
+    this.lookSlot = slotId;
+    this.openSlot = slotId;
+    const card = el('div', 'mm-modal-card lk-card');
+    const head = el('div', 'lk-head');
+    const titles = el('div', 'lk-titles');
+    titles.append(el('h2', '', 'LOOK'), el('p', '', `Cosmetics change how you look to everyone. They never change how you fight. Flashier ones unlock as you play (${progress.matches} matches so far).`));
+    const random = el('button', 'mm-small', 'Random look');
+    random.addEventListener('click', () => {
+      this.build.gear = Object.fromEntries(COSMETICS.slots.filter(() => Math.random() < 0.8).map((sl) => {
+        const list = itemsForSlot(sl.id).filter((i) => canWear(i, flags.owner, progress.matches));
+        return [sl.id, list[Math.floor(Math.random() * list.length)].id];
+      }));
       this.commit();
     });
-    head.append(el('h2', '', slot.name), clear, close);
-    const grid = el('div', 'mm-cos-grid');
+    const clearAll = el('button', 'mm-small', 'Clear all');
+    clearAll.addEventListener('click', () => {
+      this.build.gear = {};
+      this.commit();
+    });
+    const done = el('button', 'mm-small mm-go', 'Done');
+    done.addEventListener('click', () => this.closeGear());
+    head.append(titles, random, clearAll, done);
+
+    const body = el('div', 'lk-body');
+    const list = el('div', 'lk-slots');
+    for (const sl of COSMETICS.slots) {
+      const id = this.build.gear[sl.id];
+      const item = id ? itemById(id) : undefined;
+      const b = el('button', `lk-slot${sl.id === slotId ? ' sel' : ''}`);
+      if (item) b.style.setProperty('--q', item.color);
+      b.append(el('span', 'ls-n', sl.name), el('span', 'ls-v', item ? item.name : 'None'));
+      b.addEventListener('click', () => this.openLook(sl.id));
+      list.append(b);
+    }
+    const pane = el('div', 'lk-pane');
+    pane.append(el('div', 'lk-ph', COSMETICS.slots.find((x) => x.id === slotId)!.name.toUpperCase()));
+    const grid = el('div', 'lk-grid');
+    const none = el('button', `lk-item${this.build.gear[slotId] ? '' : ' sel'}`);
+    none.append(el('span', 'lk-none'), el('span', 'ist', 'None'));
+    none.addEventListener('click', () => {
+      delete this.build.gear[slotId];
+      this.commit();
+      this.openLook(slotId);
+    });
+    grid.append(none);
     for (const item of itemsForSlot(slotId)) {
       if (item.owner && !flags.owner) continue; // owner-only looks stay hidden from everyone else
       const locked = !canWear(item, flags.owner, progress.matches);
-      const b = el('button', `mm-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${item.owner ? ' owner' : ''}${locked ? ' locked' : ''}`);
+      const b = el('button', `lk-item${this.build.gear[slotId] === item.id ? ' sel' : ''}${item.owner ? ' owner' : ''}${locked ? ' locked' : ''}`);
       b.style.setProperty('--q', item.color);
       b.append(el('span', 'sw'), el('span', 'ist', (item.owner ? '★ ' : '') + item.name));
       if (locked) b.append(el('span', 'lk', `🔒 ${item.unlock} matches`));
@@ -526,13 +559,14 @@ export class MainMenu {
       b.addEventListener('click', () => {
         if (locked) return;
         this.build.gear[slotId] = item.id;
-        this.commit(); // keep the picker open so you can try several; the model behind it updates
-        this.openGear(slotId);
+        this.commit(); // keep the menu open so you can try several; the model behind it updates
+        this.openLook(slotId);
       });
       grid.append(b);
     }
-    card.append(head, grid, el('div', 'mm-modal-foot', 'Click to try one on. Cosmetics are free and only change your look.'));
-    this.openSlot = slotId;
+    pane.append(grid, el('div', 'lk-foot', 'The character behind this window updates as you pick.'));
+    body.append(list, pane);
+    card.append(head, body);
     this.modal.replaceChildren(card);
     this.modal.classList.remove('hidden');
   }

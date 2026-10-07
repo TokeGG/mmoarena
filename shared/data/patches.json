@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.60.1",
+  "date": "2026-10-07",
+  "title": "One look for the whole UI",
+  "changes": [
+   "Main menu right side is now a Look card and a Match panel (1v1/2v2/3v3 buttons, arena and bot skill rows, partners under Advanced).",
+   "New Look menu: slots on the left, options as a grid, locked looks show how many matches they need.",
+   "Spec popup shows its 8 skills as tiles you drag to reorder; the character panel uses spec chips and a text talent tree.",
+   "Esc menu, Controls, patch notes and tooltips restyled to match: tinted header strip, stat chips, gold frames."
+  ]
+ },
+ {
   "version": "0.60.0",
   "date": "2026-10-07",
   "title": "Menu overhaul, new look and The Serpent",

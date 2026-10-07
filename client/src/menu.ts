@@ -167,11 +167,13 @@ export class Menu {
   private showMain() {
     this.main.classList.remove('hidden');
     this.keysView.classList.add('hidden');
+    this.root.querySelector('.card')?.classList.remove('wide');
   }
 
   private showKeys() {
     this.main.classList.add('hidden');
     this.keysView.classList.remove('hidden');
+    this.root.querySelector('.card')?.classList.add('wide');
     this.say('');
     this.render();
   }
@@ -196,13 +198,17 @@ export class Menu {
     this.list.replaceChildren();
     this.buttons.clear();
     let group = '';
+    let card: HTMLElement = this.list;
     for (const a of ACTIONS) {
       if (a.group !== group) {
         group = a.group;
+        card = document.createElement('div');
+        card.className = 'kcard';
         const h = document.createElement('div');
         h.className = 'kgroup';
         h.textContent = group;
-        this.list.append(h);
+        card.append(h);
+        this.list.append(card);
       }
       const row = document.createElement('div');
       row.className = 'krow';
@@ -213,7 +219,9 @@ export class Menu {
         const b = document.createElement('button');
         b.className = 'kbtn';
         const listening = this.listening?.action === a.id && this.listening.slot === slot;
-        b.textContent = listening ? 'Press a key…' : keyLabel(this.binds.get(a.id, slot));
+        const code = this.binds.get(a.id, slot);
+        b.textContent = listening ? 'Press a key…' : code ? keyLabel(code) : '';
+        if (!code && !listening) b.classList.add('empty');
         if (listening) b.classList.add('listening');
         b.addEventListener('click', () => {
           this.say('Press the new key, or a modifier (Shift, Ctrl, Alt) then a key for a combo like Shift+1. Esc cancels. Right-click clears.');
@@ -228,7 +236,7 @@ export class Menu {
         });
         row.append(b);
       }
-      this.list.append(row);
+      card.append(row);
     }
   }
 }

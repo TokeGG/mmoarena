@@ -304,6 +304,100 @@
   .pr-row { display:flex; align-items:center; gap:8px; padding:5px 8px; border:1px solid #3a3226; border-radius:8px; background:rgba(0,0,0,.25); }
   .pr-row.me { border-color:#7a5cff; } .pr-ico { width:22px; text-align:center; } .pr-name { font-weight:700; font-size:13px; }
   .pr-kit { flex:1; color:#8b8372; } .pr-rdy { font-size:11px; color:#8b8372; min-width:58px; text-align:right; } .pr-rdy.ok { color:#9be8b0; }
+
+  .mm-right { display:flex; flex-direction:column; gap:14px; align-self:stretch; width:auto; }
+  .mm-lookcard { display:flex; align-items:center; gap:12px; padding:14px 16px; border:2px solid #6b5a35; border-radius:14px; background:var(--panel2); color:#e9dcc0; text-align:left; cursor:pointer; box-shadow:0 12px 40px rgba(0,0,0,.6); font-family:var(--serif); }
+  .mm-lookcard:hover { border-color:#c9a24a; }
+  .lc-ico { width:38px; height:38px; border-radius:50%; border:2px solid #c9a24a; display:grid; place-items:center; font-size:18px; }
+  .lc-txt { flex:1; display:flex; flex-direction:column; } .lc-t { font:700 16px var(--serif); } .lc-s { font:11px system-ui,sans-serif; color:#8b8372; } .lc-go { color:#c9a24a; font-size:22px; }
+  .mm-match { flex:1; display:flex; flex-direction:column; gap:14px; padding:18px; border:2px solid #6b5a35; border-radius:14px; background:var(--panel2); box-shadow:0 12px 40px rgba(0,0,0,.6); min-height:520px; }
+  .mm-match-h { font:700 14px var(--serif); letter-spacing:3px; color:#c9a24a; }
+  .mm-seg { display:flex; padding:4px; gap:4px; border-radius:10px; background:#0d0e12; }
+  .mm-seg button { flex:1; height:38px; border:0; border-radius:7px; background:none; color:#a79d88; font:700 13px var(--serif); cursor:pointer; }
+  .mm-seg button.on { background:#3a352c; color:#fff; }
+  .mm-selrow { display:flex; align-items:center; justify-content:space-between; padding:6px 14px; border:1px solid #3a352c; border-radius:10px; background:#15141a; font-size:11px; color:#8b8372; letter-spacing:1px; text-transform:uppercase; }
+  .mm-selrow.dash { border:1px dashed #6b5a35; }
+  .mm-selrow select { appearance:none; -webkit-appearance:none; box-shadow:none; outline:0; background:transparent !important; border:0 !important; padding:6px 0 !important; flex:1; min-width:0; color:#e9dcc0; font:700 14px var(--serif); text-align:right; cursor:pointer; padding:6px 0; max-width:60%; }
+  .mm-selrow select option { background:#15141a; }
+  .mm-adv summary { cursor:pointer; color:#a79d88; font-size:12px; margin-bottom:8px; } .mm-adv .mm-selrow { margin-bottom:6px; }
+  .mm-actions { margin-top:auto; display:flex; flex-direction:column; gap:10px; }
+  .mm-actions .mm-btn { padding:0; height:50px; border-radius:12px; font-size:16px; }
+  .mm-actions .mm-btn.primary { height:62px; font-size:22px; letter-spacing:3px; text-transform:uppercase; }
+  .mm-esc { text-align:center; font-size:11px; color:#8b8372; } .mm-esc b { color:#cfc6b2; }
+  .mm-match .mm-msg { margin:0; }
+  .lk-card { width:min(860px,94vw); padding:22px 24px; border-radius:16px; }
+  .lk-head { display:flex; align-items:flex-start; gap:10px; margin-bottom:16px; } .lk-titles { flex:1; }
+  .lk-titles h2 { margin:0; font:700 26px var(--serif); letter-spacing:3px; color:#e9c872; } .lk-titles p { margin:4px 0 0; font-size:12px; color:#8b8372; }
+  .lk-head .mm-small { padding:10px 16px; border-radius:9px; } 
+  .lk-body { display:grid; grid-template-columns:230px 1fr; gap:20px; }
+  .lk-slots { display:flex; flex-direction:column; gap:8px; }
+  .lk-slot { --q:#8b8372; display:flex; align-items:center; justify-content:space-between; gap:8px; padding:11px 14px; border:1px solid #3a352c; border-radius:10px; background:#15141a; color:#e9dcc0; font:14px var(--serif); cursor:pointer; text-align:left; }
+  .lk-slot .ls-v { font-size:11px; color:var(--q); } .lk-slot.sel { border-color:#c9a24a; background:linear-gradient(90deg,rgba(201,162,74,.2),rgba(201,162,74,.04)); color:#fff; font-weight:700; }
+  .lk-ph { font:700 10px var(--serif); letter-spacing:2px; color:#8b8372; margin-bottom:8px; }
+  .lk-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; max-height:52vh; overflow:auto; padding:2px; scrollbar-width:thin; scrollbar-color:#6b5a35 transparent; }
+  .lk-item { --q:#888; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; min-height:92px; padding:10px 4px; border:2px solid #3a352c; border-radius:10px; background:#15141a; color:#e9dcc0; cursor:pointer; font-size:12px; }
+  .lk-item:hover { border-color:var(--q); } .lk-item.sel { border-color:#f0c260; box-shadow:0 0 14px rgba(240,194,96,.35); background:#1d1a14; }
+  .lk-item .sw { width:34px; height:34px; border-radius:50%; background:radial-gradient(circle at 35% 30%, #fff8, var(--q) 55%, #000a); box-shadow:0 0 10px var(--q); }
+  .lk-none { width:34px; height:34px; border-radius:50%; border:2px dashed #6b5a35; }
+  .lk-item.locked { opacity:.45; filter:grayscale(.7); cursor:not-allowed; } .lk-item .lk { font-size:10px; color:#e8b04a; }
+  .lk-foot { margin-top:10px; font-size:11px; color:#8b8372; }
+  @media (max-width:760px) { .lk-body { grid-template-columns:1fr; } .lk-grid { grid-template-columns:repeat(2,1fr); } }
+
+  /* ---------- v0.60 Esc menu and Controls, matching the Menu v2 boards ---------- */
+  #menu { background:rgba(5,4,8,.72); }
+  #menu .card { width:440px; padding:24px 26px 22px; border:2px solid #c9a24a; border-radius:16px; background:linear-gradient(180deg,rgba(40,34,28,.99),rgba(14,12,10,.99)); box-shadow:0 24px 70px rgba(0,0,0,.85),0 0 30px rgba(201,162,74,.15); }
+  #menu .card::before { display:none; }
+  #menu .card.wide { width:min(1120px,96vw); }
+  #menu h2 { font-size:26px; letter-spacing:8px; text-indent:8px; }
+  #menu .stack { margin-top:18px; gap:10px; }
+  #menu button.big { height:52px; border-radius:10px; font-size:16px; }
+  #menu .m-tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  #menu button.tile { height:64px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:1px solid #3a352c; border-radius:10px; background:#15141a; color:#e9dcc0; font:700 13px Georgia,serif; cursor:pointer; }
+  #menu button.tile:hover { border-color:#c9a24a; background:#1d1a14; } #menu button.tile .bi { font-size:18px; color:#f0c260; }
+  #menu .m-settings { margin-top:6px; padding:14px 16px; border:1px solid #2b2830; border-radius:10px; background:#12111a; display:flex; flex-direction:column; gap:12px; }
+  #menu .m-settings .srow { padding:0; gap:12px; font-size:13px; color:#cfc6b2; }
+  #menu .srow .sl { width:130px; flex:none; }
+  #menu .srow input[type=range] { -webkit-appearance:none; appearance:none; height:6px; border-radius:3px; background:#2b2830; outline:0; }
+  #menu .srow input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#f0c260; border:2px solid #2a1900; cursor:pointer; }
+  #menu .srow input[type=range]::-moz-range-thumb { width:12px; height:12px; border-radius:50%; background:#f0c260; border:2px solid #2a1900; }
+  #menu .srow span:last-child { color:#8b8372; font-weight:400; font-size:12px; }
+  #menu .tgl { cursor:pointer; } #menu .tgl input { position:absolute; opacity:0; width:0; height:0; }
+  #menu .tgl .sw { position:relative; width:42px; height:22px; border-radius:11px; background:#2b2830; transition:background .12s; }
+  #menu .tgl .sw::after { content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#8b8372; transition:left .12s, background .12s; }
+  #menu .tgl input:checked + .sw { background:#c9a24a; } #menu .tgl input:checked + .sw::after { left:23px; background:#2a1900; }
+  #menu .tgl #auto-toggle-val { color:#8b8372; font-weight:400; font-size:12px; min-width:0; }
+  #menu .k-head { display:flex; align-items:center; gap:14px; } #menu .k-titles { flex:1; text-align:left; } #menu .k-titles h2 { text-align:left; letter-spacing:6px; text-indent:0; }
+  #menu .k-titles .m-sub { text-align:left; font-size:12px; }
+  #menu .k-btn { height:40px; padding:0 18px; border:1px solid #6b5a35; border-radius:9px; background:#1d1b20; color:#e9dcc0; font:13px Georgia,serif; cursor:pointer; }
+  #menu .k-btn.gold { padding:0 26px; border-color:#5c3d08; background:linear-gradient(#f0c260,#b0781c); color:#2a1900; font-weight:700; font-size:14px; }
+  #keys-list { display:block; columns:3; column-gap:18px; margin-top:20px; max-height:68vh; overflow:auto; scrollbar-width:thin; scrollbar-color:#6b5a35 transparent; }
+  .kcard { break-inside:avoid; margin-bottom:18px; padding:14px; border:1px solid #2b2830; border-radius:12px; background:#12111a; align-self:start; }
+  .kcard .kgroup { margin:0 0 10px; padding:0; border:0; font:700 10px Georgia,serif; letter-spacing:3px; }
+  .kcard .krow { grid-template-columns:1fr 64px 64px; padding:2px 0; font-size:13px; }
+  .kcard .krow:hover { background:none; }
+  #menu .kbtn { min-width:34px; padding:5px 8px; border:1px solid #4a4538; border-radius:6px; background:#1d1b22; color:#e9dcc0; font:700 12px Georgia,serif; box-shadow:0 2px 0 #0a0a0e; cursor:pointer; }
+  #menu .kbtn:hover { border-color:#c9a24a; }
+  #menu .kbtn:empty, #menu .kbtn.empty { border:1px dashed #3a352c; background:none; color:#4a4538; box-shadow:none; }
+  @media (max-width:900px) { #keys-list { columns:1; } }
+
+  /* ---------- v0.60 one tooltip card: tinted header strip, stat chips, gold frame ---------- */
+  div#tooltip { padding:0; border:2px solid #c9a24a; border-radius:12px; overflow:hidden; background:linear-gradient(180deg,#201c16,#0e0c0a); box-shadow:0 18px 50px rgba(0,0,0,.85); font-size:12.5px; line-height:1.5; color:#cfc6b2; }
+  #tooltip > div { padding-left:14px; padding-right:14px; }
+  #tooltip .tt-head { margin:0; padding-top:11px; padding-bottom:10px; border-bottom:1px solid #3a3226; background:linear-gradient(90deg,rgba(201,162,74,.18),transparent); }
+  #tooltip .tt-title { font-size:17px; } #tooltip .tt-tag { letter-spacing:1px; text-transform:uppercase; }
+  #tooltip .tt-chips { display:flex; flex-wrap:wrap; gap:6px; padding-top:10px; }
+  #tooltip .tt-stat { padding:3px 8px; border-radius:5px; background:#1b1a1f; border:1px solid #2f2c35; font-size:11px; color:#cfc6b2; }
+  #tooltip .tt-line { margin-top:8px; } #tooltip .tt-good { margin-top:4px; } #tooltip .tt-bad { margin-top:6px; } #tooltip .tt-note { margin-top:6px; }
+  #tooltip .tt-more-h { margin-top:8px; padding-top:7px; } #tooltip .tt-hint { padding-bottom:2px; }
+  #tooltip .tt-foot { margin-top:8px; padding-top:7px; padding-bottom:8px; border-top:1px solid #3a3226; background:rgba(255,210,74,.06); color:#ffd24a; font-size:11px; }
+  #tooltip > div:last-child:not(.tt-foot) { padding-bottom:11px; }
+  /* patch notes, watch live and other windows share the card look */
+  .mm-modal-card { border-radius:16px; padding:22px 26px; box-shadow:0 24px 70px rgba(0,0,0,.85), 0 0 30px rgba(201,162,74,.15); }
+  .mm-modal-head h2 { font:700 22px var(--serif); letter-spacing:3px; text-transform:uppercase; color:#e9c872; }
+  .mm-patch { padding:14px 16px; margin-bottom:12px; border:1px solid #2b2830; border-radius:12px; background:#15141a; }
+  .mm-patch.latest { border-color:#c9a24a; background:linear-gradient(180deg,rgba(201,162,74,.12),rgba(201,162,74,.02)); }
+  .mm-patch:first-of-type { border-top:1px solid #c9a24a; }
+  .live-row { border-radius:12px !important; border-color:#2b2830 !important; background:#15141a !important; } .live-row:hover { border-color:#c9a24a !important; }
   .hdr-icons { display:flex; gap:10px; justify-content:flex-end; }
   .hdr-btn { position:relative; width:42px; height:42px; border-radius:50%; border:1px solid #6b5a35; background:#1d1b20; color:#f0c260; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; box-shadow:0 2px 8px rgba(0,0,0,.5); }
   .hdr-btn:hover { border-color:#c9a24a; background:#2a2518; box-shadow:0 0 14px rgba(240,194,96,.3); }
@@ -521,29 +615,33 @@
 <div id="menu" class="hidden">
   <div class="card">
     <div id="menu-main">
-      <h2>Game Menu</h2>
+      <h2>Paused</h2>
       <div class="m-sub" id="menu-sub">The match keeps running while this is open</div>
-      <div class="m-rule"><i>✦</i></div>
       <div class="stack">
         <button id="menu-resume" class="big primary"><span class="bi">▶</span>Resume</button>
-        <button id="menu-controls" class="big"><span class="bi">⌨</span>Controls &amp; keybinds</button>
-        <button id="menu-hud" class="big"><span class="bi">▦</span>Edit HUD layout</button>
-        <div class="srow"><span>Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /> <span id="auto-toggle-val">On</span></label></div>
-        <div class="srow"><span>Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
-        <div class="srow"><span>Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
-        <div class="srow"><span>Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>
-        <div class="srow"><span>Ambience</span><input id="vol-amb" type="range" min="0" max="1" step="0.05" value="0.5" /><span id="vol-amb-val">50%</span></div>
+        <div class="m-tiles">
+          <button id="menu-controls" class="tile"><span class="bi">⌨</span>Controls &amp; keys</button>
+          <button id="menu-hud" class="tile"><span class="bi">▦</span>Edit HUD layout</button>
+        </div>
+        <div class="m-settings">
+          <div class="srow"><span class="sl">Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /><b class="sw"></b> <span id="auto-toggle-val">On</span></label></div>
+          <div class="srow"><span class="sl">Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
+          <div class="srow"><span class="sl">Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
+          <div class="srow"><span class="sl">Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>
+          <div class="srow"><span class="sl">Ambience</span><input id="vol-amb" type="range" min="0" max="1" step="0.05" value="0.5" /><span id="vol-amb-val">50%</span></div>
+        </div>
         <div class="m-rule" id="menu-rule"><i>✦</i></div>
         <button id="menu-leave" class="big danger"><span class="bi">⚔</span>Leave match</button>
       </div>
     </div>
     <div id="menu-keys" class="hidden">
-      <h2>Controls</h2>
-      <div class="m-rule"><i>✦</i></div>
-      <div style="color:#a79d88;font-size:12px;text-align:center">Click a box, then press a key. Two keys per action. Right-click a box to clear it. Esc is reserved for this menu.</div>
+      <div class="k-head">
+        <div class="k-titles"><h2>Controls</h2><div class="m-sub">Click a key box, then press a key. Two keys per action. Right-click a box to clear it. Esc is reserved for the menu.</div></div>
+        <button id="keys-reset" class="k-btn">Reset to defaults</button>
+        <button id="keys-back" class="k-btn gold">Done</button>
+      </div>
       <div id="keys-list"></div>
       <div id="keys-note"></div>
-      <div class="kfoot"><button id="keys-reset" class="big"><span class="bi">↺</span>Reset</button><button id="keys-back" class="big primary"><span class="bi">✔</span>Done</button></div>
     </div>
   </div>
 </div>
