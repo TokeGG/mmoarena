@@ -150,7 +150,7 @@ export interface AbilityDef {
   ignoresControl?: boolean;
   allowWhileRooted?: boolean;
   /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
-  channel?: { ticks: number };
+  channel?: { ticks: number; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
 }
 
 export interface ClassDef {

@@ -829,7 +829,11 @@ export class Effects {
     }
     if (enemyTarget && t && has('damage')) {
       const kind = def.school === 'fire' ? 'fire' : def.school === 'frost' ? 'frost' : def.school === 'holy' ? 'holy' : def.school === 'shadow' ? 'shadow' : 'arcane';
-      if (def.channel) {
+      if (def.channel?.beam) {
+        // a continuous beam: each pulse redraws a beam that lasts until the next one
+        this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, color, (def.castTime / def.channel.ticks / 1000) * 1.15, 0.1);
+        this.onSwing(unit);
+      } else if (def.channel) {
         // one small curving missile per tick of the volley
         this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, 0.62, rnd(0.6, 1.3)));
         this.onSwing(unit);

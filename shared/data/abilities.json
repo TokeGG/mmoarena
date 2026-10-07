@@ -1497,7 +1497,8 @@
    }
   ],
   "channel": {
-   "ticks": 6
+   "ticks": 6,
+   "beam": true
   }
  },
  {
