@@ -227,7 +227,7 @@
   "effects": [
    {
     "type": "heal",
-    "amount": 320
+    "amount": 350
    }
   ]
  },
@@ -702,7 +702,7 @@
   "effects": [
    {
     "type": "heal",
-    "amount": 520
+    "amount": 580
    }
   ]
  },
