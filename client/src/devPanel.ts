@@ -51,8 +51,8 @@ interface Hooks {
 
 /**
  * Dev tools in a match: pause it, change any number on a skill (and on the effects it puts on people), try it at once,
- * then keep it for everyone or put it back; and send the owner a note about a skill. Only in a match where the dev is
- * the only person (bots and dummies otherwise), so nobody else plays on test numbers.
+ * then keep it for everyone or put it back; and send the owner a note about a skill. In any match that is not ranked:
+ * everyone in it gets the same test numbers and is told, and the match stops counting.
  */
 export class DevPanel {
   readonly root = el('div', 'devp hidden');

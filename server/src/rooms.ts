@@ -630,10 +630,13 @@ export class Lobby {
     return !!p.ownerOk || !!p.account?.grants?.includes('dev');
   }
 
-  /** The dev's own match against bots or dummies, with no other person in it: only there can numbers be tried and time stopped. */
+  /**
+   * A match a dev may try numbers in and pause: any match they play in that is not ranked (alone against bots, or with
+   * friends in practice, a party match or a duel). Everyone in it is told, and it stops counting for anything.
+   */
   private devRoom(p: Player): Room | null {
     const r = p.room;
-    return r && this.isDev(p) && !r.isRanked && r.players.size === 1 ? r : null;
+    return r && this.isDev(p) && !r.isRanked ? r : null;
   }
   /** Last suggestion time per account and per network address (old entries are swept). */
   private lastSuggest = new Map<string, number>();
@@ -928,11 +931,16 @@ export class Lobby {
       case 'dev_pause':
       case 'dev_patch': {
         const room = this.devRoom(p);
-        if (!room) return void send(p, { t: 'dev_result', ok: false, text: this.isDev(p) ? 'Only in your own match against bots.' : 'Dev tools need the dev tag.' });
+        if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : p.room ? 'Not in ranked matches.' : 'Start a match first.' });
         room.devTest = true; // from now on this match counts for nothing (progress, replays, bot learning)
+        const by = p.account?.name ?? p.name;
         if (msg.t === 'dev_pause') room.paused = msg.on;
         else room.devPatches = msg.patches;
-        send(p, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+        // everyone in the match plays on the same numbers and sees them in their tooltips, and is told who changed what
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+          if (q !== p) send(q, { t: 'notice', text: msg.t === 'dev_pause' ? `${by} ${msg.on ? 'paused' : 'resumed'} the match.` : msg.patches.length ? `${by} is testing ${msg.patches.length} changed number${msg.patches.length === 1 ? '' : 's'} in this match (it no longer counts).` : `${by} put the real numbers back.` });
+        }
         break;
       }
       case 'dev_builds': {

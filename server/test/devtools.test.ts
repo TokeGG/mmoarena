@@ -144,3 +144,28 @@ describe('dev tools', () => {
     assert.deepEqual(diff.map((l) => l.trim()), ['"duration": 7000,']);
   });
 });
+
+describe('dev tools with other people in the match', () => {
+  it('a dev tries numbers in a match with a friend: both play on them and the friend is told; never in ranked', async () => {
+    const { lobby, devP, bobP, outB } = await world();
+    const room: any = (lobby as any).makeRoom(0, true, false, 'colosseum');
+    (lobby as any).rooms.add(room);
+    room.addPlayer(devP, 0);
+    room.addPlayer(bobP, 1);
+    lobby.handle(devP, { t: 'dev_patch', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 1234 }] } as ClientMsg);
+    assert.deepEqual(room.devPatches.map((p: any) => p.value), [1234], 'applied in the shared match');
+    assert.deepEqual(last(outB, 'dev_state')?.patches.map((p) => p.value), [1234], 'the friend gets the same numbers');
+    assert.ok(outB.some((m) => m.t === 'notice' && m.text.includes('Dee is testing')), 'and is told who changed them');
+    lobby.handle(devP, { t: 'dev_pause', on: true } as ClientMsg);
+    assert.equal(room.paused, true);
+    assert.ok(outB.some((m) => m.t === 'notice' && m.text.includes('paused')));
+    // ranked: refused
+    const ranked: any = (lobby as any).makeRoom(0, true, true, 'colosseum');
+    const outD2: ServerMsg[] = [];
+    const dev2 = mkP('Dee', outD2, { ...devP.account });
+    ranked.addPlayer(dev2, 0);
+    lobby.handle(dev2, { t: 'dev_patch', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 1 }] } as ClientMsg);
+    assert.deepEqual(ranked.devPatches, []);
+    assert.equal(last(outD2, 'dev_result')?.text, 'Not in ranked matches.');
+  });
+});
