@@ -4,7 +4,7 @@ import pkg from '../package.json';
 import { ArenaScene } from './scene';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
-import { Hud } from './hud';
+import { Hud, blockedByCondition } from './hud';
 import { Keybinds, SLOT_ACTIONS } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
@@ -228,6 +228,9 @@ function onMessage(raw: MessageEvent) {
       if (!spec && you === 0) break; // a late frame from a match we already left
       onSnapshot(m.snap, m.events);
       break;
+    case 'stats':
+      if (spec?.kind === 'live') spectateBar.setStats(m.rows);
+      break;
     case 'error':
       audio.ui('error');
       hud.error(m.reason);
@@ -427,18 +430,33 @@ function castSlot(i: number) {
   setAiming(null);
   // spell queue: pressing a global-cooldown spell while casting or on the GCD holds it and sends it the moment you are free
   const me = latest?.units.find((u) => u.id === you);
-  if (me && def?.gcd && me.alive && (me.cast || me.gcdEnd > estimatedNow()) && (me.cooldowns[ability] ?? 0) - estimatedNow() < 1500) {
+  const nowS = estimatedNow();
+  if (me && def?.gcd && me.alive && (me.cast || me.gcdEnd > nowS) && (me.cooldowns[ability] ?? 0) - nowS < 1500) {
+    // the spell you are casting right now is only queued again in its last quarter second, so one press never casts twice
+    const active = me.cast?.ability ?? (performance.now() - lastSent.at < 3000 ? lastSent.ability : null);
+    const freeIn = Math.max(me.cast ? me.cast.end - nowS : 0, me.gcdEnd - nowS);
+    if (active === ability && freeIn > QUEUE_SAME_MS) return;
     queued = { ability, target: targetId, until: performance.now() + 3000 };
     return;
   }
   queued = null;
-  send({ t: 'cast', ability, target: targetId, vt: viewTime() });
+  sendCast({ t: 'cast', ability, target: targetId, vt: viewTime() });
 }
 
 /** Server time of the frame other players are drawn at right now; the server judges range against where they stood then (lag compensation). */
 function viewTime(): number {
   return Math.round(estimatedNow() - INTERP_DELAY_MS);
 }
+
+const QUEUE_SAME_MS = 250;
+/** The last spell sent, so a repeat press of it is not queued on top of itself. */
+const lastSent = { ability: '', at: 0 };
+function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
+  lastSent.ability = msg.ability;
+  lastSent.at = performance.now();
+  send(msg);
+}
+
 let queued: { ability: string; target: number | null; until: number } | null = null;
 function estimatedNow(): number {
   return latest ? latest.time + (performance.now() - latestAt) : 0;
@@ -451,7 +469,7 @@ function flushQueue() {
   if (me.cast || me.gcdEnd > estimatedNow() + 25 || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + 25) return;
   const q = queued;
   queued = null;
-  send({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime() });
+  sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime() });
 }
 
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
@@ -465,7 +483,7 @@ function confirmAim() {
   if (!aiming || !def) return;
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
-  send({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, vt: viewTime() });
+  sendCast({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, vt: viewTime() });
   setAiming(null);
 }
 
@@ -499,6 +517,7 @@ controls.onKey = (code, e) => {
     return;
   }
   if (!latest) return;
+  if (code === 'KeyB' && spec?.kind === 'live') return void spectateBar.board.toggle();
   const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);

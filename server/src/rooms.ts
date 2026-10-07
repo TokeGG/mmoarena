@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import type { WebSocket } from 'ws';
 import { ARENAS, ArenaSim, Bot, CLASSES, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
-import type { FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
+import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
@@ -156,12 +156,42 @@ export class Room {
     };
   }
 
+  /** Running damage and healing totals per unit, for the owner's scoreboard. */
+  private totals = new Map<number, { dmg: number; heal: number; taken: number; healTaken: number; overheal: number }>();
+
+  private tally(events: SimEvent[]): void {
+    const row = (id: number) => {
+      let r = this.totals.get(id);
+      if (!r) this.totals.set(id, (r = { dmg: 0, heal: 0, taken: 0, healTaken: 0, overheal: 0 }));
+      return r;
+    };
+    for (const e of events) {
+      if (e.t === 'damage') {
+        const n = e.amount + e.absorbed;
+        if (e.src >= 0 && e.src !== e.tgt) row(e.src).dmg += n;
+        row(e.tgt).taken += n;
+      } else if (e.t === 'heal') {
+        row(e.src).heal += e.amount;
+        row(e.src).overheal += e.overheal;
+        row(e.tgt).healTaken += e.amount;
+      }
+    }
+  }
+
+  statRows(): StatRow[] {
+    return [...this.sim.units.values()].map((u) => {
+      const t = this.totals.get(u.id);
+      return { id: u.id, name: u.name, classId: u.classId, team: u.team, dmg: Math.round(t?.dmg ?? 0), heal: Math.round(t?.heal ?? 0), taken: Math.round(t?.taken ?? 0), healTaken: Math.round(t?.healTaken ?? 0), overheal: Math.round(t?.overheal ?? 0) };
+    });
+  }
+
   addSpectator(p: Player): void {
     this.spectators.add(p);
     p.watching = this;
     send(p, { t: 'spectating', id: this.id, map: this.arenaId, size: this.size });
     const players = this.roster();
     if (players.length) send(p, { t: 'roster', players });
+    if (p.ownerOk) send(p, { t: 'stats', rows: this.statRows() });
   }
 
   removeSpectator(p: Player): void {
@@ -258,14 +288,25 @@ export class Room {
       }
       if (p.ws.readyState === 1 /* OPEN */) p.ws.send(frame);
     }
+    this.tally(events);
     if (this.countsForProgress) {
-      // spectators get the whole arena (nothing hidden), five seconds late
-      this.delayed.push({ snap: this.sim.snapshot(), events });
+      // spectators get the whole arena (nothing hidden), five seconds late; the owner watches live
+      const snap = this.sim.snapshot();
+      this.delayed.push({ snap, events });
+      if (this.spectators.size) {
+        const live = [...this.spectators].filter((w) => w.ownerOk);
+        if (live.length) {
+          const frame = JSON.stringify({ t: 'snapshot', snap, events });
+          const stats = this.sim.tickNo % 10 === 0 ? JSON.stringify({ t: 'stats', rows: this.statRows() }) : null;
+          for (const w of live) if (w.ws.readyState === 1) { w.ws.send(frame); if (stats) w.ws.send(stats); }
+        }
+      }
       if (this.delayed.length > SPECTATE_DELAY_TICKS) {
         const f = this.delayed.shift()!;
-        if (this.spectators.size) {
+        const late = [...this.spectators].filter((w) => !w.ownerOk);
+        if (late.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap: f.snap, events: f.events });
-          for (const w of this.spectators) if (w.ws.readyState === 1) w.ws.send(frame);
+          for (const w of late) if (w.ws.readyState === 1) w.ws.send(frame);
         }
       }
     }

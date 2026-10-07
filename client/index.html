@@ -149,8 +149,17 @@
   #ccvig.cc-sheep, #ccvig.cc-incapacitate { box-shadow:inset 0 0 130px 30px rgba(70,170,255,.5); } #ccvig.cc-lock { box-shadow:inset 0 0 110px 18px rgba(255,200,40,.4); }
   @keyframes ccpulse { 0%,100% { opacity:.65; } 50% { opacity:1; } }
   .slot.locked::before { content:attr(data-lock); position:absolute; left:0; right:0; bottom:3px; z-index:2; font:800 13px/1 system-ui; color:#fff; text-shadow:0 0 3px #000, 0 0 3px #000; text-align:center; }
+  .slot.locked:hover, body[data-hud-style=glass] .slot.locked:hover { border-color:#8a7340; transform:none; cursor:not-allowed; }
+  .slot.blocked { filter:grayscale(1) brightness(.35); } .slot.blocked:hover { transform:none; border-color:#8a7340; }
+  .scoreboard { position:fixed; top:90px; left:50%; transform:translateX(-50%); z-index:30; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:10px 14px; min-width:520px; box-shadow:0 6px 24px rgba(0,0,0,.7); }
+  .scoreboard .sb-head { font:700 16px var(--serif, serif); letter-spacing:2px; margin-bottom:6px; text-align:center; }
+  .scoreboard small { display:block; margin-top:6px; text-align:center; color:#9a9aa6; }
+  .sb-table { width:100%; border-collapse:collapse; font-size:13px; } .sb-table th { text-align:right; color:#9a9aa6; font-weight:600; padding:2px 8px; } .sb-table th:first-child, .sb-table td:first-child { text-align:left; }
+  .sb-table td { text-align:right; padding:2px 8px; font-variant-numeric:tabular-nums; } .sb-table td.top { color:#ffe27a; font-weight:700; }
+  .sb-team td { font-weight:700; border-top:1px solid #3a3d48; padding-top:6px; } .sb-team.t0 td:first-child { color:#7fb2ff; } .sb-team.t1 td:first-child { color:#ff8d7f; }
   .slot.locked { opacity:1; filter:grayscale(1) brightness(.22); }
   .slot.locked::after { content:'\2715'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:26px; color:#ff5a4a; text-shadow:0 0 4px #000; filter:none; }
+  .slot.locked.blocked::after { content:''; }
   .slot.locked.proc::before { top:auto; background:none; animation:none; }
   .slot.locked.proc::after { background:none; animation:none; }
   .slot.unusable { opacity:1; filter:grayscale(.85) brightness(.6); }

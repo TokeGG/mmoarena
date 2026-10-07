@@ -1,6 +1,6 @@
 import { ARENAS, CLASSES } from './data';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
-import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, PartyInfo, RosterEntry } from './accounts';
+import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
 export const PROTOCOL_VERSION = 8;
@@ -84,6 +84,8 @@ export type ServerMsg =
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
   | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
+  /** Owner spectators only: running damage and healing totals for everyone in the match. */
+  | { t: 'stats'; rows: StatRow[] }
   | { t: 'error'; reason: string; ability?: string }
   | { t: 'closed'; reason: string }
   /** The signed-in account (sent on login, resume, customize and after every counted match). `token` only on login/register. */

@@ -1,7 +1,7 @@
 import { ABILITIES, AURAS, CLASSES, TUNING } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { applyName, avatarImg } from './nameStyle';
-import type { ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
+import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -103,6 +103,15 @@ class UnitFrame {
       }),
     );
   }
+}
+
+/** Abilities with a condition on the target or yourself (Execute below 20% health, interrupts on a casting target, finishers with no combo points) are blacked out until it holds. */
+export function blockedByCondition(def: AbilityDef, me: UnitSnap, tgt: UnitSnap | undefined): boolean {
+  if (def.maxTargetHealthPct !== undefined && (!tgt || tgt.team === me.team || tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100)) return true;
+  if (def.requiresTargetCasting && (!tgt || tgt.team === me.team || !tgt.cast)) return true;
+  if (def.requiresStealth && !me.stealthed) return true;
+  if (def.cpSpend && (me.cp ?? 0) < 1) return true;
+  return false;
 }
 
 export interface HudHandlers {
@@ -291,7 +300,9 @@ export class Hud {
       // a proc (Hot Streak) makes this slot glow while it is active
       s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability));
       const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
+      const blocked = me.alive && blockedByCondition(def, me, tgt);
       s.root.classList.toggle('locked', locked);
+      s.root.classList.toggle('blocked', blocked && !locked);
       if (locked) {
         const ccAura = me.auras.find((a) => ['stun', 'fear', 'incapacitate'].includes(a.kind) || AURAS[a.id]?.locksAbilities);
         const end = me.controlled || def.ignoresControl ? ccAura?.expiresAt ?? 0 : me.lockouts?.[def.school] ?? 0;

@@ -334,3 +334,18 @@ export interface PartyInfo {
   /** `side` is the team (0 or 1) the member will play on in a party match. */
   members: { name: string; ready: boolean; side: 0 | 1 }[];
 }
+
+/** One row of the owner's live scoreboard. */
+export interface StatRow {
+  id: number;
+  name: string;
+  classId: string;
+  team: number;
+  /** Damage dealt (including what shields soaked), healing done (landed), what they took and what was healed on them. */
+  dmg: number;
+  heal: number;
+  taken: number;
+  healTaken: number;
+  /** Healing that was wasted on full health. */
+  overheal: number;
+}
