@@ -311,6 +311,9 @@ export class ArenaSim {
 
   /** True while a proc-made instant cast executes (so it cannot chain into another proc). */
   private procCast = false;
+  /** The channel whose tick is being applied right now, and the diminishing-returns level each of its casts set per target. */
+  private channelOf: { unit: number; start: number } | null = null;
+  private channelDr = new Map<string, number>();
 
   step(): void {
     this.time += TICK;
@@ -545,7 +548,12 @@ export class ArenaSim {
       c.done = (c.done ?? 0) + 1;
       this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
       // area channels (Bladestorm, Slice and Dice) hit whoever stands in the area at each tick
-      for (const t of this.targetsOf(u, def, tgt)) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
+      this.channelOf = { unit: u.id, start: c.start };
+      try {
+        for (const t of this.targetsOf(u, def, tgt)) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
+      } finally {
+        this.channelOf = null;
+      }
     }
   }
 
@@ -1057,10 +1065,27 @@ export class ArenaSim {
     const base = Math.min((baseMs ?? def.duration) + (def.duration > 0 ? extraMs : 0), def.maxDuration ?? Infinity);
     let duration = def.duration;
     let drMult = 1;
-    if (def.dr) {
+    // a channel that applies crowd control every tick (Slice and Dice) is one diminishing-returns step for the whole cast:
+    // the first tick sets the level and counts, every later tick of the same cast gets that same full level
+    const chanKey = this.channelOf && def.dr ? `${this.channelOf.unit}:${this.channelOf.start}:${tgt.id}:${auraId}` : null;
+    const chanMult = chanKey ? this.channelDr.get(chanKey) : undefined;
+    if (def.dr && chanMult !== undefined) {
+      drMult = chanMult;
+      if (drMult === 0) {
+        this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
+        return { applied: false, immune: true };
+      }
+      duration = base * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
+      const st = (tgt.dr[def.dr] ??= { count: 0, resetAt: 0 });
+      st.resetAt = Math.max(st.resetAt, this.time + duration + TUNING.drResetMs);
+    } else if (def.dr) {
       const st = (tgt.dr[def.dr] ??= { count: 0, resetAt: 0 });
       if (this.time >= st.resetAt) st.count = 0;
       drMult = TUNING.drSteps[Math.min(st.count, TUNING.drSteps.length - 1)];
+      if (chanKey) {
+        if (this.channelDr.size > 64) this.channelDr.clear();
+        this.channelDr.set(chanKey, drMult);
+      }
       if (drMult === 0) {
         this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
         return { applied: false, immune: true };
