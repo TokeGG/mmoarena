@@ -50,6 +50,8 @@ window.addEventListener('beforeunload', (e) => {
 let ws: WebSocket | null = null;
 /** The arena of the current match (or the menu preview). */
 let arena: ArenaDef = ARENAS[0];
+/** A match was joined and its first snapshot has not arrived yet. */
+let matchStarting = false;
 let you = 0;
 let team: TeamId = 0;
 let classId: ClassId = 'mage';
@@ -242,6 +244,7 @@ function onMessage(raw: MessageEvent) {
       }
       arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
       scene.setMap(arena.id);
+      matchStarting = true; // until its first snapshot, the menu backdrop must not swap the map back to the menu's pick
       audio.ambience(arena.theme);
       you = m.unitId;
       team = m.team;
@@ -348,6 +351,7 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      matchStarting = false;
       endBoardUp = false;
       endChoice.hide();
       spectateBar.board.toggle(false);
@@ -558,8 +562,10 @@ function castSlot(i: number) {
   if (!ability) return;
   const def = ABILITIES[ability];
   if (def?.target === 'ground') {
-    // first press arms the spell (a ring follows the cursor); pressing it again or clicking places it
+    // first press arms the spell (a ring follows the cursor); pressing it again or clicking places it. A spell still on
+    // its cooldown never brings the ring up (a moment's slack for lag only)
     if (aiming === ability) confirmAim();
+    else if (groundCooldownLeft(ability) > GROUND_SLACK_MS) hud.error('That is not ready yet');
     else setAiming(ability);
     return;
   }
@@ -608,6 +614,16 @@ function flushQueue() {
   sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime(), ...(q.ground ? { x: q.ground.x, z: q.ground.z, ...(q.ground.lv === 1 ? { lv: 1 as const } : {}) } : {}) });
 }
 
+/** How long until a spell is off its own cooldown (not the global one), as far as this client can tell. */
+function groundCooldownLeft(ability: string): number {
+  const me = latest?.units.find((u) => u.id === you);
+  if (!me) return 0;
+  // being cast right now counts too: its cooldown only starts when the cast lands
+  if (me.cast?.ability === ability) return Infinity;
+  return Math.max(0, (me.cooldowns[ability] ?? 0) - estimatedNow());
+}
+const GROUND_SLACK_MS = 250;
+
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
 let aiming: string | null = null;
 function setAiming(id: string | null) {
@@ -643,7 +659,7 @@ controls.onClick = (x, y) => {
 };
 controls.onRightClick = (x, y) => {
   if (spec || aiming) return;
-  const id = scene.pick(x, y, you);
+  const id = scene.pick(x, y, you, false); // right-click is for enemies and allies, never yourself (your model is under the cursor whenever you steer)
   if (id === null) return;
   setTarget(id);
   const me = latest?.units.find((u) => u.id === you);
@@ -744,7 +760,7 @@ function frame(now: number) {
     const t = now / 1000;
     // preview the arena picked in the menu (random shows the last one)
     const previewMap = mainMenu.selectedMap;
-    if (previewMap !== 'random') scene.setMap(previewMap);
+    if (previewMap !== 'random' && !matchStarting) scene.setMap(previewMap);
     const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
     const spot = prev.spawns[0][0];
     // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
@@ -774,6 +790,10 @@ function frame(now: number) {
     return;
   }
 
+  // the scene always shows the match's arena (Play again against bots moves to a new random map)
+  matchStarting = false;
+  scene.setMap(arena.id);
+
   if (spec?.runner && !spec.paused && !spec.runner.done) {
     spec.clock += dt * 1000 * spec.rate;
     const evs: Parameters<Hud['event']>[0][] = [];
@@ -792,6 +812,7 @@ function frame(now: number) {
     fixedStep();
   }
 
+  if (aiming && groundCooldownLeft(aiming) > GROUND_SLACK_MS) setAiming(null); // it went on cooldown: no ring for a spell you cannot cast
   flushQueue();
   const snap = latest!;
   const rate = !spec ? 1 : spec.paused || (spec.runner?.done ?? false) ? 0 : spec.rate;
@@ -954,6 +975,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
+  matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
   audio.ambience(arena.theme);
   you = 0;
   team = 0;

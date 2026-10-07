@@ -18,6 +18,8 @@ const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
 const HISTORY_TICKS = 12;
+/** A melee swing reaches this far up or down (a ramp's slope), not from a walkway's top to the ground below. */
+const MELEE_FLOOR_GAP = 1.6;
 const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
 /** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
 const GCD_REFUND = ['moved', 'cancelled', 'switched spell', 'target vanished', 'blinded by smoke'];
@@ -254,6 +256,7 @@ export class ArenaSim {
       const seen = rewindMs > 0 && tgt.team !== u.team ? this.posAt(tgt, this.time - rewindMs) : tgt.pos;
       const d = this.gap(u, seen, tgt.level);
       if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
+      if (isMelee(def) && tgt.team !== u.team && this.floorsApart(u, seen, tgt.level)) return soft('out of range'); // a blade does not reach up or down to another floor
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!this.sees(u, tgt)) return fail('no line of sight');
       // friendly spells need no facing (a shield on the ally behind you), only spells aimed at enemies do
@@ -1014,9 +1017,19 @@ export class ArenaSim {
     return SPECS[u.classId]?.find((s) => s.id === u.spec)?.passive === 'cauterize';
   }
 
+  /**
+   * Dampening, as in arena matches elsewhere: from `dampenStartMs` into the fight, healing and new shields get weaker by
+   * `dampenPerSec` every second (up to `dampenMax`), so two healers cannot out-heal each other forever.
+   */
+  dampening(): number {
+    if (this.phase !== 'live' && this.phase !== 'ended') return 0;
+    const t = (this.time - this.prepEndsAt - TUNING.dampenStartMs) / 1000;
+    return t <= 0 ? 0 : Math.min(TUNING.dampenMax, t * TUNING.dampenPerSec);
+  }
+
   heal(src: Unit, tgt: Unit, raw: number, ability: string): number {
     if (!tgt.alive) return 0;
-    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken));
+    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken * (1 - this.dampening())));
     const amount = Math.min(want, tgt.maxHealth - tgt.health);
     tgt.health += amount;
     src.lastCombatAt = this.time;
@@ -1057,6 +1070,7 @@ export class ArenaSim {
     // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
     if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
     if (this.gap(u, t.pos, t.level) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
+    if (this.floorsApart(u, t.pos, t.level)) return; // on top of a walkway and under it (or below its edge): out of reach
     if (!this.sees(u, t)) return; // no swinging through pillars
     if (!this.inFront(u, t.pos.x, t.pos.z)) return; // and no swinging at what is behind you
     u.nextSwing = this.time + auto.interval * this.modsOf(u).autoSpeed;
@@ -1126,7 +1140,7 @@ export class ArenaSim {
     const inst: AuraInst = {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
-      absorbLeft: ((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone,
+      absorbLeft: Math.round(((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone * (1 - this.dampening())),
       ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + 1) } : {}),
       ...(def.dot ? { nextTick: this.time + def.dot.interval } : def.hot ? { nextTick: this.time + def.hot.interval } : {}),
     };
@@ -1179,6 +1193,10 @@ export class ArenaSim {
   private gap(u: Unit, p: Vec2, level: 0 | 1): number {
     const dh = heightAt(this.arena, u.pos.x, u.pos.z, u.level) - heightAt(this.arena, p.x, p.z, level);
     return Math.hypot(dist(u.pos, p), dh);
+  }
+  /** Standing on different floors: a walkway's top and the ground below it (ramps in between are reachable). */
+  private floorsApart(u: Unit, p: Vec2, level: 0 | 1): boolean {
+    return Math.abs(heightAt(this.arena, u.pos.x, u.pos.z, u.level) - heightAt(this.arena, p.x, p.z, level)) > MELEE_FLOOR_GAP;
   }
   /** Furthest distance an ability can still land from: its range plus a small lag allowance (smaller for melee). */
   private reachOf(u: Unit, def: AbilityDef): number {
@@ -1359,6 +1377,7 @@ export class ArenaSim {
     return {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
+      ...(this.dampening() > 0 ? { damp: Math.round(this.dampening() * 100) / 100 } : {}),
       winner: this.winner, units,
       zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}), ...(z.flag ? { flag: true } : {}), ...(z.h > 0.05 ? { y: Math.round(z.h * 100) / 100 } : {}) })),
     };

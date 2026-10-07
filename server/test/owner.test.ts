@@ -142,3 +142,48 @@ describe('owner powers', () => {
     assert.deepEqual((sB.sent.filter((m) => m.t === 'account').at(-1) as any).account.grants, ['title:founder']);
   });
 });
+
+describe('owner bot match', () => {
+  it('only the owner can start one; it is private, has the picked specs, and closes when the owner stops watching', async () => {
+    const { a, toke, bob } = await setup();
+    const lobby = new Lobby({ practicePrepMs: 100, queuePrepMs: 100 }, a);
+    const sent: ServerMsg[] = [];
+    const sentBob: ServerMsg[] = [];
+    const mkP = (name: string, out: ServerMsg[], account: any) => ({ ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 } as any, name, classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', account, ownerOk: false } as any);
+    const owner = mkP('Toke', sent, toke.account);
+    const other = mkP('Bob', sentBob, bob.account);
+    const msg = { t: 'bot_match', size: 2, teams: [[{ classId: 'warrior', spec: 'fury' }, { classId: 'priest' }], [{ classId: 'mage', spec: 'fire' }, { classId: 'rogue' }]], difficulty: 'hard', map: 'colosseum' } as ClientMsg;
+    lobby.handle(other, msg);
+    assert.equal(other.watching, undefined, 'not for anyone else');
+    lobby.handle(owner, msg);
+    assert.equal(owner.watching, undefined, 'not before the owner code is entered');
+    owner.ownerOk = true;
+    lobby.handle(owner, msg);
+    const room = owner.watching;
+    assert.ok(room, 'watching the bot match');
+    assert.equal(room.arenaId, 'colosseum');
+    assert.equal(room.watchable, false, 'not listed in Watch live');
+    const units = [...room.sim.units.values()] as any[];
+    assert.equal(units.length, 4);
+    assert.ok(units.every((u) => u.controller === 'bot'));
+    assert.equal(units.find((u) => u.classId === 'warrior').spec, 'fury');
+    assert.equal(units.find((u) => u.classId === 'mage').spec, 'fire');
+    assert.ok(units.find((u) => u.classId === 'warrior').name.startsWith('Bot Rampager'), 'bots are named after their spec');
+    assert.ok(sent.some((m) => m.t === 'spectating'));
+    lobby.handle(owner, { t: 'leave' } as ClientMsg);
+    assert.equal(owner.watching, undefined);
+    assert.ok((room as any).closed, 'the room closes once nobody watches');
+  });
+});
+
+describe('bot match message', () => {
+  it('is parsed strictly', async () => {
+    const { parseClientMsg } = await import('@arena/shared');
+    const ok = { t: 'bot_match', size: 1, teams: [[{ classId: 'warrior', spec: 'arms' }], [{ classId: 'mage' }]], difficulty: 'normal', map: 'random' };
+    assert.ok(parseClientMsg(JSON.stringify(ok)));
+    assert.equal(parseClientMsg(JSON.stringify({ ...ok, teams: [[{ classId: 'warrior', spec: 'fire' }], [{ classId: 'mage' }]] })), null, 'a spec of another class');
+    assert.equal(parseClientMsg(JSON.stringify({ ...ok, size: 2 })), null, 'sides must match the size');
+    assert.equal(parseClientMsg(JSON.stringify({ ...ok, map: 'nowhere' })), null);
+    assert.equal(parseClientMsg(JSON.stringify({ ...ok, difficulty: 'dummy' })), null);
+  });
+});

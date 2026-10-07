@@ -288,6 +288,10 @@ export interface Tuning {
   fearSpeed: number;
   prepMs: number;
   maxMatchMs: number;
+  /** Dampening: when it starts (ms into the fight), how much weaker healing gets each second, and its cap. */
+  dampenStartMs: number;
+  dampenPerSec: number;
+  dampenMax: number;
   damageVariance: number;
   stealthDetect: number;
   outOfCombatMs: number;
@@ -453,6 +457,8 @@ export interface Snapshot {
   units: UnitSnap[];
   /** Ground effects currently on the floor. */
   zones: ZoneSnap[];
+  /** Dampening: how much weaker healing and shields are right now (0.35 = 35% weaker). Absent until it starts. */
+  damp?: number;
 }
 
 export interface ZoneSnap {

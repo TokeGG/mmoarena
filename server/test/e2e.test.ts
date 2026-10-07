@@ -136,7 +136,7 @@ describe('server end to end', () => {
     await until(() => c.snap !== null, 2000, 'snapshot');
     assert.equal(c.snap!.units.length, 2, 'player plus one bot, no ally');
     const bot = c.snap!.units.find((u) => u.team === 1)!;
-    assert.match(bot.name, /^Bot /);
+    assert.match(bot.name, /^Bot (Warbringer|Rampager|Barbarian)$/, 'named after its spec');
     const startX = bot.x;
     await until(() => c.snap!.phase === 'live', 2000, 'live');
     await until(() => Math.abs(c.snap!.units.find((u) => u.id === bot.id)!.x - startX) > 5, 4000, 'bot walks toward us');

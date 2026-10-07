@@ -339,7 +339,11 @@ export class ArenaScene {
    * Unit id under the pointer, or null. `selfId` (your own unit) loses to any other unit on the same ray, so your own
    * model can't steal clicks meant for someone behind it, but clicking only yourself targets you.
    */
-  pick(clientX: number, clientY: number, selfId: number | null = null): number | null {
+  /**
+   * The unit under the cursor. Your own character is skipped in favour of anyone behind it, and returned only when it is
+   * all there is and `allowSelf` (a left click on yourself targets you; a right click never does).
+   */
+  pick(clientX: number, clientY: number, selfId: number | null = null, allowSelf = true): number | null {
     const ndc = new THREE.Vector2((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     this.raycaster.setFromCamera(ndc, this.camera);
     this.raycaster.far = 200;
@@ -352,7 +356,7 @@ export class ArenaScene {
       if (id !== selfId) return id;
       self = true;
     }
-    return self ? selfId : null;
+    return self && allowSelf ? selfId : null;
   }
 
   setPhase(phase: string): void {

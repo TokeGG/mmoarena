@@ -1,5 +1,21 @@
 [
  {
+  "version": "0.68.2",
+  "date": "2026-10-07",
+  "title": "Dampening, owner bot matches, targeting fixes",
+  "changes": [
+   "Dampening: from 90 seconds into a fight, all healing and new shields get 0.5% weaker every second (up to 90%), shown at the top of the screen. Two priests (or any healers) can no longer out-heal each other forever.",
+   "Bot priests break up enemy heals: a Psychic Scream or Hammer of Justice on an enemy who is casting a heal, unless their own side needs healing first.",
+   "Bots stop a cast once its target has stepped out of sight, instead of finishing it into a pillar (stopping hands the global cooldown back, as it does for you).",
+   "Melee swings and melee skills no longer reach between floors: a bot (or you) on top of a walkway cannot hit someone on the ground just past its edge, and the other way round.",
+   "Play again against bots shows the arena you are really on. The menu backdrop could switch the scene back to the map picked in the menu while the next match loaded, so you saw one arena and bumped into another's walls.",
+   "A ground spell still on its cooldown no longer brings up its aiming ring (and an open ring goes away if the spell goes on cooldown).",
+   "Right-click never targets yourself, and holding a mouse button to steer or turn the camera is never taken as a click, however little the mouse moved.",
+   "Bots are named after their spec (Bot Rampager, Bot Pyromancy) so you can see what you are facing.",
+   "Owner: a Bot match panel in the Owner tab starts a private match of bots against bots (1v1 to 3v3, class and spec of every bot, difficulty, arena) and lets you watch it live. Nobody else can see it, and it closes when you leave."
+  ]
+ },
+ {
   "version": "0.68.1",
   "date": "2026-10-07",
   "title": "Bots that move like players, warrior balance, clean-up",

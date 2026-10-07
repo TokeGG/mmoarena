@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.68.1
+# WoW-style Arena · v0.68.2
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -103,7 +103,8 @@ Pick one on the menu or leave it on Random.
 ## Rules worth knowing
 
 - **Casting:** most skills trigger a 1 second global cooldown. Starting another spell cancels the one you are casting. A spell you press while casting or on the global cooldown is queued and goes off as soon as you are free (the newest press wins).
-- **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, so someone up on a walkway is out of melee reach from the ground below. Ground spells (Flamestrike, Blizzard, the banner) are aimed at the cursor: press the key, then click to place.
+- **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, and a blade never reaches between floors, so someone up on a walkway is out of melee reach from the ground below (and the other way round). Ground spells (Flamestrike, Blizzard, the banner) are aimed at the cursor: press the key, then click to place; one still on its cooldown does not bring the ring up.
+- **Dampening:** from 90 seconds into a fight, all healing and new shields get 0.5% weaker every second (up to 90%), shown at the top of the screen, so two healers cannot out-heal each other forever.
 - **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.
 - **Blink** frees you from stuns, roots and slows and works while stunned, but not while polymorphed or under Dragon's Breath.
 - **Auto-attack:** warriors and rogues deal steady damage (and warriors build rage) with auto-attack. It starts with a right-click on an enemy, R or any melee skill, stays on while you have an enemy targeted (so it is ready when you close in), and stops when you clear your target, or 5 seconds after combat if nothing hostile is targeted.

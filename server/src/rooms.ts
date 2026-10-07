@@ -247,9 +247,13 @@ export class Room {
     if (p.ownerOk) send(p, { t: 'stats', rows: this.statRows() });
   }
 
+  /** An owner's private bot match: nobody plays in it, and it closes once nobody is watching. */
+  botsOnly = false;
+
   removeSpectator(p: Player): void {
     this.spectators.delete(p);
     p.watching = undefined;
+    if (this.botsOnly && this.spectators.size === 0) this.close('match over');
   }
 
   /** Average rating of the humans on a team; guests and bots count as the starting rating. */
@@ -260,7 +264,7 @@ export class Room {
   }
 
   /** A stand-in that never acts (difficulty 'dummy') or a bot that plays by the normal rules. */
-  addNpc(classId: ClassId, team: TeamId, difficulty: PracticeDifficulty): void {
+  addNpc(classId: ClassId, team: TeamId, difficulty: PracticeDifficulty, spec?: string): void {
     this.npcPlan.push({ classId, team, difficulty });
     const label = CLASSES[classId].name;
     if (difficulty === 'dummy') {
@@ -268,7 +272,9 @@ export class Room {
       return;
     }
     const seed = Math.floor(Math.random() * 2 ** 31);
-    const u = this.sim.addUnit({ name: `Bot ${label}`, classId, team, controller: 'bot', build: botBuild(classId, seed) });
+    const build = botBuild(classId, seed, true, spec);
+    // named after its spec (Bot Rampager, Bot Pyromancy), so you can see what you are up against
+    const u = this.sim.addUnit({ name: `Bot ${specOf(classId, build.spec)?.name ?? label}`, classId, team, controller: 'bot', build });
     const learned = this.learner?.pick(classId);
     this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed, learned?.brain));
     if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId, difficulty });
@@ -845,6 +851,20 @@ export class Lobby {
         const room = [...this.rooms].find((r) => r.id === msg.id && r.watchable);
         if (!room) return void send(p, { t: 'closed', reason: 'That match is over.' });
         p.watching?.removeSpectator(p);
+        room.addSpectator(p);
+        this.changed(p);
+        break;
+      }
+      case 'bot_match': {
+        // the owner's test bench: bots against bots, watched live, in a room nobody else can find
+        if (!p.ownerOk) return void send(p, { t: 'notice', text: 'Only the owner can start a bot match.' });
+        if (this.busy(p)) return;
+        p.watching?.removeSpectator(p);
+        const room = this.makeRoom(this.cfg.practicePrepMs, false, false, pickMap(msg.map));
+        room.size = msg.size;
+        room.botsOnly = true;
+        msg.teams.forEach((side, team) => side.forEach((b) => room.addNpc(b.classId, team as TeamId, msg.difficulty, b.spec)));
+        this.rooms.add(room);
         room.addSpectator(p);
         this.changed(p);
         break;

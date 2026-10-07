@@ -4,6 +4,7 @@ import type { Action, Keybinds } from './keybinds';
 import { isTyping } from './popups';
 
 const TURN_SPEED = 2.6; // rad/s for A/D turning
+const CLICK_MS = 350;
 
 /**
  * WoW-style controls: hold RMB to steer (character faces the camera), LMB-drag to orbit the camera only,
@@ -25,6 +26,8 @@ export class Controls {
   private downX = 0;
   private downY = 0;
   private dragged = false;
+  /** When the first button went down: holding a button to steer or orbit is never a click, however little the mouse moved. */
+  private downAt = 0;
   private travel = 0; // pointer distance moved since a button went down (works under pointer lock)
   private jumpQueued = false;
   private mx = 0;
@@ -90,6 +93,7 @@ export class Controls {
           this.downY = e.clientY;
           this.dragged = false;
           this.travel = 0;
+          this.downAt = performance.now();
         }
         if (e.button === 0) this.lmb = true;
         if (e.button === 2) {
@@ -108,13 +112,13 @@ export class Controls {
       if (e.button === 0) {
         const wasDown = this.lmb;
         this.lmb = false;
-        if (wasDown && this.enabled && !this.dragged && !this.rmb) this.onClick(e.clientX, e.clientY);
+        if (wasDown && this.enabled && !this.dragged && !this.rmb && this.quick()) this.onClick(e.clientX, e.clientY);
       }
       if (e.button === 2) {
         const wasDown = this.rmb;
         this.rmb = false;
         if (document.pointerLockElement) document.exitPointerLock();
-        if (wasDown && this.enabled && !this.dragged && !this.lmb) this.onRightClick(this.downX, this.downY);
+        if (wasDown && this.enabled && !this.dragged && !this.lmb && this.quick()) this.onRightClick(this.downX, this.downY);
       }
       sync(e);
     });
@@ -139,6 +143,11 @@ export class Controls {
       },
       { passive: false },
     );
+  }
+
+  /** A click is a tap: a button held longer than this was steering or turning the camera, even without moving the mouse. */
+  private quick(): boolean {
+    return performance.now() - this.downAt <= CLICK_MS;
   }
 
   /** Where the cursor is, for aimed spells. While steering with the right button the cursor is locked, so aim at screen centre. */

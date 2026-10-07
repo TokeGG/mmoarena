@@ -1,5 +1,5 @@
-import { ABILITY_GRANTS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, TITLES, resolveCosmetics } from '@arena/shared';
-import type { AccountInfo, AdminRow, ClientMsg, CustomStyle, ServerMsg } from '@arena/shared';
+import { ABILITY_GRANTS, ARENAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, resolveCosmetics } from '@arena/shared';
+import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -98,9 +98,66 @@ export class OwnerPanel {
     if (n) box.append(n);
     box.append(el('h3', '', 'Your name style'));
     box.append(this.styleEditor(a.cosmetics.custom, !!a.cosmetics.useCustom, (custom, use) => this.hooks.send({ t: 'customize', cosmetics: { ...a.cosmetics, custom, useCustom: use } }), true));
+    box.append(el('h3', '', 'Bot match'), this.botMatch());
     box.append(el('h3', '', 'Animated icon'), this.gifBox(a));
     box.append(el('h3', '', 'Accounts'), this.adminList());
     return box;
+  }
+
+  // ------------------------------------------------------------------ bot match (owner's private test bench)
+
+  /** What the bot match form holds, kept while the panel is redrawn. */
+  private bm: { size: 1 | 2 | 3; teams: [BotPick[], BotPick[]]; difficulty: 'easy' | 'normal' | 'hard'; map: string } = {
+    size: 1,
+    teams: [[{ classId: 'warrior' }, { classId: 'priest' }, { classId: 'mage' }], [{ classId: 'mage' }, { classId: 'rogue' }, { classId: 'priest' }]],
+    difficulty: 'hard',
+    map: 'random',
+  };
+
+  /**
+   * Pick both sides (class and spec of each bot), the difficulty and the arena, and watch them fight live in a private
+   * room: it is not listed in Watch live and closes when you stop watching.
+   */
+  private botMatch(): HTMLElement {
+    const wrap = el('div', 'own-box own-bots');
+    wrap.append(el('p', 'mm-modal-foot', 'Watch bots fight each other in a private match only you can see. It closes when you leave it.'));
+    const select = (opts: [string, string][], value: string, on: (v: string) => void) => {
+      const s = el('select');
+      for (const [v, label] of opts) {
+        const o = el('option', '', label);
+        o.value = v;
+        s.append(o);
+      }
+      s.value = value;
+      s.addEventListener('change', () => on(s.value));
+      return s;
+    };
+    const top = el('div', 'own-row');
+    top.append(
+      select([['1', '1v1'], ['2', '2v2'], ['3', '3v3']], String(this.bm.size), (v) => { this.bm.size = Number(v) as 1 | 2 | 3; this.hooks.rerender(); }),
+      select([['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], this.bm.difficulty, (v) => (this.bm.difficulty = v as 'easy' | 'normal' | 'hard')),
+      select([['random', 'Random arena'], ...ARENAS.filter((x) => x.randomPool !== false).map((x): [string, string] => [x.id, x.name])], this.bm.map, (v) => (this.bm.map = v)),
+    );
+    wrap.append(top);
+    ([0, 1] as const).forEach((team) => {
+      const row = el('div', 'own-row');
+      row.append(el('b', '', team === 0 ? 'Team 1' : 'Team 2'));
+      for (let i = 0; i < this.bm.size; i++) {
+        const pick = this.bm.teams[team][i];
+        row.append(
+          select(CLASS_IDS.map((c): [string, string] => [c, CLASSES[c].name]), pick.classId, (v) => { this.bm.teams[team][i] = { classId: v as ClassId }; this.hooks.rerender(); }),
+          select([['', 'Any spec'], ...SPECS[pick.classId].map((s): [string, string] => [s.id, s.name])], pick.spec ?? '', (v) => { this.bm.teams[team][i] = { classId: pick.classId, ...(v ? { spec: v } : {}) }; }),
+        );
+      }
+      wrap.append(row);
+    });
+    const go = el('button', 'mm-small', 'Watch the bots fight');
+    go.addEventListener('click', () => {
+      const n = this.bm.size;
+      this.hooks.send({ t: 'bot_match', size: n, teams: [this.bm.teams[0].slice(0, n), this.bm.teams[1].slice(0, n)], difficulty: this.bm.difficulty, map: this.bm.map });
+    });
+    wrap.append(go);
+    return wrap;
   }
 
   // ------------------------------------------------------------------ custom style editor (self or friend)

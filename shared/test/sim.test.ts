@@ -1552,3 +1552,21 @@ describe('auto-attack persistence', () => {
     assert.equal(war.autoAttack, false);
   });
 });
+
+describe('dampening', () => {
+  it('healing and new shields get weaker from 90 s into the fight, by 0.5% a second, up to 90%', () => {
+    const sim = new ArenaSim({ seed: 1, prepMs: 0 });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, controller: 'player' });
+    sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    sim.step();
+    const heal = () => { p.health = 100; return sim.heal(p, p, 1000, 'flash_heal'); };
+    assert.equal(sim.dampening(), 0);
+    assert.equal(heal(), 1000, 'full healing at the start');
+    for (let t = 0; t < 150000; t += TUNING.tickMs) sim.step(); // 60 s past the start of dampening
+    assert.ok(Math.abs(sim.dampening() - 0.3) < 0.01, `dampening ${sim.dampening()}`);
+    assert.ok(Math.abs(heal() - 700) <= 6, 'healing 30% weaker');
+    assert.equal(sim.snapshot().damp, Math.round(sim.dampening() * 100) / 100, 'the HUD is told');
+    for (let t = 0; t < 400000; t += TUNING.tickMs) sim.step();
+    assert.equal(sim.dampening(), TUNING.dampenMax, 'capped');
+  });
+});

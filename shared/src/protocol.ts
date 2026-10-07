@@ -1,4 +1,4 @@
-import { ARENAS, CLASSES } from './data';
+import { ARENAS, CLASSES, SPECS } from './data';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
@@ -7,6 +7,8 @@ export const PROTOCOL_VERSION = 9;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
+/** One bot in an owner's bot match: its class and, if chosen, its spec (else a random one). */
+export interface BotPick { classId: ClassId; spec?: string }
 
 export type PracticeDifficulty = 'dummy' | 'easy' | 'normal' | 'hard';
 const DIFFICULTIES: PracticeDifficulty[] = ['dummy', 'easy', 'normal', 'hard'];
@@ -60,6 +62,11 @@ export type ClientMsg =
   /** Ranked matches in progress that can be watched. */
   | { t: 'live' }
   | { t: 'spectate'; id: string }
+  /**
+   * Owner only: a private match of bots against bots, watched live. Each side lists its bots (class and, optionally, spec);
+   * nobody else can see or join it, and it closes when the owner stops watching.
+   */
+  | { t: 'bot_match'; size: TeamSize; teams: [BotPick[], BotPick[]]; difficulty: 'easy' | 'normal' | 'hard'; map: string }
   /** Friends: your list and requests. */
   | { t: 'friends' }
   | { t: 'friend'; op: 'add' | 'accept' | 'decline' | 'remove'; name: string }
@@ -278,6 +285,25 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'spectate':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
       return { t: 'spectate', id: m.id };
+    case 'bot_match': {
+      const size = m.size === 1 || m.size === 2 || m.size === 3 ? (m.size as TeamSize) : null;
+      if (!size || !Array.isArray(m.teams) || m.teams.length !== 2) return null;
+      const side = (raw: unknown): BotPick[] | null => {
+        if (!Array.isArray(raw) || raw.length !== size) return null;
+        const out: BotPick[] = [];
+        for (const b of raw) {
+          if (!b || typeof b !== 'object' || typeof b.classId !== 'string' || !Object.hasOwn(CLASSES, b.classId)) return null;
+          if (b.spec !== undefined && (typeof b.spec !== 'string' || !SPECS[b.classId as ClassId].some((s) => s.id === b.spec))) return null;
+          out.push({ classId: b.classId as ClassId, ...(b.spec ? { spec: b.spec } : {}) });
+        }
+        return out;
+      };
+      const a = side(m.teams[0]);
+      const b = side(m.teams[1]);
+      const difficulty = m.difficulty === 'easy' || m.difficulty === 'normal' || m.difficulty === 'hard' ? m.difficulty : null;
+      if (!a || !b || !difficulty || typeof m.map !== 'string' || !(m.map === 'random' || ARENAS.some((x) => x.id === m.map))) return null;
+      return { t: 'bot_match', size, teams: [a, b], difficulty, map: m.map };
+    }
     case 'admin_set': {
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       const out: Extract<ClientMsg, { t: 'admin_set' }> = { t: 'admin_set', name: m.name };
