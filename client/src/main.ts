@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, stepMovement } from '@arena/shared';
+import { ABILITIES, ARENAS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, stepMovement } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -566,7 +566,7 @@ function frame(now: number) {
     const spot = prev.spawns[0][0];
     const face = prev.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
     scene.setPhase('prep');
-    scene.update([{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), team: 0, x: spot.x, z: spot.z, y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
+    scene.update([{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x, z: spot.z, y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
     scene.setCamera(spot.x, spot.z, prev.spawnFacing[0] + Math.sin(t * 0.6) * 0.1, 0.12, 6.5);
     scene.render();
     return;
@@ -644,7 +644,7 @@ function frame(now: number) {
       facing = vis.facing;
       y = u.alive ? jumpHeight(performance.now() - myJumpAt) : 0;
     }
-    return { id: u.id, classId: u.classId, look: u.look, team: u.team, x, z, y, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
+    return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
 
   renderPos.clear();

@@ -539,7 +539,7 @@
  },
  {
   "id": "shield_slam",
-  "name": "Shield Slam",
+  "name": "Halberd Slam",
   "class": "warrior",
   "school": "physical",
   "target": "enemy",
@@ -575,7 +575,7 @@
  },
  {
   "id": "shield_wall",
-  "name": "Shield Wall",
+  "name": "Fortress Stance",
   "class": "warrior",
   "school": "physical",
   "target": "self",

@@ -433,3 +433,29 @@ describe('control and swaps across tiers', () => {
     }
   });
 });
+
+describe('warrior weapon specs', () => {
+  const specBuild = (spec: string): Build => ({ spec, gear: {}, talents: [], ...({} as object) } as unknown as Build);
+  it('each warrior spec has its own weapon and auto-attack', async () => {
+    const { autoFor, weaponFor } = await import('../src/index');
+    assert.equal(weaponFor('warrior', 'arms'), 'dual');
+    assert.equal(weaponFor('warrior', 'fury'), 'twohand');
+    assert.equal(weaponFor('warrior', 'protection'), 'polearm');
+    const d = autoFor('warrior', 'arms')!, t = autoFor('warrior', 'fury')!, p = autoFor('warrior', 'protection')!;
+    assert.ok(d.interval < t.interval, 'dual wield swings faster than a greatsword');
+    assert.ok(t.damage > d.damage, 'greatsword hits harder per swing');
+    assert.ok(p.range > d.range, 'polearm outreaches');
+    assert.equal(autoFor('rogue', 'cutthroat')?.interval, CLASSES.rogue.auto?.interval);
+  });
+  it('polearm auto lands from beyond sword range', () => {
+    const sim = live();
+    const w = add(sim, 'warrior', 0, 0, 0, specBuild('protection'));
+    const e = add(sim, 'priest', 1, 4.5, 0);
+    advance(sim, TICK);
+    sim.setTarget(w.id, e.id);
+    sim.setAutoAttack(w.id, true);
+    const hp = e.health;
+    advance(sim, 3000);
+    assert.ok(e.health < hp, 'polearm hit at 4.5 yd');
+  });
+});

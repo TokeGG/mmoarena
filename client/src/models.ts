@@ -263,7 +263,7 @@ function addCape(b: Builder, r: Rig, color: number, trim: number, w: number, len
   r.cape = pivot;
 }
 
-function warrior(b: Builder): Rig {
+function warrior(b: Builder, weapon?: string): Rig {
   const steel = 0x9aa3b4;
   const dark = 0x4a5160;
   const gold = 0xe0b040;
@@ -300,26 +300,58 @@ function warrior(b: Builder): Rig {
     const tip = b.cone(upper, 0.04, 0.2, b.m(0xf1ead6, { rough: 0.5 }), s * 0.5, 1.34, 0, 10);
     tip.rotation.z = -s * 0.2;
   }
-  // sword (right hand): grip at the hand, blade pointing forward, glowing fuller
-  const sword = new THREE.Group();
-  sword.position.set(0, -0.62, 0.05);
-  sword.rotation.x = Math.PI / 2;
-  b.cyl(sword, 0.035, 0.035, 0.22, b.m(0x4a2f1b), 0, 0, 0, 8);
-  b.ball(sword, 0.055, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, -0.13, 0);
-  b.rbox(sword, 0.34, 0.055, 0.09, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 0.12, 0, 0.02);
-  b.rbox(sword, 0.1, 1.05, 0.03, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 0.68, 0, 0.012);
-  b.cone(sword, 0.05, 0.14, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 1.26, 0, 4).scale.z = 0.3;
-  b.plain(() => b.box(sword, 0.022, 0.8, 0.036, b.m(0x7fd0ff, { glow: 1.5 }), 0, 0.66, 0));
-  r.armR.add(sword);
-  // kite-ish shield (left arm): domed face, rim, boss and emblem
-  const shield = new THREE.Group();
-  shield.position.set(0.24, -0.3, 0.06);
-  shield.rotation.y = Math.PI / 2;
-  b.rbox(shield, 0.62, 0.86, 0.08, b.m(0x1f4f9e, { rough: 0.55, metal: 0.3 }), 0, 0, 0, 0.05);
-  b.rbox(shield, 0.68, 0.92, 0.05, b.m(gold, { metal: 0.8, rough: 0.35 }), 0, 0, -0.035, 0.05);
-  b.ball(shield, 0.12, b.m(gold, { metal: 0.85, rough: 0.3 }), 0, 0.05, 0.05).scale.z = 0.5;
-  b.plain(() => b.box(shield, 0.04, 0.5, 0.03, b.m(0xffe08a, { glow: 0.8 }), 0, -0.02, 0.085));
-  r.armL.add(shield);
+  // weapons: dual wield (a sword in each hand), a two-handed greatsword, a polearm, or the default sword and shield
+  const blade = (len: number, width: number, glow = 0x7fd0ff) => {
+    const g = new THREE.Group();
+    b.cyl(g, 0.035, 0.035, 0.22, b.m(0x4a2f1b), 0, 0, 0, 8);
+    b.ball(g, 0.055, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, -0.13, 0);
+    b.rbox(g, 0.34 * (width / 0.1) ** 0.5, 0.055, 0.09, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 0.12, 0, 0.02);
+    b.rbox(g, width, len, 0.03, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 0.15 + len / 2, 0, 0.012);
+    b.cone(g, width / 2, 0.14, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 0.15 + len + 0.07, 0, 4).scale.z = 0.3;
+    b.plain(() => b.box(g, 0.022, len * 0.76, 0.036, b.m(glow, { glow: 1.5 }), 0, 0.14 + len / 2, 0));
+    return g;
+  };
+  if (weapon === 'dual') {
+    for (const arm of [r.armR, r.armL]) {
+      const sw = blade(0.78, 0.085, arm === r.armR ? 0x7fd0ff : 0xff9a6a);
+      sw.position.set(0, -0.62, 0.05);
+      sw.rotation.x = Math.PI / 2;
+      arm.add(sw);
+    }
+  } else if (weapon === 'twohand') {
+    const sw = blade(1.55, 0.17, 0xffb347);
+    sw.position.set(0, -0.62, 0.05);
+    sw.rotation.x = Math.PI / 2.35; // held up and forward in both hands
+    r.armR.add(sw);
+    r.armL.rotation.x = -0.35; // the off-hand supports the grip
+  } else if (weapon === 'polearm') {
+    const pole = new THREE.Group();
+    pole.position.set(0, -0.62, 0.05);
+    pole.rotation.x = Math.PI / 2.15;
+    b.cyl(pole, 0.032, 0.032, 2.5, b.m(0x5a3b22, { rough: 0.8 }), 0, 0.45, 0, 8);
+    b.cyl(pole, 0.045, 0.045, 0.12, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 1.62, 0, 8);
+    b.cone(pole, 0.055, 0.34, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 1.84, 0, 4).scale.z = 0.4;
+    b.rbox(pole, 0.34, 0.36, 0.03, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0.17, 1.52, 0, 0.02);
+    b.rbox(pole, 0.2, 0.2, 0.03, b.m(0xc9d1de, { metal: 0.9, rough: 0.25 }), -0.1, 1.5, 0, 0.02);
+    b.cone(pole, 0.03, 0.2, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, -0.82, 0, 4);
+    b.plain(() => b.box(pole, 0.02, 0.26, 0.036, b.m(0x7fd0ff, { glow: 1.4 }), 0.17, 1.52, 0));
+    r.armR.add(pole);
+    r.armL.rotation.x = -0.3;
+  } else {
+    const sword = blade(1.05, 0.1);
+    sword.position.set(0, -0.62, 0.05);
+    sword.rotation.x = Math.PI / 2;
+    r.armR.add(sword);
+    // kite-ish shield (left arm): domed face, rim, boss and emblem
+    const shield = new THREE.Group();
+    shield.position.set(0.24, -0.3, 0.06);
+    shield.rotation.y = Math.PI / 2;
+    b.rbox(shield, 0.62, 0.86, 0.08, b.m(0x1f4f9e, { rough: 0.55, metal: 0.3 }), 0, 0, 0, 0.05);
+    b.rbox(shield, 0.68, 0.92, 0.05, b.m(gold, { metal: 0.8, rough: 0.35 }), 0, 0, -0.035, 0.05);
+    b.ball(shield, 0.12, b.m(gold, { metal: 0.85, rough: 0.3 }), 0, 0.05, 0.05).scale.z = 0.5;
+    b.plain(() => b.box(shield, 0.04, 0.5, 0.03, b.m(0xffe08a, { glow: 0.8 }), 0, -0.02, 0.085));
+    r.armL.add(shield);
+  }
   return r;
 }
 
@@ -1096,13 +1128,13 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
   }
 }
 
-const BUILDERS: Record<ClassId, (b: Builder) => Rig> = { warrior, mage, priest, rogue };
+const BUILDERS: Record<ClassId, (b: Builder, weapon?: string) => Rig> = { warrior, mage: (b) => mage(b), priest: (b) => priest(b), rogue: (b) => rogue(b) };
 const LEAN: Record<ClassId, number> = { warrior: 0, mage: 0, priest: 0, rogue: 0.14 };
 const RESTING_ARMS: Record<ClassId, number> = { warrior: -0.15, mage: -0.2, priest: -0.15, rogue: -0.35 };
 
-export function createCharacter(classId: ClassId, look?: string): Character {
+export function createCharacter(classId: ClassId, look?: string, weapon?: string): Character {
   const b = new Builder();
-  const r = BUILDERS[classId](b);
+  const r = BUILDERS[classId](b, weapon);
   if (look) wearCosmetics(b, r, classId, parseLook(look));
   const lean = LEAN[classId];
   const armRest = RESTING_ARMS[classId];

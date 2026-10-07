@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, TUNING } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
@@ -478,7 +478,7 @@ export class Hud {
 
   /** Auto-attack status: lit and pulsing while swinging, amber when something stops the swings. */
   private autoIndicator(me: UnitSnap, snap: Snapshot, targetId: number | null) {
-    const auto = CLASSES[me.classId].auto;
+    const auto = autoFor(me.classId, me.spec);
     const root = $('autoind');
     const show = !!auto && this.autoEnabled && me.alive && snap.phase === 'live';
     root.classList.toggle('hidden', !show);

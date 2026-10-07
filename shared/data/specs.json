@@ -3,11 +3,11 @@
   {
    "id": "arms",
    "name": "Warbringer",
-   "role": "Burst melee",
-   "desc": "Heavy hits and Execute to finish low-health targets. Control with Hamstring and Intimidating Shout.",
+   "role": "Dual wield",
+   "desc": "Twin blades: fast, relentless swings and Bloodthirst. Execute finishes low-health targets, and Hamstring and Intimidating Shout keep them in reach.",
    "icon": "\u2694\ufe0f",
    "bar": [
-    "mortal_strike",
+    "bloodthirst",
     "hamstring",
     "charge",
     "pummel",
@@ -18,16 +18,25 @@
    ],
    "mods": {
     "damageDone": 1.05
+   },
+   "weapon": {
+    "id": "dual",
+    "name": "Twin Blades"
+   },
+   "auto": {
+    "interval": 1400,
+    "damage": 62,
+    "range": 3
    }
   },
   {
    "id": "fury",
    "name": "Rampager",
-   "role": "Sustained melee",
-   "desc": "Fast, relentless attacks and extra mobility. Heals itself with Enraged Regeneration.",
+   "role": "Two-handed sword",
+   "desc": "A greatsword: slow, heavy blows and Mortal Strike. Recklessness opens a damage window, and Enraged Regeneration heals you back.",
    "icon": "\ud83e\ude93",
    "bar": [
-    "bloodthirst",
+    "mortal_strike",
     "whirlwind",
     "charge",
     "pummel",
@@ -39,13 +48,22 @@
    "mods": {
     "moveSpeed": 1.05,
     "damageDone": 1.03
+   },
+   "weapon": {
+    "id": "twohand",
+    "name": "Greatsword"
+   },
+   "auto": {
+    "interval": 3000,
+    "damage": 165,
+    "range": 3
    }
   },
   {
    "id": "protection",
    "name": "Bulwark",
-   "role": "Tank / control",
-   "desc": "Tough and hard to kill, with Concussion Blow and Shield Wall. Deals less damage.",
+   "role": "Polearm / control",
+   "desc": "A halberd: strikes from 5 yards out, plus Concussion Blow and Fortress Stance. Tough and hard to kill, but deals less damage.",
    "icon": "\ud83d\udee1\ufe0f",
    "bar": [
     "shield_slam",
@@ -60,7 +78,30 @@
    "mods": {
     "maxHealth": 1.15,
     "damageTaken": 0.92,
-    "damageDone": 0.85
+    "damageDone": 0.85,
+    "ability": {
+     "shield_slam": {
+      "range": 2
+     },
+     "concussion_blow": {
+      "range": 2
+     },
+     "hamstring": {
+      "range": 2
+     },
+     "pummel": {
+      "range": 2
+     }
+    }
+   },
+   "weapon": {
+    "id": "polearm",
+    "name": "Halberd"
+   },
+   "auto": {
+    "interval": 2400,
+    "damage": 95,
+    "range": 5
    }
   }
  ],

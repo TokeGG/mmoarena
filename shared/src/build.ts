@@ -1,5 +1,5 @@
-import { AURAS, COSMETICS, SPECS, TALENTS } from './data';
-import type { AbilityMod, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentDef } from './types';
+import { AURAS, CLASSES, COSMETICS, SPECS, TALENTS } from './data';
+import type { AbilityMod, AutoDef, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
 
@@ -151,4 +151,15 @@ export function parseLook(look: string | undefined | null): Record<string, Cosme
     if (item) out[slot] = item;
   });
   return out;
+}
+
+/** The auto-attack a unit swings with: its spec's weapon when it has one, else the class default (undefined for classes without one). */
+export function autoFor(classId: ClassId, specId: string | null | undefined): AutoDef | null | undefined {
+  const spec = specId ? SPECS[classId]?.find((x) => x.id === specId) : undefined;
+  return spec?.auto ?? CLASSES[classId].auto;
+}
+
+/** The weapon id a unit's spec is built around ('dual', 'twohand', 'polearm'), if any. */
+export function weaponFor(classId: ClassId, specId: string | null | undefined): string | undefined {
+  return specId ? SPECS[classId]?.find((x) => x.id === specId)?.weapon?.id : undefined;
 }

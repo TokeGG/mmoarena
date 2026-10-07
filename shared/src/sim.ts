@@ -1,5 +1,5 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, TUNING } from './data';
-import { barFor, barSwapped, compileMods, gearLook, withAuraMods } from './build';
+import { autoFor, barFor, barSwapped, compileMods, gearLook, withAuraMods } from './build';
 import { blinkDestination, clamp, clampToGate, dist, hasLOS, resolveCollisions, stepMovement } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
@@ -133,7 +133,7 @@ export class ArenaSim {
     this.onCommand?.([this.tickNo, 3, id, on]);
     const u = this.units.get(id);
     if (!u) return;
-    const next = on && !u.autoDisabled && !!CLASSES[u.classId].auto;
+    const next = on && !u.autoDisabled && !!autoFor(u.classId, u.spec);
     if (next && !u.autoAttack) u.autoSince = this.time;
     u.autoAttack = next;
   }
@@ -544,7 +544,7 @@ export class ArenaSim {
     this.stackMult = 1;
     this.ground = null;
 
-    if (isMelee(def) && CLASSES[u.classId].auto && !u.autoDisabled) {
+    if (isMelee(def) && autoFor(u.classId, u.spec) && !u.autoDisabled) {
       if (!u.autoAttack) u.autoSince = this.time;
       u.autoAttack = true;
     }
@@ -738,7 +738,7 @@ export class ArenaSim {
   }
 
   private tryAutoAttack(u: Unit): void {
-    const auto = CLASSES[u.classId].auto;
+    const auto = autoFor(u.classId, u.spec);
     if (!auto || !u.autoAttack || this.phase !== 'live' || !this.canAct(u) || u.cast) return;
     const t = u.target !== null ? this.units.get(u.target) : undefined;
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;

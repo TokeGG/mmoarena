@@ -148,19 +148,19 @@
    [
     {
      "id": "warrior_arms_t4a",
-     "name": "Bloodlust Frenzy",
-     "desc": "Replaces Whirlwind with Bloodthirst: a fast strike that builds rage, adding steady sustained damage to your burst.",
+     "name": "Heavy Hand",
+     "desc": "Replaces Whirlwind with Mortal Strike: one heavy overhand blow that trades your flurry of twin strikes for burst.",
      "icon": "\ud83e\ude78",
      "mods": {},
      "swap": {
       "from": "whirlwind",
-      "to": "bloodthirst"
+      "to": "mortal_strike"
      }
     },
     {
      "id": "warrior_arms_t4b",
      "name": "Bulwark Strike",
-     "desc": "Replaces Whirlwind with Shield Slam: a solid hit that trades area damage for a reliable single-target strike.",
+     "desc": "Replaces Whirlwind with Halberd Slam: a solid hit that trades area damage for a reliable single-target strike.",
      "icon": "\ud83d\udee1\ufe0f",
      "mods": {},
      "swap": {
@@ -171,7 +171,7 @@
     {
      "id": "warrior_arms_t4c",
      "name": "Ground Tremor",
-     "desc": "Replaces Whirlwind with Shockwave: a burst of damage that stuns nearby enemies to set up Mortal Strike.",
+     "desc": "Replaces Whirlwind with Shockwave: a burst of damage that stuns nearby enemies to set up Bloodthirst.",
      "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
@@ -184,7 +184,7 @@
     {
      "id": "warrior_arms_t5a",
      "name": "Banshee Howl",
-     "desc": "Replaces Intimidating Shout with Piercing Howl: slows enemies in range so you can keep them in Mortal Strike reach.",
+     "desc": "Replaces Intimidating Shout with Piercing Howl: slows enemies in range so you can keep them in Bloodthirst reach.",
      "icon": "\ud83d\udce3",
      "mods": {},
      "swap": {
@@ -230,7 +230,7 @@
     {
      "id": "warrior_arms_t6b",
      "name": "Last Bastion",
-     "desc": "Replaces Enraged Regeneration with Shield Wall: heavy damage reduction instead of healing when focused.",
+     "desc": "Replaces Enraged Regeneration with Fortress Stance: heavy damage reduction instead of healing when focused.",
      "icon": "\ud83c\udff0",
      "mods": {},
      "swap": {
@@ -392,19 +392,19 @@
    [
     {
      "id": "warrior_fury_t4a",
-     "name": "Executioner's Edge",
-     "desc": "Replaces Whirlwind with Mortal Strike: a heavy single-target blow that favours burst over sustained flurries.",
+     "name": "Twin Strikes",
+     "desc": "Replaces Whirlwind with Bloodthirst: a fast strike that builds rage and adds quick pressure between your heavy blows.",
      "icon": "\ud83d\udde1\ufe0f",
      "mods": {},
      "swap": {
       "from": "whirlwind",
-      "to": "mortal_strike"
+      "to": "bloodthirst"
      }
     },
     {
      "id": "warrior_fury_t4b",
      "name": "Bulwark Blow",
-     "desc": "Replaces Whirlwind with Shield Slam: a dependable strike that gives up area damage for steadier hits.",
+     "desc": "Replaces Whirlwind with Halberd Slam: a dependable strike that gives up area damage for steadier hits.",
      "icon": "\ud83d\udee1\ufe0f",
      "mods": {},
      "swap": {
@@ -415,7 +415,7 @@
     {
      "id": "warrior_fury_t4c",
      "name": "Quake Rush",
-     "desc": "Replaces Whirlwind with Shockwave: a stun that gives you a safe window to chain Bloodthirst.",
+     "desc": "Replaces Whirlwind with Shockwave: a stun that gives you a safe window to chain Mortal Strike.",
      "icon": "\ud83d\udca5",
      "mods": {},
      "swap": {
@@ -439,7 +439,7 @@
     {
      "id": "warrior_fury_t5b",
      "name": "Skull Bash",
-     "desc": "Replaces Hamstring with Concussion Blow: a hard stun to stop a target and start a Bloodthirst chain.",
+     "desc": "Replaces Hamstring with Concussion Blow: a hard stun to stop a target and start a Mortal Strike chain.",
      "icon": "\ud83d\udcab",
      "mods": {},
      "swap": {
@@ -474,7 +474,7 @@
     {
      "id": "warrior_fury_t6b",
      "name": "Iron Wall",
-     "desc": "Replaces Enraged Regeneration with Shield Wall: heavy damage reduction instead of self-healing.",
+     "desc": "Replaces Enraged Regeneration with Fortress Stance: heavy damage reduction instead of self-healing.",
      "icon": "\ud83c\udff0",
      "mods": {},
      "swap": {
@@ -550,7 +550,7 @@
     {
      "id": "warrior_protection_t2a",
      "name": "Unbreakable Wall",
-     "desc": "Shield Wall lasts 25% longer and has a 15% shorter cooldown.",
+     "desc": "Fortress Stance lasts 25% longer and has a 15% shorter cooldown.",
      "icon": "\ud83c\udff0",
      "mods": {
       "auraDuration": {
