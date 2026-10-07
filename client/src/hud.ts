@@ -47,6 +47,62 @@ class Bar {
   }
 }
 
+/**
+ * A cast that stopped before it finished stays in its cast bar for a moment, frozen where it stopped, coloured and labelled
+ * with why: Interrupted (red), Stunned / Feared / Polymorphed (purple), Cancelled or Moved (grey), Line of sight, Out of
+ * range, Target lost... Every cast bar shows it: yours, the unit frames' and the nameplates'.
+ */
+const CAST_STOP: Record<string, [string, string]> = {
+  interrupted: ['Interrupted', 'linear-gradient(#ff5a4a,#a3170c)'],
+  'crowd controlled': ['Crowd controlled', 'linear-gradient(#c58cff,#6a2ea8)'],
+  pulled: ['Pulled', 'linear-gradient(#c58cff,#6a2ea8)'],
+  cancelled: ['Cancelled', 'linear-gradient(#9aa0aa,#4b4f57)'],
+  'switched spell': ['Cancelled', 'linear-gradient(#9aa0aa,#4b4f57)'],
+  leapt: ['Cancelled', 'linear-gradient(#9aa0aa,#4b4f57)'],
+  moved: ['Moved', 'linear-gradient(#9aa0aa,#4b4f57)'],
+  'no line of sight': ['Line of sight', 'linear-gradient(#ffb14a,#a35c0c)'],
+  'out of range': ['Out of range', 'linear-gradient(#ffb14a,#a35c0c)'],
+  'target not visible': ['Target lost', 'linear-gradient(#ffb14a,#a35c0c)'],
+  'target vanished': ['Target lost', 'linear-gradient(#ffb14a,#a35c0c)'],
+  'blinded by smoke': ['Smoked', 'linear-gradient(#ffb14a,#a35c0c)'],
+  'target is dead': ['Target died', 'linear-gradient(#9aa0aa,#4b4f57)'],
+};
+const STOP_SHOWN_MS = 1000;
+/** Names of the units in the last snapshot, so an aura icon's tooltip can say who put it there. */
+const unitNames = new Map<number, string>();
+/** The cast each unit was last seen casting (and how far along), and casts that just stopped early. */
+const lastCast = new Map<number, { ability: string; frac: number }>();
+const stoppedCasts = new Map<number, { ability: string; label: string; color: string; frac: number; at: number }>();
+
+/** Remember how far a unit's cast has got (called wherever a cast bar is drawn). */
+function seeCast(id: number, c: { ability: string; start: number; end: number }, now: number): number {
+  const span = Math.max(1, c.end - c.start);
+  const frac = Math.max(0, Math.min(1, ABILITIES[c.ability]?.channel ? (c.end - now) / span : (now - c.start) / span));
+  lastCast.set(id, { ability: c.ability, frac });
+  stoppedCasts.delete(id);
+  return frac;
+}
+
+/** A cast_fail arrived: if that unit was really casting that spell, its bar shows why it stopped. */
+function castStopped(id: number, ability: string, reason: string): void {
+  const lc = lastCast.get(id);
+  lastCast.delete(id);
+  if (!lc || lc.ability !== ability) return; // a press that never became a cast (held, refused) has no bar to show
+  const [label, color] = CAST_STOP[reason] ?? [reason.charAt(0).toUpperCase() + reason.slice(1), 'linear-gradient(#ffb14a,#a35c0c)'];
+  stoppedCasts.set(id, { ability, label, color, frac: lc.frac, at: performance.now() });
+}
+
+/** What a unit's cast bar should show now that it is not casting: the stopped cast, for a moment, or nothing. */
+function stoppedCast(id: number): { ability: string; label: string; color: string; frac: number } | null {
+  const s = stoppedCasts.get(id);
+  if (!s) return null;
+  if (performance.now() - s.at > STOP_SHOWN_MS) {
+    stoppedCasts.delete(id);
+    return null;
+  }
+  return s;
+}
+
 /** Portrait, name, health, resource, optional cast bar and aura icons. Built once, updated every frame. */
 class UnitFrame {
   readonly root: HTMLElement;
@@ -92,13 +148,21 @@ class UnitFrame {
     });
     if (this.cast) {
       const c = u.cast;
-      this.cast.root.classList.toggle('hidden', !c);
-      if (c) this.cast.set(ABILITIES[c.ability]?.channel ? c.end - now : now - c.start, c.end - c.start, ABILITIES[c.ability]?.name ?? c.ability);
+      const st = c ? null : stoppedCast(u.id);
+      this.cast.root.classList.toggle('hidden', !c && !st);
+      if (c) {
+        seeCast(u.id, c, now);
+        this.cast.setColor('#f1c40f');
+        this.cast.set(ABILITIES[c.ability]?.channel ? c.end - now : now - c.start, c.end - c.start, ABILITIES[c.ability]?.name ?? c.ability);
+      } else if (st) {
+        this.cast.setColor(st.color);
+        this.cast.set(st.frac, 1, `${ABILITIES[st.ability]?.name ?? st.ability}: ${st.label}`);
+      }
     }
     // the icons are only rebuilt when the set of effects (or a seconds counter, or a stack count) changes, not every frame
     const shown = u.auras.slice(0, 8);
     const secsLeft = (x: { expiresAt: number }) => (x.expiresAt > 0 ? Math.max(0, Math.ceil((x.expiresAt - now) / 1000)) : -1);
-    const key = shown.map((x) => `${x.id}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|');
+    const key = shown.map((x) => `${x.id}:${x.src}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|');
     if (key === this.auraKey) return;
     this.auraKey = key;
     this.auras.replaceChildren(
@@ -106,6 +170,8 @@ class UnitFrame {
         const def = AURAS[a.id];
         const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`, AURA_ICON[a.id] ?? '✦');
         icon.dataset.tip = `aura:${a.id}`;
+        const who = unitNames.get(a.src);
+        if (who) icon.dataset.tipFrom = a.src === u.id ? `${who} (on itself)` : who;
         const left = secsLeft(a);
         if (left >= 0) icon.dataset.tipSub = `${left}s remaining`;
         if (left >= 0) icon.append(el('i', '', String(left)));
@@ -290,6 +356,7 @@ export class Hud {
   update(ctx: HudContext) {
     const { snap, now, you, targetId } = ctx;
     this.youId = you;
+    for (const u of snap.units) unitNames.set(u.id, u.id === you ? 'you' : u.name);
     const me = snap.units.find((u) => u.id === you);
     if (!me) return;
     this.self.update(me, now, false);
@@ -346,10 +413,16 @@ export class Hud {
       vig.className = kind ? `cc-${kind}` : 'hidden';
       box.className = kind ? `cc-${kind}` : 'hidden';
     }
-    $('cast').classList.toggle('hidden', !me.cast);
+    const myStop = me.cast ? null : stoppedCast(me.id);
+    $('cast').classList.toggle('hidden', !me.cast && !myStop);
     if (me.cast) {
+      seeCast(me.id, me.cast, now);
       const left = Math.max(0, me.cast.end - now) / 1000;
+      this.castBar.setColor('#f1c40f');
       this.castBar.set(ABILITIES[me.cast.ability]?.channel ? me.cast.end - now : now - me.cast.start, me.cast.end - me.cast.start, `${ABILITIES[me.cast.ability]?.name ?? ''}  ${left.toFixed(1)}`);
+    } else if (myStop) {
+      this.castBar.setColor(myStop.color);
+      this.castBar.set(myStop.frac, 1, `${ABILITIES[myStop.ability]?.name ?? ''}: ${myStop.label}`);
     }
 
     this.updateBanner(snap, now, me.team);
@@ -467,8 +540,14 @@ export class Hud {
         }));
       }
       // cast bar over the head: gold for allies, hot orange for enemies so you can see what to interrupt
-      p.cast.root.classList.toggle('hidden', !u.cast);
+      const pStop = u.cast ? null : stoppedCast(u.id);
+      p.cast.root.classList.toggle('hidden', !u.cast && !pStop);
+      if (pStop) {
+        p.cast.setColor(pStop.color);
+        p.cast.set(pStop.frac, 1, pStop.label);
+      }
       if (u.cast) {
+        seeCast(u.id, u.cast, now);
         p.cast.root.classList.toggle('enemy', u.enemy);
         p.cast.setColor(u.enemy ? 'linear-gradient(#ff9a52,#d94a1c)' : 'linear-gradient(#ffd966,#d9962a)');
         p.cast.set(ABILITIES[u.cast.ability]?.channel ? u.cast.end - now : now - u.cast.start, u.cast.end - u.cast.start, ABILITIES[u.cast.ability]?.name ?? u.cast.ability);
@@ -593,7 +672,8 @@ export class Hud {
         this.log(`${n(ev.unit)} stands back up`);
         break;
       case 'cast_fail':
-        if (ev.unit === ctx.you && ev.reason !== 'moved') this.error(ev.reason);
+        castStopped(ev.unit, ev.ability, ev.reason);
+        if (ev.unit === ctx.you && ev.reason !== 'moved' && ev.reason !== 'cancelled') this.error(ev.reason);
         break;
       default:
         break;

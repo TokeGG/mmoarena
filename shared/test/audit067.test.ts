@@ -307,8 +307,9 @@ describe('0.67 bots: line of sight and movement', () => {
     let hard = 0;
     for (let s = 1; s <= 6; s++) {
       const sim = new ArenaSim({ seed: s, prepMs: 1000 });
-      const a = sim.addUnit({ name: 'h', classId: 'rogue', team: 0, controller: 'bot', build: botBuild('rogue', s, false) });
-      const b = sim.addUnit({ name: 'e', classId: 'rogue', team: 1, controller: 'bot', build: botBuild('rogue', s, false) });
+      // (a mage mirror: two rogues who both stay stealthed can miss each other entirely, which says nothing about skill)
+      const a = sim.addUnit({ name: 'h', classId: 'mage', team: 0, controller: 'bot', build: botBuild('mage', s, false) });
+      const b = sim.addUnit({ name: 'e', classId: 'mage', team: 1, controller: 'bot', build: botBuild('mage', s, false) });
       const bots = [new Bot(sim, a.id, 'hard', s), new Bot(sim, b.id, 'easy', s + 50)];
       while (sim.phase !== 'ended' && sim.time < 150000) { for (const x of bots) x.tick(); sim.step(); sim.drainEvents(); }
       if (sim.winner === 0) hard++;
@@ -346,28 +347,88 @@ describe('global cooldown on a stopped cast', () => {
 });
 
 describe('Slice and Dice and diminishing returns', () => {
-  it('one cast is one diminishing-returns step: every tick of it stuns for the level its first tick set', () => {
+  it('holds its target for the whole channel; diminishing returns shorten the hold as one block', () => {
     const sim = new ArenaSim({ seed: 13, prepMs: 0 });
     const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'player', build: { spec: 'arms', talents: [], gear: {} } });
-    const t = sim.addUnit({ name: 't', classId: 'mage', team: 1, controller: 'dummy' });
+    const t = sim.addUnit({ name: 't', classId: 'rogue', team: 1, controller: 'player', build: { spec: 'assassination', talents: [], gear: {} } });
     t.maxHealth = t.health = 1e6;
     w.pos = { x: 0, z: 0 };
-    t.pos = { x: 0, z: 2 };
     sim.step();
+    let seq = 1;
+    /** Spin once with the target trying to walk away and swing; returns how long (ms) it was held from the start. */
     const spin = () => {
+      t.pos = { x: 0, z: 2.5 };
       w.facing = 0;
       w.lastInput = { ...w.lastInput, facing: 0 };
       w.resource = 100; w.cooldowns = {}; w.gcdEnd = 0;
       assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
-      const drs: number[] = [];
-      for (let i = 0; i < 90 && w.cast; i++) { sim.step(); for (const e of sim.drainEvents()) if (e.t === 'aura' && e.aura === 'slice_stun') drs.push(e.dr); }
-      return drs;
+      const start = sim.time;
+      let heldUntil = start;
+      let swung = false;
+      for (let i = 0; i < 100 && w.cast; i++) {
+        sim.queueInput(w.id, { seq, fwd: 0, strafe: 0, facing: 0 });
+        sim.queueInput(t.id, { seq: seq++, fwd: 0, strafe: 1, facing: Math.PI });
+        if (!sim.canAct(t)) heldUntil = sim.time;
+        else if (sim.useAbility(t.id, 'mutilate', w.id).ok) swung = true;
+        sim.step();
+        sim.drainEvents();
+      }
+      return { held: heldUntil - start, swung, moved: Math.hypot(t.pos.x, t.pos.z - 2.5) };
     };
     const first = spin();
-    assert.equal(first.length, 4, 'every tick stunned');
-    assert.ok(first.every((d) => d === 1), `the whole first cast is full length (${first})`);
-    assert.equal(t.dr.stun!.count, 1, 'and counts once');
+    assert.ok(first.held >= 3900, `held for the whole first channel (${first.held} ms)`);
+    assert.ok(!first.swung, 'could not swing back');
+    assert.ok(first.moved < 0.01, 'could not walk out');
+    assert.equal(t.dr.stun!.count, 1, 'and it counts as one step');
     const second = spin();
-    assert.ok(second.length === 4 && second.every((d) => d === 0.5), `the next cast is halved throughout (${second})`);
+    assert.ok(second.held >= 1800 && second.held <= 2300, `the second cast holds about half as long, in one piece (${second.held} ms)`);
   });
+});
+
+describe('passives and where effects come from', () => {
+  it('a spec lists its passives: built-in effect, weapon, and every bonus it carries', async () => {
+    const { specPassives, auraOrigins } = await import('../src/index');
+    assert.ok(specPassives('mage', 'fire').some((p) => p.startsWith('Cauterize')));
+    const fury = specPassives('warrior', 'fury');
+    assert.ok(fury.some((p) => /auto-attacks/.test(p)), 'its weapon');
+    assert.ok(fury.some((p) => /Bloodthirst: \+1\.5 yd range/.test(p)), 'its range bonus');
+    assert.deepEqual(specPassives('rogue', 'combat'), []);
+    assert.ok(auraOrigins('cauterized').some((o) => /Pyromancy/.test(o)), 'a spec passive');
+    assert.ok(auraOrigins('mortal_wounds').includes('Mortal Strike'), 'an ability');
+  });
+});
+
+describe('bots and stealth', () => {
+  it('a bot cannot see a stealthed rogue: it goes to where the rogue was last seen, not where it is', () => {
+    const sim = new ArenaSim({ seed: 14, prepMs: 0 });
+    const w = unit(sim, 'warrior', 0, 0, -10);
+    const r = unit(sim, 'rogue', 1, 0, 0, 'dummy');
+    sim.step();
+    const bot = new Bot(sim, w.id, 'hard', 3);
+    w.cooldowns.charge = w.cooldowns.heroic_leap = 1e9;
+    play(sim, [bot], 200); // it sees the rogue at (0, 0)
+    sim.applyAura(r, r, 'stealth');
+    r.pos = { x: 20, z: 15 }; // and the rogue slips away unseen
+    const start = { ...w.pos };
+    play(sim, [bot], 1500);
+    const towardsOld = Math.hypot(w.pos.x - 0, w.pos.z - 0) < Math.hypot(start.x, start.z);
+    const towardsNew = Math.hypot(w.pos.x - 20, w.pos.z - 15) < Math.hypot(start.x - 20, start.z - 15) - 3;
+    assert.ok(towardsOld, 'it heads for the last place it saw the rogue');
+    assert.ok(!towardsNew || Math.abs(w.pos.x) < 3, `it does not home in on the hidden rogue (${w.pos.x.toFixed(1)}, ${w.pos.z.toFixed(1)})`);
+    assert.equal(w.target, null, 'and has no target on it');
+  });
+
+  it('a bot that has never seen anyone searches from the middle, not straight at a hidden rogue', () => {
+    const sim = new ArenaSim({ seed: 15, prepMs: 0 });
+    const w = unit(sim, 'warrior', 0, 0, -10);
+    const r = unit(sim, 'rogue', 1, -25, 15, 'dummy'); // hidden behind it, the other way from the middle and the enemy gate
+    sim.applyAura(r, r, 'stealth');
+    sim.step();
+    const bot = new Bot(sim, w.id, 'hard', 3);
+    play(sim, [bot], 2000);
+    const before = Math.hypot(0 + 25, -10 - 15);
+    assert.ok(Math.hypot(w.pos.x + 25, w.pos.z - 15) > before, `it did not walk to the rogue it cannot see (${w.pos.x.toFixed(1)}, ${w.pos.z.toFixed(1)})`);
+    assert.ok(w.pos.x > 3, 'it went to look in the middle');
+  });
+
 });

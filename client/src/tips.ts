@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, CLASS_BLURB, COSMETICS, SPECS, TALENTS, compileMods, describeAbility, describeAura, describeTalent, explainAbility, itemById, modsNotIn, specOf, talentsFor } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, CLASS_BLURB, COSMETICS, SPECS, TALENTS, auraOrigins, compileMods, describeAbility, describeAura, describeTalent, explainAbility, itemById, specOf, specPassives, talentsFor } from '@arena/shared';
 import type { Build, ClassId, ModSource, Mods } from '@arena/shared';
 import { invalidateTip, setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
@@ -17,12 +17,14 @@ interface TipBuild {
 function buildTips(classId: ClassId, build: Build | undefined): TipBuild {
   const sources: ModSource[] = [];
   const spec = build ? specOf(classId, build.spec) : undefined;
-  if (spec) sources.push({ label: spec.name, mods: spec.mods });
+  // each bonus is named with where it comes from: the spec's passive, or a talent (and its tier)
+  if (spec) sources.push({ label: `${spec.name} (spec passive)`, mods: spec.mods });
   if (build) {
     const tiers = talentsFor(classId, build.spec);
+    const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
     build.talents.forEach((id, i) => {
       const t = tiers[i]?.find((x) => x.id === id);
-      if (t) sources.push({ label: t.name, mods: t.mods });
+      if (t) sources.push({ label: `${t.name} (talent, tier ${ROMAN[i] ?? i + 1})`, mods: t.mods });
     });
   }
   return { mods: compileMods(classId, build), sources };
@@ -95,7 +97,10 @@ export function resolveTip(key: string, data: DOMStringMap | Record<string, stri
     case 'aura': {
       const def = AURAS[a];
       if (!def) return null;
-      return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, current.mods)], notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
+      // where it came from: who put it there (on a unit frame), and what gives it (an ability, a spec passive, a talent)
+      const origins = auraOrigins(a).filter((o) => o !== def.name); // Psychic Scream's fear comes from Psychic Scream: no need to say so
+      const from = [data.tipFrom ? `From ${data.tipFrom}.` : '', origins.length ? `Comes from ${origins.join(', ')}.` : ''].filter(Boolean);
+      return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, current.mods)], stats: from.length ? from : undefined, notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
     }
     case 'spec': {
       const spec = specOf(a as ClassId, b);
@@ -105,7 +110,8 @@ export function resolveTip(key: string, data: DOMStringMap | Record<string, stri
         titleColor: CLASSES[a as ClassId].color,
         tag: spec.role,
         lines: [spec.desc],
-        good: modsNotIn(spec.desc, spec.mods),
+        // its passives: the built-in effect, its weapon, and every bonus it carries (no button needed)
+        good: specPassives(a as ClassId, spec.id).map((p) => `Passive: ${p}`),
         stats: ['Abilities: ' + spec.bar.map((id) => ABILITIES[id].name).join(', ')],
       };
     }

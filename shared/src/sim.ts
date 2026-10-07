@@ -272,6 +272,8 @@ export class ArenaSim {
       }
       return fail('already casting that');
     }
+    // an unstoppable channel (Bladestorm) is not ended by pressing something else either: it runs its course
+    if (u.cast && ABILITIES[u.cast.ability]?.unstoppable) return fail(`you are channelling ${ABILITIES[u.cast.ability].name}`);
     // using any other ability stops the cast in progress, interrupts included (they can still be pressed mid-cast)
     if (u.cast) this.cancelCast(u, 'switched spell');
     if (def.target === 'enemy') u.target = tgt.id;
@@ -285,6 +287,7 @@ export class ArenaSim {
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
+      if (def.channel.immediate) this.tickChannel(u); // the first strike (and its stun) lands the moment the channel starts, not a tick later
       return ok;
     }
     const proc = def.castTime > 0 ? u.auras.find((a) => AURAS[a.id]?.instantFor === def.id) : undefined;
@@ -312,7 +315,7 @@ export class ArenaSim {
   /** True while a proc-made instant cast executes (so it cannot chain into another proc). */
   private procCast = false;
   /** The channel whose tick is being applied right now, and the diminishing-returns level each of its casts set per target. */
-  private channelOf: { unit: number; start: number } | null = null;
+  private channelOf: { unit: number; start: number; end: number } | null = null;
   private channelDr = new Map<string, number>();
 
   step(): void {
@@ -548,7 +551,7 @@ export class ArenaSim {
       c.done = (c.done ?? 0) + 1;
       this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
       // area channels (Bladestorm, Slice and Dice) hit whoever stands in the area at each tick
-      this.channelOf = { unit: u.id, start: c.start };
+      this.channelOf = { unit: u.id, start: c.start, end: c.end };
       try {
         for (const t of this.targetsOf(u, def, tgt)) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
       } finally {
@@ -1069,13 +1072,17 @@ export class ArenaSim {
     // the first tick sets the level and counts, every later tick of the same cast gets that same full level
     const chanKey = this.channelOf && def.dr ? `${this.channelOf.unit}:${this.channelOf.start}:${tgt.id}:${auraId}` : null;
     const chanMult = chanKey ? this.channelDr.get(chanKey) : undefined;
+    // and the channel's hold is diminished as one block: at full returns the target is held for the whole channel (each tick
+    // stuns past the next one, so there is no gap to walk or swing in); at half it is held for the first half, then free
+    const holdLeft = (mult: number) => this.channelOf ? this.channelOf.start + (this.channelOf.end - this.channelOf.start + 100) * mult - this.time : Infinity;
     if (def.dr && chanMult !== undefined) {
       drMult = chanMult;
-      if (drMult === 0) {
-        this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
+      const left = holdLeft(drMult);
+      if (drMult === 0 || left <= 0) {
+        if (drMult === 0) this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
         return { applied: false, immune: true };
       }
-      duration = base * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
+      duration = Math.min(base * (this.modsOf(src).auraDuration[auraId] ?? 1), left);
       const st = (tgt.dr[def.dr] ??= { count: 0, resetAt: 0 });
       st.resetAt = Math.max(st.resetAt, this.time + duration + TUNING.drResetMs);
     } else if (def.dr) {
@@ -1090,7 +1097,7 @@ export class ArenaSim {
         this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
         return { applied: false, immune: true };
       }
-      duration = base * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
+      duration = chanKey ? Math.min(base * (this.modsOf(src).auraDuration[auraId] ?? 1), holdLeft(drMult)) : base * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
       st.count++;
       st.resetAt = this.time + duration + TUNING.drResetMs;
     } else duration = base * (this.modsOf(src).auraDuration[auraId] ?? 1);

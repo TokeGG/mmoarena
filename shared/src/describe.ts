@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, TUNING } from './data';
+import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING } from './data';
 import { NEUTRAL_MODS, newMods } from './build';
 import { JUMP_DODGE_CD } from './jump';
 import type { AbilityDef, AuraKind, ClassId, Effect, Mods, ModsInput, TalentDef } from './types';
@@ -389,7 +389,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.stealthSwap && ABILITIES[def.stealthSwap]) notes.push(`While you are stealthed this slot becomes ${ABILITIES[def.stealthSwap].name}.`);
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
-  if (def.unstoppable) notes.push('Cannot be interrupted. While it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls.');
+  if (def.unstoppable) notes.push('Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
@@ -482,4 +482,44 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
   if (def.effects.some((e) => e.type === 'interrupt')) out.push('Interrupts have their own lockout and do not share diminishing returns with other crowd control.');
   if (def.gcd) out.push(`Triggers the global cooldown (${sec(TUNING.gcdMs * mods.gcd)}).`);
   return out;
+}
+
+/**
+ * A spec's passives: what it gives without a button. Its built-in effect (Cauterize), its weapon and auto-attack, and
+ * every bonus its stat modifiers carry, one line each. Shown on the spec card and in the spec tooltip.
+ */
+export function specPassives(classId: ClassId, specId: string): string[] {
+  const spec = SPECS[classId]?.find((s) => s.id === specId);
+  if (!spec) return [];
+  const out: string[] = [];
+  if (spec.passive === 'cauterize') {
+    out.push(`Cauterize: a blow that would kill you leaves you at ${Math.round(TUNING.cauterizeHealth * 100)}% health instead (once every ${Math.round(TUNING.cauterizeCooldownMs / 60000)} minutes).`);
+  }
+  if (spec.weapon) {
+    const auto = spec.auto ?? CLASSES[classId].auto;
+    out.push(`${spec.weapon.name}${auto ? `: auto-attacks for ${auto.damage} every ${(auto.interval / 1000).toFixed(1)}s at ${auto.range} yd` : ''}.`);
+  }
+  out.push(...describeMods(spec.mods, CLASSES[classId].resource.type).map(cap));
+  return out;
+}
+
+/**
+ * Where an aura can come from, for its tooltip: the abilities that apply it (and who has them), a spec's built-in passive,
+ * or a talent that adds it to an ability.
+ */
+export function auraOrigins(auraId: string): string[] {
+  const out = new Set<string>();
+  for (const a of Object.values(ABILITIES)) if (a.effects.some((e) => e.type === 'aura' && e.aura === auraId)) out.add(a.name);
+  for (const [cls, specs] of Object.entries(SPECS)) {
+    for (const s of specs) {
+      if (s.passive === 'cauterize' && auraId === 'cauterized') out.add(`${s.name}'s passive (Cauterize)`);
+      for (const tier of TALENTS[cls as ClassId]?.[s.id] ?? []) {
+        for (const t of tier) {
+          const adds = Object.values(t.mods?.ability ?? {}).some((m) => (m.after ?? []).includes(auraId) || (m.extra ?? []).some((e) => e.type === 'aura' && e.aura === auraId));
+          if (adds) out.add(`talent ${t.name}`);
+        }
+      }
+    }
+  }
+  return [...out];
 }
