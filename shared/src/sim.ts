@@ -1,9 +1,9 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, withAuraMods } from './build';
-import { blinkDestination, clamp, clampToGate, dist, hasLOS, moveTo, resolveCollisions, stepMovementL } from './geometry';
+import { CLEAR_HEIGHT, blinkDestination, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
-  AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap,
+  AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
 } from './types';
 
 const TICK = TUNING.tickMs;
@@ -230,7 +230,7 @@ export class ArenaSim {
     if (tgt !== u) {
       // judged where the target was on the caster's screen, not where it has moved to since
       const seen = rewindMs > 0 && tgt.team !== u.team ? this.posAt(tgt, this.time - rewindMs) : tgt.pos;
-      const d = dist(u.pos, seen);
+      const d = this.gap(u, seen, tgt.level);
       if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!this.sees(u, tgt)) return fail('no line of sight');
@@ -395,7 +395,7 @@ export class ArenaSim {
       const L = u.leap;
       const p = Math.min(1, (this.time + DT * 1000 - L.start) / L.dur);
       u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
-      this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p });
+      this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, Math.sin(Math.PI * p) * 5); // in the air: over rails and barricades
       if (p >= 1) {
         u.leap = null;
         this.emit({ t: 'leap_land', unit: u.id, x: u.pos.x, z: u.pos.z });
@@ -414,7 +414,7 @@ export class ArenaSim {
         const nx = u.pos.x + ((tgt.pos.x - u.pos.x) / d) * k;
         const nz = u.pos.z + ((tgt.pos.z - u.pos.z) / d) * k;
         u.facing = Math.atan2(tgt.pos.x - u.pos.x, tgt.pos.z - u.pos.z);
-        this.place(u, { x: nx, z: nz });
+        this.place(u, { x: nx, z: nz }, CLEAR_HEIGHT); // a charge bounds over rails and barricades (and off a walkway onto someone below)
         // blocked by a pillar: stop rather than push against it
         if (dist(before, u.pos) < k * 0.3) this.endCharge(u, false);
         if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
@@ -436,7 +436,7 @@ export class ArenaSim {
     } else {
       if ((this.canAct(u) || u.auras.some((a) => AURAS[a.id]?.canTurn)) && Number.isFinite(input.facing)) u.facing = input.facing;
       const speed = TUNING.runSpeed * this.speedMult(u);
-      if (speed > 0) { const r = stepMovementL(u.pos, u.level, input, speed, DT, this.arena); u.pos = r.pos; u.level = r.level; }
+      if (speed > 0) { const r = stepMovementL(u.pos, u.level, input, speed, DT, this.arena, jumpHeight(this.time - u.jumpStart)); u.pos = r.pos; u.level = r.level; } // high enough in a jump, rails and barricades are cleared
     }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
     if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
@@ -495,7 +495,7 @@ export class ArenaSim {
         return;
       }
       if (tgt !== u) {
-        if (def.range > 0 && dist(u.pos, tgt.pos) > this.reachOf(u, def)) return this.cancelCast(u, 'out of range');
+        if (def.range > 0 && this.gap(u, tgt.pos, tgt.level) > this.reachOf(u, def)) return this.cancelCast(u, 'out of range');
         // a channel that has started keeps ticking when the target steps behind a pillar or wall
         if (!this.canSee(u, tgt)) return this.cancelCast(u, 'target not visible');
       }
@@ -519,11 +519,11 @@ export class ArenaSim {
     const tgt = this.units.get(c.target);
     if (!tgt || !tgt.alive) return this.failCast(u, c.ability, 'target is dead');
     if (tgt !== u) {
-      if (def.range > 0 && dist(u.pos, tgt.pos) > this.reachOf(u, def)) return this.failCast(u, c.ability, 'out of range');
+      if (def.range > 0 && this.gap(u, tgt.pos, tgt.level) > this.reachOf(u, def)) return this.failCast(u, c.ability, 'out of range');
       if (!this.sees(u, tgt)) return this.failCast(u, c.ability, 'no line of sight');
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
-    if (u.resource < def.cost) return this.failCast(u, c.ability, `not enough ${u.resourceType}`);
+    if (u.resource < this.costOf(u, def)) return this.failCast(u, c.ability, `not enough ${u.resourceType}`);
     this.execute(u, def, tgt, c.gx !== undefined && c.gz !== undefined ? { x: c.gx, z: c.gz } : undefined);
   }
 
@@ -734,12 +734,14 @@ export class ArenaSim {
         const d = Math.hypot(dx, dz);
         if (d > 1e-6) {
           const travel = Math.max(0, d - eff.stopDistance);
-          let land = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena, u.level);
+          // a step through the shadows lands at the target's level (up on a walkway or down on the ground)
+          let land = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena, t.level);
           if (eff.behind) {
-            const back = resolveCollisions({ x: t.pos.x - Math.sin(t.facing) * eff.stopDistance, z: t.pos.z - Math.cos(t.facing) * eff.stopDistance }, this.arena, u.level);
-            if (u.level === t.level && hasLOS(back, t.pos, this.arena, u.level, t.level)) land = back;
+            const back = resolveCollisions({ x: t.pos.x - Math.sin(t.facing) * eff.stopDistance, z: t.pos.z - Math.cos(t.facing) * eff.stopDistance }, this.arena, t.level);
+            if (hasLOS(back, t.pos, this.arena, t.level, t.level)) land = back;
           }
-          this.place(u, land);
+          u.level = t.level;
+          u.pos = land;
           u.facing = Math.atan2(t.pos.x - land.x, t.pos.z - land.z);
           u.lastInput = { ...u.lastInput, facing: u.facing };
           this.emit({ t: 'turn', unit: u.id, facing: u.facing });
@@ -871,14 +873,30 @@ export class ArenaSim {
     return this.zones.filter((z) => z.team !== team && z.amount > 0 && !z.smoke && !z.flag && this.time < z.end).map((z) => ({ x: z.x, z: z.z, r: z.r, id: z.id, firstAt: z.firstAt }));
   }
 
-  /** Put a unit at a raw position: settles its bridge level, then pushes it out of anything solid at that level. */
-  private place(u: Unit, raw: { x: number; z: number }): void {
-    const r = moveTo(this.arena, u.level, u.pos, raw);
-    u.pos = r.pos;
-    u.level = r.level;
+  /** Put a unit at a raw position: settles its walkway level, then pushes it out of anything solid at that level. */
+  private place(u: Unit, raw: { x: number; z: number }, air = 0): void {
+    // in short steps, so a fast move (a charge, a fear run) cannot pass through a thin rail or barricade in one tick
+    let pos = u.pos;
+    let lv = u.level;
+    const total = dist(pos, raw);
+    const n = Math.max(1, Math.ceil(total / 0.4));
+    for (let i = 0; i < n; i++) {
+      const dx = raw.x - pos.x;
+      const dz = raw.z - pos.z;
+      const d = Math.hypot(dx, dz);
+      if (d < 1e-6) break;
+      const k = Math.min(1, total / n / d);
+      const r = moveTo(this.arena, lv, pos, { x: pos.x + dx * k, z: pos.z + dz * k }, air);
+      const moved = dist(r.pos, pos);
+      pos = r.pos;
+      lv = r.level;
+      if (moved < 1e-4) break;
+    }
+    u.pos = pos;
+    u.level = lv;
   }
 
-  /** Line of sight between two units, which also respects bridge levels. */
+  /** Line of sight between two units, which also respects walkway levels. */
   private sees(a: Unit, b: Unit): boolean {
     return hasLOS(a.pos, b.pos, this.arena, a.level, b.level);
   }
@@ -930,7 +948,7 @@ export class ArenaSim {
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;
     // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
     if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
-    if (dist(u.pos, t.pos) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
+    if (this.gap(u, t.pos, t.level) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
     if (!this.sees(u, t)) return; // no swinging through pillars
     if (!this.inFront(u, t.pos.x, t.pos.z)) return; // and no swinging at what is behind you
     u.nextSwing = this.time + auto.interval * this.modsOf(u).autoSpeed;
@@ -1022,6 +1040,11 @@ export class ArenaSim {
   }
   private rangeOf(u: Unit, def: AbilityDef): number {
     return def.range + (this.abilityMod(u, def).range ?? 0);
+  }
+  /** Range is measured in 3D: up on a walkway you are out of melee reach of someone on the ground below. */
+  private gap(u: Unit, p: Vec2, level: 0 | 1): number {
+    const dh = heightAt(this.arena, u.pos.x, u.pos.z, u.level) - heightAt(this.arena, p.x, p.z, level);
+    return Math.hypot(dist(u.pos, p), dh);
   }
   /** Furthest distance an ability can still land from: its range plus a small lag allowance (smaller for melee). */
   private reachOf(u: Unit, def: AbilityDef): number {

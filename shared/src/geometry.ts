@@ -16,12 +16,28 @@ export const dist = (a: Vec2, b: Vec2) => Math.hypot(a.x - b.x, a.z - b.z);
 export const dirOf = (facing: number): Vec2 => ({ x: Math.sin(facing), z: Math.cos(facing) });
 export const rightOf = (facing: number): Vec2 => ({ x: -Math.cos(facing), z: Math.sin(facing) });
 
-/** Push a position out of walls and pillars. */
-export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0): Vec2 {
+/** A unit this high in a jump clears deck rails and low barricades. */
+export const CLEAR_HEIGHT = 0.5;
+/** A slope this high you can step onto without jumping. */
+export const STEP_HEIGHT = 0.4;
+/** How thick a deck rail is (it stands just outside the edge it guards). */
+export const RAIL_THICKNESS = 0.4;
+
+/**
+ * Push a position out of walls and pillars, and whatever else is solid at that level: the ramps, piers and low barricades
+ * on the ground, the rails up on a walkway. `air` is how high the unit is in a jump: from CLEAR_HEIGHT up it sails over
+ * rails and barricades.
+ */
+export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, air = 0): Vec2 {
   const b = arena.bounds;
   const R = PLAYER_RADIUS;
   let x = clamp(p.x, b.minX + R, b.maxX - R);
   let z = clamp(p.z, b.minZ + R, b.maxZ - R);
+  const clear = air >= CLEAR_HEIGHT;
+  const dk = arena.deck;
+  const solids: Rect[] = [...(arena.walls ?? [])];
+  if (dk) solids.push(...(level === 1 ? (clear ? [] : deckRails(arena)) : [...dk.ramps, ...deckPiers(arena)]));
+  if (level === 0 && !clear) solids.push(...(arena.lows ?? []));
   for (let i = 0; i < 2; i++) {
     for (const pl of arena.pillars) {
       const dx = x - pl.x;
@@ -37,10 +53,7 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0): V
         }
       }
     }
-    for (const w of arena.walls ?? []) ({ x, z } = pushOutOfBox(x, z, w, R));
-    const dk = arena.deck;
-    if (dk) for (const w of level === 1 ? dk.rails : [...dk.ramps, ...(dk.piers ?? [])]) ({ x, z } = pushOutOfBox(x, z, w, R)); // rails fence the deck; on the ground the ramps are solid
-    ({ x, z } = bridgeCollide(arena, level, x, z));
+    for (const w of solids) ({ x, z } = pushOutOfBox(x, z, w, R));
     x = clamp(x, b.minX + R, b.maxX - R);
     z = clamp(z, b.minZ + R, b.maxZ - R);
   }
@@ -66,9 +79,13 @@ function pushOutOfBox(x: number, z: number, w: Rect, R: number): Vec2 {
 }
 
 const inBox = (x: number, z: number, r: Rect) => x >= r.x0 && x <= r.x1 && z >= r.z0 && z <= r.z1;
+/** Distance from a point to a box (0 inside). */
+export const rectDist = (x: number, z: number, r: Rect): number => Math.hypot(x - clamp(x, r.x0, r.x1), z - clamp(z, r.z0, r.z1));
+
+type Ramp = NonNullable<ArenaDef['deck']>['ramps'][number];
 
 /** A ramp's foot: which axis it runs along, the coordinate of the low end, and +1/-1 for the way out to open ground. */
-function footOf(r: Rect & { rise: string }): { axis: 'x' | 'z'; foot: number; out: 1 | -1; len: number } {
+function footOf(r: Ramp): { axis: 'x' | 'z'; foot: number; out: 1 | -1; len: number } {
   const axis = r.rise[1] as 'x' | 'z';
   const up = r.rise[0] === '+';
   const lo = axis === 'x' ? r.x0 : r.z0;
@@ -76,103 +93,171 @@ function footOf(r: Rect & { rise: string }): { axis: 'x' | 'z'; foot: number; ou
   return { axis, foot: up ? lo : hi, out: up ? -1 : 1, len: hi - lo };
 }
 
-/** 0 = the ground (and the tunnel under a bridge); 1 = a bridge's ramps and deck. */
+/** Height of a ramp's surface over a point (clamped onto the ramp). */
+function rampHeight(r: Ramp, x: number, z: number, H: number): number {
+  const f = footOf(r);
+  const c = f.axis === 'x' ? clamp(x, r.x0, r.x1) : clamp(z, r.z0, r.z1);
+  return H * clamp(((c - f.foot) * -f.out) / f.len, 0, 1);
+}
+
+/** 0 = the ground (and under a walkway); 1 = up on a walkway's deck or ramps. */
 export type Level = 0 | 1;
 
-/** Where the raised part ends: past this |x| you are back on the ground. */
-export const bridgeEnd = (arena: ArenaDef): number => (arena.bridge ? arena.bridge.deckHalf + arena.bridge.rampLen : 0);
+/** A rail: a thin solid box just outside an open deck edge; `inward` points onto the deck (used to draw it at the right height). */
+export type Rail = Rect & { inward: Vec2 };
 
-/** Under the deck: the tunnel, open at both long sides. */
-export function inTunnel(arena: ArenaDef, x: number, z: number): boolean {
-  const br = arena.bridge;
-  return !!br && Math.abs(x) < br.deckHalf && Math.abs(z) < br.halfWidth;
+const railCache = new WeakMap<ArenaDef, Rail[]>();
+/**
+ * The rails of a walkway: every edge of a flat or ramp that does not join another piece, except a ramp's foot (the way on)
+ * and the low part of a ramp's sides (low enough to step on and off), and edges against the arena wall.
+ */
+export function deckRails(arena: ArenaDef): Rail[] {
+  const dk = arena.deck;
+  if (!dk) return [];
+  let out = railCache.get(arena);
+  if (out) return out;
+  out = [];
+  const T = RAIL_THICKNESS;
+  const b = arena.bounds;
+  const pieces: { r: Rect; ramp?: Ramp }[] = [...dk.flats.map((r) => ({ r })), ...dk.ramps.map((r) => ({ r, ramp: r }))];
+  const overlapsDeck = (q: Rect) => pieces.some((p) => Math.min(q.x1, p.r.x1) - Math.max(q.x0, p.r.x0) > 1e-6 && Math.min(q.z1, p.r.z1) - Math.max(q.z0, p.r.z0) > 1e-6);
+  for (const P of pieces) {
+    const r = P.r;
+    const sides = [
+      { fixed: 'x' as const, at: r.x0, dir: -1, lo: r.z0, hi: r.z1 },
+      { fixed: 'x' as const, at: r.x1, dir: 1, lo: r.z0, hi: r.z1 },
+      { fixed: 'z' as const, at: r.z0, dir: -1, lo: r.x0, hi: r.x1 },
+      { fixed: 'z' as const, at: r.z1, dir: 1, lo: r.x0, hi: r.x1 },
+    ];
+    for (const sd of sides) {
+      if (sd.fixed === 'x' ? sd.at <= b.minX + 1e-6 || sd.at >= b.maxX - 1e-6 : sd.at <= b.minZ + 1e-6 || sd.at >= b.maxZ - 1e-6) continue;
+      let spans: [number, number][] = [[sd.lo, sd.hi]];
+      if (P.ramp) {
+        const f = footOf(P.ramp);
+        if (sd.fixed === f.axis && Math.abs(sd.at - f.foot) < 1e-6) continue; // the foot is the way on
+        if (sd.fixed !== f.axis) {
+          // a side: no rail where the slope is still low enough to step over
+          const d = (STEP_HEIGHT / dk.height) * f.len;
+          spans = spans.map(([a, c]) => (f.out < 0 ? [Math.max(a, f.foot + d), c] : [a, Math.min(c, f.foot - d)]));
+        }
+      }
+      for (const Q of pieces) {
+        if (Q === P) continue;
+        const q = Q.r;
+        const opp = sd.fixed === 'x' ? (sd.dir < 0 ? q.x1 : q.x0) : sd.dir < 0 ? q.z1 : q.z0;
+        if (Math.abs(opp - sd.at) > 1e-6) continue;
+        const qlo = sd.fixed === 'x' ? q.z0 : q.x0;
+        const qhi = sd.fixed === 'x' ? q.z1 : q.x1;
+        spans = spans.flatMap(([a, c]): [number, number][] => {
+          const s0 = Math.max(a, qlo), s1 = Math.min(c, qhi);
+          if (s1 <= s0) return [[a, c]];
+          return ([[a, s0], [s1, c]] as [number, number][]).filter(([u, v]) => v - u > 1e-6);
+        });
+      }
+      for (let [a, c] of spans) {
+        if (c - a < 0.05) continue;
+        const box = (u: number, v: number): Rect => {
+          const w0 = sd.dir < 0 ? sd.at - T : sd.at;
+          return sd.fixed === 'x' ? { x0: w0, x1: w0 + T, z0: u, z1: v } : { x0: u, x1: v, z0: w0, z1: w0 + T };
+        };
+        // close the corner where the rail meets the next edge of the same piece (never onto another piece's floor)
+        if (Math.abs(a - sd.lo) < 1e-6 && !overlapsDeck(box(a - T, a))) a -= T;
+        if (Math.abs(c - sd.hi) < 1e-6 && !overlapsDeck(box(c, c + T))) c += T;
+        const inward = sd.fixed === 'x' ? { x: -sd.dir, z: 0 } : { x: 0, z: -sd.dir };
+        out.push({ ...box(a, c), inward });
+      }
+    }
+  }
+  railCache.set(arena, out);
+  return out;
 }
 
-/** Inside the raised corridor (deck and both ramps) as seen from above. */
+const pierCache = new WeakMap<ArenaDef, Rect[]>();
+/** The stone piers under a walkway's flat pieces: as listed, else a pair at each end of every flat and every ~12 yards between. */
+export function deckPiers(arena: ArenaDef): Rect[] {
+  const dk = arena.deck;
+  if (!dk) return [];
+  if (dk.piers) return dk.piers;
+  let out = pierCache.get(arena);
+  if (out) return out;
+  out = [];
+  const S = 1.2;
+  const b = arena.bounds;
+  for (const f of dk.flats) {
+    const alongX = f.x1 - f.x0 >= f.z1 - f.z0;
+    const lo = alongX ? f.x0 : f.z0, hi = alongX ? f.x1 : f.z1;
+    const n = Math.max(2, Math.ceil((hi - lo) / 12) + 1);
+    for (let i = 0; i < n; i++) {
+      const c = lo + S / 2 + ((hi - lo - S) * i) / (n - 1);
+      for (const side of [0, 1]) {
+        const r: Rect = alongX
+          ? { x0: c - S / 2, x1: c + S / 2, z0: side ? f.z1 - S : f.z0, z1: side ? f.z1 : f.z0 + S }
+          : { x0: side ? f.x1 - S : f.x0, x1: side ? f.x1 : f.x0 + S, z0: c - S / 2, z1: c + S / 2 };
+        if (r.x0 <= b.minX + 1e-6 || r.x1 >= b.maxX - 1e-6 || r.z0 <= b.minZ + 1e-6 || r.z1 >= b.maxZ - 1e-6) continue; // against the wall: not needed
+        out.push(r);
+      }
+    }
+  }
+  pierCache.set(arena, out);
+  return out;
+}
+
+/** Inside a walkway piece (deck or ramp) as seen from above. */
 export function onRaised(arena: ArenaDef, x: number, z: number): boolean {
   const dk = arena.deck;
-  if (dk) return dk.flats.some((f) => inBox(x, z, f)) || dk.ramps.some((r) => inBox(x, z, r));
-  const br = arena.bridge;
-  return !!br && Math.abs(z) < br.halfWidth && Math.abs(x) < bridgeEnd(arena);
+  return !!dk && (dk.flats.some((f) => inBox(x, z, f)) || dk.ramps.some((r) => inBox(x, z, r)));
 }
 
-/**
- * Which level a unit is on after moving from `from` to `to`: walking in at a ramp's foot climbs it, walking off the foot
- * comes back down. Nothing else changes level (the tunnel and the deck share the same ground plan).
- */
-export function nextLevel(arena: ArenaDef, level: Level, from: Vec2, to: Vec2): Level {
+/** How far a point is from the nearest walkway piece (Infinity without a walkway). */
+function deckDistance(arena: ArenaDef, p: Vec2): number {
   const dk = arena.deck;
-  if (dk) {
-    const R = PLAYER_RADIUS;
-    for (const r of dk.ramps) {
-      const f = footOf(r);
-      const along = (p: Vec2) => ((f.axis === 'x' ? p.x : p.z) - f.foot) * f.out; // > 0 beyond the foot, out in the open
-      const across = (p: Vec2) => (f.axis === 'x' ? p.z >= r.z0 && p.z <= r.z1 : p.x >= r.x0 && p.x <= r.x1);
-      if (level === 0 && along(from) >= R - 1e-6 && along(to) < R && along(to) > -f.len && across(to)) return 1;
-      if (level === 1 && along(to) >= R && along(to) < R + 6 && across(to)) return 0;
-    }
-    return level;
-  }
-  const br = arena.bridge;
-  if (!br) return 0;
-  const gate = bridgeEnd(arena) + PLAYER_RADIUS; // the ground-level wall of the ramp stands this far out
-  if (level === 0 && Math.abs(from.x) >= gate - 1e-6 && Math.abs(to.x) < gate && Math.abs(to.z) < br.halfWidth) return 1;
-  if (level === 1 && Math.abs(to.x) >= gate) return 0;
-  return level;
-}
-
-/** Bridge solids: level 0 cannot enter the ramps, level 1 cannot leave the corridor sideways. */
-function bridgeCollide(arena: ArenaDef, level: Level, x: number, z: number): Vec2 {
-  const br = arena.bridge;
-  if (!br) return { x, z };
-  const R = PLAYER_RADIUS;
-  const end = bridgeEnd(arena);
-  if (level === 1) {
-    if (Math.abs(x) < end) z = clamp(z, -(br.halfWidth - R), br.halfWidth - R); // rails
-    return { x, z };
-  }
-  // level 0: each ramp is a solid block
-  for (const s of [-1, 1]) {
-    const lo = Math.min(s * br.deckHalf, s * end) - R;
-    const hi = Math.max(s * br.deckHalf, s * end) + R;
-    const zr = br.halfWidth + R;
-    if (x > lo && x < hi && z > -zr && z < zr) {
-      const dl = x - lo, dr = hi - x, dt = z + zr, db = zr - z;
-      const m = Math.min(dl, dr, dt, db);
-      if (m === dl) x = lo;
-      else if (m === dr) x = hi;
-      else if (m === dt) z = -zr;
-      else z = zr;
-    }
-  }
-  return { x, z };
+  if (!dk) return Infinity;
+  let d = Infinity;
+  for (const r of [...dk.flats, ...dk.ramps]) d = Math.min(d, rectDist(p.x, p.z, r));
+  return d;
 }
 
 /** Ground height under a unit at a level, for drawing: the deck and ramps are raised, everything else is flat. */
 export function heightAt(arena: ArenaDef, x: number, z: number, level: Level = 1): number {
   const dk = arena.deck;
-  if (dk) {
-    if (level === 0) return 0;
-    for (const r of dk.ramps) {
-      if (!inBox(x, z, r)) continue;
-      const f = footOf(r);
-      const t = clamp((((f.axis === 'x' ? x : z) - f.foot) * -f.out) / f.len, 0, 1);
-      return dk.height * t;
-    }
-    return dk.flats.some((fl) => inBox(x, z, fl)) ? dk.height : 0;
+  if (!dk || level === 0) return 0;
+  let best = Infinity;
+  let h = 0;
+  for (const f of dk.flats) {
+    const d = rectDist(x, z, f);
+    if (d < best) { best = d; h = dk.height; }
   }
-  const br = arena.bridge;
-  if (!br || level === 0 || Math.abs(z) > br.halfWidth) return 0;
-  const ax = Math.abs(x);
-  if (ax <= br.deckHalf) return br.height;
-  if (ax >= bridgeEnd(arena)) return 0;
-  return br.height * (1 - (ax - br.deckHalf) / br.rampLen);
+  for (const r of dk.ramps) {
+    const d = rectDist(x, z, r);
+    if (d < best - 1e-9) { best = d; h = rampHeight(r, x, z, dk.height); }
+  }
+  return best <= PLAYER_RADIUS + 0.05 ? h : 0; // just past an edge (a jump off, the foot of a ramp) you are still drawn on it
 }
 
-/** Move to `to` from where you stood: settle the level, then push out of whatever is solid at that level. */
-export function moveTo(arena: ArenaDef, level: Level, from: Vec2, to: Vec2): { pos: Vec2; level: Level } {
-  const lv = nextLevel(arena, level, from, to);
-  return { pos: resolveCollisions(to, arena, lv), level: lv };
+/**
+ * Move to `to` from where you stood. On the ground, touching a ramp where its surface is low enough (a step, or a jump's
+ * height plus a step) puts you on it. Up top, the rails hold you unless you are high enough in a jump to clear them; once
+ * you are a body's width clear of the walkway you are on the ground again (walked off a ramp's foot or jumped off).
+ */
+export function moveTo(arena: ArenaDef, level: Level, from: Vec2, to: Vec2, air = 0): { pos: Vec2; level: Level } {
+  void from;
+  const dk = arena.deck;
+  if (!dk) return { pos: resolveCollisions(to, arena, 0, air), level: 0 };
+  let lv = level;
+  if (lv === 0) {
+    for (const r of dk.ramps) {
+      if (rectDist(to.x, to.z, r) < PLAYER_RADIUS - 1e-6 && rampHeight(r, to.x, to.z, dk.height) <= air + STEP_HEIGHT) {
+        lv = 1;
+        break;
+      }
+    }
+  }
+  let pos = resolveCollisions(to, arena, lv, air);
+  if (lv === 1 && deckDistance(arena, pos) >= PLAYER_RADIUS) {
+    lv = 0;
+    pos = resolveCollisions(pos, arena, 0, air);
+  }
+  return { pos, level: lv };
 }
 
 export const angleTo = (a: Vec2, b: Vec2): number => Math.atan2(b.x - a.x, b.z - a.z);
@@ -185,7 +270,7 @@ export function distPointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   return Math.hypot(p.x - (a.x + abx * t), p.z - (a.z + abz * t));
 }
 
-/** Line of sight is blocked when the segment passes through a pillar. */
+/** Line of sight is blocked by pillars and walls; on the ground by ramps and piers; across levels by the deck overhead. Low barricades never block it. */
 export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Level = 0): boolean {
   for (const pl of arena.pillars) {
     if (distPointToSegment(pl, a, b) < pl.r) return false;
@@ -198,20 +283,7 @@ export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Lev
       const g = la === 0 ? a : b;
       if (dk.flats.some((f) => inBox(g.x, g.z, f))) return false;
     } else if (la === 0) {
-      for (const r of [...dk.ramps, ...(dk.piers ?? [])]) if (segmentHitsRect(a, b, r.x0, r.x1, r.z0, r.z1)) return false; // on the ground, the ramps and piers are walls
-    }
-  }
-  const br = arena.bridge;
-  if (br) {
-    // the deck is a ceiling over the tunnel: no sight between the tunnel and the raised part
-    if (la !== lb && (la === 0 ? inTunnel(arena, a.x, a.z) : inTunnel(arena, b.x, b.z))) return false;
-    // on the ground, the ramps are walls
-    if (la === 0 && lb === 0) {
-      const end = bridgeEnd(arena);
-      for (const s of [-1, 1]) {
-        const x0 = Math.min(s * br.deckHalf, s * end), x1 = Math.max(s * br.deckHalf, s * end);
-        if (segmentHitsRect(a, b, x0, x1, -br.halfWidth, br.halfWidth)) return false;
-      }
+      for (const r of [...dk.ramps, ...deckPiers(arena)]) if (segmentHitsRect(a, b, r.x0, r.x1, r.z0, r.z1)) return false; // on the ground, the ramps and piers are walls
     }
   }
   return true;
@@ -229,7 +301,7 @@ function segmentHitsRect(a: Vec2, b: Vec2, x0: number, x1: number, z0: number, z
 }
 
 /** One fixed step of movement. Deterministic, shared by server and client prediction. */
-export function stepMovementL(pos: Vec2, level: Level, input: Pick<MoveInput, 'fwd' | 'strafe' | 'facing'>, speed: number, dtSec: number, arena: ArenaDef): { pos: Vec2; level: Level } {
+export function stepMovementL(pos: Vec2, level: Level, input: Pick<MoveInput, 'fwd' | 'strafe' | 'facing'>, speed: number, dtSec: number, arena: ArenaDef, air = 0): { pos: Vec2; level: Level } {
   const f = dirOf(input.facing);
   const r = rightOf(input.facing);
   const fw = input.fwd < 0 ? input.fwd * BACKWARD_SPEED : input.fwd; // backpedalling is slower
@@ -241,7 +313,7 @@ export function stepMovementL(pos: Vec2, level: Level, input: Pick<MoveInput, 'f
     dx /= len;
     dz /= len;
   }
-  return moveTo(arena, level, pos, { x: pos.x + dx * speed * dtSec, z: pos.z + dz * speed * dtSec });
+  return moveTo(arena, level, pos, { x: pos.x + dx * speed * dtSec, z: pos.z + dz * speed * dtSec }, air);
 }
 
 /** One step on the ground (level 0). */

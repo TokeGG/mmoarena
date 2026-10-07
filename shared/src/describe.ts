@@ -1,7 +1,15 @@
 import { ABILITIES, AURAS, CLASSES, TUNING } from './data';
-import { newMods } from './build';
+import { NEUTRAL_MODS, newMods } from './build';
 import { JUMP_DODGE_CD } from './jump';
-import type { AbilityDef, Mods, ModsInput } from './types';
+import type { AbilityDef, AuraKind, ClassId, Effect, Mods, ModsInput, TalentDef } from './types';
+
+/** The one-line pitch of each class (menu blurb and class tooltip). */
+export const CLASS_BLURB: Record<ClassId, string> = {
+  warrior: 'Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts.',
+  mage: 'Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.',
+  priest: 'Healer and support. Shields, heals, dispels and fears. Mana-hungry.',
+  rogue: 'Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.',
+};
 
 /** Where a modifier comes from, for the in-depth tooltip (the spec, a talent, a buff). */
 export interface ModSource {
@@ -14,57 +22,155 @@ export interface ModSource {
 const sec = (ms: number) => `${Math.round(ms / 100) / 10}s`;
 const pct = (v: number) => `${Math.round(Math.abs(v - 1) * 1000) / 10}%`;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const mult = (v: number) => `x${Math.round(v * 100) / 100}`;
 
-export function describeMods(m: ModsInput | undefined): string[] {
-  const out: string[] = [];
+/** One generated modifier line plus what it is about, so a hand-written description that already says it can be detected. */
+interface ModFact {
+  text: string;
+  /** The number as written in `text`: "25%" or "5 yd". */
+  amount: string;
+  /** The ability or aura it changes (absent for a general stat). */
+  subject?: string;
+  /** Words a description uses for this kind of stat. */
+  kind: RegExp;
+}
+
+const K = {
+  damage: /damage|hit/, heal: /heal|shield/, taken: /damage|taken/, health: /health/, cast: /cast/, gcd: /global cooldown|gcd/,
+  regen: /regen|mana|energy|rage|resource/, move: /mov|speed|run/, swing: /auto|swing|attack/, cooldown: /cooldown|recharge/,
+  range: /range|reach|further|farther|yard|yd/, duration: /last|longer|duration/,
+};
+
+function modFacts(m: ModsInput | undefined, res = 'resource'): ModFact[] {
+  const out: ModFact[] = [];
   if (!m) return out;
-  const up = (v: number | undefined, more: string, less: string) => {
-    if (v === undefined || v === 1) return;
-    out.push(v > 1 ? `+${pct(v)} ${more}` : `−${pct(v)} ${less}`);
+  const add = (sign: string, p: number, label: string, kind: RegExp, subject?: string) => {
+    const amount = pct(p);
+    out.push({ text: `${subject ? `${subject}: ` : ''}${sign}${amount} ${label}`, amount, subject, kind });
   };
-  up(m.damageDone, 'damage dealt', 'damage dealt');
-  up(m.healingDone, 'healing and shields', 'healing and shields');
-  if (m.healingTaken !== undefined && m.healingTaken !== 1) out.push(m.healingTaken < 1 ? `−${pct(m.healingTaken)} healing received` : `+${pct(m.healingTaken)} healing received`);
-  if (m.damageTaken !== undefined && m.damageTaken !== 1) out.push(m.damageTaken < 1 ? `−${pct(m.damageTaken)} damage taken` : `+${pct(m.damageTaken)} damage taken`);
-  up(m.maxHealth, 'maximum health', 'maximum health');
-  if (m.castTime !== undefined && m.castTime !== 1) out.push(m.castTime < 1 ? `−${pct(m.castTime)} cast time` : `+${pct(m.castTime)} cast time`);
-  if (m.gcd !== undefined && m.gcd !== 1) out.push(m.gcd < 1 ? `−${pct(m.gcd)} global cooldown` : `+${pct(m.gcd)} global cooldown`);
-  up(m.regen, 'resource regeneration', 'resource regeneration');
-  up(m.moveSpeed, 'movement speed', 'movement speed');
-  if (m.autoSpeed !== undefined && m.autoSpeed !== 1) out.push(m.autoSpeed < 1 ? `+${pct(1 / m.autoSpeed)} auto attack speed` : `−${pct(1 / m.autoSpeed)} auto attack speed`);
+  const up = (v: number | undefined, label: string, kind: RegExp) => {
+    if (v !== undefined && v !== 1) add(v > 1 ? '+' : '−', v, label, kind);
+  };
+  up(m.damageDone, 'damage dealt', K.damage);
+  up(m.healingDone, 'healing and shields', K.heal);
+  up(m.healingTaken, 'healing received', /heal/);
+  up(m.damageTaken, 'damage taken', K.taken);
+  up(m.maxHealth, 'maximum health', K.health);
+  up(m.castTime, 'cast time', K.cast);
+  up(m.gcd, 'global cooldown', K.gcd);
+  up(m.regen, `${res} regeneration`, K.regen);
+  up(m.moveSpeed, 'movement speed', K.move);
+  if (m.autoSpeed !== undefined && m.autoSpeed !== 1) add(m.autoSpeed < 1 ? '+' : '−', 1 / m.autoSpeed, 'auto attack speed', K.swing);
   for (const [id, a] of Object.entries(m.ability ?? {})) {
     const name = ABILITIES[id]?.name ?? id;
-    if (a.damage) out.push(`${name}: ${a.damage > 1 ? '+' : '−'}${pct(a.damage)} damage`);
-    if (a.heal) out.push(`${name}: ${a.heal > 1 ? '+' : '−'}${pct(a.heal)} healing`);
-    if (a.cooldown) out.push(`${name}: ${a.cooldown < 1 ? '−' : '+'}${pct(a.cooldown)} cooldown`);
-    if (a.castTime) out.push(`${name}: ${a.castTime < 1 ? '−' : '+'}${pct(a.castTime)} cast time`);
-    if (a.range) out.push(`${name}: ${a.range > 0 ? '+' : '−'}${Math.abs(a.range)} yd range`);
+    if (a.damage) add(a.damage > 1 ? '+' : '−', a.damage, 'damage', K.damage, name);
+    if (a.heal) add(a.heal > 1 ? '+' : '−', a.heal, 'healing', /heal/, name);
+    if (a.cooldown) add(a.cooldown < 1 ? '−' : '+', a.cooldown, 'cooldown', K.cooldown, name);
+    if (a.castTime) add(a.castTime < 1 ? '−' : '+', a.castTime, 'cast time', K.cast, name);
+    if (a.range) out.push({ text: `${name}: ${a.range > 0 ? '+' : '−'}${Math.abs(a.range)} yd range`, amount: `${Math.abs(a.range)} yd`, subject: name, kind: K.range });
   }
-  for (const [id, v] of Object.entries(m.auraDuration ?? {})) out.push(`${AURAS[id]?.name ?? id}: ${v > 1 ? '+' : '−'}${pct(v)} duration`);
+  for (const [id, v] of Object.entries(m.auraDuration ?? {})) add(v > 1 ? '+' : '−', v, 'duration', K.duration, AURAS[id]?.name ?? id);
   return out;
 }
 
-/** One line on what an aura does while it is on you. */
-export function describeAura(id: string, mods?: Mods): string {
-  const a = AURAS[id];
-  if (!a) return '';
-  return describeBase(id, mods);
+/** One line per modifier ("+6% damage dealt"). `res` names the resource in regeneration ("+20% mana regeneration"). */
+export function describeMods(m: ModsInput | undefined, res?: string): string[] {
+  return modFacts(m, res).map((f) => f.text);
 }
 
-function describeBase(id: string, mods?: Mods): string {
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** True when `text` already states this modifier: the same number and unit, the same ability or aura, and the same kind of stat. */
+function states(text: string, f: ModFact): boolean {
+  const t = text.toLowerCase();
+  const n = escapeRe(f.amount.replace(/ yd$|%$/, ''));
+  const amount = f.amount.endsWith('%') ? new RegExp(`(?<![\\d.])${n}\\s*%`) : new RegExp(`(?<![\\d.])${n}[\\s-]*(?:yd|yards?)\\b`);
+  return amount.test(t) && (!f.subject || t.includes(f.subject.toLowerCase())) && f.kind.test(t);
+}
+
+/**
+ * The generated modifier lines that a hand-written description (a talent's or a spec's `desc`) does not already state, so
+ * the tooltip shows each fact once. A line whose number the text gets wrong stays, which makes the mismatch visible.
+ */
+export function modsNotIn(text: string, m: ModsInput | undefined): string[] {
+  return modFacts(m).filter((f) => !states(text, f)).map((f) => f.text);
+}
+
+/**
+ * Tooltip text for a talent: its description, the modifier lines it does not spell out, and the bar swap unless the
+ * description already says it (a talent named after the ability it teaches only needs to say what it replaces).
+ */
+export function describeTalent(t: TalentDef): { lines: string[]; mods: string[]; swap?: string } {
+  const lines = t.desc ? [t.desc] : [];
+  let swap: string | undefined;
+  if (t.swap) {
+    const to = ABILITIES[t.swap.to]?.name ?? t.swap.to;
+    const from = ABILITIES[t.swap.from]?.name ?? t.swap.from;
+    const d = t.desc.toLowerCase();
+    const namesTo = d.includes(to.toLowerCase()) || t.name.toLowerCase() === to.toLowerCase();
+    if (!(namesTo && d.includes(from.toLowerCase()))) swap = `Learn ${to} in place of ${from}`;
+  }
+  return { lines, mods: modsNotIn(t.desc, t.mods), swap };
+}
+
+/**
+ * Numbers your build changed can be wrapped as `⟦shown|base|+⟧` (`+` better, `-` worse) so the client can colour them and show
+ * the original value; `plainText` strips the marks. Only produced when a describe function is asked to `mark`.
+ */
+const MARK_RE = /⟦([^|⟧]*)\|([^|⟧]*)\|([+-])⟧/g;
+export function plainText(s: string): string {
+  return s.replace(MARK_RE, '$1');
+}
+/** A tooltip line split into plain text and marked numbers. */
+export function markedParts(s: string): ({ text: string } | { value: string; base: string; better: boolean })[] {
+  const out: ({ text: string } | { value: string; base: string; better: boolean })[] = [];
+  let at = 0;
+  for (const m of s.matchAll(MARK_RE)) {
+    if (m.index! > at) out.push({ text: s.slice(at, m.index) });
+    out.push({ value: m[1], base: m[2], better: m[3] === '+' });
+    at = m.index! + m[0].length;
+  }
+  if (at < s.length) out.push({ text: s.slice(at) });
+  return out;
+}
+function marked(mark: boolean | undefined, value: number, base: number, fmt: (n: number) => string = String, higherIsBetter = true): string {
+  const v = fmt(value);
+  const b = fmt(base);
+  if (!mark || v === b) return v;
+  return `⟦${v}|${b}|${(higherIsBetter ? value > base : value < base) ? '+' : '-'}⟧`;
+}
+const secs = (ms: number) => Math.round(ms / 100) / 10;
+const fmtS = (n: number) => `${n}s`;
+
+export interface DescribeOptions {
+  /** Mark numbers the modifiers changed (see `markedParts`). */
+  mark?: boolean;
+  /** Name of the resource in regeneration bonuses ("mana regeneration" instead of "resource regeneration"). */
+  res?: string;
+}
+
+/** One line on what an aura does while it is on you. */
+export function describeAura(id: string, mods?: Mods, opts: DescribeOptions = {}): string {
   const a = AURAS[id];
+  if (!a) return '';
+  return describeBase(id, mods, opts);
+}
+
+function describeBase(id: string, mods: Mods | undefined, opts: DescribeOptions): string {
+  const a = AURAS[id];
+  const modsText = (m: ModsInput | undefined) => describeMods(m, opts.res).map(cap);
   switch (a.kind) {
-    case 'stun': return 'Cannot move, cast or act.';
+    case 'stun': return `Cannot move, cast or act.${a.breaksOnDamage ? ' Breaks on damage.' : ''}`;
     case 'incapacitate': return `Cannot move, cast or act${a.canTurn ? ' (can still turn)' : ''}${a.locksAbilities ? ', not even Blink' : ''}. Breaks on damage.${a.hot ? ` Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s.` : ''}`;
     case 'fear': return `Runs around in fear at ${Math.round(TUNING.fearSpeed * 100)}% speed. Cannot cast or act${a.locksAbilities ? ', not even Blink' : ''}.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
-    case 'root': return 'Cannot move.';
+    case 'root': return `Cannot move.${a.breaksOnDamage ? ' Breaks on damage.' : ''}`;
     case 'mark': {
       const parts: string[] = [];
       if (a.note) parts.push(a.note);
       if (a.vulnerable) parts.push(`Takes ${a.vulnerable.mult}x damage from ${a.vulnerable.school} abilities`);
-      parts.push(...describeMods(a.mods).map(cap));
+      parts.push(...modsText(a.mods));
       if (a.breaksOnDamage) parts.push(`Lost when damaged${a.heldBy ? `, unless ${AURAS[a.heldBy]?.name ?? a.heldBy} is active` : ''}`);
-      if (!a.vulnerable && !a.mods) parts.push('Ice Lance treats it as Shatter and uses it up');
+      if (!a.vulnerable && !a.mods && !a.note) parts.push('Ice Lance treats it as Shatter and uses it up');
       return `${parts.join('. ')}.`;
     }
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
@@ -73,7 +179,7 @@ function describeBase(id: string, mods?: Mods): string {
     case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Broken by damage or attacking.`;
     case 'buff': {
       if (a.instantFor) return `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.`;
-      const parts = describeMods(a.mods).map(cap);
+      const parts = modsText(a.mods);
       if (a.empower) parts.push(`Your next ${a.empower.school} damage ability deals ${Math.round((a.empower.mult - 1) * 100)}% more damage and uses this up`);
       if (a.hot) parts.push(`Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s`);
       if (a.noCast) parts.push('You cannot use any ability while it lasts');
@@ -82,8 +188,11 @@ function describeBase(id: string, mods?: Mods): string {
     }
     case 'dot': {
       if (!a.dot) return '';
-      const per = Math.round(a.dot.amount * (mods ? mods.damageDone * (mods.ability[a.dot.ability]?.damage ?? 1) : 1));
-      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} ${per} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${per * Math.round(a.duration / a.dot.interval)} total)` : ''}.`;
+      const dot = a.dot;
+      const per = (m: Mods | undefined) => Math.round(dot.amount * (m ? m.damageDone * (m.ability[dot.ability]?.damage ?? 1) : 1));
+      const total = (m: Mods | undefined) => per(m) * Math.round((a.duration * (m?.auraDuration[id] ?? 1)) / dot.interval);
+      const mk = (f: (m: Mods | undefined) => number) => marked(opts.mark, f(mods), f(undefined));
+      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} ${mk(per)} ${dot.school} damage every ${sec(dot.interval)}${a.duration ? ` (${mk(total)} total)` : ''}.`;
     }
   }
 }
@@ -91,124 +200,197 @@ function describeBase(id: string, mods?: Mods): string {
 export interface AbilityText {
   name: string;
   school: string;
-  /** "40 mana · 30 yd range · 1.5s cast" style header pieces. */
+  /** "40 mana · 30 yd range · 1.5s cast · 8s slow" style header pieces. */
   stats: string[];
   /** One sentence per effect. */
   lines: string[];
+  /** What the build's talents add to the ability (extra effects, charges, procs), shown as bonuses. */
+  added: string[];
   /** Special requirements, shown in red/yellow. */
   notes: string[];
 }
 
-/** Describe an ability, optionally with a unit's modifiers applied so the numbers match what it will actually do. */
-export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classResource?: string): AbilityText {
+type AuraEffect = Extract<Effect, { type: 'aura' }>;
+
+/** The label of a duration chip ("8s slow"): what kind of lasting effect it is. */
+const LASTING: Record<AuraKind, string> = {
+  stun: 'stun', incapacitate: 'incapacitate', fear: 'fear', root: 'root', slow: 'slow', speed: 'speed boost', absorb: 'shield',
+  stealth: 'stealth', buff: 'buff', dot: 'damage over time', mark: 'effect',
+};
+
+/**
+ * Describe an ability, optionally with a unit's modifiers applied so the numbers match what it will actually do. Every
+ * cost, resource gain, cast, cooldown, range and duration is stated once: as a chip in `stats` or in the effect line.
+ */
+export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classResource?: string, opts: DescribeOptions = {}): AbilityText {
   const am = mods.ability[def.id] ?? {};
   const res = classResource ?? CLASSES[def.class].resource.type;
+  const o: DescribeOptions = { ...opts, res };
+  /** A number worked out with these modifiers, marked against the unmodified data when asked. */
+  const M = (f: (m: Mods) => number, fmt: (n: number) => string = String, higherIsBetter = true) => marked(opts.mark, f(mods), f(NEUTRAL_MODS), fmt, higherIsBetter);
+  const ab = (m: Mods) => m.ability[def.id] ?? {};
+  const aoe = def.target === 'aoe_enemy' || def.target === 'aoe_all';
+
   const stats: string[] = [];
-  if (def.cost) stats.push(`${def.cost} ${res}`);
+  if (def.cost) stats.push(`${M((m) => Math.round(def.cost * (ab(m).cost ?? 1)), String, false)} ${res}`);
   if (def.target === 'aoe_enemy' && def.coneDeg) stats.push(`${def.radius} yd range, ${def.coneDeg}° cone in front of you`);
-  else if (def.target === 'aoe_enemy' || def.target === 'aoe_all') stats.push(`${def.radius} yd radius`);
-  else if (def.target === 'ground') stats.push(`${def.range + (am.range ?? 0)} yd range`, 'Aimed at the cursor');
-  else if (def.range > 0) stats.push(`${def.range + (am.range ?? 0)} yd range`);
+  else if (aoe) stats.push(`${def.radius} yd radius`);
+  else if (def.target === 'ground') stats.push(`${M((m) => def.range + (ab(m).range ?? 0))} yd range`, 'Aimed at the cursor');
+  else if (def.range > 0) stats.push(`${M((m) => def.range + (ab(m).range ?? 0))} yd range`);
   else if (def.target === 'enemy' || def.target === 'any') stats.push('Melee range');
   if (def.minRange) stats.push(`min ${def.minRange} yd`);
-  if (def.castTime > 0) stats.push(`${sec(def.castTime * mods.castTime * (am.castTime ?? 1))} ${def.channel ? 'channel' : 'cast'}`);
+  const castMs = (m: Mods) => def.castTime * m.castTime * (ab(m).castTime ?? 1);
+  if (def.castTime > 0) stats.push(`${M((m) => secs(castMs(m)), fmtS, false)} ${def.channel ? 'channel' : 'cast'}`);
   else stats.push('Instant');
-  if (def.cooldown > 0) stats.push(`${sec(def.cooldown * (am.cooldown ?? 1))} cooldown`);
+  if (def.cooldown > 0) stats.push(`${M((m) => secs(def.cooldown * (ab(m).cooldown ?? 1)), fmtS, false)} cooldown`);
+  const uses = (m: Mods) => 1 + (ab(m).stored ?? 0) + (ab(m).charges ?? 0);
+  if (uses(mods) > 1) stats.push(`${M(uses)} charges`);
 
-  const lines: string[] = [];
-  for (const e of def.effects) {
+  /** How long an aura effect lasts in seconds (the effect can override the aura's own duration), 0 for until removed. */
+  const auraSecs = (e: AuraEffect, m: Mods) => {
+    const ms = e.duration ?? AURAS[e.aura]?.duration ?? 0;
+    return ms > 0 ? secs(ms * (m.auraDuration[e.aura] ?? 1)) : 0;
+  };
+  const D = (e: AuraEffect) => M((m) => auraSecs(e, m), fmtS);
+  // Charge describes its own stun, so that aura gets no line of its own
+  const chargeStun = def.effects.some((e) => e.type === 'charge') ? def.effects.find((e): e is AuraEffect => e.type === 'aura' && AURAS[e.aura]?.kind === 'stun') : undefined;
+  // the ability's own lasting effect (Hamstring's slow, Blizzard's storm, the banner) gets its duration as a chip
+  const lasting = def.effects.filter((e): e is AuraEffect | Extract<Effect, { type: 'zone' | 'flag' | 'smoke' }> => (e.type === 'aura' && e !== chargeStun && e.chance === undefined && AURAS[e.aura]?.name === def.name && auraSecs(e, mods) > 0)
+    || e.type === 'zone' || e.type === 'flag' || e.type === 'smoke');
+  const main = lasting.length === 1 ? lasting[0] : undefined;
+  if (main?.type === 'aura') {
+    const a = AURAS[main.aura];
+    stats.push(`${D(main)} ${a.kind === 'dot' && a.bleed ? 'bleed' : LASTING[a.kind]}${main.extraPerCp ? ` (+${sec(main.extraPerCp)} per combo point)` : ''}`);
+  } else if (main) stats.push(`${fmtS(main.duration / 1000)} ${main.type === 'zone' ? 'ground effect' : main.type === 'flag' ? 'banner' : 'smoke cloud'}`);
+
+  const ticks = def.channel?.ticks ?? 1;
+  const every = def.channel ? M((m) => secs(castMs(m) / ticks), fmtS, false) : '';
+  const stops = def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
+  const dmgOf = (amount: number) => (m: Mods) => Math.round(amount * m.damageDone * (ab(m).damage ?? 1));
+  const healOf = (amount: number) => (m: Mods) => Math.round(amount * m.healingDone * (ab(m).heal ?? 1));
+
+  const describeEffect = (e: Effect): string | undefined => {
     switch (e.type) {
       case 'damage': {
-        const n = Math.round(e.amount * mods.damageDone * (am.damage ?? 1));
-        if (def.channel?.beam) lines.push(`Channels a beam into the target, dealing ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total). Moving or being interrupted breaks the beam.`);
-        else if (def.channel && e.only) lines.push(`On an enemy: deals ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total).`);
-        else if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
-        else lines.push(`Deals ${n} ${def.school} damage${def.target === 'aoe_enemy' || def.target === 'aoe_all' ? ' to all enemies in range' : ''}.${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`);
-        break;
+        const n = dmgOf(e.amount);
+        const N = M(n);
+        const T = M((m) => n(m) * ticks);
+        // stated here only (the in-depth view does not repeat it)
+        const scaling = `${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`;
+        const first = def.channel?.immediate ? ' (the first at once)' : '';
+        if (def.channel?.beam) return `Channels a beam into the target, dealing ${N} ${def.school} damage every ${every} (${T} total). ${stops}${scaling}`;
+        if (def.channel && e.only) return `On an enemy: deals ${N} ${def.school} damage every ${every} (${T} total).${scaling}`;
+        if (def.channel && def.school === 'physical') return `Strikes${aoe ? ' every enemy in range' : ''} ${ticks} times, once every ${every}${first}, for ${N} physical damage each (${T} total). ${stops}${scaling}`;
+        if (def.channel) return `Fires ${ticks} missiles, one every ${every}${first}, each dealing ${N} ${def.school} damage (${T} total). ${stops}${scaling}`;
+        return `Deals ${N} ${def.school} damage${aoe ? ' to all enemies in range' : ''}.${scaling}`;
       }
-      case 'heal':
-        lines.push(`${e.only === 'ally' ? 'On an ally: heals' : 'Heals'} for ${Math.round(e.amount * mods.healingDone * (am.heal ?? 1))}${def.channel ? ` per pulse (${Math.round(e.amount * mods.healingDone * (am.heal ?? 1)) * def.channel.ticks} total)` : ''}.`);
-        break;
+      case 'heal': {
+        const h = healOf(e.amount);
+        return `${e.only === 'ally' ? 'On an ally: heals' : 'Heals'} for ${M(h)}${def.channel ? ` every ${every} (${M((m) => h(m) * ticks)} total)` : ''}.`;
+      }
+      case 'healMissing':
+        return `Heals ${def.target === 'self' ? 'you' : 'the target'} for ${Math.round(e.pct * 100)}% of ${def.target === 'self' ? 'your' : 'its'} missing health.`;
       case 'aura': {
         const a = AURAS[e.aura];
-        if (!a) break;
-        const dur = a.duration > 0 ? Math.round((a.duration * (mods.auraDuration[e.aura] ?? 1)) / 100) / 10 : 0;
+        if (!a || e === chargeStun) return undefined;
+        const dur = auraSecs(e, mods);
         const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent)` : '';
-        const body = a.kind === 'absorb' ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${Math.round((a.absorb ?? 0) * mods.healingDone)} damage`}` : describeAura(e.aura, mods).replace(/\.$/, '');
-        const who = e.self || def.target === 'self' ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
-        lines.push(`${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${dur}s` : ''}${extra}: ${body}.`);
-        break;
+        const body = a.kind === 'absorb'
+          ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${M((m) => Math.round((a.absorb ?? 0) * m.healingDone))} damage`}`
+          : describeAura(e.aura, mods, o).replace(/\.$/, '');
+        const onYou = e.self || def.target === 'self';
+        const youLead = onYou && def.target !== 'self' ? 'On you' : '';
+        if (e === main) return `${youLead ? `${youLead}: ` : ''}${body}.`; // the duration is the chip
+        if (a.name === def.name && e.chance === undefined) {
+          // the effect carries the ability's own name (Frost Nova's root): don't repeat the title
+          const lead = youLead ? `On you${dur ? ` for ${D(e)}` : ''}` : dur ? `For ${D(e)}` : '';
+          return `${lead ? `${lead}${extra}: ` : ''}${body}.`;
+        }
+        const who = onYou ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
+        const when = e.fullCast ? ' (only from a full-length cast)' : '';
+        return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
       }
       case 'exsanguinate':
-        lines.push(`Deals ${Math.round(e.perCp * mods.damageDone * (am.damage ?? 1))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then increases all current bleeds by ${Math.round((e.bleedMult - 1) * 100)}%.`);
-        break;
+        return `Deals ${M(dmgOf(e.perCp))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then increases all current bleeds by ${Math.round((e.bleedMult - 1) * 100)}%.`;
       case 'interrupt':
-        lines.push(`Interrupts the target's spellcasting and locks out that school for ${sec(e.lockout)}.`);
-        break;
+        return `Interrupts the target's spellcasting and locks out that school for ${sec(e.lockout)}.`;
       case 'dispel':
-        lines.push(def.target === 'any' ? 'Removes one magic effect: a harmful one from allies, a beneficial one from enemies.' : 'Removes one magic effect.');
-        break;
+        return def.target === 'any' ? 'Removes one magic effect: a harmful one from allies, a beneficial one from enemies.' : 'Removes one magic effect.';
       case 'charge':
-        lines.push(`Stuns the target as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${Math.round(e.hit * mods.damageDone * (mods.ability['charge']?.damage ?? 1))} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`);
-        break;
+        return `Stuns the target${chargeStun && auraSecs(chargeStun, mods) ? ` for up to ${D(chargeStun)}` : ''} as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${M(dmgOf(e.hit))} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`;
       case 'dashToTarget':
-        lines.push(e.behind ? 'Rushes to the target and lands behind it, turning you to face it.' : 'Rushes to the target.');
-        break;
+        return e.behind ? 'Rushes to the target and lands behind it, turning you to face it.' : 'Rushes to the target.';
       case 'healMax':
-        lines.push(`Heals you for ${Math.round(e.pct * 100)}% of your maximum health.`);
-        break;
+        return `Heals you for ${Math.round(e.pct * 100)}% of your maximum health.`;
       case 'leap':
-        lines.push(`Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${Math.round(e.damage * mods.damageDone * (mods.ability[def.id]?.damage ?? 1))} damage on landing` : ''}.`);
-        break;
+        return `Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${M(dmgOf(e.damage))} damage on landing` : ''}.`;
       case 'pull':
-        lines.push(`Drags the target to ${e.stopDistance} yards in front of you.`);
-        break;
+        return `Drags the target to ${e.stopDistance} yards in front of you.`;
       case 'flag':
-        lines.push(`Plants a banner at the chosen spot for ${e.duration / 1000} sec. Enemies inside its ${e.radius}-yard circle cannot leave it.`);
-        break;
+        return `Plants a banner at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies inside its ${e.radius}-yard circle cannot leave it.`;
       case 'blink':
-        lines.push(`Teleports you ${e.distance} yards forward and frees you from stuns, roots and slows. Works while stunned.`);
-        break;
+        return `Teleports you ${e.distance} yards forward and frees you from stuns, roots and slows. Works while stunned.`;
       case 'gain':
-        lines.push(`Generates ${e.amount} ${res}.`);
-        break;
+        return `Generates ${e.amount} ${res}.`;
       case 'freeMove':
-        lines.push('Removes every root and slow from you.');
-        break;
+        // a full cleanse already removes roots and slows (Vanish has both)
+        return def.effects.some((x) => x.type === 'cleanse') ? undefined : 'Removes every root and slow from you.';
       case 'cleanse':
-        lines.push('Removes every harmful effect from you.');
-        break;
+        return 'Removes every harmful effect from you.';
       case 'dropCombat':
-        lines.push('Drops you out of combat: enemies lose their target on you and spells aimed at you are cancelled.');
-        break;
+        return 'Drops you out of combat: enemies lose their target on you and spells aimed at you are cancelled.';
       case 'smoke':
-        lines.push(`Drops a smoke cloud ${e.radius} yards wide for ${e.duration / 1000} sec. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.`);
-        break;
-      case 'zone':
-        {
-          const dmg = (n: number) => Math.round(n * mods.damageDone * (mods.ability[def.id]?.damage ?? 1));
-          const first = e.initial ? `Enemies in the area take ${dmg(e.initial)} ${def.school} damage the moment the cast lands. ` : '';
-          lines.push(`${first}Marks the ground at the chosen spot for ${e.duration / 1000} sec. Enemies ${e.initial ? 'still ' : ''}inside take ${dmg(e.amount)} ${def.school} damage every ${e.pulse / 1000} sec. Jump to avoid a pulse (one dodging jump every ${JUMP_DODGE_CD / 1000} sec).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`);
-        }
-        break;
+        return `Drops a smoke cloud with a ${e.radius}-yard radius${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.`;
+      case 'zone': {
+        const first = e.initial ? `Enemies in the area take ${M(dmgOf(e.initial))} ${def.school} damage the moment the cast lands. ` : '';
+        return `${first}Marks a ${e.radius}-yard circle at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies ${e.initial ? 'still ' : ''}inside take ${M(dmgOf(e.amount))} ${def.school} damage every ${fmtS(e.pulse / 1000)}. Jump to avoid a pulse (one dodging jump every ${fmtS(JUMP_DODGE_CD / 1000)}).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`;
+      }
     }
+  };
+
+  const lines = def.effects.map(describeEffect).filter((l): l is string => !!l);
+
+  // what the talents add on top of the ability's own effects
+  const added: string[] = [];
+  for (const e of am.extra ?? []) {
+    const l = describeEffect(e);
+    if (l) added.push(l);
   }
+  for (const id of am.after ?? []) {
+    const a = AURAS[id];
+    if (a) added.push(`After using it you gain ${a.name}${a.duration ? ` for ${sec(a.duration * (mods.auraDuration[id] ?? 1))}` : ''}: ${describeAura(id, mods, o).replace(/\.$/, '')}.`);
+  }
+  for (const e of [...def.effects, ...(am.extra ?? [])]) {
+    const ext = e.type === 'aura' ? mods.auraExtend[e.aura] : 0;
+    if (e.type !== 'aura' || !ext) continue;
+    const a = AURAS[e.aura];
+    const what = a?.name === def.name ? `its ${a.kind === 'dot' && a.bleed ? 'bleed' : LASTING[a.kind]}` : a?.name ?? e.aura;
+    added.push(`Using it again while ${what} lasts adds ${sec(ext)} to it instead of restarting it.`);
+  }
+  if (am.cpChance && def.cpGain) added.push(`${Math.round(am.cpChance * 100)}% chance to award 1 extra combo point.`);
+  if (am.shadowProc) added.push(`${Math.round(am.shadowProc * 100)}% chance to first Shadowstep you behind the target for free (no combo points).`);
+  const usesCp = def.cpScale || def.cpSpend || def.effects.some((e) => (e.type === 'aura' && e.extraPerCp) || e.type === 'exsanguinate');
+  if (usesCp && mods.maxCp) added.push(`Can spend up to ${5 + mods.maxCp} combo points.`);
+  if (usesCp && mods.cpPower !== 1) added.push(`Each combo point spent counts ${mult(mods.cpPower)}.`);
 
   const notes: string[] = [];
   if (def.cpGain) notes.push(`Awards ${def.cpGain} combo point${def.cpGain > 1 ? 's' : ''}.`);
   if (def.rageSpend) notes.push(`Spends all your rage (needs ${def.rageSpend.min}): damage grows from x1 at ${def.rageSpend.min} rage to x${def.rageSpend.maxMult} at full rage.`);
   if (def.cpSpend) notes.push('Spends all combo points (needs at least 1).');
+  // a free hit builds rage from the damage it deals (an ability that costs rage refunds none from its own hit)
+  const firstHit = def.effects.map((e) => (e.type === 'damage' ? e.amount : e.type === 'charge' ? e.hit ?? 0 : e.type === 'leap' ? e.damage ?? 0 : e.type === 'zone' ? e.initial ?? e.amount : 0)).find((n) => n > 0);
+  if (res === 'rage' && !def.cost && firstHit) notes.push(`Its damage builds rage: ${Math.round(TUNING.rageFromDealt * 100)}% of the damage dealt (${M((m) => Math.round(dmgOf(firstHit)(m) * TUNING.rageFromDealt))} per ${aoe || def.effects.some((e) => e.type === 'leap' || e.type === 'zone') ? 'enemy hit' : 'hit'}).`);
   if (def.requiresStealth) notes.push('Requires stealth.');
+  if (def.stealthSwap && ABILITIES[def.stealthSwap]) notes.push(`While you are stealthed this slot becomes ${ABILITIES[def.stealthSwap].name}.`);
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
   if (def.ignoresLockout) notes.push('Usable while locked out.');
   if (!def.gcd) notes.push('Does not trigger the global cooldown.');
-  return { name: def.name, school: def.school, stats, lines, notes };
+  return { name: def.name, school: def.school, stats, lines, added, notes };
 }
 
-const mult = (v: number) => `x${Math.round(v * 100) / 100}`;
 
 /**
  * The in-depth tooltip text (hold Alt): how each number is worked out, what boosts it and what changes it. Built from the
@@ -224,25 +406,33 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
   const dmgSources = [...from((m) => m.damageDone), ...from((m) => m.ability?.[def.id]?.damage)];
   const healSources = [...from((m) => m.healingDone), ...from((m) => m.ability?.[def.id]?.heal)];
 
-  for (const e of def.effects) {
-    if (e.type === 'damage') {
-      const base = e.amount;
-      const total = Math.round(base * mods.damageDone * (am.damage ?? 1));
-      out.push(`Damage: base ${base}${dmgSources.length ? ', ' + dmgSources.map((x) => `${mult(x.v)} ${x.label}`).join(', ') : ''} = ${total}${def.channel ? ' per pulse' : ''}.`);
-      break;
-    }
+  // The short view already shows each changed number next to its base value, so this only says what changed it and by how
+  // much. Combo points, rage spending and Consumes are explained there too, so they are not repeated here.
+  const because = (list: { label: string; v: number }[], total: number) =>
+    list.length ? list.map((x) => `${mult(x.v)} ${x.label}`).join(', ') : Math.abs(total - 1) > 1e-9 ? `${mult(total)} from your build` : '';
+  const why = (what: string, list: { label: string; v: number }[], total: number) => {
+    const b = because(list, total);
+    if (b) out.push(`${what}: ${b}.`);
+  };
+  const dealsDamage = def.effects.some((e) => e.type === 'damage' || e.type === 'zone' || e.type === 'exsanguinate' || (e.type === 'leap' && !!e.damage) || (e.type === 'charge' && !!e.hit));
+  const heals = def.effects.some((e) => e.type === 'heal');
+  const dmgWhy = dealsDamage ? because(dmgSources, mods.damageDone * (am.damage ?? 1)) : '';
+  const healWhy = heals ? because(healSources, mods.healingDone * (am.heal ?? 1)) : '';
+  if (dmgWhy && dmgWhy === healWhy) out.push(`Damage and healing: ${dmgWhy}.`);
+  else {
+    if (dmgWhy) out.push(`Damage: ${dmgWhy}.`);
+    if (healWhy) out.push(`Healing: ${healWhy}.`);
   }
-  for (const e of def.effects) {
-    if (e.type === 'heal') {
-      const total = Math.round(e.amount * mods.healingDone * (am.heal ?? 1));
-      out.push(`Healing: base ${e.amount}${healSources.length ? ', ' + healSources.map((x) => `${mult(x.v)} ${x.label}`).join(', ') : ''} = ${total}. Healing on a target with a healing debuff is reduced by it.`);
-      break;
-    }
+  if (heals) out.push('Healing on a target with a healing debuff is reduced by it.');
+  if (def.castTime > 0) why('Cast time', [...from((m) => m.castTime), ...from((m) => m.ability?.[def.id]?.castTime)], mods.castTime * (am.castTime ?? 1));
+  if (def.cooldown > 0) why('Cooldown', from((m) => m.ability?.[def.id]?.cooldown), am.cooldown ?? 1);
+  if (def.cost) why('Cost', from((m) => m.ability?.[def.id]?.cost), am.cost ?? 1);
+  const reach = sources.flatMap((x) => (x.mods?.ability?.[def.id]?.range ? [`+${x.mods.ability[def.id].range} yd ${x.label}`] : []));
+  if (reach.length) out.push(`Range: ${reach.join(', ')}.`);
+  for (const id of new Set(def.effects.flatMap((e) => (e.type === 'aura' ? [e.aura] : [])))) {
+    if ((mods.auraDuration[id] ?? 1) !== 1) why(AURAS[id]?.name === def.name ? 'Duration' : `${AURAS[id]?.name ?? id} duration`, from((m) => m.auraDuration?.[id]), mods.auraDuration[id]);
   }
-  if (def.cpScale) out.push('Combo points: the damage is multiplied by the points you spend.');
-  if (def.rageSpend) out.push(`Rage: spends all of it. Damage goes from x1 at ${def.rageSpend.min} rage to x${def.rageSpend.maxMult} at full rage.`);
   if (def.behindMult) out.push(`Position: x${def.behindMult} damage from behind the target.`);
-  if (def.consumes) out.push(`Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack, then all stacks are used up.`);
   if (def.exploit) out.push(`Bonus: counts as ${mult(def.exploit.mult)} when the target has ${AURAS[def.exploit.aura]?.name ?? def.exploit.aura}, and uses it up.`);
   if (def.requiresTargetAura) out.push(`Needs the target to have ${def.requiresTargetAura.map((a) => AURAS[a]?.name ?? a).join(' or ')}.`);
 
@@ -253,17 +443,23 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
     const givers = Object.values(ABILITIES).filter((ab) => ab.effects.some((e) => e.type === 'aura' && e.aura === auraId));
     return !givers.length || givers.some((ab) => ab.class === def.class || ab.target === 'ally' || ab.target === 'any'); // a buff only counts when you can have it
   };
+  // auras this ability applies are already described in the short tooltip (Pyroblast's Hot Streak, Frost Nova's Shatter)
+  const own = new Set(def.effects.flatMap((e) => (e.type === 'aura' ? [e.aura] : [])));
   for (const [auraId, a] of Object.entries(AURAS)) {
-    if (!usable(auraId)) continue;
+    if (own.has(auraId) || !usable(auraId)) continue;
     if (a.harmful) {
-      if (a.vulnerable && a.vulnerable.school === def.school) weaknesses.push(`${a.name}: target takes ${mult(a.vulnerable.mult)} ${def.school} damage`);
+      if (dealsDamage && a.vulnerable && a.vulnerable.school === def.school) weaknesses.push(`${a.name}: target takes ${mult(a.vulnerable.mult)} ${def.school} damage`);
       continue;
     }
     const m = a.mods;
     const v = (m?.damageDone ?? 1) * (m?.ability?.[def.id]?.damage ?? 1);
-    if (v > 1 && def.effects.some((e) => e.type === 'damage')) boosts.push(`${a.name} ${mult(v)}`);
     const h = (m?.healingDone ?? 1) * (m?.ability?.[def.id]?.heal ?? 1);
-    if (h > 1 && def.effects.some((e) => e.type === 'heal')) boosts.push(`${a.name} ${mult(h)}`);
+    const dmgUp = v > 1 && def.effects.some((e) => e.type === 'damage');
+    const healUp = h > 1 && def.effects.some((e) => e.type === 'heal');
+    // one entry per buff, even when it raises both the damage and the healing (Power Infusion on Penance)
+    if (dmgUp && healUp) boosts.push(v === h ? `${a.name} ${mult(v)}` : `${a.name} ${mult(v)} damage, ${mult(h)} healing`);
+    else if (dmgUp) boosts.push(`${a.name} ${mult(v)}`);
+    else if (healUp) boosts.push(`${a.name} ${mult(h)}`);
     if (a.empower && a.empower.school === def.school) boosts.push(`${a.name} ${mult(a.empower.mult)} on your next hit`);
     if (a.instantFor === def.id) boosts.push(`${a.name}: makes it instant`);
   }
@@ -277,9 +473,6 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
     out.push(`Diminishing returns: repeated crowd control of the same kind lasts ${steps}. The count resets after ${sec(TUNING.drResetMs)} without it.`);
   }
   if (def.effects.some((e) => e.type === 'interrupt')) out.push('Interrupts have their own lockout and do not share diminishing returns with other crowd control.');
-  if (mods.castTime !== 1 || am.castTime) out.push(`Cast time: ${def.castTime / 1000}s base, ${mult(mods.castTime * (am.castTime ?? 1))} from your build.`);
-  if (am.cooldown) out.push(`Cooldown: ${sec(def.cooldown)} base, ${mult(am.cooldown)} from your build.`);
-  if (am.cost) out.push(`Cost: ${def.cost} base, ${mult(am.cost)} from your build.`);
   if (def.gcd) out.push(`Triggers the global cooldown (${sec(TUNING.gcdMs * mods.gcd)}).`);
   return out;
 }

@@ -45,6 +45,9 @@ interface UnitMesh {
   look: string;
   weapon: string;
   lastX: number;
+  /** Drawn floor height under the unit: follows ramps directly, drops with gravity off a ledge. */
+  baseY?: number;
+  fallV?: number;
   lastZ: number;
   phase: number;
   move: number;
@@ -197,7 +200,7 @@ export class ArenaScene {
       m.move += (target - m.move) * k;
       m.phase += Math.hypot(m.vf, m.vs) * dt * 1.5;
 
-      m.group.position.set(u.x, u.y + heightAt(this.arena, u.x, u.z, u.lv ? 1 : 0), u.z); // climbs the ramps and bridge
+      m.group.position.set(u.x, u.y + this.floorY(m, heightAt(this.arena, u.x, u.z, u.lv ? 1 : 0), dt), u.z); // climbs the ramps, falls off a walkway
       m.ring.position.y = 0.04 - u.y; // the team ring stays on the floor
       m.targetRing.position.y = 0.05 - u.y;
       m.group.rotation.y = u.facing;
@@ -215,6 +218,12 @@ export class ArenaScene {
       this.scene.remove(m.group);
       this.meshes.delete(id);
     }
+  }
+
+  /** Smooth a unit's floor height: up a ramp it follows at once; off a ledge (a jump down from a walkway) it falls. */
+  private floorY(m: UnitMesh, ground: number, dt: number): number {
+    m.baseY = fallToward(m.baseY, ground, dt, m);
+    return m.baseY;
   }
 
   /** The unit the camera follows (hidden while the camera is in first person). */
@@ -350,4 +359,23 @@ export class ArenaScene {
     }
     this.renderer.render(this.scene, this.camera);
   }
+}
+
+/** A floor height that drops with gravity when the ground falls away by more than a step, and follows it otherwise. */
+export function fallToward(cur: number | undefined, ground: number, dt: number, st: { fallV?: number }): number {
+  if (cur === undefined || ground >= cur - 0.3 && !st.fallV) {
+    st.fallV = 0;
+    return ground;
+  }
+  if (ground >= cur) {
+    st.fallV = 0;
+    return ground;
+  }
+  st.fallV = (st.fallV ?? 0) + 30 * dt;
+  const next = cur - st.fallV * dt;
+  if (next <= ground) {
+    st.fallV = 0;
+    return ground;
+  }
+  return next;
 }

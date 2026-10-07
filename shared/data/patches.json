@@ -1,5 +1,25 @@
 [
  {
+  "version": "0.62.0",
+  "date": "2026-10-07",
+  "title": "Jump off the walkway, three new arenas",
+  "changes": [
+   "Walkways: walking still stops at the rails, but a jump clears them and you drop to the ground. You can also jump onto the lower half of a ramp from the side.",
+   "The Serpent: the walkway is wider (6 yards) and now the same run for both teams, with one more pillar on each side underneath for cover.",
+   "Twin Ramps is gone. New arenas: The Overlook (a raised plateau with ramps north and south and a shaded hall underneath; every duel is played here), Icebound Ring (a raised square ring around an open courtyard) and Sun Terraces (two long raised terraces along the walls).",
+   "Low barricades: they block walking but not sight, and you can jump over them.",
+   "Range is measured in 3D: up on a walkway you are out of melee reach from the ground below.",
+   "Charge and Heroic Leap clear rails and barricades, so Charge can take you off a walkway onto someone below. Shadowstep lands you on your target's level.",
+   "Bots find their way on every map: they climb ramps, jump off walkways and hop barricades.",
+   "Lobby: drag on the empty middle of the menu to turn your character.",
+   "Menu: the spec card stays open while your mouse is on that side, so you can reach it from any spec. Skill tooltips on the menu show your talents' numbers as you pick them (changed numbers in green with the base value struck through), and the card flags skills your talents change or add.",
+   "Tooltips say each thing once, and every skill shows how long its effects last, what it costs and what it generates (for example the 8 s banner of You're Not Going Anywhere).",
+   "Fix: a talent that lowers a spell's cost now also counts when the cast finishes, so the spell no longer fails with too little mana at the end.",
+   "The site has its own icon, and links to the game show a preview card.",
+   "The README is now a player guide, with a full skills and talents wiki (WIKI.md)."
+  ]
+ },
+ {
   "version": "0.61.0",
   "date": "2026-10-07",
   "title": "The Serpent walkway",

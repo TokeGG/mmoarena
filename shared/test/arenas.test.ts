@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, navStep, resolveCollisions, stepMovementL, walkClear } from '../src/index';
+import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, deckPiers, deckRails, dist, hasLOS, heightAt, jumpHeight, navStep, onRaised, resolveCollisions, stepMovementL, walkClear } from '../src/index';
 import type { ArenaDef } from '../src/index';
 
 describe('arenas', () => {
@@ -87,63 +87,6 @@ describe('jumping', () => {
     assert.equal(sim.snapshot().units.find((x) => x.id === u.id)!.y, 0);
   });
 
-  it('Twin Ramps: ramps climb to a deck, rails keep you on it, and the tunnel underneath is open ground', () => {
-    const a = arenaById('bridge');
-    const br = a.bridge!;
-    const walk = (pos: { x: number; z: number }, level: 0 | 1, facing: number, ticks: number, fwd = 1) => {
-      let st = { pos, level };
-      const trail: { x: number; z: number; level: 0 | 1 }[] = [];
-      for (let i = 0; i < ticks; i++) { st = stepMovementL(st.pos, st.level, { fwd, strafe: 0, facing }, 7, 0.05, a); trail.push({ ...st.pos, level: st.level }); }
-      return { ...st, trail };
-    };
-    // from the left spawn side, straight at the bridge: up the ramp, along the deck, down the far ramp
-    const across = walk({ x: -24, z: 0 }, 0, Math.PI / 2, 140);
-    assert.ok(across.trail.some((t) => t.level === 1 && Math.abs(t.x) < br.deckHalf), 'was on the deck');
-    assert.ok(across.pos.x > 18 && across.level === 0, `down the far ramp, x=${across.pos.x}`);
-    // beside the ramp you cannot climb it sideways, and walking into it from the side does not change level
-    const side = walk({ x: -12, z: 8 }, 0, Math.PI, 60);
-    assert.ok(side.pos.z >= br.halfWidth && side.level === 0, `stopped at the ramp wall, z=${side.pos.z}`);
-    // rails: on the deck you cannot walk off the side
-    const rail = walk({ x: 0, z: 0 }, 1, 0, 60); // facing +z
-    assert.ok(Math.abs(rail.pos.z) <= br.halfWidth && rail.level === 1, `kept on the deck, z=${rail.pos.z}`);
-    // the tunnel: level 0 walks straight through underneath, from one side to the other
-    const tunnel = walk({ x: 0, z: -10 }, 0, 0, 140);
-    assert.ok(tunnel.pos.z > 10 && tunnel.level === 0 && tunnel.trail.some((t) => Math.abs(t.z) < 1), `walked through the tunnel, z=${tunnel.pos.z}`);
-    // blink toward a ramp from the ground stops at its wall
-    const land = blinkDestination({ x: -24, z: 0 }, Math.PI / 2, 20, a, 0);
-    assert.ok(land.x < -br.deckHalf - br.rampLen + 0.01, 'a ground blink cannot go up a ramp');
-    // heights: flat on the ground, the deck is at full height, ramps slope between
-    assert.equal(heightAt(a, 0, 0, 1), br.height);
-    assert.equal(heightAt(a, 0, 0, 0), 0);
-    assert.ok(heightAt(a, 13, 0, 1) > 0 && heightAt(a, 13, 0, 1) < br.height);
-    assert.equal(heightAt(a, 24, 0, 1), 0);
-  });
-
-  it('Twin Ramps: the deck is a ceiling over the tunnel, and the ramps are walls on the ground', () => {
-    const a = arenaById('bridge');
-    assert.equal(hasLOS({ x: 0, z: 0 }, { x: 6, z: 0 }, a, 1, 1), true, 'deck to deck is clear');
-    assert.equal(hasLOS({ x: 0, z: 0 }, { x: 5, z: 2 }, a, 1, 0), false, 'no sight from the deck into the tunnel');
-    assert.equal(hasLOS({ x: 0, z: 1 }, { x: 3, z: 9 }, a, 0, 0), true, 'tunnel to the open ground at the side');
-    assert.equal(hasLOS({ x: -22, z: 0 }, { x: 22, z: 0 }, a, 0, 0), false, 'the ramps block sight along the ground');
-    assert.equal(hasLOS({ x: -22, z: 8 }, { x: 22, z: 8 }, a, 0, 0), true, 'clear beside the ramps');
-    assert.equal(hasLOS({ x: -22, z: 0 }, { x: 0, z: 0 }, a, 0, 1), true, 'from the ground you can see up the ramp onto the deck');
-  });
-
-  it('Twin Ramps: bots walk over the bridge to reach each other', () => {
-    const sim = new ArenaSim({ prepMs: 0, seed: 5, arena: arenaById('bridge'), facing: true });
-    const w = sim.addUnit({ name: 'W', classId: 'warrior', team: 0, controller: 'bot' });
-    const r = sim.addUnit({ name: 'R', classId: 'warrior', team: 1, controller: 'bot' });
-    w.pos = { x: -24, z: 8 }; r.pos = { x: 24, z: -8 };
-    const bots = [new Bot(sim, w.id, 'hard', 1), new Bot(sim, r.id, 'hard', 2)];
-    let met = false;
-    sim.step();
-    for (let i = 0; i < 20 * 40 && !met; i++) {
-      for (const b of bots) b.tick();
-      sim.step();
-      met = Math.hypot(w.pos.x - r.pos.x, w.pos.z - r.pos.z) < 4 || w.health < w.maxHealth || r.health < r.maxHealth;
-    }
-    assert.ok(met, `bots stuck at ${JSON.stringify(w.pos)} / ${JSON.stringify(r.pos)}`);
-  });
 });
 
 const WALLED = { ...arenaById('serpent'), deck: undefined, bounds: {"minX":-21,"maxX":21,"minZ":-32,"maxZ":32}, pillars: [{"x":7,"z":6,"r":1.4},{"x":-9,"z":-6,"r":1.4}], walls: [{"x0":0.6,"x1":8,"z0":-18.8,"z1":-17.6},{"x0":0.6,"x1":1.8,"z0":-18.8,"z1":19.6},{"x0":-9.5,"x1":1.8,"z0":18.4,"z1":19.6},{"x0":-4.6,"x1":9,"z0":-24.1,"z1":-22.9},{"x0":-4.6,"x1":-3.4,"z0":-24.1,"z1":11.1},{"x0":-9.5,"x1":-3.4,"z0":9.9,"z1":11.1}], nav: [{"x":-14,"z":0},{"x":14,"z":0},{"x":-8,"z":-12},{"x":-8,"z":5},{"x":-8,"z":14.75},{"x":-1.4,"z":14.75},{"x":-1.4,"z":0},{"x":-1.4,"z":-12},{"x":-1.4,"z":-20.85},{"x":5,"z":-20.85},{"x":12,"z":-20.85},{"x":12,"z":-12},{"x":12,"z":5},{"x":6,"z":10},{"x":-8,"z":24.5},{"x":4,"z":24.5},{"x":12,"z":24.5},{"x":-8,"z":-28},{"x":4,"z":-28},{"x":12,"z":-28}] } as ArenaDef;
@@ -198,78 +141,159 @@ describe('Walled arenas (walls and route points, tested on a fixture layout)', (
 });
 
 
-describe('The Serpent (raised walkway)', () => {
-  const a = arenaById('serpent');
-  const walk = (p: { x: number; z: number }, lv: 0 | 1, facing: number, steps: number) => {
-    let r = { pos: p, level: lv };
-    for (let i = 0; i < steps; i++) r = stepMovementL(r.pos, r.level, { fwd: 1, strafe: 0, facing }, TUNING.runSpeed, 0.05, a);
-    return r;
-  };
+const WALKWAY_MAPS = ARENAS.filter((x) => x.deck);
+type St = { pos: { x: number; z: number }; level: 0 | 1 };
+/** Walk with a jump starting on tick `jumpAt` (heights from the real jump curve, as the sim does). */
+function walkL(a: ArenaDef, st: St, facing: number, ticks: number, jumpAt = -1): St & { trail: St[] } {
+  const trail: St[] = [];
+  for (let i = 0; i < ticks; i++) {
+    const air = jumpAt >= 0 && i >= jumpAt ? jumpHeight((i - jumpAt) * TUNING.tickMs) : 0;
+    st = stepMovementL(st.pos, st.level, { fwd: 1, strafe: 0, facing }, TUNING.runSpeed, TUNING.tickMs / 1000, a, air);
+    trail.push(st);
+  }
+  return { ...st, trail };
+}
+const toward = (p: { x: number; z: number }, q: { x: number; z: number }) => Math.atan2(q.x - p.x, q.z - p.z);
 
-  it('has a walkway with two ramps, rails and a route; spawns stand in the open', () => {
+describe('raised walkways (every map with one)', () => {
+  it('there are four walkway maps and Twin Ramps is gone', () => {
+    assert.deepEqual(WALKWAY_MAPS.map((x) => x.id).sort(), ['overlook', 'ring', 'serpent', 'terraces']);
+    assert.ok(!ARENAS.some((x) => x.id === 'bridge'));
+  });
+
+  for (const a of WALKWAY_MAPS) {
     const dk = a.deck!;
-    assert.ok(dk && dk.ramps.length === 2 && dk.flats.length >= 2 && dk.rails.length >= 4 && dk.route.length >= 6);
-    for (const p of [...a.spawns[0], ...a.spawns[1], dk.route[0], dk.route.at(-1)!]) {
-      const r = resolveCollisions(p, a);
-      assert.ok(Math.hypot(r.x - p.x, r.z - p.z) < 1e-6, `(${p.x}, ${p.z}) is free`);
-    }
-  });
+    describe(a.name, () => {
+      it('spawns are free, rails never sit on the deck floor, piers stand under flats', () => {
+        for (const p of a.spawns.flat()) {
+          const r = resolveCollisions(p, a);
+          assert.ok(Math.hypot(r.x - p.x, r.z - p.z) < 1e-6, `spawn (${p.x}, ${p.z}) is free`);
+        }
+        const pieces = [...dk.flats, ...dk.ramps];
+        for (const r of deckRails(a)) {
+          const inside = pieces.some((q) => Math.min(r.x1, q.x1) - Math.max(r.x0, q.x0) > 1e-6 && Math.min(r.z1, q.z1) - Math.max(r.z0, q.z0) > 1e-6);
+          assert.ok(!inside, `rail ${JSON.stringify(r)} overlaps the deck`);
+        }
+        for (const p of deckPiers(a)) assert.ok(dk.flats.some((f) => p.x0 >= f.x0 - 1e-6 && p.x1 <= f.x1 + 1e-6 && p.z0 >= f.z0 - 1e-6 && p.z1 <= f.z1 + 1e-6), 'pier under a flat');
+      });
 
-  it('walking up a ramp climbs it: height rises to the deck and the level changes', () => {
-    const r = walk({ x: -17, z: 16 }, 0, Math.PI / 2, 80); // +x along the entry ramp
-    assert.equal(r.level, 1);
-    assert.ok(Math.abs(heightAt(a, r.pos.x, r.pos.z, 1) - a.deck!.height) < 0.01 || r.pos.x > -6, 'on the deck at full height');
-    assert.ok(heightAt(a, -10, 16, 1) > 0 && heightAt(a, -10, 16, 1) < a.deck!.height, 'half way up the ramp');
-    assert.equal(heightAt(a, -10, 16, 0), 0, 'the ground under it is flat');
-  });
+      it('every ramp: walk up from the foot to full height, and back down to the ground', () => {
+        for (const r of dk.ramps) {
+          const axis = r.rise[1], up = r.rise[0] === '+';
+          const mid = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 };
+          const foot = axis === 'x' ? { x: up ? r.x0 - 3 : r.x1 + 3, z: mid.z } : { x: mid.x, z: up ? r.z0 - 3 : r.z1 + 3 };
+          const top = axis === 'x' ? { x: up ? r.x1 - 0.5 : r.x0 + 0.5, z: mid.z } : { x: mid.x, z: up ? r.z1 - 0.5 : r.z0 + 0.5 };
+          const climb = walkL(a, { pos: foot, level: 0 }, toward(foot, top), Math.ceil(((dist(foot, top) - 0.2) / TUNING.runSpeed) * 20));
+          assert.equal(climb.level, 1, `${a.id}: climbed ${r.rise} ramp`);
+          assert.ok(heightAt(a, climb.pos.x, climb.pos.z, 1) > dk.height * 0.9, `${a.id}: reached the top (${JSON.stringify(climb.pos)})`);
+          const down = walkL(a, climb, toward(top, foot) , 60);
+          assert.equal(down.level, 0, `${a.id}: walked off the foot`);
+        }
+      });
 
-  it('the ground cannot enter a ramp, but you can walk under the deck', () => {
-    const into = walk({ x: -17, z: 12 }, 0, Math.PI / 2, 60); // alongside the ramp's side, at ground level
-    assert.equal(into.level, 0);
-    const under = walk({ x: -9, z: 0 }, 0, Math.PI / 2, 60); // straight through the walkway's run
-    assert.equal(under.level, 0);
-    assert.ok(under.pos.x > 2, 'walked right under the deck');
-  });
+      it('rails stop a walk off the edge; a jump clears them and you land on the ground', () => {
+        const rails = deckRails(a).filter((r) => heightAt(a, (r.x0 + r.x1) / 2 + r.inward.x * 0.5, (r.z0 + r.z1) / 2 + r.inward.z * 0.5, 1) > dk.height * 0.9);
+        assert.ok(rails.length >= 2, 'has rails on the high parts');
+        let tried = 0;
+        for (const r of rails) {
+          const c = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 };
+          const start = { x: c.x + r.inward.x * 2, z: c.z + r.inward.z * 2 };
+          const out = { x: c.x - r.inward.x * 6, z: c.z - r.inward.z * 6 };
+          if (resolveCollisions(out, a, 0).x !== out.x || out.x < a.bounds.minX + 1 || out.x > a.bounds.maxX - 1 || out.z < a.bounds.minZ + 1 || out.z > a.bounds.maxZ - 1) continue;
+          if (onRaised(a, out.x, out.z)) continue; // another piece beyond this edge (the inner side of a ring)
+          tried++;
+          const face = toward(start, out);
+          const held = walkL(a, { pos: start, level: 1 }, face, 40);
+          assert.equal(held.level, 1, `${a.id}: the rail held at ${JSON.stringify(c)}`);
+          const jumped = walkL(a, { pos: start, level: 1 }, face, 40, 0);
+          assert.equal(jumped.level, 0, `${a.id}: jumped off at ${JSON.stringify(c)} (ended ${JSON.stringify(jumped.pos)})`);
+          assert.ok(jumped.trail.findIndex((t) => t.level === 0) < 20, 'dropped while still in the jump');
+        }
+        assert.ok(tried >= 1, `${a.id}: found an edge to jump off`);
+      });
 
-  it('rails keep you on the walkway; the far foot brings you back to the ground', () => {
-    const up = walk({ x: -17, z: 16 }, 0, Math.PI / 2, 60);
-    assert.equal(up.level, 1);
-    const side = walk(up.pos, 1, 0, 40); // turn toward +z: the rail holds
-    assert.ok(side.pos.z <= 18, 'the rail held');
-    // follow the whole route on foot
-    let p = { pos: { x: -17, z: 16 }, level: 0 as 0 | 1 };
-    const route = a.deck!.route;
-    for (let i = 1; i < route.length; i++) {
-      for (let k = 0; k < 400 && Math.hypot(route[i].x - p.pos.x, route[i].z - p.pos.z) > 0.6; k++) {
-        p = stepMovementL(p.pos, p.level, { fwd: 1, strafe: 0, facing: Math.atan2(route[i].x - p.pos.x, route[i].z - p.pos.z) }, TUNING.runSpeed, 0.05, a);
-      }
-    }
-    assert.equal(p.level, 0, 'down the far ramp');
-    assert.ok(p.pos.x > 14, 'out in the far yard');
-  });
+      it('from the ground: the high part of a ramp is a wall, the low part can be jumped onto from the side', () => {
+        for (const r of dk.ramps) {
+          const axis = r.rise[1], up = r.rise[0] === '+';
+          const len = axis === 'x' ? r.x1 - r.x0 : r.z1 - r.z0;
+          const footC = axis === 'x' ? (up ? r.x0 : r.x1) : up ? r.z0 : r.z1;
+          const at = (frac: number) => footC + (up ? 1 : -1) * len * frac; // along the ramp from its foot
+          // stand beside the ramp (on whichever side is open ground), facing it
+          for (const side of [-1, 1]) {
+            const lat = axis === 'x' ? (side < 0 ? r.z0 - 1.5 : r.z1 + 1.5) : side < 0 ? r.x0 - 1.5 : r.x1 + 1.5;
+            const spot = (frac: number) => (axis === 'x' ? { x: at(frac), z: lat } : { x: lat, z: at(frac) });
+            const low = spot(0.3), high = spot(0.85);
+            const free = (p: { x: number; z: number }) => { const q = resolveCollisions(p, a, 0); return Math.hypot(q.x - p.x, q.z - p.z) < 1e-6 && !onRaised(a, p.x, p.z) && p.x > a.bounds.minX + 1 && p.x < a.bounds.maxX - 1 && p.z > a.bounds.minZ + 1 && p.z < a.bounds.maxZ - 1; };
+            if (!free(low) || !free(high)) continue;
+            const inward = axis === 'x' ? (side < 0 ? 0 : Math.PI) : side < 0 ? Math.PI / 2 : -Math.PI / 2;
+            assert.equal(walkL(a, { pos: high, level: 0 }, inward, 30, 0).level, 0, `${a.id}: cannot jump onto the high part`);
+            assert.equal(walkL(a, { pos: low, level: 0 }, inward, 30).level, 0, `${a.id}: cannot walk onto the side without a jump`);
+            assert.equal(walkL(a, { pos: low, level: 0 }, inward, 30, 0).level, 1, `${a.id}: jumped onto the low part from the side`);
+          }
+        }
+      });
 
-  it('the deck is a ceiling for sight, and ramps are walls on the ground', () => {
-    assert.equal(hasLOS({ x: -4, z: 0 }, { x: -4, z: 10 }, a, 0, 1), false, 'under the deck cannot see up');
-    assert.equal(hasLOS({ x: -4, z: 10 }, { x: -4, z: 2 }, a, 1, 1), true, 'on the deck they see each other');
-    assert.equal(hasLOS({ x: -17, z: 16 }, { x: -3, z: 16 }, a, 0, 0), false, 'the ramp blocks the ground view');
-  });
+      it('sight: the deck is a ceiling over the ground beneath it, ramps block sight on the ground', () => {
+        const f = dk.flats[0];
+        const under = { x: (f.x0 + f.x1) / 2, z: (f.z0 + f.z1) / 2 };
+        const upTop = { x: under.x + 0.5, z: under.z };
+        assert.equal(hasLOS(under, upTop, a, 0, 1), false, 'under the deck cannot see up');
+        assert.equal(hasLOS(upTop, { x: under.x - 0.5, z: under.z }, a, 1, 1), true, 'on the deck they see each other');
+        const r = dk.ramps[0];
+        const axis = r.rise[1];
+        const c = { x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2 };
+        const p = axis === 'x' ? { x: c.x, z: r.z0 - 2 } : { x: r.x0 - 2, z: c.z };
+        const q = axis === 'x' ? { x: c.x, z: r.z1 + 2 } : { x: r.x1 + 2, z: c.z };
+        assert.equal(hasLOS(p, q, a, 0, 0), false, 'the ramp blocks the ground view across it');
+      });
 
-  it('bots use the walkway: they find each other and fight on any pairing', () => {
-    for (const [c0, c1] of [['warrior', 'rogue'], ['mage', 'warrior'], ['priest', 'mage']] as const) {
-      const sim = new ArenaSim({ prepMs: 0, seed: 11, arena: a });
-      const u0 = sim.addUnit({ name: 'a', classId: c0, team: 0, controller: 'bot' });
-      const u1 = sim.addUnit({ name: 'b', classId: c1, team: 1, controller: 'bot' });
-      const bots = [new Bot(sim, u0.id, 'hard', 1), new Bot(sim, u1.id, 'hard', 2)];
-      let fought = false;
-      let climbed = false;
-      for (let i = 0; i < 20 * 60 && !fought; i++) {
-        for (const b of bots) b.tick();
-        sim.step();
-        if (u0.level === 1 || u1.level === 1) climbed = true;
-        fought = u0.health < u0.maxHealth || u1.health < u1.maxHealth;
-      }
-      assert.ok(fought, `${c0} and ${c1} reached each other (${JSON.stringify(u0.pos)} / ${JSON.stringify(u1.pos)})`);
-      void climbed;
-    }
+      it('bots find each other and fight (they climb, jump down and go round as needed)', () => {
+        for (const [c0, c1] of [['warrior', 'rogue'], ['mage', 'warrior'], ['priest', 'mage']] as const) {
+          const sim = new ArenaSim({ prepMs: 0, seed: 11, arena: a });
+          const u0 = sim.addUnit({ name: 'a', classId: c0, team: 0, controller: 'bot' });
+          const u1 = sim.addUnit({ name: 'b', classId: c1, team: 1, controller: 'bot' });
+          const bots = [new Bot(sim, u0.id, 'hard', 1), new Bot(sim, u1.id, 'hard', 2)];
+          let fought = false;
+          for (let i = 0; i < 20 * 60 && !fought; i++) {
+            for (const b of bots) b.tick();
+            sim.step();
+            fought = u0.health < u0.maxHealth || u1.health < u1.maxHealth;
+          }
+          assert.ok(fought, `${a.id}: ${c0} and ${c1} reached each other (${JSON.stringify(u0.pos)} L${u0.level} / ${JSON.stringify(u1.pos)} L${u1.level})`);
+        }
+      });
+
+      it('a bot on the walkway reaches an enemy below (down a ramp or by jumping off)', () => {
+        const f = dk.flats[0];
+        const sim = new ArenaSim({ prepMs: 0, seed: 4, arena: a });
+        const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'bot' });
+        const d = sim.addUnit({ name: 'd', classId: 'warrior', team: 1, controller: 'dummy' });
+        w.pos = { x: (f.x0 + f.x1) / 2, z: (f.z0 + f.z1) / 2 };
+        w.level = 1;
+        d.pos = { ...a.spawns[1][0] };
+        const bot = new Bot(sim, w.id, 'hard', 3);
+        let hit = false;
+        for (let i = 0; i < 20 * 30 && !hit; i++) {
+          bot.tick();
+          sim.step();
+          hit = d.health < d.maxHealth;
+        }
+        assert.ok(hit, `${a.id}: reached the dummy (ended at ${JSON.stringify(w.pos)} L${w.level})`);
+      });
+    });
+  }
+});
+
+describe('low barricades', () => {
+  const a = arenaById('overlook');
+  it('block walking, never sight; a jump clears them', () => {
+    const lw = a.lows![0];
+    const c = { x: (lw.x0 + lw.x1) / 2, z: (lw.z0 + lw.z1) / 2 };
+    const p = { x: c.x - 4, z: c.z }, q = { x: c.x + 4, z: c.z };
+    assert.equal(hasLOS(p, q, a, 0, 0), true, 'you see over a barricade');
+    const walked = walkL(a, { pos: p, level: 0 }, Math.PI / 2, 30);
+    assert.ok(walked.pos.x < lw.x0, `held by the barricade (x=${walked.pos.x})`);
+    const jumped = walkL(a, { pos: { x: lw.x0 - 1.4, z: c.z }, level: 0 }, Math.PI / 2, 30, 0);
+    assert.ok(jumped.pos.x > lw.x1 + 0.5, `jumped over (x=${jumped.pos.x})`);
   });
 });

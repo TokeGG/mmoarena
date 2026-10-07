@@ -3,6 +3,7 @@
  * by a resolver from the key, so HUD elements that are rebuilt every frame (aura icons) keep working: the tooltip
  * re-reads whatever element is under the cursor several times a second.
  */
+import { markedParts } from '@arena/shared';
 
 export interface TipContent {
   title: string;
@@ -39,6 +40,12 @@ export function setTipResolver(r: TipResolver) {
   resolver = r;
 }
 
+/** What the tooltips describe changed (a talent or spec was picked): build the open tooltip again now, and any later one fresh. */
+export function invalidateTip() {
+  shownKey = '';
+  if (tipEl && !tipEl.classList.contains('hidden')) refresh();
+}
+
 function ensure(): HTMLElement {
   if (!tipEl) {
     tipEl = document.createElement('div');
@@ -49,14 +56,54 @@ function ensure(): HTMLElement {
   return tipEl;
 }
 
+/**
+ * One tooltip row. A number your spec or talents changed arrives marked (see `markedParts` in describe.ts) and is drawn
+ * green (red when it got worse) with the unmodified value struck through next to it.
+ */
 function row(cls: string, text: string): HTMLElement {
   const d = document.createElement('div');
   d.className = cls;
-  d.textContent = text;
+  for (const p of markedParts(text)) {
+    if ('text' in p) {
+      d.append(p.text);
+      continue;
+    }
+    const v = document.createElement('span');
+    v.className = `tt-num ${p.better ? 'up' : 'down'}`;
+    v.textContent = p.value;
+    const was = document.createElement('span');
+    was.className = 'tt-was';
+    was.textContent = p.base;
+    d.append(v, was);
+  }
   return d;
 }
 
-function render(c: TipContent, detail: boolean): HTMLElement[] {
+/** True when the content has a number changed by the build (so the colour key is worth showing). */
+const hasMarks = (c: TipContent) => [...(c.stats ?? []), ...(c.lines ?? []), ...(c.good ?? []), ...(c.notes ?? []), ...(c.more ?? [])].some((s) => markedParts(s).some((p) => !('text' in p)));
+
+/** Comparable form of a tooltip line: case, spacing and end punctuation do not matter. */
+const lineKey = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').replace(/[\s.!:]+$/, '').trim();
+
+/**
+ * The tooltip's text with every line that repeats the title or an earlier line removed, so nothing reads twice whatever
+ * the content builder produced (the in-depth lines never echo the short ones either).
+ */
+export function dedupeTip(c: TipContent): TipContent {
+  const seen = new Set([lineKey(c.title)]);
+  const keep = (list: string[] | undefined) => list?.filter((s) => {
+    const k = lineKey(s);
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const out: TipContent = { ...c, stats: keep(c.stats), lines: keep(c.lines), good: keep(c.good), bad: keep(c.bad), notes: keep(c.notes), more: keep(c.more) };
+  if (c.footer && seen.has(lineKey(c.footer))) out.footer = undefined;
+  return out;
+}
+
+function render(tip: TipContent, detail: boolean): HTMLElement[] {
+  const c = dedupeTip(tip);
   const out: HTMLElement[] = [];
   const head = document.createElement('div');
   head.className = 'tt-head';
@@ -85,6 +132,7 @@ function render(c: TipContent, detail: boolean): HTMLElement[] {
     for (const s of c.more) out.push(row('tt-more', s));
   }
   if (c.footer) out.push(row('tt-foot', c.footer));
+  if (hasMarks(c)) out.push(row('tt-hint', 'Green: changed by your spec and talents (the base value is struck through)'));
   if (!detail && c.more?.length) out.push(row('tt-hint', 'Hold the Detailed tooltips key for more'));
   return out;
 }

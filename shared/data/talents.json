@@ -137,7 +137,7 @@
         {
           "id": "warrior_arms_t4b",
           "name": "Storm Bolt",
-          "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+          "desc": "A 20-yard hammer throw that stuns for 2 seconds. Replaces Pummel.",
           "icon": "🔨",
           "mods": {},
           "swap": {
@@ -218,7 +218,7 @@
         {
           "id": "warrior_arms_t6c",
           "name": "Fortress Stance",
-          "desc": "Replaces Execute with Fortress Stance: 40% less damage taken for 8 seconds.",
+          "desc": "40% less damage taken for 8 seconds. Replaces Execute.",
           "icon": "🧱",
           "mods": {},
           "swap": {
@@ -365,7 +365,7 @@
         {
           "id": "warrior_fury_t4b",
           "name": "Storm Bolt",
-          "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+          "desc": "A 20-yard hammer throw that stuns for 2 seconds. Replaces Pummel.",
           "icon": "🔨",
           "mods": {},
           "swap": {
@@ -446,7 +446,7 @@
         {
           "id": "warrior_fury_t6c",
           "name": "Fortress Stance",
-          "desc": "Replaces Slam with Fortress Stance: 40% less damage taken for 8 seconds.",
+          "desc": "40% less damage taken for 8 seconds. Replaces Slam.",
           "icon": "🧱",
           "mods": {},
           "swap": {
@@ -592,7 +592,7 @@
         {
           "id": "warrior_protection_t4b",
           "name": "Storm Bolt",
-          "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+          "desc": "A 20-yard hammer throw that stuns for 2 seconds. Replaces Pummel.",
           "icon": "🔨",
           "mods": {},
           "swap": {
@@ -673,7 +673,7 @@
         {
           "id": "warrior_protection_t6c",
           "name": "Fortress Stance",
-          "desc": "Replaces Axe Throw with Fortress Stance: 40% less damage taken for 8 seconds.",
+          "desc": "40% less damage taken for 8 seconds. Replaces Axe Throw.",
           "icon": "🧱",
           "mods": {},
           "swap": {
@@ -820,7 +820,7 @@
         {
           "id": "mage_frost_t4a",
           "name": "Blizzard",
-          "desc": "Replaces Polymorph with Blizzard, a ground storm that damages and slows foes, which Ice Lance can punish.",
+          "desc": "A ground storm that damages and slows foes, which Ice Lance can punish. Replaces Polymorph.",
           "icon": "🌬️",
           "mods": {},
           "swap": {
@@ -831,7 +831,7 @@
         {
           "id": "mage_frost_t4b",
           "name": "Dragon's Breath",
-          "desc": "Replaces Polymorph with Dragon's Breath, a close-range cone that disorients enemies to peel melee off you.",
+          "desc": "A close-range cone that disorients enemies to peel melee off you. Replaces Polymorph.",
           "icon": "🐉",
           "mods": {},
           "swap": {
@@ -842,7 +842,7 @@
         {
           "id": "mage_frost_t4c",
           "name": "Flamestrike",
-          "desc": "Replaces Polymorph with Flamestrike, ground fire for burst damage on a frozen, rooted target.",
+          "desc": "Ground fire for burst damage on a frozen, rooted target. Replaces Polymorph.",
           "icon": "🔥",
           "mods": {},
           "swap": {
@@ -855,7 +855,7 @@
         {
           "id": "mage_frost_t5a",
           "name": "Arcane Torrent",
-          "desc": "Replaces Counterspell with Arcane Torrent, a silence that shuts down enemy casters.",
+          "desc": "A silence that shuts down enemy casters. Replaces Counterspell.",
           "icon": "🔇",
           "mods": {},
           "swap": {
@@ -866,7 +866,7 @@
         {
           "id": "mage_frost_t5b",
           "name": "Arcane Explosion",
-          "desc": "Replaces Counterspell with Arcane Explosion, an instant slowing burst around you.",
+          "desc": "An instant slowing burst around you. Replaces Counterspell.",
           "icon": "💥",
           "mods": {},
           "swap": {
@@ -877,7 +877,7 @@
         {
           "id": "mage_frost_t5c",
           "name": "Arcane Barrage",
-          "desc": "Replaces Counterspell with Arcane Barrage, a quick heavy hit for extra burst.",
+          "desc": "A quick heavy hit for extra burst. Replaces Counterspell.",
           "icon": "🔮",
           "mods": {},
           "swap": {
@@ -890,7 +890,7 @@
         {
           "id": "mage_frost_t6a",
           "name": "Evocation",
-          "desc": "Replaces Ice Barrier with Evocation, restoring your mana in a long channel.",
+          "desc": "Restores your mana in a long channel. Replaces Ice Barrier.",
           "icon": "🧘",
           "mods": {},
           "swap": {
@@ -901,7 +901,7 @@
         {
           "id": "mage_frost_t6b",
           "name": "Arcane Power",
-          "desc": "Replaces Ice Barrier with Arcane Power, a big damage cooldown for burst windows.",
+          "desc": "A big damage cooldown for burst windows. Replaces Ice Barrier.",
           "icon": "⚡",
           "mods": {},
           "swap": {
@@ -912,7 +912,7 @@
         {
           "id": "mage_frost_t6c",
           "name": "Pyroblast",
-          "desc": "Replaces Ice Barrier with Pyroblast, a huge slow-cast nuke to finish stunned targets.",
+          "desc": "A huge slow-cast nuke to finish stunned targets. Replaces Ice Barrier.",
           "icon": "☄️",
           "mods": {},
           "swap": {
@@ -1057,7 +1057,7 @@
         {
           "id": "mage_fire_t4a",
           "name": "Frost Nova",
-          "desc": "Replaces Polymorph with Frost Nova, a root to escape melee and set up Pyroblast.",
+          "desc": "A root to escape melee and set up Pyroblast. Replaces Polymorph.",
           "icon": "❄️",
           "mods": {},
           "swap": {
@@ -1068,7 +1068,7 @@
         {
           "id": "mage_fire_t4b",
           "name": "Deep Freeze",
-          "desc": "Replaces Polymorph with Deep Freeze, a stun that guarantees a safe Pyroblast.",
+          "desc": "A stun that guarantees a safe Pyroblast. Replaces Polymorph.",
           "icon": "🧊",
           "mods": {},
           "swap": {
@@ -1079,7 +1079,7 @@
         {
           "id": "mage_fire_t4c",
           "name": "Arcane Explosion",
-          "desc": "Replaces Polymorph with Arcane Explosion, an instant slow to keep melee off you.",
+          "desc": "An instant slow to keep melee off you. Replaces Polymorph.",
           "icon": "💥",
           "mods": {},
           "swap": {
@@ -1092,7 +1092,7 @@
         {
           "id": "mage_fire_t5a",
           "name": "Arcane Torrent",
-          "desc": "Replaces Counterspell with Arcane Torrent, a silence to stop enemy healers.",
+          "desc": "A silence to stop enemy healers. Replaces Counterspell.",
           "icon": "🔇",
           "mods": {},
           "swap": {
@@ -1103,7 +1103,7 @@
         {
           "id": "mage_fire_t5b",
           "name": "Ice Lance",
-          "desc": "Replaces Counterspell with Ice Lance, a cheap instant hit while you move.",
+          "desc": "A cheap instant hit while you move. Replaces Counterspell.",
           "icon": "🗡️",
           "mods": {},
           "swap": {
@@ -1114,7 +1114,7 @@
         {
           "id": "mage_fire_t5c",
           "name": "Arcane Barrage",
-          "desc": "Replaces Counterspell with Arcane Barrage, an instant heavy hit to add burst.",
+          "desc": "An instant heavy hit to add burst. Replaces Counterspell.",
           "icon": "🔮",
           "mods": {},
           "swap": {
@@ -1127,7 +1127,7 @@
         {
           "id": "mage_fire_t6a",
           "name": "Blizzard",
-          "desc": "Replaces Flamestrike with Blizzard, a slowing ground storm for control.",
+          "desc": "A slowing ground storm for control. Replaces Flamestrike.",
           "icon": "🌬️",
           "mods": {},
           "swap": {
@@ -1138,7 +1138,7 @@
         {
           "id": "mage_fire_t6b",
           "name": "Ice Barrier",
-          "desc": "Replaces Flamestrike with Ice Barrier, a shield that makes your fragile body safer.",
+          "desc": "A shield that makes your fragile body safer. Replaces Flamestrike.",
           "icon": "🛡️",
           "mods": {},
           "swap": {
@@ -1149,7 +1149,7 @@
         {
           "id": "mage_fire_t6c",
           "name": "Arcane Power",
-          "desc": "Replaces Flamestrike with Arcane Power, a damage cooldown to boost your burst.",
+          "desc": "A damage cooldown to boost your burst. Replaces Flamestrike.",
           "icon": "⚡",
           "mods": {},
           "swap": {
@@ -1294,7 +1294,7 @@
         {
           "id": "mage_arcane_t4a",
           "name": "Frost Nova",
-          "desc": "Replaces Polymorph with Frost Nova, a root that lets Arcane Missiles finish.",
+          "desc": "A root that lets Arcane Missiles finish. Replaces Polymorph.",
           "icon": "❄️",
           "mods": {},
           "swap": {
@@ -1305,7 +1305,7 @@
         {
           "id": "mage_arcane_t4b",
           "name": "Dragon's Breath",
-          "desc": "Replaces Polymorph with Dragon's Breath, a cone disorient to escape melee.",
+          "desc": "A cone disorient to escape melee. Replaces Polymorph.",
           "icon": "🐉",
           "mods": {},
           "swap": {
@@ -1316,7 +1316,7 @@
         {
           "id": "mage_arcane_t4c",
           "name": "Deep Freeze",
-          "desc": "Replaces Polymorph with Deep Freeze, a stun giving a safe window for your channel.",
+          "desc": "A stun giving a safe window for your channel. Replaces Polymorph.",
           "icon": "🧊",
           "mods": {},
           "swap": {
@@ -1329,7 +1329,7 @@
         {
           "id": "mage_arcane_t5a",
           "name": "Arcane Torrent",
-          "desc": "Replaces Counterspell with Arcane Torrent, a silence on enemy casters.",
+          "desc": "A silence on enemy casters. Replaces Counterspell.",
           "icon": "🔇",
           "mods": {},
           "swap": {
@@ -1340,7 +1340,7 @@
         {
           "id": "mage_arcane_t5b",
           "name": "Ice Lance",
-          "desc": "Replaces Counterspell with Ice Lance, a cheap instant hit while moving.",
+          "desc": "A cheap instant hit while moving. Replaces Counterspell.",
           "icon": "🗡️",
           "mods": {},
           "swap": {
@@ -1351,7 +1351,7 @@
         {
           "id": "mage_arcane_t5c",
           "name": "Pyroblast",
-          "desc": "Replaces Counterspell with Pyroblast, a heavy slow nuke for burst.",
+          "desc": "A heavy slow nuke for burst. Replaces Counterspell.",
           "icon": "☄️",
           "mods": {},
           "swap": {
@@ -1364,7 +1364,7 @@
         {
           "id": "mage_arcane_t6a",
           "name": "Ice Barrier",
-          "desc": "Replaces Arcane Explosion with Ice Barrier, an absorb shield for sustain.",
+          "desc": "An absorb shield for sustain. Replaces Arcane Explosion.",
           "icon": "🛡️",
           "mods": {},
           "swap": {
@@ -1375,7 +1375,7 @@
         {
           "id": "mage_arcane_t6b",
           "name": "Blizzard",
-          "desc": "Replaces Arcane Explosion with Blizzard, a ground storm that slows from range.",
+          "desc": "A ground storm that slows from range. Replaces Arcane Explosion.",
           "icon": "🌬️",
           "mods": {},
           "swap": {
@@ -1386,7 +1386,7 @@
         {
           "id": "mage_arcane_t6c",
           "name": "Evocation",
-          "desc": "Replaces Arcane Explosion with Evocation, a long channel that restores your mana.",
+          "desc": "A long channel that restores your mana. Replaces Arcane Explosion.",
           "icon": "🧘",
           "mods": {},
           "swap": {

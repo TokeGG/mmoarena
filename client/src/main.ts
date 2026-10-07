@@ -1,7 +1,7 @@
 import { ABILITIES, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
-import { ArenaScene } from './scene';
+import { ArenaScene, fallToward } from './scene';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
 import { Hud, blockedByCondition } from './hud';
@@ -112,7 +112,11 @@ const vis = { x: 0, z: 0, facing: 0, yaw: 0, pitch: 0.5, dist: 14, ready: false 
 let seq = 0;
 /** When our own jump began (performance.now). Drawn locally the instant it starts, like movement. */
 let myJumpAt = -1e9;
-let pending: MoveInput[] = [];
+let pending: (MoveInput & { air: number })[] = [];
+/** Server ticks since our last jump began: how high we are in it decides whether rails and barricades are cleared (as on the server). */
+let jumpTicks = 1e6;
+/** The camera's floor height, smoothed like the character's (it falls with you off a walkway). */
+const camFloor: { y?: number; fallV?: number } = {};
 
 const renderPos = new Map<number, { x: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
@@ -387,10 +391,10 @@ function spatial(id: number): Spatial | null {
 
 // ------------------------------------------------------------------ movement prediction
 
-function applyInput(i: MoveInput, me: UnitSnap) {
+function applyInput(i: MoveInput & { air: number }, me: UnitSnap) {
   const speed = TUNING.runSpeed * me.speedMult;
   if (speed <= 0) return;
-  const step = stepMovementL({ x: pred.x, z: pred.z }, predLevel, i, speed, DT, arena);
+  const step = stepMovementL({ x: pred.x, z: pred.z }, predLevel, i, speed, DT, arena, i.air);
   let p = step.pos;
   predLevel = step.level;
   if (latest?.phase === 'prep') p = clampToGate(p, team, arena);
@@ -413,9 +417,11 @@ function fixedStep() {
   }
   const input: MoveInput = { seq: ++seq, ...sample, jump: jump || undefined };
   send({ t: 'input', ...input });
-  pending.push(input);
+  jumpTicks = jump ? 0 : jumpTicks + 1;
+  const mine = { ...input, air: jumpHeight(jumpTicks * TUNING.tickMs) };
+  pending.push(mine);
   if (pending.length > 60) pending.shift();
-  if (me.alive && !me.controlled) applyInput(input, me);
+  if (me.alive && !me.controlled) applyInput(mine, me);
 }
 
 // ------------------------------------------------------------------ interpolation of other units
@@ -592,6 +598,36 @@ controls.onRightClick = (x, y) => {
   if (autoEnabled && me && t && t.team !== me.team && !me.autoAttack) send({ t: 'auto', on: true }); // right-click an enemy: target and start swinging
 };
 let modalAtEsc = false;
+
+/** Turning your own model in the lobby: drag anywhere on the menu's empty middle. */
+const lobbySpin = { yaw: 0, at: -1e9, dragX: null as number | null };
+{
+  const join = document.getElementById('join')!;
+  join.addEventListener('pointerdown', (e) => {
+    if (e.target !== join || e.button !== 0) return;
+    lobbySpin.dragX = e.clientX;
+    lobbySpin.at = performance.now();
+    join.setPointerCapture(e.pointerId);
+    join.style.cursor = 'grabbing';
+  });
+  join.addEventListener('pointermove', (e) => {
+    if (lobbySpin.dragX === null) {
+      join.style.cursor = e.target === join ? 'grab' : '';
+      return;
+    }
+    lobbySpin.yaw += (e.clientX - lobbySpin.dragX) * 0.012;
+    lobbySpin.dragX = e.clientX;
+    lobbySpin.at = performance.now();
+  });
+  const end = (e: PointerEvent) => {
+    if (lobbySpin.dragX === null) return;
+    lobbySpin.dragX = null;
+    if (join.hasPointerCapture(e.pointerId)) join.releasePointerCapture(e.pointerId);
+    join.style.cursor = e.target === join ? 'grab' : '';
+  };
+  join.addEventListener('pointerup', end);
+  join.addEventListener('pointercancel', end);
+}
 window.addEventListener('keydown', (e) => {
   if (e.code === 'Escape') modalAtEsc = !!document.querySelector('.mm-modal:not(.hidden), .mm-specpop:not(.hidden)');
 }, true);
@@ -658,7 +694,9 @@ function frame(now: number) {
     if (previewMap !== 'random') scene.setMap(previewMap);
     const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
     const spot = prev.spawns[0][0];
-    const face = prev.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
+    // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
+    const sway = lobbySpin.dragX !== null ? 0 : Math.min(1, Math.max(0, (now - lobbySpin.at - 2500) / 2000));
+    const face = prev.spawnFacing[0] + Math.PI + lobbySpin.yaw + Math.sin(t * 0.6) * 0.55 * sway;
     scene.setPhase('prep');
     // party members stand beside you with the class, weapon and skins they picked
     const me = accountUi.account?.name;
@@ -774,7 +812,7 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45) + heightAt(arena, vis.x, vis.z, predLevel));
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45) + (camFloor.y = fallToward(camFloor.y, heightAt(arena, vis.x, vis.z, predLevel), dt, camFloor)));
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);

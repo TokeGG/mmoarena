@@ -4,7 +4,7 @@
       "id": "arms",
       "name": "Warbringer",
       "role": "Dual wield",
-      "desc": "Dual wield: fast, relentless swings. Mortal Strike cashes in all your rage; Slice and Dice stuns the cone ahead.",
+      "desc": "Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice stuns the cone ahead.",
       "icon": "\u2694\ufe0f",
       "bar": [
         "whirlwind",
@@ -31,7 +31,7 @@
       "id": "fury",
       "name": "Rampager",
       "role": "Two-handed sword",
-      "desc": "Two-handed greatsword with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.",
+      "desc": "Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.",
       "icon": "\ud83e\ude93",
       "bar": [
         "bladestorm",
@@ -67,7 +67,7 @@
       "id": "protection",
       "name": "Barbarian",
       "role": "Control / reach",
-      "desc": "Polearm control with long reach. Reel In, a bleeding Deep Cuts and a banner that traps enemies in place.",
+      "desc": "Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps enemies in place.",
       "icon": "\ud83e\ude93",
       "bar": [
         "reel_in",
@@ -150,7 +150,7 @@
       "id": "arcane",
       "name": "Starweaving",
       "role": "Sustain / utility",
-      "desc": "A damage cooldown and hard-hitting missiles. Arcane Missiles and Barrage hit hard; Explosion slows what is close.",
+      "desc": "A damage cooldown, and Arcane Missiles and Barrage that hit hard; Explosion slows what is close.",
       "icon": "\ud83d\udd2e",
       "bar": [
         "arcane_blast",

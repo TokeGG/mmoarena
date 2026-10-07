@@ -220,7 +220,7 @@ describe('party play', () => {
       lobby.handle(us[0].p, { t: 'rematch', on: true });
     }
     assert.ok(maps.size > 1, `always the same map: ${[...maps]}`);
-    assert.ok(!maps.has('bridge'), 'the duel map is not in the random pool');
+    assert.ok(!maps.has('bridge'), 'Twin Ramps is gone');
   });
 
   it('Play again against bots also picks a random enemy class each time', async () => {
@@ -311,7 +311,7 @@ describe('duels', () => {
     assert.equal(room.size, 1);
   });
 
-  it('duels are always on the Twin Ramps bridge map, whatever either of them picked', async () => {
+  it('duels are always on The Overlook, whatever either of them picked', async () => {
     const { ARENAS } = await import('@arena/shared');
     const { lobby, us } = await world(['Ann', 'Bob']);
     for (let i = 0; i < 5; i++) {
@@ -319,7 +319,7 @@ describe('duels', () => {
       lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'warrior', map: ARENAS[1].id, mode: 'duel', duelWith: 'Ann' });
       const room: any = us[0].p.room;
       assert.ok(room && room === us[1].p.room, 'both in one room, so one map');
-      assert.equal(room.arenaId, 'bridge');
+      assert.equal(room.arenaId, 'overlook');
       lobby.handle(us[0].p, { t: 'leave' });
       lobby.handle(us[1].p, { t: 'leave' });
     }

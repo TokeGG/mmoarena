@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RAIL_THICKNESS, deckPiers, deckRails, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 
 /**
@@ -490,75 +491,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   crowd.castShadow = false;
   root.add(crowd);
 
-  // ---------------------------------------------------------- bridge, ramps and tunnel (Twin Ramps)
-  if (ARENA.bridge) {
-    const br = ARENA.bridge;
-    const end = br.deckHalf + br.rampLen;
-    const plankTex = stoneTexture(256, '#8a6a43', 8, 2, false, 77, [4, 1]);
-    const woodMat = new THREE.MeshStandardMaterial({ map: plankTex, color: 0xb38a55, roughness: 0.95 });
-    const stoneMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(th.floor).multiplyScalar(0.85), roughness: 0.95, side: THREE.DoubleSide });
-    const railMat = new THREE.MeshStandardMaterial({ color: 0x5e4630, roughness: 1 });
-    const darkMat = new THREE.MeshBasicMaterial({ color: 0x0b0a0d, transparent: true, opacity: 0.35, depthWrite: false });
-    // the deck, raised on a stone tunnel: two end walls hold it up, the long sides stay open so you can walk through
-    const deck = new THREE.Mesh(new THREE.BoxGeometry(br.deckHalf * 2, 0.6, br.halfWidth * 2), woodMat);
-    deck.position.set(0, br.height - 0.3, 0);
-    deck.castShadow = deck.receiveShadow = true;
-    root.add(deck);
-    // thick stone pier at the middle of each long side, framing the tunnel mouths like arches
-    for (const zs of [-1, 1]) for (const xs of [-1, 1]) {
-      const pier = new THREE.Mesh(new THREE.BoxGeometry(1.4, br.height - 0.6, 1.4), stoneMat);
-      pier.position.set(xs * (br.deckHalf - 0.7), (br.height - 0.6) / 2, zs * (br.halfWidth - 0.7));
-      pier.castShadow = pier.receiveShadow = true;
-      root.add(pier);
-    }
-    // a dark floor strip so the tunnel reads as a shaded passage
-    const shade = new THREE.Mesh(new THREE.PlaneGeometry(br.deckHalf * 2 - 2.8, br.halfWidth * 2), darkMat);
-    shade.rotation.x = -Math.PI / 2;
-    shade.position.set(0, 0.03, 0);
-    root.add(shade);
-    // the ramps: solid wedges rising from the foot to the deck
-    const prof = new THREE.Shape();
-    prof.moveTo(0, 0);
-    prof.lineTo(br.rampLen, 0);
-    prof.lineTo(0, br.height);
-    prof.closePath();
-    const wedgeGeo = new THREE.ExtrudeGeometry(prof, { depth: br.halfWidth * 2, bevelEnabled: false });
-    const slope = Math.atan2(br.height, br.rampLen);
-    const rlen = Math.hypot(br.rampLen, br.height);
-    for (const side of [-1, 1]) {
-      const wedge = new THREE.Mesh(wedgeGeo, stoneMat);
-      wedge.position.set(side * br.deckHalf, 0, -br.halfWidth);
-      wedge.scale.x = side;
-      wedge.castShadow = wedge.receiveShadow = true;
-      root.add(wedge);
-      // plank surface on top of the slope
-      const planks = new THREE.Mesh(new THREE.BoxGeometry(rlen, 0.12, br.halfWidth * 2), woodMat);
-      planks.position.set(side * (br.deckHalf + br.rampLen / 2), br.height / 2 + 0.05, 0);
-      planks.rotation.z = side * -slope;
-      planks.receiveShadow = true;
-      root.add(planks);
-      for (const zs of [-1, 1]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(rlen, 0.5, 0.35), railMat);
-        rail.position.set(side * (br.deckHalf + br.rampLen / 2), br.height / 2 + 0.35, zs * (br.halfWidth + 0.1));
-        rail.rotation.z = side * -slope;
-        rail.castShadow = true;
-        root.add(rail);
-        // spiked posts at the foot of the ramp
-        const post = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.3, 6), railMat);
-        post.position.set(side * (end + 0.1), 0.65, zs * (br.halfWidth + 0.1));
-        post.castShadow = true;
-        root.add(post);
-      }
-    }
-    for (const zs of [-1, 1]) {
-      const rail = new THREE.Mesh(new THREE.BoxGeometry(br.deckHalf * 2, 0.5, 0.35), railMat);
-      rail.position.set(0, br.height + 0.25, zs * (br.halfWidth + 0.1));
-      rail.castShadow = true;
-      root.add(rail);
-    }
-  }
-
-  // ---------------------------------------------------------- winding walkway (The Serpent): flats, ramps, rails and piers
+  // ---------------------------------------------------------- raised walkways: flats, ramps, rails and piers
   if (ARENA.deck) {
     const dk = ARENA.deck;
     const H = dk.height;
@@ -583,13 +516,23 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       sh.position.set((f.x0 + f.x1) / 2, 0.03, (f.z0 + f.z1) / 2);
       root.add(sh);
     }
-    for (const p of dk.piers ?? []) box(p.x0, p.x1, 0, H - 0.6, p.z0, p.z1, stoneMat);
-    // rails: only where they stand on a flat piece (the ramps get sloped rails below)
-    for (const r of dk.rails) {
-      for (const f of dk.flats) {
-        const x0 = Math.max(r.x0, f.x0 - 0.5), x1 = Math.min(r.x1, f.x1 + 0.5), z0 = Math.max(r.z0, f.z0 - 0.5), z1 = Math.min(r.z1, f.z1 + 0.5);
-        if (x1 - x0 > 0.05 && z1 - z0 > 0.05) box(x0, x1, H, H + 0.55, z0, z1, railMat);
-      }
+    for (const p of deckPiers(ARENA)) box(p.x0, p.x1, 0, H - 0.6, p.z0, p.z1, stoneMat);
+    // rails along every open edge (low lips you can jump over), sloped where they run beside a ramp
+    for (const r of deckRails(ARENA)) {
+      const alongX = r.x1 - r.x0 >= r.z1 - r.z0;
+      const len = alongX ? r.x1 - r.x0 : r.z1 - r.z0;
+      const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+      const off = RAIL_THICKNESS / 2 + 0.05; // sample the deck just inside the rail
+      const ends = alongX ? [{ x: r.x0 + 0.01, z: cz + r.inward.z * off }, { x: r.x1 - 0.01, z: cz + r.inward.z * off }] : [{ x: cx + r.inward.x * off, z: r.z0 + 0.01 }, { x: cx + r.inward.x * off, z: r.z1 - 0.01 }];
+      const h0 = heightAt(ARENA, ends[0].x, ends[0].z, 1), h1 = heightAt(ARENA, ends[1].x, ends[1].z, 1);
+      const tilt = Math.atan2(h1 - h0, len);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(alongX ? Math.hypot(len, h1 - h0) : r.x1 - r.x0, 0.55, alongX ? r.z1 - r.z0 : Math.hypot(len, h1 - h0)), railMat);
+      rail.position.set(cx, (h0 + h1) / 2 + 0.275, cz);
+      if (alongX) rail.rotation.z = tilt;
+      else rail.rotation.x = -tilt;
+      rail.castShadow = true;
+      rail.receiveShadow = true;
+      root.add(rail);
     }
     for (const r of dk.ramps) {
       const alongX = r.rise[1] === 'x';
@@ -620,7 +563,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       }
       wedge.castShadow = wedge.receiveShadow = true;
       root.add(wedge);
-      // plank surface and sloped side rails
+      // plank surface (the rails beside it are drawn with the others above)
       const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
       const planks = new THREE.Mesh(new THREE.BoxGeometry(alongX ? hyp : W, 0.12, alongX ? W : hyp), woodMat);
       planks.position.set(cx, H / 2 + 0.05, cz);
@@ -628,25 +571,6 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       else planks.rotation.x = up ? -slope : slope;
       planks.receiveShadow = true;
       root.add(planks);
-      for (const side of [-1, 1]) {
-        const rail = new THREE.Mesh(new THREE.BoxGeometry(alongX ? hyp : 0.35, 0.5, alongX ? 0.35 : hyp), railMat);
-        if (alongX) {
-          rail.position.set(cx, H / 2 + 0.35, side < 0 ? r.z0 - 0.1 : r.z1 + 0.1);
-          rail.rotation.z = up ? slope : -slope;
-        } else {
-          rail.position.set(side < 0 ? r.x0 - 0.1 : r.x1 + 0.1, H / 2 + 0.35, cz);
-          rail.rotation.x = up ? -slope : slope;
-        }
-        rail.castShadow = true;
-        root.add(rail);
-        // spiked posts at the foot
-        const post = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.3, 6), railMat);
-        const foot = alongX ? (up ? r.x0 : r.x1) : up ? r.z0 : r.z1;
-        if (alongX) post.position.set(foot, 0.65, side < 0 ? r.z0 - 0.1 : r.z1 + 0.1);
-        else post.position.set(side < 0 ? r.x0 - 0.1 : r.x1 + 0.1, 0.65, foot);
-        post.castShadow = true;
-        root.add(post);
-      }
     }
   }
 
@@ -851,7 +775,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   for (let i = 0; i < 26; i++) {
     const x = b.minX + 1 + rand() * (w - 2);
     const z = rand() < 0.5 ? b.minZ + 0.6 + rand() * 1.6 : b.maxZ - 0.6 - rand() * 1.6;
-    if (ARENA.pillars.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + 1)) continue;
+    if (ARENA.pillars.some((p) => Math.hypot(p.x - x, p.z - z) < p.r + 1) || onRaised(ARENA, x, z)) continue;
     const s = 0.15 + rand() * 0.35;
     const m = new THREE.Mesh(new THREE.DodecahedronGeometry(s, 0), rubbleMat);
     m.position.set(x, s * 0.5, z);
@@ -860,7 +784,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     root.add(m);
   }
 
-  // ---------------------------------------------------------- walls (The Serpent): straight stone walls with a capstone
+  // ---------------------------------------------------------- walls: straight stone walls with a capstone
   const SW_H = 5;
   for (const wl of ARENA.walls ?? []) {
     const ww = wl.x1 - wl.x0;
@@ -880,6 +804,31 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     const band = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.08, 0.14, wd + 0.08), goldMat);
     band.position.set(wx, SW_H - 0.7, wz);
     root.add(capStone, foot, band);
+  }
+
+  // ---------------------------------------------------------- low barricades: waist-high stone with a wooden top (jump them; you see over them)
+  const lowStone = new THREE.MeshStandardMaterial({ map: pillarTex, color: new THREE.Color(th.floor).lerp(new THREE.Color(0x9a8f80), 0.5), roughness: 0.95 });
+  const lowWood = new THREE.MeshStandardMaterial({ color: 0x6b4c2e, roughness: 1 });
+  for (const lw of ARENA.lows ?? []) {
+    const ww = lw.x1 - lw.x0;
+    const wd = lw.z1 - lw.z0;
+    const wx = (lw.x0 + lw.x1) / 2;
+    const wz = (lw.z0 + lw.z1) / 2;
+    const body = new THREE.Mesh(new THREE.BoxGeometry(ww, 0.85, wd), lowStone);
+    body.position.set(wx, 0.425, wz);
+    body.castShadow = body.receiveShadow = true;
+    const top = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.16, 0.14, wd + 0.16), lowWood);
+    top.position.set(wx, 0.92, wz);
+    top.castShadow = true;
+    root.add(body, top);
+    // short wooden stakes along the top so it reads as a barricade, not a step
+    const n = Math.max(2, Math.round(Math.max(ww, wd) / 1.4));
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const stake = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.42, 5), lowWood);
+      stake.position.set(ww > wd ? lw.x0 + ww * t : wx, 1.2, ww > wd ? wz : lw.z0 + wd * t);
+      root.add(stake);
+    }
   }
 
   // ---------------------------------------------------------- theme dressing outside and inside the walls

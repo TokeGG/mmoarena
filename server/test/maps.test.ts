@@ -1,3 +1,4 @@
+import { ARENAS } from '@arena/shared';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { Lobby } from '../src/rooms';
@@ -43,6 +44,6 @@ describe('arena choice', () => {
     ps.forEach((p) => join(lobby, p));
     const maps = new Set(socks.map(mapOf));
     assert.equal(maps.size, 1);
-    assert.ok(['colosseum', 'ruins', 'frost'].includes([...maps][0]!));
+    assert.ok(ARENAS.filter((a) => a.randomPool !== false).some((a) => a.id === [...maps][0]), `${[...maps][0]} is in the random pool`);
   });
 });

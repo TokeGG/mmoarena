@@ -1,10 +1,10 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, canWear, itemById, itemsForSlot, talentsFor,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, talentsFor,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { flags, loadBuild, loadSpecTalents, progress, saveBuild, saveSpecTalents } from './profile';
-import { CLASS_BLURB } from './tips';
+import { CLASS_BLURB, tipBuildKey } from './tips';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 
 /**
@@ -214,6 +214,10 @@ export class MainMenu {
 
   show(visible: boolean) {
     this.root.classList.toggle('hidden', !visible);
+    if (!visible) {
+      window.clearTimeout(this.popHide);
+      this.specPop.classList.add('hidden');
+    }
   }
 
   // ------------------------------------------------------------------ DOM skeleton
@@ -230,6 +234,11 @@ export class MainMenu {
     this.nameInput.maxLength = 16;
     this.nameInput.placeholder = 'Character name';
     this.nameInput.value = store.get('arena.name', '');
+    // the spec card stays up while the pointer is anywhere on this side (or on the card itself), so you can reach it from any spec
+    left.addEventListener('mouseenter', () => window.clearTimeout(this.popHide));
+    left.addEventListener('mouseleave', (e) => {
+      if (!(e.relatedTarget instanceof Node && this.specPop.contains(e.relatedTarget))) this.hideSpecPop();
+    });
     left.append(el('h2', '', 'Character'), this.classRow, this.blurb, this.sectionHead('Specialisation', 'hover for its skills'), this.specs, this.sectionHead('Talent tree · one per tier'), this.talents);
 
     // right: the Look card and the Match panel
@@ -354,6 +363,10 @@ export class MainMenu {
     saveSpecTalents(this.classId, this.build.spec, this.build.talents);
     this.hooks.onSelect(this.classId, this.build);
     this.renderAll();
+    // an open spec card follows the new picks (its skills and their numbers)
+    const open = this.specPop.classList.contains('hidden') ? null : SPECS[this.classId].find((x) => x.id === this.specPop.dataset.spec);
+    const card = open ? this.specs.querySelector<HTMLElement>(`[data-spec="${open.id}"]`) : null;
+    if (open && card) this.showSpecPop(card, open);
   }
 
   private renderClasses() {
@@ -388,14 +401,13 @@ export class MainMenu {
     this.specs.replaceChildren(
       ...SPECS[this.classId].map((spec) => {
         const card = el('button', `mm-spec${spec.id === this.build.spec ? ' sel' : ''}`);
+        card.dataset.spec = spec.id;
         card.append(el('span', 'ci', spec.icon), el('b', '', spec.name));
         card.addEventListener('mouseenter', () => this.showSpecPop(card, spec));
-        card.addEventListener('mouseleave', () => this.hideSpecPop());
         card.addEventListener('click', () => {
           if (this.build.spec !== spec.id) {
             saveSpecTalents(this.classId, this.build.spec, this.build.talents); // keep what this spec had
-            // talents belong to a spec: bring back what this one had last time, else keep the shared tier I pick
-            this.build.talents = loadSpecTalents(this.classId, spec.id) ?? talentsFor(this.classId, spec.id).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : ''));
+            this.build.talents = this.specBuild(spec.id).talents;
           }
           this.build.spec = spec.id;
           this.commit();
@@ -405,10 +417,28 @@ export class MainMenu {
     );
   }
 
-  /** The hover card of a spec: what it does, its skills in bar order with their keys. Drag a skill onto another slot to swap them. */
+  /**
+   * The build a spec has: the current one for the picked spec, else the talents it had last time (talents belong to a
+   * spec), falling back to the shared tier picks of the current build.
+   */
+  private specBuild(specId: string): Build {
+    if (specId === this.build.spec) return this.build;
+    const talents = loadSpecTalents(this.classId, specId) ?? talentsFor(this.classId, specId).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : ''));
+    return { ...this.build, spec: specId, talents };
+  }
+
+  /**
+   * The hover card of a spec: what it does, its skills in bar order with their keys. The skills are the ones that spec's
+   * talents give (a swapped-in skill takes the place of the one it replaces) and their tooltips use that spec and its
+   * talents; a skill a talent changes or brings in is flagged. Drag a skill onto another slot to swap them.
+   */
   private showSpecPop(card: HTMLElement, spec: (typeof SPECS)[ClassId][number]) {
     window.clearTimeout(this.popHide);
-    const order = applyOrder(spec.bar, loadOrder(this.classId, spec.id));
+    const build = this.specBuild(spec.id);
+    const order = applyOrder(barFor(this.classId, build, spec.bar), loadOrder(this.classId, spec.id));
+    const withTalents = compileMods(this.classId, build);
+    const specOnly = compileMods(this.classId, { ...build, talents: [] });
+    const buildKey = tipBuildKey(this.classId, build);
     const pop = this.specPop;
     pop.replaceChildren();
     pop.dataset.spec = spec.id;
@@ -430,7 +460,14 @@ export class MainMenu {
       slot.draggable = true;
       const tile = el('span', 'sp-tile', ABILITY_ICON[a] ?? '✦');
       slot.append(el('span', 'be-key', this.hooks.slotKey?.(i + 1) ?? String(i + 1)), tile, el('span', 'sp-name', ABILITIES[a]?.name ?? a));
-      tip(slot, `ability:${a}`);
+      tip(slot, `ability:${a}`, { tipBuild: buildKey });
+      if (!spec.bar.includes(a)) {
+        slot.classList.add('swapped');
+        slot.append(el('span', 'sp-flag', 'talent'));
+      } else if (ABILITIES[a] && JSON.stringify(describeAbility(ABILITIES[a], withTalents)) !== JSON.stringify(describeAbility(ABILITIES[a], specOnly))) {
+        slot.classList.add('buffed');
+        slot.append(el('span', 'sp-flag', '▲'));
+      }
       slot.addEventListener('dragstart', (e) => {
         e.dataTransfer?.setData('text/plain', String(i));
         slot.classList.add('drag');
@@ -454,20 +491,22 @@ export class MainMenu {
     if (!pop.isConnected) {
       document.body.append(pop);
       pop.addEventListener('mouseenter', () => window.clearTimeout(this.popHide));
-      pop.addEventListener('mouseleave', () => this.hideSpecPop());
+      pop.addEventListener('mouseleave', (e) => {
+        if (!(e.relatedTarget instanceof Element && e.relatedTarget.closest('.mm-left'))) this.hideSpecPop();
+      });
     }
     pop.classList.remove('hidden');
     const r = (card.closest('.mm-left') ?? card).getBoundingClientRect();
     const cr = card.getBoundingClientRect();
     const w = pop.offsetWidth;
-    const left = r.right + 16 + w < window.innerWidth ? r.right + 16 : Math.max(6, r.left - w - 16);
+    const left = r.right + 8 + w < window.innerWidth ? r.right + 8 : Math.max(6, r.left - w - 8);
     pop.style.left = `${left}px`;
     pop.style.top = `${Math.max(6, Math.min(cr.top - 40, window.innerHeight - pop.offsetHeight - 6))}px`;
   }
 
   private hideSpecPop() {
     window.clearTimeout(this.popHide);
-    this.popHide = window.setTimeout(() => this.specPop.classList.add('hidden'), 220);
+    this.popHide = window.setTimeout(() => this.specPop.classList.add('hidden'), 450);
   }
 
   private renderTalents() {

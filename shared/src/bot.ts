@@ -1,5 +1,6 @@
 import { ABILITIES, AURAS, TUNING } from './data';
-import { angleTo, blinkDestination, clamp, dist, distPointToSegment, hasLOS, navStep, stepMovementL } from './geometry';
+import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, navStep, stepMovementL } from './geometry';
+import { highSpot, navRoute, needsNavGrid } from './nav';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
@@ -180,11 +181,14 @@ export class Bot {
   // ------------------------------------------------------------------ helpers
 
   private lastWalk = false;
+  /** The route says jump now (a rail to clear, a barricade, the side of a ramp). */
+  private jumpNow = false;
   private send(u: Unit, c: Cmd): void {
     if (this.sim.time < this.unstickUntil && c.fwd > 0) c = { facing: c.facing + this.unstickSign * 1.2, fwd: 1, strafe: 0 };
     if (c.guard) c = this.wallGuard(u, c);
     this.lastWalk = c.fwd !== 0 || c.strafe !== 0 ? c.fwd > 0 : false;
-    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe });
+    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && c.fwd > 0) || undefined });
+    this.jumpNow = false;
   }
 
   /** Where a command would take the unit in a bit over a second, walls, pillars and edges included. */
@@ -615,76 +619,29 @@ export class Bot {
 
   // ------------------------------------------------------------------ movement
 
-  /** Steer around the pillar that blocks the way instead of pushing into it. */
-  /** Between the ground and a bridge's deck the only way is a ramp: head for the foot of one (or out of the tunnel) first. */
-  /** The winding walkway (ArenaDef.deck): walk its centre line, up one foot and down the other. */
-  private deckWaypoint(from: Vec2, fromLv: 0 | 1, to: Vec2, toLv: 0 | 1): Vec2 | null {
-    const route = this.sim.arena.deck?.route;
-    if (!route || route.length < 2 || (fromLv === 0 && toLv === 0)) return null;
-    const S = [0];
-    for (let i = 1; i < route.length; i++) S.push(S[i - 1] + dist(route[i - 1], route[i]));
-    const total = S[S.length - 1];
-    const param = (p: Vec2) => {
-      let best = 0, bestD = Infinity;
-      for (let i = 1; i < route.length; i++) {
-        const a = route[i - 1], b = route[i];
-        const len2 = (b.x - a.x) ** 2 + (b.z - a.z) ** 2;
-        const t = len2 ? clamp(((p.x - a.x) * (b.x - a.x) + (p.z - a.z) * (b.z - a.z)) / len2, 0, 1) : 0;
-        const d = Math.hypot(p.x - (a.x + (b.x - a.x) * t), p.z - (a.z + (b.z - a.z) * t));
-        if (d < bestD) { bestD = d; best = S[i - 1] + t * (S[i] - S[i - 1]); }
-      }
-      return best;
-    };
-    const first = route[0], last = route[route.length - 1];
-    let goal: number; // where along the walkway we want to be
-    let goalPt = to;
-    if (toLv === 0) {
-      const end = dist(first, to) <= dist(last, to) ? 0 : total; // leave by the foot nearer the target
-      goal = end;
-      goalPt = end === 0 ? first : last;
-    } else goal = param(to);
-    if (fromLv === 0) {
-      // on the ground, make for the foot nearer the target's place on the walkway, then walk in
-      const foot = Math.abs(goal) <= Math.abs(total - goal) ? first : last;
-      if (dist(from, foot) > 3) return foot;
-    }
-    const at = fromLv === 0 ? (dist(from, first) < dist(from, last) ? 0 : total) : param(from);
-    const dir = goal >= at ? 1 : -1;
-    if (Math.abs(goal - at) < 0.8) return goalPt;
-    if (dir > 0) {
-      for (let i = 0; i < route.length; i++) if (S[i] > at + 0.8) return S[i] >= goal ? goalPt : route[i];
-    } else {
-      for (let i = route.length - 1; i >= 0; i--) if (S[i] < at - 0.8) return S[i] <= goal ? goalPt : route[i];
-    }
-    return goalPt;
-  }
-
-  private levelWaypoint(from: Vec2, fromLv: 0 | 1, to: Vec2, toLv: 0 | 1): Vec2 | null {
-    const arena = this.sim.arena;
-    if (arena.deck) return this.deckWaypoint(from, fromLv, to, toLv);
-    const br = arena.bridge;
-    if (!br || fromLv === toLv) return null;
-    const end = br.deckHalf + br.rampLen;
-    if (fromLv === 1) return { x: (to.x === 0 ? Math.sign(from.x) || 1 : Math.sign(to.x)) * (end + 2), z: 0 }; // down the ramp nearer the target
-    if (Math.abs(from.x) < br.deckHalf && Math.abs(from.z) < br.halfWidth) return { x: from.x, z: (to.z >= from.z ? 1 : -1) * (br.halfWidth + 2) }; // out of the tunnel first
-    const s = Math.sign(from.x) || 1;
-    // line up with the ramp in the open, then walk straight in so the climb starts (the foot itself is the way on)
-    if (Math.abs(from.x) > end + 0.8 && Math.abs(from.z) > br.halfWidth - 1) return { x: s * (end + 2.5), z: 0 };
-    return { x: s * (end - 1.5), z: 0 };
-  }
-
+  /** Steer around whatever is in the way: the walk grid on arenas with walkways or barricades, else round pillars and walls. */
   private waypoint(from: Vec2, to: Vec2, fromLv: 0 | 1 = 0, toLv: 0 | 1 = 0): Vec2 {
     const arena = this.sim.arena;
-    if (this.highGround && arena.deck && toLv === 0) toLv = 1; // head up onto the walkway
-    const lw = this.levelWaypoint(from, fromLv, to, toLv);
-    if (lw) return lw;
+    if (needsNavGrid(arena)) {
+      // casters that like the high ground fight from the walkway when there is a spot up there that sees the target
+      if (this.highGround && toLv === 0) {
+        const spot = highSpot(arena, to);
+        if (spot) {
+          to = spot;
+          toLv = 1;
+        }
+      }
+      const r = navRoute(arena, from, fromLv, to, toLv);
+      if (r) {
+        if (r.jump) this.jumpNow = true;
+        return r.point;
+      }
+    }
     const around = navStep(from, to, arena); // walls in the way: follow the route points round them
     if (around) return around;
     if (hasLOS(from, to, arena, fromLv, toLv)) return to;
     let best: { x: number; z: number; r: number } | undefined;
-    // on the ground the walkway's ramps are blocks: treat each as a round obstacle to steer round
-    const blocks = fromLv === 0 && arena.deck ? arena.deck.ramps.map((r) => ({ x: (r.x0 + r.x1) / 2, z: (r.z0 + r.z1) / 2, r: Math.hypot(r.x1 - r.x0, r.z1 - r.z0) / 2 })) : [];
-    for (const pl of [...arena.pillars, ...blocks]) {
+    for (const pl of arena.pillars) {
       if (distPointToSegment(pl, from, to) < pl.r && (!best || dist(from, pl) < dist(from, best))) best = pl;
     }
     if (!best) return to;

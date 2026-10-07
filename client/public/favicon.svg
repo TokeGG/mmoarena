@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#f0b84a"/><stop offset="1" stop-color="#9a6618"/></linearGradient>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2a1c"/><stop offset="1" stop-color="#140f0b"/></linearGradient>
+    <g id="sword">
+      <path d="M29.6 41 V15.5 L32 10 L34.4 15.5 V41 Z" fill="#eef2f7" stroke="#8d9bb0" stroke-width=".8" stroke-linejoin="round"/>
+      <path d="M32 13 V40" stroke="#b9c4d4" stroke-width=".9"/>
+      <rect x="22.5" y="40.5" width="19" height="4.2" rx="2" fill="#f0b84a" stroke="#7a4a12" stroke-width=".8"/>
+      <rect x="30.4" y="44.7" width="3.2" height="6.6" fill="#7a4a1c"/>
+      <circle cx="32" cy="53.2" r="2.9" fill="#f0b84a" stroke="#7a4a12" stroke-width=".8"/>
+    </g>
+  </defs>
+  <path d="M32 3 L57 11 V29 C57 45 46 55 32 61 C18 55 7 45 7 29 V11 Z" fill="url(#field)" stroke="url(#gold)" stroke-width="4" stroke-linejoin="round"/>
+  <use href="#sword" transform="rotate(40 32 33)"/>
+  <use href="#sword" transform="rotate(-40 32 33)"/>
+</svg>

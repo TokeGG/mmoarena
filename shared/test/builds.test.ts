@@ -846,10 +846,10 @@ describe('detailed tooltips', () => {
   it('explainAbility shows how the numbers are worked out and names where bonuses come from', () => {
     const lance = ABILITIES.ice_lance;
     const lines = explainAbility(lance, newMods(), []);
-    assert.ok(lines.some((l) => l.startsWith(`Damage: base ${lance.effects.find((e) => e.type === 'damage')!.amount}`)));
+    assert.ok(!lines.some((l) => l.startsWith('Damage:')), 'with no bonus the breakdown would only repeat the damage the short tooltip shows');
     assert.ok(lines.some((l) => l.includes('Fingers of Frost')), 'the Fingers bonus is explained');
     const boosted = explainAbility(lance, { ...newMods(), damageDone: 1.1 }, [{ label: 'Test Talent', mods: { damageDone: 1.1 } }]);
-    assert.ok(boosted.some((l) => l.includes('x1.1 Test Talent')));
+    assert.ok(boosted.some((l) => l.startsWith('Damage:') && l.includes('x1.1 Test Talent')), 'names what raised the damage');
     assert.ok(explainAbility(ABILITIES.polymorph, newMods(), []).some((l) => l.includes('Diminishing returns')));
     assert.ok(!explainAbility(ABILITIES.ice_lance, newMods(), []).join(' ').includes('Recklessness'), 'a warrior buff does not show on a mage spell');
   });

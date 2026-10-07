@@ -1,6 +1,6 @@
-import { ABILITIES, AURAS, CLASSES, COSMETICS, SPECS, TALENTS, compileMods, describeAbility, describeAura, describeMods, explainAbility, itemById, newMods, specOf, talentsFor } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, CLASS_BLURB, COSMETICS, SPECS, TALENTS, compileMods, describeAbility, describeAura, describeTalent, explainAbility, itemById, modsNotIn, specOf, talentsFor } from '@arena/shared';
 import type { Build, ClassId, ModSource, Mods } from '@arena/shared';
-import { setTipResolver } from './tooltip';
+import { invalidateTip, setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
 
 const SCHOOL_COLOR: Record<string, string> = {
@@ -8,13 +8,14 @@ const SCHOOL_COLOR: Record<string, string> = {
 };
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** The player's current numbers, so ability tooltips show real damage (talents and gear included). */
-let mods: Mods = newMods();
-let sources: ModSource[] = [];
-/** The build the tooltips describe: its modifiers, and which spec and talents each bonus comes from (for the Alt view). */
-export function setTipBuild(classId: ClassId, build: Build | undefined) {
-  mods = compileMods(classId, build);
-  sources = [];
+/** The numbers a build gives: its modifiers, and which spec and talents each bonus comes from (for the Alt view). */
+interface TipBuild {
+  mods: Mods;
+  sources: ModSource[];
+}
+
+function buildTips(classId: ClassId, build: Build | undefined): TipBuild {
+  const sources: ModSource[] = [];
   const spec = build ? specOf(classId, build.spec) : undefined;
   if (spec) sources.push({ label: spec.name, mods: spec.mods });
   if (build) {
@@ -24,18 +25,49 @@ export function setTipBuild(classId: ClassId, build: Build | undefined) {
       if (t) sources.push({ label: t.name, mods: t.mods });
     });
   }
+  return { mods: compileMods(classId, build), sources };
 }
+
+/** The player's current build, so ability tooltips show real numbers (spec and talents included). */
+let current: TipBuild = buildTips('mage', undefined);
+/** The build the tooltips describe. Call it whenever the class, spec or a talent changes: an open tooltip is redrawn at once. */
+export function setTipBuild(classId: ClassId, build: Build | undefined) {
+  current = buildTips(classId, build);
+  cache.clear();
+  invalidateTip();
+}
+
+/**
+ * A `data-tip-build` value for an ability tooltip that should describe another build than the current one (the spec
+ * popover in the menu shows each spec with the talents it would have).
+ */
+export function tipBuildKey(classId: ClassId, build: Build): string {
+  return `${classId}|${build.spec}|${build.talents.join(',')}`;
+}
+const cache = new Map<string, TipBuild>();
+function fromKey(key: string | undefined): TipBuild {
+  if (!key) return current;
+  let b = cache.get(key);
+  if (!b) {
+    const [classId, spec, talents] = key.split('|');
+    b = CLASSES[classId as ClassId] ? buildTips(classId as ClassId, { spec, talents: talents ? talents.split(',') : [], gear: {} }) : current;
+    cache.set(key, b);
+  }
+  return b;
+}
+
 /** Matches played, so cosmetic tooltips can say what is still locked. */
 let played = 0;
 export function setTipProgress(matches: number) {
   played = matches;
 }
 
-export function abilityTip(id: string): TipContent | null {
+/** An ability's tooltip for a build (the current one by default). Numbers the spec or talents change are marked. */
+export function abilityTip(id: string, build: TipBuild = current): TipContent | null {
   const def = ABILITIES[id];
   if (!def) return null;
-  const d = describeAbility(def, mods);
-  return { title: d.name, titleColor: SCHOOL_COLOR[def.school], tag: cap(d.school), stats: d.stats, lines: d.lines, notes: d.notes, more: explainAbility(def, mods, sources) };
+  const d = describeAbility(def, build.mods, undefined, { mark: true });
+  return { title: d.name, titleColor: SCHOOL_COLOR[def.school], tag: cap(d.school), stats: d.stats, lines: d.lines, good: d.added, notes: d.notes, more: explainAbility(def, build.mods, build.sources) };
 }
 
 export function itemTip(id: string): TipContent | null {
@@ -46,57 +78,66 @@ export function itemTip(id: string): TipContent | null {
   const bad: string[] = [];
   if (item.owner) notes.push('Founder only.');
   else if (item.unlock) (played >= item.unlock ? notes : bad).push(played >= item.unlock ? `Unlocked at ${item.unlock} matches.` : `Locked: play ${item.unlock} matches (you have ${played}).`);
-  return { title: item.name, titleColor: item.color, tag: slot.name, stats: [], good: ['Cosmetic only: changes how you look, never how you fight.'], bad, notes };
+  // "cosmetic only" is said once, in the Look window's header, not on every item
+  return { title: item.name, titleColor: item.color, tag: slot.name, bad, notes };
 }
 
 export function installTips() {
-  setTipResolver((key, data) => {
-    const [kind, a, b] = key.split(':');
-    switch (kind) {
-      case 'ability':
-        return abilityTip(a);
-      case 'aura': {
-        const def = AURAS[a];
-        if (!def) return null;
-        return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, mods)], notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
-      }
-      case 'spec': {
-        const spec = specOf(a as ClassId, b);
-        if (!spec) return null;
-        return {
-          title: spec.name,
-          titleColor: CLASSES[a as ClassId].color,
-          tag: spec.role,
-          lines: [spec.desc],
-          good: describeMods(spec.mods),
-          stats: ['Abilities: ' + spec.bar.map((id) => ABILITIES[id].name).join(', ')],
-        };
-      }
-      case 'talent': {
-        const t = Object.values(TALENTS[a as ClassId] ?? {}).flat(2).find((x) => x.id === b);
-        if (!t) return null;
-        const swap = t.swap ? [`Learn ${ABILITIES[t.swap.to]?.name ?? t.swap.to} in place of ${ABILITIES[t.swap.from]?.name ?? t.swap.from}`] : undefined;
-        return { title: t.name, titleColor: '#ffd24a', lines: [t.desc], good: describeMods(t.mods), stats: swap, footer: data.tipHint || undefined };
-      }
-      case 'item':
-        return itemTip(a);
-      case 'class': {
-        const c = CLASSES[a as ClassId];
-        if (!c) return null;
-        return { title: c.name, titleColor: c.color, stats: [`${c.maxHealth} health · ${cap(c.resource.type)}`], lines: [data.tipText ?? ''] };
-      }
-      case 'text':
-        return { title: data.tipTitle ?? '', lines: data.tipText ? [data.tipText] : [] };
-      default:
-        return null;
-    }
-  });
+  setTipResolver(resolveTip);
 }
 
-export const CLASS_BLURB: Record<ClassId, string> = {
-  warrior: 'Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts.',
-  mage: 'Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.',
-  priest: 'Healer and support. Shields, heals, dispels and fears. Mana-hungry.',
-  rogue: 'Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.',
-};
+/** The tooltip for a `data-tip` key (`ability:id`, `aura:id`, `talent:class:id`...), null when there is none. */
+export function resolveTip(key: string, data: DOMStringMap | Record<string, string | undefined>): TipContent | null {
+  const [kind, a, b] = key.split(':');
+  switch (kind) {
+    case 'ability':
+      return abilityTip(a, fromKey(data.tipBuild));
+    case 'aura': {
+      const def = AURAS[a];
+      if (!def) return null;
+      return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, current.mods)], notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
+    }
+    case 'spec': {
+      const spec = specOf(a as ClassId, b);
+      if (!spec) return null;
+      return {
+        title: spec.name,
+        titleColor: CLASSES[a as ClassId].color,
+        tag: spec.role,
+        lines: [spec.desc],
+        good: modsNotIn(spec.desc, spec.mods),
+        stats: ['Abilities: ' + spec.bar.map((id) => ABILITIES[id].name).join(', ')],
+      };
+    }
+    case 'talent': {
+      const t = Object.values(TALENTS[a as ClassId] ?? {}).flat(2).find((x) => x.id === b);
+      if (!t) return null;
+      // the description first; generated numbers and the swap only where it does not already say them
+      const d = describeTalent(t);
+      return { title: t.name, titleColor: '#ffd24a', lines: d.lines, good: d.mods, stats: d.swap ? [d.swap] : undefined, footer: data.tipHint || undefined };
+    }
+    case 'item':
+      return itemTip(a);
+    case 'class': {
+      const c = CLASSES[a as ClassId];
+      if (!c) return null;
+      return { title: c.name, titleColor: c.color, stats: [`${c.maxHealth} health · ${cap(c.resource.type)}`], lines: data.tipText ? [data.tipText] : [] };
+    }
+    case 'text':
+      // a body that only restates the title adds nothing
+      return { title: data.tipTitle ?? '', lines: data.tipText && !sameText(data.tipText, data.tipTitle ?? '') ? [data.tipText] : [] };
+    default:
+      return null;
+  }
+}
+
+/** True when `body` says no more than `title` ("Ranked" / "Ranked match"). */
+function sameText(body: string, title: string): boolean {
+  const words = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter((w) => w && !['a', 'an', 'the', 'match', 'mode'].includes(w));
+  const t = new Set(words(title));
+  return words(body).every((w) => t.has(w));
+}
+
+/** The one-line class pitch on the menu (kept with the other tooltip text in shared). */
+export { CLASS_BLURB };
 void SPECS;

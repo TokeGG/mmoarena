@@ -232,86 +232,10 @@
   "gateX": 20
  },
  {
-  "id": "bridge",
-  "name": "Twin Ramps",
-  "theme": "ruins",
-  "desc": "A raised bridge crosses the middle with a ramp at each end and a tunnel running underneath. Fight on the span, hold the ramps, or hide in the tunnel.",
-  "bounds": {
-   "minX": -30,
-   "maxX": 30,
-   "minZ": -20,
-   "maxZ": 20
-  },
-  "pillars": [
-   {
-    "x": -12,
-    "z": -11,
-    "r": 1.6
-   },
-   {
-    "x": -12,
-    "z": 11,
-    "r": 1.6
-   },
-   {
-    "x": 12,
-    "z": -11,
-    "r": 1.6
-   },
-   {
-    "x": 12,
-    "z": 11,
-    "r": 1.6
-   }
-  ],
-  "spawns": [
-   [
-    {
-     "x": -24,
-     "z": -3
-    },
-    {
-     "x": -24,
-     "z": 3
-    },
-    {
-     "x": -26,
-     "z": 0
-    }
-   ],
-   [
-    {
-     "x": 24,
-     "z": 3
-    },
-    {
-     "x": 24,
-     "z": -3
-    },
-    {
-     "x": 26,
-     "z": 0
-    }
-   ]
-  ],
-  "spawnFacing": [
-   1.5707963267948966,
-   -1.5707963267948966
-  ],
-  "gateX": 20,
-  "randomPool": false,
-  "bridge": {
-   "halfWidth": 4,
-   "deckHalf": 8,
-   "rampLen": 10,
-   "height": 3.2
-  }
- },
- {
   "id": "serpent",
   "name": "The Serpent",
   "theme": "colosseum",
-  "desc": "Two start yards and one winding wooden walkway between them: a ramp up from your side, a long run along the middle, a turn, and a ramp down on theirs. Hold the walkway, fight under it, or race the flanks and cut the other team off.",
+  "desc": "Two start yards and one wide wooden walkway between them: a ramp up from your side, a long run across the middle, a turn, and a ramp down on theirs. Hold the walkway, jump off it to cut someone off, or fight underneath among the pillars.",
   "bounds": {
    "minX": -21,
    "maxX": 21,
@@ -327,6 +251,16 @@
    {
     "x": 9.5,
     "z": 7,
+    "r": 1.4
+   },
+   {
+    "x": -9,
+    "z": 4,
+    "r": 1.4
+   },
+   {
+    "x": 9,
+    "z": -4,
     "r": 1.4
    }
   ],
@@ -369,164 +303,418 @@
    "height": 3.2,
    "flats": [
     {
-     "x0": -6,
-     "x1": -2,
-     "z0": -18,
-     "z1": 18
+     "x0": -9,
+     "x1": -3,
+     "z0": 10,
+     "z1": 16
     },
     {
-     "x0": -2,
-     "x1": 6,
-     "z0": -18,
-     "z1": -14
+     "x0": -3,
+     "x1": 3,
+     "z0": -16,
+     "z1": 16
+    },
+    {
+     "x0": 3,
+     "x1": 9,
+     "z0": -16,
+     "z1": -10
     }
    ],
    "ramps": [
     {
-     "x0": -14,
-     "x1": -6,
-     "z0": 14,
-     "z1": 18,
+     "x0": -17,
+     "x1": -9,
+     "z0": 10,
+     "z1": 16,
      "rise": "+x"
     },
     {
-     "x0": 6,
-     "x1": 14,
-     "z0": -18,
-     "z1": -14,
+     "x0": 9,
+     "x1": 17,
+     "z0": -16,
+     "z1": -10,
      "rise": "-x"
-    }
-   ],
-   "rails": [
-    {
-     "x0": -6.4,
-     "x1": -6,
-     "z0": -18.4,
-     "z1": 14
-    },
-    {
-     "x0": -2,
-     "x1": -1.6,
-     "z0": -14,
-     "z1": 18.4
-    },
-    {
-     "x0": -14,
-     "x1": -1.6,
-     "z0": 18,
-     "z1": 18.4
-    },
-    {
-     "x0": -14,
-     "x1": -6,
-     "z0": 13.6,
-     "z1": 14
-    },
-    {
-     "x0": -6.4,
-     "x1": 14,
-     "z0": -18.4,
-     "z1": -18
-    },
-    {
-     "x0": -2,
-     "x1": 14,
-     "z0": -14,
-     "z1": -13.6
-    }
-   ],
-   "route": [
-    {
-     "x": -17,
-     "z": 16
-    },
-    {
-     "x": -10,
-     "z": 16
-    },
-    {
-     "x": -4,
-     "z": 16
-    },
-    {
-     "x": -4,
-     "z": -16
-    },
-    {
-     "x": 4,
-     "z": -16
-    },
-    {
-     "x": 10,
-     "z": -16
-    },
-    {
-     "x": 17,
-     "z": -16
-    }
-   ],
-   "piers": [
-    {
-     "x0": -6,
-     "x1": -4.8,
-     "z0": -17.400000000000002,
-     "z1": -16.2
-    },
-    {
-     "x0": -3.2,
-     "x1": -2,
-     "z0": -17.400000000000002,
-     "z1": -16.2
-    },
-    {
-     "x0": -6,
-     "x1": -4.8,
-     "z0": -6.6,
-     "z1": -5.4
-    },
-    {
-     "x0": -3.2,
-     "x1": -2,
-     "z0": -6.6,
-     "z1": -5.4
-    },
-    {
-     "x0": -6,
-     "x1": -4.8,
-     "z0": 5.4,
-     "z1": 6.6
-    },
-    {
-     "x0": -3.2,
-     "x1": -2,
-     "z0": 5.4,
-     "z1": 6.6
-    },
-    {
-     "x0": 0.4,
-     "x1": 1.6,
-     "z0": -18,
-     "z1": -16.8
-    },
-    {
-     "x0": 0.4,
-     "x1": 1.6,
-     "z0": -15.2,
-     "z1": -14
-    },
-    {
-     "x0": 4.4,
-     "x1": 5.6,
-     "z0": -18,
-     "z1": -16.8
-    },
-    {
-     "x0": 4.4,
-     "x1": 5.6,
-     "z0": -15.2,
-     "z1": -14
     }
    ]
   }
+ },
+ {
+  "id": "overlook",
+  "name": "The Overlook",
+  "theme": "ruins",
+  "desc": "A raised stone plateau in the middle with a ramp up from the north and the south and a shaded hall underneath. Take the high ground, drop off it onto someone, or fight in the dark below. Low barricades guard both start yards. Every duel is played here.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": -14,
+    "z": -9,
+    "r": 1.8
+   },
+   {
+    "x": -14,
+    "z": 9,
+    "r": 1.8
+   },
+   {
+    "x": 14,
+    "z": -9,
+    "r": 1.8
+   },
+   {
+    "x": 14,
+    "z": 9,
+    "r": 1.8
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -5,
+     "z1": 5
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": 5,
+     "z1": 13,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": -13,
+     "z1": -5,
+     "rise": "+z"
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": -16.6,
+    "x1": -15.4,
+    "z0": -4,
+    "z1": 4
+   },
+   {
+    "x0": 15.4,
+    "x1": 16.6,
+    "z0": -4,
+    "z1": 4
+   }
+  ]
+ },
+ {
+  "id": "ring",
+  "name": "Icebound Ring",
+  "theme": "frost",
+  "desc": "A raised square walkway rings an open courtyard with an ice spire at its heart. A ramp climbs to the ring from each start yard; walk under it to reach the courtyard, or jump down into it from above. Barricades cut the long lanes outside.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 2.0
+   },
+   {
+    "x": -17,
+    "z": -11,
+    "r": 1.6
+   },
+   {
+    "x": -17,
+    "z": 11,
+    "r": 1.6
+   },
+   {
+    "x": 17,
+    "z": -11,
+    "r": 1.6
+   },
+   {
+    "x": 17,
+    "z": 11,
+    "r": 1.6
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": 6,
+     "z1": 12
+    },
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": -12,
+     "z1": -6
+    },
+    {
+     "x0": -12,
+     "x1": -6,
+     "z0": -6,
+     "z1": 6
+    },
+    {
+     "x0": 6,
+     "x1": 12,
+     "z0": -6,
+     "z1": 6
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": -3,
+     "z1": 3,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": -3,
+     "z1": 3,
+     "rise": "-x"
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": -4,
+    "x1": 4,
+    "z0": 15.4,
+    "z1": 16.6
+   },
+   {
+    "x0": -4,
+    "x1": 4,
+    "z0": -16.6,
+    "z1": -15.4
+   }
+  ]
+ },
+ {
+  "id": "terraces",
+  "name": "Sun Terraces",
+  "theme": "colosseum",
+  "desc": "Two long raised terraces run along the north and south walls, each with a ramp at both ends. Casters love the view from up there; melee takes the ramps or waits below. An obelisk and low barricades hold the middle.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 2.2
+   },
+   {
+    "x": -14,
+    "z": -6,
+    "r": 1.5
+   },
+   {
+    "x": -14,
+    "z": 6,
+    "r": 1.5
+   },
+   {
+    "x": 14,
+    "z": -6,
+    "r": 1.5
+   },
+   {
+    "x": 14,
+    "z": 6,
+    "r": 1.5
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": 13,
+     "z1": 20
+    },
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": -20,
+     "z1": -13
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": 15,
+     "z1": 20,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": 15,
+     "z1": 20,
+     "rise": "-x"
+    },
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": -20,
+     "z1": -15,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": -20,
+     "z1": -15,
+     "rise": "-x"
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": -9.6,
+    "x1": -8.4,
+    "z0": -4,
+    "z1": 4
+   },
+   {
+    "x0": 8.4,
+    "x1": 9.6,
+    "z0": -4,
+    "z1": 4
+   }
+  ]
  }
 ]

@@ -242,14 +242,15 @@ export interface ArenaDef {
   spawns: Vec2[][];
   spawnFacing: number[];
   gateX: number;
-  /** A raised bridge along the x axis through the middle: a flat deck with a ramp up at each end, and a tunnel underneath (units are on level 0, the ground, or level 1, the deck and ramps). */
-  bridge?: { halfWidth: number; deckHalf: number; rampLen: number; height: number };
   /**
-   * A raised walkway of any shape (The Serpent): flat deck pieces, ramps that rise along an axis, and rails that fence it
-   * in (level 1 only). Under the flats you walk on the ground (level 0); the ramps are solid blocks on the ground. `route`
-   * is the walkway's centre line from one foot to the other, which bots follow.
+   * Raised walkways: flat deck pieces and ramps that rise along an axis (units are on level 0, the ground, or level 1, up
+   * here). Under the flats you walk on the ground; the ramps are solid blocks on the ground. Rails along the open edges are
+   * worked out from the pieces (see deckRails): they stop you walking off, but a jump clears them and you drop down.
+   * Stone piers hold the flats up; they are worked out too unless `piers` lists them.
    */
-  deck?: { height: number; flats: Rect[]; ramps: (Rect & { rise: '+x' | '-x' | '+z' | '-z' })[]; rails: Rect[]; /** Stone piers under the flats: solid on the ground. */ piers?: Rect[]; route: Vec2[] };
+  deck?: { height: number; flats: Rect[]; ramps: (Rect & { rise: '+x' | '-x' | '+z' | '-z' })[]; piers?: Rect[] };
+  /** Low barricades: block walking on the ground, but a jump clears them and they never block line of sight. */
+  lows?: Rect[];
   /** Solid straight walls (axis-aligned boxes). They block movement, Blink and line of sight on every level. */
   walls?: { x0: number; x1: number; z0: number; z1: number }[];
   /** Walkable waypoints bots steer between when walls hide the target (the walkable links are worked out from the walls). */
@@ -298,7 +299,7 @@ export interface CastState { ability: string; target: number; start: number; end
 export interface DRState { count: number; resetAt: number }
 
 export interface Unit {
-  /** 0 = ground/tunnel, 1 = bridge deck and ramps (see ArenaDef.bridge). */
+  /** 0 = the ground, 1 = up on a walkway's deck or ramps (see ArenaDef.deck). */
   level: 0 | 1;
   id: number;
   name: string;
@@ -400,7 +401,7 @@ export interface UnitSnap {
   bar?: string[];
   /** Cosmetic gear summary (see gearLook). */
   look: string;
-  /** 1 while on a bridge's deck or ramps; absent on the ground. */
+  /** 1 while up on a walkway's deck or ramps; absent on the ground. */
   lv?: 1;
   x: number;
   z: number;

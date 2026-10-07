@@ -84,7 +84,7 @@ export function send(p: Player, msg: ServerMsg): void {
 }
 
 /** The arena every duel is played on. */
-export const DUEL_MAP = 'bridge';
+export const DUEL_MAP = 'overlook';
 
 /** An arena id, resolving 'random' (or anything unknown) to a random arena. */
 export function pickMap(pref: string, avoid?: string): string {
@@ -967,7 +967,7 @@ export class Lobby {
     const mate = [...this.conns].find((q) => q !== p && q.duelWith === p.account!.key && q.account?.key === p.duelWith);
     if (!mate) return void send(p, { t: 'queued', waiting: 1, needed: 2 });
     const first = (mate.duelAt ?? 0) <= (p.duelAt ?? 0) ? mate : p;
-    void first; // duels never use anyone's map pick: they always play on the bridge arena
+    void first; // duels never use anyone's map pick: they always play on The Overlook
     const room = this.makeRoom(this.cfg.queuePrepMs, true, false, DUEL_MAP);
     room.size = 1;
     p.duelWith = mate.duelWith = undefined;
