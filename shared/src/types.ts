@@ -1,4 +1,5 @@
 export interface Vec2 { x: number; z: number }
+export interface Rect { x0: number; x1: number; z0: number; z1: number }
 export type TeamId = 0 | 1;
 export type ClassId = 'warrior' | 'mage' | 'priest' | 'rogue';
 export type School = 'physical' | 'fire' | 'frost' | 'arcane' | 'holy' | 'shadow' | 'nature';
@@ -243,6 +244,12 @@ export interface ArenaDef {
   gateX: number;
   /** A raised bridge along the x axis through the middle: a flat deck with a ramp up at each end, and a tunnel underneath (units are on level 0, the ground, or level 1, the deck and ramps). */
   bridge?: { halfWidth: number; deckHalf: number; rampLen: number; height: number };
+  /**
+   * A raised walkway of any shape (The Serpent): flat deck pieces, ramps that rise along an axis, and rails that fence it
+   * in (level 1 only). Under the flats you walk on the ground (level 0); the ramps are solid blocks on the ground. `route`
+   * is the walkway's centre line from one foot to the other, which bots follow.
+   */
+  deck?: { height: number; flats: Rect[]; ramps: (Rect & { rise: '+x' | '-x' | '+z' | '-z' })[]; rails: Rect[]; /** Stone piers under the flats: solid on the ground. */ piers?: Rect[]; route: Vec2[] };
   /** Solid straight walls (axis-aligned boxes). They block movement, Blink and line of sight on every level. */
   walls?: { x0: number; x1: number; z0: number; z1: number }[];
   /** Walkable waypoints bots steer between when walls hide the target (the walkable links are worked out from the walls). */
@@ -298,6 +305,9 @@ export interface Unit {
   team: TeamId;
   classId: ClassId;
   controller: 'player' | 'dummy' | 'bot';
+  /** A training dummy that was killed stands up again at `home` when this time comes (practice never ends by killing dummies). */
+  respawnAt?: number;
+  home?: Vec2;
   pos: Vec2;
   facing: number;
   alive: boolean;
@@ -373,6 +383,7 @@ export type SimEvent =
   | { t: 'immune'; src: number; tgt: number; aura: string }
   | { t: 'dispel'; src: number; tgt: number; aura: string }
   | { t: 'death'; unit: number; killer: number | null }
+  | { t: 'respawn'; unit: number }
   /** A jump took the unit out of a ground effect's pulse. */
   | { t: 'dodge'; unit: number; ability: string }
   | { t: 'phase'; phase: Phase; winner: TeamId | 'draw' | null };

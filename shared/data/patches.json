@@ -1,5 +1,19 @@
 [
  {
+  "version": "0.61.0",
+  "date": "2026-10-07",
+  "title": "The Serpent walkway",
+  "changes": [
+   "The Serpent is now a raised, winding wooden walkway between the two start yards: a ramp up from each side, an S-shaped deck, and open ground with stone piers underneath.",
+   "The deck is a ceiling for line of sight; the ramps and piers are solid on the ground, and rails keep you on the walkway.",
+   "Bot mages sometimes climb to the walkway and fight from the high ground.",
+   "Talents are now remembered per spec: switch spec or class and your picks are still there.",
+   "Esc opens the game menu in the lobby too (Controls, HUD layout, sound).",
+   "Auto-attack no longer switches itself off while you still have an enemy targeted, so it is there when you close in or use a skill.",
+   "Practice against dummies: a fallen dummy stands back up at full health after a moment instead of ending the match."
+  ]
+ },
+ {
   "version": "0.60.1",
   "date": "2026-10-07",
   "title": "One look for the whole UI",

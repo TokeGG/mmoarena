@@ -3,7 +3,7 @@ import {
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
-import { flags, loadBuild, progress, saveBuild } from './profile';
+import { flags, loadBuild, loadSpecTalents, progress, saveBuild, saveSpecTalents } from './profile';
 import { CLASS_BLURB } from './tips';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 
@@ -351,6 +351,7 @@ export class MainMenu {
 
   private commit() {
     saveBuild(this.classId, this.build);
+    saveSpecTalents(this.classId, this.build.spec, this.build.talents);
     this.hooks.onSelect(this.classId, this.build);
     this.renderAll();
   }
@@ -391,7 +392,11 @@ export class MainMenu {
         card.addEventListener('mouseenter', () => this.showSpecPop(card, spec));
         card.addEventListener('mouseleave', () => this.hideSpecPop());
         card.addEventListener('click', () => {
-          if (this.build.spec !== spec.id) this.build.talents = talentsFor(this.classId, spec.id).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : '')); // talents belong to a spec; tier I is shared, so that pick stays
+          if (this.build.spec !== spec.id) {
+            saveSpecTalents(this.classId, this.build.spec, this.build.talents); // keep what this spec had
+            // talents belong to a spec: bring back what this one had last time, else keep the shared tier I pick
+            this.build.talents = loadSpecTalents(this.classId, spec.id) ?? talentsFor(this.classId, spec.id).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : ''));
+          }
           this.build.spec = spec.id;
           this.commit();
         });

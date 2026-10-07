@@ -558,6 +558,98 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
     }
   }
 
+  // ---------------------------------------------------------- winding walkway (The Serpent): flats, ramps, rails and piers
+  if (ARENA.deck) {
+    const dk = ARENA.deck;
+    const H = dk.height;
+    const plankTex = stoneTexture(256, '#8a6a43', 8, 2, false, 77, [4, 1]);
+    const woodMat = new THREE.MeshStandardMaterial({ map: plankTex, color: 0xb38a55, roughness: 0.95 });
+    const stoneMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(th.floor).multiplyScalar(0.85), roughness: 0.95, side: THREE.DoubleSide });
+    const railMat = new THREE.MeshStandardMaterial({ color: 0x5e4630, roughness: 1 });
+    const shadeMat = new THREE.MeshBasicMaterial({ color: 0x0b0a0d, transparent: true, opacity: 0.35, depthWrite: false });
+    const box = (x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, mat: THREE.Material, shadow = true) => {
+      const m = new THREE.Mesh(new THREE.BoxGeometry(x1 - x0, y1 - y0, z1 - z0), mat);
+      m.position.set((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2);
+      m.castShadow = shadow;
+      m.receiveShadow = true;
+      root.add(m);
+      return m;
+    };
+    // flat pieces: a plank deck, and a dark patch on the ground below so the shade under it reads
+    for (const f of dk.flats) {
+      box(f.x0, f.x1, H - 0.6, H, f.z0, f.z1, woodMat);
+      const sh = new THREE.Mesh(new THREE.PlaneGeometry(f.x1 - f.x0, f.z1 - f.z0), shadeMat);
+      sh.rotation.x = -Math.PI / 2;
+      sh.position.set((f.x0 + f.x1) / 2, 0.03, (f.z0 + f.z1) / 2);
+      root.add(sh);
+    }
+    for (const p of dk.piers ?? []) box(p.x0, p.x1, 0, H - 0.6, p.z0, p.z1, stoneMat);
+    // rails: only where they stand on a flat piece (the ramps get sloped rails below)
+    for (const r of dk.rails) {
+      for (const f of dk.flats) {
+        const x0 = Math.max(r.x0, f.x0 - 0.5), x1 = Math.min(r.x1, f.x1 + 0.5), z0 = Math.max(r.z0, f.z0 - 0.5), z1 = Math.min(r.z1, f.z1 + 0.5);
+        if (x1 - x0 > 0.05 && z1 - z0 > 0.05) box(x0, x1, H, H + 0.55, z0, z1, railMat);
+      }
+    }
+    for (const r of dk.ramps) {
+      const alongX = r.rise[1] === 'x';
+      const up = r.rise[0] === '+';
+      const L = alongX ? r.x1 - r.x0 : r.z1 - r.z0;
+      const W = alongX ? r.z1 - r.z0 : r.x1 - r.x0;
+      const slope = Math.atan2(H, L);
+      const hyp = Math.hypot(L, H);
+      // stone wedge under the planks
+      const prof = new THREE.Shape();
+      prof.moveTo(0, 0);
+      prof.lineTo(L, 0);
+      prof.lineTo(L, H);
+      prof.closePath();
+      const wedge = new THREE.Mesh(new THREE.ExtrudeGeometry(prof, { depth: W, bevelEnabled: false }), stoneMat);
+      if (alongX) {
+        if (up) wedge.position.set(r.x0, 0, r.z0);
+        else {
+          wedge.scale.x = -1;
+          wedge.position.set(r.x1, 0, r.z0);
+        }
+      } else if (up) {
+        wedge.rotation.y = -Math.PI / 2;
+        wedge.position.set(r.x1, 0, r.z0);
+      } else {
+        wedge.rotation.y = Math.PI / 2;
+        wedge.position.set(r.x0, 0, r.z1);
+      }
+      wedge.castShadow = wedge.receiveShadow = true;
+      root.add(wedge);
+      // plank surface and sloped side rails
+      const cx = (r.x0 + r.x1) / 2, cz = (r.z0 + r.z1) / 2;
+      const planks = new THREE.Mesh(new THREE.BoxGeometry(alongX ? hyp : W, 0.12, alongX ? W : hyp), woodMat);
+      planks.position.set(cx, H / 2 + 0.05, cz);
+      if (alongX) planks.rotation.z = up ? slope : -slope;
+      else planks.rotation.x = up ? -slope : slope;
+      planks.receiveShadow = true;
+      root.add(planks);
+      for (const side of [-1, 1]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(alongX ? hyp : 0.35, 0.5, alongX ? 0.35 : hyp), railMat);
+        if (alongX) {
+          rail.position.set(cx, H / 2 + 0.35, side < 0 ? r.z0 - 0.1 : r.z1 + 0.1);
+          rail.rotation.z = up ? slope : -slope;
+        } else {
+          rail.position.set(side < 0 ? r.x0 - 0.1 : r.x1 + 0.1, H / 2 + 0.35, cz);
+          rail.rotation.x = up ? -slope : slope;
+        }
+        rail.castShadow = true;
+        root.add(rail);
+        // spiked posts at the foot
+        const post = new THREE.Mesh(new THREE.ConeGeometry(0.28, 1.3, 6), railMat);
+        const foot = alongX ? (up ? r.x0 : r.x1) : up ? r.z0 : r.z1;
+        if (alongX) post.position.set(foot, 0.65, side < 0 ? r.z0 - 0.1 : r.z1 + 0.1);
+        else post.position.set(side < 0 ? r.x0 - 0.1 : r.x1 + 0.1, 0.65, foot);
+        post.castShadow = true;
+        root.add(post);
+      }
+    }
+  }
+
   // ---------------------------------------------------------- pillars
   const pillarTex = stoneTexture(256, '#a89a86', 6, 3, true, 41, [3, 2]);
   const pillarMat = new THREE.MeshStandardMaterial({ map: pillarTex, roughness: 0.85 });

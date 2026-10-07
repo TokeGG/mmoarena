@@ -77,3 +77,26 @@ export function saveBuild(classId: ClassId, b: Build) {
     /* ignore */
   }
 }
+
+const talentKey = (c: ClassId, spec: string) => `arena.talents.v1.${c}.${spec}`;
+
+/** Remember the talent picks of one spec, so switching spec (or class) and back brings them back. */
+export function saveSpecTalents(classId: ClassId, spec: string, talents: string[]) {
+  try {
+    localStorage.setItem(talentKey(classId, spec), JSON.stringify(talents));
+  } catch {
+    /* ignore */
+  }
+}
+
+/** The picks last made on this spec, cleaned against the current talent list (null when there are none). */
+export function loadSpecTalents(classId: ClassId, spec: string): string[] | null {
+  try {
+    const raw = localStorage.getItem(talentKey(classId, spec));
+    const v = raw ? JSON.parse(raw) : null;
+    if (!Array.isArray(v)) return null;
+    return talentsFor(classId, spec).map((tier, i) => (tier.some((t) => t.id === v[i]) ? v[i] : ''));
+  } catch {
+    return null;
+  }
+}

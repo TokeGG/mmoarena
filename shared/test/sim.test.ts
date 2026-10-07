@@ -1143,7 +1143,7 @@ describe('auto-attack lifecycle', () => {
     advance(sim, 4000);
     assert.ok(war.autoAttack, 'a fresh auto-attack is not cancelled for being out of combat straight away');
     advance(sim, 2000);
-    assert.ok(!war.autoAttack, 'times out with no combat');
+    assert.ok(war.autoAttack, 'stays on while an enemy is still targeted');
     sim.setAutoAttack(war.id, true);
     sim.setTarget(war.id, null);
     assert.ok(!war.autoAttack, 'clearing the target turns it off');
@@ -1498,5 +1498,55 @@ describe('facing rule', () => {
     bot.pos = { x: 0, z: 5 };
     w.pos = { x: 60, z: 0 };
     assert.ok(!sim.useAbility(bot.id, 'frostbolt', w.id).ok, 'bots get an immediate failure');
+  });
+});
+
+describe('training dummies', () => {
+  it('stand up again at full health and never end the match', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const d = sim.addUnit({ name: 'Dummy', classId: 'warrior', team: 1, controller: 'dummy' });
+    d.pos = { x: 2, z: 0 };
+    const home = { ...d.home! };
+    advance(sim, TICK);
+    d.health = 0;
+    d.alive = false;
+    (sim as unknown as { die(u: Unit, k: number | null): void }).die(d, war.id);
+    d.alive = false;
+    assert.ok(d.respawnAt !== undefined, 'respawn scheduled');
+    const evs = advance(sim, 3000);
+    assert.ok(d.alive, 'dummy is back');
+    assert.equal(d.health, d.maxHealth);
+    assert.deepEqual(d.pos, home);
+    assert.ok(evs.some((e) => e.t === 'respawn' && e.unit === d.id));
+    assert.equal(sim.phase, 'live', 'match keeps going');
+  });
+
+  it('a player dying still ends the match', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    sim.addUnit({ name: 'Dummy', classId: 'warrior', team: 1, controller: 'dummy' });
+    advance(sim, TICK);
+    (sim as unknown as { die(u: Unit, k: number | null): void }).die(war, null);
+    advance(sim, TICK * 2);
+    assert.equal(sim.phase, 'ended');
+  });
+});
+
+describe('auto-attack persistence', () => {
+  it('stays on past the out-of-combat timer while an enemy is targeted, and still expires without one', () => {
+    const sim = live();
+    const war = add(sim, 'warrior', 0, 0, 0);
+    const foe = add(sim, 'warrior', 1, 25, 0);
+    advance(sim, TICK);
+    sim.setTarget(war.id, foe.id);
+    sim.setAutoAttack(war.id, true);
+    assert.ok(war.autoAttack);
+    advance(sim, TUNING.outOfCombatMs + 2000);
+    assert.ok(war.autoAttack, 'kept while targeting an enemy');
+    sim.setTarget(war.id, null);
+    sim.setAutoAttack(war.id, true);
+    advance(sim, TUNING.outOfCombatMs + 2000);
+    assert.equal(war.autoAttack, false);
   });
 });

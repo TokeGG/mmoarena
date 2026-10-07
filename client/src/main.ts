@@ -157,7 +157,7 @@ const menu = new Menu(binds, {
     autoEnabled = enabled;
     send({ t: 'autoOff', off: !enabled });
   },
-  onEditHud: () => hudLayout.start(),
+  onEditHud: () => (latest ? hudLayout.start() : editHudFromMenu()),
 });
 const hudLayout = new HudLayout();
 hudLayout.onChange = (editing) => {
@@ -591,6 +591,11 @@ controls.onRightClick = (x, y) => {
   const t = latest?.units.find((u) => u.id === id);
   if (autoEnabled && me && t && t.team !== me.team && !me.autoAttack) send({ t: 'auto', on: true }); // right-click an enemy: target and start swinging
 };
+let modalAtEsc = false;
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape') modalAtEsc = !!document.querySelector('.mm-modal:not(.hidden), .mm-specpop:not(.hidden)');
+}, true);
+const joiningNow = () => document.getElementById('join')?.classList.contains('hidden') ?? false;
 controls.onKey = (code, e) => {
   if (code === 'Escape') {
     if (aiming) return void setAiming(null);
@@ -600,7 +605,11 @@ controls.onKey = (code, e) => {
     }
     // Esc closes the menu if open, else clears the target, else opens the menu (WoW behaviour).
     if (menu.isOpen) menu.back();
-    else if (!latest) return;
+    else if (!latest) {
+      // in the lobby Esc opens the same menu (without Resume/Leave), unless a window was open and Esc just closed it
+      if (!modalAtEsc && !hudLayout.editing && !joiningNow()) menu.open(false);
+      return;
+    }
     else if (!spec && targetId !== null) setTarget(null);
     else menu.open(true);
     return;

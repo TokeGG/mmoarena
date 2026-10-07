@@ -89,6 +89,7 @@ export class ArenaSim {
       inputQueue: [], charge: null, leap: null, lastCast: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
+    if (u.controller === 'dummy') u.home = { x: spawn.x, z: spawn.z };
     this.units.set(u.id, u);
     return u;
   }
@@ -351,7 +352,11 @@ export class ArenaSim {
     if (!u.alive) return;
 
     // auto-attack switches itself off once combat has been over for a while
-    if (u.autoAttack && this.time - Math.max(u.lastCombatAt, u.autoSince) > TUNING.outOfCombatMs) u.autoAttack = false;
+    // (not while an enemy is still targeted: swinging stays on while you walk up to it, as in WoW)
+    if (u.autoAttack && this.time - Math.max(u.lastCombatAt, u.autoSince) > TUNING.outOfCombatMs) {
+      const tg = u.target !== null ? this.units.get(u.target) : undefined;
+      if (!tg || !tg.alive || tg.team === u.team) u.autoAttack = false;
+    }
 
     // resources
     if (u.resourceType === 'rage') {
@@ -441,10 +446,27 @@ export class ArenaSim {
     this.tryAutoAttack(u);
   }
 
+  /** Training dummies stand up again, at full health, a moment after they fall. */
+  private respawnDummies(): void {
+    for (const u of this.units.values()) {
+      if (u.alive || u.respawnAt === undefined || this.time < u.respawnAt) continue;
+      u.respawnAt = undefined;
+      u.alive = true;
+      u.health = u.maxHealth;
+      u.pos = { ...(u.home ?? u.pos) };
+      u.auras = [];
+      u.cooldowns = {};
+      u.lastCombatAt = -1e9;
+      this.emit({ t: 'respawn', unit: u.id });
+    }
+  }
+
   private checkEnd(): void {
+    this.respawnDummies();
     let alive0 = 0;
     let alive1 = 0;
-    for (const u of this.units.values()) if (u.alive) (u.team === 0 ? alive0++ : alive1++);
+    // a dummy that is about to stand up again does not end the match
+    for (const u of this.units.values()) if (u.alive || u.respawnAt !== undefined) (u.team === 0 ? alive0++ : alive1++);
     let winner: TeamId | 'draw' | null = null;
     if (alive0 === 0 && alive1 === 0) winner = 'draw';
     else if (alive0 === 0) winner = 1;
@@ -883,6 +905,7 @@ export class ArenaSim {
     this.endCharge(u, false);
     u.auras = [];
     u.autoAttack = false;
+    if (u.controller === 'dummy') u.respawnAt = this.time + 2500;
     this.emit({ t: 'death', unit: u.id, killer });
   }
 

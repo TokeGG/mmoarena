@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, navStep, resolveCollisions, stepMovementL, walkClear } from '../src/index';
+import type { ArenaDef } from '../src/index';
 
 describe('arenas', () => {
   it('has unique ids and valid layouts', () => {
@@ -145,8 +146,10 @@ describe('jumping', () => {
   });
 });
 
-describe('The Serpent (walls)', () => {
-  const a = arenaById('serpent');
+const WALLED = { ...arenaById('serpent'), deck: undefined, bounds: {"minX":-21,"maxX":21,"minZ":-32,"maxZ":32}, pillars: [{"x":7,"z":6,"r":1.4},{"x":-9,"z":-6,"r":1.4}], walls: [{"x0":0.6,"x1":8,"z0":-18.8,"z1":-17.6},{"x0":0.6,"x1":1.8,"z0":-18.8,"z1":19.6},{"x0":-9.5,"x1":1.8,"z0":18.4,"z1":19.6},{"x0":-4.6,"x1":9,"z0":-24.1,"z1":-22.9},{"x0":-4.6,"x1":-3.4,"z0":-24.1,"z1":11.1},{"x0":-9.5,"x1":-3.4,"z0":9.9,"z1":11.1}], nav: [{"x":-14,"z":0},{"x":14,"z":0},{"x":-8,"z":-12},{"x":-8,"z":5},{"x":-8,"z":14.75},{"x":-1.4,"z":14.75},{"x":-1.4,"z":0},{"x":-1.4,"z":-12},{"x":-1.4,"z":-20.85},{"x":5,"z":-20.85},{"x":12,"z":-20.85},{"x":12,"z":-12},{"x":12,"z":5},{"x":6,"z":10},{"x":-8,"z":24.5},{"x":4,"z":24.5},{"x":12,"z":24.5},{"x":-8,"z":-28},{"x":4,"z":-28},{"x":12,"z":-28}] } as ArenaDef;
+
+describe('Walled arenas (walls and route points, tested on a fixture layout)', () => {
+  const a = WALLED;
 
   it('is a real layout: spawns and route points stand in the open, walls stay inside the bounds', () => {
     assert.ok(a.walls!.length >= 6 && a.nav!.length >= 10);
@@ -194,3 +197,79 @@ describe('The Serpent (walls)', () => {
   });
 });
 
+
+describe('The Serpent (raised walkway)', () => {
+  const a = arenaById('serpent');
+  const walk = (p: { x: number; z: number }, lv: 0 | 1, facing: number, steps: number) => {
+    let r = { pos: p, level: lv };
+    for (let i = 0; i < steps; i++) r = stepMovementL(r.pos, r.level, { fwd: 1, strafe: 0, facing }, TUNING.runSpeed, 0.05, a);
+    return r;
+  };
+
+  it('has a walkway with two ramps, rails and a route; spawns stand in the open', () => {
+    const dk = a.deck!;
+    assert.ok(dk && dk.ramps.length === 2 && dk.flats.length >= 2 && dk.rails.length >= 4 && dk.route.length >= 6);
+    for (const p of [...a.spawns[0], ...a.spawns[1], dk.route[0], dk.route.at(-1)!]) {
+      const r = resolveCollisions(p, a);
+      assert.ok(Math.hypot(r.x - p.x, r.z - p.z) < 1e-6, `(${p.x}, ${p.z}) is free`);
+    }
+  });
+
+  it('walking up a ramp climbs it: height rises to the deck and the level changes', () => {
+    const r = walk({ x: -17, z: 16 }, 0, Math.PI / 2, 80); // +x along the entry ramp
+    assert.equal(r.level, 1);
+    assert.ok(Math.abs(heightAt(a, r.pos.x, r.pos.z, 1) - a.deck!.height) < 0.01 || r.pos.x > -6, 'on the deck at full height');
+    assert.ok(heightAt(a, -10, 16, 1) > 0 && heightAt(a, -10, 16, 1) < a.deck!.height, 'half way up the ramp');
+    assert.equal(heightAt(a, -10, 16, 0), 0, 'the ground under it is flat');
+  });
+
+  it('the ground cannot enter a ramp, but you can walk under the deck', () => {
+    const into = walk({ x: -17, z: 12 }, 0, Math.PI / 2, 60); // alongside the ramp's side, at ground level
+    assert.equal(into.level, 0);
+    const under = walk({ x: -9, z: 0 }, 0, Math.PI / 2, 60); // straight through the walkway's run
+    assert.equal(under.level, 0);
+    assert.ok(under.pos.x > 2, 'walked right under the deck');
+  });
+
+  it('rails keep you on the walkway; the far foot brings you back to the ground', () => {
+    const up = walk({ x: -17, z: 16 }, 0, Math.PI / 2, 60);
+    assert.equal(up.level, 1);
+    const side = walk(up.pos, 1, 0, 40); // turn toward +z: the rail holds
+    assert.ok(side.pos.z <= 18, 'the rail held');
+    // follow the whole route on foot
+    let p = { pos: { x: -17, z: 16 }, level: 0 as 0 | 1 };
+    const route = a.deck!.route;
+    for (let i = 1; i < route.length; i++) {
+      for (let k = 0; k < 400 && Math.hypot(route[i].x - p.pos.x, route[i].z - p.pos.z) > 0.6; k++) {
+        p = stepMovementL(p.pos, p.level, { fwd: 1, strafe: 0, facing: Math.atan2(route[i].x - p.pos.x, route[i].z - p.pos.z) }, TUNING.runSpeed, 0.05, a);
+      }
+    }
+    assert.equal(p.level, 0, 'down the far ramp');
+    assert.ok(p.pos.x > 14, 'out in the far yard');
+  });
+
+  it('the deck is a ceiling for sight, and ramps are walls on the ground', () => {
+    assert.equal(hasLOS({ x: -4, z: 0 }, { x: -4, z: 10 }, a, 0, 1), false, 'under the deck cannot see up');
+    assert.equal(hasLOS({ x: -4, z: 10 }, { x: -4, z: 2 }, a, 1, 1), true, 'on the deck they see each other');
+    assert.equal(hasLOS({ x: -17, z: 16 }, { x: -3, z: 16 }, a, 0, 0), false, 'the ramp blocks the ground view');
+  });
+
+  it('bots use the walkway: they find each other and fight on any pairing', () => {
+    for (const [c0, c1] of [['warrior', 'rogue'], ['mage', 'warrior'], ['priest', 'mage']] as const) {
+      const sim = new ArenaSim({ prepMs: 0, seed: 11, arena: a });
+      const u0 = sim.addUnit({ name: 'a', classId: c0, team: 0, controller: 'bot' });
+      const u1 = sim.addUnit({ name: 'b', classId: c1, team: 1, controller: 'bot' });
+      const bots = [new Bot(sim, u0.id, 'hard', 1), new Bot(sim, u1.id, 'hard', 2)];
+      let fought = false;
+      let climbed = false;
+      for (let i = 0; i < 20 * 60 && !fought; i++) {
+        for (const b of bots) b.tick();
+        sim.step();
+        if (u0.level === 1 || u1.level === 1) climbed = true;
+        fought = u0.health < u0.maxHealth || u1.health < u1.maxHealth;
+      }
+      assert.ok(fought, `${c0} and ${c1} reached each other (${JSON.stringify(u0.pos)} / ${JSON.stringify(u1.pos)})`);
+      void climbed;
+    }
+  });
+});

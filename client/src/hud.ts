@@ -568,6 +568,9 @@ export class Hud {
       case 'death':
         this.log(`${n(ev.unit)} dies`);
         break;
+      case 'respawn':
+        this.log(`${n(ev.unit)} stands back up`);
+        break;
       case 'cast_fail':
         if (ev.unit === ctx.you && ev.reason !== 'moved') this.error(ev.reason);
         break;
