@@ -45,6 +45,8 @@ export interface Player {
   /** Account actions run one at a time per connection. */
   chain: Promise<void>;
   lastSettingsSave?: number;
+  /** A settings upload that arrived inside the rate-limit window, written when the window ends. */
+  settingsLater?: string;
   /** Arena chosen at join: an arena id or 'random'. */
   mapPref: string;
   /** Players per team chosen at join. */
@@ -660,9 +662,6 @@ export class Lobby {
         }
         case 'save_settings': {
           if (!p.account) return;
-          const now = Date.now();
-          if (now - (p.lastSettingsSave ?? 0) < 1500) return; // at most one write per 1.5 s per connection
-          p.lastSettingsSave = now;
           try {
             const obj = JSON.parse(msg.data) as unknown;
             if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return;
@@ -670,6 +669,24 @@ export class Lobby {
           } catch {
             return;
           }
+          const now = Date.now();
+          const wait = 1500 - (now - (p.lastSettingsSave ?? 0));
+          if (wait > 0) {
+            // at most one write per 1.5 s per connection, but the newest copy is never dropped: it is written when the
+            // window ends, even if the socket has closed by then
+            const first = p.settingsLater === undefined;
+            p.settingsLater = msg.data;
+            const account = p.account;
+            if (first) setTimeout(() => {
+              const data = p.settingsLater;
+              p.settingsLater = undefined;
+              if (data === undefined) return;
+              p.lastSettingsSave = Date.now();
+              void acc.saveSettings(p.account?.key === account.key ? p.account : account, data).catch(() => {});
+            }, wait).unref?.();
+            return;
+          }
+          p.lastSettingsSave = now;
           await acc.saveSettings(p.account, msg.data);
           break;
         }

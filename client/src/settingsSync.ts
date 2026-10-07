@@ -1,14 +1,20 @@
 /**
  * Settings that follow the signed-in account: keybinds, HUD layout and style, sensitivity, class, builds and the
  * practice options. They live in localStorage as `arena.*` keys; this module snapshots them, uploads changes to the
- * server while signed in, and applies the server's copy after login (the page reloads once so every system re-reads it).
+ * server while signed in, and merges the server's copy after login (the page reloads once so every system re-reads it).
+ *
+ * The merge is per setting, against the copy this browser last agreed on with the server for that account (the "base"):
+ * a setting only changed here is kept, a setting only changed on another device is taken from the server, and a setting
+ * changed in both places keeps this browser's value. So a device that synced once can never overwrite what was changed
+ * elsewhere since, and two accounts on one browser each keep their own base.
  */
 import { MAX_SETTINGS } from '@arena/shared';
 
-/** Never synced: credentials, per-browser guest progress, the signed-in name, and the one-off login prompt flag. */
-const BASE_KEY = 'arena.syncBase';
-const EXCLUDE = new Set([BASE_KEY, 'arena.session.v1', 'arena.profile.v1', 'arena.setups.v1', 'arena.seenLogin.v1', 'arena.name']);
+/** Never synced: credentials, per-browser guest progress, the signed-in name, the one-off login prompt flag and the bases. */
+const BASE_PREFIX = 'arena.syncBase';
+const EXCLUDE = new Set(['arena.session.v1', 'arena.profile.v1', 'arena.setups.v1', 'arena.seenLogin.v1', 'arena.name']);
 const RELOAD_FLAG = 'arena.syncReload';
+const excluded = (k: string) => EXCLUDE.has(k) || k === RELOAD_FLAG || k.startsWith(BASE_PREFIX);
 
 export type Snapshot = Record<string, string>;
 
@@ -17,7 +23,7 @@ export function snapshotSettings(): Snapshot {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (k && k.startsWith('arena.') && k !== RELOAD_FLAG && !EXCLUDE.has(k)) out[k] = localStorage.getItem(k) ?? '';
+      if (k && k.startsWith('arena.') && !excluded(k)) out[k] = localStorage.getItem(k) ?? '';
     }
   } catch {
     /* ignore */
@@ -31,14 +37,14 @@ export function serialize(s: Snapshot): string {
 }
 
 /** Parse the server's copy; keeps only well-formed, syncable keys. Null if it is not usable. */
-export function parseSettings(raw: string): Snapshot | null {
+export function parseSettings(raw: string | null): Snapshot | null {
   if (!raw) return null;
   try {
     const obj = JSON.parse(raw) as Record<string, unknown>;
     if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
     const out: Snapshot = {};
     for (const [k, v] of Object.entries(obj)) {
-      if (typeof v === 'string' && k.startsWith('arena.') && k.length < 80 && v.length < 8000 && !EXCLUDE.has(k) && k !== RELOAD_FLAG) out[k] = v;
+      if (typeof v === 'string' && k.startsWith('arena.') && k.length < 80 && v.length < 8000 && !excluded(k)) out[k] = v;
     }
     return out;
   } catch {
@@ -56,22 +62,36 @@ export function applySettings(snap: Snapshot): void {
   }
 }
 
-function hash(s: string): string {
-  let h = 5381;
-  for (let i = 0; i < s.length; i++) h = ((h * 33) ^ s.charCodeAt(i)) | 0;
-  return `${s.length}:${h >>> 0}`;
+/**
+ * Three-way merge, one setting at a time. `base` is what this browser and the server last agreed on (null: never, for
+ * this account), `local` what this browser has now, `theirs` what the server has now.
+ */
+export function mergeSettings(base: Snapshot | null, local: Snapshot, theirs: Snapshot): Snapshot {
+  const out: Snapshot = {};
+  for (const k of new Set([...Object.keys(local), ...Object.keys(theirs), ...Object.keys(base ?? {})])) {
+    const b = base?.[k];
+    const l = local[k];
+    const t = theirs[k];
+    let v: string | undefined;
+    if (!base) v = t ?? l; // first time on this browser for this account: the account's copy, plus anything only kept here
+    else if (l === b) v = t; // unchanged here: whatever the server has (changed or removed on another device)
+    else v = l; // changed here (whether or not it also changed elsewhere): this browser's value
+    if (v !== undefined) out[k] = v;
+  }
+  return out;
 }
-/** The snapshot this browser last knew the server to hold (null if never). Edits made since then are unsynced and must win over the server's older copy. */
-function readBase(): string | null {
+
+const baseKey = (account: string) => `${BASE_PREFIX}.${account.toLowerCase()}`;
+function readBase(account: string): Snapshot | null {
   try {
-    return localStorage.getItem(BASE_KEY);
+    return parseSettings(localStorage.getItem(baseKey(account)));
   } catch {
     return null;
   }
 }
-function writeBase(serialized: string) {
+function writeBase(account: string, s: Snapshot) {
   try {
-    localStorage.setItem(BASE_KEY, hash(serialized));
+    localStorage.setItem(baseKey(account), serialize(s));
   } catch {
     /* ignore */
   }
@@ -81,39 +101,43 @@ export type SyncResult = 'same' | 'uploaded' | 'reload';
 
 export class SettingsSync {
   private active = false;
+  private account = '';
   private lastSent = '';
   private timer = 0;
 
-  constructor(private send: (data: string) => void, private reload: () => void = () => location.reload()) {
+  /** `send` returns false when the upload could not go out (no connection), so it is retried on the next flush. */
+  constructor(private send: (data: string) => boolean | void, private reload: () => void = () => location.reload()) {
     window.addEventListener('pagehide', () => this.flush());
     document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && this.flush());
   }
 
-  /** The server's saved settings arrived (empty string when the account has none yet). */
-  onServer(data: string): SyncResult {
-    const now = serialize(snapshotSettings());
+  /** The server's saved settings for `account` arrived (empty string when the account has none yet). */
+  onServer(data: string, account = 'default'): SyncResult {
+    const local = snapshotSettings();
+    const now = serialize(local);
     const theirs = parseSettings(data);
     this.active = true;
+    this.account = account;
     window.clearInterval(this.timer);
     this.timer = window.setInterval(() => this.flush(), 3000);
     if (!theirs) {
-      this.upload(now);
+      this.upload(local);
       return 'uploaded';
     }
     if (serialize(theirs) === now) {
       this.lastSent = now;
-      writeBase(now);
+      writeBase(account, theirs);
       return 'same';
     }
-    // This browser changed something the server never received (a refresh right after picking talents loses the
-    // last upload): keep the local edits and send them, instead of rolling back to the server's older copy.
-    const base = readBase();
-    if (base !== null && base !== hash(now)) {
-      this.upload(now);
+    const merged = mergeSettings(readBase(account), local, theirs);
+    const m = serialize(merged);
+    if (m === now) {
+      // nothing new from the server: this browser's edits go up
+      this.upload(local);
       return 'uploaded';
     }
-    // Apply the account's copy once. If we reloaded a moment ago and still differ (a system rewrote a key on
-    // startup), keep what this browser has instead of looping.
+    // something changed on another device: take it in once (reloading so every system re-reads it). If we reloaded a
+    // moment ago and still differ (a system rewrote a key on startup), keep what this browser has instead of looping.
     let recent = false;
     try {
       recent = Date.now() - Number(sessionStorage.getItem(RELOAD_FLAG) ?? 0) < 60000;
@@ -122,12 +146,15 @@ export class SettingsSync {
       /* ignore */
     }
     if (recent) {
-      this.upload(now);
+      this.upload(local);
       return 'uploaded';
     }
-    applySettings(theirs);
-    this.lastSent = serialize(theirs);
-    writeBase(this.lastSent);
+    applySettings(merged);
+    if (m !== serialize(theirs)) this.upload(merged); // our own edits ride along
+    else {
+      this.lastSent = m;
+      writeBase(account, merged);
+    }
     this.reload();
     return 'reload';
   }
@@ -140,13 +167,15 @@ export class SettingsSync {
 
   flush() {
     if (!this.active) return;
-    const now = serialize(snapshotSettings());
-    if (now !== this.lastSent) this.upload(now);
+    const snap = snapshotSettings();
+    if (serialize(snap) !== this.lastSent) this.upload(snap);
   }
 
-  private upload(now: string) {
+  private upload(snap: Snapshot) {
+    const now = serialize(snap);
     if (now.length > MAX_SETTINGS) return;
+    if (this.send(now) === false) return; // not sent: try again on the next flush
     this.lastSent = now;
-    this.send(now);
+    writeBase(this.account, snap); // the server now holds this: it is the new common ground
   }
 }

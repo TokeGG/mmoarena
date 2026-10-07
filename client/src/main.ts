@@ -25,6 +25,7 @@ import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
+import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -35,6 +36,14 @@ const canvas = document.getElementById('c') as HTMLCanvasElement;
 const scene = new ArenaScene(canvas);
 const binds = new Keybinds();
 const controls = new Controls(canvas, binds);
+controls.inMatch = () => !!latest;
+// a stray browser shortcut (or F5) during a live match asks before leaving the page, instead of dropping you from it
+window.addEventListener('beforeunload', (e) => {
+  if (latest && !spec && latest.phase !== 'ended') {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
 
 // ------------------------------------------------------------------ state
 
@@ -164,41 +173,65 @@ const menu = new Menu(binds, {
   onEditHud: () => (latest ? hudLayout.start() : editHudFromMenu()),
 });
 const hudLayout = new HudLayout();
+/** The HUD editor was opened from the main menu (over a pretend fight), not in a match. */
+let editingFromMenu = false;
 hudLayout.onChange = (editing) => {
   controls.enabled = !editing;
   if (editing) controls.releaseAll();
-  if (!editing && !latest) {
-    // finished editing from the main menu: put the menu back
+  if (!editing && editingFromMenu) {
+    editingFromMenu = false;
     document.body.classList.remove('hud-demo');
-    hud.show(false);
-    mainMenu.show(true);
+    // finished editing from the main menu: put the menu back (unless a match started meanwhile)
+    if (!latest && !spec && you === 0) {
+      hud.show(false);
+      mainMenu.show(true);
+    }
   }
 };
 
+/** A match (or watching one) is starting: nothing from the menu stays open over it. */
+function clearMenuLayers() {
+  closeAllPopups();
+  menu.close();
+  if (hudLayout.editing) {
+    editingFromMenu = false; // the editor must not bring the menu back over the match that is starting
+    hudLayout.stop();
+  }
+  document.body.classList.remove('hud-demo');
+}
+
 /** Edit the HUD before a match: show it filled with a pretend fight, over the menu's 3D backdrop. */
 function editHudFromMenu() {
+  editingFromMenu = true;
   document.body.classList.add('hud-demo');
   const c = mainMenu.selectedClass;
   mainMenu.show(false);
   hud.demo(c, barFor(c, mainMenu.currentBuild, CLASSES[c].bar));
   relabel();
   hud.show(true);
+  hudLayout.refit();
   hudLayout.start();
 }
 let leaving = false;
-const relabel = () => hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
+const relabel = () => {
+  hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
+  hud.autoKey = binds.label('autoAttack'); // hints name the key you bound, not the default
+};
 binds.onChange = relabel;
 
 // ------------------------------------------------------------------ networking
 
-function send(m: ClientMsg) {
-  if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m));
+function send(m: ClientMsg): boolean {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+  ws.send(JSON.stringify(m));
+  return true;
 }
 
 function onMessage(raw: MessageEvent) {
   const m = JSON.parse(raw.data as string) as ServerMsg;
   switch (m.t) {
     case 'welcome':
+      clearMenuLayers();
       endChoice.hide();
       endBoardUp = false;
       spectateBar.board.toggle(false);
@@ -232,6 +265,7 @@ function onMessage(raw: MessageEvent) {
       setAiming(null);
       relabel();
       hud.show(true);
+      hudLayout.refit();
       mainMenu.show(false);
       joinMsg('');
       break;
@@ -245,7 +279,7 @@ function onMessage(raw: MessageEvent) {
       accountUi.handle(m);
       break;
     case 'settings':
-      if (!latest) settingsSync.onServer(m.data);
+      if (!latest) settingsSync.onServer(m.data, accountUi.account?.name ?? 'default');
       break;
     case 'roster':
       hud.setRoster(m.players);
@@ -559,7 +593,7 @@ function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
   send(msg);
 }
 
-let queued: { ability: string; target: number | null; until: number } | null = null;
+let queued: { ability: string; target: number | null; until: number; ground?: { x: number; z: number; lv?: 1 } } | null = null;
 function estimatedNow(): number {
   return latest ? latest.time + (performance.now() - latestAt) : 0;
 }
@@ -571,7 +605,7 @@ function flushQueue() {
   if (me.cast || me.gcdEnd > estimatedNow() + 25 || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + 25) return;
   const q = queued;
   queued = null;
-  sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime() });
+  sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime(), ...(q.ground ? { x: q.ground.x, z: q.ground.z, ...(q.ground.lv === 1 ? { lv: 1 as const } : {}) } : {}) });
 }
 
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
@@ -586,7 +620,16 @@ function confirmAim() {
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
   if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g))) return; // red spot: nothing is sent, nothing is spent, still aiming
-  sendCast({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}), vt: viewTime() });
+  const spot = { x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}) };
+  const me = latest?.units.find((u) => u.id === you);
+  const nowS = estimatedNow();
+  if (me && def.gcd && (me.cast || me.gcdEnd > nowS)) {
+    // placed while casting or on the global cooldown: it goes into the spell queue with its spot, like any other spell
+    queued = { ability: aiming, target: null, until: performance.now() + 3000, ground: spot };
+  } else {
+    queued = null;
+    sendCast({ t: 'cast', ability: aiming, target: null, ...spot, vt: viewTime() });
+  }
   setAiming(null);
 }
 
@@ -826,7 +869,7 @@ function frame(now: number) {
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);
-    if (aiming && (spec || !meNow?.alive || meNow.controlled || meNow.cast)) setAiming(null);
+    if (aiming && (spec || !meNow?.alive || meNow.controlled)) setAiming(null); // casting something else keeps the aim: it is placed into the queue
     const aimed = !spec && aiming ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
@@ -881,6 +924,7 @@ requestAnimationFrame(frame);
 // ------------------------------------------------------------------ watching: live matches and replays
 
 const spectateBar = new SpectateBar({
+  switchKey: () => binds.label('nextTarget'),
   onExit: () => {
     if (spec?.kind === 'live') send({ t: 'leave' });
     exitSpectate();
@@ -906,6 +950,7 @@ const livePicker = new LivePicker(
 );
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
+  clearMenuLayers();
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
@@ -923,6 +968,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   vis.dist = controls.dist;
   livePicker.close();
   hud.show(true);
+  hudLayout.refit();
   mainMenu.show(false);
   joinMsg('');
   document.body.classList.add('spectating');
@@ -1051,6 +1097,10 @@ function connect(): Promise<boolean> {
       audio.stopAmbience();
       const inMatch = !!latest && !spec;
       if (spec?.kind === 'live') endSpectateState();
+      // the end screen (Ready / Leave and the scoreboard) belongs to the match that is gone
+      endChoice.hide();
+      endBoardUp = false;
+      spectateBar.board.toggle(false);
       hud.show(false);
       hud.setRoster([]);
       latest = null;
@@ -1162,9 +1212,12 @@ menuExtras.append(header.root, friendsUi.partyChip);
 
 /** Both friends agreed to a duel: join it with the class and build currently picked in the menu. */
 async function joinDuel(withName: string) {
+  // the duel is played with what is picked in the menu now: tooltips and the bar must describe that, not the last match's build
+  classId = mainMenu.selectedClass;
+  myBuild = mainMenu.currentBuild;
   joinMsg('Waiting for your friend…');
   if (!(await connect())) return joinMsg('Could not reach the server.');
-  send({ t: 'join', name: accountUi.account?.name ?? 'Player', classId: mainMenu.selectedClass, map: 'random', mode: 'duel', duelWith: withName, size: 1, build: mainMenu.currentBuild });
+  send({ t: 'join', name: accountUi.account?.name ?? 'Player', classId, map: 'random', mode: 'duel', duelWith: withName, size: 1, build: myBuild });
 }
 
 const mainMenu = new MainMenu(document.getElementById('join')!, {
@@ -1183,6 +1236,8 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onSide: (side) => send({ t: 'party_side', side }),
   extras: menuExtras,
 });
+for (const p of [accountUi.popup, friendsUi.popup, suggestUi.popup, livePicker.popup, ...mainMenu.popups]) registerPopup(p);
+
 const replayParam = new URLSearchParams(location.search).get('replay');
 if (replayParam && /^[0-9a-f]{12,16}$/.test(replayParam)) void startReplay(replayParam);
 else accountUi.promptIfNew();

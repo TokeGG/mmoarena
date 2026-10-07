@@ -16,7 +16,7 @@ const mk = (m: Map<string, string>) => ({
 (globalThis as any).sessionStorage = mk(session);
 (globalThis as any).window = { addEventListener() {}, setInterval: () => 0, clearInterval() {} };
 (globalThis as any).document = { addEventListener() {}, visibilityState: 'visible' };
-const { SettingsSync, snapshotSettings, parseSettings, serialize } = await import('../src/settingsSync');
+const { SettingsSync, snapshotSettings, parseSettings, serialize, mergeSettings } = await import('../src/settingsSync');
 
 describe('settings sync', () => {
   beforeEach(() => {
@@ -83,5 +83,55 @@ describe('settings sync', () => {
     assert.equal(again.onServer(serialize({ 'arena.build.v1.rogue': 'old' })), 'uploaded');
     assert.equal(reloads, 0);
     assert.equal(store.get('arena.build.v1.rogue'), 'new talents');
+  });
+
+  it('a device that uploaded once does not overwrite what another device changed since', () => {
+    const sent: string[] = [];
+    let reloads = 0;
+    const laptop = new SettingsSync((d) => sent.push(d), () => reloads++);
+    store.set('arena.keys', 'R=reset');
+    store.set('arena.hud.v1', 'big');
+    laptop.onServer('', 'ann'); // first upload from this browser
+    const server = sent.at(-1)!;
+    // the desktop changes the keybinds and uploads them
+    const desktop = { ...JSON.parse(server), 'arena.keys': 'R=renew' };
+    // back on the laptop, with the old keybinds still in storage: the desktop's change is taken, nothing is sent over it
+    sent.length = 0;
+    const again = new SettingsSync((d) => sent.push(d), () => reloads++);
+    assert.equal(again.onServer(serialize(desktop), 'ann'), 'reload');
+    assert.equal(store.get('arena.keys'), 'R=renew');
+    assert.equal(sent.length, 0, 'the old keybinds were not uploaded over the new ones');
+  });
+
+  it('changes on both devices are merged setting by setting', () => {
+    const base = { 'arena.a': '1', 'arena.b': '1', 'arena.c': '1' };
+    const local = { 'arena.a': '2', 'arena.b': '1', 'arena.c': '1' }; // a changed here
+    const theirs = { 'arena.a': '1', 'arena.b': '3' }; // b changed, c removed elsewhere
+    assert.deepEqual(mergeSettings(base, local, theirs), { 'arena.a': '2', 'arena.b': '3' });
+  });
+
+  it('two accounts on one browser keep separate bases', () => {
+    const sent: string[] = [];
+    const sync = new SettingsSync((d) => sent.push(d), () => {});
+    store.set('arena.x', 'ann');
+    sync.onServer(serialize({ 'arena.x': 'ann' }), 'ann');
+    assert.ok(store.has('arena.syncBase.ann'));
+    sync.onServer(serialize({ 'arena.x': 'ann' }), 'bob');
+    assert.ok(store.has('arena.syncBase.bob'));
+    assert.ok(!Object.keys(snapshotSettings()).some((k) => k.startsWith('arena.syncBase')), 'bases are never synced');
+  });
+
+  it('an upload that could not be sent is not counted as synced', () => {
+    let online = false;
+    const sent: string[] = [];
+    const sync = new SettingsSync((d) => (online ? (sent.push(d), true) : false), () => {});
+    store.set('arena.a', '1');
+    sync.onServer(serialize({ 'arena.a': '1' }), 'ann');
+    store.set('arena.a', '2');
+    sync.flush();
+    assert.equal(sent.length, 0);
+    online = true;
+    sync.flush();
+    assert.equal(sent.length, 1, 'retried once the connection is back');
   });
 });

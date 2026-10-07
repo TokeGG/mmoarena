@@ -1,3 +1,4 @@
+import type { Popup } from './popups';
 import { NOTE_MAX } from '@arena/shared';
 import type { ClientMsg, ServerMsg } from '@arena/shared';
 
@@ -20,6 +21,7 @@ interface Hooks {
 export class SuggestUi {
   readonly button = el('button', 'acct-chip', '💡 Suggest');
   private modal: HTMLElement | null = null;
+  readonly popup: Popup = { isOpen: () => !!this.modal, close: () => this.close(), el: () => this.modal };
   private status = el('div', 'fr-status');
   private list = el('div', 'fr-list');
   private rows: { at: number; name: string; text: string; note?: string }[] | null = null;

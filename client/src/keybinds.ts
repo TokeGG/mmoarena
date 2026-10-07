@@ -81,6 +81,15 @@ export function splitCombo(combo: string): { mods: (typeof MODS)[number][]; code
 
 const VALID = /^((Ctrl|Alt|Shift)\+){0,3}[A-Za-z0-9]+$/;
 
+/**
+ * Shortcuts the browser keeps for itself however a page asks (closing or opening tabs and windows, switching tabs):
+ * binding one works in the settings, but in a match the browser acts first.
+ */
+const BROWSER_KEPT = new Set(['Ctrl+KeyW', 'Ctrl+KeyT', 'Ctrl+KeyN', 'Ctrl+Shift+KeyN', 'Ctrl+Shift+KeyT', 'Ctrl+Shift+KeyW', 'Ctrl+Tab', 'Ctrl+Shift+Tab', 'Ctrl+PageUp', 'Ctrl+PageDown', 'Alt+F4', 'Alt+Tab', 'F11']);
+export function browserKeeps(combo: string): boolean {
+  return BROWSER_KEPT.has(combo);
+}
+
 
 export function keyLabel(combo: string): string {
   if (!combo) return '—';

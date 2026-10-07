@@ -95,18 +95,26 @@ class UnitFrame {
       this.cast.root.classList.toggle('hidden', !c);
       if (c) this.cast.set(ABILITIES[c.ability]?.channel ? c.end - now : now - c.start, c.end - c.start, ABILITIES[c.ability]?.name ?? c.ability);
     }
+    // the icons are only rebuilt when the set of effects (or a seconds counter, or a stack count) changes, not every frame
+    const shown = u.auras.slice(0, 8);
+    const secsLeft = (x: { expiresAt: number }) => (x.expiresAt > 0 ? Math.max(0, Math.ceil((x.expiresAt - now) / 1000)) : -1);
+    const key = shown.map((x) => `${x.id}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|');
+    if (key === this.auraKey) return;
+    this.auraKey = key;
     this.auras.replaceChildren(
-      ...u.auras.slice(0, 8).map((a) => {
+      ...shown.map((a) => {
         const def = AURAS[a.id];
         const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`, AURA_ICON[a.id] ?? '✦');
         icon.dataset.tip = `aura:${a.id}`;
-        if (a.expiresAt > 0) icon.dataset.tipSub = `${Math.max(0, Math.ceil((a.expiresAt - now) / 1000))}s remaining`;
-        if (a.expiresAt > 0) icon.append(el('i', '', String(Math.max(0, Math.ceil((a.expiresAt - now) / 1000)))));
+        const left = secsLeft(a);
+        if (left >= 0) icon.dataset.tipSub = `${left}s remaining`;
+        if (left >= 0) icon.append(el('i', '', String(left)));
         if ((a.stacks ?? 0) > 1) icon.append(el('b', '', String(a.stacks)));
         return icon;
       }),
     );
   }
+  private auraKey = '';
 }
 
 /** Abilities with a condition on the target or yourself (Execute below 20% health, interrupts on a casting target, finishers with no combo points) are blacked out until it holds. */
@@ -192,8 +200,12 @@ export class Hud {
     this.nameplates([], now);
   }
 
+  /** The key bound to auto-attack, for the indicator's hint (it follows rebinding). */
+  autoKey = 'R';
+
   show(visible: boolean) {
     $('hud').classList.toggle('hidden', !visible);
+    if (!visible) this.clearLabels();
   }
 
   setBar(classId: ClassId, abilities: string[]) {
@@ -397,6 +409,12 @@ export class Hud {
     this.errTimer = window.setTimeout(() => e.classList.remove('show'), 1400);
   }
 
+  /** Take every nameplate and floating number off the screen (leaving a match, a disconnect, the end of watching). */
+  clearLabels() {
+    this.nameplates([], 0);
+    $('labels').replaceChildren();
+  }
+
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
     units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number }[],
@@ -496,7 +514,7 @@ export class Hud {
       else state = 'on';
     }
     root.dataset.state = state;
-    const label = { on: 'Auto-attacking', range: 'Auto-attack: move closer', target: 'Auto-attack: no target', stealth: 'Auto-attack is off while stealthed', off: 'Auto-attack off (right-click an enemy or press R)' }[state];
+    const label = { on: 'Auto-attacking', range: 'Auto-attack: move closer', target: 'Auto-attack: no target', stealth: 'Auto-attack is off while stealthed', off: `Auto-attack off (right-click an enemy${this.autoKey && this.autoKey !== '—' ? ` or press ${this.autoKey}` : ''})` }[state];
     if (root.title !== label) root.title = label;
   }
 

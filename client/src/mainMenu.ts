@@ -1,3 +1,4 @@
+import type { Popup } from './popups';
 import {
   ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, talentsFor,
 } from '@arena/shared';
@@ -79,6 +80,7 @@ export class MainMenu {
   private classId: ClassId;
   private build: Build;
   private nameInput = el('input');
+  private nameRow = el('label', 'mm-selrow mm-namerow');
   private ally = el('select');
   private size = el('select');
   private diff = el('select');
@@ -88,6 +90,11 @@ export class MainMenu {
   private blurb = el('div', 'mm-blurb');
   private specs = el('div', 'mm-specs');
   private specPop = el('div', 'mm-specpop hidden');
+  /** The look picker and the spec card, for the pop-up manager. */
+  readonly popups: Popup[] = [
+    { isOpen: () => !this.modal.classList.contains('hidden'), close: () => this.closeGear(), el: () => this.modal },
+    { isOpen: () => !this.specPop.classList.contains('hidden'), close: () => { window.clearTimeout(this.popHide); this.specPop.classList.add('hidden'); }, el: () => this.specPop },
+  ];
   private popHide = 0;
   private talents = el('div', 'mm-talents');
   private gearRow = el('div', 'mm-gear');
@@ -199,6 +206,7 @@ export class MainMenu {
   setAccount(a: AccountInfo | null) {
     this.account = a;
     this.nameInput.disabled = !!a;
+    this.nameRow.classList.toggle('hidden', !!a);
     if (a) this.nameInput.value = a.name;
     else this.nameInput.value = store.get('arena.name', '');
     this.paintParty();
@@ -334,7 +342,11 @@ export class MainMenu {
     actions.append(this.partyBtn, this.readyBtn, practice, queue);
     const hint = el('div', 'mm-esc');
     hint.append('Press ', el('b', '', 'Esc'), ' for controls, HUD and sound');
-    matchPanel.append(el('div', 'mm-match-h', 'MATCH'), this.partyBox, segs, rowSel('ARENA', this.map, 'dash'), rowSel('BOT SKILL', this.diff), adv, this.msg, actions, hint);
+    // guests pick the name they play under (signed in, the account name is used and this row is hidden)
+    this.nameRow.append(el('span', '', 'NAME'), this.nameInput);
+    this.nameInput.addEventListener('change', () => store.set('arena.name', this.nameInput.value.trim()));
+    this.nameRow.classList.toggle('hidden', !!this.account);
+    matchPanel.append(el('div', 'mm-match-h', 'MATCH'), this.partyBox, this.nameRow, segs, rowSel('ARENA', this.map, 'dash'), rowSel('BOT SKILL', this.diff), adv, this.msg, actions, hint);
     right.append(this.lookCard, matchPanel);
 
     this.modal.addEventListener('mousedown', (e) => {

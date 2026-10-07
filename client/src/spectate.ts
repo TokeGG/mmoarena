@@ -1,3 +1,4 @@
+import type { Popup } from './popups';
 import { ARENAS, contentHash } from '@arena/shared';
 import type { LiveMatch, ReplayData, StatRow } from '@arena/shared';
 import { CLASS_ICON } from './icons';
@@ -30,6 +31,8 @@ export interface SpectateHandlers {
   onPause(paused: boolean): void;
   onRate(rate: number): void;
   onSeek(tick: number): void;
+  /** The key bound to switching targets (shown in the "follow" hint), e.g. "Tab". */
+  switchKey?(): string;
 }
 
 /** The owner's live scoreboard: damage and healing totals per player, grouped by team. */
@@ -161,7 +164,8 @@ export class SpectateBar {
   }
 
   update(tick: number, followName: string) {
-    this.follow.textContent = followName ? `following ${followName} · Tab or click to switch` : '';
+    const key = this.h.switchKey?.() ?? 'Tab';
+    this.follow.textContent = followName ? `following ${followName} · ${key && key !== '—' ? `${key} or click` : 'click'} to switch` : '';
     if (!this.replayRow.classList.contains('hidden')) {
       if (document.activeElement !== this.seek) this.seek.value = String(tick);
       const s = Math.round((tick * 50) / 1000);
@@ -190,6 +194,7 @@ export class SpectateBar {
 /** A picker listing the matches in progress. */
 export class LivePicker {
   private modal: HTMLElement | null = null;
+  readonly popup: Popup = { isOpen: () => !!this.modal, close: () => this.close(), el: () => this.modal };
   constructor(private onPick: (id: string) => void, private refresh: () => void, private signedIn: () => boolean = () => true, private needSignIn: () => void = () => {}) {}
 
   show(rows: LiveMatch[] | null) {
