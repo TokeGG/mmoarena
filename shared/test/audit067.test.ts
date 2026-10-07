@@ -307,8 +307,9 @@ describe('0.67 bots: line of sight and movement', () => {
     let hard = 0;
     for (let s = 1; s <= 6; s++) {
       const sim = new ArenaSim({ seed: s, prepMs: 1000 });
-      const a = sim.addUnit({ name: 'h', classId: 'rogue', team: 0, controller: 'bot', build: botBuild('rogue', s, false) });
-      const b = sim.addUnit({ name: 'e', classId: 'rogue', team: 1, controller: 'bot', build: botBuild('rogue', s, false) });
+      // (a mage mirror: two rogues who both stay stealthed can miss each other entirely, which says nothing about skill)
+      const a = sim.addUnit({ name: 'h', classId: 'mage', team: 0, controller: 'bot', build: botBuild('mage', s, false) });
+      const b = sim.addUnit({ name: 'e', classId: 'mage', team: 1, controller: 'bot', build: botBuild('mage', s, false) });
       const bots = [new Bot(sim, a.id, 'hard', s), new Bot(sim, b.id, 'easy', s + 50)];
       while (sim.phase !== 'ended' && sim.time < 150000) { for (const x of bots) x.tick(); sim.step(); sim.drainEvents(); }
       if (sim.winner === 0) hard++;
@@ -395,4 +396,39 @@ describe('passives and where effects come from', () => {
     assert.ok(auraOrigins('cauterized').some((o) => /Pyromancy/.test(o)), 'a spec passive');
     assert.ok(auraOrigins('mortal_wounds').includes('Mortal Strike'), 'an ability');
   });
+});
+
+describe('bots and stealth', () => {
+  it('a bot cannot see a stealthed rogue: it goes to where the rogue was last seen, not where it is', () => {
+    const sim = new ArenaSim({ seed: 14, prepMs: 0 });
+    const w = unit(sim, 'warrior', 0, 0, -10);
+    const r = unit(sim, 'rogue', 1, 0, 0, 'dummy');
+    sim.step();
+    const bot = new Bot(sim, w.id, 'hard', 3);
+    w.cooldowns.charge = w.cooldowns.heroic_leap = 1e9;
+    play(sim, [bot], 200); // it sees the rogue at (0, 0)
+    sim.applyAura(r, r, 'stealth');
+    r.pos = { x: 20, z: 15 }; // and the rogue slips away unseen
+    const start = { ...w.pos };
+    play(sim, [bot], 1500);
+    const towardsOld = Math.hypot(w.pos.x - 0, w.pos.z - 0) < Math.hypot(start.x, start.z);
+    const towardsNew = Math.hypot(w.pos.x - 20, w.pos.z - 15) < Math.hypot(start.x - 20, start.z - 15) - 3;
+    assert.ok(towardsOld, 'it heads for the last place it saw the rogue');
+    assert.ok(!towardsNew || Math.abs(w.pos.x) < 3, `it does not home in on the hidden rogue (${w.pos.x.toFixed(1)}, ${w.pos.z.toFixed(1)})`);
+    assert.equal(w.target, null, 'and has no target on it');
+  });
+
+  it('a bot that has never seen anyone searches from the middle, not straight at a hidden rogue', () => {
+    const sim = new ArenaSim({ seed: 15, prepMs: 0 });
+    const w = unit(sim, 'warrior', 0, 0, -10);
+    const r = unit(sim, 'rogue', 1, -25, 15, 'dummy'); // hidden behind it, the other way from the middle and the enemy gate
+    sim.applyAura(r, r, 'stealth');
+    sim.step();
+    const bot = new Bot(sim, w.id, 'hard', 3);
+    play(sim, [bot], 2000);
+    const before = Math.hypot(0 + 25, -10 - 15);
+    assert.ok(Math.hypot(w.pos.x + 25, w.pos.z - 15) > before, `it did not walk to the rogue it cannot see (${w.pos.x.toFixed(1)}, ${w.pos.z.toFixed(1)})`);
+    assert.ok(w.pos.x > 3, 'it went to look in the middle');
+  });
+
 });

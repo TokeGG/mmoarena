@@ -8,7 +8,8 @@
    "Cast bars show why a cast stopped: it stays up for a second, frozen where it stopped, labelled and coloured Interrupted (red), Crowd controlled or Pulled (purple), Cancelled or Moved (grey), or Line of sight, Out of range, Target lost, Smoked (orange). Yours, the unit frames' and the nameplates'.",
    "Bladestorm is no longer ended by pressing another skill (a bot was cancelling its own spin with Pummel): your other skills wait until it is over.",
    "Each spec's card and tooltip lists its passives: its built-in effect (Pyromancy's Cauterize), its weapon and auto-attack, and the bonuses it carries (Rampager's longer Bloodthirst and Slam).",
-   "Tooltips say where each bonus comes from: the spec's passive or a talent and its tier. A buff or debuff icon's tooltip says who put it on and what gives it (an ability, a spec passive or a talent)."
+   "Tooltips say where each bonus comes from: the spec's passive or a talent and its tier. A buff or debuff icon's tooltip says who put it on and what gives it (an ability, a spec passive or a talent).",
+   "Bots no longer see through stealth: when a rogue stealths or vanishes they lose it, go to where they last saw it and search the area around there, instead of walking straight to where it really is. A bot that has seen nobody holds its ground, and hidden enemies no longer count for its area spells or its running away."
   ]
  },
  {

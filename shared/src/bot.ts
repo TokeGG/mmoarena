@@ -174,11 +174,14 @@ export class Bot {
     this.watchJukes(enemies);
     this.moving = false;
 
-    // nobody in sight (e.g. a stealthed rogue): walk towards where the nearest enemy is rather than standing about
+    // what it can see is all it knows: a stealthed or vanished rogue is remembered where it was last seen, never tracked
+    for (const e of enemies) this.lastSeen.set(e.id, { pos: { ...e.pos }, lv: e.level, at: sim.time });
+
+    // nobody in sight: go and look where an enemy was last seen, then search around there, like a player would
     if (!enemies.length && sim.canMove(u) && !u.cast) {
-      const hidden = all.filter((e) => e.alive && e.team !== u.team).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
-      if (hidden && !(u.classId === 'priest' && allies.length > 1)) {
-        this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, hidden.pos, u.level, hidden.level)), fwd: 1, strafe: 0 });
+      const c = this.searchPoint(u);
+      if (c && !(u.classId === 'priest' && allies.length > 1)) {
+        this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, c.pos, u.level, c.lv)), fwd: 1, strafe: 0 });
         return;
       }
     }
@@ -264,7 +267,7 @@ export class Bot {
     const end = this.probe(u, c);
     const got = Math.hypot(end.x - u.pos.x, end.z - u.pos.z);
     if (got >= want * 0.85) return c;
-    const foes = [...this.sim.units.values()].filter((e) => e.alive && e.team !== u.team).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos));
+    const foes = [...this.sim.units.values()].filter((e) => e.alive && e.team !== u.team && this.sim.canSee(u, e)).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos));
     const threat = foes[0]?.pos;
     let best: Cmd = c;
     let bestScore = got * 0.5 - 1; // staying with the original is the fallback
@@ -411,7 +414,7 @@ export class Bot {
     if (!cat) return false;
     const def = ABILITIES[ability];
     const sim = this.sim;
-    const foes = def.target === 'enemy' ? [sim.units.get(target ?? -1)] : [...sim.units.values()].filter((e) => e.alive && e.team !== u.team && dist(u.pos, e.pos) <= (def.radius ?? 8));
+    const foes = def.target === 'enemy' ? [sim.units.get(target ?? -1)] : [...sim.units.values()].filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e) && dist(u.pos, e.pos) <= (def.radius ?? 8));
     const worth = (e?: Unit) => {
       if (!e || e.team === u.team) return true;
       const st = e.dr[cat as 'stun'];
@@ -448,7 +451,7 @@ export class Bot {
       const d = ABILITIES[id];
       if (d?.target !== 'aoe_enemy') return true;
       const r = this.sim.radiusOf(u, d);
-      return [...this.sim.units.values()].some((e) => e.alive && e.team !== u.team && dist(u.pos, e.pos) <= r - 0.5);
+      return [...this.sim.units.values()].some((e) => e.alive && e.team !== u.team && this.sim.canSee(u, e) && dist(u.pos, e.pos) <= r - 0.5);
     });
     return this.useFirst(u, list, tgt.id);
   }
@@ -471,6 +474,7 @@ export class Bot {
     const list = pool.length ? pool : enemies;
     if (!list.length) {
       this.target = null;
+      if (u.target !== null && sim.units.get(u.target)?.team !== u.team) sim.setTarget(u.id, null); // let go of an enemy it can no longer see
       return;
     }
     const B = this.brain;
@@ -832,6 +836,34 @@ export class Bot {
   // ------------------------------------------------------------------ movement
 
   /** Steer around whatever is in the way: the walk grid on arenas with walkways or barricades, else round pillars and walls. */
+  /** Where each enemy was last seen (and on which floor): all a bot knows about one it cannot see now. */
+  private lastSeen = new Map<number, { pos: Vec2; lv: 0 | 1; at: number }>();
+  private search: { pos: Vec2; lv: 0 | 1; until: number } | null = null;
+
+  /**
+   * Where to look for an enemy it cannot see: the spot one was last seen, and once there, random spots close by (a
+   * stealthed rogue is spotted within a couple of yards, so sweeping the area is how a player finds one). Null when it
+   * has never seen anyone (then it holds its ground).
+   */
+  private searchPoint(u: Unit): { pos: Vec2; lv: 0 | 1 } | null {
+    const sim = this.sim;
+    // never seen anyone yet: what a player knows is the map, so it sweeps from the middle towards the enemy's gate
+    const theirs = sim.arena.spawns[1 - u.team] ?? [];
+    const gate = theirs.length ? { x: theirs.reduce((n, p) => n + p.x, 0) / theirs.length, z: theirs.reduce((n, p) => n + p.z, 0) / theirs.length } : { x: 0, z: 0 };
+    const recent = [...this.lastSeen.entries()].filter(([id]) => sim.units.get(id)?.alive).sort((a, b) => b[1].at - a[1].at)[0]?.[1] ?? { pos: { x: gate.x / 2, z: gate.z / 2 }, lv: 0 as const, at: -1 };
+    if (!this.search || sim.time >= this.search.until || dist(u.pos, this.search.pos) < 1.2) {
+      const first = !this.search || this.search.until < recent.at;
+      const b = sim.arena.bounds;
+      const a = this.rng() * Math.PI * 2;
+      // the longer nothing turns up, the wider it sweeps (a rogue that stays hidden has to be walked into: it shows at 2 yards)
+      const lost = sim.time - Math.max(0, recent.at);
+      const r = first ? 0 : 3 + this.rng() * (lost > 8000 ? 16 : 6);
+      const pos = { x: Math.max(b.minX + 1, Math.min(b.maxX - 1, recent.pos.x + Math.sin(a) * r)), z: Math.max(b.minZ + 1, Math.min(b.maxZ - 1, recent.pos.z + Math.cos(a) * r)) };
+      this.search = { pos, lv: first ? recent.lv : 0, until: sim.time + 3000 };
+    }
+    return this.search;
+  }
+
   /** The last route point and when it was chosen, so a route that flickers between two ways round is not followed both ways. */
   private lastWp: { p: Vec2; at: number } | null = null;
   private waypoint(from: Vec2, to: Vec2, fromLv: 0 | 1 = 0, toLv: 0 | 1 = 0): Vec2 {
