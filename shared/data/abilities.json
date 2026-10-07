@@ -648,7 +648,13 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 420
+    "amount": 550
+   },
+   {
+    "type": "aura",
+    "aura": "hot_streak",
+    "self": true,
+    "fullCast": true
    }
   ]
  },

@@ -74,6 +74,15 @@ describe('bots play by the same rules as humans', () => {
     }
   });
 
+  it('a kiting bot does not back into a wall: it slides along it or turns', () => {
+    const ctx = mk();
+    const b = ctx.sim.arena.bounds;
+    const mage = bot(ctx, 'mage', 0, b.minX + 1.2, 0);
+    mage.facing = Math.PI / 2; // facing +x, so backing up means running into the west wall
+    const out = (ctx.bots[0] as any).wallGuard(mage, { facing: mage.facing, fwd: -1, strafe: 0, guard: true });
+    assert.ok(!(out.fwd < 0 && out.strafe === 0), `kept backing into the wall: ${JSON.stringify(out)}`);
+  });
+
   it('a mage bot counterspells a healer mid-cast', () => {
     const ctx = mk();
     const mage = bot(ctx, 'mage', 0, -8, 0);
@@ -225,6 +234,7 @@ describe('bots look after their lives', () => {
   it('a bot steps out of an enemy Flamestrike instead of standing in it', () => {
     const ctx = mk();
     const war = bot(ctx, 'priest', 0, 0, 0);
+    ctx.bots[0] = new Bot(ctx.sim, war.id, 'hard', 100 + war.id, { ...DEFAULT_BRAIN, dodge: 0.7 }); // the behaviour under test, whatever training settled on
     const mage = ctx.sim.addUnit({ name: 'enemy mage', classId: 'mage', team: 1, controller: 'player' });
     mage.pos = { x: 0, z: 12 };
     mage.bar = ['flamestrike', ...mage.bar.slice(1)];

@@ -1,5 +1,5 @@
 import { ABILITIES, AURAS, TUNING } from './data';
-import { angleTo, dist, distPointToSegment, hasLOS } from './geometry';
+import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, stepMovementL } from './geometry';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
@@ -48,7 +48,7 @@ function mulberry32(seed: number) {
   };
 }
 
-interface Cmd { facing: number; fwd: number; strafe: number }
+interface Cmd { facing: number; fwd: number; strafe: number; /** retreating: look ahead for walls before committing */ guard?: boolean }
 
 /**
  * A bot plays through exactly the same entry points as a human (queueInput, setTarget, useAbility),
@@ -145,7 +145,7 @@ export class Bot {
     if (this.cover && sim.canMove(u)) {
       if (dist(u.pos, this.cover) > 0.9) {
         // run for it, abandoning any cast (moving cancels it)
-        this.send(u, { facing: angleTo(u.pos, this.cover), fwd: 1, strafe: 0 });
+        this.send(u, { facing: angleTo(u.pos, this.cover), fwd: 1, strafe: 0, guard: true });
         return;
       }
     }
@@ -154,7 +154,7 @@ export class Bot {
     if (this.brain.dodge > 0.15 && sim.canMove(u)) {
       const hz = sim.hazardsFor(u.team).find((z) => dist(u.pos, z) < z.r + 0.6);
       if (hz && (!u.cast || hpFrac(u) < this.brain.dodge * 0.9) && this.noticed(`zone:${hz.id}`)) {
-        this.send(u, { facing: dist(u.pos, hz) < 0.2 ? u.facing : angleTo(hz, u.pos), fwd: 1, strafe: 0 });
+        this.send(u, { facing: dist(u.pos, hz) < 0.2 ? u.facing : angleTo(hz, u.pos), fwd: 1, strafe: 0, guard: true });
         return;
       }
     }
@@ -178,8 +178,71 @@ export class Bot {
   private lastWalk = false;
   private send(u: Unit, c: Cmd): void {
     if (this.sim.time < this.unstickUntil && c.fwd > 0) c = { facing: c.facing + this.unstickSign * 1.2, fwd: 1, strafe: 0 };
+    if (c.guard) c = this.wallGuard(u, c);
     this.lastWalk = c.fwd !== 0 || c.strafe !== 0 ? c.fwd > 0 : false;
-    this.sim.queueInput(u.id, { seq: ++this.seq, ...c });
+    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe });
+  }
+
+  /** Where a command would take the unit in a bit over a second, walls, pillars and edges included. */
+  private probe(u: Unit, c: Cmd): Vec2 {
+    let pos = u.pos;
+    let level = u.level;
+    for (let i = 0; i < 12; i++) {
+      const r = stepMovementL(pos, level, c, TUNING.runSpeed, 0.1, this.sim.arena);
+      pos = r.pos;
+      level = r.level;
+    }
+    return pos;
+  }
+
+  /**
+   * Running away into a wall is how bots die: look ahead, and when the way is blocked, slide along the wall or turn
+   * to whichever direction keeps the most distance from the nearest enemy and still has room to run.
+   */
+  private wallGuard(u: Unit, c: Cmd): Cmd {
+    const arena = this.sim.arena;
+    const speed = TUNING.runSpeed * (c.fwd < 0 ? 0.75 : 1);
+    const want = speed * 1.2 * Math.min(1, Math.hypot(c.fwd, c.strafe));
+    const end = this.probe(u, c);
+    const got = Math.hypot(end.x - u.pos.x, end.z - u.pos.z);
+    if (got >= want * 0.85) return c;
+    const foes = [...this.sim.units.values()].filter((e) => e.alive && e.team !== u.team).sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos));
+    const threat = foes[0]?.pos;
+    let best: Cmd = c;
+    let bestScore = got * 0.5 - 1; // staying with the original is the fallback
+    for (const [fwd, strafe] of [[-1, 0], [0, 1], [0, -1], [-1, 1], [-1, -1], [1, 1], [1, -1], [1, 0]]) {
+      const cand: Cmd = { facing: c.facing, fwd, strafe };
+      const e2 = this.probe(u, cand);
+      const moved = Math.hypot(e2.x - u.pos.x, e2.z - u.pos.z);
+      if (moved < want * 0.8) continue; // that way is blocked as well
+      const b = arena.bounds;
+      const edge = Math.min(e2.x - b.minX, b.maxX - e2.x, e2.z - b.minZ, b.maxZ - e2.z);
+      const score = (threat ? dist(e2, threat) - dist(u.pos, threat) : 0) * 1.5 + moved + Math.min(edge, 6) * 0.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = cand;
+      }
+    }
+    return best;
+  }
+
+  /** The Blink heading with the most open room that also ends furthest from the enemy (a blink into a wall is a wasted cooldown). */
+  private blinkAngle(u: Unit, threat: Vec2): number | null {
+    const away = angleTo(threat, u.pos);
+    let best: number | null = null;
+    let bestScore = -Infinity;
+    for (let k = -4; k <= 4; k++) {
+      const a = away + k * (Math.PI / 8);
+      const dest = blinkDestination(u.pos, a, 20, this.sim.arena, u.level);
+      const moved = dist(u.pos, dest);
+      if (moved < 12) continue;
+      const score = dist(dest, threat) + moved * 0.5 - Math.abs(k) * 1.5;
+      if (score > bestScore) {
+        bestScore = score;
+        best = a;
+      }
+    }
+    return best;
   }
 
   private use(u: Unit, ability: string, target?: number, ground?: Vec2): boolean {
@@ -368,8 +431,10 @@ export class Bot {
         }
         if (emergency && (stuck || close.length) && enemies.length && this.ready(u, 'blink')) {
           // Blink needs to face away first; turning is free, so turn now and blink on the next decision.
-          const away = angleTo(byDist[0].pos, u.pos);
-          if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
+          const away = this.blinkAngle(u, byDist[0].pos);
+          if (away === null) {
+            // walled in: no clear Blink line, fight on
+          } else if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
             if (this.use(u, 'blink')) return true;
           } else if (u.auras.some((a) => a.kind !== 'stun' && a.kind !== 'incapacitate' && a.kind !== 'fear') || sim.canMove(u)) {
             this.forceFacing = { angle: away, until: sim.time + 300 };
@@ -458,8 +523,10 @@ export class Bot {
     const meleeNear = enemies.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 10);
     if (hpFrac(u) < 0.4 && meleeNear.length && this.ready(u, 'blink')) {
       // Blink needs to face away first; turning is free, so turn this tick and blink on the next decision.
-      const away = angleTo(meleeNear[0].pos, u.pos);
-      if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
+      const away = this.blinkAngle(u, meleeNear[0].pos);
+      if (away === null) {
+        // no open line to Blink along
+      } else if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
         if (this.use(u, 'blink')) return;
       } else {
         this.forceFacing = { angle: away, until: sim.time + 300 };
@@ -480,6 +547,7 @@ export class Bot {
     // Fingers of Frost / Shatter on the target: Deep Freeze to hold it, then Ice Lance for the 5x hit
     if (tgt.auras.some((a) => a.id === 'fingers_of_frost' || a.id === 'shatter') && (this.use(u, 'deep_freeze', tgt.id) || this.use(u, 'ice_lance', tgt.id))) return;
     // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
+    if (u.auras.some((a) => a.id === 'hot_streak') && this.use(u, 'pyroblast', tgt.id)) return; // the free instant 550 first
     this.useFirst(u, ['deep_freeze', 'fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles'], tgt.id);
   }
 
@@ -650,7 +718,7 @@ export class Bot {
     const kiteable = enemies.some(
       (e) => MELEE.has(e.classId) && dist(u.pos, e.pos) < range.min && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root'),
     );
-    if (d < range.min && kiteable) return { facing: toT, fwd: -1, strafe: this.strafeSign * 0.75 * this.brain.strafe };
+    if (d < range.min && kiteable) return { facing: toT, fwd: -1, strafe: this.strafeSign * 0.75 * this.brain.strafe, guard: true };
     // between casts, sidestep so the bot is not a stationary target (moving never interrupts: casts return early above)
     if (sim.time < u.gcdEnd) return { facing: toT, fwd: 0, strafe: this.strafeSign * this.brain.strafe };
     return { facing: toT, fwd: 0, strafe: 0 };

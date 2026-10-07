@@ -631,6 +631,23 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
+  it('a fully cast Pyroblast hits for 550 and always grants Hot Streak; the instant one does not chain', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'pyroblast'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.health = foe.maxHealth = 5000;
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
+    advance(sim, 3200);
+    assert.ok(mage.auras.some((x) => x.id === 'hot_streak'), 'full cast gives Hot Streak');
+    const hits = foe.maxHealth - foe.health;
+    assert.ok(hits >= 500 && hits <= 600, `first hit ${hits}`);
+    mage.gcdEnd = 0;
+    assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
+    assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'the instant cast used it up and did not refresh it');
+  });
+
   it("dragon's breath is a 14 yd, 80 degree cone that disorients for 4 s", () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);

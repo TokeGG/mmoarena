@@ -260,7 +260,8 @@ export class ArenaSim {
       // a proc (Hot Streak) makes this cast instant and is used up
       this.removeAura(u, proc, 'consumed');
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
-      this.execute(u, def, tgt, ground ?? undefined);
+      this.procCast = true;
+      try { this.execute(u, def, tgt, ground ?? undefined); } finally { this.procCast = false; }
       return ok;
     }
     if (def.castTime > 0) {
@@ -275,6 +276,9 @@ export class ArenaSim {
   }
 
   // ------------------------------------------------------------------ tick
+
+  /** True while a proc-made instant cast executes (so it cannot chain into another proc). */
+  private procCast = false;
 
   step(): void {
     this.time += TICK;
@@ -671,6 +675,7 @@ export class ArenaSim {
         this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1), def.id);
         break;
       case 'aura':
+        if (eff.fullCast && this.procCast) break; // an instant proc cast does not earn the next proc
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
         this.applyAura(u, eff.self ? u : t, eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
         break;

@@ -133,7 +133,7 @@ export type Effect =
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   /** Heals a fraction of the target's missing health. */
   | { type: 'healMissing'; pct: number }
-  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number }
+  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }
