@@ -1,4 +1,4 @@
-import { SPECS, TALENTS, cleanGear, emptyBuild, validateBuild } from '@arena/shared';
+import { SPECS, cleanGear, emptyBuild, talentsFor, validateBuild } from '@arena/shared';
 import type { Build, ClassId } from '@arena/shared';
 
 /** Client-side progress and saved builds. The server re-validates everything; this just remembers the player's picks. */
@@ -47,14 +47,14 @@ export function saveProfile(token: string, matches: number, wins: number) {
 /** Drop anything unknown (talents, removed cosmetics) so a stale save can never get a join rejected. */
 export function sanitize(classId: ClassId, b: Build): Build {
   const spec = SPECS[classId].some((s) => s.id === b.spec) ? b.spec : SPECS[classId][0].id;
-  const tiers = TALENTS[classId];
+  const tiers = talentsFor(classId, spec);
   const talents = tiers.map((tier, i) => (tier.some((t) => t.id === b.talents[i]) ? b.talents[i] : ''));
   const gear = cleanGear(b.gear, flags.owner);
   return { spec, talents, gear };
 }
 
 export function defaultBuild(classId: ClassId): Build {
-  return { ...emptyBuild(classId), talents: TALENTS[classId].map(() => ''), gear: {} };
+  return { ...emptyBuild(classId), talents: talentsFor(classId, emptyBuild(classId).spec).map(() => ''), gear: {} };
 }
 
 export function loadBuild(classId: ClassId): Build {

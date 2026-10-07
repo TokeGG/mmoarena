@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.40.0
+# WoW-style Arena · v0.41.0
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against (opponents are always random classes, rolled each time you press Practice), ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -41,15 +41,11 @@ Defaults: RMB-drag steer · LMB-drag orbit camera · both mouse buttons run forw
 
 Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each has **3 specs** with their own **eight-ability bar** (keys 1-8) and passive modifiers (for example Frost, Fire and Arcane), and **6 talent tiers**, one pick per tier:
 
-- **Tiers I to III and the last tier:** passives (damage, healing, movement speed, cooldowns, longer slows and stuns).
-- **Tiers IV and V (ability swaps):** each choice adds an extra ability that takes the place of one on your bar (the tooltip lists what each spec gives up). Between them, every class can bring **a stun and an interrupt** of its own.
+**Talents belong to your spec (0.41):** each of the 12 specs has its own six tiers, three options each, tailored to what that spec does.
 
-| Class | Abilities you can swap in |
-|---|---|
-| Warrior | Shockwave, Piercing Howl, Die by the Sword, Storm Bolt, Disrupting Shout |
-| Mage | Evocation, Blizzard, Arcane Torrent |
-| Priest | Penance, Holy Word: Serenity, Power Infusion, Hammer of Justice, Silence |
-| Rogue | Blind, Eviscerate, Crippling Poison, Smoke Bomb, Deadly Throw |
+- **Tiers I to III:** buffs for that spec's own abilities (damage, healing, cooldowns, longer slows and stuns, survivability). Tier III is the utility tier; for mages it is the **Blink tier** (two blinks per cooldown, a run-speed burst after blinking, or faster casts after blinking).
+- **Tiers IV, V and VI (skill replacements):** each choice adds an ability that takes the place of one bar slot (tier IV, V and VI each replace a different slot, so you can take all three; the tooltip says what you give up). Every spec has nine abilities it can bring in this way. Switching spec clears your talent picks.
+- New abilities with the rework: Rogue **Garrote** (a bleed) and **Fan of Knives** (area hit).
 
 - **Damage over time and aimed spells:** Shadow priests get a no-cooldown damage-over-time spell and a bigger, longer one on a cooldown (replacing Dispel Magic). Priests' healing channel (Penance) heals a friend or hurts an enemy depending on who you target. Flamestrike and Blizzard are **aimed at the cursor**: press the key to arm the spell (its slot lights up and a ring follows your pointer), then **click or press the key again to place it**; Esc, casting something else or a stun cancels. The ring only shows while a spell is armed. While steering with the right button the ring sits at the centre of the screen.
 

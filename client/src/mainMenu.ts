@@ -1,5 +1,5 @@
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, SPECS, TALENTS, itemById, itemsForSlot,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, SPECS, itemById, itemsForSlot, talentsFor,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -362,6 +362,7 @@ export class MainMenu {
         card.append(head, el('div', 'mm-spec-desc', spec.desc), kit);
         tip(card, `spec:${this.classId}:${spec.id}`);
         card.addEventListener('click', () => {
+          if (this.build.spec !== spec.id) this.build.talents = talentsFor(this.classId, spec.id).map(() => ''); // talents belong to a spec
           this.build.spec = spec.id;
           this.commit();
         });
@@ -372,7 +373,7 @@ export class MainMenu {
 
   private renderTalents() {
     this.talents.replaceChildren(
-      ...TALENTS[this.classId].map((tier, i) => {
+      ...talentsFor(this.classId, this.build.spec).map((tier, i) => {
         const row = el('div', 'mm-tier');
         row.append(el('span', 'tier-label', `Tier ${ROMAN[i]}`));
         for (const t of tier) {

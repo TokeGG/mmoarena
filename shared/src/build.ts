@@ -1,5 +1,4 @@
 import { AURAS, COSMETICS, SPECS, TALENTS } from './data';
-import { swapTarget } from './types';
 import type { AbilityMod, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
@@ -51,10 +50,8 @@ export function cleanGear(gear: Record<string, string> | undefined, isOwner = fa
 
 export const specOf = (classId: ClassId, specId: string) => SPECS[classId]?.find((s) => s.id === specId);
 export const defaultSpec = (classId: ClassId) => SPECS[classId][0];
-export const talentsFor = (classId: ClassId, specId: string | undefined) => {
-  void specId; // talents are per class today; kept in the signature so they can become per spec
-  return TALENTS[classId];
-};
+/** The six talent tiers of one spec (talents differ per spec). */
+export const talentsFor = (classId: ClassId, specId: string | undefined): TalentDef[][] => TALENTS[classId]?.[specId ?? ''] ?? [];
 
 export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(classId).id, talents: [], gear: {} });
 
@@ -63,7 +60,7 @@ export type BuildCheck = { ok: true } | { ok: false; reason: string };
 /** Strict check used by the server for anything a client sends. */
 export function validateBuild(classId: ClassId, b: Build, isOwner = false): BuildCheck {
   if (!specOf(classId, b.spec)) return { ok: false, reason: 'unknown spec' };
-  const tiers = TALENTS[classId];
+  const tiers = talentsFor(classId, b.spec);
   if (b.talents.length > tiers.length) return { ok: false, reason: 'too many talents' };
   for (let i = 0; i < b.talents.length; i++) {
     if (b.talents[i] === '') continue;
@@ -82,22 +79,21 @@ export function compileMods(classId: ClassId, b: Build | undefined): Mods {
   const m = newMods();
   if (!b) return m;
   applyMods(m, specOf(classId, b.spec)?.mods);
-  const tiers = TALENTS[classId] ?? [];
+  const tiers = talentsFor(classId, b.spec);
   b.talents.forEach((id, i) => applyMods(m, tiers[i]?.find((t) => t.id === id)?.mods));
   // gear is cosmetic only: it never changes numbers (see gearLook for what it changes)
   return m;
 }
 
-/** The talent swap (if any) that applies to this spec, i.e. one whose `replaces` entry is on the spec's bar. */
+/** The talent swaps picked in this build, in tier order. */
 export function swapsFor(classId: ClassId, b: Build | undefined): { talent: TalentDef; from: string; to: string }[] {
   const spec = b ? specOf(classId, b.spec) : undefined;
   if (!b || !spec) return [];
   const out: { talent: TalentDef; from: string; to: string }[] = [];
-  const tiers = TALENTS[classId] ?? [];
+  const tiers = talentsFor(classId, b.spec);
   b.talents.forEach((id, i) => {
     const t = tiers[i]?.find((x) => x.id === id);
-    const from = t?.swap?.replaces[spec.id];
-    if (t?.swap && from && spec.bar.includes(from)) out.push({ talent: t, from, to: swapTarget(t.swap, spec.id) });
+    if (t?.swap && spec.bar.includes(t.swap.from)) out.push({ talent: t, from: t.swap.from, to: t.swap.to });
   });
   return out;
 }

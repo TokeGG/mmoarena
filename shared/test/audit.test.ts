@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TALENTS, TUNING, barFor, swapTarget, validateBuild } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, barFor, talentsFor, validateBuild } from '../src/index';
 import type { AbilityDef, Build, ClassId, SimEvent } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -11,7 +11,7 @@ function reachableFor(cid: ClassId, specId: string): Set<string> {
   const sp = SPECS[cid].find((s) => s.id === specId)!;
   const out = new Set(sp.bar);
   for (const a of sp.bar) if (ABILITIES[a]?.stealthSwap) out.add(ABILITIES[a].stealthSwap!); // slots that turn into another ability in stealth
-  for (const tier of TALENTS[cid]) for (const t of tier) if (t.swap?.replaces[specId]) out.add(swapTarget(t.swap, specId));
+  for (const tier of talentsFor(cid, specId)) for (const t of tier) if (t.swap) out.add(t.swap.to);
   return out;
 }
 
@@ -34,52 +34,63 @@ describe('skills and talents audit: data', () => {
     for (const [id, au] of Object.entries(AURAS)) if (au.dot) assert.ok(ABILITIES[au.dot.ability], `${id} dot ability`);
   });
 
-  it('every talent does something, swaps cover every spec, and every build combination is valid with a full distinct bar', () => {
+  it('every spec has six tiers: three buff tiers then three skill swaps, and every build combination is valid with a full distinct bar', () => {
     for (const cid of classIds) {
-      TALENTS[cid].forEach((tier) => tier.forEach((t) => {
-        assert.ok(t.name && t.desc, t.id);
-        assert.ok(Object.keys(t.mods ?? {}).length > 0 || t.swap, `${t.id} does nothing`);
-        for (const ab of Object.keys(t.mods?.ability ?? {})) assert.equal(ABILITIES[ab]?.class, cid, `${t.id}: ${ab}`);
-        for (const au of Object.keys(t.mods?.auraDuration ?? {})) assert.ok(AURAS[au], `${t.id}: ${au}`);
-        if (t.swap) for (const sp of SPECS[cid]) {
-          const from = t.swap.replaces[sp.id];
-          assert.ok(from && sp.bar.includes(from), `${t.id}: no valid swap for ${sp.id}`);
-        }
-      }));
+      const ids = new Set<string>();
       for (const sp of SPECS[cid]) {
-        const walk = (i: number, picks: string[]) => {
-          if (i === TALENTS[cid].length) {
-            const b: Build = { spec: sp.id, talents: picks, gear: {} };
-            assert.ok(validateBuild(cid, b, 99).ok, picks.join());
-            const bar = barFor(cid, b, sp.bar);
-            assert.equal(new Set(bar).size, bar.length, `${sp.id} ${picks} duplicates`);
-            assert.equal(bar.length, 8);
-            return;
+        const tiers = talentsFor(cid, sp.id);
+        assert.equal(tiers.length, 6, `${sp.id} has 6 tiers`);
+        const froms = new Set<string>();
+        tiers.forEach((tier, ti) => {
+          assert.equal(tier.length, 3, `${sp.id} tier ${ti + 1} has 3 options`);
+          const from = new Set<string>();
+          for (const t of tier) {
+            assert.ok(t.name && t.desc && t.icon, t.id);
+            assert.ok(!ids.has(t.id), `duplicate talent id ${t.id}`);
+            ids.add(t.id);
+            for (const ab of Object.keys(t.mods?.ability ?? {})) { assert.equal(ABILITIES[ab]?.class, cid, `${t.id}: ${ab}`); assert.ok(sp.bar.includes(ab), `${t.id}: ${ab} must be on the ${sp.id} bar`); }
+            for (const au of Object.keys(t.mods?.auraDuration ?? {})) assert.ok(AURAS[au], `${t.id}: ${au}`);
+            if (ti < 3) {
+              assert.ok(!t.swap && Object.keys(t.mods ?? {}).length > 0, `${t.id}: tiers 1-3 are buffs`);
+            } else {
+              assert.ok(t.swap && Object.keys(t.mods ?? {}).length === 0, `${t.id}: tiers 4-6 are swaps`);
+              assert.ok(sp.bar.includes(t.swap!.from), `${t.id}: replaces something on the bar`);
+              assert.ok(!sp.bar.includes(t.swap!.to) && ABILITIES[t.swap!.to]?.class === cid, `${t.id}: swap target is a new ability of the class`);
+              from.add(t.swap!.from);
+            }
           }
-          // sample the first and last option of each tier plus every option of swap tiers (keeps this fast)
-          const tier = TALENTS[cid][i];
-          for (const t of tier.length > 3 ? tier : [tier[0], tier[tier.length - 1]]) walk(i + 1, [...picks, t.id]);
-        };
-        walk(0, []);
+          if (ti >= 3) { assert.equal(from.size, 1, `${sp.id} tier ${ti + 1} offers alternatives for one slot`); froms.add([...from][0]); }
+        });
+        assert.equal(froms.size, 3, `${sp.id}: the three swap tiers use three different slots`);
+        const all = tiers.slice(3).flat().map((t) => t.swap!.to);
+        assert.equal(new Set(all).size, 9, `${sp.id}: nine different abilities to swap in`);
+        // every combination of the three swap tiers (27) is valid with a full distinct bar
+        for (const a of tiers[3]) for (const b of tiers[4]) for (const c of tiers[5]) {
+          const build: Build = { spec: sp.id, talents: ['', '', '', a.id, b.id, c.id], gear: {} };
+          assert.ok(validateBuild(cid, build, 99).ok);
+          const bar = barFor(cid, build, []);
+          assert.equal(bar.length, 8);
+          assert.equal(new Set(bar).size, 8, `${a.id} ${b.id} ${c.id}`);
+        }
       }
     }
   });
 
-  it('no talent is completely dead for a spec (its abilities or auras are reachable on that spec)', () => {
+  it('no buff talent is dead for its spec (its abilities or auras are on that spec)', () => {
     for (const cid of classIds) for (const sp of SPECS[cid]) {
       const can = reachableFor(cid, sp.id);
-      for (const tier of TALENTS[cid]) for (const t of tier) {
+      for (const t of talentsFor(cid, sp.id).slice(0, 3).flat()) {
         const m = t.mods ?? {};
         const general = Object.keys(m).some((k) => k !== 'ability' && k !== 'auraDuration');
         const ab = Object.entries(m.ability ?? {}).some(([id, mod]) => {
           const d = ABILITIES[id];
           if (!can.has(id)) return false;
-          const dot = Object.values(AURAS).some((a) => a.dot?.ability === id);
+          const dot = Object.values(AURAS).some((a) => a.dot?.ability === id) || d.effects.some((e) => e.type === 'aura' && !!AURAS[e.aura]?.dot);
           return (!!mod.damage && (d.effects.some((e) => e.type === 'damage' || e.type === 'zone') || dot)) ||
             (!!mod.heal && d.effects.some((e) => e.type === 'heal')) || (!!mod.cooldown && d.cooldown > 0) || (!!mod.castTime && d.castTime > 0) || (!!mod.range && d.range > 0) || !!mod.charges || !!mod.after?.length;
         });
         const au = Object.keys(m.auraDuration ?? {}).some((aid) => [...can].some((a) => ABILITIES[a].effects.some((e) => e.type === 'aura' && e.aura === aid)));
-        assert.ok(general || ab || au || t.swap?.replaces[sp.id], `${t.id} is dead on ${sp.id}`);
+        assert.ok(general || ab || au, `${t.id} is dead on ${sp.id}`);
       }
     }
   });
@@ -99,8 +110,8 @@ function trial(a: AbilityDef, useAlly = false) {
   let spec = specs.find((s) => s.bar.includes(a.id)) ?? specs.find((s) => s.bar.some((b) => ABILITIES[b]?.stealthSwap === a.id));
   let talents: string[] = [];
   if (!spec) {
-    for (const s of specs) TALENTS[a.class].forEach((tier, ti) => tier.forEach((t) => {
-      if (!spec && t.swap && swapTarget(t.swap, s.id) === a.id && t.swap.replaces[s.id]) { spec = s; talents = new Array(ti).fill(''); talents[ti] = t.id; }
+    for (const s of specs) talentsFor(a.class, s.id).forEach((tier, ti) => tier.forEach((t) => {
+      if (!spec && t.swap?.to === a.id) { spec = s; talents = new Array(ti).fill(''); talents[ti] = t.id; }
     }));
   }
   const c = sim.addUnit({ name: 'c', classId: a.class, team: 0, build: { spec: spec!.id, talents, gear: {} } });

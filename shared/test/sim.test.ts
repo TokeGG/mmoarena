@@ -1,6 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, arenaById, parseClientMsg } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, arenaById, parseClientMsg, talentsFor } from '../src/index';
+
+const discSwap = talentsFor('priest', 'discipline').flat().find((t) => t.swap?.to === 'penance')!;
+const discTier = talentsFor('priest', 'discipline').findIndex((tier) => tier.includes(discSwap));
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -857,7 +860,7 @@ describe('v0.24 damage over time, penance and ground spells', () => {
   });
   it('sacred lash heals a friend and hurts a foe', () => {
     const sim = new ArenaSim({ seed: 6, prepMs: 0 });
-    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', 'tal_penance', '', ''], gear: {} } });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', '', '', ''].map((_, i) => (i === discTier ? discSwap.id : '')), gear: {} } });
     const ally = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
     const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1 });
     p.pos = { x: 0, z: 0 }; ally.pos = { x: 5, z: 0 }; foe.pos = { x: -5, z: 0 };
@@ -875,7 +878,7 @@ describe('v0.24 damage over time, penance and ground spells', () => {
     const arena = arenaById('colosseum');
     const sim = new ArenaSim({ seed: 8, prepMs: 0, arena });
     const pil = arena.pillars[0];
-    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', 'tal_penance', '', ''], gear: {} } });
+    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'discipline', talents: ['', '', '', '', '', ''].map((_, i) => (i === discTier ? discSwap.id : '')), gear: {} } });
     const ally = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
     const foe = sim.addUnit({ name: 'f', classId: 'warrior', team: 1 });
     foe.pos = { x: 25, z: 15 };

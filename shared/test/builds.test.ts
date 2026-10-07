@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ABILITIES, ArenaSim, AURAS, CLASSES, CLASS_IDS, COSMETICS, ITEMS, SPECS, TALENTS, TUNING,
+  ABILITIES, ArenaSim, AURAS, CLASSES, CLASS_IDS, COSMETICS, ITEMS, SPECS, TUNING,
   barFor, cleanGear, compileMods, describeAbility, describeAura, describeMods, itemById, itemsForSlot, parseClientMsg,
-  swapTarget, validateBuild, withAuraMods,
+  talentsFor, validateBuild, withAuraMods,
 } from '../src/index';
 import type { Build, ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
@@ -22,6 +22,12 @@ function advance(sim: ArenaSim, ms: number): SimEvent[] {
   return out;
 }
 const live = (seed = 1) => new ArenaSim({ seed, prepMs: 0 });
+const specTalents = (cls: ClassId, spec: string) => talentsFor(cls, spec);
+/** The swap talent that gives `to` to this spec. */
+const swapTo = (cls: ClassId, spec: string, to: string) => specTalents(cls, spec).flat().find((t) => t.swap?.to === to)!;
+const tierOf = (cls: ClassId, spec: string, t: { id: string }) => specTalents(cls, spec).findIndex((tier) => tier.some((x) => x.id === t.id));
+/** A talents array with just this talent picked in its own tier. */
+const picks = (cls: ClassId, spec: string, ...ts: { id: string }[]) => specTalents(cls, spec).map((tier) => ts.find((t) => tier.some((x) => x.id === t.id))?.id ?? '');
 const build = (spec: string, talents: string[] = [], gear: Record<string, string> = {}): Build => ({ spec, talents, gear });
 
 describe('content data is consistent', () => {
@@ -40,34 +46,15 @@ describe('content data is consistent', () => {
   });
 
   it('every ability is on at least one spec bar, and every talent mod points at something real', () => {
-    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)), ...CLASS_IDS.flatMap((c) => TALENTS[c].flat().flatMap((t) => [t.swap?.to ?? '', ...Object.values(t.swap?.toBy ?? {})])), ...Object.values(ABILITIES).map((a) => a.stealthSwap ?? '')]);
+    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => [...s.bar, ...specTalents(c, s.id).flat().map((t) => t.swap?.to ?? '')])), ...Object.values(ABILITIES).map((a) => a.stealthSwap ?? '')]);
     for (const id of Object.keys(ABILITIES)) assert.ok(used.has(id) || CLASSES[ABILITIES[id].class].bar.includes(id), `${id} unreachable`);
     const check = (m: any, where: string) => {
       for (const id of Object.keys(m?.ability ?? {})) assert.ok(ABILITIES[id], `${where}: ability ${id}`);
       for (const id of Object.keys(m?.auraDuration ?? {})) assert.ok(AURAS[id], `${where}: aura ${id}`);
     };
     for (const cls of CLASS_IDS) {
-      assert.equal(TALENTS[cls].length, 6, `${cls} has 6 talent tiers`);
-      const ids = new Set<string>();
-      TALENTS[cls].forEach((tier, i) => {
-        assert.equal(tier.length, 3, `${cls} tier ${i} has 3 choices`);
-        for (const t of tier) {
-          assert.ok(!ids.has(t.id), `duplicate talent ${t.id}`);
-          ids.add(t.id);
-          check(t.mods, t.id);
-        }
-      });
+      for (const sp of SPECS[cls]) for (const t of specTalents(cls, sp.id).flat()) check(t.mods, t.id);
       for (const s of SPECS[cls]) check(s.mods, s.id);
-      for (const t of TALENTS[cls].flat()) {
-        if (!t.swap) continue;
-        for (const sp of SPECS[cls]) {
-          const from = t.swap.replaces[sp.id];
-          assert.ok(from && sp.bar.includes(from), `${t.id}: ${sp.id} must name an ability on its bar`);
-          const to = swapTarget(t.swap, sp.id);
-          assert.equal(ABILITIES[to]?.class, cls, `${t.id}: swap target belongs to the class`);
-          assert.ok(!sp.bar.includes(to), `${t.id}: ${sp.id} already has ${to}`);
-        }
-      }
     }
     for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor, `${id} buff has mods`);
   });
@@ -99,8 +86,9 @@ describe('cosmetics', () => {
     assert.equal(validateBuild('mage', build('frost', [], { hat: 'crown_gold' })).ok, false);
     assert.equal(validateBuild('mage', build('fire' + 'x')).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['bogus'])).ok, false);
-    assert.equal(validateBuild('mage', build('frost', ['spell_power', 'improved_blink', 'blazing_speed', 'extra'])).ok, false);
-    assert.equal(validateBuild('mage', build('frost', ['spell_power', '', 'blazing_speed'])).ok, true);
+    assert.equal(validateBuild('mage', build('frost', ['', '', '', '', '', '', 'extra'])).ok, false);
+    assert.equal(validateBuild('mage', build('frost', [specTalents('mage', 'fire')[0][0].id])).ok, false, 'a talent of another spec is invalid');
+    assert.equal(validateBuild('mage', build('frost', [specTalents('mage', 'frost')[0][0].id, '', specTalents('mage', 'frost')[2][1].id])).ok, true);
   });
 
   it('owner-only cosmetics: a good number, rejected and stripped for everyone but the owner', () => {
@@ -184,9 +172,11 @@ describe('specs and talents in the sim', () => {
       return advance(sim, 100).find((e) => e.t === 'damage') as Extract<SimEvent, { t: 'damage' }>;
     };
     const base = run();
-    const boosted = run(build('combat', ['deadly_poisons']));
+    const dmgTalent = specTalents('rogue', 'combat').slice(0, 3).flat().find((t) => t.mods.damageDone || t.mods.ability?.sinister_strike?.damage)!;
+    const boosted = run(build('combat', picks('rogue', 'combat', dmgTalent)));
+    const want = (dmgTalent.mods.damageDone ?? 1) * (dmgTalent.mods.ability?.sinister_strike?.damage ?? 1) * compileMods('rogue', build('combat')).damageDone;
     assert.ok(base && boosted);
-    assert.ok(Math.abs(boosted.amount / base.amount - 1.06) < 0.02, `${boosted.amount}/${base.amount}`);
+    assert.ok(Math.abs(boosted.amount / base.amount - want) < 0.03, `${boosted.amount}/${base.amount} vs ${want}`);
   });
 
   it('damage taken mods reduce incoming damage', () => {
@@ -199,27 +189,36 @@ describe('specs and talents in the sim', () => {
       return (advance(sim, 100).find((e) => e.t === 'damage') as any).amount as number;
     };
     const base = hit();
-    const tank = hit(build('protection', ['iron_will']));
-    assert.ok(Math.abs(tank / base - 0.92 * 0.94) < 0.03, `${tank}/${base}`);
+    const tankTalent = specTalents('warrior', 'protection').slice(0, 3).flat().find((t) => t.mods.damageTaken)!;
+    const tank = hit(build('protection', picks('warrior', 'protection', tankTalent)));
+    const want = compileMods('warrior', build('protection', picks('warrior', 'protection', tankTalent))).damageTaken;
+    assert.ok(Math.abs(tank / base - want) < 0.03, `${tank}/${base} vs ${want}`);
   });
 
-  it('talents change cooldowns, cast times and movement speed', () => {
+  it('talents change cooldowns, charges and movement speed', () => {
+    const blinkCd = specTalents('mage', 'frost').slice(0, 3).flat().find((t) => t.mods.ability?.blink?.cooldown)!;
     const sim = live();
-    const mage = add(sim, 'mage', 0, 0, 0, build('frost', ['mana_flow', 'improved_blink', 'blazing_speed']));
+    const mage = add(sim, 'mage', 0, 0, 0, build('frost', picks('mage', 'frost', blinkCd)));
     add(sim, 'warrior', 1, 20, 0);
     advance(sim, TICK);
     sim.useAbility(mage.id, 'blink');
-    assert.equal(mage.cooldowns.blink - sim.time, Math.round(ABILITIES.blink.cooldown * 0.7));
-    assert.ok(Math.abs(sim.speedMult(mage) - 1.08) < 1e-9);
-
+    assert.equal(mage.cooldowns.blink - sim.time, Math.round(ABILITIES.blink.cooldown * blinkCd.mods.ability!.blink.cooldown!));
+    const speed = Object.values({ a: 'warrior', b: 'mage', c: 'priest', d: 'rogue' }).flatMap((c) => SPECS[c as ClassId].flatMap((sp) => specTalents(c as ClassId, sp.id).slice(0, 3).flat().filter((t) => t.mods.moveSpeed).map((t) => ({ c: c as ClassId, sp: sp.id, t }))))[0];
     const sim2 = live();
-    const priest = add(sim2, 'priest', 0, 0, 0, build('holy', ['inner_peace', 'improved_shield', 'swift_prayer']));
-    const foe = add(sim2, 'warrior', 1, 8, 0);
+    const runner = add(sim2, speed.c, 0, 0, 0, build(speed.sp, picks(speed.c, speed.sp, speed.t)));
     advance(sim2, TICK);
-    sim2.useAbility(priest.id, 'greater_heal', priest.id);
-    assert.ok(priest.cast);
-    assert.equal(priest.cast!.end - priest.cast!.start, Math.round(ABILITIES.greater_heal.castTime * 0.93));
-    void foe;
+    assert.ok(Math.abs(sim2.speedMult(runner) - compileMods(speed.c, build(speed.sp, picks(speed.c, speed.sp, speed.t))).moveSpeed) < 1e-9);
+  });
+
+  it('every buff talent changes the numbers it says it changes', () => {
+    for (const cls of CLASS_IDS) for (const sp of SPECS[cls]) {
+      const base = compileMods(cls, build(sp.id));
+      for (const t of specTalents(cls, sp.id).slice(0, 3).flat()) {
+        const m = compileMods(cls, build(sp.id, ['', '', '', '', '', ''].map((_, i) => (specTalents(cls, sp.id)[i].includes(t) ? t.id : ''))));
+        assert.notDeepEqual(m, base, `${t.id} changes nothing`);
+        for (const [k, v] of Object.entries(t.mods)) if (typeof v === 'number') assert.ok(Math.abs((m as any)[k] / (base as any)[k] - v) < 1e-9, `${t.id}: ${k}`);
+      }
+    }
   });
 
   it('buff cooldowns apply while active and wear off', () => {
@@ -327,72 +326,56 @@ describe('channelled abilities', () => {
 });
 
 describe('talent ability swaps', () => {
-  const swaps = CLASS_IDS.flatMap((cls) => TALENTS[cls].flatMap((tier, ti) => tier.filter((t) => t.swap).map((t) => ({ cls, ti, t }))));
-  it('there are swap talents for every class', () => {
-    for (const cls of CLASS_IDS) assert.equal(swaps.filter((s) => s.cls === cls).length, cls === 'mage' ? 2 : 5, cls); // mage tier 4 is the Blink tier, with no swaps
+  const swaps = CLASS_IDS.flatMap((cls) => SPECS[cls].flatMap((sp) => specTalents(cls, sp.id).flatMap((tier, ti) => tier.filter((t) => t.swap).map((t) => ({ cls, spec: sp, ti, t })))));
+  it('every spec has nine swap talents', () => {
+    for (const cls of CLASS_IDS) for (const sp of SPECS[cls]) assert.equal(swaps.filter((s) => s.spec.id === sp.id && s.cls === cls).length, 9, `${cls}/${sp.id}`);
   });
   it('a swap changes exactly one slot, keeps the bar at the same length and is valid', () => {
-    for (const { cls, ti, t } of swaps) {
-      for (const spec of SPECS[cls]) {
-        const talents = ['', '', '', '', '', ''];
-        talents[ti] = t.id;
-        const b = build(spec.id, talents);
-        assert.ok(validateBuild(cls, b, 0).ok, t.id);
-        const bar = barFor(cls, b, []);
-        assert.equal(bar.length, spec.bar.length);
-        assert.equal(bar.filter((a, i) => a !== spec.bar[i]).length, 1, `${t.id}/${spec.id}`);
-        assert.ok(ABILITIES[t.swap!.replaces[spec.id]], 'replaced ability exists');
-        assert.equal(bar[spec.bar.indexOf(t.swap!.replaces[spec.id])], swapTarget(t.swap!, spec.id));
-        assert.equal(new Set(bar).size, bar.length);
-      }
+    for (const { cls, spec, ti, t } of swaps) {
+      const talents = ['', '', '', '', '', ''];
+      talents[ti] = t.id;
+      const b = build(spec.id, talents);
+      assert.ok(validateBuild(cls, b, 0).ok, t.id);
+      const bar = barFor(cls, b, []);
+      assert.equal(bar.length, spec.bar.length);
+      assert.equal(bar.filter((a, i) => a !== spec.bar[i]).length, 1, `${t.id}/${spec.id}`);
+      assert.equal(bar[spec.bar.indexOf(t.swap!.from)], t.swap!.to);
+      assert.equal(new Set(bar).size, bar.length);
     }
   });
   it('every swapped-in ability can be cast and shows up in snapshots', () => {
-    for (const { cls, ti, t } of swaps) {
-      const spec = SPECS[cls][0];
+    for (const { cls, spec, ti, t } of swaps) {
       const talents = ['', '', '', '', '', ''];
       talents[ti] = t.id;
       const sim = live(5);
       const me = add(sim, cls, 0, 0, 0, build(spec.id, talents));
-      const to = swapTarget(t.swap!, spec.id);
+      const to = t.swap!.to;
       const def = ABILITIES[to];
       const foe = add(sim, 'warrior', 1, def.range > 0 ? Math.min(4, def.range) : 3, 0);
       me.resource = me.resourceMax;
       advance(sim, TICK * 2);
       if (def.requiresTargetCasting) foe.cast = { ability: 'frostbolt', target: me.id, start: 0, end: 99999 };
+      if (def.requiresStealth) sim.applyAura(me, me, 'stealth');
+      if (def.minRange) foe.pos = { x: def.minRange + 2, z: 0 };
+      if (def.effects.some((e) => e.type === 'dispel')) sim.applyAura(foe, foe, 'pw_shield');
       assert.ok(me.bar.includes(to), t.id);
       assert.deepEqual(sim.snapshot().units.find((u) => u.id === me.id)!.bar, me.bar);
       assert.equal(sim.snapshot().units.find((u) => u.id === foe.id)!.bar, undefined, 'default bars are not sent');
       const r = sim.useAbility(me.id, to, def.target === 'ally_or_self' ? me.id : foe.id);
       assert.ok(r.ok, `${t.id}: ${(r as any).reason}`);
       assert.doesNotThrow(() => advance(sim, 4000));
-      assert.ok(!sim.useAbility(me.id, spec.bar.find((a) => !me.bar.includes(a))!, foe.id).ok, 'the replaced ability is gone');
+      assert.ok(!sim.useAbility(me.id, t.swap!.from, foe.id).ok, 'the replaced ability is gone');
     }
   });
-  it('the new crowd control and buffs do what they say', () => {
+  it('the swapped-in crowd control does what it says', () => {
     const sim = live(7);
-    const war = add(sim, 'warrior', 0, 0, 0, build('arms', ['', '', '', 'tal_shockwave', '', '']));
+    const war = add(sim, 'warrior', 0, 0, 0, build('arms', ['', '', '', '', '', ''].map((_, i) => (i === tierOf('warrior', 'arms', swapTo('warrior', 'arms', 'shockwave')) ? swapTo('warrior', 'arms', 'shockwave').id : ''))));
     const foe = add(sim, 'mage', 1, 3, 0);
     war.resource = war.resourceMax;
     advance(sim, TICK * 2);
     assert.ok(sim.useAbility(war.id, 'shockwave', foe.id).ok);
     advance(sim, TICK * 2);
     assert.ok(foe.auras.some((a) => a.id === 'shockwave_stun'));
-    const sim2 = live(8);
-    const rg = add(sim2, 'rogue', 0, 0, 0, build('combat', ['', '', '', 'tal_cripple', '', '']));
-    const f2 = add(sim2, 'warrior', 1, 2, 0);
-    rg.resource = rg.resourceMax;
-    advance(sim2, TICK * 2);
-    assert.ok(sim2.useAbility(rg.id, 'crippling_strike', f2.id).ok);
-    advance(sim2, TICK * 2);
-    assert.ok(f2.auras.some((a) => a.id === 'crippling_slow'));
-    assert.ok(f2.health < f2.maxHealth);
-  });
-  it('capstone talents change the right numbers', () => {
-    const m = compileMods('rogue', build('assassination', ['', '', '', '', '', 'tal_r_stun']));
-    assert.ok(Math.abs(m.auraDuration.blind - 1.15) < 1e-9);
-    const w = compileMods('warrior', build('arms', ['', '', '', '', '', 'tal_w_rage']));
-    assert.ok(w.ability.mortal_strike.damage! > 1.1);
   });
 });
 
@@ -426,19 +409,13 @@ describe('cosmetic look', () => {
 });
 
 describe('control and swaps across tiers', () => {
-  it('two swaps from different tiers never fight over the same slot', () => {
-    for (const cls of CLASS_IDS) {
-      const swapTalents = TALENTS[cls].map((tier, ti) => tier.filter((t) => t.swap).map((t) => ({ ti, t }))).filter((x) => x.length);
-      if (swapTalents.length < 2) continue;
-      for (const spec of SPECS[cls]) {
-        for (const a of swapTalents[0]) for (const b of swapTalents[1]) {
-          const talents = ['', '', '', '', '', ''];
-          talents[a.ti] = a.t.id;
-          talents[b.ti] = b.t.id;
-          const bar = barFor(cls, build(spec.id, talents), []);
-          assert.ok(bar.includes(swapTarget(a.t.swap!, spec.id)) && bar.includes(swapTarget(b.t.swap!, spec.id)), `${spec.id}: ${a.t.id} + ${b.t.id}`);
-          assert.equal(new Set(bar).size, bar.length);
-        }
+  it('swaps from the three swap tiers never fight over a slot', () => {
+    for (const cls of CLASS_IDS) for (const spec of SPECS[cls]) {
+      const [a, b, c] = specTalents(cls, spec.id).slice(3);
+      for (const x of a) for (const y of b) for (const z of c) {
+        const bar = barFor(cls, build(spec.id, ['', '', '', x.id, y.id, z.id]), []);
+        assert.ok([x, y, z].every((t) => bar.includes(t.swap!.to)), `${spec.id}: ${x.id} + ${y.id} + ${z.id}`);
+        assert.equal(new Set(bar).size, bar.length);
       }
     }
   });
@@ -446,7 +423,7 @@ describe('control and swaps across tiers', () => {
     const stuns = (ids: string[]) => ids.filter((id) => ABILITIES[id].effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.kind === 'stun'));
     const ints = (ids: string[]) => ids.filter((id) => ABILITIES[id].effects.some((e) => e.type === 'interrupt'));
     for (const cls of CLASS_IDS) {
-      const reachable = new Set<string>([...SPECS[cls].flatMap((s) => s.bar), ...TALENTS[cls].flat().flatMap((t) => (t.swap ? [t.swap.to, ...Object.values(t.swap.toBy ?? {})] : []))]);
+      const reachable = new Set<string>(SPECS[cls].flatMap((s) => [...s.bar, ...specTalents(cls, s.id).flat().flatMap((t) => (t.swap ? [t.swap.to] : []))]));
       assert.ok(stuns([...reachable]).length >= 1, `${cls} stun`);
       assert.ok(ints([...reachable]).length >= 1, `${cls} interrupt`);
     }

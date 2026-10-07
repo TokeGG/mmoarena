@@ -54,11 +54,9 @@ export function installTips() {
         };
       }
       case 'talent': {
-        const t = TALENTS[a as ClassId]?.flat().find((x) => x.id === b);
+        const t = Object.values(TALENTS[a as ClassId] ?? {}).flat(2).find((x) => x.id === b);
         if (!t) return null;
-        const swap = t.swap
-          ? ['Replaces: ' + Object.entries(t.swap.replaces).map(([sp, ab]) => `${SPECS[a as ClassId].find((x) => x.id === sp)?.name ?? sp}: ${ABILITIES[ab]?.name ?? ab}`).join(' · ')]
-          : undefined;
+        const swap = t.swap ? [`Learn ${ABILITIES[t.swap.to]?.name ?? t.swap.to} in place of ${ABILITIES[t.swap.from]?.name ?? t.swap.from}`] : undefined;
         return { title: t.name, titleColor: '#ffd24a', lines: [t.desc], good: describeMods(t.mods), stats: swap, footer: data.tipHint || undefined };
       }
       case 'item':

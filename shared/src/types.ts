@@ -34,15 +34,8 @@ export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration'>> & {
 };
 
 export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput }
-/** A talent that trades one bar ability for another. `replaces` maps spec id -> the ability given up (by spec). */
-export interface BarSwap {
-  /** The ability gained. `toBy` overrides it for specific specs (one talent, a different spell per spec). */
-  to: string;
-  toBy?: Record<string, string>;
-  replaces: Record<string, string>;
-}
-/** What a swap gives a given spec. */
-export const swapTarget = (s: BarSwap, specId: string): string => s.toBy?.[specId] ?? s.to;
+/** A talent that trades one of the spec's bar abilities (`from`) for another (`to`). */
+export interface BarSwap { to: string; from: string }
 export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput; swap?: BarSwap }
 export interface CosmeticItem {
   id: string;

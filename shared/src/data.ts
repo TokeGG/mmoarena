@@ -21,7 +21,7 @@ export const TUNING = tuningJson as unknown as Tuning;
 
 export const SPECS = specsJson as unknown as Record<ClassId, SpecDef[]>;
 /** Per class: talent tiers, each a list of choices (pick at most one per tier). */
-export const TALENTS = talentsJson as unknown as Record<ClassId, TalentDef[][]>;
+export const TALENTS = talentsJson as unknown as Record<ClassId, Record<string, TalentDef[][]>>;
 /** Cosmetic slots and every item. Purely visual: nothing here touches combat. */
 export const COSMETICS = cosmeticsJson as unknown as CosmeticsDef;
 

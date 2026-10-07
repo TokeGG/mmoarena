@@ -336,5 +336,17 @@
   "harmful": true,
   "slowPct": 40,
   "dispellable": true
+ },
+ "garrote_bleed": {
+  "name": "Garrote",
+  "kind": "dot",
+  "duration": 8000,
+  "harmful": true,
+  "dot": {
+   "amount": 34,
+   "interval": 1000,
+   "school": "physical",
+   "ability": "garrote"
+  }
  }
 }
