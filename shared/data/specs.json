@@ -69,7 +69,7 @@
    "id": "frost",
    "name": "Cryomancy",
    "role": "Control / kiting",
-   "desc": "Slows and roots keep enemies away, backed by Ice Lance and Blizzard for real damage. Ice Barrier absorbs a burst.",
+   "desc": "Slows and roots keep enemies away. Deep Freeze locks one down, and Ice Lance shatters anything frozen for big damage. Ice Barrier absorbs a burst.",
    "icon": "\u2744\ufe0f",
    "bar": [
     "frostbolt",
@@ -79,7 +79,7 @@
     "frost_nova",
     "blink",
     "ice_barrier",
-    "blizzard"
+    "deep_freeze"
    ],
    "mods": {
     "auraDuration": {
@@ -102,7 +102,7 @@
     "counterspell",
     "polymorph",
     "scorch",
-    "frost_nova"
+    "dragons_breath"
    ],
    "mods": {
     "damageDone": 1.08,
@@ -113,17 +113,17 @@
    "id": "arcane",
    "name": "Starweaving",
    "role": "Sustain / utility",
-   "desc": "Strong mana regeneration and a damage cooldown. Arcane Barrage channels a volley of missiles; stand still to finish it.",
+   "desc": "Strong mana regeneration and a damage cooldown. Arcane Missiles channel a volley (stand still to finish it), Arcane Barrage is a quick heavy hit and Arcane Explosion slows what is close.",
    "icon": "\ud83d\udd2e",
    "bar": [
     "arcane_blast",
-    "arcane_barrage",
+    "arcane_missiles",
     "polymorph",
     "counterspell",
     "blink",
     "arcane_power",
-    "frost_nova",
-    "ice_barrier"
+    "arcane_explosion",
+    "arcane_barrage"
    ],
    "mods": {
     "regen": 1.5

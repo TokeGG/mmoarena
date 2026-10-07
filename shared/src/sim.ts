@@ -462,7 +462,7 @@ export class ArenaSim {
       case 'damage':
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
-        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
+        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.shatter && t.auras.some((a) => AURAS[a.id]?.frozen) ? 1 + def.shatter : 1), def.school, def.id);
         break;
       case 'heal':
         if (eff.only === 'enemy' && t.team === u.team) break;

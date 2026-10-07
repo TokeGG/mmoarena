@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TALENTS, TUNING, barFor, validateBuild } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TALENTS, TUNING, barFor, swapTarget, validateBuild } from '../src/index';
 import type { AbilityDef, Build, ClassId, SimEvent } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -11,7 +11,7 @@ function reachableFor(cid: ClassId, specId: string): Set<string> {
   const sp = SPECS[cid].find((s) => s.id === specId)!;
   const out = new Set(sp.bar);
   for (const a of sp.bar) if (ABILITIES[a]?.stealthSwap) out.add(ABILITIES[a].stealthSwap!); // slots that turn into another ability in stealth
-  for (const tier of TALENTS[cid]) for (const t of tier) if (t.swap?.replaces[specId]) out.add(t.swap.to);
+  for (const tier of TALENTS[cid]) for (const t of tier) if (t.swap?.replaces[specId]) out.add(swapTarget(t.swap, specId));
   return out;
 }
 
@@ -100,7 +100,7 @@ function trial(a: AbilityDef, useAlly = false) {
   let talents: string[] = [];
   if (!spec) {
     for (const s of specs) TALENTS[a.class].forEach((tier, ti) => tier.forEach((t) => {
-      if (!spec && t.swap?.to === a.id && t.swap.replaces[s.id]) { spec = s; talents = new Array(ti).fill(''); talents[ti] = t.id; }
+      if (!spec && t.swap && swapTarget(t.swap, s.id) === a.id && t.swap.replaces[s.id]) { spec = s; talents = new Array(ti).fill(''); talents[ti] = t.id; }
     }));
   }
   const c = sim.addUnit({ name: 'c', classId: a.class, team: 0, build: { spec: spec!.id, talents, gear: {} } });

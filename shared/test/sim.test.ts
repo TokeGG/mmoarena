@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, CLASSES, TUNING, arenaById, parseClientMsg } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, arenaById, parseClientMsg } from '../src/index';
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -353,6 +353,30 @@ describe('stealth', () => {
       assert.ok(sim.useAbility(u.id, ab, foe.id).ok, `${cls} ${ab}`);
       assert.equal(u.gcdEnd - sim.time, ms, cls);
     }
+  });
+
+  it('shatter: ice lance hits frozen targets much harder, but not merely slowed ones', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'ice_lance'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    const lance = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, 'ice_lance', foe.id).ok); advance(sim, TICK); return h - foe.health; };
+    const plain = lance();
+    sim.applyAura(mage, foe, 'frostbolt_slow');
+    assert.ok(lance() < plain * 1.2, 'a slow is not frozen');
+    sim.applyAura(mage, foe, 'frost_nova_root');
+    assert.ok(lance() > plain * 2.3, 'rooted by Frost Nova is frozen');
+  });
+
+  it('mage bars: frost has deep freeze, fire has dragons breath, arcane has missiles, barrage and its own explosion', () => {
+    const bars = Object.fromEntries(SPECS.mage.map((s) => [s.id, s.bar]));
+    assert.ok(bars.frost.includes('deep_freeze') && !bars.frost.includes('blizzard'));
+    assert.ok(bars.fire.includes('dragons_breath') && !bars.fire.includes('frost_nova'));
+    assert.ok(['arcane_missiles', 'arcane_barrage', 'arcane_explosion'].every((x) => bars.arcane.includes(x)) && !bars.arcane.includes('ice_barrier') && !bars.arcane.includes('frost_nova'));
+    assert.equal(ABILITIES.arcane_missiles.channel?.ticks, 5);
+    assert.equal(ABILITIES.arcane_barrage.castTime, 0);
   });
 
   it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {

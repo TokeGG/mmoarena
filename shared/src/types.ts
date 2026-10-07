@@ -35,7 +35,14 @@ export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration'>> & {
 
 export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput }
 /** A talent that trades one bar ability for another. `replaces` maps spec id -> the ability given up (by spec). */
-export interface BarSwap { to: string; replaces: Record<string, string> }
+export interface BarSwap {
+  /** The ability gained. `toBy` overrides it for specific specs (one talent, a different spell per spec). */
+  to: string;
+  toBy?: Record<string, string>;
+  replaces: Record<string, string>;
+}
+/** What a swap gives a given spec. */
+export const swapTarget = (s: BarSwap, specId: string): string => s.toBy?.[specId] ?? s.to;
 export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput; swap?: BarSwap }
 export interface CosmeticItem {
   id: string;
@@ -67,6 +74,8 @@ export interface AuraDef {
   unique?: boolean;
   /** The holder takes this percent more damage of one school (Frost Nova and Deep Freeze make frost hurt more). */
   vuln?: { school: School; pct: number };
+  /** Counts as frozen for shatter damage (Frost Nova's root, Deep Freeze). */
+  frozen?: boolean;
   /** Your next cast of this ability is instant and uses this aura up (Hot Streak -> Pyroblast). */
   instantFor?: string;
   /** An incapacitated unit may still turn on the spot (Polymorph). */
@@ -121,6 +130,8 @@ export interface AbilityDef {
   cost: number;
   effects: Effect[];
   requiresStealth?: boolean;
+  /** Extra damage multiplier (+150% = 1.5) against targets under a `frozen` aura (Ice Lance shatters). */
+  shatter?: number;
   /** Can be cast while moving (moving does not cancel it). */
   castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;

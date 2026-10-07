@@ -1,4 +1,5 @@
 import { AURAS, COSMETICS, SPECS, TALENTS } from './data';
+import { swapTarget } from './types';
 import type { AbilityMod, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
@@ -96,7 +97,7 @@ export function swapsFor(classId: ClassId, b: Build | undefined): { talent: Tale
   b.talents.forEach((id, i) => {
     const t = tiers[i]?.find((x) => x.id === id);
     const from = t?.swap?.replaces[spec.id];
-    if (t?.swap && from && spec.bar.includes(from)) out.push({ talent: t, from, to: t.swap.to });
+    if (t?.swap && from && spec.bar.includes(from)) out.push({ talent: t, from, to: swapTarget(t.swap, spec.id) });
   });
   return out;
 }

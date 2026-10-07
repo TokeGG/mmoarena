@@ -625,19 +625,16 @@
   "school": "arcane",
   "target": "enemy",
   "range": 30,
-  "castTime": 2000,
-  "cooldown": 6000,
+  "castTime": 0,
+  "cooldown": 8000,
   "gcd": true,
-  "cost": 35,
+  "cost": 45,
   "effects": [
    {
     "type": "damage",
-    "amount": 34
+    "amount": 150
    }
-  ],
-  "channel": {
-   "ticks": 5
-  }
+  ]
  },
  {
   "id": "arcane_power",
@@ -1086,7 +1083,8 @@
     "type": "damage",
     "amount": 85
    }
-  ]
+  ],
+  "shatter": 1.5
  },
  {
   "id": "blizzard",
@@ -1301,5 +1299,90 @@
    }
   ],
   "requiresTargetCasting": true
+ },
+ {
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "range": 0,
+  "id": "dragons_breath",
+  "name": "Dragon's Breath",
+  "class": "mage",
+  "school": "fire",
+  "target": "aoe_enemy",
+  "radius": 7,
+  "cost": 45,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 50
+   },
+   {
+    "type": "aura",
+    "aura": "dragons_breath"
+   }
+  ]
+ },
+ {
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "range": 0,
+  "id": "evocation",
+  "name": "Evocation",
+  "class": "mage",
+  "school": "arcane",
+  "target": "self",
+  "cost": 0,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "evocation"
+   }
+  ]
+ },
+ {
+  "id": "arcane_missiles",
+  "name": "Arcane Missiles",
+  "class": "mage",
+  "school": "arcane",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 2000,
+  "cooldown": 6000,
+  "gcd": true,
+  "cost": 35,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 34
+   }
+  ],
+  "channel": {
+   "ticks": 5
+  }
+ },
+ {
+  "id": "arcane_explosion",
+  "name": "Arcane Explosion",
+  "class": "mage",
+  "school": "arcane",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 9,
+  "castTime": 0,
+  "cooldown": 25000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 50
+   },
+   {
+    "type": "aura",
+    "aura": "arcane_slow"
+   }
+  ]
  }
 ]

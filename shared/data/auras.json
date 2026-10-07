@@ -25,7 +25,8 @@
   "vuln": {
    "school": "frost",
    "pct": 20
-  }
+  },
+  "frozen": true
  },
  "frostbolt_slow": {
   "name": "Frostbolt",
@@ -236,7 +237,8 @@
   "vuln": {
    "school": "frost",
    "pct": 40
-  }
+  },
+  "frozen": true
  },
  "charge_stun": {
   "name": "Charge",
@@ -307,5 +309,32 @@
   "duration": 10000,
   "harmful": false,
   "instantFor": "pyroblast"
+ },
+ "dragons_breath": {
+  "name": "Dragon's Breath",
+  "kind": "stun",
+  "duration": 2000,
+  "harmful": true,
+  "dr": "stun",
+  "dispellable": true
+ },
+ "evocation": {
+  "name": "Evocation",
+  "kind": "buff",
+  "duration": 6000,
+  "harmful": false,
+  "mods": {
+   "regen": 4,
+   "damageTaken": 0.85
+  },
+  "dispellable": true
+ },
+ "arcane_slow": {
+  "name": "Arcane Explosion",
+  "kind": "slow",
+  "duration": 4000,
+  "harmful": true,
+  "slowPct": 40,
+  "dispellable": true
  }
 }

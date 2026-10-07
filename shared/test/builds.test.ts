@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   ABILITIES, ArenaSim, AURAS, CLASSES, CLASS_IDS, COSMETICS, ITEMS, SPECS, TALENTS, TUNING,
   barFor, cleanGear, compileMods, describeAbility, describeAura, describeMods, itemById, itemsForSlot, parseClientMsg,
-  validateBuild, withAuraMods,
+  swapTarget, validateBuild, withAuraMods,
 } from '../src/index';
 import type { Build, ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
@@ -40,7 +40,7 @@ describe('content data is consistent', () => {
   });
 
   it('every ability is on at least one spec bar, and every talent mod points at something real', () => {
-    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)), ...CLASS_IDS.flatMap((c) => TALENTS[c].flat().map((t) => t.swap?.to ?? '')), ...Object.values(ABILITIES).map((a) => a.stealthSwap ?? '')]);
+    const used = new Set([...CLASS_IDS.flatMap((c) => SPECS[c].flatMap((s) => s.bar)), ...CLASS_IDS.flatMap((c) => TALENTS[c].flat().flatMap((t) => [t.swap?.to ?? '', ...Object.values(t.swap?.toBy ?? {})])), ...Object.values(ABILITIES).map((a) => a.stealthSwap ?? '')]);
     for (const id of Object.keys(ABILITIES)) assert.ok(used.has(id) || CLASSES[ABILITIES[id].class].bar.includes(id), `${id} unreachable`);
     const check = (m: any, where: string) => {
       for (const id of Object.keys(m?.ability ?? {})) assert.ok(ABILITIES[id], `${where}: ability ${id}`);
@@ -60,11 +60,12 @@ describe('content data is consistent', () => {
       for (const s of SPECS[cls]) check(s.mods, s.id);
       for (const t of TALENTS[cls].flat()) {
         if (!t.swap) continue;
-        assert.equal(ABILITIES[t.swap.to]?.class, cls, `${t.id}: swap target belongs to the class`);
         for (const sp of SPECS[cls]) {
           const from = t.swap.replaces[sp.id];
           assert.ok(from && sp.bar.includes(from), `${t.id}: ${sp.id} must name an ability on its bar`);
-          assert.ok(!sp.bar.includes(t.swap.to), `${t.id}: ${sp.id} already has ${t.swap.to}`);
+          const to = swapTarget(t.swap, sp.id);
+          assert.equal(ABILITIES[to]?.class, cls, `${t.id}: swap target belongs to the class`);
+          assert.ok(!sp.bar.includes(to), `${t.id}: ${sp.id} already has ${to}`);
         }
       }
     }
@@ -283,7 +284,7 @@ describe('protocol carries a build', () => {
 describe('channelled abilities', () => {
   it('arcane barrage fires its missiles over time, costs up front, and stops when you move', async () => {
     const { ArenaSim, ABILITIES } = await import('../src/index');
-    const def = ABILITIES.arcane_barrage;
+    const def = ABILITIES.arcane_missiles;
     assert.ok(def.channel && def.castTime > 0);
     const mk = () => {
       const sim = new ArenaSim({ prepMs: 0, seed: 7 });
@@ -298,13 +299,13 @@ describe('channelled abilities', () => {
       const { sim, mage, foe } = mk();
       const mana = mage.resource;
       const hp = foe.health;
-      assert.ok(sim.useAbility(mage.id, 'arcane_barrage', foe.id).ok);
+      assert.ok(sim.useAbility(mage.id, 'arcane_missiles', foe.id).ok);
       assert.equal(mage.resource, mana - def.cost, 'paid at the start');
       assert.equal(foe.health, hp, 'no damage on the first instant');
       const hits: number[] = [];
       for (let i = 0; i < 60; i++) {
         sim.step();
-        for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_barrage') hits.push(sim.time);
+        for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_missiles') hits.push(sim.time);
       }
       assert.equal(hits.length, def.channel!.ticks, 'one hit per tick');
       assert.ok(hits[hits.length - 1] - hits[0] >= 1400, 'spread across the channel');
@@ -312,13 +313,13 @@ describe('channelled abilities', () => {
     }
     {
       const { sim, mage, foe } = mk();
-      sim.useAbility(mage.id, 'arcane_barrage', foe.id);
+      sim.useAbility(mage.id, 'arcane_missiles', foe.id);
       for (let i = 0; i < 10; i++) sim.step(); // 500 ms: one tick in
       sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: mage.facing });
       let n = 0;
       for (let i = 0; i < 60; i++) {
         sim.step();
-        for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_barrage') n++;
+        for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_missiles') n++;
       }
       assert.ok(n < def.channel!.ticks, 'moving cancelled the volley');
     }
@@ -341,7 +342,7 @@ describe('talent ability swaps', () => {
         assert.equal(bar.length, spec.bar.length);
         assert.equal(bar.filter((a, i) => a !== spec.bar[i]).length, 1, `${t.id}/${spec.id}`);
         assert.ok(ABILITIES[t.swap!.replaces[spec.id]], 'replaced ability exists');
-        assert.equal(bar[spec.bar.indexOf(t.swap!.replaces[spec.id])], t.swap!.to);
+        assert.equal(bar[spec.bar.indexOf(t.swap!.replaces[spec.id])], swapTarget(t.swap!, spec.id));
         assert.equal(new Set(bar).size, bar.length);
       }
     }
@@ -353,7 +354,7 @@ describe('talent ability swaps', () => {
       talents[ti] = t.id;
       const sim = live(5);
       const me = add(sim, cls, 0, 0, 0, build(spec.id, talents));
-      const to = t.swap!.to;
+      const to = swapTarget(t.swap!, spec.id);
       const def = ABILITIES[to];
       const foe = add(sim, 'warrior', 1, def.range > 0 ? Math.min(4, def.range) : 3, 0);
       me.resource = me.resourceMax;
@@ -435,7 +436,7 @@ describe('control and swaps across tiers', () => {
           talents[a.ti] = a.t.id;
           talents[b.ti] = b.t.id;
           const bar = barFor(cls, build(spec.id, talents), []);
-          assert.ok(bar.includes(a.t.swap!.to) && bar.includes(b.t.swap!.to), `${spec.id}: ${a.t.id} + ${b.t.id}`);
+          assert.ok(bar.includes(swapTarget(a.t.swap!, spec.id)) && bar.includes(swapTarget(b.t.swap!, spec.id)), `${spec.id}: ${a.t.id} + ${b.t.id}`);
           assert.equal(new Set(bar).size, bar.length);
         }
       }
@@ -445,7 +446,7 @@ describe('control and swaps across tiers', () => {
     const stuns = (ids: string[]) => ids.filter((id) => ABILITIES[id].effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.kind === 'stun'));
     const ints = (ids: string[]) => ids.filter((id) => ABILITIES[id].effects.some((e) => e.type === 'interrupt'));
     for (const cls of CLASS_IDS) {
-      const reachable = new Set<string>([...SPECS[cls].flatMap((s) => s.bar), ...TALENTS[cls].flat().flatMap((t) => (t.swap ? [t.swap.to] : []))]);
+      const reachable = new Set<string>([...SPECS[cls].flatMap((s) => s.bar), ...TALENTS[cls].flat().flatMap((t) => (t.swap ? [t.swap.to, ...Object.values(t.swap.toBy ?? {})] : []))]);
       assert.ok(stuns([...reachable]).length >= 1, `${cls} stun`);
       assert.ok(ints([...reachable]).length >= 1, `${cls} interrupt`);
     }

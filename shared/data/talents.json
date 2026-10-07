@@ -264,13 +264,15 @@
    {
     "id": "winters_chill",
     "name": "Lingering Frost",
-    "desc": "Frostbolt slows for 50% longer and Frost Nova roots 25% longer.",
+    "desc": "Frostbolt slows for 50% longer, Frost Nova roots 25% longer, Arcane Explosion slows 50% longer, and your maximum health is 4% higher.",
     "icon": "\u2744\ufe0f",
     "mods": {
      "auraDuration": {
       "frostbolt_slow": 1.5,
-      "frost_nova_root": 1.25
-     }
+      "frost_nova_root": 1.25,
+      "arcane_slow": 1.5
+     },
+     "maxHealth": 1.04
     }
    }
   ],
@@ -304,7 +306,7 @@
    {
     "id": "permafrost",
     "name": "Deep Winter",
-    "desc": "Frost Nova roots 25% longer and has a 15% shorter cooldown.",
+    "desc": "Frost Nova roots 25% longer and has a 15% shorter cooldown; Dragon's Breath and Arcane Explosion are ready 15% sooner.",
     "icon": "\ud83e\uddca",
     "mods": {
      "auraDuration": {
@@ -312,6 +314,12 @@
      },
      "ability": {
       "frost_nova": {
+       "cooldown": 0.85
+      },
+      "dragons_breath": {
+       "cooldown": 0.85
+      },
+      "arcane_explosion": {
        "cooldown": 0.85
       }
      }
@@ -351,6 +359,9 @@
        "damage": 1.12
       },
       "blizzard": {
+       "damage": 1.12
+      },
+      "arcane_missiles": {
        "damage": 1.12
       }
      }
@@ -423,17 +434,20 @@
   ],
   [
    {
-    "id": "tal_c_coldlock",
-    "name": "Deep Freeze",
-    "icon": "\ud83e\uddca",
-    "desc": "Learn Deep Freeze: freeze one enemy solid and stun it for 3 seconds.",
+    "id": "tal_c_mastery",
+    "name": "Elemental Mastery",
+    "icon": "\ud83d\udd2e",
+    "desc": "Frost learns Blizzard (in place of Ice Barrier); Fire and Arcane learn Evocation (restore mana and take 15% less damage) in place of Scorch and Arcane Explosion.",
     "mods": {},
     "swap": {
-     "to": "deep_freeze",
+     "to": "evocation",
+     "toBy": {
+      "frost": "blizzard"
+     },
      "replaces": {
-      "frost": "blizzard",
-      "fire": "frost_nova",
-      "arcane": "ice_barrier"
+      "frost": "ice_barrier",
+      "fire": "scorch",
+      "arcane": "arcane_explosion"
      }
     }
    },
@@ -446,9 +460,9 @@
     "swap": {
      "to": "arcane_silence",
      "replaces": {
-      "frost": "blizzard",
-      "fire": "frost_nova",
-      "arcane": "ice_barrier"
+      "frost": "ice_barrier",
+      "fire": "dragons_breath",
+      "arcane": "arcane_explosion"
      }
     }
    },
@@ -467,12 +481,21 @@
    {
     "id": "tal_m_ice",
     "name": "Flash Freeze",
-    "desc": "Frost Nova is ready 25% sooner.",
+    "desc": "Frost Nova, Deep Freeze, Dragon's Breath and Arcane Explosion are ready 20% sooner.",
     "icon": "\ud83e\uddca",
     "mods": {
      "ability": {
       "frost_nova": {
-       "cooldown": 0.75
+       "cooldown": 0.8
+      },
+      "deep_freeze": {
+       "cooldown": 0.8
+      },
+      "dragons_breath": {
+       "cooldown": 0.8
+      },
+      "arcane_explosion": {
+       "cooldown": 0.8
       }
      }
     }
@@ -511,6 +534,9 @@
        "damage": 1.1
       },
       "scorch": {
+       "damage": 1.1
+      },
+      "arcane_missiles": {
        "damage": 1.1
       }
      }
