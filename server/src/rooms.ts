@@ -1,12 +1,13 @@
 import crypto from 'node:crypto';
 import zlib from 'node:zlib';
+import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
 import { ARENAS, ArenaSim, Bot, CLASSES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
 import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
-import { publicInfo } from './accounts';
+import { REPLAY_MAX_BYTES, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
@@ -54,6 +55,10 @@ export interface Player {
   /** Waiting for this friend to join a duel (account key), and since when. */
   duelWith?: string;
   duelAt?: number;
+  /** Account messages waiting their turn on `chain` (capped so a flood cannot pile up work). */
+  pending?: number;
+  /** The socket has closed: queued account work for it is skipped. */
+  gone?: boolean;
 }
 
 export interface Party {
@@ -78,6 +83,14 @@ interface Invite {
 
 const INVITE_TTL_MS = 60000;
 const DUEL_WAIT_MS = 30000;
+/** Leaving a ranked match during the countdown keeps you out of the ranked queue this long. */
+export const QUEUE_BAN_MS = 60000;
+/** Account messages a connection may have waiting at once; more are dropped. */
+const MAX_PENDING_ACCOUNT_MSGS = 8;
+/** One suggestion per account and per network address this often. */
+const SUGGEST_GAP_MS = 20000;
+
+const gzip = promisify(zlib.gzip);
 
 export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
@@ -110,6 +123,14 @@ export class Room {
   /** Who has pressed Play again, and what the lobby needs to rebuild the match when everyone has. */
   private rematchVotes = new Set<Player>();
   onRematch: ((room: Room) => void) | null = null;
+  /** Ranked only: someone left before the gates opened. The lobby cancels the match and puts the others back in the queue. */
+  onAbort: ((room: Room, leaver: Player) => void) | null = null;
+  /** Ranked only: Play again after someone left. There is no rematch without the full roster, so the voter goes back to the queue. */
+  onRequeue: ((room: Room, p: Player) => void) | null = null;
+  /** How many people started the match (a ranked rematch needs all of them). */
+  private startedHumans = 0;
+  /** Whether the replay is worth storing for everyone to open (ranked, party and duel matches; not solo practice). */
+  keepReplay = true;
   private npcPlan: { classId: ClassId; team: TeamId; difficulty: PracticeDifficulty }[] = [];
 
   private credited = false;
@@ -126,6 +147,7 @@ export class Room {
   private startedWall = Date.now();
   /** Account key and rating change per unit, filled in as results arrive. */
   private keys = new Map<number, string>();
+  private ratingAtStart = new Map<number, number>();
   private deltas = new Map<number, { rating: number; delta: number }>();
 
   /** `countsForProgress`: whether finishing this match earns gear-tier progress (not true for dummy practice). */
@@ -137,12 +159,20 @@ export class Room {
     if (accounts && countsForProgress) this.recorder = new ReplayRecorder(this.sim, { arena: arenaId, seed: this.seed, prepMs });
   }
 
+  get isRanked(): boolean {
+    return this.ranked;
+  }
+
   addPlayer(p: Player, team: TeamId): void {
     const u = this.sim.addUnit({ name: p.name, classId: p.classId, team, controller: 'player', build: p.build });
     p.unitId = u.id;
     p.room = this;
     this.players.set(u.id, p);
-    if (p.account) this.keys.set(u.id, p.account.key);
+    this.startedHumans++;
+    if (p.account) {
+      this.keys.set(u.id, p.account.key);
+      this.ratingAtStart.set(u.id, p.account.rating);
+    }
     this.notify?.(p);
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
@@ -268,6 +298,11 @@ export class Room {
         break;
       case 'rematch':
         if (this.sim.phase !== 'ended') break;
+        if (msg.on && this.ranked && this.players.size < this.startedHumans && this.onRequeue) {
+          // a ranked rematch is only ever the full roster; with someone gone, Play again means the queue
+          this.onRequeue(this, p);
+          break;
+        }
         if (msg.on) this.rematchVotes.add(p);
         else this.rematchVotes.delete(p);
         this.afterVote();
@@ -278,13 +313,14 @@ export class Room {
   /** Tell everyone how many are ready, and start the next match once all of them are. */
   private afterVote(): void {
     for (const q of this.players.values()) send(q, { t: 'rematch', ready: this.rematchVotes.size, total: this.players.size, you: this.rematchVotes.has(q) });
+    if (this.ranked && this.players.size < this.startedHumans) return; // never a ranked rematch with part of the roster
     if (this.sim.phase === 'ended' && !this.closed && this.players.size > 0 && this.rematchVotes.size >= this.players.size) this.onRematch?.(this);
   }
 
   /** What the lobby needs to play this match again. */
   rematchPlan() {
     return {
-      prepMs: this.prepMsUsed, counts: this.countsForProgress, ranked: this.ranked, map: this.arenaId, size: this.size, npcs: this.npcPlan,
+      prepMs: this.prepMsUsed, counts: this.countsForProgress, ranked: this.ranked, map: this.arenaId, size: this.size, npcs: this.npcPlan, keepReplay: this.keepReplay,
       humans: [...this.players.entries()].map(([id, p]) => ({ p, team: this.sim.units.get(id)!.team })),
     };
   }
@@ -302,16 +338,23 @@ export class Room {
   removePlayer(p: Player): void {
     this.rematchVotes.delete(p);
     if (p.unitId !== undefined) {
+      if (this.ranked && this.sim.phase === 'prep' && this.players.size > 1 && this.onAbort) {
+        // gone before the gates opened: nobody is made to play a man down, the match is called off
+        this.onAbort(this, p);
+        return;
+      }
       if (this.sim.phase !== 'ended') {
-        // leaving a live ranked match is a loss
+        // leaving a live ranked match is a loss, charged to the account that started it (signing out first changes nothing)
         const me = this.sim.units.get(p.unitId);
-        if (this.ranked && this.accounts && p.account && me && this.sim.phase === 'live') {
-          const acc = p.account;
+        const key = this.keys.get(p.unitId);
+        if (this.ranked && this.accounts && key && me && this.sim.phase === 'live') {
+          const before = this.ratingAtStart.get(p.unitId) ?? START_RATING;
           this.accounts
-            .recordForfeit(acc.name, this.teamAvg(1 - me.team))
+            .recordForfeit(key, this.teamAvg(1 - me.team))
             .then((a) => {
-              if (a) {
-                this.deltas.set(me.id, { rating: a.rating, delta: a.rating - acc.rating });
+              if (!a) return;
+              this.deltas.set(me.id, { rating: a.rating, delta: a.rating - before });
+              if (p.account?.key === a.key) {
                 p.account = a;
                 send(p, { t: 'account', account: publicInfo(a, p.ownerOk) });
               }
@@ -324,9 +367,21 @@ export class Room {
     }
     p.room = undefined;
     p.unitId = undefined;
-    if (this.players.size === 0) this.closed = true;
+    if (this.players.size === 0) this.close('Everyone left the match.'); // and anyone watching is told, not left hanging
     else if (this.sim.phase === 'ended') this.afterVote(); // the ones still here may all be ready already
     this.notify?.(p);
+  }
+
+  /** Call the match off before it started: everyone still in it is handed back to the lobby (no 'closed' sent here). */
+  abort(): Player[] {
+    const were = [...this.players.values()];
+    for (const p of were) {
+      p.room = undefined;
+      p.unitId = undefined;
+    }
+    this.players.clear();
+    this.close('match cancelled');
+    return were;
   }
 
   tick(): void {
@@ -340,7 +395,8 @@ export class Room {
       if (!me) continue;
       let frame = frames.get(me.team);
       if (frame === undefined) {
-        frame = JSON.stringify({ t: 'snapshot', snap: this.sim.snapshot(me.team), events });
+        // a stealthed enemy's casts and buffs are left out along with its position
+        frame = JSON.stringify({ t: 'snapshot', snap: this.sim.snapshot(me.team), events: this.sim.eventsFor(me.team, events) });
         frames.set(me.team, frame);
       }
       if (p.ws.readyState === 1 /* OPEN */) p.ws.send(frame);
@@ -411,10 +467,11 @@ export class Room {
   private creditProgress(): void {
     if (this.credited) return;
     this.credited = true;
+    this.finishers = [...this.players.values()];
     if (!this.countsForProgress || this.sim.time - this.sim.prepEndsAt < this.minCountedMs) return;
     const draw = this.sim.winner === 'draw';
     const replay = this.recorder?.finish(this.roster()) ?? null;
-    if (replay && this.learner) setImmediate(() => this.learner?.learnFrom(replay)); // the bots study how the people played
+    if (replay && this.learner) this.learner.learnFrom(replay); // the bots study how the people played (on a worker thread)
     const jobs: Promise<void>[] = [];
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
@@ -446,12 +503,16 @@ export class Room {
     const acc = this.accounts;
     if (!acc || this.keys.size === 0) return;
     let stored = false;
-    if (replay) {
+    if (replay && this.keepReplay) {
+      let tooBig = false;
       try {
-        stored = await acc.saveReplay(this.id, zlib.gzipSync(JSON.stringify(replay)));
+        const gz = await gzip(JSON.stringify(replay));
+        tooBig = gz.length > REPLAY_MAX_BYTES;
+        stored = !tooBig && (await acc.saveReplay(this.id, gz));
       } catch {
         stored = false;
       }
+      if (tooBig) for (const p of this.everyone) send(p, { t: 'notice', text: 'That match was too long to keep a replay of. Your result still counts.' });
     }
     const players: MatchPlayer[] = [...this.sim.units.values()].map((u) => {
       const d = this.deltas.get(u.id);
@@ -460,6 +521,13 @@ export class Room {
     const rec: MatchRecord = { id: this.id, at: Date.now(), size: this.size, ranked: this.ranked, map: this.arenaId, durationMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)), winner: this.sim.winner, players, replay: stored };
     await acc.addHistory([...this.keys.values()], rec);
   }
+
+  /** Players who took part and are still connected to this room or just left it at the end. */
+  private get everyone(): Player[] {
+    return [...this.players.values(), ...this.finishers];
+  }
+  /** Who was in the match when it ended (they get told about the replay even if they already left the end screen). */
+  private finishers: Player[] = [];
 
   private close(reason: string): void {
     this.closed = true;
@@ -496,7 +564,10 @@ export class Lobby {
   }
 
   constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions) {}
-  private lastSuggest = new Map<number, number>();
+  /** Last suggestion time per account and per network address (old entries are swept). */
+  private lastSuggest = new Map<string, number>();
+  /** Accounts that left a ranked match during the countdown, and until when they may not queue ranked. */
+  private queueBans = new Map<string, number>();
 
   private conns = new Set<Player>();
   private onlineKeys(): Set<string> {
@@ -512,14 +583,34 @@ export class Lobby {
   }
 
   connect(ws: WebSocket, ip = ''): Player {
-    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random', size: 2 };
+    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random', size: 2, pending: 0 };
     this.conns.add(p);
     return p;
   }
 
   /** Account messages are async (hashing, storage), so they run in order per connection off the game loop. */
   private account(p: Player, msg: ClientMsg): void {
-    p.chain = p.chain.then(() => this.handleAccount(p, msg)).catch(() => {});
+    // a flood of requests is dropped rather than queued, and work for a closed socket is skipped
+    if (p.gone || (p.pending ?? 0) >= MAX_PENDING_ACCOUNT_MSGS) return;
+    p.pending = (p.pending ?? 0) + 1;
+    p.chain = p.chain
+      .then(() => (p.gone ? undefined : this.handleAccount(p, msg)))
+      .catch(() => {})
+      .finally(() => { p.pending = Math.max(0, (p.pending ?? 1) - 1); });
+  }
+
+  /** Why `p` cannot start something new right now (in a match, queued, or waiting for a duel), or null. */
+  private busy(p: Player): string | null {
+    if (p.room) return 'Finish or leave your match first.';
+    if (this.inQueue(p)) return 'You are already in the queue.';
+    if (p.duelWith !== undefined) return 'You are waiting for a duel to start.';
+    return null;
+  }
+
+  /** Another window signed in to the same account is in a match, the queue or a duel. */
+  private accountBusyElsewhere(p: Player): boolean {
+    const key = p.account?.key;
+    return !!key && [...this.conns].some((q) => q !== p && q.account?.key === key && this.busy(q) !== null);
   }
 
   private async handleAccount(p: Player, msg: ClientMsg): Promise<void> {
@@ -530,7 +621,7 @@ export class Lobby {
         case 'register':
         case 'login':
         case 'resume': {
-          if (p.room || this.inQueue(p)) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
+          if (this.busy(p)) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
           const r = msg.t === 'register' ? await acc.register(msg.name, msg.password, p.ip, msg.ownerCode) : msg.t === 'login' ? await acc.login(msg.name, msg.password, p.ip) : await acc.resume(msg.token);
           if (!r.ok) return void send(p, { t: 'auth_error', reason: r.reason });
           p.account = r.account;
@@ -545,6 +636,8 @@ export class Lobby {
           break;
         }
         case 'logout':
+          // signing out mid-match would dodge the result: finish (or leave, which counts as a loss) first
+          if ((p.room && p.room.sim.phase !== 'ended') || this.inQueue(p) || p.duelWith !== undefined) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
           if (p.token) await acc.logout(p.token);
           this.leaveParty(p);
           this.dropInvites(p);
@@ -650,8 +743,9 @@ export class Lobby {
   /** Validate and store a player's name, class and build. False (after telling them) if the build is invalid. */
   private applyIdentity(p: Player, msg: { name: string; classId: ClassId; build?: Build; profile?: string }): boolean {
     const progress = p.account ? { matches: p.account.matches, wins: p.account.wins } : verifyProfile(msg.profile) ?? { matches: 0, wins: 0 };
-    // cosmetics that no longer exist (an old save) are dropped quietly rather than refusing the match
-    const isOwner = !!p.account && isOwnerName(p.account.name);
+    // cosmetics that no longer exist (an old save) are dropped quietly rather than refusing the match;
+    // owner-only looks need the owner session (name and code), not just the name
+    const isOwner = !!p.account && isOwnerName(p.account.name) && !!p.ownerOk;
     const build = msg.build ? { ...msg.build, gear: cleanGear(msg.build.gear, isOwner, progress.matches) } : undefined;
     if (build) {
       const check = validateBuild(msg.classId, build, isOwner, progress.matches);
@@ -671,8 +765,10 @@ export class Lobby {
 
   handle(p: Player, msg: ClientMsg): void {
     switch (msg.t) {
-      case 'join':
+      case 'join': {
         if (p.room || this.inQueue(p)) return;
+        if (p.duelWith !== undefined && msg.mode !== 'duel') return void send(p, { t: 'closed', reason: 'You are waiting for a duel to start. It is called off after 30 seconds if your friend does not join.' });
+        if (msg.mode !== 'practice' && this.accountBusyElsewhere(p)) return void send(p, { t: 'closed', reason: 'Your account is already playing in another window.' });
         p.watching?.removeSpectator(p);
         if (p.party && p.party.members.length > 1 && p.party.leader !== p) {
           send(p, { t: 'closed', reason: 'Only the party leader picks the mode. Press Ready.' });
@@ -686,6 +782,7 @@ export class Lobby {
         else if (msg.mode === 'party') this.startPartyMatch(p, msg);
         else this.enqueue(p);
         break;
+      }
       case 'leave': {
         // leaving a match keeps the socket (and the party) alive: tell the client to go back to the menu
         const inMatch = !!p.room;
@@ -695,7 +792,7 @@ export class Lobby {
       }
       case 'ready': {
         const party = p.party;
-        if (!party || party.leader === p || p.room || this.inQueue(p)) return;
+        if (!party || party.leader === p || this.busy(p)) return;
         if (msg.on) {
           if (!this.applyIdentity(p, msg)) return;
           party.ready.add(p);
@@ -725,7 +822,7 @@ export class Lobby {
         send(p, { t: 'live', rows: [...this.rooms].filter((r) => r.watchable).map((r) => r.live()) });
         break;
       case 'spectate': {
-        if (p.room || this.inQueue(p)) return;
+        if (this.busy(p)) return;
         if (!p.account) return void send(p, { t: 'notice', text: 'Sign in to watch live matches.' });
         const room = [...this.rooms].find((r) => r.id === msg.id && r.watchable);
         if (!room) return void send(p, { t: 'closed', reason: 'That match is over.' });
@@ -769,11 +866,13 @@ export class Lobby {
         this.account(p, msg);
         break;
       case 'suggest': {
-        const last = this.lastSuggest.get(p.id) ?? 0;
         if (!p.account) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Sign in to send suggestions.' });
         if (!this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'The suggestion box is not available.' });
-        if (Date.now() - last < 20000) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Slow down: one suggestion every 20 seconds.' });
-        this.lastSuggest.set(p.id, Date.now());
+        // limited per account and per address, so reconnecting (or a second account on the same network) does not reset it
+        const now = Date.now();
+        const keys = [`a:${p.account.key}`, `i:${p.ip}`];
+        if (keys.some((k) => now - (this.lastSuggest.get(k) ?? 0) < SUGGEST_GAP_MS)) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Slow down: one suggestion every 20 seconds.' });
+        for (const k of keys) this.lastSuggest.set(k, now);
         void this.suggestions.add(p.account.name, msg.text, msg.note).then((ok) => send(p, { t: 'suggest_ack', ok, reason: ok ? undefined : 'Could not save that, try again.' }));
         break;
       }
@@ -791,6 +890,7 @@ export class Lobby {
   }
 
   disconnect(p: Player): void {
+    p.gone = true;
     this.conns.delete(p);
     this.leave(p);
     this.leaveParty(p);
@@ -895,8 +995,19 @@ export class Lobby {
       if (inv.from === p || inv.to === p) {
         this.invites.delete(id);
         send(inv.to === p ? inv.from : inv.to, { t: 'invite_gone', id });
+        if (inv.to === p) this.dissolveIfAlone(inv.from);
       }
     }
+  }
+
+  /** A party of one (its only invite was declined, expired or withdrawn) is no party: it would only block duel invites. */
+  private dissolveIfAlone(p: Player): void {
+    const party = p.party;
+    if (!party || party.members.length !== 1 || party.members[0] !== p) return;
+    if ([...this.invites.values()].some((i) => i.kind === 'party' && i.party === party)) return; // still waiting on someone
+    p.party = undefined;
+    send(p, { t: 'party', party: null });
+    this.changed(p);
   }
 
   private idle(q: Player): boolean {
@@ -939,7 +1050,11 @@ export class Lobby {
     if (!inv || inv.to !== p) return;
     this.invites.delete(id);
     const from = inv.from;
-    if (!accept) return void send(from, { t: 'notice', text: `${p.account?.name ?? 'They'} declined.` });
+    if (!accept) {
+      send(from, { t: 'notice', text: `${p.account?.name ?? 'They'} declined.` });
+      this.dissolveIfAlone(from);
+      return;
+    }
     if (!this.idle(p) || !this.idle(from)) return void send(p, { t: 'notice', text: 'That invite is no longer possible.' });
     if (inv.kind === 'party') {
       const party = inv.party;
@@ -984,7 +1099,48 @@ export class Lobby {
     room.notify = (q) => this.changed(q);
     room.learner = this.learner;
     room.onRematch = (old) => this.rematch(old);
+    room.onAbort = (r, leaver) => this.abortRanked(r, leaver);
+    room.onRequeue = (r, q) => this.requeueAfterRanked(r, q);
     return room;
+  }
+
+  /**
+   * Someone left a ranked match before it started: call it off, put everyone else back at the front of the queue (parties
+   * together), and keep the leaver out of the ranked queue for a short while.
+   */
+  private abortRanked(room: Room, leaver: Player): void {
+    const others = room.abort().filter((q) => q !== leaver);
+    if (leaver.account) this.queueBans.set(leaver.account.key, Date.now() + QUEUE_BAN_MS);
+    const groups: Player[][] = [];
+    for (const q of others) {
+      const g = q.party ? groups.find((x) => x[0].party === q.party) : undefined;
+      if (g) g.push(q);
+      else groups.push([q]);
+    }
+    for (const g of groups) {
+      for (const q of g) send(q, { t: 'closed', reason: `${leaver.name} left before the start. You are back in the queue.` });
+      this.queue.push({ members: g, size: room.size, pref: g[0].mapPref, at: 0, ranked: true }); // first in line
+    }
+    for (const q of [...others, leaver]) this.changed(q);
+    this.tryMatch(room.size, true);
+    this.announceQueue();
+  }
+
+  /** Play again in a ranked match someone has left: the voter goes back to the ranked queue on their own. */
+  private requeueAfterRanked(room: Room, p: Player): void {
+    room.removePlayer(p);
+    send(p, { t: 'closed', reason: 'Your opponents left, so there is no rematch. Back in the ranked queue.' });
+    if (!p.account || this.banned(p)) return;
+    this.queue.push({ members: [p], size: room.size, pref: p.mapPref, at: Date.now(), ranked: true });
+    this.changed(p);
+    this.tryMatch(room.size, true);
+    this.announceQueue();
+  }
+
+  /** Seconds left on a ranked queue ban, or 0. */
+  private banned(p: Player): number {
+    const until = p.account ? this.queueBans.get(p.account.key) ?? 0 : 0;
+    return Math.max(0, Math.ceil((until - Date.now()) / 1000));
   }
 
   /** Everyone in a finished match pressed Play again: same players, sides and bots in a fresh room. */
@@ -995,6 +1151,7 @@ export class Lobby {
     const map = plan.npcs.length && !plan.ranked ? pickMap('random', plan.map) : plan.map;
     const room = this.makeRoom(plan.prepMs, plan.counts, plan.ranked, map);
     room.size = plan.size;
+    room.keepReplay = plan.keepReplay;
     for (const h of plan.humans) room.addPlayer(h.p, h.team);
     room.broadcastRoster();
     // and the bots on the other side are a fresh random pick too (practice dummies stay as they were)
@@ -1024,6 +1181,7 @@ export class Lobby {
     const wait = this.notReady(p);
     if (wait) return void send(p, { t: 'closed', reason: wait });
     const humans = [p, ...this.partyMates(p)].slice(0, size);
+    room.keepReplay = humans.length > 1; // solo practice is not worth storing; practising with friends is
     for (const h of humans) h.size = size;
     for (const h of humans) room.addPlayer(h, 0);
     room.broadcastRoster();
@@ -1090,7 +1248,14 @@ export class Lobby {
   private enqueue(p: Player): void {
     const wait = this.notReady(p);
     if (wait) return void send(p, { t: 'closed', reason: wait });
+    // the ranked ladder is for signed-in players only; guests play the unrated queue and never meet a ladder match
+    const ranked = !!p.account;
     const mates = this.partyMates(p);
+    for (const m of [p, ...mates]) {
+      const ban = this.banned(m);
+      if (ranked && ban) return void send(p, { t: 'closed', reason: m === p ? `You left a ranked match before it started. You can queue again in ${ban} s.` : `${m.account?.name ?? m.name} cannot queue for another ${ban} s.` });
+      if (m !== p && this.accountBusyElsewhere(m)) return void send(p, { t: 'closed', reason: `${m.account?.name ?? m.name} is already playing in another window.` });
+    }
     const party = p.party;
     const now = Date.now();
     if (mates.length && mates.length + 1 <= p.size) {
@@ -1099,12 +1264,12 @@ export class Lobby {
         m.size = p.size;
         m.mapPref = p.mapPref;
       }
-      this.queue.push({ members: all, size: p.size, pref: p.mapPref, at: now });
+      this.queue.push({ members: all, size: p.size, pref: p.mapPref, at: now, ranked });
     } else {
       for (const m of [p, ...mates]) {
         m.size = p.size;
         m.mapPref = p.mapPref;
-        this.queue.push({ members: [m], size: p.size, pref: p.mapPref, at: now });
+        this.queue.push({ members: [m], size: p.size, pref: p.mapPref, at: now, ranked });
       }
       if (mates.length) for (const m of [p, ...mates]) send(m, { t: 'notice', text: 'Your party is bigger than the team size, so you queue separately and may not be placed together.' });
     }
@@ -1113,15 +1278,22 @@ export class Lobby {
       this.sendParty(party);
     }
     for (const m of [p, ...mates]) this.changed(m);
-    this.tryMatch(p.size);
+    this.tryMatch(p.size, ranked);
     this.announceQueue();
   }
 
-  private tryMatch(size: TeamSize): void {
+  private tryMatch(size: TeamSize, ranked: boolean): void {
     for (;;) {
-      const m = findMatch(this.queue, size, () => pickMap('random'));
+      const m = findMatch(this.queue.filter((e) => !!e.ranked === ranked && !this.selfMatch(e)), size, () => pickMap('random'));
       if (!m) return;
-      const room = this.makeRoom(this.cfg.queuePrepMs, true, true, m.map);
+      // never the same account on both sides (or twice on one side): the later copy is dropped from the queue
+      const twice = this.sameAccountTwice([...m.teamA, ...m.teamB]);
+      if (twice) {
+        this.queue = this.queue.filter((e) => e !== twice);
+        for (const q of twice.members) send(q, { t: 'closed', reason: 'Your account is already queued in another window.' });
+        continue;
+      }
+      const room = this.makeRoom(this.cfg.queuePrepMs, true, ranked, m.map);
       room.size = size;
       const taken = new Set([...m.teamA, ...m.teamB]);
       this.queue = this.queue.filter((e) => !taken.has(e));
@@ -1147,12 +1319,36 @@ export class Lobby {
     this.announceQueue();
   }
 
+  /** An entry whose account already plays elsewhere (another window) is skipped by matchmaking. */
+  private selfMatch(e: QEntry<Player>): boolean {
+    return e.members.some((m) => m.room !== undefined);
+  }
+
+  /** The later of two entries that share an account, if any. */
+  private sameAccountTwice(entries: QEntry<Player>[]): QEntry<Player> | null {
+    const seen = new Set<string>();
+    for (const e of [...entries].sort((a, b) => a.at - b.at)) {
+      const keys = e.members.map((m) => m.account?.key ?? `#${m.id}`);
+      if (keys.some((k) => seen.has(k))) return e;
+      for (const k of keys) seen.add(k);
+    }
+    return null;
+  }
+
   private announceQueue(): void {
     for (const e of this.queue) {
-      const compatible = this.queue.filter((x) => x.size === e.size && (x.pref === 'random' || e.pref === 'random' || x.pref === e.pref));
+      const compatible = this.queue.filter((x) => x.size === e.size && !!x.ranked === !!e.ranked && (x.pref === 'random' || e.pref === 'random' || x.pref === e.pref));
       const waiting = compatible.reduce((n, x) => n + x.members.length, 0);
       for (const m of e.members) send(m, { t: 'queued', waiting, needed: e.size * 2 });
     }
+  }
+
+  private tickCount = 0;
+
+  /** Forget expired rate-limit and ban entries so the maps never grow without bound. */
+  private sweep(now: number): void {
+    for (const [k, t] of this.lastSuggest) if (now - t >= SUGGEST_GAP_MS) this.lastSuggest.delete(k);
+    for (const [k, t] of this.queueBans) if (t <= now) this.queueBans.delete(k);
   }
 
   tick(): void {
@@ -1165,8 +1361,10 @@ export class Lobby {
       if (now - inv.at > INVITE_TTL_MS) {
         this.invites.delete(id);
         send(inv.to, { t: 'invite_gone', id });
+        this.dissolveIfAlone(inv.from);
       }
     }
+    if (this.tickCount++ % 1200 === 0) this.sweep(now); // once a minute
     for (const q of this.conns) {
       if (q.duelWith !== undefined && now - (q.duelAt ?? 0) > DUEL_WAIT_MS) {
         q.duelWith = undefined;

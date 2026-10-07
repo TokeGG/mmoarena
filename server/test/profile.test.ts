@@ -64,13 +64,17 @@ describe('lobby: builds and progress', () => {
   });
 
   it('owner-only cosmetics are dropped for guests and ordinary accounts but kept for the owner account', async () => {
-    const accounts = new Accounts(new MemoryStore());
+    const accounts = new Accounts(new MemoryStore(), 'code');
     const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 }, accounts);
-    const sign = async (name: string) => {
+    const sign = async (name: string, ownerCode?: string) => {
       const sock = fakeSocket();
       const p = lobby.connect(sock);
-      lobby.handle(p, { t: 'register', name, password: 'password1' } as ClientMsg);
+      lobby.handle(p, { t: 'register', name, password: 'password1', ownerCode } as ClientMsg);
       for (let i = 0; i < 300 && !sock.sent.some((m: ServerMsg) => m.t === 'account'); i++) await new Promise((r) => setTimeout(r, 5));
+      if (ownerCode) {
+        lobby.handle(p, { t: 'owner_unlock', code: ownerCode } as ClientMsg);
+        for (let i = 0; i < 300 && !p.ownerOk; i++) await new Promise((r) => setTimeout(r, 5));
+      }
       return { sock, p };
     };
     const lookOf = (p: any) => [...p.room.sim.units.values()].find((u: any) => u.name === p.name).look as string;
@@ -85,7 +89,9 @@ describe('lobby: builds and progress', () => {
     const reg = await sign('Plain_One');
     lobby.handle(reg.p, join({ build: { spec: 'frost', talents: [], gear } }));
     assert.equal(lookOf(reg.p)[0], '-', 'ordinary account: stripped');
-    const owner = await sign('Toke');
+    const squatter = await sign('Toke'); // no owner code: the founder name cannot even be registered
+    assert.equal(squatter.p.account, undefined);
+    const owner = await sign('Toke', 'code');
     lobby.handle(owner.p, join({ build: { spec: 'frost', talents: [], gear } }));
     assert.notEqual(lookOf(owner.p)[0], '-', 'owner keeps the founder crown');
     assert.notEqual(lookOf(owner.p)[4], '-');

@@ -8,7 +8,7 @@ import { TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
 import { Accounts } from './accounts';
 import { createStore } from './store';
-import { BotLearner } from './botlearn';
+import { BotLearner, MeasureWorker } from './botlearn';
 import { Suggestions } from './suggestions';
 import { AVATAR_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
@@ -40,6 +40,16 @@ const MIME: Record<string, string> = {
   '.map': 'application/json',
 };
 
+/**
+ * The address a connection really comes from. Behind Render's proxy the client's own address is the LAST entry of
+ * X-Forwarded-For (the proxy appends what it saw); anything before it is whatever the client chose to send, so trusting
+ * the first entry would let anyone dodge the per-address limits on sign-up, login and the owner code.
+ */
+export function clientIp(fwd: string | string[] | undefined, remote: string | undefined): string {
+  const hops = (Array.isArray(fwd) ? fwd.join(',') : fwd ?? '').split(',').map((h) => h.trim()).filter(Boolean);
+  return hops[hops.length - 1] || remote || '';
+}
+
 /** Max inbound messages per second per socket. The client sends ~20 inputs/s plus a few actions. */
 const MAX_MSGS_PER_SEC = 120;
 
@@ -48,7 +58,8 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const root = path.resolve(opts.staticDir ?? path.join(here, '../../client/dist'));
   const store = opts.accountStore ?? createStore();
   const accounts = new Accounts(store, process.env.ARENA_OWNER_CODE);
-  const botLearner = new BotLearner(store);
+  const measurer = new MeasureWorker();
+  const botLearner = new BotLearner(store, Math.random, measurer.measure);
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
   const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL));
 
@@ -153,8 +164,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const alive = new WeakSet<object>();
 
   wss.on('connection', (ws, req) => {
-    const fwd = req.headers['x-forwarded-for'];
-    const ip = (typeof fwd === 'string' ? fwd.split(',')[0].trim() : '') || req.socket.remoteAddress || '';
+    const ip = clientIp(req.headers['x-forwarded-for'], req.socket.remoteAddress);
     const player = lobby.connect(ws, ip);
     alive.add(ws);
     ws.on('pong', () => alive.add(ws));
@@ -218,6 +228,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
           new Promise<void>((done) => {
             clearInterval(loop);
             clearInterval(heartbeat);
+            void measurer.close();
             for (const ws of wss.clients) ws.terminate();
             wss.close(() => server.close(() => done()));
           }),

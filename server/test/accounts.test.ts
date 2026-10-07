@@ -11,14 +11,14 @@ const fresh = () => new Accounts(new MemoryStore());
 describe('accounts', () => {
   it('registers, rejects duplicates (any case), logs in and resumes', async () => {
     const a = fresh();
-    const r = await a.register('Toke', 'hunter22', '1.1.1.1');
+    const r = await a.register('Zed', 'hunter22', '1.1.1.1');
     assert.ok(r.ok);
-    assert.equal((await a.register('toke', 'other-pass', '1.1.1.1')).ok, false);
-    const l = await a.login('TOKE', 'hunter22', '1.1.1.1');
+    assert.equal((await a.register('zed', 'other-pass', '1.1.1.1')).ok, false);
+    const l = await a.login('ZED', 'hunter22', '1.1.1.1');
     assert.ok(l.ok);
     const res = await a.resume((l as any).token);
     assert.ok(res.ok);
-    assert.equal((res as any).account.name, 'Toke');
+    assert.equal((res as any).account.name, 'Zed');
     assert.equal((await a.resume('nope-nope-nope')).ok, false);
     await a.logout((l as any).token);
     assert.equal((await a.resume((l as any).token)).ok, false);
@@ -148,12 +148,13 @@ describe('accounts in the lobby', () => {
 });
 
 describe('owner cosmetics and synced settings', () => {
-  it('owner-only cosmetics work for Toke and are refused for everyone else', async () => {
-    const a = fresh();
-    const toke = (await a.register('Toke', 'hunter22', '3.3.3.3')) as any;
+  it('owner-only cosmetics work for Toke (with the owner session) and are refused for everyone else', async () => {
+    const a = new Accounts(new MemoryStore(), 'code');
+    const toke = (await a.register('Toke', 'hunter22', '3.3.3.3', 'code')) as any;
     const bob = (await a.register('Bob', 'hunter22', '4.4.4.4')) as any;
     const want = { title: 'founder', emblem: 'trident', color: 'neon' };
-    const ok = await a.customize(toke.account, want);
+    assert.equal(await a.customize(toke.account, want), null, 'not without the owner session');
+    const ok = await a.customize(toke.account, want, true);
     assert.deepEqual(ok?.cosmetics, want);
     assert.equal(await a.customize(bob.account, want), null);
     assert.equal(await a.customize(bob.account, { title: 'founder', emblem: 'swords', color: 'white' }), null);
@@ -196,12 +197,12 @@ describe('shared database', () => {
     const raw = new MemoryStore();
     const wow = new Accounts(new PrefixedStore(raw, 'wowarena:'));
     const aim = new Accounts(new PrefixedStore(raw, 'aim:'));
-    assert.ok((await wow.register('Toke', 'hunter22', '1.2.3.4')).ok);
-    assert.ok((await aim.register('Toke', 'different1', '1.2.3.5')).ok, 'same name is free in the other game');
-    assert.equal((await wow.login('Toke', 'different1', '1.2.3.4')).ok, false);
-    assert.ok((await wow.login('Toke', 'hunter22', '1.2.3.4')).ok);
+    assert.ok((await wow.register('Zed', 'hunter22', '1.2.3.4')).ok);
+    assert.ok((await aim.register('Zed', 'different1', '1.2.3.5')).ok, 'same name is free in the other game');
+    assert.equal((await wow.login('Zed', 'different1', '1.2.3.4')).ok, false);
+    assert.ok((await wow.login('Zed', 'hunter22', '1.2.3.4')).ok);
     assert.equal((await wow.leaderboard()).length, 1);
-    assert.ok(await raw.get('wowarena:acct:toke'), 'keys are stored under the prefix');
-    assert.equal(await raw.get('acct:toke'), null, 'nothing is written unprefixed');
+    assert.ok(await raw.get('wowarena:acct:zed'), 'keys are stored under the prefix');
+    assert.equal(await raw.get('acct:zed'), null, 'nothing is written unprefixed');
   });
 });

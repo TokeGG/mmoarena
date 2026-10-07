@@ -592,7 +592,7 @@ export class Bot {
     }
 
     // Smite is filler: drop it when something urgent shows up.
-    if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.cancelCast(u, 'cancelled');
+    if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(u.id);
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
     if (u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return;
     if (hpFrac(u) < this.brain.defHp - 0.05 && this.use(u, 'desperate_prayer')) return;

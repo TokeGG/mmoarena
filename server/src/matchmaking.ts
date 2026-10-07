@@ -9,6 +9,8 @@ export interface QEntry<T> {
   pref: string;
   /** When they started waiting (ms); older entries are tried first. */
   at: number;
+  /** Ranked ladder (signed-in players only) or the unrated guest queue; the two never mix. */
+  ranked?: boolean;
 }
 
 export interface Found<T> {
