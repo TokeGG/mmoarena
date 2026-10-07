@@ -221,7 +221,6 @@ export class ArenaSim {
       ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ) };
       if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return soft('out of range');
       if (!hasLOS(u.pos, ground, this.arena)) return fail('no line of sight');
-      if (!this.inFront(u, ground.x, ground.z)) return soft('that spot is not in front of you');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);

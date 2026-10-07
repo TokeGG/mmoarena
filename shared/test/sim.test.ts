@@ -286,6 +286,19 @@ describe('stealth', () => {
     assert.ok(foe.auras.some((x) => x.id === 'dragons_breath'), 'still disoriented');
   });
 
+  it('Flamestrike can be placed behind you', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'flamestrike'];
+    const foe = add(sim, 'warrior', 1, 0, -10);
+    advance(sim, TICK);
+    mage.facing = 0; mage.lastInput = { ...mage.lastInput, facing: 0 }; // facing +z, spot is at -z
+    const r = sim.useAbility(mage.id, 'flamestrike', null, { x: 0, z: -10 });
+    assert.ok(r.ok, JSON.stringify(r));
+    advance(sim, 4000);
+    assert.ok(foe.health < foe.maxHealth, 'the strike landed behind the caster');
+  });
+
   it('Counterspell cannot be locked out, ignores facing, and still lands a moment after the cast finished', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);

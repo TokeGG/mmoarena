@@ -29,7 +29,11 @@ export class Controls {
   private mx = 0;
   private my = 0;
 
+  private swallowUp = false;
   onClick: (x: number, y: number) => void = () => {};
+  /** True while a ground spell waits for a click; the left press then places it instead of steering the camera. */
+  aimActive: () => boolean = () => false;
+  onAimPress: () => void = () => {};
   /** A right-button click that did not turn the camera (WoW: target and auto-attack). */
   onRightClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
@@ -71,6 +75,11 @@ export class Controls {
         const other = this.lmb || this.rmb;
         // a press counts when it starts on the scene, or joins a button that is already steering
         if (e.target !== canvas && !other) return;
+        if (e.button === 0 && e.target === canvas && this.aimActive()) {
+          this.onAimPress();
+          this.swallowUp = true;
+          return;
+        }
         if (!other) {
           this.downX = e.clientX;
           this.downY = e.clientY;
@@ -86,6 +95,11 @@ export class Controls {
       true,
     );
     window.addEventListener('mouseup', (e) => {
+      if (e.button === 0 && this.swallowUp) {
+        this.swallowUp = false;
+        sync(e);
+        return;
+      }
       if (e.button === 0) {
         const wasDown = this.lmb;
         this.lmb = false;

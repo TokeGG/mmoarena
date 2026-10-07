@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, stepMovement } from '@arena/shared';
+import { ABILITIES, ARENAS, hasLOS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, stepMovement } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -559,6 +559,8 @@ function confirmAim() {
   setAiming(null);
 }
 
+controls.aimActive = () => !!aiming && !spec;
+controls.onAimPress = () => confirmAim(); // placed on mouse DOWN, so no click-and-hold nudges the camera
 controls.onClick = (x, y) => {
   if (aiming && !spec) return void confirmAim();
   const id = scene.pick(x, y, spec ? null : you);
@@ -755,7 +757,7 @@ function frame(now: number) {
     const aimed = !spec && aiming ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
-    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5);
+    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena));
   }
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
   // countdown ticks before the gates open, and our own footsteps

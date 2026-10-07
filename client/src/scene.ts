@@ -266,19 +266,30 @@ export class ArenaScene {
   }
 
   /** A ring on the ground showing where an aimed spell would land; null hides it. */
-  setReticle(p: { x: number; z: number } | null, radius = 5): void {
+  setReticle(p: { x: number; z: number } | null, radius = 5, ok = true): void {
     if (!this.reticle) {
       this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.94, 1, 40), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.8, side: THREE.DoubleSide, depthWrite: false }));
       this.reticle.rotation.x = -Math.PI / 2;
       this.scene.add(this.reticle);
+      this.reticleDot = new THREE.Mesh(new THREE.CircleGeometry(0.22, 20), new THREE.MeshBasicMaterial({ color: 0xffb347, transparent: true, opacity: 0.95, side: THREE.DoubleSide, depthWrite: false, depthTest: false }));
+      this.reticleDot.rotation.x = -Math.PI / 2;
+      this.reticleDot.renderOrder = 10;
+      this.scene.add(this.reticleDot);
     }
     this.reticle.visible = !!p;
+    if (this.reticleDot) this.reticleDot.visible = !!p;
     if (p) {
       this.reticle.position.set(p.x, 0.07, p.z);
       this.reticle.scale.set(radius, radius, 1);
+      this.reticleDot!.position.set(p.x, 0.1, p.z);
+      // amber = can cast here, red = no line of sight / out of reach
+      const col = ok ? 0x6dff8a : 0xff4b3e;
+      (this.reticle.material as THREE.MeshBasicMaterial).color.setHex(col);
+      (this.reticleDot!.material as THREE.MeshBasicMaterial).color.setHex(col);
     }
   }
   private reticle: THREE.Mesh | null = null;
+  private reticleDot: THREE.Mesh | null = null;
 
   /** World point to screen pixels. */
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {
