@@ -274,7 +274,7 @@ describe('stealth', () => {
     assert.ok(Math.abs(a.absorbLeft - mage.maxHealth * 0.4 * mage.gearMult * sim.modsOf(mage).healingDone) < 1, `got ${a.absorbLeft}`);
   });
 
-  it('Dragon\'s Breath disorients and Blink does not remove it', () => {
+  it('Dragon\'s Breath disorients and Blink cannot be used through it', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     const foe = add(sim, 'mage', 1, 2, 0);
@@ -282,7 +282,7 @@ describe('stealth', () => {
     sim.applyAura(mage, foe, 'dragons_breath');
     assert.equal(foe.auras.find((x) => x.id === 'dragons_breath')!.kind, 'fear');
     foe.bar = [...foe.bar.slice(0, 7), 'blink'];
-    sim.useAbility(foe.id, 'blink', foe.id);
+    mustFail(sim.useAbility(foe.id, 'blink', foe.id), /disoriented/);
     assert.ok(foe.auras.some((x) => x.id === 'dragons_breath'), 'still disoriented');
   });
 

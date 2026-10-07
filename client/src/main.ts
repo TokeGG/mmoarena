@@ -555,6 +555,7 @@ function confirmAim() {
   if (!aiming || !def) return;
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
+  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena)) return; // red spot: nothing is sent, nothing is spent, still aiming
   sendCast({ t: 'cast', ability: aiming, target: null, x: g.x, z: g.z, vt: viewTime() });
   setAiming(null);
 }

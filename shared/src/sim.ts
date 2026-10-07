@@ -199,7 +199,7 @@ export class ArenaSim {
     if (this.phase === 'prep' && !def.prepOk) return fail('match has not started');
     if (u.auras.some((a) => AURAS[a.id]?.noCast)) return fail('you cannot act while dispersed');
     if (!this.canAct(u) && !def.ignoresControl) return fail('you are incapacitated');
-    if (def.ignoresControl && u.auras.some((a) => AURAS[a.id]?.locksAbilities)) return fail('you are polymorphed');
+    if (def.ignoresControl && u.auras.some((a) => AURAS[a.id]?.locksAbilities)) return fail(u.auras.some((a) => a.id === 'polymorph') ? 'you are polymorphed' : 'you are disoriented');
     if (!def.ignoresLockout && (u.lockouts[def.school] ?? 0) > this.time) return fail(`${def.school} school is locked out`);
     if (this.storedFull(u, def)) return fail('ability is on cooldown');
     if (!this.modsOf(u).ability[def.id]?.stored && (u.cooldowns[def.id] ?? 0) > this.time && (u.chargesUsed[def.id] ?? 0) >= (this.modsOf(u).ability[def.id]?.charges ?? 0)) return fail('ability is on cooldown');

@@ -311,6 +311,7 @@
     "kind": "fear",
     "duration": 4000,
     "harmful": true,
+    "locksAbilities": true,
     "dr": "fear",
     "dispellable": true
   },

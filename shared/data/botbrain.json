@@ -1,16 +1,16 @@
 {
  "warrior": {
   "coverHp": 0.413,
-  "defHp": 0.481,
-  "strafe": 0.808,
+  "defHp": 0.386,
+  "strafe": 0.898,
   "healerPrio": 0,
-  "focus": 7.075,
+  "focus": 9.675,
   "killLow": 43.376,
-  "rangeBias": 0.682,
+  "rangeBias": -0.049,
   "healAt": 0.958,
   "burstHp": 0.96,
   "strafeFlip": 0.6,
-  "chase": 0.539
+  "chase": 0.435
  },
  "rogue": {
   "coverHp": 0.546,
@@ -32,23 +32,23 @@
   "healerPrio": 31.378,
   "focus": 11.518,
   "killLow": 72.885,
-  "rangeBias": -0.594,
-  "healAt": 1.118,
+  "rangeBias": -0.153,
+  "healAt": 1.206,
   "burstHp": 1,
   "strafeFlip": 0.6,
-  "chase": 0.18
+  "chase": 0.157
  },
  "priest": {
-  "coverHp": 0.462,
-  "defHp": 0.291,
+  "coverHp": 0.432,
+  "defHp": 0.285,
   "strafe": 0.281,
   "healerPrio": 0.013,
-  "focus": 29.264,
-  "killLow": 98.482,
+  "focus": 30,
+  "killLow": 98.275,
   "rangeBias": -0.44,
   "healAt": 1.3,
-  "burstHp": 0.3,
-  "strafeFlip": 2.587,
+  "burstHp": 0.305,
+  "strafeFlip": 2.365,
   "chase": 0.384
  }
 }

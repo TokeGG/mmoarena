@@ -39,7 +39,7 @@ export function installTips() {
       case 'aura': {
         const def = AURAS[a];
         if (!def) return null;
-        return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a)], notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
+        return { title: def.name, titleColor: def.harmful ? '#ff8a7a' : '#8dff9a', tag: def.harmful ? 'Debuff' : 'Buff', lines: [describeAura(a, mods)], notes: def.dispellable ? ['Magic: can be dispelled.'] : [] };
       }
       case 'spec': {
         const spec = specOf(a as ClassId, b);

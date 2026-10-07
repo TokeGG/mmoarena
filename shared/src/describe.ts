@@ -39,18 +39,18 @@ export function describeMods(m: ModsInput | undefined): string[] {
 }
 
 /** One line on what an aura does while it is on you. */
-export function describeAura(id: string): string {
+export function describeAura(id: string, mods?: Mods): string {
   const a = AURAS[id];
   if (!a) return '';
-  return describeBase(id);
+  return describeBase(id, mods);
 }
 
-function describeBase(id: string): string {
+function describeBase(id: string, mods?: Mods): string {
   const a = AURAS[id];
   switch (a.kind) {
     case 'stun': return 'Cannot move, cast or act.';
     case 'incapacitate': return `Cannot move, cast or act${a.canTurn ? ' (can still turn)' : ''}${a.locksAbilities ? ', not even Blink' : ''}. Breaks on damage.${a.hot ? ` Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s.` : ''}`;
-    case 'fear': return `Runs around in fear at ${Math.round(TUNING.fearSpeed * 100)}% speed. Cannot cast or act.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
+    case 'fear': return `Runs around in fear at ${Math.round(TUNING.fearSpeed * 100)}% speed. Cannot cast or act${a.locksAbilities ? ', not even Blink' : ''}.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
     case 'root': return 'Cannot move.';
     case 'mark': {
       const parts: string[] = [];
@@ -73,7 +73,11 @@ function describeBase(id: string): string {
       if (a.maxStacks) parts.push(`Stacks up to ${a.maxStacks} times`);
       return parts.join('. ') + '.';
     }
-    case 'dot': return a.dot ? `${a.bleed ? 'Bleeding: takes' : 'Takes'} about ${a.dot.amount} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${Math.round((a.duration / a.dot.interval) * a.dot.amount)} total)` : ''}.` : '';
+    case 'dot': {
+      if (!a.dot) return '';
+      const per = Math.round(a.dot.amount * (mods ? mods.damageDone * (mods.ability[a.dot.ability]?.damage ?? 1) : 1));
+      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} about ${per} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${per * Math.round(a.duration / a.dot.interval)} total)` : ''}.`;
+    }
   }
 }
 
@@ -123,7 +127,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         if (!a) break;
         const dur = a.duration > 0 ? Math.round((a.duration * (mods.auraDuration[e.aura] ?? 1)) / 100) / 10 : 0;
         const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent)` : '';
-        const body = a.kind === 'absorb' ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${Math.round((a.absorb ?? 0) * mods.healingDone)} damage`}` : describeAura(e.aura).replace(/\.$/, '');
+        const body = a.kind === 'absorb' ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${Math.round((a.absorb ?? 0) * mods.healingDone)} damage`}` : describeAura(e.aura, mods).replace(/\.$/, '');
         const who = e.self || def.target === 'self' ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
         lines.push(`${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${dur}s` : ''}${extra}: ${body}.`);
         break;
@@ -138,7 +142,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(def.target === 'any' ? 'Removes one magic effect: a harmful one from allies, a beneficial one from enemies.' : 'Removes one magic effect.');
         break;
       case 'charge':
-        lines.push(`Stuns the target as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${e.hit} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`);
+        lines.push(`Stuns the target as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${Math.round(e.hit * mods.damageDone * (mods.ability['charge']?.damage ?? 1))} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`);
         break;
       case 'dashToTarget':
         lines.push(e.behind ? 'Rushes to the target and lands behind it, turning you to face it.' : 'Rushes to the target.');
@@ -147,7 +151,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         lines.push(`Heals you for ${Math.round(e.pct * 100)}% of your maximum health.`);
         break;
       case 'leap':
-        lines.push(`Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${e.damage} damage on landing` : ''}.`);
+        lines.push(`Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${Math.round(e.damage * mods.damageDone * (mods.ability[def.id]?.damage ?? 1))} damage on landing` : ''}.`);
         break;
       case 'pull':
         lines.push(`Drags the target to ${e.stopDistance} yards in front of you.`);
