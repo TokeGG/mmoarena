@@ -1117,7 +1117,7 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 0,
+  "castTime": 600,
   "cooldown": 0,
   "gcd": true,
   "cost": 30,
@@ -1125,8 +1125,15 @@
    {
     "type": "damage",
     "amount": 70
+   },
+   {
+    "type": "aura",
+    "aura": "hot_streak",
+    "chance": 0.1,
+    "self": true
    }
-  ]
+  ],
+  "castWhileMoving": true
  },
  {
   "id": "deep_freeze",

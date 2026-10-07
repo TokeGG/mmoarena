@@ -210,6 +210,14 @@ export class ArenaSim {
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
+    const proc = def.castTime > 0 ? u.auras.find((a) => AURAS[a.id]?.instantFor === def.id) : undefined;
+    if (proc) {
+      // a proc (Hot Streak) makes this cast instant and is used up
+      this.removeAura(u, proc, 'consumed');
+      if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      this.execute(u, def, tgt, ground ?? undefined);
+      return ok;
+    }
     if (def.castTime > 0) {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z } : {}) };
@@ -315,7 +323,7 @@ export class ArenaSim {
         // blocked by a pillar: stop rather than push against it
         if (dist(before, u.pos) < k * 0.3) this.endCharge(u, false);
         if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
-        if (u.cast && dist(before, u.pos) > 0.001) this.cancelCast(u, 'moved');
+        if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
         this.tryAutoAttack(u);
         return;
       }
@@ -336,7 +344,7 @@ export class ArenaSim {
       if (speed > 0) u.pos = stepMovement(u.pos, input, speed, DT, this.arena);
     }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
-    if (u.cast && dist(before, u.pos) > 0.001) this.cancelCast(u, 'moved');
+    if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
 
     if (u.cast?.ticks) this.tickChannel(u);
     if (u.cast && u.cast.end <= this.time) this.completeCast(u);
@@ -462,7 +470,8 @@ export class ArenaSim {
         this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1), def.id);
         break;
       case 'aura':
-        this.applyAura(u, t, eff.aura);
+        if (eff.chance !== undefined && this.rng() >= eff.chance) break;
+        this.applyAura(u, eff.self ? u : t, eff.aura);
         break;
       case 'interrupt':
         this.interrupt(u, t, def, eff.lockout);

@@ -68,7 +68,7 @@ describe('content data is consistent', () => {
         }
       }
     }
-    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods, `${id} buff has mods`);
+    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor, `${id} buff has mods`);
   });
 
   it('descriptions never contain NaN or undefined', () => {

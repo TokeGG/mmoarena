@@ -300,5 +300,12 @@
   "mods": {
    "castTime": 0.7
   }
+ },
+ "hot_streak": {
+  "name": "Hot Streak",
+  "kind": "buff",
+  "duration": 10000,
+  "harmful": false,
+  "instantFor": "pyroblast"
  }
 }

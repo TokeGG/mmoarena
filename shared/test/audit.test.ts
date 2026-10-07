@@ -138,7 +138,7 @@ describe('skills and talents audit: every ability works in the sim', () => {
       const has = (k: string) => a.effects.some((e) => e.type === k);
       if (has('damage') && !ally) assert.ok(t.dmg > 0, 'no damage');
       if (has('heal')) assert.ok(t.heal > 0, 'no healing');
-      if (has('aura')) assert.ok(t.auras.length > 0, 'no aura applied');
+      if (a.effects.some((e) => e.type === 'aura' && e.chance === undefined)) assert.ok(t.auras.length > 0, 'no aura applied');
       if (has('dispel')) assert.ok(t.disp, 'nothing dispelled');
       if (has('interrupt')) assert.ok(t.intr, 'no interrupt');
       if (has('blink') || has('dashToTarget') || has('charge')) assert.ok(t.moved > 1, 'did not move');

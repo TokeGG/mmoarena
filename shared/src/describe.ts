@@ -55,7 +55,7 @@ function describeBase(id: string): string {
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
     case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;
     case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Movement speed reduced by ${Math.abs(a.speedPct ?? 0)}%. Broken by damage or attacking.`;
-    case 'buff': return describeMods(a.mods).map(cap).join('. ') + '.';
+    case 'buff': return a.instantFor ? `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.` : describeMods(a.mods).map(cap).join('. ') + '.';
     case 'dot': return a.dot ? `Takes about ${a.dot.amount} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${Math.round((a.duration / a.dot.interval) * a.dot.amount)} total)` : ''}.` : '';
   }
 }
@@ -104,8 +104,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         if (!a) break;
         const dur = a.duration > 0 ? Math.round((a.duration * (mods.auraDuration[e.aura] ?? 1)) / 100) / 10 : 0;
         const body = a.kind === 'absorb' ? `Absorbs ${Math.round((a.absorb ?? 0) * mods.healingDone)} damage` : describeAura(e.aura).replace(/\.$/, '');
-        const who = def.target === 'self' ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
-        lines.push(`${who} ${a.name}${dur ? ` for ${dur}s` : ''}: ${body}.`);
+        const who = e.self || def.target === 'self' ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
+        lines.push(`${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${dur}s` : ''}: ${body}.`);
         break;
       }
       case 'interrupt':
@@ -143,6 +143,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
 
   const notes: string[] = [];
   if (def.requiresStealth) notes.push('Requires stealth.');
+  if (def.castWhileMoving) notes.push('Can be cast while moving.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
   if (def.ignoresLockout) notes.push('Usable while locked out.');

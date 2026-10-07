@@ -23,7 +23,7 @@ export const AURA_ICON: Record<string, string> = {
   recklessness: '😡', shield_wall: '🧱', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
   pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', 
-  power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡',
+  power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', hot_streak: '🔥',
   deep_freeze_stun: '🧊', hammer_stun: '🔨', judgment_stun: '⚖️', choke_stun: '💨', creeping_rot: '☠️', plague_bloom: '🦠',
 };
 

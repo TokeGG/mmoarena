@@ -290,6 +290,56 @@ describe('stealth', () => {
     assert.ok(absorbOf()! < full, 'shield shrank');
   });
 
+  it('scorch is a 0.6 s cast you can move through, and may make the next pyroblast instant', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'scorch'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'scorch', foe.id).ok);
+    assert.ok(mage.cast && mage.cast.end - mage.cast.start === 600);
+    sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: 0 });
+    advance(sim, 300);
+    assert.equal(mage.cast?.ability, 'scorch', 'moving does not cancel it');
+    advance(sim, 500);
+    assert.equal(mage.cast, null);
+    assert.ok(foe.health < 1e6, 'it landed');
+    // about one cast in ten grants Hot Streak
+    let procs = 0;
+    for (let i = 0; i < 300; i++) {
+      mage.resource = mage.resourceMax;
+      mage.auras = mage.auras.filter((x) => x.id !== 'hot_streak');
+      mage.cooldowns = {};
+      mage.gcdEnd = 0;
+      mage.pos = { x: 0, z: 0 };
+      mage.facing = 0;
+      if (!sim.useAbility(mage.id, 'scorch', foe.id).ok) { advance(sim, 100); continue; }
+      advance(sim, 700);
+      if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
+    }
+    assert.ok(procs >= 10 && procs <= 60, `procs ${procs}/300`);
+  });
+
+  it('hot streak makes the next pyroblast instant and is used up', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'pyroblast'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
+    assert.ok(mage.cast, 'normally a 3 s cast');
+    sim.cancelCast(mage, 'test');
+    mage.gcdEnd = 0;
+    sim.applyAura(mage, mage, 'hot_streak');
+    const hp = foe.health;
+    const r2 = sim.useAbility(mage.id, 'pyroblast', foe.id);
+    assert.ok(r2.ok, JSON.stringify(r2));
+    assert.equal(mage.cast, null, 'instant');
+    assert.ok(foe.health < hp, 'hit at once');
+    assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
+  });
+
   it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);

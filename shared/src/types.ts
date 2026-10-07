@@ -67,6 +67,8 @@ export interface AuraDef {
   unique?: boolean;
   /** The holder takes this percent more damage of one school (Frost Nova and Deep Freeze make frost hurt more). */
   vuln?: { school: School; pct: number };
+  /** Your next cast of this ability is instant and uses this aura up (Hot Streak -> Pyroblast). */
+  instantFor?: string;
   /** An incapacitated unit may still turn on the spot (Polymorph). */
   canTurn?: boolean;
   /** While this is on you, abilities that normally work through crowd control (Blink) do not (Polymorph). */
@@ -87,7 +89,7 @@ export type Effect =
   /** `only` limits an effect to allies or enemies of the caster (Penance heals a friend and hurts a foe). */
   | { type: 'damage'; amount: number; only?: 'ally' | 'enemy' }
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
-  | { type: 'aura'; aura: string }
+  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean }
   | { type: 'interrupt'; lockout: number }
   | { type: 'dispel' }
   | { type: 'dashToTarget'; stopDistance: number }
@@ -119,6 +121,8 @@ export interface AbilityDef {
   cost: number;
   effects: Effect[];
   requiresStealth?: boolean;
+  /** Can be cast while moving (moving does not cancel it). */
+  castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;
   outOfCombatOnly?: boolean;
   keepsStealth?: boolean;
