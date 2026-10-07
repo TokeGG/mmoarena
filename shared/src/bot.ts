@@ -2,6 +2,7 @@ import { ABILITIES, AURAS, TUNING } from './data';
 import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, heightAt, navStep, stepMovementL } from './geometry';
 import { coverSpot, highSpot, navRoute, needsNavGrid } from './nav';
 import { JUMP_HEIGHT, canStartJump } from './jump';
+import { mulberry32 } from './sim';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
@@ -41,6 +42,11 @@ const PARAMS: Record<Difficulty, { react: number; think: number; interruptChance
   hard: { react: 160, think: 1, interruptChance: 1, guard: 1, tricks: 1, lapse: 0 },
 };
 
+/** Abilities on a unit's bar that interrupt (Kick, Pummel, Counterspell, and whatever a talent swapped in). */
+export function interruptsOf(x: Pick<Unit, 'bar'>): string[] {
+  return x.bar.filter((id) => ABILITIES[id]?.effects.some((e) => e.type === 'interrupt'));
+}
+
 export const RANGED: Partial<Record<ClassId, { min: number; max: number }>> = {
   mage: { min: 14, max: 26 },
   priest: { min: 15, max: 30 },
@@ -53,15 +59,6 @@ const LOCKED_DOWN = ['incapacitate', 'fear', 'stun'];
 const hpFrac = (u: Unit) => u.health / u.maxHealth;
 const angleDiff = (a: number, b: number) => ((((a - b + Math.PI) % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI)) - Math.PI;
 
-function mulberry32(seed: number) {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** A ground point at a unit's feet, on its floor (on top of a walkway when it stands there). */
 const feetOf = (t: Unit): Vec2 & { lv?: 1 } => ({ x: t.pos.x, z: t.pos.z, ...(t.level === 1 ? { lv: 1 as const } : {}) });
@@ -226,6 +223,18 @@ export class Bot {
     // a person-high barricade between us and the target: hop, and throw an instant over it from the top of the jump
     if (tgt && !u.cast && this.P.tricks > 0 && sim.canAct(u) && this.popShot(u, tgt)) return;
 
+    // a caster with melee on it runs, and fights with instants on the way (a bot needs no facing to cast them)
+    // a run, once started, lasts a moment, and so does a stand: switching every tick would only spin the bot round
+    const kiteNow = this.kiteFrom(u, enemies);
+    if (kiteNow && !this.kite && sim.time < this.kiteSwitchAt) this.kite = null;
+    else if (!kiteNow && this.kite && sim.time < this.kiteSwitchAt && this.kite.alive && sim.canMove(u) && !u.cast) {
+      /* keep running */
+    } else {
+      if (!!kiteNow !== !!this.kite) this.kiteSwitchAt = sim.time + (kiteNow ? 900 : 700);
+      this.kite = kiteNow;
+    }
+    if (this.kite) this.moving = true;
+
     // Decide first, move second: if a cast just started, movement sees it and stands still.
     if (sim.time >= this.nextThink) {
       this.nextThink = sim.time + this.P.think * TUNING.tickMs;
@@ -240,6 +249,34 @@ export class Bot {
   private lastWalk = false;
   /** The route says jump now (a rail to clear, a barricade, the side of a ramp). */
   private jumpNow = false;
+  /** The melee enemy a caster is running from this tick, if any. */
+  private kite: Unit | null = null;
+  private kiteSwitchAt = 0;
+  /** The line a run follows, held for a moment so the bot does not weave between equally good directions. */
+  private kiteAngle: { angle: number; until: number } | null = null;
+  /**
+   * Casters kite like players: a melee enemy within about 7 yards that can still chase (not rooted, stunned, feared or
+   * sheeped; a slowed one only once it is within 4.5) is run from at full speed, with instants thrown on the way. Once it
+   * is held or left behind, the caster stands and casts again. How eagerly is the brain's `mobility`.
+   */
+  private kiteFrom(u: Unit, enemies: Unit[]): Unit | null {
+    if (!RANGED[u.classId] || !this.sim.canMove(u) || u.cast || this.brain.mobility < 0.25) return null;
+    if (u.classId === 'priest' && u.spec !== 'shadow') return null; // a healer's heals have cast times: it stands and heals
+    const reach = 4.5 + 2.5 * this.brain.mobility;
+    // running from a melee that is not slowed only pays while there is an instant to throw on the way (it keeps up)
+    const instant = u.bar.some((id) => {
+      const a = ABILITIES[id];
+      return !!a && a.castTime === 0 && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
+    });
+    return enemies
+      .filter((e) => MELEE.has(e.classId) && this.sim.canMove(e) && !e.auras.some((a) => HARD_CC.includes(a.kind)))
+      .filter((e) => {
+        const slowed = e.auras.some((a) => a.kind === 'slow');
+        return slowed ? dist(u.pos, e.pos) < Math.max(4.5, (RANGED[u.classId]!.min + this.brain.rangeBias) * 0.6) : instant && dist(u.pos, e.pos) < reach;
+      })
+      .sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0] ?? null;
+  }
+
   /** Jump on the spot to see over a barricade (jumpNow only fires while walking). */
   private popJump = false;
   private nextPop = 0;
@@ -351,13 +388,14 @@ export class Bot {
 
   /** Abilities on a unit's bar that interrupt (Kick, Pummel, Counterspell, and whatever a talent swapped in). */
   private interruptsOf(x: Unit): string[] {
-    return x.bar.filter((id) => ABILITIES[id]?.effects.some((e) => e.type === 'interrupt'));
+    return interruptsOf(x);
   }
 
   /** An enemy who could interrupt us right now: its interrupt is ready, it is in reach and it can see us. */
   private kickThreat(u: Unit, enemies: Unit[]): boolean {
     const sim = this.sim;
-    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => (e.cooldowns[id] ?? 0) <= sim.time && dist(e.pos, u.pos) <= ABILITIES[id].range + 2.5) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
+    // in reach, or closing in fast enough to be in reach before a cast finishes
+    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => (e.cooldowns[id] ?? 0) <= sim.time && dist(e.pos, u.pos) <= ABILITIES[id].range + 6) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
   }
 
   /**
@@ -693,7 +731,8 @@ export class Bot {
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
-    if (d > 25 && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
+    // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach): a warrior never walks in
+    if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !hasLOS(u.pos, tgt.pos, this.sim.arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
     if (hpFrac(u) < this.brain.defHp && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
@@ -733,8 +772,11 @@ export class Bot {
     // Fan of Knives whenever someone is within its 8 yards; Crippling Strike keeps a runner slowed
     if (enemies.some((e) => dist(u.pos, e.pos) <= 7.5) && this.use(u, 'fan_of_knives')) return;
     if (!tgt.auras.some((a) => a.kind === 'slow' || a.kind === 'root') && this.use(u, 'crippling_strike', tgt.id)) return;
-    if (u.cp >= 4 && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
-    if (u.cp >= 3 && !stunned && this.use(u, 'kidney_shot', tgt.id)) return;
+    // finishers: spend at 4 (at 3 on a target about to die); Kidney Shot only with 4 or more, and only while its stun
+    // still lands for long (not on a target that is already diminished), so points are not thrown away on 1-point stuns
+    const stunDr = tgt.dr.stun && this.sim.time < tgt.dr.stun.resetAt ? tgt.dr.stun.count : 0;
+    if (u.cp >= 4 && !stunned && stunDr === 0 && this.use(u, 'kidney_shot', tgt.id)) return;
+    if ((u.cp >= 4 || (u.cp >= 3 && hpFrac(tgt) < 0.25)) && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
     if (!tgt.auras.some((a) => a.id === 'garrote_bleed') && this.use(u, 'garrote', tgt.id)) return;
     this.rotate(u, tgt, ['mutilate', 'backstab', 'sinister_strike', 'garrote', 'crippling_strike', 'fan_of_knives']);
   }
@@ -863,7 +905,7 @@ export class Bot {
     // keep Shadow Word: Pain (its damage over time) rolling on the target, then the nukes
     const dotted = tgt?.auras.some((a) => a.id === 'creeping_rot' && a.sourceId === u.id);
     if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) {
-      if ((!dotted || hpFrac(tgt) < 0.3) && this.use(u, 'shadow_word_death', tgt.id)) return;
+      if (!dotted && this.use(u, 'shadow_word_death', tgt.id)) return; // a damage-over-time now: refreshing it early wastes a global cooldown
       this.rotate(u, tgt, ['mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay']);
     }
     // a stun on a casting enemy that nothing else stopped
@@ -962,6 +1004,13 @@ export class Bot {
     }
 
     if (this.cover && sim.time < this.coverUntil) return idle; // sitting in cover
+    if (this.kite) {
+      // along the most open line away from it (the same search Blink uses), now and then a hop
+      if (!this.kiteAngle || sim.time >= this.kiteAngle.until) this.kiteAngle = { angle: this.blinkAngle(u, this.kite.pos) ?? angleTo(this.kite.pos, u.pos), until: sim.time + 600 };
+      const away = this.kiteAngle.angle;
+      if (this.rng() < 0.01 * this.brain.mobility) this.jumpNow = true;
+      return { facing: away, fwd: 1, strafe: 0, guard: true };
+    }
 
     // only a healing priest minds its partner first; a Shadow priest fights like any caster
     if (u.classId === 'priest' && u.spec !== 'shadow') {
@@ -1002,8 +1051,11 @@ export class Bot {
       // the route goes round the pillar or up the ramp
       const floorGap = Math.abs(heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));
       if (d > reach || floorGap > 1.6 || !hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level)) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
-      // in melee range: keep moving round the target instead of standing still
-      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.2 * Math.max(this.brain.strafe, this.brain.mobility) }; // circling at this range only spins the bot, so it barely moves
+      // in melee range: circle the target like a player does (strafing round it, stepping in when it drifts out, now and
+      // then a hop), never a standing target. The step in keeps the circle tight enough to stay in reach.
+      const circle = 0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility); // faster than this, the orbit itself spins the bot round
+      if (this.rng() < 0.006 * this.brain.mobility) this.jumpNow = true;
+      return { facing: toT, fwd: d > reach * 0.75 ? 0.45 : 0, strafe: this.strafeSign * circle };
     }
     if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d > range.max) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };

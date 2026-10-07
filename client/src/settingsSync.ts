@@ -12,7 +12,7 @@ import { MAX_SETTINGS } from '@arena/shared';
 
 /** Never synced: credentials, per-browser guest progress, the signed-in name, the one-off login prompt flag and the bases. */
 const BASE_PREFIX = 'arena.syncBase';
-const EXCLUDE = new Set(['arena.session.v1', 'arena.profile.v1', 'arena.setups.v1', 'arena.seenLogin.v1', 'arena.name']);
+const EXCLUDE = new Set(['arena.session.v1', 'arena.profile.v1', 'arena.seenLogin.v1', 'arena.name']);
 const RELOAD_FLAG = 'arena.syncReload';
 const excluded = (k: string) => EXCLUDE.has(k) || k === RELOAD_FLAG || k.startsWith(BASE_PREFIX);
 

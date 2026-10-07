@@ -1,6 +1,6 @@
 import { ABILITIES } from './data';
 import { hasLOS } from './geometry';
-import { RANGED } from './bot';
+import { RANGED, interruptsOf } from './bot';
 import { BRAIN_BOUNDS } from './botbrain';
 import type { Brain } from './botbrain';
 import { isDefensive, measureHumans } from './humanstyle';
@@ -62,7 +62,6 @@ const median = (xs: number[]) => {
   const s = [...xs].sort((a, b) => a - b);
   return s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2;
 };
-const interruptsOf = (u: Unit) => u.bar.filter((id) => ABILITIES[id]?.effects.some((e) => e.type === 'interrupt'));
 const isHuman = (o: ReplayData['units'][number]) => o.controller === 'player' || o.controller === undefined;
 
 /** Play a match back and say what each bot should learn from it, and how its people kick and fake. */

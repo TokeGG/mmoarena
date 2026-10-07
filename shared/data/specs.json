@@ -32,7 +32,7 @@
       "name": "Rampager",
       "role": "Two-handed sword",
       "desc": "Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.",
-      "icon": "\ud83e\ude93",
+      "icon": "\ud83d\udde1\ufe0f",
       "bar": [
         "bladestorm",
         "bloodthirst",

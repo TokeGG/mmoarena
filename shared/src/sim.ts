@@ -35,7 +35,8 @@ export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4 | 5 | 6, unit: num
 export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
 export type AuraResult = { applied: true; duration: number; dr: number } | { applied: false; immune: true };
 
-function mulberry32(seed: number) {
+/** Small seeded random number generator: the same seed gives the same sequence (sim, bots, training scripts). */
+export function mulberry32(seed: number) {
   let a = seed | 0;
   return () => {
     a = (a + 0x6d2b79f5) | 0;

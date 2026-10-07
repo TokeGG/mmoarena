@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { CLASS_IDS, SPECS, botBuild, isRotationAbility, rotationDamage, talentsFor } from '../shared/src/index';
+import { CLASS_IDS, SPECS, botBuild, isRotationAbility, rotationDamage, talentsFor, mulberry32 } from '../shared/src/index';
 import type { Build, ClassId } from '../shared/src/index';
 
 const arg = (k: string, d: string) => {
@@ -22,15 +22,6 @@ const only = arg('specs', '').split(',').filter(Boolean);
 
 const damageOf = (classId: ClassId, build: Build, order: string[]) => rotationDamage(classId, build, order, SECONDS);
 
-function mulberry32(seed: number) {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 const file = path.join(path.dirname(fileURLToPath(import.meta.url)), '../shared/data/rotations.json');
 const out = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, string[]>;

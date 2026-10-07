@@ -271,7 +271,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
 
   const ticks = def.channel?.ticks ?? 1;
   const every = def.channel ? M((m) => secs(castMs(m) / ticks), fmtS, false) : '';
-  const stops = def.unstoppable ? 'Interrupts and crowd control cannot stop it.' : def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
+  const stops = def.unstoppable ? '' : def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
   const dmgOf = (amount: number) => (m: Mods) => Math.round(amount * m.damageDone * (ab(m).damage ?? 1));
   const healOf = (amount: number) => (m: Mods) => Math.round(amount * m.healingDone * (ab(m).heal ?? 1));
 
@@ -284,15 +284,15 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         // stated here only (the in-depth view does not repeat it)
         const scaling = `${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`;
         const first = def.channel?.immediate ? ' (the first at once)' : '';
-        if (def.channel?.beam) return `Channels a beam into the target, dealing ${N} ${def.school} damage every ${every} (${T} total). ${stops}${scaling}`;
+        if (def.channel?.beam) return `Channels a beam into the target, dealing ${N} ${def.school} damage every ${every} (${T} total).${stops ? ` ${stops}` : ''}${scaling}`;
         if (def.channel && e.only) return `On an enemy: deals ${N} ${def.school} damage every ${every} (${T} total).${scaling}`;
-        if (def.channel && def.school === 'physical') return `Strikes${aoe ? ' every enemy in range' : ''} ${ticks} times, once every ${every}${first}, for ${N} physical damage each (${T} total). ${stops}${scaling}`;
-        if (def.channel) return `Fires ${ticks} missiles, one every ${every}${first}, each dealing ${N} ${def.school} damage (${T} total). ${stops}${scaling}`;
+        if (def.channel && def.school === 'physical') return `Strikes${aoe ? ' every enemy in range' : ''} ${ticks} times, once every ${every}${first}, for ${N} physical damage each (${T} total).${stops ? ` ${stops}` : ''}${scaling}`;
+        if (def.channel) return `Fires ${ticks} missiles, one every ${every}${first}, each dealing ${N} ${def.school} damage (${T} total).${stops ? ` ${stops}` : ''}${scaling}`;
         return `Deals ${N} ${def.school} damage${aoe ? ' to all enemies in range' : ''}.${scaling}`;
       }
       case 'heal': {
         const h = healOf(e.amount);
-        return `${e.only === 'ally' ? 'On an ally: heals' : 'Heals'} for ${M(h)}${def.channel ? ` every ${every} (${M((m) => h(m) * ticks)} total)` : ''}.`;
+        return `${e.only === 'ally' ? (def.target === 'aoe_all' ? 'Heals you and every ally in range' : 'On an ally: heals') : 'Heals'} for ${M(h)}${def.channel ? ` every ${every} (${M((m) => h(m) * ticks)} total)` : ''}.`;
       }
       case 'healMissing':
         return `Heals ${def.target === 'self' ? 'you' : 'the target'} for ${Math.round(e.pct * 100)}% of ${def.target === 'self' ? 'your' : 'its'} missing health.`;
@@ -331,7 +331,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
       case 'leap':
         return `Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${M(dmgOf(e.damage))} damage on landing` : ''}.`;
       case 'pull':
-        return `Drags the target to ${e.stopDistance} yards in front of you.`;
+        return `Drags ${def.target === 'aoe_enemy' ? 'every enemy hit' : 'the target'} to ${e.stopDistance} yards in front of you.`;
       case 'flag':
         return `Plants a banner at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies inside its ${e.radius}-yard circle cannot leave it.`;
       case 'blink':

@@ -95,7 +95,7 @@
     }
   },
   "shield_wall": {
-    "name": "Shield Wall",
+    "name": "Fortress Stance",
     "kind": "buff",
     "duration": 8000,
     "harmful": false,

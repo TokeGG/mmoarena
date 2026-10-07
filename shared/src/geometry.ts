@@ -286,11 +286,11 @@ export function distPointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   return Math.hypot(p.x - (a.x + abx * t), p.z - (a.z + abz * t));
 }
 
-/** Line of sight is blocked by pillars and walls; on the ground by ramps and piers; across levels by the deck overhead. Low barricades never block it. */
 /**
  * Line of sight between two points (units' feet), chest to chest. `ha` and `hb` are how high each is in a jump: a low
  * barricade blocks the line where it passes the barricade lower than its top, so two people on the ground cannot see
- * past one, and a jump lifts the line over it.
+ * past one, and a jump lifts the line over it. Pillars and walls always block it; on the ground so do ramps and piers;
+ * across levels the deck overhead does.
  */
 export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Level = 0, ha = 0, hb = 0): boolean {
   for (const pl of arena.pillars) {
@@ -351,11 +351,6 @@ export function stepMovementL(pos: Vec2, level: Level, input: Pick<MoveInput, 'f
     dz /= len;
   }
   return moveTo(arena, level, pos, { x: pos.x + dx * speed * dtSec, z: pos.z + dz * speed * dtSec }, air);
-}
-
-/** One step on the ground (level 0). */
-export function stepMovement(pos: Vec2, input: Pick<MoveInput, 'fwd' | 'strafe' | 'facing'>, speed: number, dtSec: number, arena: ArenaDef): Vec2 {
-  return stepMovementL(pos, 0, input, speed, dtSec, arena).pos;
 }
 
 /** Walk forward in small steps and stop before the first obstacle. */

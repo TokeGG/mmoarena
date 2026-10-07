@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { parseLook } from '@arena/shared';
+import { parseLook, clamp } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 
 /**
@@ -39,7 +39,6 @@ export interface Character {
   setState(alive: boolean, stealthed: boolean): void;
 }
 
-const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
 const smooth = (x: number) => {
   const k = clamp(x, 0, 1);

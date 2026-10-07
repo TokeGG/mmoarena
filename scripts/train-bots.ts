@@ -13,7 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ARENAS, ArenaSim, Bot, CLASS_IDS, SPECS, brainFor, botBuild, mutateBrain, styledBrain, BRAIN_KEYS } from '../shared/src/index';
+import { ARENAS, ArenaSim, Bot, CLASS_IDS, SPECS, brainFor, botBuild, mutateBrain, styledBrain, BRAIN_KEYS, mulberry32 } from '../shared/src/index';
 import type { Brain, ClassId, HumanStyle } from '../shared/src/index';
 
 const arg = (k: string, d: string) => {
@@ -43,15 +43,6 @@ const foeWeight = (cls: ClassId, foe: ClassId) => {
   return r === null ? 1 : 0.5 + (1 - r);
 };
 
-function mulberry32(seed: number) {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 /** Score (about 0..1.6) for `cls` playing with `brain`: wins count 1, plus up to 0.3 for health left; losses 0 plus a little for damage dealt. */
 function evaluate(cls: ClassId, brain: Brain, only?: { foe: ClassId; size: number; wins: boolean }): number {

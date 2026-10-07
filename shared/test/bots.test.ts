@@ -91,8 +91,10 @@ describe('bots play by the same rules as humans', () => {
     ally.health = Math.round(ally.maxHealth * 0.3);
     run(ctx, TICK);
     assert.ok(ctx.sim.useAbility(priest.id, 'flash_heal', ally.id).ok);
-    const ev = run(ctx, 1000);
+    // it may wait into the cast (kickAt, against fakes), but the heal never lands
+    const ev = run(ctx, 1600);
     assert.ok(ev.some((e) => e.t === 'interrupt' && e.src === mage.id && e.ability === 'flash_heal'));
+    assert.ok(!ev.some((e) => e.t === 'heal' && e.ability === 'flash_heal'), 'kicked before it landed');
   });
 
   it('a priest bot dispels crowd control off its partner', () => {

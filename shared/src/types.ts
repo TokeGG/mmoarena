@@ -256,7 +256,7 @@ export interface ArenaDef {
    * Stone piers hold the flats up; they are worked out too unless `piers` lists them.
    */
   deck?: { height: number; flats: Rect[]; ramps: (Rect & { rise: '+x' | '-x' | '+z' | '-z' })[]; piers?: Rect[] };
-  /** Low barricades: block walking on the ground, but a jump clears them and they never block line of sight. */
+  /** Low barricades, as tall as a person: they block walking and sight on the ground; a jump clears them and sees over them. */
   lows?: Rect[];
   /** Solid straight walls (axis-aligned boxes). They block movement, Blink and line of sight on every level. */
   walls?: { x0: number; x1: number; z0: number; z1: number }[];
