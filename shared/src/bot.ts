@@ -370,8 +370,29 @@ export class Bot {
   // ------------------------------------------------------------------ movement
 
   /** Steer around the pillar that blocks the way instead of pushing into it. */
+  /** On a chasm map the only way across is the bridge: head for the near ramp, then over the span to the far ramp. */
+  private bridgeWaypoint(from: Vec2, to: Vec2): Vec2 | null {
+    const arena = this.sim.arena;
+    const br = arena.bridge;
+    if (!br || !arena.voids?.length) return null;
+    const blocked = (p: Vec2) => arena.voids!.some((v) => p.x > v.minX - 0.7 && p.x < v.maxX + 0.7 && p.z > v.minZ - 0.7 && p.z < v.maxZ + 0.7);
+    const len = dist(from, to);
+    let crosses = false;
+    for (let t = 0; t <= len; t += 1) {
+      const k = len ? t / len : 0;
+      if (blocked({ x: from.x + (to.x - from.x) * k, z: from.z + (to.z - from.z) * k })) { crosses = true; break; }
+    }
+    if (!crosses) return null;
+    const end = br.deckHalf + br.rampLen + 1.5;
+    const onSpan = Math.abs(from.z) < br.halfWidth - 0.4 && Math.abs(from.x) <= end;
+    const side = (x: number) => (x < 0 ? -1 : 1);
+    return onSpan ? { x: side(to.x) * end, z: 0 } : { x: side(from.x) * end, z: 0 };
+  }
+
   private waypoint(from: Vec2, to: Vec2): Vec2 {
     const arena = this.sim.arena;
+    const bw = this.bridgeWaypoint(from, to);
+    if (bw) return bw;
     if (hasLOS(from, to, arena)) return to;
     let best: { x: number; z: number; r: number } | undefined;
     for (const pl of arena.pillars) {

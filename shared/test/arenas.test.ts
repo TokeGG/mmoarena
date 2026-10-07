@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, arenaById, hasLOS } from '../src/index';
+import { ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, hasLOS, heightAt, stepMovement } from '../src/index';
 
 describe('arenas', () => {
   it('has unique ids and valid layouts', () => {
@@ -84,5 +84,42 @@ describe('jumping', () => {
     sim.queueInput(u.id, { seq: 1, fwd: 0, strafe: 0, facing: 0, jump: true });
     for (let i = 0; i < 4; i++) sim.step();
     assert.equal(sim.snapshot().units.find((x) => x.id === u.id)!.y, 0);
+  });
+
+  it('Twin Ramps: the chasm blocks walking and blinking but not sight, and the only way over is the bridge', () => {
+    const a = arenaById('bridge');
+    assert.ok(a.voids?.length && a.bridge);
+    // walking straight at the chasm from the side stops at its edge
+    let p = { x: -12, z: 10 };
+    for (let i = 0; i < 400; i++) p = stepMovement(p, { fwd: 1, strafe: 0, facing: Math.PI / 2 }, 7, 0.05, a); // toward +x, into the chasm
+    assert.ok(p.x < -8, `stopped at the chasm edge, x=${p.x}`);
+    // the span itself is walkable end to end
+    p = { x: -20, z: 0 };
+    for (let i = 0; i < 400; i++) p = stepMovement(p, { fwd: 1, strafe: 0, facing: Math.PI / 2 }, 7, 0.05, a);
+    assert.ok(p.x > 18, `crossed the bridge, x=${p.x}`);
+    // blink toward the chasm stops short
+    const land = blinkDestination({ x: -12, z: 10 }, Math.PI / 2, 20, a);
+    assert.ok(land.x < -8, 'blink does not enter the chasm');
+    assert.ok(hasLOS({ x: 0, z: 10 }, { x: 0, z: -10 }, a), 'you can see across the gap');
+    assert.equal(heightAt(a, 0, 0), a.bridge!.height);
+    assert.equal(heightAt(a, 20, 0), 0);
+    assert.ok(heightAt(a, 12, 0) > 0 && heightAt(a, 12, 0) < a.bridge!.height);
+    assert.equal(heightAt(a, 0, 10), 0);
+  });
+
+  it('Twin Ramps: bots walk over the bridge to reach each other', () => {
+    const sim = new ArenaSim({ prepMs: 0, seed: 5, arena: arenaById('bridge'), facing: true });
+    const w = sim.addUnit({ name: 'W', classId: 'warrior', team: 0, controller: 'bot' });
+    const r = sim.addUnit({ name: 'R', classId: 'warrior', team: 1, controller: 'bot' });
+    w.pos = { x: -24, z: 8 }; r.pos = { x: 24, z: -8 };
+    const bots = [new Bot(sim, w.id, 'hard', 1), new Bot(sim, r.id, 'hard', 2)];
+    let met = false;
+    sim.step();
+    for (let i = 0; i < 20 * 40 && !met; i++) {
+      for (const b of bots) b.tick();
+      sim.step();
+      met = Math.hypot(w.pos.x - r.pos.x, w.pos.z - r.pos.z) < 4 || w.health < w.maxHealth || r.health < r.maxHealth;
+    }
+    assert.ok(met, `bots stuck at ${JSON.stringify(w.pos)} / ${JSON.stringify(r.pos)}`);
   });
 });

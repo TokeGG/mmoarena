@@ -83,9 +83,14 @@ export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
 }
 
+/** The arena every duel is played on. */
+export const DUEL_MAP = 'bridge';
+
 /** An arena id, resolving 'random' (or anything unknown) to a random arena. */
 export function pickMap(pref: string): string {
-  return ARENAS.some((a) => a.id === pref) ? pref : ARENAS[Math.floor(Math.random() * ARENAS.length)].id;
+  if (ARENAS.some((a) => a.id === pref)) return pref;
+  const pool = ARENAS.filter((a) => a.randomPool !== false);
+  return pool[Math.floor(Math.random() * pool.length)].id;
 }
 
 export class Room {
@@ -953,8 +958,8 @@ export class Lobby {
     const mate = [...this.conns].find((q) => q !== p && q.duelWith === p.account!.key && q.account?.key === p.duelWith);
     if (!mate) return void send(p, { t: 'queued', waiting: 1, needed: 2 });
     const first = (mate.duelAt ?? 0) <= (p.duelAt ?? 0) ? mate : p;
-    void first; // duels never use anyone's map pick: one random arena, shared because both friends are in the same room
-    const room = this.makeRoom(this.cfg.queuePrepMs, true, false, pickMap('random'));
+    void first; // duels never use anyone's map pick: they always play on the bridge arena
+    const room = this.makeRoom(this.cfg.queuePrepMs, true, false, DUEL_MAP);
     room.size = 1;
     p.duelWith = mate.duelWith = undefined;
     room.addPlayer(mate, 0);

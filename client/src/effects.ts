@@ -135,6 +135,8 @@ export class Effects {
   /** Fired when a unit takes a hit so the model can flash. */
   onHit: (unit: number) => void = () => {};
 
+  /** Ground height under a point (bridge arenas); rings and zones sit on it. */
+  groundY: (x: number, z: number) => number = () => 0;
   constructor(private scene: THREE.Scene, private pos: (id: number) => Pos | null) {}
 
   // ------------------------------------------------------------ primitives
@@ -207,7 +209,7 @@ export class Effects {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
     const mesh = new THREE.Mesh(this.ringGeo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(x, y, z);
+    mesh.position.set(x, y + this.groundY(x, z), z);
     this.scene.add(mesh);
     let t = 0;
     this.addFx({
@@ -1089,7 +1091,7 @@ export class Effects {
     let m = this.smokeMeshes.get(z.id);
     if (!m) {
       const group = new THREE.Group();
-      group.position.set(z.x, 0, z.z);
+      group.position.set(z.x, this.groundY(z.x, z.z), z.z);
       const mat = () => new THREE.MeshBasicMaterial({ color: 0x8b8f99, transparent: true, opacity: 0.4, depthWrite: false });
       const disc = new THREE.Mesh(this.discGeo, new THREE.MeshBasicMaterial({ color: 0x555a66, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }));
       disc.rotation.x = -Math.PI / 2;
@@ -1139,7 +1141,7 @@ export class Effects {
           const mat = new THREE.MeshBasicMaterial({ color: z.flag ? 0xffd34a : color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
           const mesh = new THREE.Mesh(geo, mat);
           mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(z.x, 0.06, z.z);
+          mesh.position.set(z.x, 0.06 + this.groundY(z.x, z.z), z.z);
           mesh.scale.set(z.r, z.r, 1);
           this.scene.add(mesh);
           return mesh;

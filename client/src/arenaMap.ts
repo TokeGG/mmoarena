@@ -490,6 +490,68 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   crowd.castShadow = false;
   root.add(crowd);
 
+  // ---------------------------------------------------------- chasm, ramps and bridge (Twin Ramps)
+  if (ARENA.bridge && ARENA.voids?.length) {
+    const br = ARENA.bridge;
+    const stoneMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(th.floor).multiplyScalar(0.9), roughness: 0.9, side: THREE.DoubleSide });
+    const railMat = new THREE.MeshStandardMaterial({ color: new THREE.Color(th.wall), roughness: 0.9 });
+    // the chasm: a dark pit with a faint glow far below, covering each blocked rectangle that is not a rail
+    const pitMat = new THREE.MeshBasicMaterial({ color: 0x07080d });
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0xff6a2a, transparent: true, opacity: 0.35, depthWrite: false });
+    for (const v of ARENA.voids) {
+      if (v.maxZ - v.minZ < 2) continue; // rails are drawn below
+      const vw = v.maxX - v.minX;
+      const vd = v.maxZ - v.minZ;
+      const pit = new THREE.Mesh(new THREE.PlaneGeometry(vw, vd), pitMat);
+      pit.rotation.x = -Math.PI / 2;
+      pit.position.set((v.minX + v.maxX) / 2, 0.04, (v.minZ + v.maxZ) / 2);
+      root.add(pit);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(vw * 0.7, vd * 0.7), glowMat);
+      glow.rotation.x = -Math.PI / 2;
+      glow.position.set((v.minX + v.maxX) / 2, 0.06, (v.minZ + v.maxZ) / 2);
+      root.add(glow);
+      // a stone lip around the edge so the hole reads against the floor
+      const lip = new THREE.Mesh(new THREE.BoxGeometry(vw + 0.6, 0.12, vd + 0.6), railMat);
+      lip.position.set((v.minX + v.maxX) / 2, -0.04, (v.minZ + v.maxZ) / 2);
+      root.add(lip);
+    }
+    // the deck
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(br.deckHalf * 2, 0.5, br.halfWidth * 2), stoneMat);
+    deck.position.set(0, br.height - 0.25, 0);
+    deck.castShadow = deck.receiveShadow = true;
+    root.add(deck);
+    // the two ramps: wedges rising towards the deck
+    const prof = new THREE.Shape();
+    prof.moveTo(0, 0);
+    prof.lineTo(br.rampLen, 0);
+    prof.lineTo(0, br.height);
+    prof.closePath();
+    const wedgeGeo = new THREE.ExtrudeGeometry(prof, { depth: br.halfWidth * 2, bevelEnabled: false });
+    for (const side of [-1, 1]) {
+      const wedge = new THREE.Mesh(wedgeGeo, stoneMat);
+      wedge.position.set(side * br.deckHalf, 0, -br.halfWidth);
+      wedge.scale.x = side;
+      wedge.castShadow = wedge.receiveShadow = true;
+      root.add(wedge);
+      // rails along both edges of the ramp
+      const slope = Math.atan2(br.height, br.rampLen);
+      const rlen = Math.hypot(br.rampLen, br.height);
+      for (const zs of [-1, 1]) {
+        const rail = new THREE.Mesh(new THREE.BoxGeometry(rlen, 0.45, 0.4), railMat);
+        rail.position.set(side * (br.deckHalf + br.rampLen / 2), br.height / 2 + 0.25, zs * (br.halfWidth + 0.2));
+        rail.rotation.z = side * -slope;
+        rail.castShadow = true;
+        root.add(rail);
+      }
+    }
+    for (const zs of [-1, 1]) {
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(br.deckHalf * 2, 0.45, 0.4), railMat);
+      rail.position.set(0, br.height + 0.22, zs * (br.halfWidth + 0.2));
+      rail.castShadow = true;
+      root.add(rail);
+    }
+  }
+
   // ---------------------------------------------------------- pillars
   const pillarTex = stoneTexture(256, '#a89a86', 6, 3, true, 41, [3, 2]);
   const pillarMat = new THREE.MeshStandardMaterial({ map: pillarTex, roughness: 0.85 });

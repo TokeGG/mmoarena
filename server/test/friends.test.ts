@@ -275,20 +275,18 @@ describe('duels', () => {
     assert.equal(room.size, 1);
   });
 
-  it('duels are on one random map for both friends, whatever either of them picked', async () => {
+  it('duels are always on the Twin Ramps bridge map, whatever either of them picked', async () => {
     const { ARENAS } = await import('@arena/shared');
     const { lobby, us } = await world(['Ann', 'Bob']);
-    const maps = new Set<string>();
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 5; i++) {
       lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', map: ARENAS[0].id, mode: 'duel', duelWith: 'Bob' });
-      lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'warrior', map: ARENAS[0].id, mode: 'duel', duelWith: 'Ann' });
+      lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'warrior', map: ARENAS[1].id, mode: 'duel', duelWith: 'Ann' });
       const room: any = us[0].p.room;
       assert.ok(room && room === us[1].p.room, 'both in one room, so one map');
-      maps.add(room.arenaId);
+      assert.equal(room.arenaId, 'bridge');
       lobby.handle(us[0].p, { t: 'leave' });
       lobby.handle(us[1].p, { t: 'leave' });
     }
-    assert.ok(ARENAS.length < 2 || maps.size > 1, `only ever ${[...maps]}: the picked map must not decide it`);
   });
 
   it('declining tells the inviter; random people cannot start a duel; invites expire when someone leaves', async () => {

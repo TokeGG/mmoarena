@@ -230,5 +230,107 @@
    -1.5707963267948966
   ],
   "gateX": 20
+ },
+ {
+  "id": "bridge",
+  "name": "Twin Ramps",
+  "theme": "ruins",
+  "desc": "A chasm splits the arena. Two ramps climb to a single narrow bridge: hold the ramps, fight on the span, or snipe across the gap.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": -13,
+    "z": -9,
+    "r": 1.6
+   },
+   {
+    "x": -13,
+    "z": 9,
+    "r": 1.6
+   },
+   {
+    "x": 13,
+    "z": -9,
+    "r": 1.6
+   },
+   {
+    "x": 13,
+    "z": 9,
+    "r": 1.6
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "randomPool": false,
+  "bridge": {
+   "halfWidth": 3.5,
+   "deckHalf": 8,
+   "rampLen": 8,
+   "height": 1.6
+  },
+  "voids": [
+   {
+    "minX": -8,
+    "maxX": 8,
+    "minZ": 3.5,
+    "maxZ": 20
+   },
+   {
+    "minX": -8,
+    "maxX": 8,
+    "minZ": -20,
+    "maxZ": -3.5
+   },
+   {
+    "minX": -16,
+    "maxX": 16,
+    "minZ": 3.5,
+    "maxZ": 4.0
+   },
+   {
+    "minX": -16,
+    "maxX": 16,
+    "minZ": -4.0,
+    "maxZ": -3.5
+   }
+  ]
  }
 ]

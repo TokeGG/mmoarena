@@ -19,7 +19,7 @@
  "stealthDetect": 2,
  "outOfCombatMs": 5000,
  "rageFromDealt": 0.15,
- "rageFromTaken": 0.15,
+ "rageFromTaken": 0.075,
  "rageDecayPerSec": 5,
  "castGraceMs": 150,
  "fearSpeed": 0.35,

@@ -5,7 +5,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { arenaById } from '@arena/shared';
+import { arenaById, heightAt } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -195,7 +195,7 @@ export class ArenaScene {
       m.move += (target - m.move) * k;
       m.phase += Math.hypot(m.vf, m.vs) * dt * 1.5;
 
-      m.group.position.set(u.x, u.y, u.z);
+      m.group.position.set(u.x, u.y + heightAt(this.arena, u.x, u.z), u.z); // climbs the ramps and bridge
       m.ring.position.y = 0.04 - u.y; // the team ring stays on the floor
       m.targetRing.position.y = 0.05 - u.y;
       m.group.rotation.y = u.facing;
@@ -261,8 +261,14 @@ export class ArenaScene {
     const o = this.raycaster.ray.origin;
     const dv = this.raycaster.ray.direction;
     if (dv.y >= -1e-4) return null;
-    const t = -o.y / dv.y;
-    return { x: o.x + dv.x * t, z: o.z + dv.z * t };
+    let h = 0;
+    let p = { x: 0, z: 0 };
+    for (let i = 0; i < 3; i++) { // on a ramp or the bridge the ground is higher: settle on the surface the ray really hits
+      const t = (h - o.y) / dv.y;
+      p = { x: o.x + dv.x * t, z: o.z + dv.z * t };
+      h = heightAt(this.arena, p.x, p.z);
+    }
+    return p;
   }
 
   /** A ring on the ground showing where an aimed spell would land; null hides it. */
@@ -279,9 +285,10 @@ export class ArenaScene {
     this.reticle.visible = !!p;
     if (this.reticleDot) this.reticleDot.visible = !!p;
     if (p) {
-      this.reticle.position.set(p.x, 0.07, p.z);
+      const gh = heightAt(this.arena, p.x, p.z);
+      this.reticle.position.set(p.x, 0.07 + gh, p.z);
       this.reticle.scale.set(radius, radius, 1);
-      this.reticleDot!.position.set(p.x, 0.1, p.z);
+      this.reticleDot!.position.set(p.x, 0.1 + gh, p.z);
       // amber = can cast here, red = no line of sight / out of reach
       const col = ok ? 0x6dff8a : 0xff4b3e;
       (this.reticle.material as THREE.MeshBasicMaterial).color.setHex(col);

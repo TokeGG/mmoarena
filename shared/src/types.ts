@@ -237,6 +237,12 @@ export interface ArenaDef {
   spawns: Vec2[][];
   spawnFacing: number[];
   gateX: number;
+  /** Rectangles nobody can walk into (chasms, bridge rails). They never block line of sight. */
+  voids?: { minX: number; maxX: number; minZ: number; maxZ: number }[];
+  /** A raised bridge along the x axis through the middle: ramps climb to a flat deck. Heights are for looks and camera only. */
+  bridge?: { halfWidth: number; deckHalf: number; rampLen: number; height: number };
+  /** False keeps the arena out of the 'random' pick (it can still be chosen by name and is used for duels). */
+  randomPool?: boolean;
 }
 
 export interface Tuning {

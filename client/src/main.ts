@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, hasLOS, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, stepMovement } from '@arena/shared';
+import { ABILITIES, ARENAS, hasLOS, heightAt, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, stepMovement } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene } from './scene';
@@ -111,6 +111,7 @@ let pending: MoveInput[] = [];
 
 const renderPos = new Map<number, { x: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
+effects.groundY = (x, z) => heightAt(arena, x, z);
 effects.onSwing = (id) => scene.swing(id);
 effects.onHit = (id) => scene.flash(id);
 
@@ -750,7 +751,7 @@ function frame(now: number) {
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
-  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, (spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45);
+  scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : jumpHeight(performance.now() - myJumpAt)) * 0.45) + heightAt(arena, vis.x, vis.z));
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);

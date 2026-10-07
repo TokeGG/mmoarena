@@ -34,10 +34,31 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef): Vec2 {
         }
       }
     }
+    for (const v of arena.voids ?? []) {
+      if (x > v.minX - R && x < v.maxX + R && z > v.minZ - R && z < v.maxZ + R) {
+        // leave through the nearest side
+        const l = x - (v.minX - R), r = v.maxX + R - x, t = z - (v.minZ - R), bt = v.maxZ + R - z;
+        const m = Math.min(l, r, t, bt);
+        if (m === l) x = v.minX - R;
+        else if (m === r) x = v.maxX + R;
+        else if (m === t) z = v.minZ - R;
+        else z = v.maxZ + R;
+      }
+    }
     x = clamp(x, b.minX + R, b.maxX - R);
     z = clamp(z, b.minZ + R, b.maxZ - R);
   }
   return { x, z };
+}
+
+/** Ground height at a point: 0 everywhere except on a bridge's ramps and deck. Used for drawing; the sim itself is flat. */
+export function heightAt(arena: ArenaDef, x: number, z: number): number {
+  const br = arena.bridge;
+  if (!br || Math.abs(z) > br.halfWidth) return 0;
+  const ax = Math.abs(x);
+  if (ax <= br.deckHalf) return br.height;
+  if (ax >= br.deckHalf + br.rampLen) return 0;
+  return br.height * (1 - (ax - br.deckHalf) / br.rampLen);
 }
 
 export const angleTo = (a: Vec2, b: Vec2): number => Math.atan2(b.x - a.x, b.z - a.z);
