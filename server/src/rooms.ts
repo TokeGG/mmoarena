@@ -9,6 +9,7 @@ import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
+import type { Suggestions } from './suggestions';
 import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, specOf, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
@@ -483,7 +484,8 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner) {}
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions) {}
+  private lastSuggest = new Map<number, number>();
 
   private conns = new Set<Player>();
   private onlineKeys(): Set<string> {
@@ -752,6 +754,18 @@ export class Lobby {
       case 'friends':
       case 'friend':
         this.account(p, msg);
+        break;
+      case 'suggest': {
+        const last = this.lastSuggest.get(p.id) ?? 0;
+        if (!this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'The suggestion box is not available.' });
+        if (Date.now() - last < 20000) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Slow down: one suggestion every 20 seconds.' });
+        this.lastSuggest.set(p.id, Date.now());
+        void this.suggestions.add(p.account?.name ?? p.name ?? 'guest', msg.text).then((ok) => send(p, { t: 'suggest_ack', ok, reason: ok ? undefined : 'Could not save that, try again.' }));
+        break;
+      }
+      case 'suggestions':
+        if (!p.ownerOk || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can read the box.' });
+        void this.suggestions.list().then((rows) => send(p, { t: 'suggestions', rows }));
         break;
       default:
         p.room?.command(p, msg);

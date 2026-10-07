@@ -10,6 +10,7 @@ import { Menu } from './menu';
 import { Effects } from './effects';
 import { HudLayout } from './hudLayout';
 import { MainMenu } from './mainMenu';
+import { SuggestUi } from './suggestUi';
 import type { PlayRequest } from './mainMenu';
 import { initTooltips } from './tooltip';
 import { installTips, setTipMods, setTipProgress } from './tips';
@@ -278,6 +279,10 @@ function onMessage(raw: MessageEvent) {
         endChoice.hide();
       }
       onSnapshot(m.snap, m.events);
+      break;
+    case 'suggest_ack':
+    case 'suggestions':
+      suggestUi.handle(m);
       break;
     case 'rematch':
       endChoice.update(m.ready, m.total, m.you);
@@ -1042,9 +1047,10 @@ const friendsUi = new FriendsUi({
     sendLook();
   },
 });
+const suggestUi = new SuggestUi({ send: (m) => send(m), isOwner: () => !!accountUi.account?.ownerOk });
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
-menuExtras.append(accountUi.chip, friendsUi.button, friendsUi.partyChip);
+menuExtras.append(accountUi.chip, friendsUi.button, friendsUi.partyChip, suggestUi.button);
 
 /** Both friends agreed to a duel: join it with the class and build currently picked in the menu. */
 async function joinDuel(withName: string) {

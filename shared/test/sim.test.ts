@@ -246,6 +246,30 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'psychic_scream'), 'a direct hit breaks it');
   });
 
+  it('Counterspell cannot be locked out, ignores facing, and still lands a moment after the cast finished', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'mage', 1, 0, 10);
+    advance(sim, TICK);
+    mage.lockouts.arcane = sim.time + 4000; // locked out of arcane (what an interrupt does)
+    mage.facing = Math.PI; mage.lastInput = { ...mage.lastInput, facing: Math.PI }; // back turned to the foe
+    assert.ok(sim.useAbility(foe.id, 'frostbolt', mage.id).ok);
+    assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'works while locked out and facing away');
+    assert.ok(foe.lockouts.frost > sim.time, 'frost locked out');
+    // late: the frostbolt lands, then the press arrives within the grace window
+    mage.cooldowns = {};
+    foe.lockouts = {}; foe.gcdEnd = 0; foe.resource = foe.resourceMax; foe.cooldowns = {};
+    assert.ok(sim.useAbility(foe.id, 'frostbolt', mage.id).ok);
+    advance(sim, 1550);
+    assert.equal(foe.cast, null, 'the cast just landed');
+    assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'a late press still counts');
+    assert.ok(foe.lockouts.frost > sim.time, 'and still locks frost out');
+    advance(sim, 600);
+    mage.cooldowns = {};
+    assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'too late is no longer refused: it is castable, but whiffs');
+    assert.ok(advance(sim, TICK).some((e) => e.t === 'miss'), 'too late is too late: it misses');
+  });
+
   it('counterspell works in the middle of your own cast and stops that cast', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
@@ -420,6 +444,22 @@ describe('stealth', () => {
     mage.cooldowns = {}; mage.gcdEnd = 0; mage.auras = mage.auras.filter((x) => x.id !== 'arcane_charge');
     assert.ok(sim.useAbility(mage.id, 'arcane_blast', foe.id).ok);
     assert.equal(mage.cast!.end - mage.cast!.start, Math.round(ABILITIES.arcane_blast.castTime * 0.7));
+  });
+
+  it('Counterspell can be cast with nothing to interrupt: it misses and goes on cooldown; it still works while locked out', () => {
+    const sim = live(2);
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'warrior', 1, 0, 8);
+    advance(sim, TICK);
+    assert.ok(!ABILITIES.counterspell.requiresTargetCasting);
+    assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'castable on an idle target');
+    const evs = advance(sim, TICK);
+    assert.ok(evs.some((e) => e.t === 'miss' && e.src === mage.id), 'whiffed');
+    assert.ok(!evs.some((e) => e.t === 'interrupt'));
+    assert.ok(!sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'spent: on cooldown');
+    mage.cooldowns = {};
+    mage.lockouts.arcane = sim.time + 4000;
+    assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'a lockout does not stop it');
   });
 
   it('hot streak makes the next pyroblast instant and is used up', () => {

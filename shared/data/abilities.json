@@ -167,13 +167,14 @@
   "cooldown": 24000,
   "gcd": false,
   "cost": 0,
-  "requiresTargetCasting": true,
   "effects": [
    {
     "type": "interrupt",
     "lockout": 4000
    }
-  ]
+  ],
+  "ignoresLockout": true,
+  "unmissable": true
  },
  {
   "id": "frost_nova",

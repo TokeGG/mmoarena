@@ -70,6 +70,9 @@ export type ClientMsg =
   | { t: 'party_leave' }
   /** End screen: ready (or not) for another match with the same players. */
   | { t: 'rematch'; on: boolean }
+  /** The suggestion box: send an idea (everyone), or read the box (owner only). */
+  | { t: 'suggest'; text: string }
+  | { t: 'suggestions' }
   /** Pick which side you play on in a party match. */
   | { t: 'party_side'; side: 0 | 1 }
   /** Party members other than the leader: mark yourself ready (with your current class and build) or not. */
@@ -91,6 +94,8 @@ export type ServerMsg =
   /** Owner spectators only: running damage and healing totals for everyone in the match. */
   /** How many of the people in the finished match are ready to play again. */
   | { t: 'rematch'; ready: number; total: number; you: boolean }
+  | { t: 'suggest_ack'; ok: boolean; reason?: string }
+  | { t: 'suggestions'; rows: { at: number; name: string; text: string }[] }
   | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
   | { t: 'closed'; reason: string }
@@ -249,6 +254,13 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'party_leave' };
     case 'rematch':
       return { t: 'rematch', on: m.on !== false };
+    case 'suggest': {
+      if (typeof m.text !== 'string') return null;
+      const text = m.text.replace(/\s+/g, ' ').trim().slice(0, 600);
+      return text.length >= 5 ? { t: 'suggest', text } : null;
+    }
+    case 'suggestions':
+      return { t: 'suggestions' };
     case 'party_side':
       return { t: 'party_side', side: m.side === 1 ? 1 : 0 };
     case 'party_look':

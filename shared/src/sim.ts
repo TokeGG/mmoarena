@@ -8,6 +8,8 @@ import type {
 
 const TICK = TUNING.tickMs;
 const DT = TICK / 1000;
+/** A Counterspell pressed this long after a cast finished still locks that school out. */
+const INTERRUPT_GRACE_MS = 250;
 const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
@@ -84,7 +86,7 @@ export class ArenaSim {
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
       gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
       autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
-      inputQueue: [], charge: null, leap: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
+      inputQueue: [], charge: null, leap: null, lastCast: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
     };
     this.units.set(u.id, u);
@@ -232,8 +234,8 @@ export class ArenaSim {
       if (def.range > 0 && d > this.reachOf(u, def)) return soft('out of range');
       if (def.minRange && d < def.minRange) return fail('too close');
       if (!hasLOS(u.pos, tgt.pos, this.arena)) return fail('no line of sight');
-      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
-      if (def.requiresTargetCasting && !tgt.cast) return fail('target is not casting');
+      if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !def.unmissable && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
+      if (def.requiresTargetCasting && !tgt.cast && !(tgt.lastCast && this.time - tgt.lastCast.at <= INTERRUPT_GRACE_MS)) return fail('target is not casting');
       if (def.requiresTargetAura && !tgt.auras.some((a) => def.requiresTargetAura!.includes(a.id))) return fail(`target needs ${def.requiresTargetAura.map((x) => AURAS[x]?.name ?? x).join(' or ')}`);
       if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
     }
@@ -483,6 +485,7 @@ export class ArenaSim {
     const c = u.cast;
     if (!c) return;
     u.cast = null;
+    u.lastCast = { ability: c.ability, at: this.time };
     const def = ABILITIES[c.ability];
     if (def.channel) {
       this.emit({ t: 'channel_end', unit: u.id, ability: def.id });
@@ -772,14 +775,21 @@ export class ArenaSim {
   }
 
   private interrupt(src: Unit, t: Unit, def: AbilityDef, lockout: number): void {
-    if (!t.cast) return;
-    const cast = ABILITIES[t.cast.ability];
+    // a cast that finished a moment before the button reached the server still gets locked out (lag must not make Counterspell miss)
+    const late = !t.cast && t.lastCast && this.time - t.lastCast.at <= INTERRUPT_GRACE_MS ? t.lastCast : null;
+    if (!t.cast && !late) {
+      if (def.id === 'counterspell' || !def.requiresTargetCasting) this.emit({ t: 'miss', src: src.id, tgt: t.id, ability: def.id }); // nothing to interrupt: the spell whiffs and is still spent
+      return;
+    }
+    const live = !!t.cast;
+    const cast = ABILITIES[(t.cast?.ability ?? late!.ability)];
     t.cast = null;
+    t.lastCast = null;
     t.lockouts[cast.school] = this.time + lockout;
     src.lastCombatAt = this.time;
     t.lastCombatAt = this.time;
     this.emit({ t: 'interrupt', src: src.id, tgt: t.id, ability: cast.id, school: cast.school, lockout });
-    this.failCast(t, cast.id, 'interrupted');
+    if (live) this.failCast(t, cast.id, 'interrupted');
   }
 
   // ------------------------------------------------------------------ damage / healing

@@ -189,6 +189,8 @@ export interface AbilityDef {
   /** Can be cast while moving (moving does not cancel it). */
   castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;
+  /** Never fails on facing: the caster does not have to be looking at the target (Counterspell). */
+  unmissable?: boolean;
   /** Only castable on a target that has at least one of these auras (Deep Freeze). */
   requiresTargetAura?: string[];
   /** Damage counts as if the target were marked by Shatter when it has this aura, and uses the aura up (Ice Lance on Fingers of Frost). */
@@ -306,6 +308,8 @@ export interface Unit {
   autoDisabled: boolean;
   /** Set while running a Charge: the unit is carried to the target and ignores movement input. */
   /** In the air after Heroic Leap: flies from -> to between start and start + dur, then slams down. */
+  /** The spell this unit finished casting last, so a Counterspell pressed a moment late still counts. */
+  lastCast: { ability: string; at: number } | null;
   leap: { fromX: number; fromZ: number; toX: number; toZ: number; start: number; dur: number; damage: number; radius: number } | null;
   charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
@@ -337,6 +341,8 @@ export type SimEvent =
   | { t: 'channel_end'; unit: number; ability: string }
   | { t: 'damage'; src: number; tgt: number; amount: number; absorbed: number; ability: string | null; school: School }
   | { t: 'heal'; src: number; tgt: number; amount: number; overheal: number; ability: string }
+  /** An interrupt found nothing to interrupt. */
+  | { t: 'miss'; src: number; tgt: number; ability: string }
   | { t: 'interrupt'; src: number; tgt: number; ability: string; school: School; lockout: number }
   /** expiresAt 0 = permanent. dr = duration multiplier applied (1, 0.5, 0.25). */
   | { t: 'aura'; src: number; tgt: number; aura: string; expiresAt: number; dr: number }

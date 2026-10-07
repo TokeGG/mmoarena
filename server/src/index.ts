@@ -9,6 +9,7 @@ import { Lobby } from './rooms';
 import { Accounts } from './accounts';
 import { createStore } from './store';
 import { BotLearner } from './botlearn';
+import { Suggestions } from './suggestions';
 import { AVATAR_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
 
@@ -49,7 +50,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const accounts = new Accounts(store, process.env.ARENA_OWNER_CODE);
   const botLearner = new BotLearner(store);
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts, botLearner);
+  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts, botLearner, new Suggestions(store));
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');

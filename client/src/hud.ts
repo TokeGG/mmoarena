@@ -537,6 +537,10 @@ export class Hud {
         if (ev.overheal > 0 && (ev.src === ctx.you || ev.tgt === ctx.you)) this.float(ctx.project(ev.tgt), `${ev.overheal} overheal`, 'dim', 13);
         if (ev.tgt === ctx.you || ev.src === ctx.you) this.log(`${n(ev.src)}'s ${ab(ev.ability)} heals ${n(ev.tgt)} for ${ev.amount}`);
         break;
+      case 'miss':
+        this.float(ctx.project(ev.tgt), 'Missed', 'info');
+        this.log(`${n(ev.src)}'s ${ab(ev.ability)} found nothing to interrupt`);
+        break;
       case 'interrupt':
         this.float(ctx.project(ev.tgt), 'Interrupted', 'info');
         this.log(`${n(ev.src)} interrupts ${n(ev.tgt)}'s ${ab(ev.ability)}`);

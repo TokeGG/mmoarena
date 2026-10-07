@@ -39,16 +39,16 @@
   "chase": 0.388
  },
  "priest": {
-  "coverHp": 0.386,
-  "defHp": 0.297,
-  "strafe": 0.31,
+  "coverHp": 0.356,
+  "defHp": 0.291,
+  "strafe": 0.262,
   "healerPrio": 0.099,
-  "focus": 25.094,
-  "killLow": 94.212,
-  "rangeBias": -0.582,
-  "healAt": 1.206,
-  "burstHp": 0.369,
-  "strafeFlip": 1.967,
+  "focus": 27.071,
+  "killLow": 92.221,
+  "rangeBias": -0.44,
+  "healAt": 1.229,
+  "burstHp": 0.372,
+  "strafeFlip": 1.745,
   "chase": 0.565
  }
 }

@@ -312,3 +312,24 @@ describe('duels', () => {
     assert.ok(last(us[1].s, 'party')!.party!.members.every((m) => !!m.classId));
   });
 });
+
+describe('suggestion box', () => {
+  it('anyone can send a suggestion (rate limited), only the owner can read the box', async () => {
+    const accounts = new Accounts(new MemoryStore());
+    const { Suggestions } = await import('../src/suggestions');
+    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 }, accounts, undefined, new Suggestions(new MemoryStore()));
+    const a = sock(), b = sock();
+    const pa = lobby.connect(a, 'ip-a'), pb = lobby.connect(b, 'ip-b');
+    lobby.handle(pa, { t: 'suggest', text: 'Add a fifth class please' });
+    await until(() => last(a, 'suggest_ack')?.ok === true);
+    lobby.handle(pa, { t: 'suggest', text: 'And another one right away' });
+    assert.equal(last(a, 'suggest_ack')!.ok, false, 'rate limited');
+    lobby.handle(pb, { t: 'suggestions' });
+    assert.equal(last(b, 'suggest_ack')!.ok, false, 'not the owner');
+    pb.ownerOk = true;
+    lobby.handle(pb, { t: 'suggestions' });
+    await until(() => !!last(b, 'suggestions'));
+    assert.equal(last(b, 'suggestions')!.rows.length, 1);
+    assert.match(last(b, 'suggestions')!.rows[0].text, /fifth class/);
+  });
+});

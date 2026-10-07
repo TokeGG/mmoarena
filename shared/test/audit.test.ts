@@ -116,6 +116,7 @@ describe('skills and talents audit: data', () => {
 
 /** Cast one ability in a fresh sim and report what it did. */
 function trial(a: AbilityDef, useAlly = false) {
+  const needsCast = a.requiresTargetCasting || a.effects.some((e) => e.type === 'interrupt'); // an interrupt needs something to interrupt
   const sim = new ArenaSim({ seed: 7, prepMs: 0 });
   const specs = SPECS[a.class];
   let spec = specs.find((s) => s.bar.includes(a.id)) ?? specs.find((s) => s.bar.some((b) => ABILITIES[b]?.stealthSwap === a.id));
@@ -126,7 +127,7 @@ function trial(a: AbilityDef, useAlly = false) {
     }));
   }
   const c = sim.addUnit({ name: 'c', classId: a.class, team: 0, build: { spec: spec!.id, talents, gear: {} } });
-  const f = sim.addUnit({ name: 'f', classId: a.class === 'warrior' || a.requiresTargetCasting ? 'mage' : 'warrior', team: 1 });
+  const f = sim.addUnit({ name: 'f', classId: a.class === 'warrior' || needsCast ? 'mage' : 'warrior', team: 1 });
   const al = sim.addUnit({ name: 'al', classId: 'priest', team: 0 });
   c.pos = { x: 0, z: 0 };
   f.pos = { x: 0, z: Math.max((a.minRange ?? 0) + 1.5, Math.min(a.range * 0.5, 4)) };
@@ -140,7 +141,7 @@ function trial(a: AbilityDef, useAlly = false) {
   if (a.requiresStealth) sim.applyAura(c, c, 'stealth');
   if (a.cpSpend) { c.cp = 3; sim.applyAura(c, f, 'garrote_bleed'); }
   if (a.maxTargetHealthPct) f.health = Math.floor((f.maxHealth * a.maxTargetHealthPct) / 200); // finishers need a weakened target
-  if (a.requiresTargetCasting) { f.resource = 999; assert.ok(sim.useAbility(f.id, 'frostbolt', c.id).ok); }
+  if (needsCast) { f.resource = 999; assert.ok(sim.useAbility(f.id, 'frostbolt', c.id).ok); }
   if (a.effects.some((e) => e.type === 'dispel')) {
     const buff = Object.keys(AURAS).find((k) => AURAS[k].dispellable && !AURAS[k].harmful)!;
     sim.applyAura(f, f, buff);
