@@ -397,7 +397,11 @@ export class Room {
     for (const m of this.botMeta) {
       const team = this.sim.units.get(m.unitId)?.team;
       if (team === undefined || ![...humanTeams].some((t) => t !== team)) continue;
-      this.learner.report(m.classId, m.variantId, w === team);
+      const bot = this.sim.units.get(m.unitId)!;
+      const lasted = Math.min(1, (this.sim.time - this.sim.prepEndsAt) / 90000);
+      // a win with health to spare counts for more; a loss counts for something if the bot stayed alive and lasted
+      const score = w === team ? 0.7 + 0.3 * (bot.health / bot.maxHealth) : 0.3 * lasted + (bot.alive ? 0.1 : 0);
+      this.learner.report(m.classId, m.variantId, w === team, score);
     }
   }
 
@@ -982,11 +986,19 @@ export class Lobby {
   private rematch(old: Room): void {
     const plan = old.rematchPlan();
     old.release();
-    const room = this.makeRoom(plan.prepMs, plan.counts, plan.ranked, plan.map);
+    // against bots, Play again is a fresh random map; matches between people keep the arena they were on
+    const map = plan.npcs.length && !plan.ranked ? pickMap('random') : plan.map;
+    const room = this.makeRoom(plan.prepMs, plan.counts, plan.ranked, map);
     room.size = plan.size;
     for (const h of plan.humans) room.addPlayer(h.p, h.team);
     room.broadcastRoster();
-    for (const n of plan.npcs) room.addNpc(n.classId, n.team, n.difficulty);
+    // and the bots on the other side are a fresh random pick too (practice dummies stay as they were)
+    const ours = new Set(plan.humans.map((h) => h.team));
+    const classes: ClassId[] = ['warrior', 'mage', 'priest', 'rogue'];
+    for (const n of plan.npcs) {
+      const foe = !ours.has(n.team) && n.difficulty !== 'dummy' && !plan.ranked;
+      room.addNpc(foe ? classes[Math.floor(Math.random() * classes.length)] : n.classId, n.team, n.difficulty);
+    }
     this.rooms.add(room);
   }
 

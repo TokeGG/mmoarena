@@ -54,10 +54,10 @@ export class BotLearner {
   }
 
   /** Credit a finished game against humans to the variant that played it. */
-  report(classId: ClassId, variantId: string, won: boolean): void {
+  report(classId: ClassId, variantId: string, won: boolean, score?: number): void {
     const pop = this.pops.get(classId);
     if (!pop) return;
-    recordResult(pop, variantId, won, this.rng);
+    recordResult(pop, variantId, won, this.rng, score);
     const prev = this.saving.get(classId) ?? Promise.resolve();
     this.saving.set(
       classId,

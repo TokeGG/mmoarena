@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ArenaSim, Bot, TUNING } from '../src/index';
+import { ArenaSim, Bot, DEFAULT_BRAIN, TUNING, clampBrain, newPopulation, recordResult } from '../src/index';
 import type { ClassId, Difficulty, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -195,3 +195,49 @@ describe('bot movement (v0.24)', () => {
     assert.ok(Math.hypot(w.pos.x - p0.x, w.pos.z - p0.z) > 0.3);
   });
 });
+
+describe('bots look after their lives', () => {
+  it('a bot steps out of an enemy Flamestrike instead of standing in it', () => {
+    const ctx = mk();
+    const war = bot(ctx, 'priest', 0, 0, 0);
+    const mage = ctx.sim.addUnit({ name: 'enemy mage', classId: 'mage', team: 1, controller: 'player' });
+    mage.pos = { x: 0, z: 12 };
+    mage.bar = ['flamestrike', ...mage.bar.slice(1)];
+    ctx.sim.step();
+    ctx.sim.drainEvents();
+    mage.facing = Math.PI;
+    const z = { x: war.pos.x, z: war.pos.z };
+    const cast = ctx.sim.useAbility(mage.id, 'flamestrike', null, z);
+    assert.ok(cast.ok, JSON.stringify(cast));
+    run(ctx, 6000);
+    const hz = ctx.sim.hazardsFor(0)[0];
+    assert.ok(!hz || Math.hypot(war.pos.x - hz.x, war.pos.z - hz.z) >= hz.r, 'out of the zone');
+  });
+
+  it('a mage keeps Ice Barrier up as soon as enemies are around when its brain says so', () => {
+    const ctx = mk();
+    const brain = { ...DEFAULT_BRAIN, preShield: 1 };
+    const m = ctx.sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'bot', build: { spec: 'frost', talents: [], gear: {} } });
+    m.pos = { x: -10, z: 0 };
+    ctx.bots.push(new Bot(ctx.sim, m.id, 'hard', 5, brain));
+    dummy(ctx, 'warrior', 1, 10, 0);
+    const ev = run(ctx, 3000);
+    assert.ok(ev.some((e) => e.t === 'cast' && e.unit === m.id && e.ability === 'ice_barrier'), 'barrier at full health');
+    assert.ok(m.auras.some((a) => a.id === 'ice_barrier') || m.health < m.maxHealth);
+  });
+
+  it('brains carry the new survival traits, clamped, and a fractional score counts in the learning record', () => {
+    const b = clampBrain({ dodge: 5, preShield: -2 });
+    assert.equal(b.dodge, 1);
+    assert.equal(b.preShield, 0.5);
+    assert.ok(clampBrain(undefined).dodge > 0);
+    const rng = () => 0.5;
+    const pop = newPopulation('mage', rng);
+    const v = pop.variants[0];
+    recordResult(pop, v.id, false, rng, 0.4);
+    assert.ok(Math.abs(v.wins - 0.4) < 1e-9 && v.games === 1);
+    recordResult(pop, v.id, true, rng, 0.9);
+    assert.ok(Math.abs(v.wins - 1.3) < 1e-9);
+  });
+});
+

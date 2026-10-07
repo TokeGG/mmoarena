@@ -73,6 +73,8 @@ export class Bot {
   /** A lone priest casts back to back, so every few seconds it holds its casts for a moment and moves instead. */
   private danceUntil = 0;
   private nextDance = 0;
+  /** Recent health samples, to tell a burst from a slow trade. */
+  private hist: { t: number; hp: number }[] = [];
 
   readonly brain: Brain;
 
@@ -98,6 +100,8 @@ export class Bot {
       return;
     }
 
+    this.hist.push({ t: sim.time, hp: u.health });
+    while (this.hist.length && sim.time - this.hist[0].t > 2500) this.hist.shift();
     const all = [...sim.units.values()];
     const enemies = all.filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e));
     const allies = all.filter((a) => a.alive && a.team === u.team);
@@ -118,14 +122,23 @@ export class Bot {
     const threat = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
     if (threat && hpFrac(u) < this.brain.coverHp && sim.time >= this.coverReadyAt && !this.cover) {
       this.cover = this.coverPoint(u, threat.pos);
-      this.coverUntil = sim.time + 3500;
+      this.coverUntil = sim.time + 3500 + 3000 * (1 - hpFrac(u) / this.brain.coverHp); // the lower it is, the longer it stays hidden
       this.coverReadyAt = sim.time + 9000;
     }
-    if (this.cover && sim.time >= this.coverUntil) this.cover = null;
+    if (this.cover && (sim.time >= this.coverUntil || hpFrac(u) >= this.brain.coverHp + 0.25)) this.cover = null; // back out once healed up
     if (this.cover && sim.canMove(u)) {
       if (dist(u.pos, this.cover) > 0.9) {
         // run for it, abandoning any cast (moving cancels it)
         this.send(u, { facing: angleTo(u.pos, this.cover), fwd: 1, strafe: 0 });
+        return;
+      }
+    }
+
+    // standing in an enemy's Flamestrike or Blizzard: step out (a bot with a long cast to protect only leaves when it is hurting)
+    if (this.brain.dodge > 0.15 && sim.canMove(u)) {
+      const hz = sim.hazardsFor(u.team).find((z) => dist(u.pos, z) < z.r + 0.6);
+      if (hz && (!u.cast || hpFrac(u) < this.brain.dodge * 0.9) && this.noticed(`zone:${hz.id}`)) {
+        this.send(u, { facing: dist(u.pos, hz) < 0.2 ? u.facing : angleTo(hz, u.pos), fwd: 1, strafe: 0 });
         return;
       }
     }
@@ -215,6 +228,7 @@ export class Bot {
   private decide(u: Unit, enemies: Unit[], allies: Unit[], tgt: Unit | undefined): void {
     // do not break crowd control that breaks on damage (a feared or blinded lone enemy is left alone until it wakes)
     if (tgt && this.isPolymorphed(tgt) && enemies.length === 1) tgt = undefined;
+    if (this.survive(u, enemies, allies, tgt)) return;
     switch (u.classId) {
       case 'warrior':
         return this.warrior(u, enemies, tgt);
@@ -224,6 +238,93 @@ export class Bot {
         return this.mage(u, enemies, tgt);
       case 'priest':
         return this.priest(u, enemies, allies, tgt);
+    }
+  }
+
+  /** Net health lost over the last couple of seconds, as a fraction of max health (healing offsets it). */
+  private recentLoss(u: Unit): number {
+    let peak = u.health;
+    for (const h of this.hist) peak = Math.max(peak, h.hp);
+    return (peak - u.health) / u.maxHealth;
+  }
+
+  /**
+   * Staying alive comes before dealing damage. When health is low, or a burst is landing, each class reaches for the
+   * spells it has for that: damage reduction and heals, shields, stuns and fears on whoever is on it, a sheep, an escape.
+   * Returns true when it spent its decision on that.
+   */
+  private survive(u: Unit, enemies: Unit[], allies: Unit[], tgt?: Unit): boolean {
+    const B = this.brain;
+    const f = hpFrac(u);
+    const loss = this.recentLoss(u);
+    const emergency = f < B.panicHp || (loss > B.dangerAt && f < 0.8);
+    const hurting = f < B.defHp + 0.25 * B.ccEarly || loss > B.dangerAt * 0.6;
+    if (!emergency && !hurting) return false;
+    const sim = this.sim;
+    const byDist = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos));
+    const melee = byDist.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 8);
+    const attacker = melee[0] ?? byDist.find((e) => e.target === u.id || dist(u.pos, e.pos) <= 12);
+    const disabled = (e: Unit) => e.auras.some((a) => HARD_CC.includes(a.kind));
+    const stuck = u.auras.some((a) => HARD_CC.includes(a.kind) && a.kind !== 'root') || u.auras.some((a) => a.kind === 'root');
+    switch (u.classId) {
+      case 'warrior': {
+        if (emergency && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return true;
+        if (!melee.length && !attacker) return false;
+        if (melee.length && hurting && this.useFirst(u, melee.length > 1 ? ['intimidating_shout', 'shockwave'] : ['shockwave', 'intimidating_shout'])) return true;
+        if (attacker && !disabled(attacker) && dist(u.pos, attacker.pos) <= 8 && hurting && this.useFirst(u, ['concussion_blow', 'hammer_toss'], attacker.id)) return true;
+        if (melee.length === 0 && attacker && emergency) this.useFirst(u, ['piercing_howl']);
+        return false;
+      }
+      case 'rogue': {
+        if (sim.isStealthed(u)) return false;
+        if (emergency && this.use(u, 'evasion')) return true;
+        if (attacker && !disabled(attacker) && dist(u.pos, attacker.pos) <= 9) {
+          if (hurting && this.use(u, 'blind', attacker.id)) return true;
+          if (u.cp >= 2 && hurting && this.use(u, 'kidney_shot', attacker.id)) return true;
+        }
+        if (melee.length && hurting && this.use(u, 'choke_bomb')) return true;
+        if (f < B.panicHp * 0.8 && enemies.length && this.use(u, 'vanish')) return true;
+        if (emergency && (!attacker || dist(u.pos, attacker.pos) > 4)) this.use(u, 'sprint');
+        return false;
+      }
+      case 'mage': {
+        if (!u.cast || emergency) {
+          if (!u.auras.some((a) => a.kind === 'absorb') && (emergency || loss > B.dangerAt * 0.5 || (hurting && enemies.length)) && this.use(u, 'ice_barrier')) return true;
+        }
+        if (u.cast && !emergency) return false;
+        const close = byDist.filter((e) => dist(u.pos, e.pos) <= 9);
+        if (close.length && hurting) {
+          if (this.useFirst(u, ['frost_nova', 'dragons_breath', 'arcane_explosion'])) return true;
+        }
+        if (emergency && (stuck || close.length) && enemies.length) {
+          // Blink needs to face away first; turning is free, so turn now and blink on the next decision.
+          const away = angleTo(byDist[0].pos, u.pos);
+          if (Math.abs(angleDiff(u.facing, away)) < 0.35) {
+            if (this.use(u, 'blink')) return true;
+          } else if (u.auras.some((a) => a.kind !== 'stun' && a.kind !== 'incapacitate' && a.kind !== 'fear') || sim.canMove(u)) {
+            this.forceFacing = { angle: away, until: sim.time + 300 };
+          }
+        }
+        if (attacker && close.length && hurting && !disabled(attacker)) {
+          if (this.use(u, 'deep_freeze', attacker.id)) return true;
+          if (enemies.length >= 2 && this.use(u, 'polymorph', attacker.id)) return true; // sheep whoever is on me
+        }
+        return false;
+      }
+      case 'priest': {
+        const shielded = u.auras.some((a) => a.kind === 'absorb');
+        if (emergency && this.use(u, 'desperate_prayer')) return true;
+        if (u.cast && !emergency) return false;
+        if (!shielded && (emergency || loss > B.dangerAt * 0.5) && this.use(u, 'power_word_shield', u.id)) return true;
+        if (melee.length && hurting && this.use(u, 'psychic_scream')) return true;
+        if (emergency && (f < B.panicHp * 0.7) && u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return true;
+        if (emergency && !u.cast) {
+          const mine = allies.length > 0;
+          if (mine && this.useFirst(u, f < 0.35 ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], u.id)) return true;
+        }
+        void tgt;
+        return false;
+      }
     }
   }
 
@@ -296,7 +397,8 @@ export class Bot {
     }
     if (u.cast) return;
     if (meleeNear.some((e) => dist(u.pos, e.pos) <= 9) && this.useFirst(u, ['frost_nova', 'dragons_breath', 'arcane_explosion'])) return;
-    if (hpFrac(u) < 0.75 && !u.auras.some((a) => a.kind === 'absorb') && this.use(u, 'ice_barrier')) return;
+    // the barrier soaks 40% of max health: keep it up whenever enemies are around, not only once hurt
+    if (enemies.length && hpFrac(u) <= this.brain.preShield && !u.auras.some((a) => a.kind === 'absorb') && this.use(u, 'ice_barrier')) return;
 
     const poly = this.polyTarget(u, enemies, tgt);
     if (poly && this.use(u, 'polymorph', poly.id)) return;
@@ -345,6 +447,8 @@ export class Bot {
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
     if (u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return;
     if (hpFrac(u) < this.brain.defHp - 0.05 && this.use(u, 'desperate_prayer')) return;
+    // keep its own shield up while an enemy is on it or close
+    if (!hasShield(u) && hpFrac(u) <= this.brain.preShield && enemies.some((e) => e.target === u.id || dist(u.pos, e.pos) <= 9) && this.use(u, 'power_word_shield', u.id)) return;
     if (u.cast) return;
 
     // on its own the priest has to win the fight too: it heals later and spends the rest of its time on Smite

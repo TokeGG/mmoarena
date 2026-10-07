@@ -205,6 +205,36 @@ describe('party play', () => {
     assert.equal(us[0].p.party?.members.length, 3, 'the party is untouched');
   });
 
+  it('Play again against bots goes to a random map, not the one just played', async () => {
+    const { lobby, us } = await world(['Ann']);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1, map: 'colosseum' } as ClientMsg);
+    const maps = new Set<string>();
+    for (let i = 0; i < 25; i++) {
+      const room: any = us[0].p.room;
+      assert.ok(room, 'in a match');
+      maps.add(room.arenaId);
+      (room.sim as any).phase = 'ended';
+      lobby.handle(us[0].p, { t: 'rematch', on: true });
+    }
+    assert.ok(maps.size > 1, `always the same map: ${[...maps]}`);
+    assert.ok(!maps.has('bridge'), 'the duel map is not in the random pool');
+  });
+
+  it('Play again against bots also picks a random enemy class each time', async () => {
+    const { lobby, us } = await world(['Ann']);
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1, foes: ['warrior'] } as ClientMsg);
+    const foes = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      const room: any = us[0].p.room;
+      assert.ok(room, 'in a match');
+      const enemy = [...room.sim.units.values()].find((u: any) => u.team === 1 && u.controller === 'bot') as any;
+      foes.add(enemy.classId);
+      (room.sim as any).phase = 'ended';
+      lobby.handle(us[0].p, { t: 'rematch', on: true });
+    }
+    assert.ok(foes.size >= 3, `only ever faced ${[...foes]}`);
+  });
+
   it('a party match puts all three friends in a 2v2 on the sides they picked, with a bot filling the gap', async () => {
     const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
     for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: i === 1 ? 'priest' : 'rogue' });

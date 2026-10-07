@@ -839,6 +839,11 @@ export class ArenaSim {
     return remaining;
   }
 
+  /** Ground zones that hurt `team`'s units (Flamestrike and the like), for bots to step out of. */
+  hazardsFor(team: TeamId): { x: number; z: number; r: number; id: number; firstAt: number }[] {
+    return this.zones.filter((z) => z.team !== team && z.amount > 0 && !z.smoke && !z.flag && this.time < z.end).map((z) => ({ x: z.x, z: z.z, r: z.r, id: z.id, firstAt: z.firstAt }));
+  }
+
   /** Put a unit at a raw position: settles its bridge level, then pushes it out of anything solid at that level. */
   private place(u: Unit, raw: { x: number; z: number }): void {
     const r = moveTo(this.arena, u.level, u.pos, raw);

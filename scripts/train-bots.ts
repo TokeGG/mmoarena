@@ -31,11 +31,11 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Score in 0..1 for `cls` playing with `brain`: wins count 1, plus up to 0.3 for health left; losses 0 plus a little for damage dealt. */
+/** Score (about 0..1.6) for `cls` playing with `brain`: wins count 1, plus up to 0.3 for health left; losses 0 plus a little for damage dealt. */
 function evaluate(cls: ClassId, brain: Brain): number {
   let total = 0;
   let n = 0;
-  for (const foe of CLASS_IDS.filter((c) => c !== cls)) {
+  for (const foe of CLASS_IDS) { // every class, the mirror included
     for (let seed = 1; seed <= SEEDS; seed++) {
       const sim = new ArenaSim({ seed, prepMs: 3000 });
       const a = sim.addUnit({ name: cls, classId: cls, team: 0, controller: 'bot', build: botBuild(cls, seed) });
@@ -48,7 +48,8 @@ function evaluate(cls: ClassId, brain: Brain): number {
         ms += 50;
       }
       const won = sim.winner === 0;
-      total += won ? 1 + 0.3 * (a.health / a.maxHealth) : 0.3 * (1 - b.health / b.maxHealth);
+      // a win counts most, health left over rewards staying alive; a loss still earns credit for damage dealt and for lasting
+      total += won ? 1 + 0.6 * (a.health / a.maxHealth) : 0.3 * (1 - b.health / b.maxHealth) + 0.3 * Math.min(1, ms / 60000); // staying alive pays in wins and in losses
       n++;
     }
   }

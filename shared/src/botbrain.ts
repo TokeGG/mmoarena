@@ -29,6 +29,16 @@ export interface Brain {
   strafeFlip: number;
   /** 0..1 how often it chases a fleeing slowed target instead of switching. */
   chase: number;
+  /** Health fraction below which it spends its big emergency button (heal, shield, barrier, damage reduction). */
+  panicHp: number;
+  /** Fraction of max health lost in about 2.5 s that counts as a burst: it protects itself before it is low. */
+  dangerAt: number;
+  /** 0..1 willingness to use stuns, fears and sheep defensively as health drops (raises the health it starts at). */
+  ccEarly: number;
+  /** 0..1 how readily it walks out of an enemy's ground zone (Flamestrike, Blizzard) instead of standing in it. */
+  dodge: number;
+  /** Health fraction at or below which it keeps its own shield or barrier up while enemies are near (1 = always, even at full health). */
+  preShield: number;
 }
 
 export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
@@ -43,11 +53,17 @@ export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
   burstHp: [0.3, 1],
   strafeFlip: [0.6, 3],
   chase: [0, 1],
+  panicHp: [0.15, 0.5],
+  dangerAt: [0.15, 0.7],
+  ccEarly: [0, 1],
+  dodge: [0, 1],
+  preShield: [0.5, 1],
 };
 
 export const DEFAULT_BRAIN: Brain = {
   coverHp: 0.45, defHp: 0.45, strafe: 0.8, healerPrio: 20, focus: 10, killLow: 60,
   rangeBias: 0, healAt: 1, burstHp: 1, strafeFlip: 1.5, chase: 0.5,
+  panicHp: 0.3, dangerAt: 0.35, ccEarly: 0.6, dodge: 0.7, preShield: 0.9,
 };
 
 export const BRAIN_KEYS = Object.keys(DEFAULT_BRAIN) as (keyof Brain)[];
@@ -118,11 +134,15 @@ export function pickVariant(pop: Population, rng: () => number): Variant {
 }
 
 /** Record one finished game for a variant; evolves the population when enough evidence has piled up. */
-export function recordResult(pop: Population, variantId: string, won: boolean, rng: () => number): boolean {
+/**
+ * `score` (0..1) lets a result count for more than win or lose: a bot that lasted long and kept its health counts for
+ * more in a loss, and one that won with health to spare counts for more than one that barely made it.
+ */
+export function recordResult(pop: Population, variantId: string, won: boolean, rng: () => number, score?: number): boolean {
   const v = pop.variants.find((x) => x.id === variantId);
   if (!v) return false; // the population moved on: that variant was already replaced
   v.games++;
-  if (won) v.wins++;
+  v.wins += score !== undefined ? Math.min(1, Math.max(0, score)) : won ? 1 : 0;
   pop.sinceEvolve++;
   if (pop.sinceEvolve >= EVOLVE_GAMES * POP_SIZE && pop.variants.every((x) => x.games >= EVOLVE_GAMES / 2)) {
     evolve(pop, rng);
@@ -144,7 +164,7 @@ export function evolve(pop: Population, rng: () => number): void {
   const child: Variant = { id: `g${pop.generation}v${Math.floor(rng() * 1e6)}`, brain: mutateBrain(clampBrain(blend), rng, 0.12, 0.5), wins: 0, games: 0 };
   pop.variants[pop.variants.indexOf(worst)] = child;
   for (const v of pop.variants) {
-    v.wins = Math.round(v.wins / 2);
+    v.wins = Math.round((v.wins / 2) * 100) / 100;
     v.games = Math.round(v.games / 2);
   }
   child.wins = 0;
