@@ -307,7 +307,7 @@ describe('stealth', () => {
     advance(sim, 500);
     assert.equal(mage.cast, null);
     assert.ok(foe.health < 1e6, 'it landed');
-    // about one cast in ten grants Hot Streak
+    // about 15% of casts grant Hot Streak (expect ~45 of 300)
     let procs = 0;
     for (let i = 0; i < 300; i++) {
       mage.resource = mage.resourceMax;
@@ -320,7 +320,7 @@ describe('stealth', () => {
       advance(sim, 700);
       if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
     }
-    assert.ok(procs >= 10 && procs <= 60, `procs ${procs}/300`);
+    assert.ok(procs >= 20 && procs <= 80, `procs ${procs}/300`);
   });
 
   it('hot streak makes the next pyroblast instant and is used up', () => {

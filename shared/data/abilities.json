@@ -1150,7 +1150,7 @@
    {
     "type": "aura",
     "aura": "hot_streak",
-    "chance": 0.1,
+    "chance": 0.15,
     "self": true
    }
   ],
