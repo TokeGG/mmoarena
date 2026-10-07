@@ -71,7 +71,18 @@ describe('tooltips follow the build', () => {
 
   it('what a talent adds to a skill is listed as a bonus', () => {
     setTipBuild('rogue', { spec: 'assassination', talents: ['rogue_t1c'], gear: {} });
-    assert.deepEqual(resolveTip('ability:vanish', {})!.good, ['Heals you for 75% of your missing health.']);
+    assert.deepEqual(resolveTip('ability:vanish', {})!.good, ['Heals you for 50% of your missing health.']);
+  });
+
+  it("someone else's effect shows its plain values, not your talents", () => {
+    // a warrior with Savage Might (+4% damage) looking at a rogue's Garrote bleed on someone
+    setTipBuild('warrior', { spec: 'arms', talents: ['', 'warrior_t2c'], gear: {} });
+    const mine = JSON.stringify(resolveTip('aura:garrote_bleed', {})!.lines);
+    const theirs = JSON.stringify(resolveTip('aura:garrote_bleed', { tipPlain: '1' })!.lines);
+    assert.notEqual(mine, theirs, 'your own talents are not on their bleed');
+    setTipBuild('warrior', { spec: 'arms', talents: [], gear: {} });
+    assert.equal(JSON.stringify(resolveTip('aura:garrote_bleed', {})!.lines), theirs, 'plain = no talents');
+    setTipBuild('mage', undefined);
   });
 
   it('a data-tip-build key describes that build instead of the current one (the spec cards in the menu)', () => {

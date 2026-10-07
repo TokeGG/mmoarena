@@ -1,6 +1,7 @@
 import { ABILITIES, AURAS, TUNING } from './data';
 import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, heightAt, navStep, stepMovementL } from './geometry';
 import { coverSpot, highSpot, navRoute, needsNavGrid } from './nav';
+import { JUMP_HEIGHT, canStartJump } from './jump';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
@@ -222,6 +223,9 @@ export class Bot {
       this.nextDance = sim.time + 6000;
     }
 
+    // a person-high barricade between us and the target: hop, and throw an instant over it from the top of the jump
+    if (tgt && !u.cast && this.P.tricks > 0 && sim.canAct(u) && this.popShot(u, tgt)) return;
+
     // Decide first, move second: if a cast just started, movement sees it and stands still.
     if (sim.time >= this.nextThink) {
       this.nextThink = sim.time + this.P.think * TUNING.tickMs;
@@ -236,12 +240,41 @@ export class Bot {
   private lastWalk = false;
   /** The route says jump now (a rail to clear, a barricade, the side of a ramp). */
   private jumpNow = false;
+  /** Jump on the spot to see over a barricade (jumpNow only fires while walking). */
+  private popJump = false;
+  private nextPop = 0;
+
+  /**
+   * Over a low barricade: standing, the target is out of sight, but from the top of a jump it is not. Jump, and once high
+   * enough, fire the best instant on the bar (in rotation order). Returns true when it cast this tick.
+   */
+  private popShot(u: Unit, tgt: Unit): boolean {
+    const sim = this.sim;
+    if (!sim.arena.lows?.length || u.level !== 0) return false;
+    const theirAir = sim.airOf(tgt);
+    if (hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, 0, theirAir)) return false; // nothing in the way
+    const d = dist(u.pos, tgt.pos);
+    const order = rotationFor(u.classId, u.spec, u.bar) ?? u.bar;
+    const shots = [...new Set([...order, ...u.bar])].filter((id) => {
+      const a = ABILITIES[id];
+      return !!a && u.bar.includes(id) && a.castTime === 0 && a.target === 'enemy' && !a.effects.some((e) => e.type === 'interrupt') && d <= a.range && this.ready(u, id);
+    });
+    if (!shots.length) return false;
+    const air = sim.airOf(u);
+    if (air > 0) return air >= 1 && hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, air, theirAir) && this.useFirst(u, shots, tgt.id);
+    if (sim.time >= this.nextPop && canStartJump(sim.time - u.jumpStart) && hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, JUMP_HEIGHT * 0.8, theirAir) && this.rng() < this.P.tricks) {
+      this.popJump = true;
+      this.nextPop = sim.time + 900;
+    }
+    return false;
+  }
   private send(u: Unit, c: Cmd): void {
     if (this.sim.time < this.unstickUntil && c.fwd > 0) c = { facing: c.facing + this.unstickSign * 1.2, fwd: 1, strafe: 0 };
     if (c.guard) c = this.wallGuard(u, c);
     this.lastWalk = c.fwd !== 0 || c.strafe !== 0 ? c.fwd > 0 : false;
-    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && (c.fwd > 0 || c.strafe !== 0)) || undefined });
+    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && (c.fwd > 0 || c.strafe !== 0)) || this.popJump || undefined });
     this.jumpNow = false;
+    this.popJump = false;
   }
 
   /** Where a command would take the unit in a bit over a second, walls, pillars and edges included. */
@@ -795,6 +828,11 @@ export class Bot {
     // keep its own shield up while an enemy is on it or close
     if (!hasShield(u) && hpFrac(u) <= this.brain.preShield && enemies.some((e) => e.target === u.id || dist(u.pos, e.pos) <= 9) && this.use(u, 'power_word_shield', u.id)) return;
     if (u.cast) return;
+    // purge like a player: strip an enemy's magic shield or buff (Ice Barrier, Power Infusion) when nobody needs healing
+    if (u.bar.includes('dispel_magic') && (!lowest || hpFrac(lowest) > 0.6)) {
+      const buffed = enemies.find((e) => dist(u.pos, e.pos) <= 30 && hasLOS(u.pos, e.pos, sim.arena, u.level, e.level) && e.auras.some((a) => !AURAS[a.id]?.harmful && AURAS[a.id]?.dispellable && this.noticed(`purge:${e.id}:${a.id}:${a.expiresAt}`)));
+      if (buffed && this.use(u, 'dispel_magic', buffed.id)) return;
+    }
 
     // on its own the priest has to win the fight too: it heals later and spends the rest of its time on Smite
     const solo = allies.length <= 1;

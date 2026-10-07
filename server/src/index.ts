@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -78,6 +79,22 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
     }
     if (url.pathname === '/api/status') {
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary() }));
+      return;
+    }
+    // the owner's offline study of how people beat the bots (scripts/study-replays.ts --server URL --code CODE)
+    if (url.pathname.startsWith('/api/botlearn/') && req.method === 'GET') {
+      const want = Buffer.from(process.env.ARENA_OWNER_CODE ?? '');
+      const got = Buffer.from(String(req.headers['x-owner-code'] ?? ''));
+      if (!want.length || got.length !== want.length || !crypto.timingSafeEqual(got, want)) return void res.writeHead(403, { 'content-type': 'text/plain' }).end('owner code required');
+      const rest = url.pathname.slice('/api/botlearn/'.length);
+      const job = rest === 'export'
+        ? botLearner.archived().then((index) => ({ type: 'application/json', body: Buffer.from(JSON.stringify({ index, ledger: botLearner.results(), lessons: botLearner.outplayLessons(), styles: botLearner.humanStyles() })) }))
+        : rest.startsWith('replay/')
+          ? botLearner.archivedReplay(rest.slice('replay/'.length)).then((b) => (b ? { type: 'application/octet-stream', body: b } : null))
+          : Promise.resolve(null);
+      job
+        .then((r) => (r ? res.writeHead(200, { 'content-type': r.type, 'cache-control': 'no-store' }).end(r.body) : res.writeHead(404, { 'content-type': 'text/plain' }).end('not found')))
+        .catch(() => res.writeHead(500).end());
       return;
     }
     if (url.pathname.startsWith('/avatar/') && req.method === 'GET') {

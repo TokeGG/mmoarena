@@ -557,7 +557,7 @@ describe('rogue rework', () => {
     advance(sim, TICK);
     assert.ok(!sim.useAbility(r.id, 'vanish').ok);
   });
-  it('Shadow Mend heals 75% of missing health and Smoke Veil drops a cloud', () => {
+  it('Shadow Mend heals 50% of missing health and Smoke Veil drops a cloud', () => {
     const sim = live();
     const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][2])));
     add(sim, 'warrior', 1, 30, 0);
@@ -565,7 +565,7 @@ describe('rogue rework', () => {
     r.health = Math.round(r.maxHealth * 0.2);
     const missing = r.maxHealth - r.health;
     sim.useAbility(r.id, 'vanish');
-    assert.ok(Math.abs(r.health - (r.maxHealth - missing * 0.25)) <= 2);
+    assert.ok(Math.abs(r.health - (r.maxHealth - missing * 0.5)) <= 2, `healed to ${r.health}`);
     assert.ok(sim.isStealthed(r), 'the heal does not undo stealth');
     const s2 = live();
     const r2 = add(s2, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][0])));
@@ -744,9 +744,24 @@ describe('warrior rework', () => {
     assert.equal(heal(f, 500), 300, '40% less healing on the wounded');
     assert.equal(heal(priest, 500), 500, 'others heal normally');
   });
-  it('Slice and Dice is a 30 s cooldown that cuts for 100 a tick', () => {
+  it('Slice and Dice is a 30 s cooldown that cuts for 50 every half second', () => {
     assert.equal(ABILITIES.slice_and_dice.cooldown, 30000);
-    assert.equal(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount, 100);
+    assert.equal(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount, 50);
+    assert.equal(ABILITIES.slice_and_dice.castTime / ABILITIES.slice_and_dice.channel!.ticks, 500);
+  });
+  it('Slice and Dice lands a 50 cut every 0.5 s, the same 400 in all as before', () => {
+    const { sim, w, f } = war('arms', 3);
+    w.facing = Math.atan2(0, 1); w.lastInput = { ...w.lastInput, facing: w.facing };
+    f.pos = { x: 0, z: 3 };
+    const hits: number[] = [];
+    const start = sim.time;
+    assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
+    for (let t = 0; t < 4600; t += TICK) {
+      const evs = advance(sim, TICK);
+      for (const e of evs) if (e.t === 'damage' && e.src === w.id && e.tgt === f.id && e.ability === 'slice_and_dice') hits.push(sim.time - start);
+    }
+    assert.equal(hits.length, 8, `hits at ${hits.join(',')}`);
+    for (let i = 1; i < hits.length; i++) assert.ok(Math.abs(hits[i] - hits[i - 1] - 500) <= TICK, `gap ${hits[i] - hits[i - 1]}`);
   });
   it('Slice and Dice stuns and cuts everything in the cone over 4 seconds, and nothing behind', () => {
     const { sim, w, f } = war('arms', 3);

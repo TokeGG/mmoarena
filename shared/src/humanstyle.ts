@@ -12,7 +12,8 @@ import type { ClassId } from './types';
  * whether they focus the same target as their team) becomes a measurement of the matching bot-brain numbers.
  * The server folds those into a per-class running average and gives the bots a "human style" brain to try.
  */
-export type StyleKey = 'strafe' | 'rangeBias' | 'defHp' | 'healerPrio' | 'focus';
+/** Any learnable brain number: people's habits and the lessons of how bots got outplayed use the same samples. */
+export type StyleKey = keyof Brain;
 export interface Measure { value: number; /** Seconds of play (or ten per defensive use) behind the number. */ weight: number }
 export type StyleSample = Partial<Record<StyleKey, Measure>>;
 export type HumanStyle = Partial<Record<StyleKey, Measure>>;
@@ -102,13 +103,16 @@ export function mergeStyle(style: HumanStyle, sample: StyleSample): HumanStyle {
   return out;
 }
 
-/** The base brain pulled towards what people do: more as the evidence grows, never all the way. */
-export function styledBrain(base: Brain, style: HumanStyle): Brain {
+/**
+ * The base brain pulled towards what the evidence says: more as it grows, never all the way. `pull` is how far full
+ * evidence moves it, `full` the weight at which the evidence counts in full.
+ */
+export function styledBrain(base: Brain, style: HumanStyle, pull = 0.7, full = 300): Brain {
   const out: Partial<Brain> = { ...base };
   for (const k of Object.keys(style) as StyleKey[]) {
     const m = style[k]!;
-    if (m.weight < 30) continue;
-    const f = 0.7 * Math.min(1, m.weight / 300);
+    if (!m || m.weight < 30 || !(k in base)) continue;
+    const f = pull * Math.min(1, m.weight / full);
     out[k] = base[k] + (m.value - base[k]) * f;
   }
   return clampBrain(out);

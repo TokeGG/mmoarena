@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, deckPiers, deckRails, dist, hasLOS, heightAt, jumpHeight, navStep, onRaised, resolveCollisions, stepMovementL, walkClear } from '../src/index';
+import { ABILITIES, ARENAS, ArenaSim, Bot, TUNING, arenaById, blinkDestination, deckPiers, deckRails, dist, hasLOS, heightAt, JUMP_HEIGHT, jumpHeight, navStep, onRaised, resolveCollisions, stepMovementL, walkClear } from '../src/index';
 import type { ArenaDef } from '../src/index';
 
 describe('arenas', () => {
@@ -332,14 +332,71 @@ describe('above and below a walkway', () => {
 
 describe('low barricades', () => {
   const a = arenaById('overlook');
-  it('block walking, never sight; a jump clears them', () => {
+  it('in a match: an instant spell across one fails standing, and lands from the top of a jump', () => {
+    const lw = a.lows![0];
+    const c = { x: (lw.x0 + lw.x1) / 2, z: (lw.z0 + lw.z1) / 2 };
+    const sim = new ArenaSim({ seed: 1, prepMs: 0, arena: a });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'player', build: { spec: 'frost', talents: [], gear: {} } as never });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    sim.step();
+    m.pos = { x: c.x - 3, z: c.z };
+    w.pos = { x: c.x + 6, z: c.z };
+    const facing = Math.atan2(w.pos.x - m.pos.x, w.pos.z - m.pos.z);
+    m.facing = facing;
+    sim.queueInput(m.id, { seq: 1, fwd: 0, strafe: 0, facing });
+    sim.step();
+    sim.setTarget(m.id, w.id);
+    const r = sim.useAbility(m.id, 'ice_lance', w.id);
+    assert.equal(r.ok, false, 'blocked on the ground');
+    assert.match((r as { reason: string }).reason, /line of sight/);
+    sim.queueInput(m.id, { seq: 2, fwd: 0, strafe: 0, facing, jump: true });
+    for (let i = 0; i < 7; i++) sim.step(); // about the top of the jump
+    const hp = w.health;
+    const r2 = sim.useAbility(m.id, 'ice_lance', w.id);
+    assert.ok(r2.ok, (r2 as { reason?: string }).reason);
+    for (let i = 0; i < 30; i++) sim.step();
+    assert.ok(w.health < hp, 'the lance hit');
+  });
+  it('block walking and, standing, sight; a jump clears them and sees over them', () => {
     const lw = a.lows![0];
     const c = { x: (lw.x0 + lw.x1) / 2, z: (lw.z0 + lw.z1) / 2 };
     const p = { x: c.x - 4, z: c.z }, q = { x: c.x + 4, z: c.z };
-    assert.equal(hasLOS(p, q, a, 0, 0), true, 'you see over a barricade');
+    assert.equal(hasLOS(p, q, a, 0, 0), false, 'person-high: no sight past it on the ground');
+    assert.equal(hasLOS(p, q, a, 0, 0, JUMP_HEIGHT), true, 'at the top of a jump you see over it');
+    assert.equal(hasLOS(p, q, a, 0, 0, 0, JUMP_HEIGHT), true, 'and are seen');
+    assert.equal(hasLOS(p, q, a, 0, 0, 0.3), false, 'a hop is not enough');
+    assert.equal(hasLOS(p, { x: c.x - 4, z: c.z + 6 }, a, 0, 0), true, 'sight that does not cross it is untouched');
     const walked = walkL(a, { pos: p, level: 0 }, Math.PI / 2, 30);
     assert.ok(walked.pos.x < lw.x0, `held by the barricade (x=${walked.pos.x})`);
     const jumped = walkL(a, { pos: { x: lw.x0 - 1.4, z: c.z }, level: 0 }, Math.PI / 2, 30, 0);
     assert.ok(jumped.pos.x > lw.x1 + 0.5, `jumped over (x=${jumped.pos.x})`);
+  });
+});
+
+describe('bots and low barricades', () => {
+  it('a bot hops and throws an instant over a barricade it cannot see past standing', () => {
+    const a = arenaById('overlook');
+    const lw = a.lows![0];
+    const c = { x: (lw.x0 + lw.x1) / 2, z: (lw.z0 + lw.z1) / 2 };
+    const sim = new ArenaSim({ seed: 2, prepMs: 0, arena: a });
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'bot', build: { spec: 'frost', talents: [], gear: {} } as never });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    sim.step();
+    m.pos = { x: c.x - 3, z: c.z };
+    w.pos = { x: c.x + 5, z: c.z };
+    const bot = new Bot(sim, m.id, 'hard', 5);
+    let jumped = false;
+    let overTheTop = false;
+    for (let i = 0; i < 20 * 6 && !overTheTop; i++) {
+      w.pos = { x: c.x + 5, z: c.z }; // the dummy stays put on the far side
+      bot.tick();
+      sim.step();
+      for (const e of sim.drainEvents()) {
+        if (e.t === 'cast' && e.unit === m.id && ABILITIES[e.ability].castTime === 0 && sim.airOf(m) > 0) overTheTop = true;
+      }
+      if (sim.airOf(m) > 0) jumped = true;
+    }
+    assert.ok(jumped, 'it jumped');
+    assert.ok(overTheTop, 'and cast an instant while in the air');
   });
 });

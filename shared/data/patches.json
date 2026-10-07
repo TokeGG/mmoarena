@@ -1,5 +1,24 @@
 [
  {
+  "version": "0.68.0",
+  "date": "2026-10-07",
+  "title": "Person-high barricades, bots learn how people beat them",
+  "changes": [
+   "Low barricades are now as tall as a person. On the ground you cannot see or cast past one. Jump and your line of sight rises over it for a moment: long enough for an instant spell from the top of the jump (both ways, so they can do it to you too). Spells with a cast time still need sight when they finish.",
+   "Jumps go higher (1.8 instead of 1.45) so you clear the taller barricades. How long you are in the air and when you clear rails, barricades and ground effects are unchanged.",
+   "Bots use barricades too: they hop and throw an instant over one when it is all that blocks the target, and count them as cover when they break line of sight.",
+   "Bot priests purge like players: with nobody low, they strip an enemy's Ice Barrier, Power Word: Shield, Power Infusion, Arcane Power or Evocation with Dispel Magic.",
+   "Slice and Dice cuts twice as often for half as much: 50 damage every 0.5 seconds (8 cuts, the first at once) instead of 100 every second. Same 400 in total, same 4-second hold.",
+   "Shadow Mend (rogue tier I talent) now heals 50% of your missing health when you vanish, down from 75%.",
+   "The spec card shows the spec you have picked. Hovering another spec previews it, and moving back to the talents or anywhere else returns the card to yours.",
+   "Another spec's card counts only talents you can see picked: the class tiers (I and II) you have now. Its own tiers are not counted until you pick that spec, so a talent you have not chosen (Crippling Technique on Hamstring, Leaping Strides on Charge and Heroic Leap) no longer shows as a buff. Switching specs keeps your tier I and II picks as shown and brings back that spec's own tiers as you left them.",
+   "Buff and debuff tooltips on someone else's effect show its plain values: your own talents only change the numbers of effects you put there.",
+   "Bots learn from how people beat them. After every match against people the server replays it and looks for the moments a person outplayed a bot: casts kicked while a kick was ready, kicks wasted on a fake, deaths with a big defensive still unused, deaths to a burst it never answered, long casts taken in the open, time in ground effects, a melee bot kited or a caster pinned. Each becomes a lesson for that class (losses count three times as much as wins). A lesson brain is tried after every match, and new brains are bred towards the lessons, so bots adapt within tens of games.",
+   "Bots also study how people kick and fake (how far into a cast people kick, when they stop a fake) and time their own fakes before that point.",
+   "The server keeps the newest 400 matches between people and bots for offline study, solo practice included. The bot training script can now train against opponents that play like real people of each class, focused on the match-ups bots really lose, and compare its simulated win rates with real ones. The server status lists each bot class's real win rate against people, by class and difficulty."
+  ]
+ },
+ {
   "version": "0.67.2",
   "date": "2026-10-07",
   "title": "Slice and Dice holds, cast bars say why, tooltips say where",

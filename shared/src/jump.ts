@@ -4,7 +4,8 @@
  * uses the same curve to show its own jump instantly.
  */
 export const JUMP_MS = 650;
-export const JUMP_HEIGHT = 1.45;
+/** Peak height. Raised (from 1.45) so a jump carries you over a player-height barricade; every rule that asks "high enough?" scaled with it, so jump timings are unchanged. */
+export const JUMP_HEIGHT = 1.8;
 /** Minimum gap after landing before the next jump can start. */
 export const JUMP_GAP_MS = 40;
 
@@ -16,7 +17,7 @@ export function jumpHeight(elapsedMs: number): number {
 }
 
 /** Airborne at least this high when a ground effect pulses, and the unit avoids that pulse. */
-export const JUMP_DODGE_HEIGHT = 0.5;
+export const JUMP_DODGE_HEIGHT = 0.62;
 /** A jump only grants ground-effect immunity if the previous immune jump began at least this long ago (no hop-spamming). */
 export const JUMP_DODGE_CD = 1500;
 

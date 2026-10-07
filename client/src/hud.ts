@@ -172,6 +172,8 @@ class UnitFrame {
         icon.dataset.tip = `aura:${a.id}`;
         const who = unitNames.get(a.src);
         if (who) icon.dataset.tipFrom = a.src === u.id ? `${who} (on itself)` : who;
+        // your talents only change the numbers of an effect you put there; someone else's shows its plain values
+        if (who !== 'you') icon.dataset.tipPlain = '1';
         const left = secsLeft(a);
         if (left >= 0) icon.dataset.tipSub = `${left}s remaining`;
         if (left >= 0) icon.append(el('i', '', String(left)));

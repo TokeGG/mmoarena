@@ -619,7 +619,7 @@ function confirmAim() {
   if (!aiming || !def) return;
   const g = groundAim(def.range);
   if (!g) return; // cursor on the sky: keep aiming
-  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g))) return; // red spot: nothing is sent, nothing is spent, still aiming
+  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt))) return; // red spot: nothing is sent, nothing is spent, still aiming
   const spot = { x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}) };
   const me = latest?.units.find((u) => u.id === you);
   const nowS = estimatedNow();
@@ -873,7 +873,7 @@ function frame(now: number) {
     const aimed = !spec && aiming ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
-    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g)));
+    scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt)));
   }
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
   // countdown ticks before the gates open, and our own footsteps

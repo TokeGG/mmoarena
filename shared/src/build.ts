@@ -66,7 +66,34 @@ export const defaultSpec = (classId: ClassId) => SPECS[classId][0];
 /** The six talent tiers of one spec (talents differ per spec). */
 export const talentsFor = (classId: ClassId, specId: string | undefined): TalentDef[][] => TALENTS[classId]?.[specId ?? ''] ?? [];
 
-export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(classId).id, talents: [], gear: {} });
+/**
+ * The talents another spec shows before you pick it: only the picks you can see now that its tree also has (the shared
+ * tiers). A tier you cannot see from here is never counted, so its card never shows a buff you have not picked.
+ */
+export function previewTalents(classId: ClassId, current: readonly string[], specId: string): string[] {
+  return talentsFor(classId, specId).map((tier, i) => (current[i] && tier.some((t) => t.id === current[i]) ? current[i] : ''));
+}
+
+/**
+ * The talents a spec gets when you switch to it: the shared tiers keep what you picked now (what its card showed), the
+ * tiers of its own come back as you last left them on that spec.
+ */
+export function switchTalents(classId: ClassId, current: readonly string[], specId: string, saved: readonly string[] | null): string[] {
+  const now = previewTalents(classId, current, specId);
+  return talentsFor(classId, specId).map((tier, i) => {
+    // a tier this spec shares keeps the current choice, even when that is "none"
+    if (now[i] || sharedTier(classId, i)) return now[i];
+    return saved?.[i] && tier.some((t) => t.id === saved[i]) ? saved[i] : '';
+  });
+}
+
+/** True when every spec of the class has the same talents in this tier (the class tiers, not a spec's own). */
+export function sharedTier(classId: ClassId, tier: number): boolean {
+  const ids = SPECS[classId].map((s) => talentsFor(classId, s.id)[tier]?.map((t) => t.id).join(',') ?? '');
+  return ids.every((x) => x === ids[0]);
+}
+
+export const emptyBuild =(classId: ClassId): Build => ({ spec: defaultSpec(classId).id, talents: [], gear: {} });
 
 export type BuildCheck = { ok: true } | { ok: false; reason: string };
 

@@ -24,9 +24,16 @@ export const DECK_THICKNESS = 0.6;
 const LOS_EDGE = 0.15;
 
 /** A unit this high in a jump clears deck rails. */
-export const CLEAR_HEIGHT = 0.5;
-/** A unit this high in a jump clears a low barricade (chest-high walls: you need most of a jump). */
-export const LOW_CLEAR = 0.9;
+export const CLEAR_HEIGHT = 0.62;
+/** A unit this high in a jump clears a low barricade (you need most of a jump). */
+export const LOW_CLEAR = 1.12;
+/**
+ * How tall a low barricade is: about as tall as a person, so standing on the ground you cannot see (or cast) past it;
+ * jump and your sight line rises over it for a moment, long enough for an instant spell.
+ */
+export const LOW_HEIGHT = 1.6;
+/** How much of a jump's height counts for stepping onto a ramp's side (the reach jumps had before they were raised). */
+const RAMP_AIR = 0.8;
 /** A slope this high you can step onto without jumping. */
 export const STEP_HEIGHT = 0.4;
 /** How thick a deck rail is (it stands just outside the edge it guards). */
@@ -255,7 +262,7 @@ export function moveTo(arena: ArenaDef, level: Level, from: Vec2, to: Vec2, air 
   let lv = level;
   if (lv === 0) {
     for (const r of dk.ramps) {
-      if (rectDist(to.x, to.z, r) < PLAYER_RADIUS - 1e-6 && rampHeight(r, to.x, to.z, dk.height) <= air + STEP_HEIGHT) {
+      if (rectDist(to.x, to.z, r) < PLAYER_RADIUS - 1e-6 && rampHeight(r, to.x, to.z, dk.height) <= air * RAMP_AIR + STEP_HEIGHT) {
         lv = 1;
         break;
       }
@@ -280,16 +287,27 @@ export function distPointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
 }
 
 /** Line of sight is blocked by pillars and walls; on the ground by ramps and piers; across levels by the deck overhead. Low barricades never block it. */
-export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Level = 0): boolean {
+/**
+ * Line of sight between two points (units' feet), chest to chest. `ha` and `hb` are how high each is in a jump: a low
+ * barricade blocks the line where it passes the barricade lower than its top, so two people on the ground cannot see
+ * past one, and a jump lifts the line over it.
+ */
+export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Level = 0, ha = 0, hb = 0): boolean {
   for (const pl of arena.pillars) {
     if (distPointToSegment(pl, a, b) < pl.r) return false;
   }
   for (const w of arena.walls ?? []) if (segmentHitsRect(a, b, w.x0, w.x1, w.z0, w.z1)) return false;
+  const ya = heightAt(arena, a.x, a.z, la) + CHEST + ha, yb = heightAt(arena, b.x, b.z, lb) + CHEST + hb;
+  for (const lw of arena.lows ?? []) {
+    const span = segmentRectSpan(a, b, lw.x0, lw.x1, lw.z0, lw.z1);
+    // the line is straight, so it is lowest over the barricade at one of the two edges it crosses; a unit over the
+    // barricade itself (mid-jump across it) is not hidden by it
+    if (span && span[0] > 0 && span[1] < 1 && Math.min(ya + (yb - ya) * span[0], ya + (yb - ya) * span[1]) < LOW_HEIGHT) return false;
+  }
   const dk = arena.deck;
   if (dk) {
     // the deck is a floor between levels: sight runs chest to chest, and it is blocked where that line passes through a
     // flat piece (its top or its underside), so someone above you is hidden unless you see them past the edge
-    const ya = heightAt(arena, a.x, a.z, la) + CHEST, yb = heightAt(arena, b.x, b.z, lb) + CHEST;
     for (const plane of [dk.height, dk.height - DECK_THICKNESS]) {
       if ((ya - plane) * (yb - plane) >= 0) continue; // both on one side of it
       const t = (plane - ya) / (yb - ya);
@@ -304,14 +322,19 @@ export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Lev
 }
 
 function segmentHitsRect(a: Vec2, b: Vec2, x0: number, x1: number, z0: number, z1: number): boolean {
+  return segmentRectSpan(a, b, x0, x1, z0, z1) !== null;
+}
+
+/** The part of segment a→b inside a rectangle, as fractions [enter, leave] along it, or null when it misses. */
+function segmentRectSpan(a: Vec2, b: Vec2, x0: number, x1: number, z0: number, z1: number): [number, number] | null {
   let t0 = 0, t1 = 1;
   const dx = b.x - a.x, dz = b.z - a.z;
   for (const [p, q] of [[-dx, a.x - x0], [dx, x1 - a.x], [-dz, a.z - z0], [dz, z1 - a.z]] as const) {
-    if (Math.abs(p) < 1e-9) { if (q < 0) return false; continue; }
+    if (Math.abs(p) < 1e-9) { if (q < 0) return null; continue; }
     const r = q / p;
-    if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; } else { if (r < t0) return false; if (r < t1) t1 = r; }
+    if (p < 0) { if (r > t1) return null; if (r > t0) t0 = r; } else { if (r < t0) return null; if (r < t1) t1 = r; }
   }
-  return true;
+  return [t0, t1];
 }
 
 /** One fixed step of movement. Deterministic, shared by server and client prediction. */
