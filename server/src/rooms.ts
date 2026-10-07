@@ -760,7 +760,7 @@ export class Lobby {
         if (!this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'The suggestion box is not available.' });
         if (Date.now() - last < 20000) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Slow down: one suggestion every 20 seconds.' });
         this.lastSuggest.set(p.id, Date.now());
-        void this.suggestions.add(p.account?.name ?? p.name ?? 'guest', msg.text).then((ok) => send(p, { t: 'suggest_ack', ok, reason: ok ? undefined : 'Could not save that, try again.' }));
+        void this.suggestions.add(p.account?.name ?? p.name ?? 'guest', msg.text, msg.note).then((ok) => send(p, { t: 'suggest_ack', ok, reason: ok ? undefined : 'Could not save that, try again.' }));
         break;
       }
       case 'suggestions':
@@ -953,7 +953,8 @@ export class Lobby {
     const mate = [...this.conns].find((q) => q !== p && q.duelWith === p.account!.key && q.account?.key === p.duelWith);
     if (!mate) return void send(p, { t: 'queued', waiting: 1, needed: 2 });
     const first = (mate.duelAt ?? 0) <= (p.duelAt ?? 0) ? mate : p;
-    const room = this.makeRoom(this.cfg.queuePrepMs, true, false, pickMap(first.mapPref));
+    void first; // duels never use anyone's map pick: one random arena, shared because both friends are in the same room
+    const room = this.makeRoom(this.cfg.queuePrepMs, true, false, pickMap('random'));
     room.size = 1;
     p.duelWith = mate.duelWith = undefined;
     room.addPlayer(mate, 0);

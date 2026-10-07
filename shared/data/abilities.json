@@ -13,12 +13,16 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 125
+    "amount": 400
+   },
+   {
+    "type": "aura",
+    "aura": "mortal_wounds"
    }
   ],
   "rageSpend": {
    "min": 30,
-   "maxMult": 2.5
+   "maxMult": 1.5
   }
  },
  {
@@ -198,7 +202,8 @@
    },
    {
     "type": "aura",
-    "aura": "shatter"
+    "aura": "shatter",
+    "duration": 6000
    }
   ]
  },
@@ -542,13 +547,17 @@
   "target": "aoe_enemy",
   "range": 0,
   "castTime": 0,
-  "cooldown": 9000,
+  "cooldown": 2500,
   "gcd": true,
-  "cost": 30,
+  "cost": 0,
   "effects": [
    {
     "type": "damage",
     "amount": 85
+   },
+   {
+    "type": "gain",
+    "amount": 15
    }
   ],
   "radius": 8
@@ -780,7 +789,7 @@
  },
  {
   "id": "shadow_word_death",
-  "name": "Shadow Word: Death",
+  "name": "Shadow Word: Pain",
   "class": "priest",
   "school": "shadow",
   "target": "enemy",
@@ -1227,7 +1236,8 @@
    },
    {
     "type": "aura",
-    "aura": "shatter"
+    "aura": "shatter",
+    "duration": 4000
    }
   ],
   "requiresTargetAura": [
@@ -1330,7 +1340,7 @@
  },
  {
   "id": "plague_bloom",
-  "name": "Shadow Word: Pain",
+  "name": "Devouring Plague",
   "class": "priest",
   "school": "shadow",
   "target": "enemy",
@@ -1340,6 +1350,10 @@
   "gcd": true,
   "cost": 55,
   "effects": [
+   {
+    "type": "damage",
+    "amount": 300
+   },
    {
     "type": "aura",
     "aura": "plague_bloom"
@@ -1563,6 +1577,10 @@
    {
     "type": "damage",
     "amount": 45
+   },
+   {
+    "type": "aura",
+    "aura": "mind_flay_slow"
    }
   ],
   "channel": {
@@ -1620,7 +1638,7 @@
   "radius": 6,
   "coneDeg": 90,
   "castTime": 4000,
-  "cooldown": 25000,
+  "cooldown": 30000,
   "gcd": true,
   "cost": 30,
   "channel": {
@@ -1630,7 +1648,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 55
+    "amount": 100
    },
    {
     "type": "aura",

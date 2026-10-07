@@ -275,6 +275,22 @@ describe('duels', () => {
     assert.equal(room.size, 1);
   });
 
+  it('duels are on one random map for both friends, whatever either of them picked', async () => {
+    const { ARENAS } = await import('@arena/shared');
+    const { lobby, us } = await world(['Ann', 'Bob']);
+    const maps = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', map: ARENAS[0].id, mode: 'duel', duelWith: 'Bob' });
+      lobby.handle(us[1].p, { t: 'join', name: 'x', classId: 'warrior', map: ARENAS[0].id, mode: 'duel', duelWith: 'Ann' });
+      const room: any = us[0].p.room;
+      assert.ok(room && room === us[1].p.room, 'both in one room, so one map');
+      maps.add(room.arenaId);
+      lobby.handle(us[0].p, { t: 'leave' });
+      lobby.handle(us[1].p, { t: 'leave' });
+    }
+    assert.ok(ARENAS.length < 2 || maps.size > 1, `only ever ${[...maps]}: the picked map must not decide it`);
+  });
+
   it('declining tells the inviter; random people cannot start a duel; invites expire when someone leaves', async () => {
     const { lobby, us, friend } = await world(['Ann', 'Bob', 'Cy_']);
     await friend(0, 1);
@@ -356,5 +372,23 @@ describe('suggestion webhook', () => {
     assert.ok(!new Suggestions(new MemoryStore(), 'https://evil.example/api/webhooks/1/x', fake).notifies);
     const failing = new Suggestions(new MemoryStore(), hook, (async () => { throw new Error('down'); }) as any);
     assert.equal(await failing.add('Bob', 'still saved when Discord is down'), true);
+  });
+});
+
+describe('suggestion notes', () => {
+  it('a .txt note rides along: stored, shown to the owner, sent to Discord as a file, and capped', async () => {
+    const { Suggestions } = await import('../src/suggestions');
+    const { parseClientMsg, NOTE_MAX } = await import('@arena/shared');
+    const calls: any[] = [];
+    const hook = 'https://discord.com/api/webhooks/123456789/abc-DEF_ghi';
+    const s = new Suggestions(new MemoryStore(), hook, (async (_u: any, init: any) => { calls.push(init); return new Response('', { status: 204 }); }) as any);
+    assert.ok(await s.add('Ann', 'A long idea', 'line one\nline two'));
+    assert.equal((await s.list())[0].note, 'line one\nline two');
+    assert.ok(calls[0].body instanceof FormData, 'multipart with the note as a file');
+    assert.equal((calls[0].body as FormData).get('files[0]') instanceof Blob, true);
+    const m: any = parseClientMsg(JSON.stringify({ t: 'suggest', text: 'hello world', note: 'x'.repeat(NOTE_MAX + 500) }));
+    assert.equal(m.note.length, NOTE_MAX);
+    const none: any = parseClientMsg(JSON.stringify({ t: 'suggest', text: 'hello world' }));
+    assert.equal(none.note, undefined);
   });
 });

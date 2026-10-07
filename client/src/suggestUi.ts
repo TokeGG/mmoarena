@@ -1,3 +1,4 @@
+import { NOTE_MAX } from '@arena/shared';
 import type { ClientMsg, ServerMsg } from '@arena/shared';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -18,7 +19,8 @@ export class SuggestUi {
   private modal: HTMLElement | null = null;
   private status = el('div', 'fr-status');
   private list = el('div', 'fr-list');
-  private rows: { at: number; name: string; text: string }[] | null = null;
+  private rows: { at: number; name: string; text: string; note?: string }[] | null = null;
+  private note = '';
 
   constructor(private hooks: Hooks) {
     this.button.title = 'Send an idea for the game';
@@ -45,6 +47,14 @@ export class SuggestUi {
       const row = el('div', 'fr-row');
       const info = el('div', 'fr-info');
       info.append(el('b', '', r.name), el('span', '', r.text), el('small', '', new Date(r.at).toLocaleString()));
+      if (r.note) {
+        const d = el('details');
+        d.append(el('summary', '', `📎 Attached note (${r.note.length} characters)`));
+        const pre = el('pre', '', r.note);
+        pre.style.cssText = 'white-space:pre-wrap;max-height:240px;overflow:auto;margin:6px 0 0;padding:8px;background:#0b0e14;border-radius:6px;font:12px/1.4 monospace;';
+        d.append(pre);
+        info.append(d);
+      }
       const del = el('button', 'mm-small', 'Delete');
       del.addEventListener('click', () => {
         this.rows = this.rows!.filter((x) => x !== r); // gone at once; the server confirms with the fresh list
@@ -73,6 +83,34 @@ export class SuggestUi {
     ta.style.cssText = 'width:100%;box-sizing:border-box;background:#10131a;border:1px solid #333b4d;color:#e6e9ef;border-radius:6px;padding:8px;font:14px system-ui;resize:vertical;';
     ta.addEventListener('keydown', (e) => e.stopPropagation()); // typing must not trigger game keybinds
     const count = el('small', '', '0/600');
+    // a notepad file for more room than the box allows
+    const file = el('input');
+    file.type = 'file';
+    file.accept = '.txt,text/plain';
+    file.style.display = 'none';
+    const attach = el('button', 'mm-small', '📎 Attach a note (.txt)');
+    const attached = el('small', '');
+    const clear = el('button', 'mm-small hidden', 'Remove');
+    const showNote = () => {
+      attached.textContent = this.note ? `${this.note.length} characters attached` : '';
+      clear.classList.toggle('hidden', !this.note);
+    };
+    attach.addEventListener('click', () => file.click());
+    clear.addEventListener('click', () => { this.note = ''; file.value = ''; showNote(); });
+    file.addEventListener('change', async () => {
+      const f = file.files?.[0];
+      if (!f) return;
+      if (f.size > 200_000) {
+        this.status.textContent = 'That file is too big: keep it under about 10,000 characters.';
+        this.status.style.color = '#f87171';
+        return;
+      }
+      const text = (await f.text()).trim();
+      this.note = text.slice(0, NOTE_MAX);
+      this.status.textContent = text.length > NOTE_MAX ? `Only the first ${NOTE_MAX.toLocaleString()} characters will be sent.` : '';
+      this.status.style.color = '';
+      showNote();
+    });
     ta.addEventListener('input', () => (count.textContent = `${ta.value.length}/600`));
     const send = el('button', 'mm-small', 'Send');
     send.addEventListener('click', () => {
@@ -84,13 +122,18 @@ export class SuggestUi {
       }
       this.status.textContent = 'Sending…';
       this.status.style.color = '';
-      this.hooks.send({ t: 'suggest', text });
+      this.hooks.send({ t: 'suggest', text, ...(this.note ? { note: this.note } : {}) });
+      this.note = '';
+      file.value = '';
+      showNote();
       ta.value = '';
       count.textContent = '0/600';
     });
     const row = el('div', 'own-row');
     row.append(send, count);
-    card.append(head, ta, row, this.status);
+    const attachRow = el('div', 'own-row');
+    attachRow.append(attach, attached, clear, file);
+    card.append(head, ta, attachRow, row, this.status);
     if (this.hooks.isOwner()) {
       card.append(el('h3', '', 'Received'), this.list);
       this.rows = null;
@@ -106,6 +149,7 @@ export class SuggestUi {
   private close(): void {
     this.modal?.remove();
     this.modal = null;
+    this.note = '';
     this.status.textContent = '';
   }
 }

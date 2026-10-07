@@ -1056,7 +1056,7 @@ menuExtras.append(accountUi.chip, friendsUi.button, friendsUi.partyChip, suggest
 async function joinDuel(withName: string) {
   joinMsg('Waiting for your friend…');
   if (!(await connect())) return joinMsg('Could not reach the server.');
-  send({ t: 'join', name: accountUi.account?.name ?? 'Player', classId: mainMenu.selectedClass, map: mainMenu.selectedMap, mode: 'duel', duelWith: withName, size: 1, build: mainMenu.currentBuild });
+  send({ t: 'join', name: accountUi.account?.name ?? 'Player', classId: mainMenu.selectedClass, map: 'random', mode: 'duel', duelWith: withName, size: 1, build: mainMenu.currentBuild });
 }
 
 const mainMenu = new MainMenu(document.getElementById('join')!, {

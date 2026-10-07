@@ -30,6 +30,8 @@ export interface AbilityMod {
 export interface Mods {
   damageDone: number;
   healingDone: number;
+  /** Multiplies healing this unit receives (Mortal Wounds). */
+  healingTaken: number;
   damageTaken: number;
   maxHealth: number;
   castTime: number;
@@ -127,7 +129,7 @@ export type Effect =
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   /** Heals a fraction of the target's missing health. */
   | { type: 'healMissing'; pct: number }
-  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number }
+  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }

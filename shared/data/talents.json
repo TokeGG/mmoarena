@@ -1,2890 +1,2811 @@
 {
- "warrior": {
-  "arms": [
-   [
-    {
-     "id": "warrior_t1a",
-     "name": "Leaping Strides",
-     "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
-     "icon": "\ud83e\udd98",
-     "mods": {
-      "ability": {
-       "heroic_leap": {
-        "cooldown": 0.75
-       },
-       "charge": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_t1b",
-     "name": "Crippling Technique",
-     "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
-     "icon": "\ud83e\uddb5",
-     "mods": {
-      "auraDuration": {
-       "hamstring_slow": 1.4
-      },
-      "ability": {
-       "pummel": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_t1c",
-     "name": "Battle Rush",
-     "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
-     "icon": "\ud83d\udc17",
-     "mods": {
-      "ability": {
-       "charge": {
-        "range": 5,
-        "cooldown": 0.8
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_arms_t2a",
-     "name": "Brutal Cleave",
-     "desc": "Cleave deals 20% more damage and recharges 15% faster.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {
-      "ability": {
-       "whirlwind": {
-        "damage": 1.2,
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_arms_t2b",
-     "name": "Rending Strike",
-     "desc": "Mortal Strike deals 15% more damage and recharges 15% faster.",
-     "icon": "\u2694\ufe0f",
-     "mods": {
-      "ability": {
-       "mortal_strike": {
-        "damage": 1.15,
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_arms_t2c",
-     "name": "Tempered Steel",
-     "desc": "You take 5% less damage and have 5% more maximum health.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "damageTaken": 0.95,
-      "maxHealth": 1.05
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_arms_t3a",
-     "name": "Executioner",
-     "desc": "Execute deals 25% more damage and recharges 20% faster.",
-     "icon": "\ud83d\udc80",
-     "mods": {
-      "ability": {
-       "execute": {
-        "damage": 1.25,
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_arms_t3b",
-     "name": "Whirling Edges",
-     "desc": "Slice and Dice deals 25% more damage and recharges 15% faster.",
-     "icon": "\ud83c\udf00",
-     "mods": {
-      "ability": {
-       "slice_and_dice": {
-        "damage": 1.25,
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_arms_t3c",
-     "name": "Battle Trance",
-     "desc": "All damage is increased by 4% and maximum health by 4%.",
-     "icon": "\ud83d\udd25",
-     "mods": {
-      "damageDone": 1.04,
-      "maxHealth": 1.04
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_arms_t4a",
-     "name": "Disrupting Cry",
-     "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
-     "icon": "\ud83e\ude9d",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "harpoon_throw"
-     }
-    },
-    {
-     "id": "warrior_arms_t4b",
-     "name": "Storm Bolt",
-     "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "hammer_toss"
-     }
-    },
-    {
-     "id": "warrior_arms_t4c",
-     "name": "Skull Bash",
-     "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
-     "icon": "\ud83d\udcab",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "concussion_blow"
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_arms_t5a",
-     "name": "Ground Slam",
-     "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
-     "icon": "\ud83d\udca5",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "shockwave"
-     }
-    },
-    {
-     "id": "warrior_arms_t5b",
-     "name": "Terrifying Roar",
-     "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
-     "icon": "\ud83d\udce2",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "intimidating_shout"
-     }
-    },
-    {
-     "id": "warrior_arms_t5c",
-     "name": "Banshee Howl",
-     "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
-     "icon": "\ud83d\udce3",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "piercing_howl"
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_arms_t6a",
-     "name": "Reckless Abandon",
-     "desc": "Replaces Execute with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
-     "icon": "\ud83d\ude21",
-     "mods": {},
-     "swap": {
-      "from": "execute",
-      "to": "recklessness"
-     }
-    },
-    {
-     "id": "warrior_arms_t6b",
-     "name": "Stand Against Steel",
-     "desc": "Replaces Execute with Die by the Sword, a long defensive.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "execute",
-      "to": "die_by_the_sword"
-     }
-    },
-    {
-     "id": "warrior_arms_t6c",
-     "name": "Fortress Stance",
-     "desc": "Replaces Execute with Fortress Stance: 40% less damage taken for 8 seconds.",
-     "icon": "\ud83e\uddf1",
-     "mods": {},
-     "swap": {
-      "from": "execute",
-      "to": "shield_wall"
-     }
-    }
-   ]
-  ],
-  "fury": [
-   [
-    {
-     "id": "warrior_t1a",
-     "name": "Leaping Strides",
-     "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
-     "icon": "\ud83e\udd98",
-     "mods": {
-      "ability": {
-       "heroic_leap": {
-        "cooldown": 0.75
-       },
-       "charge": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_t1b",
-     "name": "Crippling Technique",
-     "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
-     "icon": "\ud83e\uddb5",
-     "mods": {
-      "auraDuration": {
-       "hamstring_slow": 1.4
-      },
-      "ability": {
-       "pummel": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_t1c",
-     "name": "Battle Rush",
-     "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
-     "icon": "\ud83d\udc17",
-     "mods": {
-      "ability": {
-       "charge": {
-        "range": 5,
-        "cooldown": 0.8
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_fury_t2a",
-     "name": "Storm Mastery",
-     "desc": "Bladestorm deals 20% more damage and recharges 15% faster.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {
-      "ability": {
-       "bladestorm": {
-        "damage": 1.2,
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_fury_t2b",
-     "name": "Bloodlust",
-     "desc": "Bloodthirst deals 15% more damage and recharges 10% faster.",
-     "icon": "\ud83d\udca2",
-     "mods": {
-      "ability": {
-       "bloodthirst": {
-        "damage": 1.15,
-        "cooldown": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_fury_t2c",
-     "name": "Thick Hide",
-     "desc": "You take 5% less damage and have 5% more maximum health.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "damageTaken": 0.95,
-      "maxHealth": 1.05
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_fury_t3a",
-     "name": "Heavy Slam",
-     "desc": "Slam deals 25% more damage and costs 15% less rage.",
-     "icon": "\ud83d\udd28",
-     "mods": {
-      "ability": {
-       "slam": {
-        "damage": 1.25,
-        "cost": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_fury_t3b",
-     "name": "Second Wind",
-     "desc": "Enraged Regeneration recharges 20% faster and you take 4% less damage.",
-     "icon": "\ud83d\udc96",
-     "mods": {
-      "damageTaken": 0.96,
-      "ability": {
-       "enraged_regeneration": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_fury_t3c",
-     "name": "Overwhelming Power",
-     "desc": "All damage is increased by 5%.",
-     "icon": "\ud83d\udcaa",
-     "mods": {
-      "damageDone": 1.05
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_fury_t4a",
-     "name": "Disrupting Cry",
-     "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
-     "icon": "\ud83e\ude9d",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "harpoon_throw"
-     }
-    },
-    {
-     "id": "warrior_fury_t4b",
-     "name": "Storm Bolt",
-     "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "hammer_toss"
-     }
-    },
-    {
-     "id": "warrior_fury_t4c",
-     "name": "Skull Bash",
-     "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
-     "icon": "\ud83d\udcab",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "concussion_blow"
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_fury_t5a",
-     "name": "Ground Slam",
-     "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
-     "icon": "\ud83d\udca5",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "shockwave"
-     }
-    },
-    {
-     "id": "warrior_fury_t5b",
-     "name": "Terrifying Roar",
-     "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
-     "icon": "\ud83d\udce2",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "intimidating_shout"
-     }
-    },
-    {
-     "id": "warrior_fury_t5c",
-     "name": "Banshee Howl",
-     "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
-     "icon": "\ud83d\udce3",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "piercing_howl"
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_fury_t6a",
-     "name": "Reckless Abandon",
-     "desc": "Replaces Slam with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
-     "icon": "\ud83d\ude21",
-     "mods": {},
-     "swap": {
-      "from": "slam",
-      "to": "recklessness"
-     }
-    },
-    {
-     "id": "warrior_fury_t6b",
-     "name": "Stand Against Steel",
-     "desc": "Replaces Slam with Die by the Sword, a long defensive.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "slam",
-      "to": "die_by_the_sword"
-     }
-    },
-    {
-     "id": "warrior_fury_t6c",
-     "name": "Fortress Stance",
-     "desc": "Replaces Slam with Fortress Stance: 40% less damage taken for 8 seconds.",
-     "icon": "\ud83e\uddf1",
-     "mods": {},
-     "swap": {
-      "from": "slam",
-      "to": "shield_wall"
-     }
-    }
-   ]
-  ],
-  "protection": [
-   [
-    {
-     "id": "warrior_t1a",
-     "name": "Leaping Strides",
-     "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
-     "icon": "\ud83e\udd98",
-     "mods": {
-      "ability": {
-       "heroic_leap": {
-        "cooldown": 0.75
-       },
-       "charge": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_t1b",
-     "name": "Crippling Technique",
-     "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
-     "icon": "\ud83e\uddb5",
-     "mods": {
-      "auraDuration": {
-       "hamstring_slow": 1.4
-      },
-      "ability": {
-       "pummel": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_t1c",
-     "name": "Battle Rush",
-     "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
-     "icon": "\ud83d\udc17",
-     "mods": {
-      "ability": {
-       "charge": {
-        "range": 5,
-        "cooldown": 0.8
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_protection_t2a",
-     "name": "Long Chain",
-     "desc": "Reel In reaches 4 yards further and recharges 20% faster.",
-     "icon": "\u26d3\ufe0f",
-     "mods": {
-      "ability": {
-       "reel_in": {
-        "range": 4,
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_protection_t2b",
-     "name": "Open Wounds",
-     "desc": "Deep Cuts deals 20% more damage.",
-     "icon": "\ud83e\ude78",
-     "mods": {
-      "ability": {
-       "deep_cuts": {
-        "damage": 1.2
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_protection_t2c",
-     "name": "Thick Hide",
-     "desc": "You take 5% less damage and have 5% more maximum health.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "damageTaken": 0.95,
-      "maxHealth": 1.05
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_protection_t3a",
-     "name": "Sharpened Axes",
-     "desc": "Axe Throw deals 25% more damage and reaches 3 yards further.",
-     "icon": "\ud83e\ude93",
-     "mods": {
-      "ability": {
-       "axe_throw": {
-        "damage": 1.25,
-        "range": 3
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_protection_t3b",
-     "name": "Iron Banner",
-     "desc": "The banner recharges 20% faster and reaches 3 yards further.",
-     "icon": "\ud83d\udea9",
-     "mods": {
-      "ability": {
-       "not_going_anywhere": {
-        "cooldown": 0.8,
-        "range": 3
-       }
-      }
-     }
-    },
-    {
-     "id": "warrior_protection_t3c",
-     "name": "Brute",
-     "desc": "All damage is increased by 3% and maximum health by 7%.",
-     "icon": "\ud83e\udd8d",
-     "mods": {
-      "damageDone": 1.03,
-      "maxHealth": 1.07
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_protection_t4a",
-     "name": "Disrupting Cry",
-     "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
-     "icon": "\ud83e\ude9d",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "harpoon_throw"
-     }
-    },
-    {
-     "id": "warrior_protection_t4b",
-     "name": "Storm Bolt",
-     "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "hammer_toss"
-     }
-    },
-    {
-     "id": "warrior_protection_t4c",
-     "name": "Skull Bash",
-     "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
-     "icon": "\ud83d\udcab",
-     "mods": {},
-     "swap": {
-      "from": "pummel",
-      "to": "concussion_blow"
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_protection_t5a",
-     "name": "Ground Slam",
-     "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
-     "icon": "\ud83d\udca5",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "shockwave"
-     }
-    },
-    {
-     "id": "warrior_protection_t5b",
-     "name": "Terrifying Roar",
-     "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
-     "icon": "\ud83d\udce2",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "intimidating_shout"
-     }
-    },
-    {
-     "id": "warrior_protection_t5c",
-     "name": "Banshee Howl",
-     "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
-     "icon": "\ud83d\udce3",
-     "mods": {},
-     "swap": {
-      "from": "charge",
-      "to": "piercing_howl"
-     }
-    }
-   ],
-   [
-    {
-     "id": "warrior_protection_t6a",
-     "name": "Reckless Abandon",
-     "desc": "Replaces Axe Throw with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
-     "icon": "\ud83d\ude21",
-     "mods": {},
-     "swap": {
-      "from": "axe_throw",
-      "to": "recklessness"
-     }
-    },
-    {
-     "id": "warrior_protection_t6b",
-     "name": "Stand Against Steel",
-     "desc": "Replaces Axe Throw with Die by the Sword, a long defensive.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "axe_throw",
-      "to": "die_by_the_sword"
-     }
-    },
-    {
-     "id": "warrior_protection_t6c",
-     "name": "Fortress Stance",
-     "desc": "Replaces Axe Throw with Fortress Stance: 40% less damage taken for 8 seconds.",
-     "icon": "\ud83e\uddf1",
-     "mods": {},
-     "swap": {
-      "from": "axe_throw",
-      "to": "shield_wall"
-     }
-    }
-   ]
-  ]
- },
- "mage": {
-  "frost": [
-   [
-    {
-     "id": "mage_t1a",
-     "name": "Quick Snuff",
-     "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
-     "icon": "\ud83d\udeab",
-     "mods": {
-      "ability": {
-       "counterspell": {
-        "cooldown": 0.75
-       },
-       "blink": {
-        "cooldown": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_t1b",
-     "name": "Sheepish",
-     "desc": "Polymorph casts 25% faster and lasts 25% longer.",
-     "icon": "\ud83d\udc11",
-     "mods": {
-      "ability": {
-       "polymorph": {
-        "castTime": 0.75
-       }
-      },
-      "auraDuration": {
-       "polymorph": 1.25
-      }
-     }
-    },
-    {
-     "id": "mage_t1c",
-     "name": "Arcane Insight",
-     "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
-     "icon": "\ud83d\udd2e",
-     "mods": {
-      "ability": {
-       "polymorph": {
-        "castTime": 0.85
-       },
-       "counterspell": {
-        "cooldown": 0.85
-       },
-       "blink": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_frost_t2a",
-     "name": "Glacial Ward",
-     "desc": "Ice Barrier lasts 50% longer and you take 5% less damage.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "auraDuration": {
-       "ice_barrier": 1.5
-      },
-      "damageTaken": 0.95
-     }
-    },
-    {
-     "id": "mage_frost_t2b",
-     "name": "Deep Winter",
-     "desc": "Deep Freeze's stun lasts 25% longer and its cooldown is 20% shorter.",
-     "icon": "\ud83c\udf28\ufe0f",
-     "mods": {
-      "auraDuration": {
-       "deep_freeze_stun": 1.25
-      },
-      "ability": {
-       "deep_freeze": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_frost_t2c",
-     "name": "Winter's Chill",
-     "desc": "All your damage is 6% higher and mana regenerates 20% faster.",
-     "icon": "\u2744\ufe0f",
-     "mods": {
-      "damageDone": 1.06,
-      "regen": 1.2
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_frost_t3a",
-     "name": "Twin Blink",
-     "desc": "Blink can be used twice per cooldown.",
-     "icon": "\u2728",
-     "mods": {
-      "ability": {
-       "blink": {
-        "charges": 1
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_frost_t3b",
-     "name": "Frostwalker",
-     "desc": "Blink cooldown is 20% shorter and grants 40% run speed for 4 seconds.",
-     "icon": "\ud83d\udc62",
-     "mods": {
-      "ability": {
-       "blink": {
-        "cooldown": 0.8,
-        "after": [
-         "blink_speed"
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_frost_t3c",
-     "name": "Icy Veins Blink",
-     "desc": "After Blinking, your spells cast 30% faster for 5 seconds.",
-     "icon": "\ud83d\udca8",
-     "mods": {
-      "ability": {
-       "blink": {
-        "after": [
-         "blink_haste"
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_frost_t4a",
-     "name": "Blizzard",
-     "desc": "Replaces Polymorph with Blizzard, a ground storm that damages and slows foes, which Ice Lance can punish.",
-     "icon": "\ud83c\udf2c\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "blizzard"
-     }
-    },
-    {
-     "id": "mage_frost_t4b",
-     "name": "Dragon's Breath",
-     "desc": "Replaces Polymorph with Dragon's Breath, a close-range cone that disorients enemies to peel melee off you.",
-     "icon": "\ud83d\udc09",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "dragons_breath"
-     }
-    },
-    {
-     "id": "mage_frost_t4c",
-     "name": "Flamestrike",
-     "desc": "Replaces Polymorph with Flamestrike, ground fire for burst damage on a frozen, rooted target.",
-     "icon": "\ud83d\udd25",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "flamestrike"
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_frost_t5a",
-     "name": "Arcane Torrent",
-     "desc": "Replaces Counterspell with Arcane Torrent, a silence that shuts down enemy casters.",
-     "icon": "\ud83d\udd07",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "arcane_silence"
-     }
-    },
-    {
-     "id": "mage_frost_t5b",
-     "name": "Arcane Explosion",
-     "desc": "Replaces Counterspell with Arcane Explosion, an instant slowing burst around you.",
-     "icon": "\ud83d\udca5",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "arcane_explosion"
-     }
-    },
-    {
-     "id": "mage_frost_t5c",
-     "name": "Arcane Barrage",
-     "desc": "Replaces Counterspell with Arcane Barrage, a quick heavy hit for extra burst.",
-     "icon": "\ud83d\udd2e",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "arcane_barrage"
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_frost_t6a",
-     "name": "Evocation",
-     "desc": "Replaces Ice Barrier with Evocation, restoring your mana in a long channel.",
-     "icon": "\ud83e\uddd8",
-     "mods": {},
-     "swap": {
-      "from": "ice_barrier",
-      "to": "evocation"
-     }
-    },
-    {
-     "id": "mage_frost_t6b",
-     "name": "Arcane Power",
-     "desc": "Replaces Ice Barrier with Arcane Power, a big damage cooldown for burst windows.",
-     "icon": "\u26a1",
-     "mods": {},
-     "swap": {
-      "from": "ice_barrier",
-      "to": "arcane_power"
-     }
-    },
-    {
-     "id": "mage_frost_t6c",
-     "name": "Pyroblast",
-     "desc": "Replaces Ice Barrier with Pyroblast, a huge slow-cast nuke to finish stunned targets.",
-     "icon": "\u2604\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "ice_barrier",
-      "to": "pyroblast"
-     }
-    }
-   ]
-  ],
-  "fire": [
-   [
-    {
-     "id": "mage_t1a",
-     "name": "Quick Snuff",
-     "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
-     "icon": "\ud83d\udeab",
-     "mods": {
-      "ability": {
-       "counterspell": {
-        "cooldown": 0.75
-       },
-       "blink": {
-        "cooldown": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_t1b",
-     "name": "Sheepish",
-     "desc": "Polymorph casts 25% faster and lasts 25% longer.",
-     "icon": "\ud83d\udc11",
-     "mods": {
-      "ability": {
-       "polymorph": {
-        "castTime": 0.75
-       }
-      },
-      "auraDuration": {
-       "polymorph": 1.25
-      }
-     }
-    },
-    {
-     "id": "mage_t1c",
-     "name": "Arcane Insight",
-     "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
-     "icon": "\ud83d\udd2e",
-     "mods": {
-      "ability": {
-       "polymorph": {
-        "castTime": 0.85
-       },
-       "counterspell": {
-        "cooldown": 0.85
-       },
-       "blink": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_fire_t2a",
-     "name": "Dragon's Wrath",
-     "desc": "Dragon's Breath lasts 40% longer and its cooldown is 20% shorter.",
-     "icon": "\ud83d\udc32",
-     "mods": {
-      "auraDuration": {
-       "dragons_breath": 1.4
-      },
-      "ability": {
-       "dragons_breath": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_fire_t2b",
-     "name": "Combustion",
-     "desc": "All your damage is 6% higher.",
-     "icon": "\ud83d\udca2",
-     "mods": {
-      "damageDone": 1.06
-     }
-    },
-    {
-     "id": "mage_fire_t2c",
-     "name": "Cauterize",
-     "desc": "Maximum health is 8% higher and you take 5% less damage.",
-     "icon": "\ud83e\ude79",
-     "mods": {
-      "maxHealth": 1.08,
-      "damageTaken": 0.95
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_fire_t3a",
-     "name": "Blazing Speed",
-     "desc": "After Blinking, your spells cast 30% faster for 5 seconds.",
-     "icon": "\ud83d\udca8",
-     "mods": {
-      "ability": {
-       "blink": {
-        "after": [
-         "blink_haste"
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_fire_t3b",
-     "name": "Flashfire",
-     "desc": "Blink cooldown is 20% shorter and spells cast 30% faster for 5 seconds after it.",
-     "icon": "\u26a1",
-     "mods": {
-      "ability": {
-       "blink": {
-        "cooldown": 0.8,
-        "after": [
-         "blink_haste"
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_fire_t3c",
-     "name": "Phoenix Step",
-     "desc": "Blink can be used twice per cooldown and grants 40% run speed for 4 seconds.",
-     "icon": "\ud83d\udd25",
-     "mods": {
-      "ability": {
-       "blink": {
-        "charges": 1,
-        "after": [
-         "blink_speed"
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_fire_t4a",
-     "name": "Frost Nova",
-     "desc": "Replaces Polymorph with Frost Nova, a root to escape melee and set up Pyroblast.",
-     "icon": "\u2744\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "frost_nova"
-     }
-    },
-    {
-     "id": "mage_fire_t4b",
-     "name": "Deep Freeze",
-     "desc": "Replaces Polymorph with Deep Freeze, a stun that guarantees a safe Pyroblast.",
-     "icon": "\ud83e\uddca",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "deep_freeze"
-     }
-    },
-    {
-     "id": "mage_fire_t4c",
-     "name": "Arcane Explosion",
-     "desc": "Replaces Polymorph with Arcane Explosion, an instant slow to keep melee off you.",
-     "icon": "\ud83d\udca5",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "arcane_explosion"
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_fire_t5a",
-     "name": "Arcane Torrent",
-     "desc": "Replaces Counterspell with Arcane Torrent, a silence to stop enemy healers.",
-     "icon": "\ud83d\udd07",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "arcane_silence"
-     }
-    },
-    {
-     "id": "mage_fire_t5b",
-     "name": "Ice Lance",
-     "desc": "Replaces Counterspell with Ice Lance, a cheap instant hit while you move.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "ice_lance"
-     }
-    },
-    {
-     "id": "mage_fire_t5c",
-     "name": "Arcane Barrage",
-     "desc": "Replaces Counterspell with Arcane Barrage, an instant heavy hit to add burst.",
-     "icon": "\ud83d\udd2e",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "arcane_barrage"
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_fire_t6a",
-     "name": "Blizzard",
-     "desc": "Replaces Flamestrike with Blizzard, a slowing ground storm for control.",
-     "icon": "\ud83c\udf2c\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "flamestrike",
-      "to": "blizzard"
-     }
-    },
-    {
-     "id": "mage_fire_t6b",
-     "name": "Ice Barrier",
-     "desc": "Replaces Flamestrike with Ice Barrier, a shield that makes your fragile body safer.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "flamestrike",
-      "to": "ice_barrier"
-     }
-    },
-    {
-     "id": "mage_fire_t6c",
-     "name": "Arcane Power",
-     "desc": "Replaces Flamestrike with Arcane Power, a damage cooldown to boost your burst.",
-     "icon": "\u26a1",
-     "mods": {},
-     "swap": {
-      "from": "flamestrike",
-      "to": "arcane_power"
-     }
-    }
-   ]
-  ],
-  "arcane": [
-   [
-    {
-     "id": "mage_t1a",
-     "name": "Quick Snuff",
-     "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
-     "icon": "\ud83d\udeab",
-     "mods": {
-      "ability": {
-       "counterspell": {
-        "cooldown": 0.75
-       },
-       "blink": {
-        "cooldown": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_t1b",
-     "name": "Sheepish",
-     "desc": "Polymorph casts 25% faster and lasts 25% longer.",
-     "icon": "\ud83d\udc11",
-     "mods": {
-      "ability": {
-       "polymorph": {
-        "castTime": 0.75
-       }
-      },
-      "auraDuration": {
-       "polymorph": 1.25
-      }
-     }
-    },
-    {
-     "id": "mage_t1c",
-     "name": "Arcane Insight",
-     "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
-     "icon": "\ud83d\udd2e",
-     "mods": {
-      "ability": {
-       "polymorph": {
-        "castTime": 0.85
-       },
-       "counterspell": {
-        "cooldown": 0.85
-       },
-       "blink": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_arcane_t2a",
-     "name": "Mind Mastery",
-     "desc": "Mana regenerates 25% faster.",
-     "icon": "\ud83e\udde0",
-     "mods": {
-      "regen": 1.25
-     }
-    },
-    {
-     "id": "mage_arcane_t2b",
-     "name": "Power Surge",
-     "desc": "Arcane Power lasts 40% longer and its cooldown is 20% shorter.",
-     "icon": "\u26a1",
-     "mods": {
-      "auraDuration": {
-       "arcane_power": 1.4
-      },
-      "ability": {
-       "arcane_power": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_arcane_t2c",
-     "name": "Gravity Well",
-     "desc": "Arcane Explosion's slow lasts 50% longer and its cooldown is 20% shorter.",
-     "icon": "\ud83c\udf0c",
-     "mods": {
-      "auraDuration": {
-       "arcane_slow": 1.5
-      },
-      "ability": {
-       "arcane_explosion": {
-        "cooldown": 0.8
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_arcane_t3a",
-     "name": "Slipstream Blink",
-     "desc": "Blink cooldown is 20% shorter and grants 40% run speed for 4 seconds.",
-     "icon": "\ud83d\udc62",
-     "mods": {
-      "ability": {
-       "blink": {
-        "cooldown": 0.8,
-        "after": [
-         "blink_speed"
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_arcane_t3b",
-     "name": "Displacement",
-     "desc": "Blink can be used twice per cooldown and grants 40% run speed for 4 seconds.",
-     "icon": "\u2728",
-     "mods": {
-      "ability": {
-       "blink": {
-        "charges": 1,
-        "after": [
-         "blink_speed"
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_arcane_t3c",
-     "name": "Quickened Mind",
-     "desc": "Blink cooldown is 20% shorter and spells cast 30% faster for 5 seconds after it.",
-     "icon": "\ud83d\udca8",
-     "mods": {
-      "ability": {
-       "blink": {
-        "cooldown": 0.8,
-        "after": [
-         "blink_haste"
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_arcane_t4a",
-     "name": "Frost Nova",
-     "desc": "Replaces Polymorph with Frost Nova, a root that lets Arcane Missiles finish.",
-     "icon": "\u2744\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "frost_nova"
-     }
-    },
-    {
-     "id": "mage_arcane_t4b",
-     "name": "Dragon's Breath",
-     "desc": "Replaces Polymorph with Dragon's Breath, a cone disorient to escape melee.",
-     "icon": "\ud83d\udc09",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "dragons_breath"
-     }
-    },
-    {
-     "id": "mage_arcane_t4c",
-     "name": "Deep Freeze",
-     "desc": "Replaces Polymorph with Deep Freeze, a stun giving a safe window for your channel.",
-     "icon": "\ud83e\uddca",
-     "mods": {},
-     "swap": {
-      "from": "polymorph",
-      "to": "deep_freeze"
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_arcane_t5a",
-     "name": "Arcane Torrent",
-     "desc": "Replaces Counterspell with Arcane Torrent, a silence on enemy casters.",
-     "icon": "\ud83d\udd07",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "arcane_silence"
-     }
-    },
-    {
-     "id": "mage_arcane_t5b",
-     "name": "Ice Lance",
-     "desc": "Replaces Counterspell with Ice Lance, a cheap instant hit while moving.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "ice_lance"
-     }
-    },
-    {
-     "id": "mage_arcane_t5c",
-     "name": "Pyroblast",
-     "desc": "Replaces Counterspell with Pyroblast, a heavy slow nuke for burst.",
-     "icon": "\u2604\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "counterspell",
-      "to": "pyroblast"
-     }
-    }
-   ],
-   [
-    {
-     "id": "mage_arcane_t6a",
-     "name": "Ice Barrier",
-     "desc": "Replaces Arcane Explosion with Ice Barrier, an absorb shield for sustain.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "arcane_explosion",
-      "to": "ice_barrier"
-     }
-    },
-    {
-     "id": "mage_arcane_t6b",
-     "name": "Blizzard",
-     "desc": "Replaces Arcane Explosion with Blizzard, a ground storm that slows from range.",
-     "icon": "\ud83c\udf2c\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "arcane_explosion",
-      "to": "blizzard"
-     }
-    },
-    {
-     "id": "mage_arcane_t6c",
-     "name": "Evocation",
-     "desc": "Replaces Arcane Explosion with Evocation, a long channel that restores your mana.",
-     "icon": "\ud83e\uddd8",
-     "mods": {},
-     "swap": {
-      "from": "arcane_explosion",
-      "to": "evocation"
-     }
-    }
-   ]
-  ]
- },
- "priest": {
-  "discipline": [
-   [
-    {
-     "id": "priest_t1a",
-     "name": "Quick Mending",
-     "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
-     "icon": "\ud83d\udc96",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "heal": 1.1
-       }
-      },
-      "auraDuration": {
-       "pw_shield": 1.3
-      }
-     }
-    },
-    {
-     "id": "priest_t1b",
-     "name": "Swift Prayer",
-     "icon": "\ud83d\ude4f",
-     "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "castTime": 0.9
-       },
-       "power_word_shield": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_t1c",
-     "name": "Dread Voice",
-     "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
-     "icon": "\ud83d\udce2",
-     "mods": {
-      "ability": {
-       "psychic_scream": {
-        "cooldown": 0.8
-       }
-      },
-      "auraDuration": {
-       "psychic_scream": 1.25
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_discipline_t2a",
-     "name": "Guardian Pact",
-     "desc": "Pain Suppression lasts 30% longer and its cooldown is 15% shorter.",
-     "icon": "\ud83e\udeac",
-     "mods": {
-      "auraDuration": {
-       "pain_suppression": 1.3
-      },
-      "ability": {
-       "pain_suppression": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_discipline_t2b",
-     "name": "Inner Fortitude",
-     "desc": "You take 5% less damage and have 5% more maximum health.",
-     "icon": "\ud83c\udff0",
-     "mods": {
-      "damageTaken": 0.95,
-      "maxHealth": 1.05
-     }
-    },
-    {
-     "id": "priest_discipline_t2c",
-     "name": "Serene Focus",
-     "desc": "Resource regeneration is 20% faster and all healing is 5% stronger.",
-     "icon": "\ud83e\uddd8",
-     "mods": {
-      "regen": 1.2,
-      "healingDone": 1.05
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_discipline_t3a",
-     "name": "Zealous Penance",
-     "desc": "Penance deals 15% more damage and heals 12% more.",
-     "icon": "\ud83d\udd25",
-     "mods": {
-      "ability": {
-       "penance": {
-        "damage": 1.15,
-        "heal": 1.12
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_discipline_t3b",
-     "name": "Cleansing Light",
-     "desc": "Dispel Magic cooldown is 25% shorter and its range is 10 yards longer.",
-     "icon": "\ud83e\uddfc",
-     "mods": {
-      "ability": {
-       "dispel_magic": {
-        "cooldown": 0.75,
-        "range": 10
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_discipline_t3c",
-     "name": "Fleet of Spirit",
-     "desc": "You move 8% faster and Desperate Prayer cooldown is 15% shorter.",
-     "icon": "\ud83d\udc5f",
-     "mods": {
-      "moveSpeed": 1.08,
-      "ability": {
-       "desperate_prayer": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_discipline_t4a",
-     "name": "Mind Spike",
-     "desc": "Replaces Smite with Mind Blast, a harder-hitting shadow nuke on a short cooldown that adds burst to your Penance rotation.",
-     "icon": "\ud83e\udde0",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "mind_blast"
-     }
-    },
-    {
-     "id": "priest_discipline_t4b",
-     "name": "Tormenting Gaze",
-     "desc": "Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown for constant pressure while you heal.",
-     "icon": "\ud83d\udc41\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "mind_flay"
-     }
-    },
-    {
-     "id": "priest_discipline_t4c",
-     "name": "Withering Touch",
-     "desc": "Replaces Smite with Shadow Word: Pain, a damage-over-time that pressures enemies while you heal.",
-     "icon": "\u2620\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "plague_bloom"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_discipline_t5a",
-     "name": "Hush the Caster",
-     "desc": "Replaces Dispel Magic with Silence, an interrupt that shuts down enemy casters.",
-     "icon": "\ud83e\udd2b",
-     "mods": {},
-     "swap": {
-      "from": "dispel_magic",
-      "to": "hush"
-     }
-    },
-    {
-     "id": "priest_discipline_t5b",
-     "name": "Hammer of the Warden",
-     "desc": "Replaces Dispel Magic with Hammer of Justice, a stun to peel enemies off your allies.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "dispel_magic",
-      "to": "judgment_hammer"
-     }
-    },
-    {
-     "id": "priest_discipline_t5c",
-     "name": "Empowered Ally",
-     "desc": "Replaces Dispel Magic with Power Infusion, a burst buff to your damage and healing.",
-     "icon": "\u2728",
-     "mods": {},
-     "swap": {
-      "from": "dispel_magic",
-      "to": "power_infusion"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_discipline_t6a",
-     "name": "Word of Serenity",
-     "desc": "Replaces Desperate Prayer with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds.",
-     "icon": "\ud83d\ude4f",
-     "mods": {},
-     "swap": {
-      "from": "desperate_prayer",
-      "to": "holy_word"
-     }
-    },
-    {
-     "id": "priest_discipline_t6b",
-     "name": "Fade to Static",
-     "desc": "Replaces Desperate Prayer with Dispersion, a defensive that cuts damage taken for a few seconds.",
-     "icon": "\ud83c\udf2b\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "desperate_prayer",
-      "to": "dispersion"
-     }
-    },
-    {
-     "id": "priest_discipline_t6c",
-     "name": "Radiant Burst",
-     "desc": "Replaces Desperate Prayer with Holy Nova, a 12 second instant that heals all allies for 130 and damages all enemies for 80.",
-     "icon": "\ud83c\udf1f",
-     "mods": {},
-     "swap": {
-      "from": "desperate_prayer",
-      "to": "holy_nova"
-     }
-    }
-   ]
-  ],
-  "holy": [
-   [
-    {
-     "id": "priest_t1a",
-     "name": "Quick Mending",
-     "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
-     "icon": "\ud83d\udc96",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "heal": 1.1
-       }
-      },
-      "auraDuration": {
-       "pw_shield": 1.3
-      }
-     }
-    },
-    {
-     "id": "priest_t1b",
-     "name": "Swift Prayer",
-     "icon": "\ud83d\ude4f",
-     "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "castTime": 0.9
-       },
-       "power_word_shield": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_t1c",
-     "name": "Dread Voice",
-     "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
-     "icon": "\ud83d\udce2",
-     "mods": {
-      "ability": {
-       "psychic_scream": {
-        "cooldown": 0.8
-       }
-      },
-      "auraDuration": {
-       "psychic_scream": 1.25
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_holy_t2a",
-     "name": "Mending Ward",
-     "desc": "Power Word: Shield lasts 50% longer and its cooldown is 10% shorter.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "auraDuration": {
-       "pw_shield": 1.5
-      },
-      "ability": {
-       "power_word_shield": {
-        "cooldown": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_holy_t2b",
-     "name": "Radiant Nova",
-     "desc": "Holy Nova heals and damages 15% more and its cooldown is 10% shorter.",
-     "icon": "\ud83c\udf1f",
-     "mods": {
-      "ability": {
-       "holy_nova": {
-        "heal": 1.15,
-        "damage": 1.15,
-        "cooldown": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_holy_t2c",
-     "name": "Chosen of the Light",
-     "desc": "Desperate Prayer heals 15% more and its cooldown is 15% shorter.",
-     "icon": "\ud83d\udd4a\ufe0f",
-     "mods": {
-      "ability": {
-       "desperate_prayer": {
-        "heal": 1.15,
-        "cooldown": 0.85
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_holy_t3a",
-     "name": "Purifying Flame",
-     "desc": "Dispel Magic cooldown is 25% shorter and its range is 10 yards longer.",
-     "icon": "\ud83e\uddfc",
-     "mods": {
-      "ability": {
-       "dispel_magic": {
-        "cooldown": 0.75,
-        "range": 10
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_holy_t3b",
-     "name": "Sanctified Shell",
-     "desc": "You take 6% less damage and have 5% more maximum health.",
-     "icon": "\ud83c\udff0",
-     "mods": {
-      "damageTaken": 0.94,
-      "maxHealth": 1.05
-     }
-    },
-    {
-     "id": "priest_holy_t3c",
-     "name": "Deep Reserves",
-     "desc": "Greater Heal heals 12% more and casts 8% faster.",
-     "icon": "\ud83d\udc96",
-     "mods": {
-      "ability": {
-       "greater_heal": {
-        "heal": 1.12,
-        "castTime": 0.92
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_holy_t4a",
-     "name": "Searing Thought",
-     "desc": "Replaces Smite with Mind Blast, giving you a real shadow nuke for damage.",
-     "icon": "\ud83e\udde0",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "mind_blast"
-     }
-    },
-    {
-     "id": "priest_holy_t4b",
-     "name": "Lingering Gaze",
-     "desc": "Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown to add damage between heals.",
-     "icon": "\ud83d\udc41\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "mind_flay"
-     }
-    },
-    {
-     "id": "priest_holy_t4c",
-     "name": "Creeping Ruin",
-     "desc": "Replaces Smite with Shadow Word: Pain, adding damage over time without needing a long cast.",
-     "icon": "\u2620\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "smite",
-      "to": "plague_bloom"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_holy_t5a",
-     "name": "Hammer of Dawn",
-     "desc": "Replaces Psychic Scream with Hammer of Justice, a single-target stun to protect a struggling ally.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "psychic_scream",
-      "to": "judgment_hammer"
-     }
-    },
-    {
-     "id": "priest_holy_t5b",
-     "name": "Quiet the Chant",
-     "desc": "Replaces Psychic Scream with Silence, an interrupt that stops enemy casters.",
-     "icon": "\ud83e\udd2b",
-     "mods": {},
-     "swap": {
-      "from": "psychic_scream",
-      "to": "hush"
-     }
-    },
-    {
-     "id": "priest_holy_t5c",
-     "name": "Final Verdict",
-     "desc": "Replaces Psychic Scream with Shadow Word: Death, a damage-over-time to add pressure.",
-     "icon": "\ud83d\udc80",
-     "mods": {},
-     "swap": {
-      "from": "psychic_scream",
-      "to": "shadow_word_death"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_holy_t6a",
-     "name": "Inspiring Hymn",
-     "desc": "Replaces Dispel Magic with Power Infusion, boosting healing and speeding up casts.",
-     "icon": "\u2728",
-     "mods": {},
-     "swap": {
-      "from": "dispel_magic",
-      "to": "power_infusion"
-     }
-    },
-    {
-     "id": "priest_holy_t6b",
-     "name": "Word of Serenity",
-     "desc": "Replaces Dispel Magic with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds.",
-     "icon": "\ud83d\ude4f",
-     "mods": {},
-     "swap": {
-      "from": "dispel_magic",
-      "to": "holy_word"
-     }
-    },
-    {
-     "id": "priest_holy_t6c",
-     "name": "Veil of Static",
-     "desc": "Replaces Dispel Magic with Dispersion, letting you survive focus fire yourself.",
-     "icon": "\ud83c\udf2b\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "dispel_magic",
-      "to": "dispersion"
-     }
-    }
-   ]
-  ],
-  "shadow": [
-   [
-    {
-     "id": "priest_t1a",
-     "name": "Quick Mending",
-     "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
-     "icon": "\ud83d\udc96",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "heal": 1.1
-       }
-      },
-      "auraDuration": {
-       "pw_shield": 1.3
-      }
-     }
-    },
-    {
-     "id": "priest_t1b",
-     "name": "Swift Prayer",
-     "icon": "\ud83d\ude4f",
-     "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "castTime": 0.9
-       },
-       "power_word_shield": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_t1c",
-     "name": "Dread Voice",
-     "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
-     "icon": "\ud83d\udce2",
-     "mods": {
-      "ability": {
-       "psychic_scream": {
-        "cooldown": 0.8
-       }
-      },
-      "auraDuration": {
-       "psychic_scream": 1.25
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_shadow_t2a",
-     "name": "Void Embrace",
-     "desc": "Dispersion lasts 40% longer and its cooldown is 15% shorter.",
-     "icon": "\ud83c\udf11",
-     "mods": {
-      "auraDuration": {
-       "dispersion": 1.4
-      },
-      "ability": {
-       "dispersion": {
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_shadow_t2b",
-     "name": "Consuming Dark",
-     "desc": "You deal 6% more damage and Mind Flay deals 20% more damage.",
-     "icon": "\ud83c\udf12",
-     "mods": {
-      "damageDone": 1.06,
-      "ability": {
-       "mind_flay": {
-        "damage": 1.2
-       }
-      }
-     }
-    },
-    {
-     "id": "priest_shadow_t2c",
-     "name": "Mind Over Matter",
-     "desc": "Resource regeneration is 25% faster and casts are 5% quicker.",
-     "icon": "\ud83d\udd2e",
-     "mods": {
-      "regen": 1.25,
-      "castTime": 0.95
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_shadow_t3a",
-     "name": "Gnawing Dark",
-     "desc": "Shadow Word: Death deals 20% more damage and its rot lasts 40% longer.",
-     "icon": "\ud83d\udc80",
-     "mods": {
-      "ability": {
-       "shadow_word_death": {
-        "damage": 1.2
-       }
-      },
-      "auraDuration": {
-       "creeping_rot": 1.4
-      }
-     }
-    },
-    {
-     "id": "priest_shadow_t3b",
-     "name": "Shadowstep Mind",
-     "desc": "You move 10% faster and take 4% less damage.",
-     "icon": "\ud83d\udc5f",
-     "mods": {
-      "moveSpeed": 1.1,
-      "damageTaken": 0.96
-     }
-    },
-    {
-     "id": "priest_shadow_t3c",
-     "name": "Stolen Vitality",
-     "desc": "Flash Heal heals 15% more and Power Word: Shield lasts 40% longer.",
-     "icon": "\ud83e\ude78",
-     "mods": {
-      "ability": {
-       "flash_heal": {
-        "heal": 1.15
-       }
-      },
-      "auraDuration": {
-       "pw_shield": 1.4
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_shadow_t4a",
-     "name": "Greater Salvation",
-     "desc": "Replaces Flash Heal with Greater Heal, a slow but big heal for recovering between fights.",
-     "icon": "\ud83d\udc96",
-     "mods": {},
-     "swap": {
-      "from": "flash_heal",
-      "to": "greater_heal"
-     }
-    },
-    {
-     "id": "priest_shadow_t4b",
-     "name": "Serenity Burst",
-     "desc": "Replaces Flash Heal with Holy Word: Serenity, an instant 300 heal for emergencies.",
-     "icon": "\ud83d\ude4f",
-     "mods": {},
-     "swap": {
-      "from": "flash_heal",
-      "to": "holy_word"
-     }
-    },
-    {
-     "id": "priest_shadow_t4c",
-     "name": "Desperate Measures",
-     "desc": "Replaces Flash Heal with Desperate Prayer, a huge heal on a long cooldown.",
-     "icon": "\ud83d\udd4a\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "flash_heal",
-      "to": "desperate_prayer"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_shadow_t5a",
-     "name": "Sacrificial Guard",
-     "desc": "Replaces Power Word: Shield with Pain Suppression, a strong damage cut for 8 seconds.",
-     "icon": "\ud83e\udeac",
-     "mods": {},
-     "swap": {
-      "from": "power_word_shield",
-      "to": "pain_suppression"
-     }
-    },
-    {
-     "id": "priest_shadow_t5b",
-     "name": "Purge the Light",
-     "desc": "Replaces Power Word: Shield with Dispel Magic, stripping buffs and cleansing your debuffs.",
-     "icon": "\ud83e\uddfc",
-     "mods": {},
-     "swap": {
-      "from": "power_word_shield",
-      "to": "dispel_magic"
-     }
-    },
-    {
-     "id": "priest_shadow_t5c",
-     "name": "Hush",
-     "desc": "Replaces Power Word: Shield with Silence, an interrupt to stop enemy healers.",
-     "icon": "\ud83e\udd2b",
-     "mods": {},
-     "swap": {
-      "from": "power_word_shield",
-      "to": "hush"
-     }
-    }
-   ],
-   [
-    {
-     "id": "priest_shadow_t6a",
-     "name": "Hammer of the Void",
-     "desc": "Replaces Psychic Scream with Hammer of Justice, a stun to set up burst and free Mind Flay channels.",
-     "icon": "\ud83d\udd28",
-     "mods": {},
-     "swap": {
-      "from": "psychic_scream",
-      "to": "judgment_hammer"
-     }
-    },
-    {
-     "id": "priest_shadow_t6b",
-     "name": "Dark Empowerment",
-     "desc": "Replaces Psychic Scream with Power Infusion, a burst buff to your damage and cast speed.",
-     "icon": "\u2728",
-     "mods": {},
-     "swap": {
-      "from": "psychic_scream",
-      "to": "power_infusion"
-     }
-    },
-    {
-     "id": "priest_shadow_t6c",
-     "name": "Holy Reprise",
-     "desc": "Replaces Psychic Scream with Smite, a reliable holy damage spell with no cooldown.",
-     "icon": "\u26a1",
-     "mods": {},
-     "swap": {
-      "from": "psychic_scream",
-      "to": "smite"
-     }
-    }
-   ]
-  ]
- },
- "rogue": {
-  "assassination": [
-   [
-    {
-     "id": "rogue_t1a",
-     "name": "Smoke Veil",
-     "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
-     "icon": "\ud83d\udca8",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "extra": [
-         {
-          "type": "smoke",
-          "radius": 6,
-          "duration": 6000
-         }
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_t1b",
-     "name": "Twin Vanish",
-     "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
-     "icon": "\ud83c\udf2b\ufe0f",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "stored": 1
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_t1c",
-     "name": "Shadow Mend",
-     "desc": "Vanishing heals you for 75% of your missing health.",
-     "icon": "\ud83d\udc9a",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "extra": [
-         {
-          "type": "healMissing",
-          "pct": 0.75
-         }
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_t2a",
-     "name": "Quiet Reserves",
-     "desc": "Energy regenerates 20% faster.",
-     "icon": "\u26a1",
-     "mods": {
-      "regen": 1.2
-     }
-    },
-    {
-     "id": "rogue_t2b",
-     "name": "Fleet Footed",
-     "desc": "You move 10% faster.",
-     "icon": "\ud83d\udc5f",
-     "mods": {
-      "moveSpeed": 1.1
-     }
-    },
-    {
-     "id": "rogue_t2c",
-     "name": "Deep Pockets",
-     "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
-     "icon": "\ud83c\udfaf",
-     "mods": {
-      "maxCp": 3,
-      "cpPower": 1.15
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_assassination_t3a",
-     "name": "Efficient Cuts",
-     "desc": "Mutilate costs 10% less energy.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {
-      "ability": {
-       "mutilate": {
-        "cost": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_assassination_t3b",
-     "name": "Festering Wounds",
-     "desc": "Mutilating a target that is already bleeding adds 3 seconds to the bleed instead of restarting it.",
-     "icon": "\ud83e\ude78",
-     "mods": {
-      "auraExtend": {
-       "mutilate_bleed": 3000
-      },
-      "ability": {
-       "mutilate": {}
-      }
-     }
-    },
-    {
-     "id": "rogue_assassination_t3c",
-     "name": "Crippling Cuts",
-     "desc": "Mutilate slows the target by 10% for 3 seconds.",
-     "icon": "\ud83e\uddb6",
-     "mods": {
-      "ability": {
-       "mutilate": {
-        "extra": [
-         {
-          "type": "aura",
-          "aura": "rogue_slow"
-         }
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_assassination_t4a",
-     "name": "Throwing Knife",
-     "desc": "Replaces Kick with Deadly Throw, a 20-yard ranged interrupt.",
-     "icon": "\ud83d\udd2a",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "knife_snipe"
-     }
-    },
-    {
-     "id": "rogue_assassination_t4b",
-     "name": "Blinding Powder",
-     "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
-     "icon": "\ud83d\ude48",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "blind"
-     }
-    },
-    {
-     "id": "rogue_assassination_t4c",
-     "name": "Hobbling Dose",
-     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
-     "icon": "\u2697\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "crippling_strike"
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_assassination_t5a",
-     "name": "Shadow Leap",
-     "desc": "Replaces Sprint with Shadowstep to close 25 yards on a target and open on them.",
-     "icon": "\ud83c\udf00",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "shadowstep"
-     }
-    },
-    {
-     "id": "rogue_assassination_t5b",
-     "name": "Smoke Screen",
-     "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
-     "icon": "\ud83d\udca8",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "choke_bomb"
-     }
-    },
-    {
-     "id": "rogue_assassination_t5c",
-     "name": "Blade Storm",
-     "desc": "Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "fan_of_knives"
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_assassination_t6a",
-     "name": "Finishing Cut",
-     "desc": "Replaces Garrote with Eviscerate, a combo point finisher dealing 110 damage per combo point spent.",
-     "icon": "\u2694\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "garrote",
-      "to": "eviscerate"
-     }
-    },
-    {
-     "id": "rogue_assassination_t6b",
-     "name": "Fortune's Edge",
-     "desc": "Replaces Garrote with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing.",
-     "icon": "\u26a1",
-     "mods": {},
-     "swap": {
-      "from": "garrote",
-      "to": "adrenaline_rush"
-     }
-    },
-    {
-     "id": "rogue_assassination_t6c",
-     "name": "Sinister Edge",
-     "desc": "Replaces Garrote with Sinister Strike, a cheap 110 damage builder that earns a combo point.",
-     "icon": "\ud83d\udde1\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "garrote",
-      "to": "sinister_strike"
-     }
-    }
-   ]
-  ],
-  "combat": [
-   [
-    {
-     "id": "rogue_t1a",
-     "name": "Smoke Veil",
-     "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
-     "icon": "\ud83d\udca8",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "extra": [
-         {
-          "type": "smoke",
-          "radius": 6,
-          "duration": 6000
-         }
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_t1b",
-     "name": "Twin Vanish",
-     "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
-     "icon": "\ud83c\udf2b\ufe0f",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "stored": 1
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_t1c",
-     "name": "Shadow Mend",
-     "desc": "Vanishing heals you for 75% of your missing health.",
-     "icon": "\ud83d\udc9a",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "extra": [
-         {
-          "type": "healMissing",
-          "pct": 0.75
-         }
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_t2a",
-     "name": "Quiet Reserves",
-     "desc": "Energy regenerates 20% faster.",
-     "icon": "\u26a1",
-     "mods": {
-      "regen": 1.2
-     }
-    },
-    {
-     "id": "rogue_t2b",
-     "name": "Fleet Footed",
-     "desc": "You move 10% faster.",
-     "icon": "\ud83d\udc5f",
-     "mods": {
-      "moveSpeed": 1.1
-     }
-    },
-    {
-     "id": "rogue_t2c",
-     "name": "Deep Pockets",
-     "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
-     "icon": "\ud83c\udfaf",
-     "mods": {
-      "maxCp": 3,
-      "cpPower": 1.15
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_combat_t3a",
-     "name": "Efficient Strikes",
-     "desc": "Sinister Strike costs 10% less energy.",
-     "icon": "\u2694\ufe0f",
-     "mods": {
-      "ability": {
-       "sinister_strike": {
-        "cost": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_combat_t3b",
-     "name": "Double Tap",
-     "desc": "Sinister Strike has a 50% chance to generate 2 combo points instead of 1.",
-     "icon": "\ud83c\udfb2",
-     "mods": {
-      "ability": {
-       "sinister_strike": {
-        "cpChance": 0.5
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_combat_t3c",
-     "name": "Hobbling Strikes",
-     "desc": "Sinister Strike slows the target by 10% for 3 seconds.",
-     "icon": "\ud83e\uddb6",
-     "mods": {
-      "ability": {
-       "sinister_strike": {
-        "extra": [
-         {
-          "type": "aura",
-          "aura": "rogue_slow"
-         }
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_combat_t4a",
-     "name": "Throwing Knife",
-     "desc": "Replaces Kick with Deadly Throw, a 20-yard ranged interrupt.",
-     "icon": "\ud83d\udd2a",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "knife_snipe"
-     }
-    },
-    {
-     "id": "rogue_combat_t4b",
-     "name": "Blinding Powder",
-     "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
-     "icon": "\ud83d\ude48",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "blind"
-     }
-    },
-    {
-     "id": "rogue_combat_t4c",
-     "name": "Hobbling Dose",
-     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
-     "icon": "\u2697\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "crippling_strike"
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_combat_t5a",
-     "name": "Smoke Screen",
-     "desc": "Replaces Vanish with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
-     "icon": "\ud83d\udca8",
-     "mods": {},
-     "swap": {
-      "from": "vanish",
-      "to": "choke_bomb"
-     }
-    },
-    {
-     "id": "rogue_combat_t5b",
-     "name": "Shadow Leap",
-     "desc": "Replaces Vanish with Shadowstep to close 25 yards on a target and open on them.",
-     "icon": "\ud83c\udf00",
-     "mods": {},
-     "swap": {
-      "from": "vanish",
-      "to": "shadowstep"
-     }
-    },
-    {
-     "id": "rogue_combat_t5c",
-     "name": "Bleeding Wire",
-     "desc": "Replaces Vanish with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
-     "icon": "\ud83e\uddf5",
-     "mods": {},
-     "swap": {
-      "from": "vanish",
-      "to": "garrote"
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_combat_t6a",
-     "name": "Finishing Cut",
-     "desc": "Replaces Evasion with Eviscerate, a combo point finisher dealing 110 damage per combo point spent.",
-     "icon": "\u2694\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "evasion",
-      "to": "eviscerate"
-     }
-    },
-    {
-     "id": "rogue_combat_t6b",
-     "name": "Blade Storm",
-     "desc": "Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "evasion",
-      "to": "fan_of_knives"
-     }
-    },
-    {
-     "id": "rogue_combat_t6c",
-     "name": "Gouging Thrust",
-     "desc": "Replaces Evasion with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
-     "icon": "\ud83e\ude78",
-     "mods": {},
-     "swap": {
-      "from": "evasion",
-      "to": "mutilate"
-     }
-    }
-   ]
-  ],
-  "subtlety": [
-   [
-    {
-     "id": "rogue_t1a",
-     "name": "Smoke Veil",
-     "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
-     "icon": "\ud83d\udca8",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "extra": [
-         {
-          "type": "smoke",
-          "radius": 6,
-          "duration": 6000
-         }
-        ]
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_t1b",
-     "name": "Twin Vanish",
-     "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
-     "icon": "\ud83c\udf2b\ufe0f",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "stored": 1
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_t1c",
-     "name": "Shadow Mend",
-     "desc": "Vanishing heals you for 75% of your missing health.",
-     "icon": "\ud83d\udc9a",
-     "mods": {
-      "ability": {
-       "vanish": {
-        "extra": [
-         {
-          "type": "healMissing",
-          "pct": 0.75
-         }
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_t2a",
-     "name": "Quiet Reserves",
-     "desc": "Energy regenerates 20% faster.",
-     "icon": "\u26a1",
-     "mods": {
-      "regen": 1.2
-     }
-    },
-    {
-     "id": "rogue_t2b",
-     "name": "Fleet Footed",
-     "desc": "You move 10% faster.",
-     "icon": "\ud83d\udc5f",
-     "mods": {
-      "moveSpeed": 1.1
-     }
-    },
-    {
-     "id": "rogue_t2c",
-     "name": "Deep Pockets",
-     "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
-     "icon": "\ud83c\udfaf",
-     "mods": {
-      "maxCp": 3,
-      "cpPower": 1.15
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_subtlety_t3a",
-     "name": "Efficient Backstab",
-     "desc": "Backstab costs 10% less energy.",
-     "icon": "\ud83d\udd2a",
-     "mods": {
-      "ability": {
-       "backstab": {
-        "cost": 0.9
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_subtlety_t3b",
-     "name": "Shadow Flicker",
-     "desc": "Backstab has a 10% chance to first Shadowstep you behind the target for free (no combo points).",
-     "icon": "\ud83d\udc64",
-     "mods": {
-      "ability": {
-       "backstab": {
-        "shadowProc": 0.1
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_subtlety_t3c",
-     "name": "Hobbling Backstab",
-     "desc": "Backstab slows the target by 10% for 3 seconds.",
-     "icon": "\ud83e\uddb6",
-     "mods": {
-      "ability": {
-       "backstab": {
-        "extra": [
-         {
-          "type": "aura",
-          "aura": "rogue_slow"
-         }
-        ]
-       }
-      }
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_subtlety_t4a",
-     "name": "Throwing Knife",
-     "desc": "Replaces Kick with Deadly Throw, a 20-yard ranged interrupt.",
-     "icon": "\ud83d\udd2a",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "knife_snipe"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t4b",
-     "name": "Blinding Powder",
-     "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
-     "icon": "\ud83d\ude48",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "blind"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t4c",
-     "name": "Hobbling Dose",
-     "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
-     "icon": "\u2697\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "kick",
-      "to": "crippling_strike"
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_subtlety_t5a",
-     "name": "Smoke Screen",
-     "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
-     "icon": "\ud83d\udca8",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "choke_bomb"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t5b",
-     "name": "Fortune's Edge",
-     "desc": "Replaces Sprint with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing.",
-     "icon": "\u26a1",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "adrenaline_rush"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t5c",
-     "name": "Bleeding Wire",
-     "desc": "Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
-     "icon": "\ud83e\uddf5",
-     "mods": {},
-     "swap": {
-      "from": "sprint",
-      "to": "garrote"
-     }
-    }
-   ],
-   [
-    {
-     "id": "rogue_subtlety_t6a",
-     "name": "Gouging Thrust",
-     "desc": "Replaces Vanish with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
-     "icon": "\ud83e\ude78",
-     "mods": {},
-     "swap": {
-      "from": "vanish",
-      "to": "mutilate"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t6b",
-     "name": "Blade Storm",
-     "desc": "Replaces Vanish with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
-     "icon": "\ud83c\udf2a\ufe0f",
-     "mods": {},
-     "swap": {
-      "from": "vanish",
-      "to": "fan_of_knives"
-     }
-    },
-    {
-     "id": "rogue_subtlety_t6c",
-     "name": "Blood Price",
-     "desc": "Replaces Vanish with Exsanguinate, a payoff that cashes in your bleeds and then triples them.",
-     "icon": "\ud83e\ude78",
-     "mods": {},
-     "swap": {
-      "from": "vanish",
-      "to": "exsanguinate"
-     }
-    }
-   ]
-  ]
- }
+  "warrior": {
+    "arms": [
+      [
+        {
+          "id": "warrior_t1a",
+          "name": "Leaping Strides",
+          "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
+          "icon": "🦘",
+          "mods": {
+            "ability": {
+              "heroic_leap": {
+                "cooldown": 0.75
+              },
+              "charge": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_t1b",
+          "name": "Crippling Technique",
+          "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
+          "icon": "🦵",
+          "mods": {
+            "auraDuration": {
+              "hamstring_slow": 1.4
+            },
+            "ability": {
+              "pummel": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_t1c",
+          "name": "Battle Rush",
+          "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+          "icon": "🐗",
+          "mods": {
+            "ability": {
+              "charge": {
+                "range": 5,
+                "cooldown": 0.8
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_t2a",
+          "name": "Iron Constitution",
+          "desc": "+8% maximum health.",
+          "icon": "🛡️",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        },
+        {
+          "id": "warrior_t2b",
+          "name": "Fleet of Foot",
+          "desc": "+6% movement speed.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.06
+          }
+        },
+        {
+          "id": "warrior_t2c",
+          "name": "Savage Might",
+          "desc": "+4% damage done.",
+          "icon": "💪",
+          "mods": {
+            "damageDone": 1.04
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_arms_t3a",
+          "name": "Brutal Cleave",
+          "desc": "Cleave deals 20% more damage and recharges 15% faster.",
+          "icon": "🌪️",
+          "mods": {
+            "ability": {
+              "whirlwind": {
+                "damage": 1.2,
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_arms_t3b",
+          "name": "Rending Strike",
+          "desc": "Mortal Strike deals 15% more damage and recharges 15% faster.",
+          "icon": "⚔️",
+          "mods": {
+            "ability": {
+              "mortal_strike": {
+                "damage": 1.15,
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_arms_t3c",
+          "name": "Executioner",
+          "desc": "Execute deals 25% more damage and recharges 20% faster.",
+          "icon": "💀",
+          "mods": {
+            "ability": {
+              "execute": {
+                "damage": 1.25,
+                "cooldown": 0.8
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_arms_t4a",
+          "name": "Disrupting Cry",
+          "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
+          "icon": "🪝",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "harpoon_throw"
+          }
+        },
+        {
+          "id": "warrior_arms_t4b",
+          "name": "Storm Bolt",
+          "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+          "icon": "🔨",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "hammer_toss"
+          }
+        },
+        {
+          "id": "warrior_arms_t4c",
+          "name": "Skull Bash",
+          "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
+          "icon": "💫",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "concussion_blow"
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_arms_t5a",
+          "name": "Ground Slam",
+          "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
+          "icon": "💥",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "shockwave"
+          }
+        },
+        {
+          "id": "warrior_arms_t5b",
+          "name": "Terrifying Roar",
+          "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
+          "icon": "📢",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "intimidating_shout"
+          }
+        },
+        {
+          "id": "warrior_arms_t5c",
+          "name": "Banshee Howl",
+          "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
+          "icon": "📣",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "piercing_howl"
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_arms_t6a",
+          "name": "Reckless Abandon",
+          "desc": "Replaces Execute with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+          "icon": "😡",
+          "mods": {},
+          "swap": {
+            "from": "execute",
+            "to": "recklessness"
+          }
+        },
+        {
+          "id": "warrior_arms_t6b",
+          "name": "Stand Against Steel",
+          "desc": "Replaces Execute with Die by the Sword, a long defensive.",
+          "icon": "🗡️",
+          "mods": {},
+          "swap": {
+            "from": "execute",
+            "to": "die_by_the_sword"
+          }
+        },
+        {
+          "id": "warrior_arms_t6c",
+          "name": "Fortress Stance",
+          "desc": "Replaces Execute with Fortress Stance: 40% less damage taken for 8 seconds.",
+          "icon": "🧱",
+          "mods": {},
+          "swap": {
+            "from": "execute",
+            "to": "shield_wall"
+          }
+        }
+      ]
+    ],
+    "fury": [
+      [
+        {
+          "id": "warrior_t1a",
+          "name": "Leaping Strides",
+          "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
+          "icon": "🦘",
+          "mods": {
+            "ability": {
+              "heroic_leap": {
+                "cooldown": 0.75
+              },
+              "charge": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_t1b",
+          "name": "Crippling Technique",
+          "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
+          "icon": "🦵",
+          "mods": {
+            "auraDuration": {
+              "hamstring_slow": 1.4
+            },
+            "ability": {
+              "pummel": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_t1c",
+          "name": "Battle Rush",
+          "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+          "icon": "🐗",
+          "mods": {
+            "ability": {
+              "charge": {
+                "range": 5,
+                "cooldown": 0.8
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_t2a",
+          "name": "Iron Constitution",
+          "desc": "+8% maximum health.",
+          "icon": "🛡️",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        },
+        {
+          "id": "warrior_t2b",
+          "name": "Fleet of Foot",
+          "desc": "+6% movement speed.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.06
+          }
+        },
+        {
+          "id": "warrior_t2c",
+          "name": "Savage Might",
+          "desc": "+4% damage done.",
+          "icon": "💪",
+          "mods": {
+            "damageDone": 1.04
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_fury_t3a",
+          "name": "Storm Mastery",
+          "desc": "Bladestorm deals 20% more damage and recharges 15% faster.",
+          "icon": "🌪️",
+          "mods": {
+            "ability": {
+              "bladestorm": {
+                "damage": 1.2,
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_fury_t3b",
+          "name": "Bloodlust",
+          "desc": "Bloodthirst deals 15% more damage and recharges 10% faster.",
+          "icon": "💢",
+          "mods": {
+            "ability": {
+              "bloodthirst": {
+                "damage": 1.15,
+                "cooldown": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_fury_t3c",
+          "name": "Heavy Slam",
+          "desc": "Slam deals 25% more damage and costs 15% less rage.",
+          "icon": "🔨",
+          "mods": {
+            "ability": {
+              "slam": {
+                "damage": 1.25,
+                "cost": 0.85
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_fury_t4a",
+          "name": "Disrupting Cry",
+          "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
+          "icon": "🪝",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "harpoon_throw"
+          }
+        },
+        {
+          "id": "warrior_fury_t4b",
+          "name": "Storm Bolt",
+          "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+          "icon": "🔨",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "hammer_toss"
+          }
+        },
+        {
+          "id": "warrior_fury_t4c",
+          "name": "Skull Bash",
+          "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
+          "icon": "💫",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "concussion_blow"
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_fury_t5a",
+          "name": "Ground Slam",
+          "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
+          "icon": "💥",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "shockwave"
+          }
+        },
+        {
+          "id": "warrior_fury_t5b",
+          "name": "Terrifying Roar",
+          "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
+          "icon": "📢",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "intimidating_shout"
+          }
+        },
+        {
+          "id": "warrior_fury_t5c",
+          "name": "Banshee Howl",
+          "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
+          "icon": "📣",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "piercing_howl"
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_fury_t6a",
+          "name": "Reckless Abandon",
+          "desc": "Replaces Slam with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+          "icon": "😡",
+          "mods": {},
+          "swap": {
+            "from": "slam",
+            "to": "recklessness"
+          }
+        },
+        {
+          "id": "warrior_fury_t6b",
+          "name": "Stand Against Steel",
+          "desc": "Replaces Slam with Die by the Sword, a long defensive.",
+          "icon": "🗡️",
+          "mods": {},
+          "swap": {
+            "from": "slam",
+            "to": "die_by_the_sword"
+          }
+        },
+        {
+          "id": "warrior_fury_t6c",
+          "name": "Fortress Stance",
+          "desc": "Replaces Slam with Fortress Stance: 40% less damage taken for 8 seconds.",
+          "icon": "🧱",
+          "mods": {},
+          "swap": {
+            "from": "slam",
+            "to": "shield_wall"
+          }
+        }
+      ]
+    ],
+    "protection": [
+      [
+        {
+          "id": "warrior_t1a",
+          "name": "Leaping Strides",
+          "desc": "Heroic Leap recharges 25% sooner and Charge 15% sooner.",
+          "icon": "🦘",
+          "mods": {
+            "ability": {
+              "heroic_leap": {
+                "cooldown": 0.75
+              },
+              "charge": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_t1b",
+          "name": "Crippling Technique",
+          "desc": "Hamstring's slow lasts 40% longer and Pummel recharges 20% sooner.",
+          "icon": "🦵",
+          "mods": {
+            "auraDuration": {
+              "hamstring_slow": 1.4
+            },
+            "ability": {
+              "pummel": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_t1c",
+          "name": "Battle Rush",
+          "desc": "Charge reaches 5 yards further and recharges 20% sooner.",
+          "icon": "🐗",
+          "mods": {
+            "ability": {
+              "charge": {
+                "range": 5,
+                "cooldown": 0.8
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_t2a",
+          "name": "Iron Constitution",
+          "desc": "+8% maximum health.",
+          "icon": "🛡️",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        },
+        {
+          "id": "warrior_t2b",
+          "name": "Fleet of Foot",
+          "desc": "+6% movement speed.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.06
+          }
+        },
+        {
+          "id": "warrior_t2c",
+          "name": "Savage Might",
+          "desc": "+4% damage done.",
+          "icon": "💪",
+          "mods": {
+            "damageDone": 1.04
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_protection_t3a",
+          "name": "Long Chain",
+          "desc": "Reel In reaches 4 yards further and recharges 20% faster.",
+          "icon": "⛓️",
+          "mods": {
+            "ability": {
+              "reel_in": {
+                "range": 4,
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_protection_t3b",
+          "name": "Open Wounds",
+          "desc": "Deep Cuts deals 20% more damage.",
+          "icon": "🩸",
+          "mods": {
+            "ability": {
+              "deep_cuts": {
+                "damage": 1.2
+              }
+            }
+          }
+        },
+        {
+          "id": "warrior_protection_t3c",
+          "name": "Sharpened Axes",
+          "desc": "Axe Throw deals 25% more damage and reaches 3 yards further.",
+          "icon": "🪓",
+          "mods": {
+            "ability": {
+              "axe_throw": {
+                "damage": 1.25,
+                "range": 3
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_protection_t4a",
+          "name": "Disrupting Cry",
+          "desc": "Replaces Pummel with Disrupting Shout, a 15-yard interrupt with no global cooldown.",
+          "icon": "🪝",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "harpoon_throw"
+          }
+        },
+        {
+          "id": "warrior_protection_t4b",
+          "name": "Storm Bolt",
+          "desc": "Replaces Pummel with Storm Bolt, a 20-yard hammer throw that stuns for 2 seconds.",
+          "icon": "🔨",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "hammer_toss"
+          }
+        },
+        {
+          "id": "warrior_protection_t4c",
+          "name": "Skull Bash",
+          "desc": "Replaces Pummel with Concussion Blow, a hard 3-second stun.",
+          "icon": "💫",
+          "mods": {},
+          "swap": {
+            "from": "pummel",
+            "to": "concussion_blow"
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_protection_t5a",
+          "name": "Ground Slam",
+          "desc": "Replaces Charge with Shockwave, a stunning blast around you.",
+          "icon": "💥",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "shockwave"
+          }
+        },
+        {
+          "id": "warrior_protection_t5b",
+          "name": "Terrifying Roar",
+          "desc": "Replaces Charge with Intimidating Shout, a fear that breaks on damage.",
+          "icon": "📢",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "intimidating_shout"
+          }
+        },
+        {
+          "id": "warrior_protection_t5c",
+          "name": "Banshee Howl",
+          "desc": "Replaces Charge with Piercing Howl, slowing every enemy near you.",
+          "icon": "📣",
+          "mods": {},
+          "swap": {
+            "from": "charge",
+            "to": "piercing_howl"
+          }
+        }
+      ],
+      [
+        {
+          "id": "warrior_protection_t6a",
+          "name": "Reckless Abandon",
+          "desc": "Replaces Axe Throw with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+          "icon": "😡",
+          "mods": {},
+          "swap": {
+            "from": "axe_throw",
+            "to": "recklessness"
+          }
+        },
+        {
+          "id": "warrior_protection_t6b",
+          "name": "Stand Against Steel",
+          "desc": "Replaces Axe Throw with Die by the Sword, a long defensive.",
+          "icon": "🗡️",
+          "mods": {},
+          "swap": {
+            "from": "axe_throw",
+            "to": "die_by_the_sword"
+          }
+        },
+        {
+          "id": "warrior_protection_t6c",
+          "name": "Fortress Stance",
+          "desc": "Replaces Axe Throw with Fortress Stance: 40% less damage taken for 8 seconds.",
+          "icon": "🧱",
+          "mods": {},
+          "swap": {
+            "from": "axe_throw",
+            "to": "shield_wall"
+          }
+        }
+      ]
+    ]
+  },
+  "mage": {
+    "frost": [
+      [
+        {
+          "id": "mage_t1a",
+          "name": "Quick Snuff",
+          "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
+          "icon": "🚫",
+          "mods": {
+            "ability": {
+              "counterspell": {
+                "cooldown": 0.75
+              },
+              "blink": {
+                "cooldown": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "mage_t1b",
+          "name": "Sheepish",
+          "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+          "icon": "🐑",
+          "mods": {
+            "ability": {
+              "polymorph": {
+                "castTime": 0.75
+              }
+            },
+            "auraDuration": {
+              "polymorph": 1.25
+            }
+          }
+        },
+        {
+          "id": "mage_t1c",
+          "name": "Arcane Insight",
+          "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
+          "icon": "🔮",
+          "mods": {
+            "ability": {
+              "polymorph": {
+                "castTime": 0.85
+              },
+              "counterspell": {
+                "cooldown": 0.85
+              },
+              "blink": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_t2a",
+          "name": "Arcane Reserves",
+          "desc": "+20% mana regeneration.",
+          "icon": "💧",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "mage_t2b",
+          "name": "Quick Casting",
+          "desc": "Casts take 7% less time.",
+          "icon": "⏩",
+          "mods": {
+            "castTime": 0.93
+          }
+        },
+        {
+          "id": "mage_t2c",
+          "name": "Warded Robes",
+          "desc": "+8% maximum health.",
+          "icon": "🧥",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_frost_t3a",
+          "name": "Deep Winter",
+          "desc": "Deep Freeze's stun lasts 25% longer and its cooldown is 20% shorter.",
+          "icon": "🌨️",
+          "mods": {
+            "auraDuration": {
+              "deep_freeze_stun": 1.25
+            },
+            "ability": {
+              "deep_freeze": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "id": "mage_frost_t3b",
+          "name": "Shatterpoint",
+          "desc": "Frost Nova and Deep Freeze recharge 15% sooner.",
+          "icon": "💎",
+          "mods": {
+            "ability": {
+              "frost_nova": {
+                "cooldown": 0.85
+              },
+              "deep_freeze": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "name": "Piercing Cold",
+          "desc": "Ice Lance deals 20% more damage and recharges 15% sooner.",
+          "icon": "🗡️",
+          "mods": {
+            "ability": {
+              "ice_lance": {
+                "damage": 1.2,
+                "cooldown": 0.85
+              }
+            }
+          },
+          "id": "mage_frost_t3c"
+        }
+      ],
+      [
+        {
+          "id": "mage_frost_t4a",
+          "name": "Blizzard",
+          "desc": "Replaces Polymorph with Blizzard, a ground storm that damages and slows foes, which Ice Lance can punish.",
+          "icon": "🌬️",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "blizzard"
+          }
+        },
+        {
+          "id": "mage_frost_t4b",
+          "name": "Dragon's Breath",
+          "desc": "Replaces Polymorph with Dragon's Breath, a close-range cone that disorients enemies to peel melee off you.",
+          "icon": "🐉",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "dragons_breath"
+          }
+        },
+        {
+          "id": "mage_frost_t4c",
+          "name": "Flamestrike",
+          "desc": "Replaces Polymorph with Flamestrike, ground fire for burst damage on a frozen, rooted target.",
+          "icon": "🔥",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "flamestrike"
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_frost_t5a",
+          "name": "Arcane Torrent",
+          "desc": "Replaces Counterspell with Arcane Torrent, a silence that shuts down enemy casters.",
+          "icon": "🔇",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "arcane_silence"
+          }
+        },
+        {
+          "id": "mage_frost_t5b",
+          "name": "Arcane Explosion",
+          "desc": "Replaces Counterspell with Arcane Explosion, an instant slowing burst around you.",
+          "icon": "💥",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "arcane_explosion"
+          }
+        },
+        {
+          "id": "mage_frost_t5c",
+          "name": "Arcane Barrage",
+          "desc": "Replaces Counterspell with Arcane Barrage, a quick heavy hit for extra burst.",
+          "icon": "🔮",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "arcane_barrage"
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_frost_t6a",
+          "name": "Evocation",
+          "desc": "Replaces Ice Barrier with Evocation, restoring your mana in a long channel.",
+          "icon": "🧘",
+          "mods": {},
+          "swap": {
+            "from": "ice_barrier",
+            "to": "evocation"
+          }
+        },
+        {
+          "id": "mage_frost_t6b",
+          "name": "Arcane Power",
+          "desc": "Replaces Ice Barrier with Arcane Power, a big damage cooldown for burst windows.",
+          "icon": "⚡",
+          "mods": {},
+          "swap": {
+            "from": "ice_barrier",
+            "to": "arcane_power"
+          }
+        },
+        {
+          "id": "mage_frost_t6c",
+          "name": "Pyroblast",
+          "desc": "Replaces Ice Barrier with Pyroblast, a huge slow-cast nuke to finish stunned targets.",
+          "icon": "☄️",
+          "mods": {},
+          "swap": {
+            "from": "ice_barrier",
+            "to": "pyroblast"
+          }
+        }
+      ]
+    ],
+    "fire": [
+      [
+        {
+          "id": "mage_t1a",
+          "name": "Quick Snuff",
+          "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
+          "icon": "🚫",
+          "mods": {
+            "ability": {
+              "counterspell": {
+                "cooldown": 0.75
+              },
+              "blink": {
+                "cooldown": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "mage_t1b",
+          "name": "Sheepish",
+          "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+          "icon": "🐑",
+          "mods": {
+            "ability": {
+              "polymorph": {
+                "castTime": 0.75
+              }
+            },
+            "auraDuration": {
+              "polymorph": 1.25
+            }
+          }
+        },
+        {
+          "id": "mage_t1c",
+          "name": "Arcane Insight",
+          "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
+          "icon": "🔮",
+          "mods": {
+            "ability": {
+              "polymorph": {
+                "castTime": 0.85
+              },
+              "counterspell": {
+                "cooldown": 0.85
+              },
+              "blink": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_t2a",
+          "name": "Arcane Reserves",
+          "desc": "+20% mana regeneration.",
+          "icon": "💧",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "mage_t2b",
+          "name": "Quick Casting",
+          "desc": "Casts take 7% less time.",
+          "icon": "⏩",
+          "mods": {
+            "castTime": 0.93
+          }
+        },
+        {
+          "id": "mage_t2c",
+          "name": "Warded Robes",
+          "desc": "+8% maximum health.",
+          "icon": "🧥",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_fire_t3a",
+          "name": "Dragon's Wrath",
+          "desc": "Dragon's Breath lasts 40% longer and its cooldown is 20% shorter.",
+          "icon": "🐲",
+          "mods": {
+            "auraDuration": {
+              "dragons_breath": 1.4
+            },
+            "ability": {
+              "dragons_breath": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "name": "Flame Mastery",
+          "desc": "Flamestrike deals 20% more damage and recharges 15% sooner.",
+          "icon": "🔥",
+          "mods": {
+            "ability": {
+              "flamestrike": {
+                "damage": 1.2,
+                "cooldown": 0.85
+              }
+            }
+          },
+          "id": "mage_fire_t3b"
+        },
+        {
+          "name": "Quick Fire",
+          "desc": "Fireball recharges 20% sooner and Scorch deals 20% more damage.",
+          "icon": "☄️",
+          "mods": {
+            "ability": {
+              "fireball": {
+                "cooldown": 0.8
+              },
+              "scorch": {
+                "damage": 1.2
+              }
+            }
+          },
+          "id": "mage_fire_t3c"
+        }
+      ],
+      [
+        {
+          "id": "mage_fire_t4a",
+          "name": "Frost Nova",
+          "desc": "Replaces Polymorph with Frost Nova, a root to escape melee and set up Pyroblast.",
+          "icon": "❄️",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "frost_nova"
+          }
+        },
+        {
+          "id": "mage_fire_t4b",
+          "name": "Deep Freeze",
+          "desc": "Replaces Polymorph with Deep Freeze, a stun that guarantees a safe Pyroblast.",
+          "icon": "🧊",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "deep_freeze"
+          }
+        },
+        {
+          "id": "mage_fire_t4c",
+          "name": "Arcane Explosion",
+          "desc": "Replaces Polymorph with Arcane Explosion, an instant slow to keep melee off you.",
+          "icon": "💥",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "arcane_explosion"
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_fire_t5a",
+          "name": "Arcane Torrent",
+          "desc": "Replaces Counterspell with Arcane Torrent, a silence to stop enemy healers.",
+          "icon": "🔇",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "arcane_silence"
+          }
+        },
+        {
+          "id": "mage_fire_t5b",
+          "name": "Ice Lance",
+          "desc": "Replaces Counterspell with Ice Lance, a cheap instant hit while you move.",
+          "icon": "🗡️",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "ice_lance"
+          }
+        },
+        {
+          "id": "mage_fire_t5c",
+          "name": "Arcane Barrage",
+          "desc": "Replaces Counterspell with Arcane Barrage, an instant heavy hit to add burst.",
+          "icon": "🔮",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "arcane_barrage"
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_fire_t6a",
+          "name": "Blizzard",
+          "desc": "Replaces Flamestrike with Blizzard, a slowing ground storm for control.",
+          "icon": "🌬️",
+          "mods": {},
+          "swap": {
+            "from": "flamestrike",
+            "to": "blizzard"
+          }
+        },
+        {
+          "id": "mage_fire_t6b",
+          "name": "Ice Barrier",
+          "desc": "Replaces Flamestrike with Ice Barrier, a shield that makes your fragile body safer.",
+          "icon": "🛡️",
+          "mods": {},
+          "swap": {
+            "from": "flamestrike",
+            "to": "ice_barrier"
+          }
+        },
+        {
+          "id": "mage_fire_t6c",
+          "name": "Arcane Power",
+          "desc": "Replaces Flamestrike with Arcane Power, a damage cooldown to boost your burst.",
+          "icon": "⚡",
+          "mods": {},
+          "swap": {
+            "from": "flamestrike",
+            "to": "arcane_power"
+          }
+        }
+      ]
+    ],
+    "arcane": [
+      [
+        {
+          "id": "mage_t1a",
+          "name": "Quick Snuff",
+          "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
+          "icon": "🚫",
+          "mods": {
+            "ability": {
+              "counterspell": {
+                "cooldown": 0.75
+              },
+              "blink": {
+                "cooldown": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "mage_t1b",
+          "name": "Sheepish",
+          "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+          "icon": "🐑",
+          "mods": {
+            "ability": {
+              "polymorph": {
+                "castTime": 0.75
+              }
+            },
+            "auraDuration": {
+              "polymorph": 1.25
+            }
+          }
+        },
+        {
+          "id": "mage_t1c",
+          "name": "Arcane Insight",
+          "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
+          "icon": "🔮",
+          "mods": {
+            "ability": {
+              "polymorph": {
+                "castTime": 0.85
+              },
+              "counterspell": {
+                "cooldown": 0.85
+              },
+              "blink": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_t2a",
+          "name": "Arcane Reserves",
+          "desc": "+20% mana regeneration.",
+          "icon": "💧",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "mage_t2b",
+          "name": "Quick Casting",
+          "desc": "Casts take 7% less time.",
+          "icon": "⏩",
+          "mods": {
+            "castTime": 0.93
+          }
+        },
+        {
+          "id": "mage_t2c",
+          "name": "Warded Robes",
+          "desc": "+8% maximum health.",
+          "icon": "🧥",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_arcane_t3a",
+          "name": "Power Surge",
+          "desc": "Arcane Power lasts 40% longer and its cooldown is 20% shorter.",
+          "icon": "⚡",
+          "mods": {
+            "auraDuration": {
+              "arcane_power": 1.4
+            },
+            "ability": {
+              "arcane_power": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "id": "mage_arcane_t3b",
+          "name": "Gravity Well",
+          "desc": "Arcane Explosion's slow lasts 50% longer and its cooldown is 20% shorter.",
+          "icon": "🌌",
+          "mods": {
+            "auraDuration": {
+              "arcane_slow": 1.5
+            },
+            "ability": {
+              "arcane_explosion": {
+                "cooldown": 0.8
+              }
+            }
+          }
+        },
+        {
+          "name": "Missile Volley",
+          "desc": "Arcane Missiles deal 20% more damage and recharge 20% sooner.",
+          "icon": "🔮",
+          "mods": {
+            "ability": {
+              "arcane_missiles": {
+                "damage": 1.2,
+                "cooldown": 0.8
+              }
+            }
+          },
+          "id": "mage_arcane_t3c"
+        }
+      ],
+      [
+        {
+          "id": "mage_arcane_t4a",
+          "name": "Frost Nova",
+          "desc": "Replaces Polymorph with Frost Nova, a root that lets Arcane Missiles finish.",
+          "icon": "❄️",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "frost_nova"
+          }
+        },
+        {
+          "id": "mage_arcane_t4b",
+          "name": "Dragon's Breath",
+          "desc": "Replaces Polymorph with Dragon's Breath, a cone disorient to escape melee.",
+          "icon": "🐉",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "dragons_breath"
+          }
+        },
+        {
+          "id": "mage_arcane_t4c",
+          "name": "Deep Freeze",
+          "desc": "Replaces Polymorph with Deep Freeze, a stun giving a safe window for your channel.",
+          "icon": "🧊",
+          "mods": {},
+          "swap": {
+            "from": "polymorph",
+            "to": "deep_freeze"
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_arcane_t5a",
+          "name": "Arcane Torrent",
+          "desc": "Replaces Counterspell with Arcane Torrent, a silence on enemy casters.",
+          "icon": "🔇",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "arcane_silence"
+          }
+        },
+        {
+          "id": "mage_arcane_t5b",
+          "name": "Ice Lance",
+          "desc": "Replaces Counterspell with Ice Lance, a cheap instant hit while moving.",
+          "icon": "🗡️",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "ice_lance"
+          }
+        },
+        {
+          "id": "mage_arcane_t5c",
+          "name": "Pyroblast",
+          "desc": "Replaces Counterspell with Pyroblast, a heavy slow nuke for burst.",
+          "icon": "☄️",
+          "mods": {},
+          "swap": {
+            "from": "counterspell",
+            "to": "pyroblast"
+          }
+        }
+      ],
+      [
+        {
+          "id": "mage_arcane_t6a",
+          "name": "Ice Barrier",
+          "desc": "Replaces Arcane Explosion with Ice Barrier, an absorb shield for sustain.",
+          "icon": "🛡️",
+          "mods": {},
+          "swap": {
+            "from": "arcane_explosion",
+            "to": "ice_barrier"
+          }
+        },
+        {
+          "id": "mage_arcane_t6b",
+          "name": "Blizzard",
+          "desc": "Replaces Arcane Explosion with Blizzard, a ground storm that slows from range.",
+          "icon": "🌬️",
+          "mods": {},
+          "swap": {
+            "from": "arcane_explosion",
+            "to": "blizzard"
+          }
+        },
+        {
+          "id": "mage_arcane_t6c",
+          "name": "Evocation",
+          "desc": "Replaces Arcane Explosion with Evocation, a long channel that restores your mana.",
+          "icon": "🧘",
+          "mods": {},
+          "swap": {
+            "from": "arcane_explosion",
+            "to": "evocation"
+          }
+        }
+      ]
+    ]
+  },
+  "priest": {
+    "discipline": [
+      [
+        {
+          "id": "priest_t1a",
+          "name": "Quick Mending",
+          "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
+          "icon": "💖",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "heal": 1.1
+              }
+            },
+            "auraDuration": {
+              "pw_shield": 1.3
+            }
+          }
+        },
+        {
+          "id": "priest_t1b",
+          "name": "Swift Prayer",
+          "icon": "🙏",
+          "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "castTime": 0.9
+              },
+              "power_word_shield": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_t1c",
+          "name": "Dread Voice",
+          "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
+          "icon": "📢",
+          "mods": {
+            "ability": {
+              "psychic_scream": {
+                "cooldown": 0.8
+              }
+            },
+            "auraDuration": {
+              "psychic_scream": 1.25
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_t2a",
+          "name": "Serene Spirit",
+          "desc": "+20% mana regeneration.",
+          "icon": "🕊️",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "priest_t2b",
+          "name": "Light Step",
+          "desc": "+6% movement speed.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.06
+          }
+        },
+        {
+          "id": "priest_t2c",
+          "name": "Fortified Soul",
+          "desc": "+8% maximum health.",
+          "icon": "❤️",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_discipline_t3a",
+          "name": "Guardian Pact",
+          "desc": "Pain Suppression lasts 30% longer and its cooldown is 15% shorter.",
+          "icon": "🪬",
+          "mods": {
+            "auraDuration": {
+              "pain_suppression": 1.3
+            },
+            "ability": {
+              "pain_suppression": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_discipline_t3b",
+          "name": "Zealous Penance",
+          "desc": "Penance deals 15% more damage and heals 12% more.",
+          "icon": "🔥",
+          "mods": {
+            "ability": {
+              "penance": {
+                "damage": 1.15,
+                "heal": 1.12
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_discipline_t3c",
+          "name": "Cleansing Light",
+          "desc": "Dispel Magic cooldown is 25% shorter and its range is 10 yards longer.",
+          "icon": "🧼",
+          "mods": {
+            "ability": {
+              "dispel_magic": {
+                "cooldown": 0.75,
+                "range": 10
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_discipline_t4a",
+          "name": "Mind Spike",
+          "desc": "Replaces Smite with Mind Blast, a harder-hitting shadow nuke on a short cooldown that adds burst to your Penance rotation.",
+          "icon": "🧠",
+          "mods": {},
+          "swap": {
+            "from": "smite",
+            "to": "mind_blast"
+          }
+        },
+        {
+          "id": "priest_discipline_t4b",
+          "name": "Tormenting Gaze",
+          "desc": "Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown for constant pressure while you heal.",
+          "icon": "👁️",
+          "mods": {},
+          "swap": {
+            "from": "smite",
+            "to": "mind_flay"
+          }
+        },
+        {
+          "id": "priest_discipline_t4c",
+          "name": "Withering Touch",
+          "desc": "Replaces Smite with Devouring Plague, a damage-over-time that pressures enemies while you heal.",
+          "icon": "☠️",
+          "mods": {},
+          "swap": {
+            "from": "smite",
+            "to": "plague_bloom"
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_discipline_t5a",
+          "name": "Hush the Caster",
+          "desc": "Replaces Dispel Magic with Silence, an interrupt that shuts down enemy casters.",
+          "icon": "🤫",
+          "mods": {},
+          "swap": {
+            "from": "dispel_magic",
+            "to": "hush"
+          }
+        },
+        {
+          "id": "priest_discipline_t5b",
+          "name": "Hammer of the Warden",
+          "desc": "Replaces Dispel Magic with Hammer of Justice, a stun to peel enemies off your allies.",
+          "icon": "🔨",
+          "mods": {},
+          "swap": {
+            "from": "dispel_magic",
+            "to": "judgment_hammer"
+          }
+        },
+        {
+          "id": "priest_discipline_t5c",
+          "name": "Empowered Ally",
+          "desc": "Replaces Dispel Magic with Power Infusion, a burst buff to your damage and healing.",
+          "icon": "✨",
+          "mods": {},
+          "swap": {
+            "from": "dispel_magic",
+            "to": "power_infusion"
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_discipline_t6a",
+          "name": "Word of Serenity",
+          "desc": "Replaces Desperate Prayer with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds.",
+          "icon": "🙏",
+          "mods": {},
+          "swap": {
+            "from": "desperate_prayer",
+            "to": "holy_word"
+          }
+        },
+        {
+          "id": "priest_discipline_t6b",
+          "name": "Fade to Static",
+          "desc": "Replaces Desperate Prayer with Dispersion, a defensive that cuts damage taken for a few seconds.",
+          "icon": "🌫️",
+          "mods": {},
+          "swap": {
+            "from": "desperate_prayer",
+            "to": "dispersion"
+          }
+        },
+        {
+          "id": "priest_discipline_t6c",
+          "name": "Radiant Burst",
+          "desc": "Replaces Desperate Prayer with Holy Nova, a 12 second instant that heals all allies for 130 and damages all enemies for 80.",
+          "icon": "🌟",
+          "mods": {},
+          "swap": {
+            "from": "desperate_prayer",
+            "to": "holy_nova"
+          }
+        }
+      ]
+    ],
+    "holy": [
+      [
+        {
+          "id": "priest_t1a",
+          "name": "Quick Mending",
+          "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
+          "icon": "💖",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "heal": 1.1
+              }
+            },
+            "auraDuration": {
+              "pw_shield": 1.3
+            }
+          }
+        },
+        {
+          "id": "priest_t1b",
+          "name": "Swift Prayer",
+          "icon": "🙏",
+          "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "castTime": 0.9
+              },
+              "power_word_shield": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_t1c",
+          "name": "Dread Voice",
+          "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
+          "icon": "📢",
+          "mods": {
+            "ability": {
+              "psychic_scream": {
+                "cooldown": 0.8
+              }
+            },
+            "auraDuration": {
+              "psychic_scream": 1.25
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_t2a",
+          "name": "Serene Spirit",
+          "desc": "+20% mana regeneration.",
+          "icon": "🕊️",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "priest_t2b",
+          "name": "Light Step",
+          "desc": "+6% movement speed.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.06
+          }
+        },
+        {
+          "id": "priest_t2c",
+          "name": "Fortified Soul",
+          "desc": "+8% maximum health.",
+          "icon": "❤️",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_holy_t3a",
+          "name": "Mending Ward",
+          "desc": "Power Word: Shield lasts 50% longer and its cooldown is 10% shorter.",
+          "icon": "🛡️",
+          "mods": {
+            "auraDuration": {
+              "pw_shield": 1.5
+            },
+            "ability": {
+              "power_word_shield": {
+                "cooldown": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_holy_t3b",
+          "name": "Radiant Nova",
+          "desc": "Holy Nova heals and damages 15% more and its cooldown is 10% shorter.",
+          "icon": "🌟",
+          "mods": {
+            "ability": {
+              "holy_nova": {
+                "heal": 1.15,
+                "damage": 1.15,
+                "cooldown": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_holy_t3c",
+          "name": "Chosen of the Light",
+          "desc": "Desperate Prayer heals 15% more and its cooldown is 15% shorter.",
+          "icon": "🕊️",
+          "mods": {
+            "ability": {
+              "desperate_prayer": {
+                "heal": 1.15,
+                "cooldown": 0.85
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_holy_t4a",
+          "name": "Searing Thought",
+          "desc": "Replaces Smite with Mind Blast, giving you a real shadow nuke for damage.",
+          "icon": "🧠",
+          "mods": {},
+          "swap": {
+            "from": "smite",
+            "to": "mind_blast"
+          }
+        },
+        {
+          "id": "priest_holy_t4b",
+          "name": "Lingering Gaze",
+          "desc": "Replaces Smite with Mind Flay, a 3 second shadow channel with no cooldown to add damage between heals.",
+          "icon": "👁️",
+          "mods": {},
+          "swap": {
+            "from": "smite",
+            "to": "mind_flay"
+          }
+        },
+        {
+          "id": "priest_holy_t4c",
+          "name": "Creeping Ruin",
+          "desc": "Replaces Smite with Devouring Plague, adding damage over time without needing a long cast.",
+          "icon": "☠️",
+          "mods": {},
+          "swap": {
+            "from": "smite",
+            "to": "plague_bloom"
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_holy_t5a",
+          "name": "Hammer of Dawn",
+          "desc": "Replaces Psychic Scream with Hammer of Justice, a single-target stun to protect a struggling ally.",
+          "icon": "🔨",
+          "mods": {},
+          "swap": {
+            "from": "psychic_scream",
+            "to": "judgment_hammer"
+          }
+        },
+        {
+          "id": "priest_holy_t5b",
+          "name": "Quiet the Chant",
+          "desc": "Replaces Psychic Scream with Silence, an interrupt that stops enemy casters.",
+          "icon": "🤫",
+          "mods": {},
+          "swap": {
+            "from": "psychic_scream",
+            "to": "hush"
+          }
+        },
+        {
+          "id": "priest_holy_t5c",
+          "name": "Final Verdict",
+          "desc": "Replaces Psychic Scream with Shadow Word: Pain, a damage-over-time to add pressure.",
+          "icon": "💀",
+          "mods": {},
+          "swap": {
+            "from": "psychic_scream",
+            "to": "shadow_word_death"
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_holy_t6a",
+          "name": "Inspiring Hymn",
+          "desc": "Replaces Dispel Magic with Power Infusion, boosting healing and speeding up casts.",
+          "icon": "✨",
+          "mods": {},
+          "swap": {
+            "from": "dispel_magic",
+            "to": "power_infusion"
+          }
+        },
+        {
+          "id": "priest_holy_t6b",
+          "name": "Word of Serenity",
+          "desc": "Replaces Dispel Magic with Holy Word: Serenity, an instant 300 heal on any ally every 10 seconds.",
+          "icon": "🙏",
+          "mods": {},
+          "swap": {
+            "from": "dispel_magic",
+            "to": "holy_word"
+          }
+        },
+        {
+          "id": "priest_holy_t6c",
+          "name": "Veil of Static",
+          "desc": "Replaces Dispel Magic with Dispersion, letting you survive focus fire yourself.",
+          "icon": "🌫️",
+          "mods": {},
+          "swap": {
+            "from": "dispel_magic",
+            "to": "dispersion"
+          }
+        }
+      ]
+    ],
+    "shadow": [
+      [
+        {
+          "id": "priest_t1a",
+          "name": "Quick Mending",
+          "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
+          "icon": "💖",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "heal": 1.1
+              }
+            },
+            "auraDuration": {
+              "pw_shield": 1.3
+            }
+          }
+        },
+        {
+          "id": "priest_t1b",
+          "name": "Swift Prayer",
+          "icon": "🙏",
+          "desc": "Flash Heal casts 10% faster and Power Word: Shield recharges 15% sooner.",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "castTime": 0.9
+              },
+              "power_word_shield": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_t1c",
+          "name": "Dread Voice",
+          "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
+          "icon": "📢",
+          "mods": {
+            "ability": {
+              "psychic_scream": {
+                "cooldown": 0.8
+              }
+            },
+            "auraDuration": {
+              "psychic_scream": 1.25
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_t2a",
+          "name": "Serene Spirit",
+          "desc": "+20% mana regeneration.",
+          "icon": "🕊️",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "priest_t2b",
+          "name": "Light Step",
+          "desc": "+6% movement speed.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.06
+          }
+        },
+        {
+          "id": "priest_t2c",
+          "name": "Fortified Soul",
+          "desc": "+8% maximum health.",
+          "icon": "❤️",
+          "mods": {
+            "maxHealth": 1.08
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_shadow_t3a",
+          "name": "Void Embrace",
+          "desc": "Dispersion lasts 40% longer and its cooldown is 15% shorter.",
+          "icon": "🌑",
+          "mods": {
+            "auraDuration": {
+              "dispersion": 1.4
+            },
+            "ability": {
+              "dispersion": {
+                "cooldown": 0.85
+              }
+            }
+          }
+        },
+        {
+          "id": "priest_shadow_t3b",
+          "name": "Gnawing Dark",
+          "desc": "Shadow Word: Pain deals 20% more damage and its rot lasts 40% longer.",
+          "icon": "💀",
+          "mods": {
+            "ability": {
+              "shadow_word_death": {
+                "damage": 1.2
+              }
+            },
+            "auraDuration": {
+              "creeping_rot": 1.4
+            }
+          }
+        },
+        {
+          "id": "priest_shadow_t3c",
+          "name": "Stolen Vitality",
+          "desc": "Flash Heal heals 15% more and Power Word: Shield lasts 40% longer.",
+          "icon": "🩸",
+          "mods": {
+            "ability": {
+              "flash_heal": {
+                "heal": 1.15
+              }
+            },
+            "auraDuration": {
+              "pw_shield": 1.4
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_shadow_t4a",
+          "name": "Greater Salvation",
+          "desc": "Replaces Flash Heal with Greater Heal, a slow but big heal for recovering between fights.",
+          "icon": "💖",
+          "mods": {},
+          "swap": {
+            "from": "flash_heal",
+            "to": "greater_heal"
+          }
+        },
+        {
+          "id": "priest_shadow_t4b",
+          "name": "Serenity Burst",
+          "desc": "Replaces Flash Heal with Holy Word: Serenity, an instant 300 heal for emergencies.",
+          "icon": "🙏",
+          "mods": {},
+          "swap": {
+            "from": "flash_heal",
+            "to": "holy_word"
+          }
+        },
+        {
+          "id": "priest_shadow_t4c",
+          "name": "Desperate Measures",
+          "desc": "Replaces Flash Heal with Desperate Prayer, a huge heal on a long cooldown.",
+          "icon": "🕊️",
+          "mods": {},
+          "swap": {
+            "from": "flash_heal",
+            "to": "desperate_prayer"
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_shadow_t5a",
+          "name": "Sacrificial Guard",
+          "desc": "Replaces Power Word: Shield with Pain Suppression, a strong damage cut for 8 seconds.",
+          "icon": "🪬",
+          "mods": {},
+          "swap": {
+            "from": "power_word_shield",
+            "to": "pain_suppression"
+          }
+        },
+        {
+          "id": "priest_shadow_t5b",
+          "name": "Purge the Light",
+          "desc": "Replaces Power Word: Shield with Dispel Magic, stripping buffs and cleansing your debuffs.",
+          "icon": "🧼",
+          "mods": {},
+          "swap": {
+            "from": "power_word_shield",
+            "to": "dispel_magic"
+          }
+        },
+        {
+          "id": "priest_shadow_t5c",
+          "name": "Hush",
+          "desc": "Replaces Power Word: Shield with Silence, an interrupt to stop enemy healers.",
+          "icon": "🤫",
+          "mods": {},
+          "swap": {
+            "from": "power_word_shield",
+            "to": "hush"
+          }
+        }
+      ],
+      [
+        {
+          "id": "priest_shadow_t6a",
+          "name": "Hammer of the Void",
+          "desc": "Replaces Psychic Scream with Hammer of Justice, a stun to set up burst and free Mind Flay channels.",
+          "icon": "🔨",
+          "mods": {},
+          "swap": {
+            "from": "psychic_scream",
+            "to": "judgment_hammer"
+          }
+        },
+        {
+          "id": "priest_shadow_t6b",
+          "name": "Dark Empowerment",
+          "desc": "Replaces Psychic Scream with Power Infusion, a burst buff to your damage and cast speed.",
+          "icon": "✨",
+          "mods": {},
+          "swap": {
+            "from": "psychic_scream",
+            "to": "power_infusion"
+          }
+        },
+        {
+          "id": "priest_shadow_t6c",
+          "name": "Holy Reprise",
+          "desc": "Replaces Psychic Scream with Smite, a reliable holy damage spell with no cooldown.",
+          "icon": "⚡",
+          "mods": {},
+          "swap": {
+            "from": "psychic_scream",
+            "to": "smite"
+          }
+        }
+      ]
+    ]
+  },
+  "rogue": {
+    "assassination": [
+      [
+        {
+          "id": "rogue_t1a",
+          "name": "Smoke Veil",
+          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
+          "icon": "💨",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "extra": [
+                  {
+                    "type": "smoke",
+                    "radius": 6,
+                    "duration": 6000
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_t1b",
+          "name": "Twin Vanish",
+          "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
+          "icon": "🌫️",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "stored": 1
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_t1c",
+          "name": "Shadow Mend",
+          "desc": "Vanishing heals you for 75% of your missing health.",
+          "icon": "💚",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "extra": [
+                  {
+                    "type": "healMissing",
+                    "pct": 0.75
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_t2a",
+          "name": "Quiet Reserves",
+          "desc": "Energy regenerates 20% faster.",
+          "icon": "⚡",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "rogue_t2b",
+          "name": "Fleet Footed",
+          "desc": "You move 10% faster.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.1
+          }
+        },
+        {
+          "id": "rogue_t2c",
+          "name": "Deep Pockets",
+          "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
+          "icon": "🎯",
+          "mods": {
+            "maxCp": 3,
+            "cpPower": 1.15
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_assassination_t3a",
+          "name": "Efficient Cuts",
+          "desc": "Mutilate costs 10% less energy.",
+          "icon": "🗡️",
+          "mods": {
+            "ability": {
+              "mutilate": {
+                "cost": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_assassination_t3b",
+          "name": "Festering Wounds",
+          "desc": "Mutilating a target that is already bleeding adds 3 seconds to the bleed instead of restarting it.",
+          "icon": "🩸",
+          "mods": {
+            "auraExtend": {
+              "mutilate_bleed": 3000
+            },
+            "ability": {
+              "mutilate": {}
+            }
+          }
+        },
+        {
+          "id": "rogue_assassination_t3c",
+          "name": "Crippling Cuts",
+          "desc": "Mutilate slows the target by 10% for 3 seconds.",
+          "icon": "🦶",
+          "mods": {
+            "ability": {
+              "mutilate": {
+                "extra": [
+                  {
+                    "type": "aura",
+                    "aura": "rogue_slow"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_assassination_t4a",
+          "name": "Throwing Knife",
+          "desc": "Replaces Kick with Deadly Throw, a 20-yard ranged interrupt.",
+          "icon": "🔪",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "knife_snipe"
+          }
+        },
+        {
+          "id": "rogue_assassination_t4b",
+          "name": "Blinding Powder",
+          "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
+          "icon": "🙈",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "blind"
+          }
+        },
+        {
+          "id": "rogue_assassination_t4c",
+          "name": "Hobbling Dose",
+          "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
+          "icon": "⚗️",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "crippling_strike"
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_assassination_t5a",
+          "name": "Shadow Leap",
+          "desc": "Replaces Sprint with Shadowstep to close 25 yards on a target and open on them.",
+          "icon": "🌀",
+          "mods": {},
+          "swap": {
+            "from": "sprint",
+            "to": "shadowstep"
+          }
+        },
+        {
+          "id": "rogue_assassination_t5b",
+          "name": "Smoke Screen",
+          "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+          "icon": "💨",
+          "mods": {},
+          "swap": {
+            "from": "sprint",
+            "to": "choke_bomb"
+          }
+        },
+        {
+          "id": "rogue_assassination_t5c",
+          "name": "Blade Storm",
+          "desc": "Replaces Sprint with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
+          "icon": "🌪️",
+          "mods": {},
+          "swap": {
+            "from": "sprint",
+            "to": "fan_of_knives"
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_assassination_t6a",
+          "name": "Finishing Cut",
+          "desc": "Replaces Garrote with Eviscerate, a combo point finisher dealing 110 damage per combo point spent.",
+          "icon": "⚔️",
+          "mods": {},
+          "swap": {
+            "from": "garrote",
+            "to": "eviscerate"
+          }
+        },
+        {
+          "id": "rogue_assassination_t6b",
+          "name": "Fortune's Edge",
+          "desc": "Replaces Garrote with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing.",
+          "icon": "⚡",
+          "mods": {},
+          "swap": {
+            "from": "garrote",
+            "to": "adrenaline_rush"
+          }
+        },
+        {
+          "id": "rogue_assassination_t6c",
+          "name": "Sinister Edge",
+          "desc": "Replaces Garrote with Sinister Strike, a cheap 110 damage builder that earns a combo point.",
+          "icon": "🗡️",
+          "mods": {},
+          "swap": {
+            "from": "garrote",
+            "to": "sinister_strike"
+          }
+        }
+      ]
+    ],
+    "combat": [
+      [
+        {
+          "id": "rogue_t1a",
+          "name": "Smoke Veil",
+          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
+          "icon": "💨",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "extra": [
+                  {
+                    "type": "smoke",
+                    "radius": 6,
+                    "duration": 6000
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_t1b",
+          "name": "Twin Vanish",
+          "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
+          "icon": "🌫️",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "stored": 1
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_t1c",
+          "name": "Shadow Mend",
+          "desc": "Vanishing heals you for 75% of your missing health.",
+          "icon": "💚",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "extra": [
+                  {
+                    "type": "healMissing",
+                    "pct": 0.75
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_t2a",
+          "name": "Quiet Reserves",
+          "desc": "Energy regenerates 20% faster.",
+          "icon": "⚡",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "rogue_t2b",
+          "name": "Fleet Footed",
+          "desc": "You move 10% faster.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.1
+          }
+        },
+        {
+          "id": "rogue_t2c",
+          "name": "Deep Pockets",
+          "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
+          "icon": "🎯",
+          "mods": {
+            "maxCp": 3,
+            "cpPower": 1.15
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_combat_t3a",
+          "name": "Efficient Strikes",
+          "desc": "Sinister Strike costs 10% less energy.",
+          "icon": "⚔️",
+          "mods": {
+            "ability": {
+              "sinister_strike": {
+                "cost": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_combat_t3b",
+          "name": "Double Tap",
+          "desc": "Sinister Strike has a 50% chance to generate 2 combo points instead of 1.",
+          "icon": "🎲",
+          "mods": {
+            "ability": {
+              "sinister_strike": {
+                "cpChance": 0.5
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_combat_t3c",
+          "name": "Hobbling Strikes",
+          "desc": "Sinister Strike slows the target by 10% for 3 seconds.",
+          "icon": "🦶",
+          "mods": {
+            "ability": {
+              "sinister_strike": {
+                "extra": [
+                  {
+                    "type": "aura",
+                    "aura": "rogue_slow"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_combat_t4a",
+          "name": "Throwing Knife",
+          "desc": "Replaces Kick with Deadly Throw, a 20-yard ranged interrupt.",
+          "icon": "🔪",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "knife_snipe"
+          }
+        },
+        {
+          "id": "rogue_combat_t4b",
+          "name": "Blinding Powder",
+          "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
+          "icon": "🙈",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "blind"
+          }
+        },
+        {
+          "id": "rogue_combat_t4c",
+          "name": "Hobbling Dose",
+          "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
+          "icon": "⚗️",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "crippling_strike"
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_combat_t5a",
+          "name": "Smoke Screen",
+          "desc": "Replaces Vanish with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+          "icon": "💨",
+          "mods": {},
+          "swap": {
+            "from": "vanish",
+            "to": "choke_bomb"
+          }
+        },
+        {
+          "id": "rogue_combat_t5b",
+          "name": "Shadow Leap",
+          "desc": "Replaces Vanish with Shadowstep to close 25 yards on a target and open on them.",
+          "icon": "🌀",
+          "mods": {},
+          "swap": {
+            "from": "vanish",
+            "to": "shadowstep"
+          }
+        },
+        {
+          "id": "rogue_combat_t5c",
+          "name": "Bleeding Wire",
+          "desc": "Replaces Vanish with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
+          "icon": "🧵",
+          "mods": {},
+          "swap": {
+            "from": "vanish",
+            "to": "garrote"
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_combat_t6a",
+          "name": "Finishing Cut",
+          "desc": "Replaces Evasion with Eviscerate, a combo point finisher dealing 110 damage per combo point spent.",
+          "icon": "⚔️",
+          "mods": {},
+          "swap": {
+            "from": "evasion",
+            "to": "eviscerate"
+          }
+        },
+        {
+          "id": "rogue_combat_t6b",
+          "name": "Blade Storm",
+          "desc": "Replaces Evasion with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
+          "icon": "🌪️",
+          "mods": {},
+          "swap": {
+            "from": "evasion",
+            "to": "fan_of_knives"
+          }
+        },
+        {
+          "id": "rogue_combat_t6c",
+          "name": "Gouging Thrust",
+          "desc": "Replaces Evasion with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
+          "icon": "🩸",
+          "mods": {},
+          "swap": {
+            "from": "evasion",
+            "to": "mutilate"
+          }
+        }
+      ]
+    ],
+    "subtlety": [
+      [
+        {
+          "id": "rogue_t1a",
+          "name": "Smoke Veil",
+          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
+          "icon": "💨",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "extra": [
+                  {
+                    "type": "smoke",
+                    "radius": 6,
+                    "duration": 6000
+                  }
+                ]
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_t1b",
+          "name": "Twin Vanish",
+          "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
+          "icon": "🌫️",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "stored": 1
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_t1c",
+          "name": "Shadow Mend",
+          "desc": "Vanishing heals you for 75% of your missing health.",
+          "icon": "💚",
+          "mods": {
+            "ability": {
+              "vanish": {
+                "extra": [
+                  {
+                    "type": "healMissing",
+                    "pct": 0.75
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_t2a",
+          "name": "Quiet Reserves",
+          "desc": "Energy regenerates 20% faster.",
+          "icon": "⚡",
+          "mods": {
+            "regen": 1.2
+          }
+        },
+        {
+          "id": "rogue_t2b",
+          "name": "Fleet Footed",
+          "desc": "You move 10% faster.",
+          "icon": "👟",
+          "mods": {
+            "moveSpeed": 1.1
+          }
+        },
+        {
+          "id": "rogue_t2c",
+          "name": "Deep Pockets",
+          "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
+          "icon": "🎯",
+          "mods": {
+            "maxCp": 3,
+            "cpPower": 1.15
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_subtlety_t3a",
+          "name": "Efficient Backstab",
+          "desc": "Backstab costs 10% less energy.",
+          "icon": "🔪",
+          "mods": {
+            "ability": {
+              "backstab": {
+                "cost": 0.9
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_subtlety_t3b",
+          "name": "Shadow Flicker",
+          "desc": "Backstab has a 10% chance to first Shadowstep you behind the target for free (no combo points).",
+          "icon": "👤",
+          "mods": {
+            "ability": {
+              "backstab": {
+                "shadowProc": 0.1
+              }
+            }
+          }
+        },
+        {
+          "id": "rogue_subtlety_t3c",
+          "name": "Hobbling Backstab",
+          "desc": "Backstab slows the target by 10% for 3 seconds.",
+          "icon": "🦶",
+          "mods": {
+            "ability": {
+              "backstab": {
+                "extra": [
+                  {
+                    "type": "aura",
+                    "aura": "rogue_slow"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_subtlety_t4a",
+          "name": "Throwing Knife",
+          "desc": "Replaces Kick with Deadly Throw, a 20-yard ranged interrupt.",
+          "icon": "🔪",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "knife_snipe"
+          }
+        },
+        {
+          "id": "rogue_subtlety_t4b",
+          "name": "Blinding Powder",
+          "desc": "Replaces Kick with Blind, a 15-yard disorient to peel or reset a fight.",
+          "icon": "🙈",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "blind"
+          }
+        },
+        {
+          "id": "rogue_subtlety_t4c",
+          "name": "Hobbling Dose",
+          "desc": "Replaces Kick with Crippling Poison, a cheap hit that slows the target by 40%.",
+          "icon": "⚗️",
+          "mods": {},
+          "swap": {
+            "from": "kick",
+            "to": "crippling_strike"
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_subtlety_t5a",
+          "name": "Smoke Screen",
+          "desc": "Replaces Sprint with Smoke Bomb, a 6-yard cloud lasting 6 seconds to cover your play.",
+          "icon": "💨",
+          "mods": {},
+          "swap": {
+            "from": "sprint",
+            "to": "choke_bomb"
+          }
+        },
+        {
+          "id": "rogue_subtlety_t5b",
+          "name": "Fortune's Edge",
+          "desc": "Replaces Sprint with Adrenaline Rush, a combo point payoff: longer per point, faster autos and energy, and healing.",
+          "icon": "⚡",
+          "mods": {},
+          "swap": {
+            "from": "sprint",
+            "to": "adrenaline_rush"
+          }
+        },
+        {
+          "id": "rogue_subtlety_t5c",
+          "name": "Bleeding Wire",
+          "desc": "Replaces Sprint with Garrote, an instant 100 damage hit plus a bleed of 50 damage per second for 8 seconds.",
+          "icon": "🧵",
+          "mods": {},
+          "swap": {
+            "from": "sprint",
+            "to": "garrote"
+          }
+        }
+      ],
+      [
+        {
+          "id": "rogue_subtlety_t6a",
+          "name": "Gouging Thrust",
+          "desc": "Replaces Vanish with Mutilate, a heavy strike that earns a combo point and leaves a bleed.",
+          "icon": "🩸",
+          "mods": {},
+          "swap": {
+            "from": "vanish",
+            "to": "mutilate"
+          }
+        },
+        {
+          "id": "rogue_subtlety_t6b",
+          "name": "Blade Storm",
+          "desc": "Replaces Vanish with Fan of Knives, hitting all enemies within 8 yards for 90 damage.",
+          "icon": "🌪️",
+          "mods": {},
+          "swap": {
+            "from": "vanish",
+            "to": "fan_of_knives"
+          }
+        },
+        {
+          "id": "rogue_subtlety_t6c",
+          "name": "Blood Price",
+          "desc": "Replaces Vanish with Exsanguinate, a payoff that cashes in your bleeds and then triples them.",
+          "icon": "🩸",
+          "mods": {},
+          "swap": {
+            "from": "vanish",
+            "to": "exsanguinate"
+          }
+        }
+      ]
+    ]
+  }
 }

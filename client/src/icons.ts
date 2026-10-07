@@ -25,7 +25,7 @@ export const AURA_ICON: Record<string, string> = {
   pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', 
   power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', arcane_slow: '💥', garrote_bleed: '🩸', mutilate_bleed: '🩸', shatter: '💎', fingers_of_frost: '🖐️', arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥',
-  deep_freeze_stun: '🧊', hammer_stun: '🔨', judgment_stun: '⚖️', choke_stun: '💨', creeping_rot: '☠️', plague_bloom: '🦠',
+  deep_freeze_stun: '🧊', mortal_wounds: '🩸', mind_flay_slow: '🧠', hammer_stun: '🔨', judgment_stun: '⚖️', choke_stun: '💨', creeping_rot: '☠️', plague_bloom: '🦠',
 };
 
 export const CLASS_ICON: Record<ClassId, string> = { warrior: '⚔️', mage: '🔮', priest: '✝️', rogue: '🗡️' };

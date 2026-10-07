@@ -46,7 +46,7 @@ describe('skills and talents audit: data', () => {
           const from = new Set<string>();
           for (const t of tier) {
             assert.ok(t.name && t.desc && t.icon, t.id);
-            assert.ok(ti <= (cid === 'rogue' ? 1 : 0) || !ids.has(t.id), `duplicate talent id ${t.id}`);
+            assert.ok(ti <= 1 || !ids.has(t.id), `duplicate talent id ${t.id}`);
             ids.add(t.id);
             for (const ab of Object.keys(t.mods?.ability ?? {})) { assert.equal(ABILITIES[ab]?.class, cid, `${t.id}: ${ab}`); assert.ok(sp.bar.includes(ab), `${t.id}: ${ab} must be on the ${sp.id} bar`); }
             for (const au of Object.keys(t.mods?.auraDuration ?? {})) assert.ok(AURAS[au], `${t.id}: ${au}`);
@@ -83,6 +83,22 @@ describe('skills and talents audit: data', () => {
       for (const t of first) {
         for (const ab of Object.keys(t.mods.ability ?? {})) for (const sp of SPECS[cid]) assert.ok(sp.bar.includes(ab), `${t.id}: ${ab} is not on ${sp.id}`);
         assert.equal(t.mods.damageDone ?? 1, 1, `${t.id}: only ability modifiers`);
+      }
+    }
+  });
+
+  it('rows 1-3: shared skill modifiers, shared stat modifiers, then spec modifiers of its own abilities', () => {
+    for (const cid of classIds) {
+      const first = talentsFor(cid, SPECS[cid][0].id);
+      for (const sp of SPECS[cid]) {
+        const tiers = talentsFor(cid, sp.id);
+        assert.deepEqual(tiers[1], first[1], `${cid}/${sp.id}: row 2 is the same for every spec`);
+        for (const t of tiers[1]) {
+          const m = t.mods ?? {};
+          assert.ok(!m.ability && !m.auraDuration && !m.auraExtend, `${t.id}: row 2 is stat modifiers only`);
+          assert.ok(Object.keys(m).length > 0, t.id);
+        }
+        for (const t of tiers[2]) assert.ok(Object.keys(t.mods?.ability ?? {}).length + Object.keys(t.mods?.auraDuration ?? {}).length > 0, `${t.id}: row 3 modifies this spec's abilities`);
       }
     }
   });

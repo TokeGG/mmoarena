@@ -610,7 +610,7 @@ export class ArenaSim {
     targets.forEach((t, i) => { for (const eff of effects) if (i === 0 || !(eff.type === 'aura' && eff.self)) this.applyEffect(u, def, t, eff); }); // a self aura is rolled once per cast, not once per enemy hit
     for (const id of this.modsOf(u).ability[def.id]?.after ?? []) this.applyAura(u, u, id);
     if (empowerAura) this.removeAura(u, empowerAura, 'consumed');
-    if (def.exploit) for (const t of targets) { const x = t.auras.find((a) => a.id === def.exploit!.aura); if (x) this.removeAura(t, x, 'consumed'); }
+    if (def.exploit) for (const t of targets) { const x = t.auras.find((a) => a.id === def.exploit!.aura); if (!x) continue; if ((x.stacks ?? 1) > 1) x.stacks = (x.stacks ?? 1) - 1; else this.removeAura(t, x, 'consumed'); } // one stack per lance
     if (eaten) this.removeAura(u, eaten, 'consumed');
     if (def.cpSpend) u.cp = 0;
     if (def.cpGain) u.cp = Math.min(5 + this.modsOf(u).maxCp, u.cp + def.cpGain + (abMod?.cpChance && this.rng() < abMod.cpChance ? 1 : 0));
@@ -673,7 +673,7 @@ export class ArenaSim {
         break;
       case 'aura':
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
-        this.applyAura(u, eff.self ? u : t, eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower);
+        this.applyAura(u, eff.self ? u : t, eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
         break;
       case 'exsanguinate': {
         let bleed = 0;
@@ -830,7 +830,7 @@ export class ArenaSim {
 
   heal(src: Unit, tgt: Unit, raw: number, ability: string): number {
     if (!tgt.alive) return 0;
-    const want = Math.max(0, Math.round(raw));
+    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken));
     const amount = Math.min(want, tgt.maxHealth - tgt.health);
     tgt.health += amount;
     src.lastCombatAt = this.time;
@@ -879,7 +879,7 @@ export class ArenaSim {
 
   // ------------------------------------------------------------------ auras, crowd control, diminishing returns
 
-  applyAura(src: Unit, tgt: Unit, auraId: string, extraMs = 0): AuraResult {
+  applyAura(src: Unit, tgt: Unit, auraId: string, extraMs = 0, baseMs?: number): AuraResult {
     const def = AURAS[auraId];
     if (!def || !tgt.alive) return { applied: false, immune: true };
 
@@ -893,12 +893,12 @@ export class ArenaSim {
         this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
         return { applied: false, immune: true };
       }
-      duration = def.duration * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
+      duration = (baseMs ?? def.duration) * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
       st.count++;
       st.resetAt = this.time + duration + TUNING.drResetMs;
     }
 
-    else duration = def.duration * (this.modsOf(src).auraDuration[auraId] ?? 1);
+    else duration = (baseMs ?? def.duration) * (this.modsOf(src).auraDuration[auraId] ?? 1);
     if (def.duration > 0) duration += extraMs;
 
     const prior = tgt.auras.find((a) => a.id === auraId && a.sourceId === src.id);

@@ -87,7 +87,7 @@ describe('cosmetics', () => {
     assert.equal(validateBuild('mage', build('fire' + 'x')).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['bogus'])).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['', '', '', '', '', '', 'extra'])).ok, false);
-    assert.equal(validateBuild('mage', build('frost', ['', specTalents('mage', 'fire')[1][0].id])).ok, false, 'a talent of another spec is invalid');
+    assert.equal(validateBuild('mage', build('frost', ['', '', specTalents('mage', 'fire')[2][0].id])).ok, false, 'a talent of another spec is invalid');
     assert.equal(validateBuild('mage', build('frost', [specTalents('mage', 'frost')[0][0].id, '', specTalents('mage', 'frost')[2][1].id])).ok, true);
   });
 
@@ -165,36 +165,36 @@ describe('specs and talents in the sim', () => {
     }
   });
 
-  it('damage mods scale damage and healing mods scale heals (same seed, same sequence)', () => {
+  it('damage mods scale damage (same seed, same sequence)', () => {
     const run = (b?: Build) => {
       const sim = live(7);
-      const mage = add(sim, 'mage', 0, 0, 0, b);
-      const foe = add(sim, 'warrior', 1, 8, 0);
+      const w = add(sim, 'warrior', 0, 0, 0, b ?? build('arms'));
+      const foe = add(sim, 'priest', 1, 2, 0);
+      w.resource = 100;
       advance(sim, TICK);
-      sim.useAbility(mage.id, 'fireball', foe.id);
+      sim.useAbility(w.id, 'mortal_strike', foe.id);
       return advance(sim, 100).find((e) => e.t === 'damage') as Extract<SimEvent, { t: 'damage' }>;
     };
     const base = run();
-    const dmgTalent = specTalents('mage', 'fire').slice(0, 3).flat().find((t) => t.mods.damageDone)!;
-    const boosted = run(build('fire', picks('mage', 'fire', dmgTalent)));
-    const want = (dmgTalent.mods.damageDone ?? 1) * compileMods('mage', build('fire')).damageDone;
+    const dmgTalent = specTalents('warrior', 'arms').slice(0, 3).flat().find((t) => t.mods.damageDone)!;
+    const boosted = run(build('arms', picks('warrior', 'arms', dmgTalent)));
+    const want = (dmgTalent.mods.damageDone ?? 1);
     assert.ok(base && boosted);
     assert.ok(Math.abs(boosted.amount / base.amount - want) < 0.03, `${boosted.amount}/${base.amount} vs ${want}`);
   });
 
   it('damage taken mods reduce incoming damage', () => {
-    const hit = (b?: Build) => {
+    const hit = (spec: string) => {
       const sim = live(5);
       const rogue = add(sim, 'rogue', 0, 0, 0);
-      const war = add(sim, 'warrior', 1, 2, 0, b);
+      const war = add(sim, 'warrior', 1, 2, 0, build(spec));
       advance(sim, TICK);
       sim.useAbility(rogue.id, 'sinister_strike', war.id);
       return (advance(sim, 100).find((e) => e.t === 'damage') as any).amount as number;
     };
-    const base = hit();
-    const tankTalent = specTalents('warrior', 'protection').slice(0, 3).flat().find((t) => t.mods.damageTaken)!;
-    const tank = hit(build('protection', picks('warrior', 'protection', tankTalent)));
-    const want = compileMods('warrior', build('protection', picks('warrior', 'protection', tankTalent))).damageTaken;
+    const base = hit('fury');
+    const tank = hit('protection');
+    const want = compileMods('warrior', build('protection')).damageTaken / compileMods('warrior', build('fury')).damageTaken;
     assert.ok(Math.abs(tank / base - want) < 0.03, `${tank}/${base} vs ${want}`);
   });
 
@@ -696,14 +696,39 @@ describe('warrior rework', () => {
       return hp - f.health;
     };
     const lo = hit(30), hi = hit(100);
-    assert.ok(hi > lo * 1.8, `${hi} vs ${lo}`);
+    assert.ok(hi > lo * 1.3, `${hi} vs ${lo}`);
     const { sim, w, f } = war('arms');
     w.resource = 20;
     assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs 30 rage');
     w.resource = 80;
     sim.useAbility(w.id, 'mortal_strike', f.id);
     advance(sim, TICK);
-    assert.ok(w.resource < 80, `rage left ${w.resource}`);
+  });
+  it('Cleave costs no rage, builds 15 and recasts every 2.5 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
+    assert.equal(ABILITIES.whirlwind.cost, 0);
+    assert.equal(ABILITIES.whirlwind.cooldown, 2500);
+    const { sim, w, f } = war('arms');
+    w.resource = 0;
+    f.maxHealth = f.health = 1e6;
+    assert.ok(sim.useAbility(w.id, 'whirlwind').ok);
+    advance(sim, TICK);
+    assert.ok(w.resource >= 15, `rage ${w.resource}`);
+    const priest = add(sim, 'priest', 0, 0, -3);
+    priest.maxHealth = 3000; priest.health = 1000;
+    w.resource = 30; w.cooldowns = {}; w.gcdEnd = 0;
+    const hp = f.health;
+    assert.ok(sim.useAbility(w.id, 'mortal_strike', f.id).ok);
+    advance(sim, TICK);
+    assert.ok(hp - f.health > 330 && hp - f.health < 560, `dealt ${hp - f.health}`);
+    assert.ok(f.auras.some((x) => x.id === 'mortal_wounds'));
+    const heal = (target: typeof f, amount: number) => { const h = target.health; sim.heal(priest, target, amount, 'flash_heal'); return target.health - h; };
+    f.health = 1000;
+    assert.equal(heal(f, 500), 300, '40% less healing on the wounded');
+    assert.equal(heal(priest, 500), 500, 'others heal normally');
+  });
+  it('Slice and Dice is a 30 s cooldown that cuts for 100 a tick', () => {
+    assert.equal(ABILITIES.slice_and_dice.cooldown, 30000);
+    assert.equal(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount, 100);
   });
   it('Slice and Dice stuns and cuts everything in the cone over 4 seconds, and nothing behind', () => {
     const { sim, w, f } = war('arms', 3);

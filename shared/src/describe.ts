@@ -18,6 +18,7 @@ export function describeMods(m: ModsInput | undefined): string[] {
   };
   up(m.damageDone, 'damage dealt', 'damage dealt');
   up(m.healingDone, 'healing and shields', 'healing and shields');
+  if (m.healingTaken !== undefined && m.healingTaken !== 1) out.push(m.healingTaken < 1 ? `−${pct(m.healingTaken)} healing received` : `+${pct(m.healingTaken)} healing received`);
   if (m.damageTaken !== undefined && m.damageTaken !== 1) out.push(m.damageTaken < 1 ? `−${pct(m.damageTaken)} damage taken` : `+${pct(m.damageTaken)} damage taken`);
   up(m.maxHealth, 'maximum health', 'maximum health');
   if (m.castTime !== undefined && m.castTime !== 1) out.push(m.castTime < 1 ? `−${pct(m.castTime)} cast time` : `+${pct(m.castTime)} cast time`);
@@ -51,7 +52,14 @@ function describeBase(id: string): string {
     case 'incapacitate': return `Cannot move, cast or act${a.canTurn ? ' (can still turn)' : ''}${a.locksAbilities ? ', not even Blink' : ''}. Breaks on damage.${a.hot ? ` Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s.` : ''}`;
     case 'fear': return `Runs around in fear at ${Math.round(TUNING.fearSpeed * 100)}% speed. Cannot cast or act.${a.breaksOnDamage ? ' Breaks on direct damage, not damage over time.' : ''}`;
     case 'root': return 'Cannot move.';
-    case 'mark': return `${a.vulnerable ? `Takes ${a.vulnerable.mult}x damage from ${a.vulnerable.school} abilities.` : 'Marked.'}${a.breaksOnDamage ? ' Lost when damaged' : ''}${a.heldBy ? `, unless ${AURAS[a.heldBy]?.name ?? a.heldBy} is active` : ''}${a.breaksOnDamage ? '.' : ' Ice Lance treats it as Shatter and uses it up.'}`;
+    case 'mark': {
+      const parts: string[] = [];
+      if (a.vulnerable) parts.push(`Takes ${a.vulnerable.mult}x damage from ${a.vulnerable.school} abilities`);
+      parts.push(...describeMods(a.mods).map(cap));
+      if (a.breaksOnDamage) parts.push(`Lost when damaged${a.heldBy ? `, unless ${AURAS[a.heldBy]?.name ?? a.heldBy} is active` : ''}`);
+      if (!a.vulnerable && !a.mods) parts.push('Ice Lance treats it as Shatter and uses it up');
+      return `${parts.join('. ')}.`;
+    }
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
     case 'absorb': return `Absorbs ${a.absorb ?? 0} damage.`;

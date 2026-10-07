@@ -71,7 +71,7 @@ export type ClientMsg =
   /** End screen: ready (or not) for another match with the same players. */
   | { t: 'rematch'; on: boolean }
   /** The suggestion box: send an idea (everyone), or read the box (owner only). */
-  | { t: 'suggest'; text: string }
+  | { t: 'suggest'; text: string; /** An attached .txt note for more room (up to NOTE_MAX characters). */ note?: string }
   | { t: 'suggestions' }
   /** Owner only: remove one suggestion from the box. */
   | { t: 'suggest_delete'; at: number; text: string }
@@ -86,6 +86,8 @@ export type ClientMsg =
   | { t: 'admin_set'; name: string; grants?: string[]; custom?: CustomStyle | null; useCustom?: boolean; resetPassword?: boolean };
 
 export const MAX_SETTINGS = 24000;
+/** Longest note a player can attach to a suggestion (the socket carries 32 KB, and not every character is one byte). */
+export const NOTE_MAX = 10000;
 
 export type ServerMsg =
   | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string }
@@ -97,7 +99,7 @@ export type ServerMsg =
   /** How many of the people in the finished match are ready to play again. */
   | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'suggest_ack'; ok: boolean; reason?: string }
-  | { t: 'suggestions'; rows: { at: number; name: string; text: string }[] }
+  | { t: 'suggestions'; rows: { at: number; name: string; text: string; note?: string }[] }
   | { t: 'stats'; rows: StatRow[]; /** The match just ended: show the scoreboard to everyone in it. */ final?: boolean }
   | { t: 'error'; reason: string; ability?: string }
   | { t: 'closed'; reason: string }
@@ -259,7 +261,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'suggest': {
       if (typeof m.text !== 'string') return null;
       const text = m.text.replace(/\s+/g, ' ').trim().slice(0, 600);
-      return text.length >= 5 ? { t: 'suggest', text } : null;
+      const note = typeof m.note === 'string' ? m.note.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '').replace(/\r\n?/g, '\n').trim().slice(0, NOTE_MAX) : '';
+      return text.length >= 5 ? { t: 'suggest', text, ...(note ? { note } : {}) } : null;
     }
     case 'suggestions':
       return { t: 'suggestions' };

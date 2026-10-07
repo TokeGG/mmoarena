@@ -232,7 +232,7 @@
   "deep_freeze_stun": {
     "name": "Deep Freeze",
     "kind": "stun",
-    "duration": 3000,
+    "duration": 4000,
     "harmful": true,
     "dr": "stun"
   },
@@ -258,7 +258,7 @@
     "dr": "stun"
   },
   "creeping_rot": {
-    "name": "Shadow Word: Death",
+    "name": "Shadow Word: Pain",
     "kind": "dot",
     "duration": 10000,
     "harmful": true,
@@ -271,7 +271,7 @@
     }
   },
   "plague_bloom": {
-    "name": "Shadow Word: Pain",
+    "name": "Devouring Plague",
     "kind": "dot",
     "duration": 10000,
     "harmful": true,
@@ -428,6 +428,23 @@
     "name": "Fingers of Frost",
     "kind": "mark",
     "duration": 15000,
-    "harmful": true
+    "harmful": true,
+    "maxStacks": 2
+  },
+  "mortal_wounds": {
+    "name": "Mortal Wounds",
+    "kind": "mark",
+    "duration": 8000,
+    "harmful": true,
+    "mods": {
+      "healingTaken": 0.6
+    }
+  },
+  "mind_flay_slow": {
+    "name": "Mind Flay",
+    "kind": "slow",
+    "duration": 1500,
+    "harmful": true,
+    "slowPct": 30
   }
 }

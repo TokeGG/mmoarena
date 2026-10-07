@@ -222,7 +222,7 @@
       "id": "shadow",
       "name": "Gloomweaver",
       "role": "Damage",
-      "desc": "Rot and Shadow Word: Pain wear enemies down; Mind Flay and Mind Blast hit hard. Weaker healing.",
+      "desc": "Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Blast hit hard. Weaker healing.",
       "icon": "\ud83c\udf11",
       "bar": [
         "mind_blast",

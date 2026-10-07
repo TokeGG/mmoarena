@@ -333,6 +333,33 @@ describe('stealth', () => {
     assert.ok(procs > 4 && procs < 25, `procs ${procs}/80`);
   });
 
+  it('Fingers of Frost stacks to two and each Ice Lance uses one; Deep Freeze stuns for 4 s and Frost Nova roots and shatters for 6 s', () => {
+    const sim = live(5);
+    const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
+    const foe = add(sim, 'warrior', 1, 0, 6);
+    foe.maxHealth = foe.health = 1e7;
+    advance(sim, TICK);
+    for (let i = 0; i < 3; i++) sim.applyAura(mage, foe, 'fingers_of_frost');
+    assert.equal(foe.auras.find((x) => x.id === 'fingers_of_frost')!.stacks, 2, 'caps at two');
+    const lance = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; assert.ok(sim.useAbility(mage.id, 'ice_lance', foe.id).ok); advance(sim, TICK); };
+    lance();
+    assert.equal(foe.auras.find((x) => x.id === 'fingers_of_frost')?.stacks, 1);
+    lance();
+    assert.ok(!foe.auras.some((x) => x.id === 'fingers_of_frost'));
+    sim.applyAura(mage, foe, 'fingers_of_frost');
+    mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax;
+    assert.ok(sim.useAbility(mage.id, 'deep_freeze', foe.id).ok);
+    const left = (id: string) => foe.auras.find((x) => x.id === id)!.expiresAt - sim.time;
+    assert.ok(Math.abs(left('deep_freeze_stun') - 4000) < 120, `stun ${left('deep_freeze_stun')}`);
+    assert.ok(Math.abs(left('shatter') - 4000) < 120, `shatter ${left('shatter')}`);
+    for (const x of [...foe.auras]) sim.removeAura(foe, x, 'test');
+    mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax;
+    mage.pos = { x: 0, z: 0 }; foe.pos = { x: 0, z: 5 };
+    assert.ok(sim.useAbility(mage.id, 'frost_nova').ok);
+    assert.ok(Math.abs(left('shatter') - 6000) < 120, `nova shatter ${left('shatter')}`);
+    assert.ok(Math.abs(left('frost_nova_root') - 6000 * 1.15) < 150 || Math.abs(left('frost_nova_root') - 6000) < 150, `root ${left('frost_nova_root')}`);
+  });
+
   it('Shatter and Frost Nova roots break on damage, except Shatter while Deep Freeze holds', () => {
     const sim = live();
     const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0, build: { spec: 'frost', talents: [], gear: {} } });
@@ -480,6 +507,23 @@ describe('stealth', () => {
     mage.cooldowns = {};
     mage.lockouts.arcane = sim.time + 4000;
     assert.ok(sim.useAbility(mage.id, 'counterspell', foe.id).ok, 'a lockout does not stop it');
+  });
+
+  it('Mind Flay slows its target by 30% while it channels, and the priest abilities have their new names', () => {
+    assert.equal(AURAS.mind_flay_slow.slowPct, 30);
+    assert.ok(ABILITIES.mind_flay.effects.some((e) => e.type === 'aura' && e.aura === 'mind_flay_slow'));
+    assert.equal(ABILITIES.shadow_word_death.name, 'Shadow Word: Pain');
+    assert.equal(ABILITIES.plague_bloom.name, 'Devouring Plague');
+    assert.equal(AURAS.creeping_rot.name, 'Shadow Word: Pain');
+    assert.equal(AURAS.plague_bloom.name, 'Devouring Plague');
+    const sim = live(3);
+    const pr = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec: 'shadow', talents: [], gear: {} } });
+    const foe = add(sim, 'warrior', 1, 0, 8);
+    foe.maxHealth = foe.health = 1e6;
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(pr.id, 'mind_flay', foe.id).ok);
+    advance(sim, 1200);
+    assert.ok(foe.auras.some((x) => x.id === 'mind_flay_slow'), 'slowed mid-channel');
   });
 
   it('hot streak makes the next pyroblast instant and is used up', () => {

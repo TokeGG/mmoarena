@@ -301,7 +301,7 @@ export class Hud {
       s.cd.style.background = `conic-gradient(rgba(0,0,0,.72) ${frac * 360}deg, rgba(0,0,0,.08) 0)`;
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
       // a proc (Hot Streak) makes this slot glow while it is active
-      s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability));
+      s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability) || (!!def.exploit && !!tgt && tgt.team !== me.team && !!tgt.auras?.some((a) => a.id === def.exploit!.aura))); // Ice Lance glows while the target has Fingers of Frost
       const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
       const blocked = me.alive && blockedByCondition(def, me, tgt);
       s.root.classList.toggle('locked', locked);

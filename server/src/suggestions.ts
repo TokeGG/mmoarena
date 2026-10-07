@@ -1,6 +1,7 @@
 import type { Store } from './store';
 
-export interface Suggestion { at: number; name: string; text: string }
+export interface Suggestion { at: number; name: string; text: string; note?: string }
+const NOTE_LIMIT = 10000;
 export const SUGGESTION_MAX = 600;
 const KEY = 'suggestions';
 const KEEP = 300;
@@ -33,10 +34,10 @@ export class Suggestions {
     }
   }
 
-  add(name: string, text: string): Promise<boolean> {
+  add(name: string, text: string, note?: string): Promise<boolean> {
     const run = this.chain.then(async () => {
       const rows = await this.list();
-      rows.unshift({ at: Date.now(), name: name.slice(0, 24), text: text.slice(0, SUGGESTION_MAX) });
+      rows.unshift({ at: Date.now(), name: name.slice(0, 24), text: text.slice(0, SUGGESTION_MAX), ...(note ? { note: note.slice(0, NOTE_LIMIT) } : {}) });
       await this.store.set(KEY, JSON.stringify(rows.slice(0, KEEP)));
       this.notify(rows[0]);
       return true;
@@ -60,12 +61,20 @@ export class Suggestions {
 
   private notify(s: Suggestion): void {
     if (!this.webhook) return;
-    const body = JSON.stringify({
+    const payload = JSON.stringify({
       username: 'Arena suggestions',
       content: `💡 **${s.name.replace(/[*_`~|>@]/g, '')}** suggests:\n${s.text.replace(/@/g, '@\u200b')}`.slice(0, 1900),
       allowed_mentions: { parse: [] },
     });
     // fire and forget: a Discord outage must never lose or delay the suggestion
-    void this.post(this.webhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body }).catch(() => undefined);
+    if (s.note) {
+      // the attached note goes along as a text file
+      const form = new FormData();
+      form.append('payload_json', payload);
+      form.append('files[0]', new Blob([s.note], { type: 'text/plain' }), 'suggestion-note.txt');
+      void this.post(this.webhook, { method: 'POST', body: form }).catch(() => undefined);
+      return;
+    }
+    void this.post(this.webhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: payload }).catch(() => undefined);
   }
 }
