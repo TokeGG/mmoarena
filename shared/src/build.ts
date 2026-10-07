@@ -1,4 +1,4 @@
-import { AURAS, CLASSES, COSMETICS, SPECS, TALENTS } from './data';
+import { ABILITIES, AURAS, CLASSES, COSMETICS, SPECS, TALENTS } from './data';
 import type { AbilityMod, AutoDef, Build, ClassId, CosmeticItem, Mods, ModsInput, TalentDef } from './types';
 
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
@@ -30,6 +30,7 @@ export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
       if (m.range !== undefined) cur.range = (cur.range ?? 0) + m.range;
       if (m.charges !== undefined) cur.charges = (cur.charges ?? 0) + m.charges;
       if (m.after) cur.after = [...(cur.after ?? []), ...m.after];
+      if (m.free) cur.free = true;
     }
   }
   if (add.auraDuration) for (const [id, v] of Object.entries(add.auraDuration)) into.auraDuration[id] = (into.auraDuration[id] ?? 1) * v;
@@ -94,6 +95,15 @@ export function compileMods(classId: ClassId, b: Build | undefined): Mods {
   applyMods(m, specOf(classId, b.spec)?.mods);
   const tiers = talentsFor(classId, b.spec);
   b.talents.forEach((id, i) => applyMods(m, tiers[i]?.find((t) => t.id === id)?.mods));
+  // an ability that needs a mark on the target (Deep Freeze needs Fingers of Frost or Shatter) works without it when nothing
+  // else on this bar can ever apply that mark: a Fire or Arcane mage who talents into Deep Freeze gets a plain stun
+  const bar = barFor(classId, b, CLASSES[classId].bar);
+  for (const id of bar) {
+    const need = ABILITIES[id]?.requiresTargetAura;
+    if (!need) continue;
+    const makers = bar.filter((o) => o !== id && ABILITIES[o]?.effects.some((e) => e.type === 'aura' && need.includes(e.aura)));
+    if (!makers.length) (m.ability[id] ??= {}).free = true;
+  }
   // gear is cosmetic only: it never changes numbers (see gearLook for what it changes)
   return m;
 }

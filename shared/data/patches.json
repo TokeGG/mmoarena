@@ -1,5 +1,27 @@
 [
  {
+  "version": "0.65.0",
+  "date": "2026-10-07",
+  "title": "Combat fixes and an unstoppable Bladestorm",
+  "changes": [
+   "Bladestorm cannot be interrupted, and while it spins the warrior is immune to stuns, fears, incapacitates, roots, slows and Reel In. Bots no longer waste a kick on it.",
+   "Kicking a warrior's physical channel (Slice and Dice) now only locks that ability, not every physical skill.",
+   "Kidney Shot's combo-point time is part of the stun, so diminishing returns now shorten all of it (the second stun is half, the third a quarter).",
+   "Dispel Magic takes crowd control off an ally first; a damage-over-time effect no longer sorts ahead of a sheep or a fear.",
+   "Deep Freeze taken as a Fire or Arcane talent works without Fingers of Frost or Shatter (nothing on those bars can apply them).",
+   "Range talents for cone and area abilities make them reach further: Reel In's +4 yards now works.",
+   "A feared unit that is also rooted or stunned stays put instead of walking.",
+   "Area attacks (Psychic Scream, Shockwave, Reel In, Holy Nova, Bladestorm and the rest) need line of sight and are measured in 3D: no more screams through a pillar or shockwaves through the deck.",
+   "Heroic Leap's landing damage is measured in 3D and needs line of sight.",
+   "Shadowstep to someone at the edge of a walkway lands on the walkway, never in the air off its edge.",
+   "Only direct damage stops a Charge: a damage-over-time tick no longer cancels it and wastes the cooldown.",
+   "A Charge at someone up on a walkway ends underneath without the hit (and without leaving its stun behind).",
+   "Reel In pulling someone off a walkway puts them on the ground.",
+   "Vanish cancels a Charge already on its way to you.",
+   "Tooltip and talent text: Enraged Regeneration lists its Bloodthirst heal, Blizzard talents no longer promise a slow, Evocation is described as it works (6 s of fast mana regeneration), and the Vanish smoke cloud says what it does."
+  ]
+ },
+ {
   "version": "0.64.0",
   "date": "2026-10-07",
   "title": "Ranked and server safety",

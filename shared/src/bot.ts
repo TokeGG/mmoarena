@@ -355,6 +355,7 @@ export class Bot {
   private worthInterrupt(e: Unit): boolean {
     const def = e.cast ? ABILITIES[e.cast.ability] : undefined;
     if (!def) return true;
+    if (def.unstoppable) return false; // Bladestorm cannot be kicked: keep the interrupt
     if (def.effects.some((x) => x.type === 'heal' || (x.type === 'aura' && AURAS[x.aura]?.harmful && AURAS[x.aura].dr))) return true;
     if (def.castTime >= 1500) return true;
     const victim = e.cast?.target !== undefined ? this.sim.units.get(e.cast.target) : undefined;

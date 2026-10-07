@@ -25,6 +25,8 @@ export interface AbilityMod {
   stored?: number;
   /** Chance each cast first teleports the caster behind the target for free (no combo points). */
   shadowProc?: number;
+  /** Works without its usual target requirement (Deep Freeze for specs that cannot apply Fingers of Frost or Shatter). */
+  free?: boolean;
 }
 
 /** Fully resolved modifiers a unit carries. Multipliers default to 1. */
@@ -128,6 +130,8 @@ export interface AuraDef {
   dot?: { amount: number; interval: number; school: School; ability: string };
   /** Stat modifiers applied while the aura is active (kind 'buff'). */
   mods?: ModsInput;
+  /** Longest it can last (ms) before diminishing returns, however many combo points went in (Kidney Shot). */
+  maxDuration?: number;
 }
 
 export type Effect =
@@ -217,6 +221,8 @@ export interface AbilityDef {
   /** Can be used while stunned, feared or incapacitated (Blink). */
   ignoresControl?: boolean;
   allowWhileRooted?: boolean;
+  /** Cannot be interrupted, and while it lasts the caster shrugs off stuns, fears, incapacitates, roots, slows and pulls (Bladestorm). */
+  unstoppable?: boolean;
   /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
   channel?: { ticks: number; /** The first tick fires the moment the channel starts instead of one interval in (Slice and Dice). */ immediate?: boolean; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
 }

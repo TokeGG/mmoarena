@@ -244,8 +244,9 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 
 *Physical* · 30 rage · 7 yd radius · 5s channel · 60s cooldown
 
-- Strikes every enemy in range 10 times, once every 0.5s, for 22 physical damage each (220 total). Being interrupted stops it.
+- Strikes every enemy in range 10 times, once every 0.5s, for 22 physical damage each (220 total). Interrupts and crowd control cannot stop it.
 - *Can be cast while moving.*
+- *Cannot be interrupted. While it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls.*
 
 On the bar: [Rampager](#warrior-fury) (key 1).
 
@@ -265,7 +266,7 @@ On the bar: [Rampager](#warrior-fury) (key 2).
 
 *Physical* · 10 rage · Instant · 60s cooldown · 8s buff
 
-- −30% damage taken.
+- −30% damage taken. Bloodthirst: also heals you for 20% of your maximum health.
 - *Does not trigger the global cooldown.*
 
 On the bar: [Rampager](#warrior-fury) (key 3).
@@ -452,13 +453,13 @@ Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance i
 | III | 🌨️ **Deep Winter** | Deep Freeze's stun lasts 25% longer and its cooldown is 20% shorter. |
 |  | 💎 **Shatterpoint** | Frost Nova and Deep Freeze recharge 15% sooner. |
 |  | 🗡️ **Piercing Cold** | Ice Lance deals 20% more damage and recharges 15% sooner. |
-| IV | 🌬️ **Blizzard** | A ground storm that damages and slows foes, which Ice Lance can punish. Replaces Polymorph. → [Blizzard](#skill-blizzard) |
+| IV | 🌬️ **Blizzard** | A ground storm that damages every foe standing in it. Replaces Polymorph. → [Blizzard](#skill-blizzard) |
 |  | 🐉 **Dragon's Breath** | A close-range cone that disorients enemies to peel melee off you. Replaces Polymorph. → [Dragon's Breath](#skill-dragons-breath) |
 |  | 🔥 **Flamestrike** | Ground fire for burst damage on a frozen, rooted target. Replaces Polymorph. → [Flamestrike](#skill-flamestrike) |
 | V | 🔇 **Arcane Torrent** | A silence that shuts down enemy casters. Replaces Counterspell. → [Arcane Torrent](#skill-arcane-silence) |
 |  | 💥 **Arcane Explosion** | An instant slowing burst around you. Replaces Counterspell. → [Arcane Explosion](#skill-arcane-explosion) |
 |  | 🔮 **Arcane Barrage** | A quick heavy hit for extra burst. Replaces Counterspell. → [Arcane Barrage](#skill-arcane-barrage) |
-| VI | 🧘 **Evocation** | Restores your mana in a long channel. Replaces Ice Barrier. → [Evocation](#skill-evocation) |
+| VI | 🧘 **Evocation** | Restores your mana fast: for 6 seconds your mana regenerates four times as fast and you take 15% less damage. Replaces Ice Barrier. → [Evocation](#skill-evocation) |
 |  | ⚡ **Arcane Power** | A big damage cooldown for burst windows. Replaces Ice Barrier. → [Arcane Power](#skill-arcane-power) |
 |  | ☄️ **Pyroblast** | A huge slow-cast nuke to finish stunned targets. Replaces Ice Barrier. → [Pyroblast](#skill-pyroblast) |
 
@@ -488,12 +489,12 @@ Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyrob
 |  | 🔥 **Flame Mastery** | Flamestrike deals 20% more damage and recharges 15% sooner. |
 |  | ☄️ **Quick Fire** | Fireball recharges 20% sooner and Scorch deals 20% more damage. |
 | IV | ❄️ **Frost Nova** | A root to escape melee and set up Pyroblast. Replaces Polymorph. → [Frost Nova](#skill-frost-nova) |
-|  | 🧊 **Deep Freeze** | A stun that guarantees a safe Pyroblast. Replaces Polymorph. → [Deep Freeze](#skill-deep-freeze) |
+|  | 🧊 **Deep Freeze** | A 4-second stun that needs no Fingers of Frost or Shatter, guaranteeing a safe Pyroblast. Replaces Polymorph. → [Deep Freeze](#skill-deep-freeze) |
 |  | 💥 **Arcane Explosion** | An instant slow to keep melee off you. Replaces Polymorph. → [Arcane Explosion](#skill-arcane-explosion) |
 | V | 🔇 **Arcane Torrent** | A silence to stop enemy healers. Replaces Counterspell. → [Arcane Torrent](#skill-arcane-silence) |
 |  | 🗡️ **Ice Lance** | A cheap instant hit while you move. Replaces Counterspell. → [Ice Lance](#skill-ice-lance) |
 |  | 🔮 **Arcane Barrage** | An instant heavy hit to add burst. Replaces Counterspell. → [Arcane Barrage](#skill-arcane-barrage) |
-| VI | 🌬️ **Blizzard** | A slowing ground storm for control. Replaces Flamestrike. → [Blizzard](#skill-blizzard) |
+| VI | 🌬️ **Blizzard** | A ground storm that damages every foe standing in it. Replaces Flamestrike. → [Blizzard](#skill-blizzard) |
 |  | 🛡️ **Ice Barrier** | A shield that makes your fragile body safer. Replaces Flamestrike. → [Ice Barrier](#skill-ice-barrier) |
 |  | ⚡ **Arcane Power** | A damage cooldown to boost your burst. Replaces Flamestrike. → [Arcane Power](#skill-arcane-power) |
 
@@ -522,13 +523,13 @@ A damage cooldown, and Arcane Missiles and Barrage that hit hard; Explosion slow
 |  | 🔮 **Missile Volley** | Arcane Missiles deal 20% more damage and recharge 20% sooner. |
 | IV | ❄️ **Frost Nova** | A root that lets Arcane Missiles finish. Replaces Polymorph. → [Frost Nova](#skill-frost-nova) |
 |  | 🐉 **Dragon's Breath** | A cone disorient to escape melee. Replaces Polymorph. → [Dragon's Breath](#skill-dragons-breath) |
-|  | 🧊 **Deep Freeze** | A stun giving a safe window for your channel. Replaces Polymorph. → [Deep Freeze](#skill-deep-freeze) |
+|  | 🧊 **Deep Freeze** | A 4-second stun that needs no Fingers of Frost or Shatter, giving a safe window for your channel. Replaces Polymorph. → [Deep Freeze](#skill-deep-freeze) |
 | V | 🔇 **Arcane Torrent** | A silence on enemy casters. Replaces Counterspell. → [Arcane Torrent](#skill-arcane-silence) |
 |  | 🗡️ **Ice Lance** | A cheap instant hit while moving. Replaces Counterspell. → [Ice Lance](#skill-ice-lance) |
 |  | ☄️ **Pyroblast** | A heavy slow nuke for burst. Replaces Counterspell. → [Pyroblast](#skill-pyroblast) |
 | VI | 🛡️ **Ice Barrier** | An absorb shield for sustain. Replaces Arcane Explosion. → [Ice Barrier](#skill-ice-barrier) |
-|  | 🌬️ **Blizzard** | A ground storm that slows from range. Replaces Arcane Explosion. → [Blizzard](#skill-blizzard) |
-|  | 🧘 **Evocation** | A long channel that restores your mana. Replaces Arcane Explosion. → [Evocation](#skill-evocation) |
+|  | 🌬️ **Blizzard** | A ground storm that damages foes from range. Replaces Arcane Explosion. → [Blizzard](#skill-blizzard) |
+|  | 🧘 **Evocation** | Restores your mana fast: for 6 seconds your mana regenerates four times as fast and you take 15% less damage. Replaces Arcane Explosion. → [Evocation](#skill-evocation) |
 
 ### Mage skills
 
@@ -1074,7 +1075,7 @@ Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.
 
 | Tier | Talent | What it does |
 |---|---|---|
-| I | 💨 **Smoke Veil** | Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other. |
+| I | 💨 **Smoke Veil** | Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone. |
 |  | 🌫️ **Twin Vanish** | Vanish holds two charges, and each charge recharges on its own timer. |
 |  | 💚 **Shadow Mend** | Vanishing heals you for 75% of your missing health. |
 | II | ⚡ **Quiet Reserves** | Energy regenerates 20% faster. |
@@ -1421,7 +1422,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-die-by-the-sword"></a>**Die by the Sword** | Buff | 5s | −50% damage taken. | [Die by the Sword](#skill-die-by-the-sword) |
 | <a id="effect-dispersion"></a>**Dispersion** | Buff | 6s | −90% damage taken. You cannot use any ability while it lasts. | [Dispersion](#skill-dispersion) |
 | <a id="effect-dragons-breath"></a>**Dragon's Breath** | Debuff (fear), magic | 4s | Runs around in fear at 35% speed. Cannot cast or act, not even Blink. | [Dragon's Breath](#skill-dragons-breath) |
-| <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | −30% damage taken. | [Enraged Regeneration](#skill-enraged-regeneration) |
+| <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | −30% damage taken. Bloodthirst: also heals you for 20% of your maximum health. | [Enraged Regeneration](#skill-enraged-regeneration) |
 | <a id="effect-evasion"></a>**Evasion** | Buff | 6s | −45% damage taken. | [Evasion](#skill-evasion) |
 | <a id="effect-evocation"></a>**Evocation** | Buff, magic | 6s | −15% damage taken. +300% mana regeneration. | [Evocation](#skill-evocation) |
 | <a id="effect-fingers-of-frost"></a>**Fingers of Frost** | Debuff (mark) | 15s | Ice Lance treats it as Shatter and uses it up. | [Frostbolt](#skill-frostbolt), [Frost Nova](#skill-frost-nova) |

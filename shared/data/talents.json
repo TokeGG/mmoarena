@@ -820,7 +820,7 @@
         {
           "id": "mage_frost_t4a",
           "name": "Blizzard",
-          "desc": "A ground storm that damages and slows foes, which Ice Lance can punish. Replaces Polymorph.",
+          "desc": "A ground storm that damages every foe standing in it. Replaces Polymorph.",
           "icon": "🌬️",
           "mods": {},
           "swap": {
@@ -890,7 +890,7 @@
         {
           "id": "mage_frost_t6a",
           "name": "Evocation",
-          "desc": "Restores your mana in a long channel. Replaces Ice Barrier.",
+          "desc": "Restores your mana fast: for 6 seconds your mana regenerates four times as fast and you take 15% less damage. Replaces Ice Barrier.",
           "icon": "🧘",
           "mods": {},
           "swap": {
@@ -1068,7 +1068,7 @@
         {
           "id": "mage_fire_t4b",
           "name": "Deep Freeze",
-          "desc": "A stun that guarantees a safe Pyroblast. Replaces Polymorph.",
+          "desc": "A 4-second stun that needs no Fingers of Frost or Shatter, guaranteeing a safe Pyroblast. Replaces Polymorph.",
           "icon": "🧊",
           "mods": {},
           "swap": {
@@ -1127,7 +1127,7 @@
         {
           "id": "mage_fire_t6a",
           "name": "Blizzard",
-          "desc": "A slowing ground storm for control. Replaces Flamestrike.",
+          "desc": "A ground storm that damages every foe standing in it. Replaces Flamestrike.",
           "icon": "🌬️",
           "mods": {},
           "swap": {
@@ -1316,7 +1316,7 @@
         {
           "id": "mage_arcane_t4c",
           "name": "Deep Freeze",
-          "desc": "A stun giving a safe window for your channel. Replaces Polymorph.",
+          "desc": "A 4-second stun that needs no Fingers of Frost or Shatter, giving a safe window for your channel. Replaces Polymorph.",
           "icon": "🧊",
           "mods": {},
           "swap": {
@@ -1375,7 +1375,7 @@
         {
           "id": "mage_arcane_t6b",
           "name": "Blizzard",
-          "desc": "A ground storm that slows from range. Replaces Arcane Explosion.",
+          "desc": "A ground storm that damages foes from range. Replaces Arcane Explosion.",
           "icon": "🌬️",
           "mods": {},
           "swap": {
@@ -1386,7 +1386,7 @@
         {
           "id": "mage_arcane_t6c",
           "name": "Evocation",
-          "desc": "A long channel that restores your mana. Replaces Arcane Explosion.",
+          "desc": "Restores your mana fast: for 6 seconds your mana regenerates four times as fast and you take 15% less damage. Replaces Arcane Explosion.",
           "icon": "🧘",
           "mods": {},
           "swap": {
@@ -2106,7 +2106,7 @@
         {
           "id": "rogue_t1a",
           "name": "Smoke Veil",
-          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
+          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone.",
           "icon": "💨",
           "mods": {
             "ability": {
@@ -2342,7 +2342,7 @@
         {
           "id": "rogue_t1a",
           "name": "Smoke Veil",
-          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
+          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone.",
           "icon": "💨",
           "mods": {
             "ability": {
@@ -2577,7 +2577,7 @@
         {
           "id": "rogue_t1a",
           "name": "Smoke Veil",
-          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
+          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone.",
           "icon": "💨",
           "mods": {
             "ability": {

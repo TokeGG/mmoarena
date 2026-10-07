@@ -68,6 +68,10 @@ function modFacts(m: ModsInput | undefined, res = 'resource'): ModFact[] {
     if (a.cooldown) add(a.cooldown < 1 ? '−' : '+', a.cooldown, 'cooldown', K.cooldown, name);
     if (a.castTime) add(a.castTime < 1 ? '−' : '+', a.castTime, 'cast time', K.cast, name);
     if (a.range) out.push({ text: `${name}: ${a.range > 0 ? '+' : '−'}${Math.abs(a.range)} yd range`, amount: `${Math.abs(a.range)} yd`, subject: name, kind: K.range });
+    for (const e of a.extra ?? []) {
+      // extra effects a buff or talent bolts onto an ability (Enraged Regeneration's Bloodthirst heal)
+      if (e.type === 'healMax') out.push({ text: `${name}: also heals you for ${Math.round(e.pct * 100)}% of your maximum health`, amount: `${Math.round(e.pct * 100)}%`, subject: name, kind: /heal/ });
+    }
   }
   for (const [id, v] of Object.entries(m.auraDuration ?? {})) add(v > 1 ? '+' : '−', v, 'duration', K.duration, AURAS[id]?.name ?? id);
   return out;
@@ -233,8 +237,10 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
 
   const stats: string[] = [];
   if (def.cost) stats.push(`${M((m) => Math.round(def.cost * (ab(m).cost ?? 1)), String, false)} ${res}`);
-  if (def.target === 'aoe_enemy' && def.coneDeg) stats.push(`${def.radius} yd range, ${def.coneDeg}° cone in front of you`);
-  else if (aoe) stats.push(`${def.radius} yd radius`);
+  // a range talent makes an area ability reach further (a longer cone, a wider circle)
+  const reachOf = (m: Mods) => (def.radius ?? 0) + (ab(m).range ?? 0);
+  if (def.target === 'aoe_enemy' && def.coneDeg) stats.push(`${M(reachOf)} yd range, ${def.coneDeg}° cone in front of you`);
+  else if (aoe) stats.push(`${M(reachOf)} yd radius`);
   else if (def.target === 'ground') stats.push(`${M((m) => def.range + (ab(m).range ?? 0))} yd range`, 'Aimed at the cursor');
   else if (def.range > 0) stats.push(`${M((m) => def.range + (ab(m).range ?? 0))} yd range`);
   else if (def.target === 'enemy' || def.target === 'any') stats.push('Melee range');
@@ -265,7 +271,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
 
   const ticks = def.channel?.ticks ?? 1;
   const every = def.channel ? M((m) => secs(castMs(m) / ticks), fmtS, false) : '';
-  const stops = def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
+  const stops = def.unstoppable ? 'Interrupts and crowd control cannot stop it.' : def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
   const dmgOf = (amount: number) => (m: Mods) => Math.round(amount * m.damageDone * (ab(m).damage ?? 1));
   const healOf = (amount: number) => (m: Mods) => Math.round(amount * m.healingDone * (ab(m).heal ?? 1));
 
@@ -383,6 +389,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.stealthSwap && ABILITIES[def.stealthSwap]) notes.push(`While you are stealthed this slot becomes ${ABILITIES[def.stealthSwap].name}.`);
   if (def.castWhileMoving) notes.push('Can be cast while moving.');
+  if (def.unstoppable) notes.push('Cannot be interrupted. While it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
@@ -434,7 +441,7 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
   }
   if (def.behindMult) out.push(`Position: x${def.behindMult} damage from behind the target.`);
   if (def.exploit) out.push(`Bonus: counts as ${mult(def.exploit.mult)} when the target has ${AURAS[def.exploit.aura]?.name ?? def.exploit.aura}, and uses it up.`);
-  if (def.requiresTargetAura) out.push(`Needs the target to have ${def.requiresTargetAura.map((a) => AURAS[a]?.name ?? a).join(' or ')}.`);
+  if (def.requiresTargetAura && !am.free) out.push(`Needs the target to have ${def.requiresTargetAura.map((a) => AURAS[a]?.name ?? a).join(' or ')}.`);
 
   // buffs on you that raise it, debuffs on the target that make it hit harder
   const boosts: string[] = [];
