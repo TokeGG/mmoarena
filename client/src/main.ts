@@ -594,6 +594,7 @@ function frame(now: number) {
   // our own unit: interpolate between the last two 20 Hz predictions, then ease towards that (hides corrections too)
   {
     const alpha = Math.min(1, Math.max(0, acc / DT));
+    const meNow0 = spec ? undefined : snap.units.find((u) => u.id === you);
     let tx = prevPred.x + (pred.x - prevPred.x) * alpha;
     let tz = prevPred.z + (pred.z - prevPred.z) * alpha;
     if (spec) {
@@ -610,11 +611,14 @@ function frame(now: number) {
       vis.z = tz;
       vis.ready = true;
     } else {
-      const k = 1 - Math.exp(-dt * 38);
+      // while stunned, feared or polymorphed the server is moving us, so the camera anchor is damped heavily and the view stays steady
+      const held = !spec && !!meNow0?.alive && meNow0.controlled;
+      const k = 1 - Math.exp(-dt * (held ? 5 : 38));
       vis.x += (tx - vis.x) * k;
       vis.z += (tz - vis.z) * k;
     }
-    if (!spec) vis.facing = lerpAngle(vis.facing, controls.facing, 1 - Math.exp(-dt * 16));
+    // the model only turns with the mouse while we can act; under crowd control it shows what the server says
+    if (!spec) vis.facing = lerpAngle(vis.facing, meNow0?.alive && meNow0.controlled ? meNow0.facing : controls.facing, 1 - Math.exp(-dt * 16));
     // camera: a touch of ease on orbit and zoom so it glides
     vis.yaw = lerpAngle(vis.yaw, controls.yaw, 1 - Math.exp(-dt * 32));
     vis.pitch += (controls.pitch - vis.pitch) * (1 - Math.exp(-dt * 32));

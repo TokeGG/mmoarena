@@ -18,7 +18,7 @@
   .frame.targeted { border-color:#f1c40f; }
   .bar { position:relative; height:14px; background:#1d222d; border-radius:3px; overflow:hidden; margin-top:3px; }
   .bar .fill { position:absolute; inset:0 auto 0 0; width:0; }
-  .bar .shield { position:absolute; top:0; bottom:0; display:none; background:linear-gradient(#f4f8ff,#9db8e8); opacity:.9; box-shadow:inset 1px 0 0 #fff, inset 0 -3px 4px rgba(40,70,140,.35); pointer-events:none; }
+  .bar .shield { position:absolute; top:0; bottom:0; display:none; background:linear-gradient(rgba(255,255,255,.95),rgba(225,236,255,.85)); box-shadow:inset 2px 0 0 #fff, 0 0 4px rgba(255,255,255,.7); pointer-events:none; z-index:1; } .bar .blabel { z-index:2; }
   .bar .blabel { position:absolute; inset:0; text-align:center; font-size:11px; line-height:14px; text-shadow:0 0 3px #000; }
   .bar.thin { height:10px; } .bar.thin .blabel { line-height:10px; font-size:9px; }
   .auras { display:flex; flex-wrap:wrap; gap:3px; margin-top:4px; min-height:0; }

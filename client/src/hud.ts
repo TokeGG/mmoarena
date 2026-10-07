@@ -39,7 +39,7 @@ class Bar {
     const hp = max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0;
     this.fill.style.width = `${hp}%`;
     const w = max > 0 ? Math.min(100, (absorb / max) * 100) : 0;
-    this.shield.style.display = w > 0 ? '' : 'none';
+    this.shield.style.display = w > 0 ? 'block' : 'none'; // 'block', not '': the stylesheet hides it by default
     this.shield.style.width = `${w}%`;
     this.shield.style.left = `${Math.min(hp, 100 - w)}%`;
     this.label.textContent = text;
