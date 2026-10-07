@@ -57,7 +57,7 @@ describe('casting, interrupts and school lockouts', () => {
     advance(sim, TICK);
     mustFail(sim.useAbility(rogue.id, 'kick', mage.id), /not casting/);
 
-    assert.ok(sim.useAbility(mage.id, 'fireball', rogue.id).ok);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', rogue.id).ok);
     advance(sim, 500);
     assert.ok(mage.cast, 'mage should be mid-cast');
     // rogue is in melee range after closing the gap
@@ -66,11 +66,11 @@ describe('casting, interrupts and school lockouts', () => {
     assert.ok(r.ok, JSON.stringify(r));
     assert.equal(mage.cast, null);
     const ev = sim.drainEvents();
-    assert.ok(ev.some((e) => e.t === 'interrupt' && e.school === 'fire'));
+    assert.ok(ev.some((e) => e.t === 'interrupt' && e.school === 'frost'));
 
     advance(sim, TUNING.gcdMs);
-    mustFail(sim.useAbility(mage.id, 'fireball', rogue.id), /fire school is locked out/);
-    assert.ok(sim.useAbility(mage.id, 'frostbolt', rogue.id).ok, 'frost must still be castable');
+    mustFail(sim.useAbility(mage.id, 'frostbolt', rogue.id), /frost school is locked out/);
+    assert.ok(sim.useAbility(mage.id, 'fireball', rogue.id).ok, 'fire must still be castable');
   });
 
   it('cancels a cast when the caster moves', () => {
@@ -78,7 +78,7 @@ describe('casting, interrupts and school lockouts', () => {
     const mage = add(sim, 'mage', 0, 0, 0);
     const war = add(sim, 'warrior', 1, 10, 0);
     advance(sim, TICK);
-    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', war.id).ok);
     sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: 0 });
     const ev = advance(sim, TICK);
     assert.equal(mage.cast, null);
@@ -151,10 +151,10 @@ describe('crowd control and diminishing returns', () => {
     sim.dealDamage(mage, war, 1, 'frost', null);
     assert.ok(!war.auras.some((a) => a.id === 'polymorph'));
 
-    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', war.id).ok);
     sim.applyAura(war, mage, 'kidney_shot');
     assert.equal(mage.cast, null, 'stun cancels the cast');
-    mustFail(sim.useAbility(mage.id, 'frostbolt', war.id), /incapacitated/);
+    mustFail(sim.useAbility(mage.id, 'fireball', war.id), /incapacitated/);
   });
 
   it('dispel removes crowd control from allies and shields from enemies', () => {

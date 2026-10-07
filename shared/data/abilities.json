@@ -116,8 +116,8 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 1500,
-  "cooldown": 0,
+  "castTime": 0,
+  "cooldown": 8000,
   "gcd": true,
   "cost": 60,
   "effects": [

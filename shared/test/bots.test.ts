@@ -44,7 +44,7 @@ describe('bots play by the same rules as humans', () => {
     rogue.cooldowns.kidney_shot = 1e9; // otherwise the bot (rightly) stuns the caster instead of kicking
     ctx.sim.step(); // go live without letting the bot act yet, so the cast starts first
     ctx.sim.drainEvents();
-    assert.ok(ctx.sim.useAbility(mage.id, 'fireball', rogue.id).ok);
+    assert.ok(ctx.sim.useAbility(mage.id, 'frostbolt', rogue.id).ok);
     const ev = run(ctx, 1200);
     assert.ok(ev.some((e) => e.t === 'interrupt' && e.src === rogue.id && e.tgt === mage.id), 'kick should land mid-cast');
   });

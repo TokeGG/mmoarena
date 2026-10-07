@@ -252,7 +252,9 @@ export class Bot {
     if (!tgt) return;
     const slowed = tgt.auras.some((a) => a.id === 'frostbolt_slow');
     if (!slowed && this.use(u, 'frostbolt', tgt.id)) return;
-    this.use(u, 'fireball', tgt.id);
+    // Fireball is an instant with an 8 s cooldown: when it is not ready, keep casting Frostbolt instead of standing idle
+    if (this.use(u, 'fireball', tgt.id)) return;
+    this.use(u, 'frostbolt', tgt.id);
   }
 
   /** Sheep the enemy that is not the kill target, but only while it can still be sheeped. */

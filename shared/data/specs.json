@@ -92,7 +92,7 @@
    "id": "fire",
    "name": "Pyromancy",
    "role": "Burst damage",
-   "desc": "Big fire damage: Pyroblast, quick Fireball and Scorch, and Flamestrike on the ground. Fragile.",
+   "desc": "Big fire damage: Pyroblast, instant Fireball and Scorch, and Flamestrike on the ground. Fragile.",
    "icon": "\ud83d\udd25",
    "bar": [
     "fireball",
