@@ -19,11 +19,7 @@
     "type": "aura",
     "aura": "mortal_wounds"
    }
-  ],
-  "rageSpend": {
-   "min": 30,
-   "maxMult": 1.5
-  }
+  ]
  },
  {
   "id": "charge",

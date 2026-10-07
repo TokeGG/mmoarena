@@ -686,23 +686,21 @@ describe('warrior rework', () => {
     assert.ok(!sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 5 }).ok);
     assert.equal(ABILITIES.heroic_leap.cooldown, 60000);
   });
-  it('Mortal Strike spends all rage and hits harder the more you had', () => {
+  it('Mortal Strike spends 30 rage, hits for a flat amount and does not refund rage from its own hit', () => {
     const hit = (rage: number) => {
       const { sim, w, f } = war('arms');
       w.resource = rage;
       const hp = f.health;
       assert.ok(sim.useAbility(w.id, 'mortal_strike', f.id).ok);
       advance(sim, TICK);
-      return hp - f.health;
+      return { dealt: hp - f.health, left: w.resource };
     };
     const lo = hit(30), hi = hit(100);
-    assert.ok(hi > lo * 1.3, `${hi} vs ${lo}`);
+    assert.equal(lo.dealt, hi.dealt, 'same damage whatever the rage');
+    assert.ok(Math.abs(hi.left - lo.left - 70) < 1, `rage left ${lo.left} / ${hi.left}`); // 70 more rage in, 70 more left: no refund from the hit
     const { sim, w, f } = war('arms');
     w.resource = 20;
     assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs 30 rage');
-    w.resource = 80;
-    sim.useAbility(w.id, 'mortal_strike', f.id);
-    advance(sim, TICK);
   });
   it('Cleave costs no rage, builds 15 and recasts every 2.5 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
     assert.equal(ABILITIES.whirlwind.cost, 0);

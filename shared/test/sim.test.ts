@@ -1004,11 +1004,11 @@ describe('melee and auto-attack', () => {
     war.resource = 30;
     assert.ok(sim.useAbility(war.id, 'mortal_strike', rogue.id).ok);
     assert.ok(war.autoAttack);
-    const rageAfterCast = war.resource;
-    assert.ok(rageAfterCast > 0, 'rage from dealing damage');
+    assert.equal(war.resource, 0, 'a rage spender does not refund rage from its own hit');
     const hp = rogue.health;
     advance(sim, 2100);
     assert.ok(rogue.health < hp, 'auto-attack should land');
+    assert.ok(war.resource > 0, 'auto-attack hits build rage');
   });
 });
 

@@ -15,15 +15,15 @@
  "rogue": {
   "coverHp": 0.546,
   "defHp": 0.383,
-  "strafe": 0.353,
-  "healerPrio": 5.16,
-  "focus": 13.815,
-  "killLow": 47.409,
-  "rangeBias": -1.352,
-  "healAt": 1.035,
-  "burstHp": 0.82,
-  "strafeFlip": 1.739,
-  "chase": 0.52
+  "strafe": 0.095,
+  "healerPrio": 0,
+  "focus": 13.674,
+  "killLow": 44.102,
+  "rangeBias": -2.553,
+  "healAt": 1.07,
+  "burstHp": 0.827,
+  "strafeFlip": 1.686,
+  "chase": 0.515
  },
  "mage": {
   "coverHp": 0.15,

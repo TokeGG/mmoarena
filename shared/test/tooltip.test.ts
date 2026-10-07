@@ -13,7 +13,7 @@ describe('tooltips match the sim', () => {
     let checked = 0;
     for (const def of Object.values(ABILITIES)) {
       const eff = def.effects.find((e) => e.type === 'damage');
-      if (!eff || def.channel || def.cpScale || def.behindMult || def.rageSpend || def.requiresStealth || def.maxTargetHealthPct !== undefined
+      if (!eff || def.channel || def.cpScale || def.behindMult || def.requiresStealth || def.maxTargetHealthPct !== undefined
         || def.requiresTargetCasting || def.requiresTargetAura || def.consumes || def.exploit || def.target === 'ground' || def.cpSpend) continue;
       const sim = new ArenaSim({ seed: 3, prepMs: 0 });
       const me = sim.addUnit({ name: 'me', classId: def.class as ClassId, team: 0 });
@@ -30,7 +30,7 @@ describe('tooltips match the sim', () => {
         sim.step();
         for (const e of sim.drainEvents()) if (e.t === 'damage' && e.tgt === foe.id && e.ability === def.id) dealt += e.amount;
       }
-      const listed = Number(/about (\d+)/.exec(describeAbility(def, me.mods).lines.find((l) => /damage/.test(l)) ?? '')?.[1]);
+      const listed = Number(/(?:[Dd]eals|dealing) (\d+)/.exec(describeAbility(def, me.mods).lines.find((l) => /damage/.test(l)) ?? '')?.[1]);
       checked++;
       if (!(dealt > 0)) continue; // missed or conditional on something not set up here
       if (Math.abs(dealt - listed) > 1) bad.push(`${def.id}: tooltip ${listed}, dealt ${dealt}`);

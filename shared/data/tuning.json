@@ -13,7 +13,7 @@
  "rangeTolerance": 1.5,
  "autoTolerance": 0.5,
  "castConeDeg": 90,
- "prepMs": 10000,
+ "prepMs": 5000,
  "maxMatchMs": 600000,
  "damageVariance": 0,
  "stealthDetect": 2,

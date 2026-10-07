@@ -76,7 +76,7 @@ function describeBase(id: string, mods?: Mods): string {
     case 'dot': {
       if (!a.dot) return '';
       const per = Math.round(a.dot.amount * (mods ? mods.damageDone * (mods.ability[a.dot.ability]?.damage ?? 1) : 1));
-      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} about ${per} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${per * Math.round(a.duration / a.dot.interval)} total)` : ''}.`;
+      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} ${per} ${a.dot.school} damage every ${sec(a.dot.interval)}${a.duration ? ` (${per * Math.round(a.duration / a.dot.interval)} total)` : ''}.`;
     }
   }
 }
@@ -113,14 +113,14 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
     switch (e.type) {
       case 'damage': {
         const n = Math.round(e.amount * mods.damageDone * (am.damage ?? 1));
-        if (def.channel?.beam) lines.push(`Channels a beam into the target, dealing about ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total). Moving or being interrupted breaks the beam.`);
-        else if (def.channel && e.only) lines.push(`On an enemy: deals about ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total).`);
-        else if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing about ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
-        else lines.push(`Deals about ${n} ${def.school} damage${def.target === 'aoe_enemy' || def.target === 'aoe_all' ? ' to all enemies in range' : ''}.${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`);
+        if (def.channel?.beam) lines.push(`Channels a beam into the target, dealing ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total). Moving or being interrupted breaks the beam.`);
+        else if (def.channel && e.only) lines.push(`On an enemy: deals ${n} ${def.school} damage per pulse (${n * def.channel.ticks} total).`);
+        else if (def.channel) lines.push(`Fires ${def.channel.ticks} missiles, each dealing ${n} ${def.school} damage (${n * def.channel.ticks} total). Moving or being interrupted stops the volley.`);
+        else lines.push(`Deals ${n} ${def.school} damage${def.target === 'aoe_enemy' || def.target === 'aoe_all' ? ' to all enemies in range' : ''}.${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`);
         break;
       }
       case 'heal':
-        lines.push(`${e.only === 'ally' ? 'On an ally: heals' : 'Heals'} for about ${Math.round(e.amount * mods.healingDone * (am.heal ?? 1))}${def.channel ? ` per pulse (${Math.round(e.amount * mods.healingDone * (am.heal ?? 1)) * def.channel.ticks} total)` : ''}.`);
+        lines.push(`${e.only === 'ally' ? 'On an ally: heals' : 'Heals'} for ${Math.round(e.amount * mods.healingDone * (am.heal ?? 1))}${def.channel ? ` per pulse (${Math.round(e.amount * mods.healingDone * (am.heal ?? 1)) * def.channel.ticks} total)` : ''}.`);
         break;
       case 'aura': {
         const a = AURAS[e.aura];

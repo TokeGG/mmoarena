@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.55.4
+# WoW-style Arena · v0.55.5
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against (opponents are always random classes, rolled each time you press Practice), ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -46,6 +46,7 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 - **Tier I (shared, 0.41.1):** the same three talents for all three specs of a class; they only modify the skills every spec of that class has (for example Mage: Polymorph, Counterspell, Blink). Your tier I pick carries over when you change spec.
 - **Tiers II and III:** buffs for that spec's own abilities (damage, healing, cooldowns, longer slows and stuns, survivability). Tier III is the utility tier; for mages it is the **Blink tier** (two blinks per cooldown, a run-speed burst after blinking, or faster casts after blinking).
 - **Tiers IV, V and VI (skill replacements):** each choice adds an ability that takes the place of one bar slot (tier IV, V and VI each replace a different slot, so you can take all three; the tooltip says what you give up). Every spec has nine abilities it can bring in this way. Switching spec clears your talent picks.
+- **Flat Mortal Strike, 5 s start (0.55.5):** Mortal Strike costs 30 rage and always hits for 400 (before spec and talent bonuses); it no longer eats all your rage or scales with it. Rage-costing abilities no longer refund rage from their own hit. Tooltips say "deals N" instead of "about N". The pre-match countdown is 5 s (was 10 s; queue matches were 15 s).
 - **Exact damage numbers (0.55.4):** the ±8% random damage and healing variance is gone, so every hit does exactly the number on the tooltip. Charge, Heroic Leap and damage-over-time tooltips now include your talent and spec bonuses. A new test checks every direct-damage tooltip against what the sim deals. Dragon's Breath now also blocks Blink while it lasts, and a ground spell aimed at a spot with no line of sight is not sent at all (nothing is spent).
 - **Ground-spell aiming (0.55.3):** Flamestrike and other ground spells can be placed anywhere around you, not just in front. The aim marker has a center dot, and both turn red when the spot has no line of sight. The spell fires on mouse-down, so the camera no longer turns while you hold the click.
 - **CC and shield tweaks (0.55.2):** Devouring Plague's opening hit no longer breaks fear. Ice Barrier absorbs 40% of your max health (was a flat 450). Dragon's Breath is now a disorient (4 s, shares diminishing returns with fear, does not break on damage) that Blink cannot remove.

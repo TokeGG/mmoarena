@@ -815,7 +815,9 @@ export class ArenaSim {
     if (src) src.lastCombatAt = this.time;
     this.emit({ t: 'damage', src: src?.id ?? 0, tgt: tgt.id, amount: remaining, absorbed, ability, school });
 
-    if (src?.resourceType === 'rage') src.resource = Math.min(src.resourceMax, src.resource + remaining * TUNING.rageFromDealt);
+    // a rage spender (Mortal Strike, Execute...) does not refund rage off its own hit
+    const spender = ability !== null && !!ABILITIES[ability]?.cost && src?.resourceType === 'rage';
+    if (src?.resourceType === 'rage' && !spender) src.resource = Math.min(src.resourceMax, src.resource + remaining * TUNING.rageFromDealt);
     if (tgt.resourceType === 'rage') tgt.resource = Math.min(tgt.resourceMax, tgt.resource + remaining * TUNING.rageFromTaken);
 
     if (remaining + absorbed > 0) {
