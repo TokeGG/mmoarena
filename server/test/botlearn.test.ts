@@ -44,7 +44,7 @@ describe('bot learner', () => {
     const store = new MemoryStore();
     const l = new BotLearner(store);
     await l.whenReady();
-    l.learnFrom(rec.finish([]));
+    await l.learnFrom(rec.finish([]));
     assert.ok(l.summary().mage.variants.some((v) => v.id === 'human'));
     assert.ok((l.humanStyles().mage?.strafe?.value ?? 0) > 0.5);
     await new Promise((r) => setTimeout(r, 20));

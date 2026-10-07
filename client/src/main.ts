@@ -309,6 +309,7 @@ function onMessage(raw: MessageEvent) {
       } else if (spec?.kind === 'live') spectateBar.setStats(m.rows);
       break;
     case 'error':
+      if (m.reason === 'already casting that') break; // a repeat press mid-cast is simply ignored, no need to shout about it
       audio.ui('error');
       hud.error(m.reason);
       break;

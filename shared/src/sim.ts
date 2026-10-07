@@ -18,14 +18,16 @@ const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
 const HISTORY_TICKS = 12;
-const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you'];
+const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
+/** A repeat of the spell being cast, pressed this close to the end of the cast, is held and cast right after it. */
+const REPEAT_HOLD_MS = 400;
 const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
 export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef; /** Players must face what they cast on or swing at (a cone in front of them). Off by default so unit tests can place units freely. */ facing?: boolean }
-/** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit, 5 auto-attack setting. */
-export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4 | 5, unit: number, ...args: (number | string | boolean | null)[]];
+/** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit, 5 auto-attack setting, 6 stop casting. */
+export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4 | 5 | 6, unit: number, ...args: (number | string | boolean | null)[]];
 export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
 export type AuraResult = { applied: true; duration: number; dr: number } | { applied: false; immune: true };
 
@@ -163,10 +165,21 @@ export class ArenaSim {
    */
   useAbility(id: number, abilityId: string, targetId?: number | null, ground?: Ground | null, rewindMs = 0): Result {
     rewindMs = Number.isFinite(rewindMs) ? Math.max(0, Math.min(TUNING.maxRewindMs, Math.round(rewindMs))) : 0;
-    this.onCommand?.([this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs, ...(ground?.lv === 1 ? [1] : [])]);
+    const cmd: SimCommand = [this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs, ...(ground?.lv === 1 ? [1] : [])];
     if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100, ...(ground.lv === 1 ? { lv: 1 as const } : {}) };
-    this.pending.delete(id); // any new press replaces a held cast
-    return this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false, rewindMs);
+    const dropped = this.pending.delete(id); // any new press replaces a held cast
+    const r = this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false, rewindMs);
+    // a refused press changes nothing (unless it replaced a held cast), so it is left out of the replay: bots press a lot of buttons that fail
+    if (r.ok || dropped) this.onCommand?.(cmd);
+    return r;
+  }
+
+  /** Stop casting or channelling (a bot changing its mind). Recorded, so a replay stops the same cast on the same tick. */
+  stopCast(id: number, reason = 'cancelled'): void {
+    const u = this.units.get(id);
+    if (!u?.cast) return;
+    this.onCommand?.([this.tickNo, 6, id]);
+    this.cancelCast(u, reason);
   }
 
   /** Retry held casts each tick until they land or the grace window runs out. */
@@ -245,6 +258,15 @@ export class ArenaSim {
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
 
+    // pressing the spell you are already casting does not start it over: in the last moments of the cast it is held and goes
+    // off as soon as this one finishes (a player's spell queue arriving a little early); otherwise it is ignored
+    if (u.cast && u.cast.ability === def.id) {
+      if (!retry && this.facingRule && u.controller === 'player' && u.cast.end - this.time <= REPEAT_HOLD_MS) {
+        this.pending.set(id, { ability: abilityId, target: targetId, ground, until: u.cast.end + TICK * 2, reason: 'already casting that' });
+        return ok;
+      }
+      return fail('already casting that');
+    }
     // using any other ability stops the cast in progress, interrupts included (they can still be pressed mid-cast)
     if (u.cast) this.cancelCast(u, 'switched spell');
     if (def.target === 'enemy') u.target = tgt.id;
@@ -1111,10 +1133,35 @@ export class ArenaSim {
 
   // ------------------------------------------------------------------ targeting & visibility
 
-  /** Stealthed enemies are only visible up close. */
+  /** Stealthed enemies are only visible up close (measured in 3D: a rogue on the deck above you is not "close"). */
   canSee(viewer: Unit, other: Unit): boolean {
     if (viewer.team === other.team || !this.isStealthed(other)) return true;
-    return dist(viewer.pos, other.pos) <= TUNING.stealthDetect;
+    return this.gap(viewer, other.pos, other.level) <= TUNING.stealthDetect;
+  }
+
+  /** Enemy units that `team` cannot see right now: stealthed, and no living member of the team is close enough to spot them. */
+  hiddenFrom(team: TeamId): Set<number> {
+    const out = new Set<number>();
+    const all = [...this.units.values()];
+    for (const u of all) {
+      if (u.team === team || !this.isStealthed(u)) continue;
+      if (!all.some((v) => v.team === team && v.alive && this.gap(v, u.pos, u.level) <= TUNING.stealthDetect)) out.add(u.id);
+    }
+    return out;
+  }
+
+  /**
+   * The events `team` may see: anything a hidden enemy did (casts, buffs, turning) is left out unless it touched the team,
+   * so a stealthed rogue's actions do not give away where or what it is.
+   */
+  eventsFor(team: TeamId, events: SimEvent[], hidden = this.hiddenFrom(team)): SimEvent[] {
+    if (!hidden.size) return events;
+    const ours = (id: number | null | undefined) => id !== null && id !== undefined && this.units.get(id)?.team === team;
+    return events.filter((e) => {
+      const ids: (number | null)[] = 'unit' in e ? [e.unit, 'target' in e ? e.target : null] : 'src' in e ? [e.src, e.tgt] : 'tgt' in e ? [e.tgt] : [];
+      if (!ids.some((id) => id !== null && hidden.has(id))) return true;
+      return ids.some((id) => ours(id));
+    });
   }
 
   private resolveTarget(u: Unit, def: AbilityDef, targetId?: number | null): Unit | string {
@@ -1214,13 +1261,10 @@ export class ArenaSim {
 
   /** With viewerTeam set, enemy units the team cannot currently see are left out entirely. */
   snapshot(viewerTeam?: TeamId): Snapshot {
-    const all = [...this.units.values()];
+    const hidden = viewerTeam !== undefined ? this.hiddenFrom(viewerTeam) : null;
     const units: UnitSnap[] = [];
-    for (const u of all) {
-      if (viewerTeam !== undefined && u.team !== viewerTeam && this.isStealthed(u)) {
-        const seen = all.some((v) => v.team === viewerTeam && v.alive && dist(v.pos, u.pos) <= TUNING.stealthDetect);
-        if (!seen) continue;
-      }
+    for (const u of this.units.values()) {
+      if (hidden?.has(u.id)) continue;
       units.push(this.toSnap(u));
     }
     return {

@@ -13,6 +13,8 @@ export interface Store {
   zadd(key: string, score: number, member: string): Promise<void>;
   /** Highest scores first. */
   ztop(key: string, count: number): Promise<{ member: string; score: number }[]>;
+  /** Several keys in one round trip (null for each missing key). */
+  mget(keys: string[]): Promise<(string | null)[]>;
 }
 
 export class MemoryStore implements Store {
@@ -45,6 +47,9 @@ export class MemoryStore implements Store {
   async zadd(key: string, score: number, member: string) {
     if (!this.z.has(key)) this.z.set(key, new Map());
     this.z.get(key)!.set(member, score);
+  }
+  async mget(keys: string[]) {
+    return keys.map((k) => this.live(k)?.v ?? null);
   }
   async ztop(key: string, count: number) {
     return [...(this.z.get(key) ?? new Map<string, number>()).entries()]
@@ -83,6 +88,10 @@ export class UpstashStore implements Store {
   async zadd(key: string, score: number, member: string) {
     await this.cmd(['ZADD', key, score, member]);
   }
+  async mget(keys: string[]) {
+    if (!keys.length) return [];
+    return (((await this.cmd(['MGET', ...keys])) as (string | null)[]) ?? []).map((v) => v ?? null);
+  }
   async ztop(key: string, count: number) {
     const flat = ((await this.cmd(['ZREVRANGE', key, 0, count - 1, 'WITHSCORES'])) as string[]) ?? [];
     const out: { member: string; score: number }[] = [];
@@ -118,6 +127,9 @@ export class PrefixedStore implements Store {
   }
   ztop(key: string, count: number) {
     return this.inner.ztop(this.k(key), count);
+  }
+  mget(keys: string[]) {
+    return this.inner.mget(keys.map(this.k));
   }
 }
 

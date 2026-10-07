@@ -1,6 +1,73 @@
+import { Worker } from 'node:worker_threads';
 import { CLASS_IDS, measureHumans, mergeStyle, newPopulation, pickVariant, recordResult, styledBrain } from '@arena/shared';
 import type { Brain, ClassId, HumanStyle, Population, ReplayData } from '@arena/shared';
 import type { Store } from './store';
+
+type Measured = ReturnType<typeof measureHumans>;
+/** Turns a replay into per-human style samples. The server does it on a worker thread; tests may pass their own. */
+export type Measure = (replay: ReplayData) => Promise<Measured>;
+
+/** Measure on the calling thread, but on a later turn of the event loop (the fallback when no worker can be started). */
+export const measureInline: Measure = (replay) => new Promise((resolve, reject) => setImmediate(() => { try { resolve(measureHumans(replay)); } catch (e) { reject(e); } }));
+
+/**
+ * One long-lived worker thread that measures replays off the game loop. If the worker cannot start (or dies), the
+ * measurement falls back to the main thread rather than being lost.
+ */
+export class MeasureWorker {
+  private worker: Worker | null = null;
+  private nextId = 1;
+  private waiting = new Map<number, { resolve: (m: Measured) => void; reject: (e: unknown) => void }>();
+  private broken = false;
+
+  readonly measure: Measure = (replay) => {
+    const w = this.ensure();
+    if (!w) return measureInline(replay);
+    const id = this.nextId++;
+    return new Promise<Measured>((resolve, reject) => {
+      // a worker that never answers must not leak the job forever
+      const timer = setTimeout(() => { if (this.waiting.delete(id)) reject(new Error('measuring timed out')); }, 120000);
+      timer.unref();
+      this.waiting.set(id, { resolve: (m) => { clearTimeout(timer); resolve(m); }, reject: (e) => { clearTimeout(timer); reject(e); } });
+      w.postMessage({ id, replay });
+    });
+  };
+
+  private ensure(): Worker | null {
+    if (this.broken) return null;
+    if (this.worker) return this.worker;
+    try {
+      const w = new Worker(new URL('./learnWorkerBoot.mjs', import.meta.url));
+      w.unref(); // never keeps the process alive
+      w.on('message', (m: { id: number; ok: boolean; measured?: Measured }) => {
+        const job = this.waiting.get(m.id);
+        if (!job) return;
+        this.waiting.delete(m.id);
+        if (m.ok && m.measured) job.resolve(m.measured);
+        else job.reject(new Error('unreadable replay'));
+      });
+      const fail = (e: unknown) => {
+        this.worker = null;
+        this.broken = true; // no endless respawning: later replays are measured inline
+        for (const job of this.waiting.values()) job.reject(e);
+        this.waiting.clear();
+      };
+      w.on('error', fail);
+      w.on('exit', (code) => { if (this.worker === w && code !== 0) fail(new Error(`worker exited ${code}`)); else if (this.worker === w) this.worker = null; });
+      this.worker = w;
+      return w;
+    } catch {
+      this.broken = true;
+      return null;
+    }
+  }
+
+  close(): Promise<void> {
+    const w = this.worker;
+    this.worker = null;
+    return w ? w.terminate().then(() => undefined) : Promise.resolve();
+  }
+}
 
 const KEY = (c: ClassId) => `botlearn:${c}`;
 const STYLE_KEY = (c: ClassId) => `humanstyle:${c}`;
@@ -17,7 +84,7 @@ export class BotLearner {
   private ready: Promise<void>;
   private saving = new Map<ClassId, Promise<void>>();
 
-  constructor(private store: Store, private rng: () => number = Math.random) {
+  constructor(private store: Store, private rng: () => number = Math.random, private measure: Measure = measureInline) {
     this.ready = this.load();
   }
 
@@ -70,13 +137,17 @@ export class BotLearner {
    * style, then keep a "human" variant (the best bot brain pulled towards that style) in the population. It competes with
    * the others like any variant, so people's habits only stick if they win against people.
    */
-  learnFrom(replay: ReplayData): void {
-    let measured: ReturnType<typeof measureHumans>;
+  async learnFrom(replay: ReplayData): Promise<void> {
+    let measured: Measured;
     try {
-      measured = measureHumans(replay);
+      measured = await this.measure(replay);
     } catch {
       return; // an unreadable recording teaches nothing
     }
+    this.apply(measured);
+  }
+
+  private apply(measured: Measured): void {
     for (const { classId, sample } of measured) {
       const pop = this.pops.get(classId);
       if (!pop || !Object.keys(sample).length) continue;

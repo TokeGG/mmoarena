@@ -1,5 +1,30 @@
 [
  {
+  "version": "0.64.0",
+  "date": "2026-10-07",
+  "title": "Ranked and server safety",
+  "changes": [
+   "Ranked is for signed-in players only. Guests still have Find match, an unrated queue of their own that never meets the ladder.",
+   "One account in two windows can no longer be queued against itself, and an account already playing in another window cannot join the queue or a duel.",
+   "Signing out during a ranked match (or while queued) is refused. Leaving a live ranked match is a loss charged to the account that started it, even if that session has ended meanwhile.",
+   "Leaving a ranked match during the countdown calls the match off: everyone else goes back to the front of the queue (parties together) and nobody loses rating. The leaver cannot queue ranked for a minute.",
+   "Ranked Play again only rematches the full roster. If someone has left, pressing it puts you back in the ranked queue instead of a short-handed match.",
+   "You can no longer join a practice, the queue or watch a match while you are waiting for a duel to start (it used to put you in two matches at once).",
+   "Spectators are told when a match closes because everyone left the end screen (they used to be stuck, and showed as busy to friends).",
+   "A declined, expired or withdrawn party invite no longer leaves you in a party of one that blocked duel invites.",
+   "A stealthed rogue's own casts, buffs and turns are no longer sent to the enemy team while it is hidden.",
+   "Stealth detection is measured in 3D: a rogue on the deck right above you is no longer 'within 2 yards'.",
+   "The leaderboard is cached for 10 seconds and read in one batch; each connection can only have a few account requests waiting, and none run after it closes.",
+   "Per-address limits use the address the host's proxy saw, not one the client can make up. Failed logins are also limited per account name, and wrong owner codes per account.",
+   "Every change to an account (results, friends, settings, looks, icons) is written one at a time, so a friend request can no longer erase a recorded win.",
+   "The bots' study of each finished match now runs on a worker thread, so long matches no longer freeze every room for up to several seconds.",
+   "Replays: refused button presses are no longer recorded, so long matches stay well under the size limit. Solo practice is not stored (ranked, party and duel matches are), and if a replay is still too big you are told.",
+   "Suggestions are limited per account and per network (reconnecting no longer resets the limit), and old rate-limit entries are forgotten.",
+   "Without an owner code on the server nobody can register the founder name, and owner-only looks need the owner session, not just the name.",
+   "Pressing the spell you are already casting no longer restarts it; near the end of the cast it is queued to go off right after."
+  ]
+ },
+ {
   "version": "0.63.0",
   "date": "2026-10-07",
   "title": "Leap up, look down, new features on every map",

@@ -36,8 +36,11 @@ describe('owner powers', () => {
     assert.equal(await a.isOwnerSession(toke.token, toke.account), false);
     for (let i = 0; i < 5; i++) await a.ownerUnlock(toke.token, toke.account, 'bad', '9.9.9.9');
     assert.match(((await a.ownerUnlock(toke.token, toke.account, CODE, '9.9.9.9')) as any).reason, /Too many/);
-    const off = new Accounts(new MemoryStore());
-    const t = (await off.register('Toke', 'hunter22', '3.3.3.3')) as any;
+    // a server started without the code: the founder account (made earlier, with a code) cannot unlock anything
+    const st = new MemoryStore();
+    await new Accounts(st, CODE).register('Toke', 'hunter22', '3.3.3.3', CODE);
+    const off = new Accounts(st);
+    const t = (await off.login('Toke', 'hunter22', '3.3.3.3')) as any;
     assert.match(((await off.ownerUnlock(t.token, t.account, CODE, '3.3.3.3')) as any).reason, /ARENA_OWNER_CODE/);
   });
 
