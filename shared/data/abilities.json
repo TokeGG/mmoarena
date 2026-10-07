@@ -204,6 +204,10 @@
     "type": "aura",
     "aura": "shatter",
     "duration": 6000
+   },
+   {
+    "type": "aura",
+    "aura": "fingers_of_frost"
    }
   ]
  },
@@ -783,7 +787,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 230
+    "amount": 340
    }
   ]
  },
@@ -1157,7 +1161,7 @@
   "target": "enemy",
   "range": 30,
   "castTime": 0,
-  "cooldown": 3000,
+  "cooldown": 1000,
   "gcd": true,
   "cost": 25,
   "effects": [

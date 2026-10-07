@@ -357,6 +357,7 @@ describe('stealth', () => {
     mage.pos = { x: 0, z: 0 }; foe.pos = { x: 0, z: 5 };
     assert.ok(sim.useAbility(mage.id, 'frost_nova').ok);
     assert.ok(Math.abs(left('shatter') - 6000) < 120, `nova shatter ${left('shatter')}`);
+    assert.equal(foe.auras.find((x) => x.id === 'fingers_of_frost')?.stacks, 1, 'Frost Nova leaves a stack of Fingers of Frost');
     assert.ok(Math.abs(left('frost_nova_root') - 6000 * 1.15) < 150 || Math.abs(left('frost_nova_root') - 6000) < 150, `root ${left('frost_nova_root')}`);
   });
 
