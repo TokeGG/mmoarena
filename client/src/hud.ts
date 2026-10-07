@@ -555,10 +555,13 @@ export class Hud {
         }
         break;
       }
-      case 'immune':
+      case 'immune': {
         this.float(ctx.project(ev.tgt), 'Immune', 'dim');
-        this.log(`${n(ev.tgt)} is immune to ${AURAS[ev.aura]?.name ?? ev.aura} (diminishing returns)`);
+        // an aura refused by diminishing returns, or anything thrown at an unstoppable channel (Bladestorm)
+        const what = AURAS[ev.aura]?.name ?? ABILITIES[ev.aura]?.name ?? ev.aura;
+        this.log(`${n(ev.tgt)} is immune to ${what}`);
         break;
+      }
       case 'dispel':
         this.float(ctx.project(ev.tgt), 'Dispelled', 'info');
         break;

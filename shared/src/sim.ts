@@ -22,6 +22,8 @@ const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'targ
 /** A repeat of the spell being cast, pressed this close to the end of the cast, is held and cast right after it. */
 const REPEAT_HOLD_MS = 400;
 const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
+/** What an unstoppable channel (Bladestorm) is immune to. */
+const UNSTOPPABLE_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear', 'root', 'slow'];
 
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
@@ -253,7 +255,7 @@ export class ArenaSim {
       if (!this.sees(u, tgt)) return fail('no line of sight');
       if (def.target !== 'aoe_enemy' && def.target !== 'aoe_all' && !def.unmissable && !this.inFront(u, seen.x, seen.z)) return soft('target is not in front of you');
       if (def.requiresTargetCasting && !tgt.cast && !(tgt.lastCast && this.time - tgt.lastCast.at <= INTERRUPT_GRACE_MS)) return fail('target is not casting');
-      if (def.requiresTargetAura && !tgt.auras.some((a) => def.requiresTargetAura!.includes(a.id))) return fail(`target needs ${def.requiresTargetAura.map((x) => AURAS[x]?.name ?? x).join(' or ')}`);
+      if (def.requiresTargetAura && !this.abilityMod(u, def).free && !tgt.auras.some((a) => def.requiresTargetAura!.includes(a.id))) return fail(`target needs ${def.requiresTargetAura.map((x) => AURAS[x]?.name ?? x).join(' or ')}`);
       if (def.maxTargetHealthPct !== undefined && tgt.health >= (tgt.maxHealth * def.maxTargetHealthPct) / 100) return fail(`target must be below ${def.maxTargetHealthPct}% health`);
     }
     if (def.effects.some((e) => e.type === 'dispel') && !this.dispelCandidate(u, tgt)) return fail('nothing to dispel');
@@ -428,7 +430,7 @@ export class ArenaSim {
       if (p >= 1) {
         u.leap = null;
         this.emit({ t: 'leap_land', unit: u.id, x: u.pos.x, z: u.pos.z });
-        if (L.damage > 0) for (const e of this.units.values()) if (e.alive && e.team !== u.team && dist(e.pos, u.pos) <= L.radius) this.dealDamage(u, e, L.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability['heroic_leap']?.damage ?? 1), 'physical', 'heroic_leap');
+        if (L.damage > 0) for (const e of this.units.values()) if (e.alive && e.team !== u.team && this.gap(u, e.pos, e.level) <= L.radius && this.sees(u, e)) this.dealDamage(u, e, L.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability['heroic_leap']?.damage ?? 1), 'physical', 'heroic_leap');
       }
       return;
     }
@@ -436,8 +438,12 @@ export class ArenaSim {
       const ch = u.charge;
       const tgt = this.units.get(ch.target);
       const d = tgt ? dist(u.pos, tgt.pos) : 0;
-      if (!tgt || !tgt.alive || this.time > ch.until || !this.canAct(u) || this.hasAura(u, ['root']) || d <= ch.stop + 0.05) {
-        this.endCharge(u, !!tgt && tgt.alive && this.canAct(u) && !this.hasAura(u, ['root']) && d <= ch.stop + 0.05);
+      const arrived = d <= ch.stop + 0.05;
+      if (tgt && arrived && tgt.level !== u.level && this.gap(u, tgt.pos, tgt.level) > ch.stop + TUNING.autoTolerance) {
+        // under (or over) a target on another floor: the charge ends there without the hit, instead of parking you out of reach
+        this.endCharge(u, false);
+      } else if (!tgt || !tgt.alive || this.time > ch.until || !this.canAct(u) || this.hasAura(u, ['root']) || arrived) {
+        this.endCharge(u, !!tgt && tgt.alive && this.canAct(u) && !this.hasAura(u, ['root']) && arrived);
       } else {
         const k = Math.min(ch.speed * DT, d - ch.stop);
         const nx = u.pos.x + ((tgt.pos.x - u.pos.x) / d) * k;
@@ -453,7 +459,9 @@ export class ArenaSim {
       }
     }
     const feared = this.hasAura(u, ['fear']);
-    if (feared) {
+    if (feared && this.hasAura(u, ['root', 'stun', 'incapacitate'])) {
+      // feared but also held in place: the fear cannot make you run
+    } else if (feared) {
       if (this.time >= u.fearRetargetAt) {
         const ang = this.rng() * Math.PI * 2;
         u.fearDir = { x: Math.sin(ang), z: Math.cos(ang) };
@@ -591,10 +599,23 @@ export class ArenaSim {
   }
 
   /** Everyone an ability's effects land on: the area for aoe abilities, otherwise the one target. */
+  /** Area abilities reach as far as their radius plus any range a talent adds (a cone gets longer). Measured in 3D, and never through a pillar or a floor. */
   private targetsOf(u: Unit, def: AbilityDef, tgt: Unit): Unit[] {
-    if (def.target === 'aoe_enemy') return [...this.units.values()].filter((v) => v.alive && v.team !== u.team && dist(u.pos, v.pos) <= (def.radius ?? 0) && this.inCone(u, v.pos, def.coneDeg));
-    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || this.sees(u, v)));
+    const r = this.radiusOf(u, def);
+    if (def.target === 'aoe_enemy') return [...this.units.values()].filter((v) => v.alive && v.team !== u.team && this.gap(u, v.pos, v.level) <= r && this.inCone(u, v.pos, def.coneDeg) && this.sees(u, v));
+    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && (v === u || (this.gap(u, v.pos, v.level) <= r && this.sees(u, v))));
     return [tgt];
+  }
+  radiusOf(u: Unit, def: AbilityDef): number {
+    return (def.radius ?? 0) + (this.abilityMod(u, def).range ?? 0);
+  }
+  /** Channelling something unstoppable (Bladestorm). */
+  private unstoppable(u: Unit): boolean {
+    return !!u.cast && !!ABILITIES[u.cast.ability]?.unstoppable;
+  }
+  /** A unit no longer standing over a walkway is on the ground. */
+  private settleLevel(u: Unit): void {
+    if (u.level === 1 && !onRaised(this.arena, u.pos.x, u.pos.z)) u.level = 0;
   }
   private recharge = new Map<number, Record<string, number[]>>();
   private storedFull(u: Unit, def: AbilityDef): boolean {
@@ -712,7 +733,9 @@ export class ArenaSim {
         const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z;
         const d = Math.hypot(dx, dz);
         if (d <= eff.stopDistance + 1e-6) break;
+        if (this.unstoppable(t)) break; // a Bladestorming warrior cannot be dragged
         t.pos = resolveCollisions({ x: u.pos.x + (dx / d) * eff.stopDistance, z: u.pos.z + (dz / d) * eff.stopDistance }, this.arena, t.level);
+        this.settleLevel(t); // pulled off the deck: on the ground now
         if (t.cast) this.cancelCast(t, 'pulled');
         break;
       }
@@ -770,9 +793,12 @@ export class ArenaSim {
           const travel = Math.max(0, d - eff.stopDistance);
           // a step through the shadows lands at the target's level (up on a walkway or down on the ground)
           let land = resolveCollisions({ x: u.pos.x + (dx / d) * travel, z: u.pos.z + (dz / d) * travel }, this.arena, t.level);
+          // up on a walkway, a landing spot past the edge of the deck is no good: you would hang in the air marked as up there
+          const onFloor = (p: Vec2) => t.level === 0 || onRaised(this.arena, p.x, p.z);
+          if (!onFloor(land)) land = { x: t.pos.x, z: t.pos.z };
           if (eff.behind) {
             const back = resolveCollisions({ x: t.pos.x - Math.sin(t.facing) * eff.stopDistance, z: t.pos.z - Math.cos(t.facing) * eff.stopDistance }, this.arena, t.level);
-            if (hasLOS(back, t.pos, this.arena, t.level, t.level)) land = back;
+            if (onFloor(back) && hasLOS(back, t.pos, this.arena, t.level, t.level)) land = back;
           }
           u.level = t.level;
           u.pos = land;
@@ -823,6 +849,7 @@ export class ArenaSim {
             e.autoAttack = false;
           }
           if (e.cast && e.cast.target === u.id && ABILITIES[e.cast.ability]?.target !== 'ground') this.cancelCast(e, 'target vanished');
+          if (e.charge?.target === u.id) this.endCharge(e, false); // a charge on its way in loses its mark too
         }
         break;
       case 'smoke':
@@ -846,9 +873,16 @@ export class ArenaSim {
     }
     const live = !!t.cast;
     const cast = ABILITIES[(t.cast?.ability ?? late!.ability)];
+    if (cast.unstoppable && live) {
+      this.emit({ t: 'immune', src: src.id, tgt: t.id, aura: def.id }); // Bladestorm cannot be kicked
+      return;
+    }
     t.cast = null;
     t.lastCast = null;
-    t.lockouts[cast.school] = this.time + lockout;
+    if (cast.school === 'physical') {
+      // a physical channel (a warrior's spin) is not a spell school: only that ability is locked, not every physical skill
+      t.cooldowns[cast.id] = Math.max(t.cooldowns[cast.id] ?? 0, this.time + lockout);
+    } else t.lockouts[cast.school] = this.time + lockout;
     src.lastCombatAt = this.time;
     t.lastCombatAt = this.time;
     this.emit({ t: 'interrupt', src: src.id, tgt: t.id, ability: cast.id, school: cast.school, lockout });
@@ -894,7 +928,7 @@ export class ArenaSim {
     if (tgt.resourceType === 'rage') tgt.resource = Math.min(tgt.resourceMax, tgt.resource + remaining * TUNING.rageFromTaken);
 
     if (remaining + absorbed > 0) {
-      if (tgt.charge) this.endCharge(tgt, false); // being hit stops a charge
+      if (tgt.charge && !periodic) this.endCharge(tgt, false); // a direct hit stops a charge (a damage-over-time tick does not)
       const soft = periodic || (ability !== null && ABILITIES[ability]?.noBreak === true);
       for (const a of [...tgt.auras]) if (AURAS[a.id].breaksOnDamage && !(soft && a.kind === 'fear') && !(AURAS[a.id].heldBy && tgt.auras.some((x) => x.id === AURAS[a.id].heldBy))) this.removeAura(tgt, a, 'damage'); // damage-over-time ticks do not break fear
       if (this.isStealthed(tgt)) this.breakStealth(tgt);
@@ -1007,6 +1041,13 @@ export class ArenaSim {
     const def = AURAS[auraId];
     if (!def || !tgt.alive) return { applied: false, immune: true };
 
+    // while Bladestorming a warrior shrugs off anything that would stop it or slow it down
+    if (def.harmful && src.team !== tgt.team && UNSTOPPABLE_KINDS.includes(def.kind) && this.unstoppable(tgt)) {
+      this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
+      return { applied: false, immune: true };
+    }
+    // combo-point time is part of the stun, so diminishing returns shorten all of it; some stuns have a ceiling
+    const base = Math.min((baseMs ?? def.duration) + (def.duration > 0 ? extraMs : 0), def.maxDuration ?? Infinity);
     let duration = def.duration;
     let drMult = 1;
     if (def.dr) {
@@ -1017,13 +1058,10 @@ export class ArenaSim {
         this.emit({ t: 'immune', src: src.id, tgt: tgt.id, aura: auraId });
         return { applied: false, immune: true };
       }
-      duration = (baseMs ?? def.duration) * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
+      duration = base * drMult * (this.modsOf(src).auraDuration[auraId] ?? 1);
       st.count++;
       st.resetAt = this.time + duration + TUNING.drResetMs;
-    }
-
-    else duration = (baseMs ?? def.duration) * (this.modsOf(src).auraDuration[auraId] ?? 1);
-    if (def.duration > 0) duration += extraMs;
+    } else duration = base * (this.modsOf(src).auraDuration[auraId] ?? 1);
 
     const prior = tgt.auras.find((a) => a.id === auraId && a.sourceId === src.id);
     const extend = this.modsOf(src).auraExtend[auraId];
@@ -1070,10 +1108,11 @@ export class ArenaSim {
   /** Allies lose a harmful magic aura; enemies lose a beneficial magic aura. Crowd control goes first. */
   private dispelCandidate(src: Unit, tgt: Unit): AuraInst | undefined {
     const friendly = src.team === tgt.team;
-    const order: AuraKind[] = ['incapacitate', 'fear', 'stun', 'root', 'slow', 'absorb', 'speed'];
+    const order: AuraKind[] = ['incapacitate', 'fear', 'stun', 'root', 'slow', 'dot', 'mark', 'absorb', 'buff', 'speed'];
+    const rank = (k: AuraKind) => { const i = order.indexOf(k); return i < 0 ? order.length : i; }; // anything unlisted goes last, never first
     return tgt.auras
       .filter((a) => AURAS[a.id].dispellable && AURAS[a.id].harmful === friendly)
-      .sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind))[0];
+      .sort((a, b) => rank(a.kind) - rank(b.kind))[0];
   }
 
   /** Base build modifiers combined with any active buff auras. */

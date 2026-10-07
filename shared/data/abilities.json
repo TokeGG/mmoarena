@@ -1684,7 +1684,8 @@
     "type": "damage",
     "amount": 22
    }
-  ]
+  ],
+  "unstoppable": true
  },
  {
   "id": "slam",
