@@ -577,8 +577,19 @@ function frame(now: number) {
     const spot = prev.spawns[0][0];
     const face = prev.spawnFacing[0] + Math.PI + Math.sin(t * 0.6) * 0.55;
     scene.setPhase('prep');
-    scene.update([{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x, z: spot.z, y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }], 0, null);
-    scene.setCamera(spot.x, spot.z, prev.spawnFacing[0] + Math.sin(t * 0.6) * 0.1, 0.12, 6.5);
+    // party members stand beside you with the class, weapon and skins they picked
+    const me = accountUi.account?.name;
+    const mates = (mainMenu.currentParty?.members ?? []).filter((m) => m.name !== me && m.classId && CLASSES[m.classId as ClassId]);
+    const f0 = prev.spawnFacing[0];
+    const right = { x: Math.cos(f0), z: -Math.sin(f0) };
+    const slot = (i: number) => (i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 2.4);
+    const menuUnits: RenderUnit[] = [{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x + right.x * slot(0), z: spot.z + right.z * slot(0), y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }];
+    mates.forEach((m, i) => {
+      const o = slot(i + 1);
+      menuUnits.push({ id: -2 - i, classId: m.classId as ClassId, look: m.look ?? '', weapon: weaponFor(m.classId as ClassId, m.spec), team: 0, x: spot.x + right.x * o, z: spot.z + right.z * o, y: 0, facing: f0 + Math.PI + Math.sin(t * 0.6 + i + 1) * 0.55, alive: true, stealthed: false, casting: false, sheep: false });
+    });
+    scene.update(menuUnits, 0, null);
+    scene.setCamera(spot.x, spot.z, f0 + Math.sin(t * 0.6) * 0.1, 0.12, mates.length ? 9.5 : 6.5);
     scene.render();
     return;
   }
@@ -920,6 +931,18 @@ async function play(req: PlayRequest) {
   send(msg);
 }
 
+/** In a party: tell the others which class, spec and skins you have picked, so they see your model in the lobby. Only sent when it differs from what the party already shows. */
+function sendLook() {
+  const party = mainMenu.currentParty;
+  const me = accountUi.account?.name;
+  if (!party || !me) return;
+  const mine = party.members.find((m) => m.name === me);
+  const b = mainMenu.currentBuild;
+  const look = gearLook(b.gear);
+  if (mine && mine.classId === mainMenu.selectedClass && mine.spec === b.spec && (mine.look ?? '') === look) return;
+  send({ t: 'party_look', classId: mainMenu.selectedClass, build: b });
+}
+
 function sendReady(on: boolean) {
   classId = mainMenu.selectedClass;
   myBuild = mainMenu.currentBuild;
@@ -955,7 +978,10 @@ const friendsUi = new FriendsUi({
   },
   signedIn: () => !!accountUi.account,
   needSignIn: () => accountUi.openAuth(),
-  onParty: (p) => mainMenu.setParty(p),
+  onParty: (p) => {
+    mainMenu.setParty(p);
+    sendLook();
+  },
 });
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
@@ -977,6 +1003,7 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
     setTipMods(compileMods(c, b));
     // a ready party member who changes class or build keeps their ready mark with the new setup
     if (mainMenu.ready) sendReady(true);
+    sendLook();
   },
   onReady: (on) => sendReady(on),
   onSide: (side) => send({ t: 'party_side', side }),

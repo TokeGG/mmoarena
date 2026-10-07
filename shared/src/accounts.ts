@@ -332,7 +332,8 @@ export interface PartyInfo {
   id: string;
   leader: string;
   /** `side` is the team (0 or 1) the member will play on in a party match. */
-  members: { name: string; ready: boolean; side: 0 | 1 }[];
+  /** `classId`, `spec` and `look` (gear summary) are what the member has picked in the menu, so the party can see each other's models. */
+  members: { name: string; ready: boolean; side: 0 | 1; classId?: string; spec?: string; look?: string }[];
 }
 
 /** One row of the owner's live scoreboard. */

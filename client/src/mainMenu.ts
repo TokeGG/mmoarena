@@ -97,6 +97,10 @@ export class MainMenu {
   }
   private account: AccountInfo | null = null;
   private party: PartyInfo | null = null;
+  /** Your party as the server last described it (null when not in one). */
+  get currentParty(): PartyInfo | null {
+    return this.party;
+  }
   private partyBox = el('div', 'mm-party hidden');
   private practiceBtn = el('button', 'mm-btn primary', 'Practice');
   private readyBtn = el('button', 'mm-btn primary rdy hidden', 'Ready');

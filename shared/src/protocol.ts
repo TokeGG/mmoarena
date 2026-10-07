@@ -73,6 +73,8 @@ export type ClientMsg =
   /** Party members other than the leader: mark yourself ready (with your current class and build) or not. */
   | { t: 'ready'; on: boolean; name: string; classId: ClassId; build?: Build; profile?: string }
   | { t: 'party_kick'; name: string }
+  /** Tell your party what you have picked in the menu (class, spec, skins) so they see your model in the lobby. */
+  | { t: 'party_look'; classId: ClassId; build?: Build }
   /** Owner only. Any field left out is unchanged; `custom: null` removes a custom style. */
   | { t: 'admin_set'; name: string; grants?: string[]; custom?: CustomStyle | null; useCustom?: boolean; resetPassword?: boolean };
 
@@ -243,6 +245,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'party_leave' };
     case 'party_side':
       return { t: 'party_side', side: m.side === 1 ? 1 : 0 };
+    case 'party_look':
+      if (typeof m.classId !== 'string' || !Object.hasOwn(CLASSES, m.classId)) return null;
+      return { t: 'party_look', classId: m.classId as ClassId, build: parseBuild(m.build) };
     case 'party_kick':
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       return { t: 'party_kick', name: m.name };

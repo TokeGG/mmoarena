@@ -258,4 +258,22 @@ describe('duels', () => {
     lobby.disconnect(us[0].p);
     await until(() => !!last(us[1].s, 'invite_gone') || true);
   });
+
+  it('party members see each other\'s class, spec and skins in the lobby', async () => {
+    const { lobby, us, friend } = await world(['Ann', 'Bob']);
+    await friend(0, 1);
+    lobby.handle(us[0].p, { t: 'invite', kind: 'party', name: 'Bob' });
+    await until(() => !!last(us[1].s, 'invite'));
+    lobby.handle(us[1].p, { t: 'invite_reply', id: last(us[1].s, 'invite')!.id, accept: true });
+    await until(() => last(us[0].s, 'party')?.party?.members.length === 2);
+    lobby.handle(us[1].p, { t: 'party_look', classId: 'warrior', build: { spec: 'protection', talents: [], gear: {} } } as ClientMsg);
+    await until(() => !!last(us[0].s, 'party')?.party?.members.find((m) => m.name === 'Bob')?.classId);
+    const bob = last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!;
+    assert.equal(bob.classId, 'warrior');
+    assert.equal(bob.spec, 'protection');
+    // a build that is not valid for the class is ignored
+    lobby.handle(us[1].p, { t: 'party_look', classId: 'mage', build: { spec: 'protection', talents: [], gear: {} } } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Bob')!.classId, 'warrior');
+  });
 });

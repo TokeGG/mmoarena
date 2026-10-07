@@ -9,7 +9,7 @@ import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
-import { barSwapped, cleanGear, isOwnerName, validateBuild } from '@arena/shared';
+import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
@@ -31,6 +31,8 @@ export interface Player {
   matches: number;
   wins: number;
   build?: Build;
+  /** What the player has picked in the menu while in a party (shown to the others): class, spec and a gear summary. */
+  view?: { classId: ClassId; spec: string; look: string };
   /** Network address, for rate limiting account actions. */
   ip: string;
   /** Signed-in account (authoritative progress and rating) and its session token. */
@@ -646,6 +648,15 @@ export class Lobby {
         this.sendParty(party);
         break;
       }
+      case 'party_look': {
+        const party = p.party;
+        if (!party || p.room || this.inQueue(p)) return;
+        const build = msg.build ?? emptyBuild(msg.classId);
+        if (!validateBuild(msg.classId, build, !!p.ownerOk).ok) return;
+        p.view = { classId: msg.classId, spec: build.spec, look: gearLook(cleanGear(build.gear, !!p.ownerOk)) };
+        this.sendParty(party);
+        break;
+      }
       case 'party_side': {
         const party = p.party;
         if (!party || p.room || this.inQueue(p)) return;
@@ -759,7 +770,7 @@ export class Lobby {
   // ------------------------------------------------------------------ parties and invites
 
   private partyInfo(party: Party): PartyInfo {
-    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m), side: party.sides.get(m) ?? 0 })) };
+    return { id: party.id, leader: party.leader.account?.name ?? party.leader.name, members: party.members.map((m) => ({ name: m.account?.name ?? m.name, ready: m === party.leader || party.ready.has(m), side: party.sides.get(m) ?? 0, ...(m.view ?? {}) })) };
   }
 
   private sendParty(party: Party): void {
