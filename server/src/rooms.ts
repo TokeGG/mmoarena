@@ -767,6 +767,10 @@ export class Lobby {
         if (!p.ownerOk || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can read the box.' });
         void this.suggestions.list().then((rows) => send(p, { t: 'suggestions', rows }));
         break;
+      case 'suggest_delete':
+        if (!p.ownerOk || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can delete suggestions.' });
+        void this.suggestions.remove(msg.at, msg.text).then(() => this.suggestions!.list()).then((rows) => send(p, { t: 'suggestions', rows }));
+        break;
       default:
         p.room?.command(p, msg);
     }

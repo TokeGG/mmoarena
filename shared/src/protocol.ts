@@ -73,6 +73,8 @@ export type ClientMsg =
   /** The suggestion box: send an idea (everyone), or read the box (owner only). */
   | { t: 'suggest'; text: string }
   | { t: 'suggestions' }
+  /** Owner only: remove one suggestion from the box. */
+  | { t: 'suggest_delete'; at: number; text: string }
   /** Pick which side you play on in a party match. */
   | { t: 'party_side'; side: 0 | 1 }
   /** Party members other than the leader: mark yourself ready (with your current class and build) or not. */
@@ -261,6 +263,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     }
     case 'suggestions':
       return { t: 'suggestions' };
+    case 'suggest_delete':
+      return typeof m.at === 'number' && Number.isFinite(m.at) && typeof m.text === 'string' ? { t: 'suggest_delete', at: m.at, text: m.text.slice(0, 600) } : null;
     case 'party_side':
       return { t: 'party_side', side: m.side === 1 ? 1 : 0 };
     case 'party_look':

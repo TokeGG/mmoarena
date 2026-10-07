@@ -331,6 +331,12 @@ describe('suggestion box', () => {
     await until(() => !!last(b, 'suggestions'));
     assert.equal(last(b, 'suggestions')!.rows.length, 1);
     assert.match(last(b, 'suggestions')!.rows[0].text, /fifth class/);
+    const row = last(b, 'suggestions')!.rows[0];
+    pa.ownerOk = false;
+    lobby.handle(pa, { t: 'suggest_delete', at: row.at, text: row.text });
+    assert.equal(last(a, 'suggest_ack')!.ok, false, 'only the owner can delete');
+    lobby.handle(pb, { t: 'suggest_delete', at: row.at, text: row.text });
+    await until(() => last(b, 'suggestions')!.rows.length === 0);
   });
 });
 

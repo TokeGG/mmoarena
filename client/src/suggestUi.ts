@@ -45,7 +45,13 @@ export class SuggestUi {
       const row = el('div', 'fr-row');
       const info = el('div', 'fr-info');
       info.append(el('b', '', r.name), el('span', '', r.text), el('small', '', new Date(r.at).toLocaleString()));
-      row.append(info);
+      const del = el('button', 'mm-small', 'Delete');
+      del.addEventListener('click', () => {
+        this.rows = this.rows!.filter((x) => x !== r); // gone at once; the server confirms with the fresh list
+        this.paintList();
+        this.hooks.send({ t: 'suggest_delete', at: r.at, text: r.text });
+      });
+      row.append(info, del);
       this.list.append(row);
     }
   }

@@ -45,6 +45,19 @@ export class Suggestions {
     return run.catch(() => false);
   }
 
+  /** Take one suggestion out of the box (matched by time and text). */
+  remove(at: number, text: string): Promise<boolean> {
+    const run = this.chain.then(async () => {
+      const rows = await this.list();
+      const left = rows.filter((r) => !(r.at === at && r.text === text));
+      if (left.length === rows.length) return false;
+      await this.store.set(KEY, JSON.stringify(left));
+      return true;
+    });
+    this.chain = run.catch(() => undefined);
+    return run.catch(() => false);
+  }
+
   private notify(s: Suggestion): void {
     if (!this.webhook) return;
     const body = JSON.stringify({
