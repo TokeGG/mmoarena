@@ -731,6 +731,7 @@ export class Effects {
         if (t) this.ring(t.x, t.z, 0xff4a2a, 0.3, 2, 0.3);
         break;
       case 'sinister_strike':
+      case 'backstab':
         melee(0xfff079, 1.1);
         if (t) this.later(0.08, () => this.slash(s.x, s.z, t.x, t.z, 0xffffff, 0.9, CHEST + 0.1));
         break;

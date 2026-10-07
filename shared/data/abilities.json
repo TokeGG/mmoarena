@@ -365,6 +365,27 @@
   "cpGain": 1
  },
  {
+  "id": "backstab",
+  "name": "Backstab",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 110
+   }
+  ],
+  "stealthSwap": "cheap_shot",
+  "cpGain": 1,
+  "behindMult": 2
+ },
+ {
   "id": "kidney_shot",
   "name": "Kidney Shot",
   "class": "rogue",
@@ -848,6 +869,9 @@
    {
     "type": "aura",
     "aura": "stealth"
+   },
+   {
+    "type": "freeMove"
    }
   ],
   "keepsStealth": true
@@ -891,7 +915,8 @@
    }
   ],
   "minRange": 5,
-  "keepsStealth": true
+  "keepsStealth": true,
+  "cpGain": 3
  },
  {
   "id": "evasion",

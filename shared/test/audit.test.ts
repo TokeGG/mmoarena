@@ -46,7 +46,7 @@ describe('skills and talents audit: data', () => {
           const from = new Set<string>();
           for (const t of tier) {
             assert.ok(t.name && t.desc && t.icon, t.id);
-            assert.ok(ti === 0 || !ids.has(t.id), `duplicate talent id ${t.id}`);
+            assert.ok(ti <= (cid === 'rogue' ? 1 : 0) || !ids.has(t.id), `duplicate talent id ${t.id}`);
             ids.add(t.id);
             for (const ab of Object.keys(t.mods?.ability ?? {})) { assert.equal(ABILITIES[ab]?.class, cid, `${t.id}: ${ab}`); assert.ok(sp.bar.includes(ab), `${t.id}: ${ab} must be on the ${sp.id} bar`); }
             for (const au of Object.keys(t.mods?.auraDuration ?? {})) assert.ok(AURAS[au], `${t.id}: ${au}`);
@@ -98,7 +98,7 @@ describe('skills and talents audit: data', () => {
           if (!can.has(id)) return false;
           const dot = Object.values(AURAS).some((a) => a.dot?.ability === id) || d.effects.some((e) => e.type === 'aura' && !!AURAS[e.aura]?.dot);
           return (!!mod.damage && (d.effects.some((e) => e.type === 'damage' || e.type === 'zone') || dot)) ||
-            (!!mod.heal && d.effects.some((e) => e.type === 'heal')) || (!!mod.cooldown && d.cooldown > 0) || (!!mod.castTime && d.castTime > 0) || (!!mod.range && d.range > 0) || !!mod.charges || !!mod.after?.length;
+            (!!mod.heal && d.effects.some((e) => e.type === 'heal')) || (!!mod.cooldown && d.cooldown > 0) || (!!mod.castTime && d.castTime > 0) || (!!mod.range && d.range > 0) || !!mod.charges || !!mod.after?.length || !!mod.extra?.length || !!mod.stored || !!mod.cost || !!mod.cpChance || !!mod.shadowProc;
         });
         const au = Object.keys(m.auraDuration ?? {}).some((aid) => [...can].some((a) => ABILITIES[a].effects.some((e) => e.type === 'aura' && e.aura === aid)));
         assert.ok(general || ab || au, `${t.id} is dead on ${sp.id}`);

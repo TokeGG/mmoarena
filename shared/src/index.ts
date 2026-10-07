@@ -4,6 +4,7 @@ export * from './geometry';
 export * from './protocol';
 export * from './sim';
 export * from './bot';
+export * from './botbrain';
 export * from './build';
 export * from './describe';
 export * from './accounts';

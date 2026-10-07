@@ -5,7 +5,7 @@ export const ABILITY_ICON: Record<string, string> = {
   mortal_strike: '⚔️', charge: '🐗', pummel: '👊', hamstring: '🩸',
   frostbolt: '❄️', fireball: '🔥', polymorph: '🐑', counterspell: '🚫', frost_nova: '🧊', blink: '✨',
   flash_heal: '💚', power_word_shield: '🛡️', smite: '☀️', dispel_magic: '🪄', psychic_scream: '😱',
-  stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', kidney_shot: '🥊', kick: '🦶', sprint: '💨',
+  stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', backstab: '🔪', kidney_shot: '🥊', kick: '🦶', sprint: '💨',
   recklessness: '😡', execute: '💀', intimidating_shout: '📢', bloodthirst: '💢', whirlwind: '🌪️', enraged_regeneration: '💖',
   shield_slam: '🔰', concussion_blow: '🔨', shield_wall: '🧱',
   ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋', arcane_blast: '🔮', arcane_barrage: '🌟', arcane_missiles: '🌠', arcane_explosion: '💥', evocation: '🧘', dragons_breath: '🐉', arcane_power: '⚡',

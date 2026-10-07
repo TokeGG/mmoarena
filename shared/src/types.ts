@@ -12,7 +12,19 @@ export type Phase = 'prep' | 'live' | 'ended';
 
 /** Per-ability tweaks. damage/heal/cooldown/castTime are multipliers, range is added yards. */
 /** `charges` = extra uses allowed while the cooldown runs; `after` = auras you gain on yourself each time the ability fires. */
-export interface AbilityMod { damage?: number; heal?: number; cooldown?: number; castTime?: number; range?: number; charges?: number; after?: string[] }
+export interface AbilityMod {
+  damage?: number; heal?: number; cooldown?: number; castTime?: number; range?: number; charges?: number; after?: string[];
+  /** Resource cost multiplier. */
+  cost?: number;
+  /** Extra effects appended to the ability (a slow on a strike, a smoke cloud on Vanish). */
+  extra?: Effect[];
+  /** Chance of one extra combo point each time the ability lands. */
+  cpChance?: number;
+  /** Extra stored uses, each recharging on its own timer (Vanish with two charges). */
+  stored?: number;
+  /** Chance each cast first teleports the caster behind the target for free (no combo points). */
+  shadowProc?: number;
+}
 
 /** Fully resolved modifiers a unit carries. Multipliers default to 1. */
 export interface Mods {
@@ -26,13 +38,22 @@ export interface Mods {
   moveSpeed: number;
   /** Auto-attack interval multiplier (0.7 = swings 43% faster). */
   autoSpeed: number;
+  /** Extra combo point slots on top of 5. */
+  maxCp: number;
+  /** Multiplies the per-point scaling of combo point payoffs. */
+  cpPower: number;
   ability: Record<string, AbilityMod>;
   auraDuration: Record<string, number>;
+  /** Milliseconds a re-applied aura (a bleed) adds to its remaining time instead of restarting. */
+  auraExtend: Record<string, number>;
 }
 /** Partial form used in data files (specs, talents, auras). */
-export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration'>> & {
+export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExtend' | 'maxCp'>> & {
   ability?: Record<string, AbilityMod>;
   auraDuration?: Record<string, number>;
+  auraExtend?: Record<string, number>;
+  /** Added, not multiplied. */
+  maxCp?: number;
 };
 
 /** A weapon a spec is built around: it sets the auto-attack and how the character is drawn. */
@@ -100,6 +121,8 @@ export type Effect =
   /** `only` limits an effect to allies or enemies of the caster (Penance heals a friend and hurts a foe). */
   | { type: 'damage'; amount: number; only?: 'ally' | 'enemy' }
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
+  /** Heals a fraction of the target's missing health. */
+  | { type: 'healMissing'; pct: number }
   | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
@@ -138,6 +161,8 @@ export interface AbilityDef {
   cost: number;
   effects: Effect[];
   requiresStealth?: boolean;
+  /** Damage multiplier when the caster is behind the target (Backstab). */
+  behindMult?: number;
   /** Combo points earned each time this lands. */
   cpGain?: number;
   /** A combo point payoff: needs at least one point and spends them all. */
@@ -326,6 +351,8 @@ export interface UnitSnap {
   auras: { id: string; kind: AuraKind; src: number; expiresAt: number; stacks?: number }[];
   /** Rogue combo points (absent at zero). */
   cp?: number;
+  /** Combo point slots when above the usual five (Deep Pockets). */
+  cpMax?: number;
   stealthed: boolean;
   /** Damage the unit's shields (Power Word: Shield, Ice Barrier) can still soak; absent when none. */
   absorb?: number;

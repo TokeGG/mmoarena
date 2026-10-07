@@ -8,6 +8,7 @@ import { TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
 import { Accounts } from './accounts';
 import { createStore } from './store';
+import { BotLearner } from './botlearn';
 import { AVATAR_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
 
@@ -44,9 +45,11 @@ const MAX_MSGS_PER_SEC = 120;
 export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const root = path.resolve(opts.staticDir ?? path.join(here, '../../client/dist'));
-  const accounts = new Accounts(opts.accountStore ?? createStore(), process.env.ARENA_OWNER_CODE);
+  const store = opts.accountStore ?? createStore();
+  const accounts = new Accounts(store, process.env.ARENA_OWNER_CODE);
+  const botLearner = new BotLearner(store);
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts);
+  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 15000 }, accounts, botLearner);
 
   const server = http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost');
@@ -55,7 +58,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       return;
     }
     if (url.pathname === '/api/status') {
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent }));
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary() }));
       return;
     }
     if (url.pathname.startsWith('/avatar/') && req.method === 'GET') {

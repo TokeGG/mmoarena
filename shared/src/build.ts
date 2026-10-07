@@ -4,23 +4,29 @@ import type { AbilityMod, AutoDef, Build, ClassId, CosmeticItem, Mods, ModsInput
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
 
 export const NEUTRAL_MODS: Mods = Object.freeze({
-  damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, ability: {}, auraDuration: {},
+  damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, maxCp: 0, cpPower: 1, ability: {}, auraDuration: {}, auraExtend: {},
 }) as Mods;
 
 export function newMods(): Mods {
-  return { damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, ability: {}, auraDuration: {} };
+  return { damageDone: 1, healingDone: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, maxCp: 0, cpPower: 1, ability: {}, auraDuration: {}, auraExtend: {} };
 }
 
-const SCALARS = ['damageDone', 'healingDone', 'damageTaken', 'maxHealth', 'castTime', 'gcd', 'regen', 'moveSpeed', 'autoSpeed'] as const;
+const SCALARS = ['damageDone', 'healingDone', 'damageTaken', 'maxHealth', 'castTime', 'gcd', 'regen', 'moveSpeed', 'autoSpeed', 'cpPower'] as const;
 
 /** Multiplies `into` by `add` (mutates and returns `into`). */
 export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
   if (!add) return into;
+  if (add.maxCp) into.maxCp += add.maxCp;
+  if (add.auraExtend) for (const [id, v] of Object.entries(add.auraExtend)) into.auraExtend[id] = (into.auraExtend[id] ?? 0) + v;
   for (const k of SCALARS) if (add[k] !== undefined) into[k] *= add[k]!;
   if (add.ability) {
     for (const [id, m] of Object.entries(add.ability)) {
       const cur: AbilityMod = (into.ability[id] ??= {});
-      for (const key of ['damage', 'heal', 'cooldown', 'castTime'] as const) if (m[key] !== undefined) cur[key] = (cur[key] ?? 1) * m[key]!;
+      for (const key of ['damage', 'heal', 'cooldown', 'castTime', 'cost'] as const) if (m[key] !== undefined) cur[key] = (cur[key] ?? 1) * m[key]!;
+      if (m.stored !== undefined) cur.stored = (cur.stored ?? 0) + m.stored;
+      if (m.cpChance !== undefined) cur.cpChance = Math.min(1, (cur.cpChance ?? 0) + m.cpChance);
+      if (m.shadowProc !== undefined) cur.shadowProc = Math.min(1, (cur.shadowProc ?? 0) + m.shadowProc);
+      if (m.extra) cur.extra = [...(cur.extra ?? []), ...m.extra];
       if (m.range !== undefined) cur.range = (cur.range ?? 0) + m.range;
       if (m.charges !== undefined) cur.charges = (cur.charges ?? 0) + m.charges;
       if (m.after) cur.after = [...(cur.after ?? []), ...m.after];
@@ -114,7 +120,7 @@ export function withAuraMods(base: Mods, auraIds: string[]): Mods {
   let any = false;
   for (const id of auraIds) if (AURAS[id]?.mods) any = true;
   if (!any) return base;
-  const m: Mods = { ...base, ability: Object.fromEntries(Object.entries(base.ability).map(([k, v]) => [k, { ...v }])), auraDuration: { ...base.auraDuration } };
+  const m: Mods = { ...base, ability: Object.fromEntries(Object.entries(base.ability).map(([k, v]) => [k, { ...v }])), auraDuration: { ...base.auraDuration }, auraExtend: { ...base.auraExtend } };
   for (const id of auraIds) applyMods(m, AURAS[id]?.mods);
   return m;
 }

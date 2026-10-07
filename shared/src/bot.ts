@@ -5,6 +5,8 @@ import type { ClassId, Unit, Vec2 } from './types';
 
 import { SPECS } from './data';
 import type { Build } from './types';
+import { brainFor } from './botbrain';
+import type { Brain } from './botbrain';
 
 /** A bot's loadout: one of the class's specs, so bots field every weapon spec and bar that exists in the data. */
 export function botBuild(classId: ClassId, seed: number): Build {
@@ -71,7 +73,10 @@ export class Bot {
   private danceUntil = 0;
   private nextDance = 0;
 
-  constructor(private sim: ArenaSim, readonly unitId: number, difficulty: Difficulty = 'normal', seed = 1) {
+  readonly brain: Brain;
+
+  constructor(private sim: ArenaSim, readonly unitId: number, difficulty: Difficulty = 'normal', seed = 1, brain?: Brain) {
+    this.brain = brain ?? brainFor(sim.units.get(unitId)?.classId ?? 'warrior');
     this.P = PARAMS[difficulty];
     this.rng = mulberry32(seed);
   }
@@ -110,7 +115,7 @@ export class Bot {
 
     // hurt: duck behind a pillar to break line of sight, wait a moment, then come back (not every few seconds)
     const threat = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos))[0];
-    if (threat && hpFrac(u) < 0.45 && sim.time >= this.coverReadyAt && !this.cover) {
+    if (threat && hpFrac(u) < this.brain.coverHp && sim.time >= this.coverReadyAt && !this.cover) {
       this.cover = this.coverPoint(u, threat.pos);
       this.coverUntil = sim.time + 3500;
       this.coverReadyAt = sim.time + 9000;
@@ -168,7 +173,12 @@ export class Bot {
       this.target = null;
       return;
     }
-    const score = (e: Unit) => hpFrac(e) * 60 + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? 20 : 0) - (e === cur ? 10 : 0);
+    const B = this.brain;
+    const mates = [...sim.units.values()].filter((a) => a.alive && a.team === u.team && a !== u);
+    const fleeing = (e: Unit) => e === cur && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root');
+    const score = (e: Unit) =>
+      hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? 10 : 0) -
+      (mates.some((a) => a.target === e.id) ? B.focus : 0) - (fleeing(e) ? B.chase * 15 : 0);
     list.sort((a, b) => score(a) - score(b));
     this.target = list[0].id;
     this.retargetAt = sim.time + 2500;
@@ -223,12 +233,12 @@ export class Bot {
     const d = dist(u.pos, tgt.pos);
     const slowed = tgt.auras.some((a) => a.kind === 'slow');
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
-    if (hpFrac(u) < 0.45 && (this.use(u, 'enraged_regeneration') || this.use(u, 'shield_wall'))) return;
+    if (hpFrac(u) < this.brain.defHp && (this.use(u, 'enraged_regeneration') || this.use(u, 'shield_wall'))) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
     if (kiter && !slowed && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
-    if (d <= 8) this.use(u, 'recklessness');
+    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'recklessness');
     if (!tgt.auras.some((a) => a.kind === 'stun') && d <= 8 && this.use(u, 'concussion_blow', tgt.id)) return;
     if (d <= 8 && enemies.filter((e) => dist(u.pos, e.pos) <= 8).length >= 2 && this.use(u, 'whirlwind')) return;
     // whichever main strike this spec carries
@@ -247,15 +257,16 @@ export class Bot {
       return;
     }
     this.sim.setAutoAttack(u.id, true);
-    if (hpFrac(u) < 0.5) this.use(u, 'evasion');
-    if (d <= 8) this.use(u, 'adrenaline_rush');
+    if (hpFrac(u) < this.brain.defHp + 0.05 && this.use(u, 'evasion')) return;
+    if (hpFrac(u) < this.brain.defHp * 0.6 && enemies.length && this.use(u, 'vanish')) return;
+    if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'adrenaline_rush');
     if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
     if (d > 12) this.use(u, 'sprint');
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
     if (u.cp >= 4 && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
     if (u.cp >= 3 && !stunned && this.use(u, 'kidney_shot', tgt.id)) return;
     if (!tgt.auras.some((a) => a.id === 'garrote_bleed') && this.use(u, 'garrote', tgt.id)) return;
-    this.useFirst(u, ['mutilate', 'sinister_strike'], tgt.id);
+    this.useFirst(u, ['mutilate', 'backstab', 'sinister_strike'], tgt.id);
   }
 
   private mage(u: Unit, enemies: Unit[], tgt?: Unit): void {
@@ -282,7 +293,7 @@ export class Bot {
     if (!tgt) return;
     const slowed = tgt.auras.some((a) => a.id === 'frostbolt_slow');
     if (!slowed && this.use(u, 'frostbolt', tgt.id)) return;
-    this.use(u, 'arcane_power');
+    if (hpFrac(tgt) <= this.brain.burstHp) this.use(u, 'arcane_power');
     // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
     this.useFirst(u, ['deep_freeze', 'fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles'], tgt.id);
   }
@@ -320,17 +331,19 @@ export class Bot {
     if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.cancelCast(u, 'cancelled');
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
     if (u.auras.some((a) => HARD_CC.includes(a.kind)) && this.use(u, 'dispersion')) return;
-    if (hpFrac(u) < 0.4 && this.use(u, 'desperate_prayer')) return;
+    if (hpFrac(u) < this.brain.defHp - 0.05 && this.use(u, 'desperate_prayer')) return;
     if (u.cast) return;
 
     // on its own the priest has to win the fight too: it heals later and spends the rest of its time on Smite
     const solo = allies.length <= 1;
+    const H = this.brain.healAt;
+    const th = (x: number) => Math.min(0.99, x * H);
     if (lowest) {
       const f = hpFrac(lowest);
       if (f < 0.35 && lowest !== u && this.use(u, 'pain_suppression', lowest.id)) return;
-      if (f < 0.45 && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
-      if (f < (solo ? 0.6 : 0.8) && this.useFirst(u, f < 0.5 ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], lowest.id)) return;
-      if (f < (solo ? 0.75 : 0.95) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
+      if (f < th(0.45) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
+      if (f < th(solo ? 0.6 : 0.8) && this.useFirst(u, f < th(0.5) ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], lowest.id)) return;
+      if (f < th(solo ? 0.75 : 0.95) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
     }
 
     const meleeNear = enemies.filter((e) => MELEE.has(e.classId) && dist(u.pos, e.pos) <= 7);
@@ -393,7 +406,7 @@ export class Bot {
 
     if (sim.time >= this.strafeFlipAt) {
       this.strafeSign = this.rng() < 0.5 ? -1 : 1;
-      this.strafeFlipAt = sim.time + 1500;
+      this.strafeFlipAt = sim.time + this.brain.strafeFlip * 1000;
     }
 
     if (this.cover && sim.time < this.coverUntil) return idle; // sitting in cover
@@ -407,11 +420,18 @@ export class Bot {
 
     const d = dist(u.pos, tgt.pos);
     const toT = angleTo(u.pos, tgt.pos);
-    const range = RANGED[u.classId];
+    const base = RANGED[u.classId];
+    const range = base && { min: base.min + this.brain.rangeBias, max: base.max + this.brain.rangeBias };
     if (!range) {
+      // Backstab doubles from behind: run round to the target's back instead of strafing in front of it
+      if (u.bar.includes('backstab') && !sim.isStealthed(u)) {
+        const back = { x: tgt.pos.x - Math.sin(tgt.facing) * 2, z: tgt.pos.z - Math.cos(tgt.facing) * 2 };
+        if (dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back)), fwd: 1, strafe: 0 };
+        if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
+      }
       if (d > 2.9) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
       // in melee range: keep moving round the target instead of standing still
-      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.7 };
+      return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.9 * this.brain.strafe };
     }
     if (!hasLOS(u.pos, tgt.pos, sim.arena) || d > range.max) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos)), fwd: 1, strafe: 0 };
@@ -420,9 +440,9 @@ export class Bot {
     const kiteable = enemies.some(
       (e) => MELEE.has(e.classId) && dist(u.pos, e.pos) < range.min && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root'),
     );
-    if (d < range.min && kiteable) return { facing: toT, fwd: -1, strafe: this.strafeSign * 0.6 };
+    if (d < range.min && kiteable) return { facing: toT, fwd: -1, strafe: this.strafeSign * 0.75 * this.brain.strafe };
     // between casts, sidestep so the bot is not a stationary target (moving never interrupts: casts return early above)
-    if (sim.time < u.gcdEnd) return { facing: toT, fwd: 0, strafe: this.strafeSign * 0.8 };
+    if (sim.time < u.gcdEnd) return { facing: toT, fwd: 0, strafe: this.strafeSign * this.brain.strafe };
     return { facing: toT, fwd: 0, strafe: 0 };
   }
 
@@ -439,6 +459,6 @@ export class Bot {
     }
     if (!tgt) return idle;
     const toT = angleTo(u.pos, tgt.pos);
-    return { facing: toT, fwd: 0, strafe: sim.time < u.gcdEnd ? this.strafeSign * 0.8 : 0 };
+    return { facing: toT, fwd: 0, strafe: sim.time < u.gcdEnd ? this.strafeSign * this.brain.strafe : 0 };
   }
 }

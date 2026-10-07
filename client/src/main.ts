@@ -939,7 +939,7 @@ const friendsUi = new FriendsUi({
 });
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
-menuExtras.append(accountUi.chip, friendsUi.button);
+menuExtras.append(accountUi.chip, friendsUi.button, friendsUi.partyChip);
 
 /** Both friends agreed to a duel: join it with the class and build currently picked in the menu. */
 async function joinDuel(withName: string) {

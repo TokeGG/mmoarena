@@ -29,13 +29,19 @@ export class FriendsUi {
   private requests: string[] = [];
   private party: PartyInfo | null = null;
   private toasts = el('div', 'fr-toasts');
+  /** Invites arrive as big banners at the top of the screen, impossible to miss. */
+  private banners = el('div', 'fr-invites');
+  private invites = 0;
+  readonly partyChip = el('button', 'acct-chip party-chip hidden');
+  private baseTitle = document.title;
   private me = '';
   private addError = '';
 
   constructor(private hooks: Hooks) {
     this.button.append(this.badge);
+    this.partyChip.addEventListener('click', () => this.open());
     this.button.addEventListener('click', () => (hooks.signedIn() ? this.open() : hooks.needSignIn()));
-    document.body.append(this.toasts);
+    document.body.append(this.toasts, this.banners);
   }
 
   setAccount(name: string | null) {
@@ -45,6 +51,7 @@ export class FriendsUi {
       this.requests = [];
       this.party = null;
       this.hooks.onParty?.(null);
+      this.paintParty();
       this.close();
     }
     this.paintBadge();
@@ -65,13 +72,15 @@ export class FriendsUi {
       case 'party':
         this.party = m.party;
         this.hooks.onParty?.(m.party);
+        this.paintParty();
         if (this.modal) this.render();
         return true;
       case 'invite':
         this.inviteToast(m.id, m.kind, m.from);
         return true;
       case 'invite_gone':
-        this.toasts.querySelector(`[data-invite="${m.id}"]`)?.remove();
+        this.banners.querySelector(`[data-invite="${m.id}"]`)?.remove();
+        this.paintBadge();
         return true;
       case 'notice':
         this.toast(m.text);
@@ -81,9 +90,21 @@ export class FriendsUi {
   }
 
   private paintBadge() {
-    const n = this.requests.length;
+    this.invites = this.banners.querySelectorAll('[data-invite]').length;
+    const n = this.requests.length + this.invites;
     this.badge.textContent = String(n);
     this.badge.classList.toggle('hidden', n === 0);
+    this.button.classList.toggle('pulse', n > 0);
+    document.title = this.invites ? `(${this.invites}) Invite! · ${this.baseTitle}` : this.baseTitle;
+  }
+
+  /** A chip that is always on the menu while you are in a party: who is in it, and a click opens the panel. */
+  private paintParty() {
+    const p = this.party;
+    this.partyChip.classList.toggle('hidden', !p);
+    if (!p) return;
+    this.partyChip.textContent = `👥 Party ${p.members.length}/3 · ${p.members.map((x) => (x.name === p.leader ? '👑' : '') + x.name).join(', ')}`;
+    this.partyChip.title = 'Open your party';
   }
 
   // ------------------------------------------------------------------ toasts
@@ -96,22 +117,27 @@ export class FriendsUi {
   }
 
   private inviteToast(id: string, kind: 'party' | 'duel', from: string) {
-    const t = el('div', 'fr-toast inv');
+    const t = el('div', `fr-invite ${kind}`);
     t.dataset.invite = id;
-    t.append(el('span', '', kind === 'party' ? `${from} invites you to a party` : `${from} challenges you to a 1v1 duel`));
-    const yes = el('button', 'mm-small', 'Accept');
-    const no = el('button', 'mm-small', 'Decline');
-    yes.addEventListener('click', () => {
-      this.hooks.send({ t: 'invite_reply', id, accept: true });
+    const text = el('div', 'fr-invite-text');
+    text.append(el('b', '', kind === 'party' ? '👥 Party invite' : '⚔️ Duel challenge'), el('span', '', kind === 'party' ? `${from} wants you in their party` : `${from} challenges you to a 1v1 duel`));
+    const yes = el('button', 'fr-yes', 'Accept');
+    const no = el('button', 'fr-no', 'Decline');
+    const done = (accept: boolean) => {
+      this.hooks.send({ t: 'invite_reply', id, accept });
       t.remove();
-    });
-    no.addEventListener('click', () => {
-      this.hooks.send({ t: 'invite_reply', id, accept: false });
+      this.paintBadge();
+    };
+    yes.addEventListener('click', () => done(true));
+    no.addEventListener('click', () => done(false));
+    const bar = el('div', 'fr-invite-bar');
+    t.append(text, yes, no, bar);
+    this.banners.append(t);
+    this.paintBadge();
+    window.setTimeout(() => {
       t.remove();
-    });
-    t.append(yes, no);
-    this.toasts.append(t);
-    window.setTimeout(() => t.remove(), 60000);
+      this.paintBadge();
+    }, 60000);
   }
 
   // ------------------------------------------------------------------ panel

@@ -8,6 +8,7 @@ import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
 import { publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
+import type { BotLearner } from './botlearn';
 import { barSwapped, cleanGear, isOwnerName, validateBuild } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
@@ -89,6 +90,10 @@ export class Room {
   readonly players = new Map<number, Player>(); // unitId -> player
   closed = false;
   private bots: Bot[] = [];
+  /** Which learned brain each bot is playing with, to credit the result at the end. */
+  private botMeta: { unitId: number; classId: ClassId; variantId: string }[] = [];
+  learner?: BotLearner;
+  private botsReported = false;
   private endedTicks = 0;
   private finalSent = false;
   private finalSentLate = false;
@@ -217,7 +222,9 @@ export class Room {
     }
     const seed = Math.floor(Math.random() * 2 ** 31);
     const u = this.sim.addUnit({ name: `Bot ${label}`, classId, team, controller: 'bot', build: botBuild(classId, seed) });
-    this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed));
+    const learned = this.learner?.pick(classId);
+    this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed, learned?.brain));
+    if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId });
   }
 
   command(p: Player, msg: ClientMsg): void {
@@ -325,7 +332,27 @@ export class Room {
         for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
       }
       this.creditProgress();
+      this.reportBots();
       if (++this.endedTicks >= TICKS_AFTER_END) this.close('match over');
+    }
+  }
+
+  /** Once per match: tell the bot learner how each bot's brain did against the humans it faced. */
+  private reportBots(): void {
+    if (this.botsReported) return;
+    this.botsReported = true;
+    const w = this.sim.winner;
+    if (!this.learner || w === 'draw' || w === null || w === undefined) return;
+    if (this.sim.time - this.sim.prepEndsAt < 20000) return; // a forfeit or an instant loss says nothing about play
+    const humanTeams = new Set<number>();
+    for (const id of this.players.keys()) {
+      const t = this.sim.units.get(id)?.team;
+      if (t !== undefined) humanTeams.add(t);
+    }
+    for (const m of this.botMeta) {
+      const team = this.sim.units.get(m.unitId)?.team;
+      if (team === undefined || ![...humanTeams].some((t) => t !== team)) continue;
+      this.learner.report(m.classId, m.variantId, w === team);
     }
   }
 
@@ -416,7 +443,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts) {}
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner) {}
 
   private conns = new Set<Player>();
   private onlineKeys(): Set<string> {
@@ -868,6 +895,7 @@ export class Lobby {
   private makeRoom(prepMs: number, counts: boolean, ranked: boolean, map: string): Room {
     const room = new Room(prepMs, counts, this.cfg.minCountedMatchMs, ranked, this.accounts, map);
     room.notify = (q) => this.changed(q);
+    room.learner = this.learner;
     return room;
   }
 

@@ -167,16 +167,16 @@ describe('specs and talents in the sim', () => {
   it('damage mods scale damage and healing mods scale heals (same seed, same sequence)', () => {
     const run = (b?: Build) => {
       const sim = live(7);
-      const rogue = add(sim, 'rogue', 0, 0, 0, b);
-      const foe = add(sim, 'warrior', 1, 2, 0);
+      const mage = add(sim, 'mage', 0, 0, 0, b);
+      const foe = add(sim, 'warrior', 1, 8, 0);
       advance(sim, TICK);
-      sim.useAbility(rogue.id, 'sinister_strike', foe.id);
+      sim.useAbility(mage.id, 'fireball', foe.id);
       return advance(sim, 100).find((e) => e.t === 'damage') as Extract<SimEvent, { t: 'damage' }>;
     };
     const base = run();
-    const dmgTalent = specTalents('rogue', 'combat').slice(0, 3).flat().find((t) => t.mods.damageDone || t.mods.ability?.sinister_strike?.damage)!;
-    const boosted = run(build('combat', picks('rogue', 'combat', dmgTalent)));
-    const want = (dmgTalent.mods.damageDone ?? 1) * (dmgTalent.mods.ability?.sinister_strike?.damage ?? 1) * compileMods('rogue', build('combat')).damageDone;
+    const dmgTalent = specTalents('mage', 'fire').slice(0, 3).flat().find((t) => t.mods.damageDone)!;
+    const boosted = run(build('fire', picks('mage', 'fire', dmgTalent)));
+    const want = (dmgTalent.mods.damageDone ?? 1) * compileMods('mage', build('fire')).damageDone;
     assert.ok(base && boosted);
     assert.ok(Math.abs(boosted.amount / base.amount - want) < 0.03, `${boosted.amount}/${base.amount} vs ${want}`);
   });
@@ -218,7 +218,7 @@ describe('specs and talents in the sim', () => {
       for (const t of specTalents(cls, sp.id).slice(0, 3).flat()) {
         const m = compileMods(cls, build(sp.id, ['', '', '', '', '', ''].map((_, i) => (specTalents(cls, sp.id)[i].includes(t) ? t.id : ''))));
         assert.notDeepEqual(m, base, `${t.id} changes nothing`);
-        for (const [k, v] of Object.entries(t.mods)) if (typeof v === 'number') assert.ok(Math.abs((m as any)[k] / (base as any)[k] - v) < 1e-9, `${t.id}: ${k}`);
+        for (const [k, v] of Object.entries(t.mods)) if (k === 'maxCp') assert.equal(m.maxCp - base.maxCp, v); else if (typeof v === 'number') assert.ok(Math.abs((m as any)[k] / (base as any)[k] - v) < 1e-9, `${t.id}: ${k}`);
       }
     }
   });
@@ -475,5 +475,150 @@ describe('bots play every spec', () => {
         assert.ok(d.health < hp, `${cls}:${u.spec} bot did no damage`);
       }
     }
+  });
+});
+
+describe('rogue rework', () => {
+  const hit = (sim: ArenaSim, id: number, ability: string, foe: number) => {
+    const evs: SimEvent[] = [];
+    assert.ok(sim.useAbility(id, ability, foe).ok, ability);
+    evs.push(...advance(sim, 100));
+    return evs.filter((e) => e.t === 'damage' && (e as any).ability === ability) as any[];
+  };
+  it('Shadowstep adds three combo points', () => {
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('subtlety'));
+    const f = add(sim, 'warrior', 1, 12, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(r.id, 'shadowstep', f.id).ok);
+    advance(sim, TICK);
+    assert.equal(r.cp, 3);
+  });
+  it('Backstab hits twice as hard from behind', () => {
+    const run = (facing: number) => {
+      const sim = live(4);
+      const r = add(sim, 'rogue', 0, 0, 0, build('subtlety'));
+      const f = add(sim, 'warrior', 1, 2, 0);
+      f.facing = facing; f.lastInput.facing = facing;
+      advance(sim, TICK);
+      return hit(sim, r.id, 'backstab', f.id)[0].amount as number;
+    };
+    const behind = run(Math.PI / 2), front = run(-Math.PI / 2);
+    assert.ok(Math.abs(behind / front - 2) < 0.2, `${behind}/${front}`);
+    assert.ok(!SPECS.rogue.find((s) => s.id === 'subtlety')!.bar.includes('sinister_strike'));
+  });
+  it('Vanish clears slows and roots', () => {
+    const sim = live();
+    const w = add(sim, 'warrior', 0, 0, 0);
+    const r = add(sim, 'rogue', 1, 2, 0, build('combat'));
+    advance(sim, TICK);
+    sim.applyAura(w, r, 'hamstring_slow');
+    assert.ok(sim.speedMult(r) < 1);
+    assert.ok(sim.useAbility(r.id, 'vanish').ok);
+    assert.equal(sim.speedMult(r), r.mods.moveSpeed);
+  });
+  it('Twin Vanish has two charges that recharge separately', () => {
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][1])));
+    add(sim, 'warrior', 1, 30, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(r.id, 'vanish').ok);
+    advance(sim, 10000);
+    assert.ok(sim.useAbility(r.id, 'vanish').ok, 'second charge');
+    advance(sim, TICK);
+    assert.ok(!sim.useAbility(r.id, 'vanish').ok, 'both spent');
+    advance(sim, 110000); // first charge (120 s) back, second (130 s) not yet
+    assert.ok(sim.useAbility(r.id, 'vanish').ok, 'first recharged on its own timer');
+    advance(sim, TICK);
+    assert.ok(!sim.useAbility(r.id, 'vanish').ok);
+  });
+  it('Shadow Mend heals 75% of missing health and Smoke Veil drops a cloud', () => {
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][2])));
+    add(sim, 'warrior', 1, 30, 0);
+    advance(sim, TICK);
+    r.health = Math.round(r.maxHealth * 0.2);
+    const missing = r.maxHealth - r.health;
+    sim.useAbility(r.id, 'vanish');
+    assert.ok(Math.abs(r.health - (r.maxHealth - missing * 0.25)) <= 2);
+    assert.ok(sim.isStealthed(r), 'the heal does not undo stealth');
+    const s2 = live();
+    const r2 = add(s2, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][0])));
+    add(s2, 'warrior', 1, 30, 0);
+    advance(s2, TICK);
+    s2.useAbility(r2.id, 'vanish');
+    assert.ok((s2 as any).zones.some((z: any) => z.smoke && z.team === r2.team), 'smoke cloud on the rogue');
+  });
+  it('class talents: energy, speed, and eight combo points that scale harder', () => {
+    const t2 = specTalents('rogue', 'combat')[1];
+    assert.ok(Math.abs(compileMods('rogue', build('combat', picks('rogue', 'combat', t2[0]))).regen - 1.2) < 1e-9);
+    assert.ok(Math.abs(compileMods('rogue', build('combat', picks('rogue', 'combat', t2[1]))).moveSpeed / compileMods('rogue', build('combat')).moveSpeed - 1.1) < 1e-9);
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', t2[2])));
+    add(sim, 'warrior', 1, 2, 0);
+    advance(sim, TICK);
+    r.cp = 7;
+    r.bar = [...r.bar.slice(0, 5), 'sinister_strike', 'sinister_strike', 'sinister_strike'];
+    r.resource = 100;
+    sim.setTarget(r.id, [...sim.units.values()].find((u) => u.team === 1)!.id);
+    const res = sim.useAbility(r.id, 'sinister_strike');
+    assert.ok(res.ok, JSON.stringify(res));
+    assert.equal(r.cp, 8);
+    r.resource = 100; advance(sim, 1500);
+    assert.ok(sim.useAbility(r.id, 'sinister_strike').ok);
+    assert.equal(r.cp, 8, 'capped at 8');
+  });
+  it('spec talents: cost, double points, slows, stacking bleed, Shadow Flicker', () => {
+    const cost = (spec: string, ab: string, i: number) => {
+      const sim = live();
+      const r = add(sim, 'rogue', 0, 0, 0, build(spec, picks('rogue', spec, specTalents('rogue', spec)[2][i])));
+      const f = add(sim, 'warrior', 1, 2, 0);
+      advance(sim, TICK);
+      r.resource = 100;
+      sim.useAbility(r.id, ab, f.id);
+      return { spent: 100 - r.resource, r, f, sim };
+    };
+    assert.equal(cost('assassination', 'mutilate', 0).spent, 45);
+    assert.equal(cost('combat', 'sinister_strike', 0).spent, 36);
+    assert.equal(cost('subtlety', 'backstab', 0).spent, 36);
+    for (const [spec, ab] of [['assassination', 'mutilate'], ['combat', 'sinister_strike'], ['subtlety', 'backstab']] as const) {
+      const c = cost(spec, ab, 2);
+      assert.ok(c.f.auras.some((a) => a.id === 'rogue_slow'), `${spec} slow`);
+      assert.ok(Math.abs(c.sim.speedMult(c.f) - 0.9) < 1e-9);
+    }
+    // Double Tap gives two points about half the time
+    let twos = 0;
+    for (let seed = 1; seed <= 40; seed++) {
+      const sim = live(seed);
+      const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[2][1])));
+      const f = add(sim, 'warrior', 1, 2, 0);
+      advance(sim, TICK);
+      sim.useAbility(r.id, 'sinister_strike', f.id);
+      if (r.cp === 2) twos++;
+    }
+    assert.ok(twos > 10 && twos < 30, `double tap ${twos}/40`);
+    // Festering Wounds: a second Mutilate adds 3 s instead of restarting
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('assassination', picks('rogue', 'assassination', specTalents('rogue', 'assassination')[2][1])));
+    const f = add(sim, 'warrior', 1, 2, 0);
+    advance(sim, TICK);
+    r.resource = 100;
+    sim.useAbility(r.id, 'mutilate', f.id);
+    advance(sim, 2000);
+    r.resource = 100;
+    sim.useAbility(r.id, 'mutilate', f.id);
+    const left = f.auras.find((a) => a.id === 'mutilate_bleed')!.expiresAt - sim.time;
+    assert.ok(left > AURAS.mutilate_bleed.duration - 2000 + 2900, `left ${left}`);
+    // Shadow Flicker lands you behind the target (always at 100% here)
+    const s2 = live();
+    const r2 = add(s2, 'rogue', 0, 0, 0, build('subtlety', picks('rogue', 'subtlety', specTalents('rogue', 'subtlety')[2][1])));
+    r2.mods.ability.backstab.shadowProc = 1;
+    const f2 = add(s2, 'warrior', 1, 2, 0);
+    f2.facing = -Math.PI / 2; f2.lastInput.facing = f2.facing; // facing the rogue
+    advance(s2, TICK);
+    const dmg = hit(s2, r2.id, 'backstab', f2.id)[0].amount as number;
+    assert.ok(r2.pos.x > f2.pos.x, 'ended up behind');
+    assert.equal(r2.cp, 1, 'no combo points from the free step');
+    assert.ok(dmg > 150, `backstab from behind ${dmg}`);
   });
 });

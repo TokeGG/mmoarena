@@ -63,7 +63,7 @@ class UnitFrame {
     this.cast = withCast ? new Bar('#f1c40f', true) : null;
     const body = el('div', 'fbody');
     body.append(this.nameEl, this.hp.root, this.res.root, this.pips);
-    for (let i = 0; i < 5; i++) this.pips.append(el('span', 'pip'));
+    for (let i = 0; i < 8; i++) this.pips.append(el('span', 'pip'));
     if (this.cast) body.append(this.cast.root);
     body.append(this.auras);
     root.append(this.portrait, body);
@@ -85,7 +85,10 @@ class UnitFrame {
     this.res.setColor(RES_COLOR[u.resourceType]);
     this.res.set(u.resource, u.resourceMax, `${u.resource}`);
     this.pips.classList.toggle('hidden', u.classId !== 'rogue');
-    [...this.pips.children].forEach((c, i) => c.classList.toggle('on', i < (u.cp ?? 0)));
+    [...this.pips.children].forEach((c, i) => {
+      c.classList.toggle('on', i < (u.cp ?? 0));
+      (c as HTMLElement).style.display = i < (u.cpMax ?? 5) ? '' : 'none';
+    });
     if (this.cast) {
       const c = u.cast;
       this.cast.root.classList.toggle('hidden', !c);

@@ -199,9 +199,10 @@ export class ArenaSim {
     if (!this.canAct(u) && !def.ignoresControl) return fail('you are incapacitated');
     if (def.ignoresControl && u.auras.some((a) => AURAS[a.id]?.locksAbilities)) return fail('you are polymorphed');
     if (!def.ignoresLockout && (u.lockouts[def.school] ?? 0) > this.time) return fail(`${def.school} school is locked out`);
-    if ((u.cooldowns[def.id] ?? 0) > this.time && (u.chargesUsed[def.id] ?? 0) >= (this.modsOf(u).ability[def.id]?.charges ?? 0)) return fail('ability is on cooldown');
+    if (this.storedFull(u, def)) return fail('ability is on cooldown');
+    if (!this.modsOf(u).ability[def.id]?.stored && (u.cooldowns[def.id] ?? 0) > this.time && (u.chargesUsed[def.id] ?? 0) >= (this.modsOf(u).ability[def.id]?.charges ?? 0)) return fail('ability is on cooldown');
     if (def.gcd && u.gcdEnd > this.time) return fail('global cooldown');
-    if (u.resource < def.cost) return fail(`not enough ${u.resourceType}`);
+    if (u.resource < this.costOf(u, def)) return fail(`not enough ${u.resourceType}`);
     if (def.cpSpend && u.cp < 1) return fail('needs combo points');
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
     if ((def.target === 'enemy' || def.target === 'ally' || def.target === 'ally_or_self' || def.target === 'any') && this.inSmoke(u)) return fail('blinded by smoke');
@@ -244,7 +245,7 @@ export class ArenaSim {
     if (def.channel && def.castTime > 0) {
       // channels pay and go on cooldown up front, then fire their effects once per tick while the caster stands still
       const castMs = this.castTimeOf(u, def);
-      u.resource -= def.cost;
+      u.resource -= this.costOf(u, def);
       this.startCooldown(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks: def.channel.ticks, done: 0 };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
@@ -498,11 +499,39 @@ export class ArenaSim {
   /** Start an ability's cooldown; a use made while it is already running spends an extra charge instead of restarting it. */
   private startCooldown(u: Unit, def: AbilityDef): void {
     if (def.cooldown <= 0) return;
+    const stored = this.modsOf(u).ability[def.id]?.stored ?? 0;
+    if (stored > 0) {
+      // each use recharges on its own timer; the slot only shows a cooldown while every charge is spent
+      const pend = (this.recharge.get(u.id)?.[def.id] ?? []).filter((t) => t > this.time);
+      pend.push(this.time + Math.round(def.cooldown * (this.modsOf(u).ability[def.id]?.cooldown ?? 1)));
+      const per = this.recharge.get(u.id) ?? {};
+      per[def.id] = pend;
+      this.recharge.set(u.id, per);
+      u.cooldowns[def.id] = pend.length >= 1 + stored ? Math.min(...pend) : 0;
+      u.chargesUsed[def.id] = 0;
+      return;
+    }
     if ((u.cooldowns[def.id] ?? 0) > this.time) { u.chargesUsed[def.id] = (u.chargesUsed[def.id] ?? 0) + 1; return; }
     u.chargesUsed[def.id] = 0;
     u.cooldowns[def.id] = this.time + Math.round(def.cooldown * (this.modsOf(u).ability[def.id]?.cooldown ?? 1));
   }
 
+  private recharge = new Map<number, Record<string, number[]>>();
+  private storedFull(u: Unit, def: AbilityDef): boolean {
+    const stored = this.modsOf(u).ability[def.id]?.stored ?? 0;
+    if (!stored) return false;
+    const pend = (this.recharge.get(u.id)?.[def.id] ?? []).filter((t) => t > this.time);
+    return pend.length >= 1 + stored;
+  }
+  private costOf(u: Unit, def: AbilityDef): number {
+    return Math.round(def.cost * (this.modsOf(u).ability[def.id]?.cost ?? 1));
+  }
+  /** True when `u` stands in the rear arc of `t` (about 110 degrees either side of straight behind). */
+  private isBehind(u: Unit, t: Unit): boolean {
+    let d = Math.atan2(u.pos.x - t.pos.x, u.pos.z - t.pos.z) - t.facing;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    return Math.abs(d) >= (110 * Math.PI) / 180;
+  }
   private ground: { x: number; z: number } | null = null;
   /** Per-cast scratch values (see execute). */
   private cpSpent = 0;
@@ -511,11 +540,20 @@ export class ArenaSim {
 
   private execute(u: Unit, def: AbilityDef, tgt: Unit, ground?: { x: number; z: number }): void {
     this.ground = ground ?? null;
-    u.resource -= def.cost;
+    u.resource -= this.costOf(u, def);
     this.startCooldown(u, def);
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
 
+    const abMod = this.modsOf(u).ability[def.id];
+    if (abMod?.shadowProc && tgt !== u && tgt.team !== u.team && this.rng() < abMod.shadowProc) {
+      // a free Shadowstep first: land just behind the target (no combo points, unlike the real thing)
+      const p = resolveCollisions({ x: tgt.pos.x - Math.sin(tgt.facing) * 1.6, z: tgt.pos.z - Math.cos(tgt.facing) * 1.6 }, this.arena);
+      if (hasLOS(p, tgt.pos, this.arena)) {
+        u.pos = p;
+        u.facing = Math.atan2(tgt.pos.x - p.x, tgt.pos.z - p.z);
+      }
+    }
     // combo points spent, shatter-style empowering and stack eating, worked out once for the whole cast
     this.cpSpent = def.cpSpend ? u.cp : 0;
     this.empowerMult = 1;
@@ -533,12 +571,13 @@ export class ArenaSim {
           ? [...this.units.values()].filter((v) => v.alive && dist(u.pos, v.pos) <= (def.radius ?? 0) && (v === u || hasLOS(u.pos, v.pos, this.arena)))
           : [tgt];
 
-    for (const t of targets) for (const eff of def.effects) this.applyEffect(u, def, t, eff);
+    const effects = abMod?.extra ? [...def.effects, ...abMod.extra] : def.effects;
+    for (const t of targets) for (const eff of effects) this.applyEffect(u, def, t, eff);
     for (const id of this.modsOf(u).ability[def.id]?.after ?? []) this.applyAura(u, u, id);
     if (empowerAura) this.removeAura(u, empowerAura, 'consumed');
     if (eaten) this.removeAura(u, eaten, 'consumed');
     if (def.cpSpend) u.cp = 0;
-    if (def.cpGain) u.cp = Math.min(5, u.cp + def.cpGain);
+    if (def.cpGain) u.cp = Math.min(5 + this.modsOf(u).maxCp, u.cp + def.cpGain + (abMod?.cpChance && this.rng() < abMod.cpChance ? 1 : 0));
     this.cpSpent = 0;
     this.empowerMult = 1;
     this.stackMult = 1;
@@ -556,7 +595,10 @@ export class ArenaSim {
       case 'damage':
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
-        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) : 1) * this.empowerMult * this.stackMult, def.school, def.id);
+        this.dealDamage(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1) * (def.cpScale ? Math.max(1, this.cpSpent) * this.modsOf(u).cpPower : 1) * (def.behindMult && this.isBehind(u, t) ? def.behindMult : 1) * this.empowerMult * this.stackMult, def.school, def.id);
+        break;
+      case 'healMissing':
+        { const keep = u.lastCombatAt; this.heal(u, t, (t.maxHealth - t.health) * eff.pct, def.id); u.lastCombatAt = keep; } // a self-heal on Vanish must not put you back in combat
         break;
       case 'heal':
         if (eff.only === 'enemy' && t.team === u.team) break;
@@ -565,7 +607,7 @@ export class ArenaSim {
         break;
       case 'aura':
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
-        this.applyAura(u, eff.self ? u : t, eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent);
+        this.applyAura(u, eff.self ? u : t, eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower);
         break;
       case 'exsanguinate': {
         let bleed = 0;
@@ -575,7 +617,7 @@ export class ArenaSim {
           bleed += d.dot.amount * (a.dotMult ?? 1) * Math.max(0, Math.ceil((a.expiresAt - this.time) / d.dot.interval));
           a.dotMult = (a.dotMult ?? 1) * eff.bleedMult;
         }
-        this.dealDamage(u, t, (eff.perCp * Math.max(1, this.cpSpent) + bleed * eff.bleedFraction) * u.gearMult * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
+        this.dealDamage(u, t, (eff.perCp * Math.max(1, this.cpSpent) * this.modsOf(u).cpPower + bleed * eff.bleedFraction) * u.gearMult * this.modsOf(u).damageDone * (this.modsOf(u).ability[def.id]?.damage ?? 1), def.school, def.id);
         break;
       }
       case 'interrupt':
@@ -777,6 +819,8 @@ export class ArenaSim {
     if (def.duration > 0) duration += extraMs;
 
     const prior = tgt.auras.find((a) => a.id === auraId && a.sourceId === src.id);
+    const extend = this.modsOf(src).auraExtend[auraId];
+    if (prior && extend && def.duration > 0) duration = Math.min(def.duration * 4, Math.max(0, prior.expiresAt - this.time) + extend);
     tgt.auras = tgt.auras.filter((a) => !(a.id === auraId && a.sourceId === src.id));
     if (def.unique) {
       for (const v of this.units.values()) {
@@ -999,6 +1043,7 @@ export class ArenaSim {
       target: u.target, cast: u.cast, gcdEnd: u.gcdEnd, cooldowns,
       auras: u.auras.map((a) => ({ id: a.id, kind: a.kind, src: a.sourceId, expiresAt: isFinite(a.expiresAt) ? a.expiresAt : 0, ...(a.stacks ? { stacks: a.stacks } : {}) })),
       ...(u.cp > 0 ? { cp: u.cp } : {}),
+      ...(u.mods.maxCp ? { cpMax: 5 + u.mods.maxCp } : {}),
       ...(Object.values(u.lockouts).some((t) => (t ?? 0) > this.time) ? { lockouts: Object.fromEntries(Object.entries(u.lockouts).filter(([, t]) => (t ?? 0) > this.time)) } : {}),
       stealthed: this.isStealthed(u),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),

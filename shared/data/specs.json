@@ -281,7 +281,7 @@
    "id": "subtlety",
    "name": "Shade",
    "role": "Control / mobility",
-   "desc": "Slippery: Shadowstep and Sprint for repositioning. Sinister Strike builds combo points and Eviscerate spends them for big instant damage.",
+   "desc": "Slippery: Shadowstep (now worth 3 combo points) and Sprint for repositioning. Backstab hits twice as hard from behind the target and builds combo points; Eviscerate spends them for big instant damage.",
    "icon": "\ud83d\udc64",
    "bar": [
     "stealth",
@@ -290,7 +290,7 @@
     "shadowstep",
     "vanish",
     "sprint",
-    "sinister_strike",
+    "backstab",
     "eviscerate"
    ],
    "mods": {

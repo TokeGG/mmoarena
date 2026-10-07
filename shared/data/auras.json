@@ -373,5 +373,12 @@
   "duration": 12000,
   "harmful": false,
   "maxStacks": 5
+ },
+ "rogue_slow": {
+  "name": "Hobbled",
+  "kind": "slow",
+  "duration": 3000,
+  "harmful": true,
+  "slowPct": 10
  }
 }

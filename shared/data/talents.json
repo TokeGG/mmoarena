@@ -2225,133 +2225,127 @@
    [
     {
      "id": "rogue_t1a",
-     "name": "Sudden Escape",
-     "desc": "Sprint recharges 20% sooner and Vanish recharges 15% sooner.",
+     "name": "Smoke Veil",
+     "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
      "icon": "\ud83d\udca8",
      "mods": {
       "ability": {
-       "sprint": {
-        "cooldown": 0.8
-       },
        "vanish": {
-        "cooldown": 0.85
+        "extra": [
+         {
+          "type": "smoke",
+          "radius": 6,
+          "duration": 6000
+         }
+        ]
        }
       }
      }
     },
     {
      "id": "rogue_t1b",
-     "name": "Iron Palms",
-     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 20% sooner.",
-     "icon": "\u270a",
+     "name": "Twin Vanish",
+     "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
+     "icon": "\ud83c\udf2b\ufe0f",
      "mods": {
       "ability": {
-       "kick": {
-        "cooldown": 0.8
+       "vanish": {
+        "stored": 1
        }
-      },
-      "auraDuration": {
-       "kidney_shot": 1.25
       }
      }
     },
     {
      "id": "rogue_t1c",
-     "name": "Shadow Dancer",
-     "desc": "Sprint lasts 30% longer and Kidney Shot recharges 15% sooner.",
-     "icon": "\ud83c\udf11",
+     "name": "Shadow Mend",
+     "desc": "Vanishing heals you for 75% of your missing health.",
+     "icon": "\ud83d\udc9a",
      "mods": {
       "ability": {
-       "kidney_shot": {
-        "cooldown": 0.85
+       "vanish": {
+        "extra": [
+         {
+          "type": "healMissing",
+          "pct": 0.75
+         }
+        ]
        }
-      },
-      "auraDuration": {
-       "sprint": 1.3
       }
      }
     }
    ],
    [
     {
-     "id": "rogue_assassination_t2a",
-     "name": "Merciless Grip",
-     "desc": "Kidney Shot recharges 15% faster and all damage is increased by 4%.",
-     "icon": "\u270a",
+     "id": "rogue_t2a",
+     "name": "Quiet Reserves",
+     "desc": "Energy regenerates 20% faster.",
+     "icon": "\u26a1",
      "mods": {
-      "damageDone": 1.04,
-      "ability": {
-       "kidney_shot": {
-        "cooldown": 0.85
-       }
-      }
+      "regen": 1.2
      }
     },
     {
-     "id": "rogue_assassination_t2b",
-     "name": "Opening Gambit",
-     "desc": "Mutilate deals 12% more damage and all damage is increased by 4%.",
+     "id": "rogue_t2b",
+     "name": "Fleet Footed",
+     "desc": "You move 10% faster.",
+     "icon": "\ud83d\udc5f",
+     "mods": {
+      "moveSpeed": 1.1
+     }
+    },
+    {
+     "id": "rogue_t2c",
+     "name": "Deep Pockets",
+     "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
      "icon": "\ud83c\udfaf",
      "mods": {
-      "damageDone": 1.04,
-      "ability": {
-       "mutilate": {
-        "damage": 1.12
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_assassination_t2c",
-     "name": "Thick Hide",
-     "desc": "You take 5% less damage and have 5% more maximum health.",
-     "icon": "\ud83d\udee1\ufe0f",
-     "mods": {
-      "damageTaken": 0.95,
-      "maxHealth": 1.05
+      "maxCp": 3,
+      "cpPower": 1.15
      }
     }
    ],
    [
     {
      "id": "rogue_assassination_t3a",
-     "name": "Fleet of Foot",
-     "desc": "Sprint recharges 20% faster and you move 5% faster.",
-     "icon": "\ud83d\udc5f",
+     "name": "Efficient Cuts",
+     "desc": "Mutilate costs 10% less energy.",
+     "icon": "\ud83d\udde1\ufe0f",
      "mods": {
-      "moveSpeed": 1.05,
       "ability": {
-       "sprint": {
-        "cooldown": 0.8
+       "mutilate": {
+        "cost": 0.9
        }
       }
      }
     },
     {
      "id": "rogue_assassination_t3b",
-     "name": "Smoke and Shadows",
-     "desc": "Vanish recharges 20% faster.",
-     "icon": "\ud83d\udca8",
+     "name": "Festering Wounds",
+     "desc": "Mutilating a target that is already bleeding adds 3 seconds to the bleed instead of restarting it.",
+     "icon": "\ud83e\ude78",
      "mods": {
+      "auraExtend": {
+       "mutilate_bleed": 3000
+      },
       "ability": {
-       "vanish": {
-        "cooldown": 0.8
-       }
+       "mutilate": {}
       }
      }
     },
     {
      "id": "rogue_assassination_t3c",
-     "name": "Lingering Stun",
-     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 15% faster.",
-     "icon": "\ud83d\udcab",
+     "name": "Crippling Cuts",
+     "desc": "Mutilate slows the target by 10% for 3 seconds.",
+     "icon": "\ud83e\uddb6",
      "mods": {
-      "auraDuration": {
-       "kidney_shot": 1.25
-      },
       "ability": {
-       "kick": {
-        "cooldown": 0.85
+       "mutilate": {
+        "extra": [
+         {
+          "type": "aura",
+          "aura": "rogue_slow"
+         }
+        ]
        }
       }
      }
@@ -2467,135 +2461,126 @@
    [
     {
      "id": "rogue_t1a",
-     "name": "Sudden Escape",
-     "desc": "Sprint recharges 20% sooner and Vanish recharges 15% sooner.",
+     "name": "Smoke Veil",
+     "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
      "icon": "\ud83d\udca8",
      "mods": {
       "ability": {
-       "sprint": {
-        "cooldown": 0.8
-       },
        "vanish": {
-        "cooldown": 0.85
+        "extra": [
+         {
+          "type": "smoke",
+          "radius": 6,
+          "duration": 6000
+         }
+        ]
        }
       }
      }
     },
     {
      "id": "rogue_t1b",
-     "name": "Iron Palms",
-     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 20% sooner.",
-     "icon": "\u270a",
+     "name": "Twin Vanish",
+     "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
+     "icon": "\ud83c\udf2b\ufe0f",
      "mods": {
       "ability": {
-       "kick": {
-        "cooldown": 0.8
+       "vanish": {
+        "stored": 1
        }
-      },
-      "auraDuration": {
-       "kidney_shot": 1.25
       }
      }
     },
     {
      "id": "rogue_t1c",
-     "name": "Shadow Dancer",
-     "desc": "Sprint lasts 30% longer and Kidney Shot recharges 15% sooner.",
-     "icon": "\ud83c\udf11",
+     "name": "Shadow Mend",
+     "desc": "Vanishing heals you for 75% of your missing health.",
+     "icon": "\ud83d\udc9a",
      "mods": {
       "ability": {
-       "kidney_shot": {
-        "cooldown": 0.85
+       "vanish": {
+        "extra": [
+         {
+          "type": "healMissing",
+          "pct": 0.75
+         }
+        ]
        }
-      },
-      "auraDuration": {
-       "sprint": 1.3
       }
      }
     }
    ],
    [
     {
-     "id": "rogue_combat_t2a",
-     "name": "Adrenal Gland",
-     "desc": "Adrenaline Rush recharges 20% faster and you take 4% less damage.",
+     "id": "rogue_t2a",
+     "name": "Quiet Reserves",
+     "desc": "Energy regenerates 20% faster.",
      "icon": "\u26a1",
      "mods": {
-      "damageTaken": 0.96,
-      "ability": {
-       "adrenaline_rush": {
-        "cooldown": 0.8
-       }
-      }
+      "regen": 1.2
      }
     },
     {
-     "id": "rogue_combat_t2b",
-     "name": "Iron Constitution",
-     "desc": "Maximum health is increased by 7%.",
-     "icon": "\u2764\ufe0f",
+     "id": "rogue_t2b",
+     "name": "Fleet Footed",
+     "desc": "You move 10% faster.",
+     "icon": "\ud83d\udc5f",
      "mods": {
-      "maxHealth": 1.07
+      "moveSpeed": 1.1
      }
     },
     {
-     "id": "rogue_combat_t2c",
-     "name": "Relentless Strikes",
-     "desc": "Energy regenerates 20% faster and Sinister Strike deals 10% more damage.",
-     "icon": "\ud83d\udd25",
+     "id": "rogue_t2c",
+     "name": "Deep Pockets",
+     "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
+     "icon": "\ud83c\udfaf",
      "mods": {
-      "regen": 1.2,
-      "ability": {
-       "sinister_strike": {
-        "damage": 1.1
-       }
-      }
+      "maxCp": 3,
+      "cpPower": 1.15
      }
     }
    ],
    [
     {
      "id": "rogue_combat_t3a",
-     "name": "Quick Feet",
-     "desc": "Sprint recharges 20% faster and you move 6% faster.",
-     "icon": "\ud83d\udc5f",
+     "name": "Efficient Strikes",
+     "desc": "Sinister Strike costs 10% less energy.",
+     "icon": "\u2694\ufe0f",
      "mods": {
-      "moveSpeed": 1.06,
       "ability": {
-       "sprint": {
-        "cooldown": 0.8
+       "sinister_strike": {
+        "cost": 0.9
        }
       }
      }
     },
     {
      "id": "rogue_combat_t3b",
-     "name": "Slippery",
-     "desc": "Evasion and Vanish both recharge 15% faster.",
-     "icon": "\ud83d\udca8",
+     "name": "Double Tap",
+     "desc": "Sinister Strike has a 50% chance to generate 2 combo points instead of 1.",
+     "icon": "\ud83c\udfb2",
      "mods": {
       "ability": {
-       "evasion": {
-        "cooldown": 0.85
-       },
-       "vanish": {
-        "cooldown": 0.85
+       "sinister_strike": {
+        "cpChance": 0.5
        }
       }
      }
     },
     {
      "id": "rogue_combat_t3c",
-     "name": "Lingering Stun",
-     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 15% faster.",
-     "icon": "\ud83d\udcab",
+     "name": "Hobbling Strikes",
+     "desc": "Sinister Strike slows the target by 10% for 3 seconds.",
+     "icon": "\ud83e\uddb6",
      "mods": {
-      "auraDuration": {
-       "kidney_shot": 1.25
-      },
       "ability": {
-       "kick": {
-        "cooldown": 0.85
+       "sinister_strike": {
+        "extra": [
+         {
+          "type": "aura",
+          "aura": "rogue_slow"
+         }
+        ]
        }
       }
      }
@@ -2711,128 +2696,126 @@
    [
     {
      "id": "rogue_t1a",
-     "name": "Sudden Escape",
-     "desc": "Sprint recharges 20% sooner and Vanish recharges 15% sooner.",
+     "name": "Smoke Veil",
+     "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: only enemies and allies inside it can target each other.",
      "icon": "\ud83d\udca8",
      "mods": {
       "ability": {
-       "sprint": {
-        "cooldown": 0.8
-       },
        "vanish": {
-        "cooldown": 0.85
+        "extra": [
+         {
+          "type": "smoke",
+          "radius": 6,
+          "duration": 6000
+         }
+        ]
        }
       }
      }
     },
     {
      "id": "rogue_t1b",
-     "name": "Iron Palms",
-     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 20% sooner.",
-     "icon": "\u270a",
+     "name": "Twin Vanish",
+     "desc": "Vanish holds two charges, and each charge recharges on its own timer.",
+     "icon": "\ud83c\udf2b\ufe0f",
      "mods": {
       "ability": {
-       "kick": {
-        "cooldown": 0.8
+       "vanish": {
+        "stored": 1
        }
-      },
-      "auraDuration": {
-       "kidney_shot": 1.25
       }
      }
     },
     {
      "id": "rogue_t1c",
-     "name": "Shadow Dancer",
-     "desc": "Sprint lasts 30% longer and Kidney Shot recharges 15% sooner.",
-     "icon": "\ud83c\udf11",
+     "name": "Shadow Mend",
+     "desc": "Vanishing heals you for 75% of your missing health.",
+     "icon": "\ud83d\udc9a",
      "mods": {
       "ability": {
-       "kidney_shot": {
-        "cooldown": 0.85
+       "vanish": {
+        "extra": [
+         {
+          "type": "healMissing",
+          "pct": 0.75
+         }
+        ]
        }
-      },
-      "auraDuration": {
-       "sprint": 1.3
       }
      }
     }
    ],
    [
     {
-     "id": "rogue_subtlety_t2a",
-     "name": "Crushing Dark",
-     "desc": "Kidney Shot stuns for 50% longer.",
-     "icon": "\ud83d\udcab",
-     "mods": {
-      "auraDuration": {
-       "kidney_shot": 1.5
-      }
-     }
-    },
-    {
-     "id": "rogue_subtlety_t2b",
+     "id": "rogue_t2a",
      "name": "Quiet Reserves",
      "desc": "Energy regenerates 20% faster.",
-     "icon": "\ud83d\udd0b",
+     "icon": "\u26a1",
      "mods": {
       "regen": 1.2
      }
     },
     {
-     "id": "rogue_subtlety_t2c",
-     "name": "Phantom Guard",
-     "desc": "Maximum health is increased by 6% and Eviscerate deals 8% more damage.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "id": "rogue_t2b",
+     "name": "Fleet Footed",
+     "desc": "You move 10% faster.",
+     "icon": "\ud83d\udc5f",
      "mods": {
-      "maxHealth": 1.06,
-      "ability": {
-       "eviscerate": {
-        "damage": 1.08
-       }
-      }
+      "moveSpeed": 1.1
+     }
+    },
+    {
+     "id": "rogue_t2c",
+     "name": "Deep Pockets",
+     "desc": "Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point.",
+     "icon": "\ud83c\udfaf",
+     "mods": {
+      "maxCp": 3,
+      "cpPower": 1.15
      }
     }
    ],
    [
     {
      "id": "rogue_subtlety_t3a",
-     "name": "Long Step",
-     "desc": "Shadowstep recharges 20% faster and reaches 5 yards further.",
-     "icon": "\ud83c\udf00",
+     "name": "Efficient Backstab",
+     "desc": "Backstab costs 10% less energy.",
+     "icon": "\ud83d\udd2a",
      "mods": {
       "ability": {
-       "shadowstep": {
-        "cooldown": 0.8,
-        "range": 5
+       "backstab": {
+        "cost": 0.9
        }
       }
      }
     },
     {
      "id": "rogue_subtlety_t3b",
-     "name": "Fleet Shade",
-     "desc": "Sprint lasts 25% longer and you move 5% faster.",
-     "icon": "\ud83d\udc5f",
+     "name": "Shadow Flicker",
+     "desc": "Backstab has a 10% chance to first Shadowstep you behind the target for free (no combo points).",
+     "icon": "\ud83d\udc64",
      "mods": {
-      "auraDuration": {
-       "sprint": 1.25
-      },
-      "moveSpeed": 1.05
+      "ability": {
+       "backstab": {
+        "shadowProc": 0.1
+       }
+      }
      }
     },
     {
      "id": "rogue_subtlety_t3c",
-     "name": "Vanishing Act",
-     "desc": "Vanish recharges 20% faster and Kick recharges 15% faster.",
-     "icon": "\ud83d\udca8",
+     "name": "Hobbling Backstab",
+     "desc": "Backstab slows the target by 10% for 3 seconds.",
+     "icon": "\ud83e\uddb6",
      "mods": {
       "ability": {
-       "vanish": {
-        "cooldown": 0.8
-       },
-       "kick": {
-        "cooldown": 0.85
+       "backstab": {
+        "extra": [
+         {
+          "type": "aura",
+          "aura": "rogue_slow"
+         }
+        ]
        }
       }
      }
