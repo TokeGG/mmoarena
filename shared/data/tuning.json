@@ -1,6 +1,6 @@
 {
   "tickMs": 50,
-  "gcdMs": 1500,
+  "gcdMs": 1000,
   "runSpeed": 7,
   "drResetMs": 18000,
   "drSteps": [

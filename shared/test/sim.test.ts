@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ArenaSim, AURAS, CLASSES, TUNING, arenaById, parseClientMsg } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, TUNING, arenaById, parseClientMsg } from '../src/index';
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -338,6 +338,21 @@ describe('stealth', () => {
     assert.equal(mage.cast, null, 'instant');
     assert.ok(foe.health < hp, 'hit at once');
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
+  });
+
+  it('global cooldown is 1 s for every class', () => {
+    for (const [cls, ms] of [['mage', 1000], ['priest', 1000], ['warrior', 1000], ['rogue', 1000]] as const) {
+      const sim = live();
+      const u = add(sim, cls, 0, 0, 0);
+      const foe = add(sim, 'warrior', 1, 2, 0);
+      advance(sim, TICK);
+      const ab = u.bar.find((id) => { const d = ABILITIES[id]; return d.gcd && d.castTime === 0 && !d.requiresStealth && !d.requiresTargetCasting && !d.outOfCombatOnly && (d.target === 'self' || d.target === 'aoe_enemy' || d.target === 'enemy') && !d.effects.some((e) => e.type === 'charge' || e.type === 'dashToTarget'); });
+      assert.ok(ab, `${cls} has an instant gcd skill`);
+      u.resource = u.resourceMax;
+      u.facing = Math.PI / 2;
+      assert.ok(sim.useAbility(u.id, ab, foe.id).ok, `${cls} ${ab}`);
+      assert.equal(u.gcdEnd - sim.time, ms, cls);
+    }
   });
 
   it('twin rift lets blink be cast twice per cooldown, then it is on cooldown', () => {

@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, TUNING } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { applyName, avatarImg } from './nameStyle';
 import type { ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
@@ -273,14 +273,17 @@ export class Hud {
 
     // action bar
     const gcdLeft = Math.max(0, me.gcdEnd - now);
+    const gcdTotal = TUNING.gcdMs;
     for (const s of this.slots) {
       const def = ABILITIES[s.ability];
       const cd = Math.max(me.cooldowns[s.ability] ? me.cooldowns[s.ability] - now : 0, def.gcd ? gcdLeft : 0);
-      const total = me.cooldowns[s.ability] && me.cooldowns[s.ability] - now >= gcdLeft ? def.cooldown || 1500 : 1500;
+      const total = me.cooldowns[s.ability] && me.cooldowns[s.ability] - now >= gcdLeft ? def.cooldown || gcdTotal : gcdTotal;
       const frac = Math.min(1, cd / total);
       s.cd.classList.toggle('hidden', cd <= 50);
       s.cd.style.background = `conic-gradient(rgba(0,0,0,.72) ${frac * 360}deg, rgba(0,0,0,.08) 0)`;
-      (s.cd.firstChild as HTMLElement).textContent = cd > 1500 ? String(Math.ceil(cd / 1000)) : cd > 50 && total > 1500 ? (cd / 1000).toFixed(1) : '';
+      (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
+      // a proc (Hot Streak) makes this slot glow while it is active
+      s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability));
       s.root.classList.toggle('unusable', me.resource < def.cost || !me.alive);
       s.root.classList.toggle('casting', me.cast?.ability === s.ability);
       s.root.classList.toggle('aiming', this.aimingId === s.ability);
