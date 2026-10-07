@@ -362,7 +362,7 @@ export class MainMenu {
         card.append(head, el('div', 'mm-spec-desc', spec.desc), kit);
         tip(card, `spec:${this.classId}:${spec.id}`);
         card.addEventListener('click', () => {
-          if (this.build.spec !== spec.id) this.build.talents = talentsFor(this.classId, spec.id).map(() => ''); // talents belong to a spec
+          if (this.build.spec !== spec.id) this.build.talents = talentsFor(this.classId, spec.id).map((tier, i) => (tier.some((t) => t.id === this.build.talents[i]) ? this.build.talents[i] : '')); // talents belong to a spec; tier I is shared, so that pick stays
           this.build.spec = spec.id;
           this.commit();
         });

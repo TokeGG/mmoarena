@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.41.0
+# WoW-style Arena · v0.41.1
 
 A 3D third-person arena game in the style of WoW arena that runs in your browser. Tab-target combat, 1v1, 2v2 or 3v3, four classes with specs and talents, bots to practice against (opponents are always random classes, rolled each time you press Practice), ranked matches, friends and parties, replays and live spectating. Nothing to download or install.
 
@@ -43,7 +43,8 @@ Four classes: Warrior (rage), Mage (mana), Priest (mana), Rogue (energy). Each h
 
 **Talents belong to your spec (0.41):** each of the 12 specs has its own six tiers, three options each, tailored to what that spec does.
 
-- **Tiers I to III:** buffs for that spec's own abilities (damage, healing, cooldowns, longer slows and stuns, survivability). Tier III is the utility tier; for mages it is the **Blink tier** (two blinks per cooldown, a run-speed burst after blinking, or faster casts after blinking).
+- **Tier I (shared, 0.41.1):** the same three talents for all three specs of a class; they only modify the skills every spec of that class has (for example Mage: Polymorph, Counterspell, Blink). Your tier I pick carries over when you change spec.
+- **Tiers II and III:** buffs for that spec's own abilities (damage, healing, cooldowns, longer slows and stuns, survivability). Tier III is the utility tier; for mages it is the **Blink tier** (two blinks per cooldown, a run-speed burst after blinking, or faster casts after blinking).
 - **Tiers IV, V and VI (skill replacements):** each choice adds an ability that takes the place of one bar slot (tier IV, V and VI each replace a different slot, so you can take all three; the tooltip says what you give up). Every spec has nine abilities it can bring in this way. Switching spec clears your talent picks.
 - New abilities with the rework: Rogue **Garrote** (a bleed) and **Fan of Knives** (area hit).
 

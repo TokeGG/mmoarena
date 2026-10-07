@@ -3,41 +3,51 @@
   "arms": [
    [
     {
-     "id": "warrior_arms_t1a",
-     "name": "Crushing Blows",
-     "desc": "Mortal Strike deals 20% more damage.",
-     "icon": "\ud83d\udd28",
+     "id": "warrior_t1a",
+     "name": "Hunter's Reach",
+     "desc": "Charge recharges 20% sooner and its stun lasts 20% longer; Hamstring's slow lasts 30% longer.",
+     "icon": "\ud83c\udff9",
      "mods": {
       "ability": {
-       "mortal_strike": {
-        "damage": 1.2
+       "charge": {
+        "cooldown": 0.8
        }
+      },
+      "auraDuration": {
+       "charge_stun": 1.2,
+       "hamstring_slow": 1.3
       }
      }
     },
     {
-     "id": "warrior_arms_t1b",
-     "name": "Sharpened Edge",
-     "desc": "Mortal Strike has a 15% shorter cooldown and Whirlwind deals 10% more damage.",
-     "icon": "\ud83d\udde1\ufe0f",
+     "id": "warrior_t1b",
+     "name": "Whirling Fury",
+     "desc": "Whirlwind deals 20% more damage and recharges 15% sooner.",
+     "icon": "\ud83c\udf2a\ufe0f",
      "mods": {
       "ability": {
-       "mortal_strike": {
-        "cooldown": 0.85
-       },
        "whirlwind": {
-        "damage": 1.1
+        "damage": 1.2,
+        "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "warrior_arms_t1c",
-     "name": "Warlord's Will",
-     "desc": "All damage you deal is 6% higher.",
-     "icon": "\ud83d\udc51",
+     "id": "warrior_t1c",
+     "name": "Hardened Veteran",
+     "desc": "Pummel recharges 20% sooner and Enraged Regeneration recharges 20% sooner and heals 15% more.",
+     "icon": "\ud83d\udee1\ufe0f",
      "mods": {
-      "damageDone": 1.06
+      "ability": {
+       "pummel": {
+        "cooldown": 0.8
+       },
+       "enraged_regeneration": {
+        "cooldown": 0.8,
+        "heal": 1.15
+       }
+      }
      }
     }
    ],
@@ -246,41 +256,51 @@
   "fury": [
    [
     {
-     "id": "warrior_fury_t1a",
-     "name": "Savage Strikes",
-     "desc": "Bloodthirst deals 20% more damage.",
-     "icon": "\ud83e\ude78",
+     "id": "warrior_t1a",
+     "name": "Hunter's Reach",
+     "desc": "Charge recharges 20% sooner and its stun lasts 20% longer; Hamstring's slow lasts 30% longer.",
+     "icon": "\ud83c\udff9",
      "mods": {
       "ability": {
-       "bloodthirst": {
-        "damage": 1.2
+       "charge": {
+        "cooldown": 0.8
        }
+      },
+      "auraDuration": {
+       "charge_stun": 1.2,
+       "hamstring_slow": 1.3
       }
      }
     },
     {
-     "id": "warrior_fury_t1b",
-     "name": "Relentless Pace",
-     "desc": "Bloodthirst has a 15% shorter cooldown and Whirlwind deals 10% more damage.",
-     "icon": "\u26a1",
+     "id": "warrior_t1b",
+     "name": "Whirling Fury",
+     "desc": "Whirlwind deals 20% more damage and recharges 15% sooner.",
+     "icon": "\ud83c\udf2a\ufe0f",
      "mods": {
       "ability": {
-       "bloodthirst": {
-        "cooldown": 0.85
-       },
        "whirlwind": {
-        "damage": 1.1
+        "damage": 1.2,
+        "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "warrior_fury_t1c",
-     "name": "Blood Frenzy",
-     "desc": "All damage you deal is 6% higher.",
-     "icon": "\ud83d\ude21",
+     "id": "warrior_t1c",
+     "name": "Hardened Veteran",
+     "desc": "Pummel recharges 20% sooner and Enraged Regeneration recharges 20% sooner and heals 15% more.",
+     "icon": "\ud83d\udee1\ufe0f",
      "mods": {
-      "damageDone": 1.06
+      "ability": {
+       "pummel": {
+        "cooldown": 0.8
+       },
+       "enraged_regeneration": {
+        "cooldown": 0.8,
+        "heal": 1.15
+       }
+      }
      }
     }
    ],
@@ -480,13 +500,30 @@
   "protection": [
    [
     {
-     "id": "warrior_protection_t1a",
-     "name": "Shield Mastery",
-     "desc": "Shield Slam deals 20% more damage and has a 15% shorter cooldown.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "id": "warrior_t1a",
+     "name": "Hunter's Reach",
+     "desc": "Charge recharges 20% sooner and its stun lasts 20% longer; Hamstring's slow lasts 30% longer.",
+     "icon": "\ud83c\udff9",
      "mods": {
       "ability": {
-       "shield_slam": {
+       "charge": {
+        "cooldown": 0.8
+       }
+      },
+      "auraDuration": {
+       "charge_stun": 1.2,
+       "hamstring_slow": 1.3
+      }
+     }
+    },
+    {
+     "id": "warrior_t1b",
+     "name": "Whirling Fury",
+     "desc": "Whirlwind deals 20% more damage and recharges 15% sooner.",
+     "icon": "\ud83c\udf2a\ufe0f",
+     "mods": {
+      "ability": {
+       "whirlwind": {
         "damage": 1.2,
         "cooldown": 0.85
        }
@@ -494,26 +531,20 @@
      }
     },
     {
-     "id": "warrior_protection_t1b",
-     "name": "Thunderous Whirl",
-     "desc": "Whirlwind deals 25% more damage and has a 15% shorter cooldown.",
-     "icon": "\ud83c\udf00",
+     "id": "warrior_t1c",
+     "name": "Hardened Veteran",
+     "desc": "Pummel recharges 20% sooner and Enraged Regeneration recharges 20% sooner and heals 15% more.",
+     "icon": "\ud83d\udee1\ufe0f",
      "mods": {
       "ability": {
-       "whirlwind": {
-        "damage": 1.25,
-        "cooldown": 0.85
+       "pummel": {
+        "cooldown": 0.8
+       },
+       "enraged_regeneration": {
+        "cooldown": 0.8,
+        "heal": 1.15
        }
       }
-     }
-    },
-    {
-     "id": "warrior_protection_t1c",
-     "name": "Vengeful Guard",
-     "desc": "All damage you deal is 8% higher.",
-     "icon": "\ud83d\ude24",
-     "mods": {
-      "damageDone": 1.08
      }
     }
    ],
@@ -720,46 +751,51 @@
   "frost": [
    [
     {
-     "id": "mage_frost_t1a",
-     "name": "Piercing Shards",
-     "desc": "Ice Lance deals 20% more damage and its cooldown is 15% shorter.",
-     "icon": "\ud83d\udde1\ufe0f",
+     "id": "mage_t1a",
+     "name": "Quick Snuff",
+     "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
+     "icon": "\ud83d\udeab",
      "mods": {
       "ability": {
-       "ice_lance": {
-        "damage": 1.2,
+       "counterspell": {
+        "cooldown": 0.75
+       },
+       "blink": {
+        "cooldown": 0.9
+       }
+      }
+     }
+    },
+    {
+     "id": "mage_t1b",
+     "name": "Sheepish",
+     "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+     "icon": "\ud83d\udc11",
+     "mods": {
+      "ability": {
+       "polymorph": {
+        "castTime": 0.75
+       }
+      },
+      "auraDuration": {
+       "polymorph": 1.25
+      }
+     }
+    },
+    {
+     "id": "mage_t1c",
+     "name": "Arcane Insight",
+     "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
+     "icon": "\ud83d\udd2e",
+     "mods": {
+      "ability": {
+       "polymorph": {
+        "castTime": 0.85
+       },
+       "counterspell": {
         "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_frost_t1b",
-     "name": "Bitter Cold",
-     "desc": "Frostbolt deals 10% more damage and its slow lasts 30% longer.",
-     "icon": "\ud83e\udd76",
-     "mods": {
-      "auraDuration": {
-       "frostbolt_slow": 1.3
-      },
-      "ability": {
-       "frostbolt": {
-        "damage": 1.1
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_frost_t1c",
-     "name": "Permafrost",
-     "desc": "Frost Nova roots for 40% longer and its cooldown is 15% shorter.",
-     "icon": "\ud83e\uddca",
-     "mods": {
-      "auraDuration": {
-       "frost_nova_root": 1.4
-      },
-      "ability": {
-       "frost_nova": {
+       },
+       "blink": {
         "cooldown": 0.85
        }
       }
@@ -961,43 +997,51 @@
   "fire": [
    [
     {
-     "id": "mage_fire_t1a",
-     "name": "Molten Core",
-     "desc": "Pyroblast deals 20% more damage.",
-     "icon": "\u2604\ufe0f",
+     "id": "mage_t1a",
+     "name": "Quick Snuff",
+     "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
+     "icon": "\ud83d\udeab",
      "mods": {
       "ability": {
-       "pyroblast": {
-        "damage": 1.2
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_fire_t1b",
-     "name": "Searing Heat",
-     "desc": "Scorch deals 25% more damage and Fireball 10% more damage.",
-     "icon": "\ud83c\udf0b",
-     "mods": {
-      "ability": {
-       "scorch": {
-        "damage": 1.25
+       "counterspell": {
+        "cooldown": 0.75
        },
-       "fireball": {
-        "damage": 1.1
+       "blink": {
+        "cooldown": 0.9
        }
       }
      }
     },
     {
-     "id": "mage_fire_t1c",
-     "name": "Fire Starter",
-     "desc": "Flamestrike deals 20% more damage and its cooldown is 15% shorter.",
-     "icon": "\ud83d\udd25",
+     "id": "mage_t1b",
+     "name": "Sheepish",
+     "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+     "icon": "\ud83d\udc11",
      "mods": {
       "ability": {
-       "flamestrike": {
-        "damage": 1.2,
+       "polymorph": {
+        "castTime": 0.75
+       }
+      },
+      "auraDuration": {
+       "polymorph": 1.25
+      }
+     }
+    },
+    {
+     "id": "mage_t1c",
+     "name": "Arcane Insight",
+     "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
+     "icon": "\ud83d\udd2e",
+     "mods": {
+      "ability": {
+       "polymorph": {
+        "castTime": 0.85
+       },
+       "counterspell": {
+        "cooldown": 0.85
+       },
+       "blink": {
         "cooldown": 0.85
        }
       }
@@ -1199,47 +1243,52 @@
   "arcane": [
    [
     {
-     "id": "mage_arcane_t1a",
-     "name": "Arcane Concentration",
-     "desc": "Arcane Missiles deals 20% more damage and its cooldown is 15% shorter.",
-     "icon": "\ud83c\udf20",
+     "id": "mage_t1a",
+     "name": "Quick Snuff",
+     "desc": "Counterspell cooldown is 25% shorter and Blink cooldown is 10% shorter.",
+     "icon": "\ud83d\udeab",
      "mods": {
       "ability": {
-       "arcane_missiles": {
-        "damage": 1.2,
-        "cooldown": 0.85
-       }
-      }
-     }
-    },
-    {
-     "id": "mage_arcane_t1b",
-     "name": "Impact",
-     "desc": "Arcane Blast deals 10% more damage and Arcane Barrage 20% more damage.",
-     "icon": "\ud83d\udcab",
-     "mods": {
-      "ability": {
-       "arcane_blast": {
-        "damage": 1.1
+       "counterspell": {
+        "cooldown": 0.75
        },
-       "arcane_barrage": {
-        "damage": 1.2
+       "blink": {
+        "cooldown": 0.9
        }
       }
      }
     },
     {
-     "id": "mage_arcane_t1c",
-     "name": "Slipstream",
-     "desc": "Arcane Missiles casts 15% faster and Arcane Barrage cooldown is 20% shorter.",
-     "icon": "\ud83c\udf00",
+     "id": "mage_t1b",
+     "name": "Sheepish",
+     "desc": "Polymorph casts 25% faster and lasts 25% longer.",
+     "icon": "\ud83d\udc11",
      "mods": {
       "ability": {
-       "arcane_missiles": {
+       "polymorph": {
+        "castTime": 0.75
+       }
+      },
+      "auraDuration": {
+       "polymorph": 1.25
+      }
+     }
+    },
+    {
+     "id": "mage_t1c",
+     "name": "Arcane Insight",
+     "desc": "Polymorph casts 15% faster, and Counterspell and Blink recharge 15% sooner.",
+     "icon": "\ud83d\udd2e",
+     "mods": {
+      "ability": {
+       "polymorph": {
         "castTime": 0.85
        },
-       "arcane_barrage": {
-        "cooldown": 0.8
+       "counterspell": {
+        "cooldown": 0.85
+       },
+       "blink": {
+        "cooldown": 0.85
        }
       }
      }
@@ -1449,26 +1498,26 @@
   "discipline": [
    [
     {
-     "id": "priest_discipline_t1a",
-     "name": "Bulwark of Faith",
-     "desc": "Power Word: Shield lasts 40% longer and its cooldown is 10% shorter.",
-     "icon": "\ud83d\udee1\ufe0f",
+     "id": "priest_t1a",
+     "name": "Quick Mending",
+     "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
+     "icon": "\ud83d\udc96",
      "mods": {
-      "auraDuration": {
-       "pw_shield": 1.4
-      },
       "ability": {
-       "power_word_shield": {
-        "cooldown": 0.9
+       "flash_heal": {
+        "heal": 1.1
        }
+      },
+      "auraDuration": {
+       "pw_shield": 1.3
       }
      }
     },
     {
-     "id": "priest_discipline_t1b",
-     "name": "Penitent Wounds",
-     "desc": "Smite deals 20% more damage and Smite casts 10% faster.",
-     "icon": "\u26a1",
+     "id": "priest_t1b",
+     "name": "Holy Fire",
+     "desc": "Smite deals 20% more damage and casts 10% faster.",
+     "icon": "\ud83d\udd25",
      "mods": {
       "ability": {
        "smite": {
@@ -1479,18 +1528,18 @@
      }
     },
     {
-     "id": "priest_discipline_t1c",
-     "name": "Steady Mending",
-     "desc": "Greater Heal heals 10% more and Flash Heal casts 8% faster.",
-     "icon": "\ud83d\udc96",
+     "id": "priest_t1c",
+     "name": "Dread Voice",
+     "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
+     "icon": "\ud83d\udce2",
      "mods": {
       "ability": {
-       "greater_heal": {
-        "heal": 1.1
-       },
-       "flash_heal": {
-        "castTime": 0.92
+       "psychic_scream": {
+        "cooldown": 0.8
        }
+      },
+      "auraDuration": {
+       "psychic_scream": 1.25
       }
      }
     }
@@ -1688,45 +1737,49 @@
   "holy": [
    [
     {
-     "id": "priest_holy_t1a",
-     "name": "Radiant Surge",
-     "desc": "Greater Heal heals 12% more and Flash Heal heals 8% more.",
-     "icon": "\ud83c\udf1f",
+     "id": "priest_t1a",
+     "name": "Quick Mending",
+     "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
+     "icon": "\ud83d\udc96",
      "mods": {
       "ability": {
-       "greater_heal": {
-        "heal": 1.12
-       },
        "flash_heal": {
-        "heal": 1.08
+        "heal": 1.1
+       }
+      },
+      "auraDuration": {
+       "pw_shield": 1.3
+      }
+     }
+    },
+    {
+     "id": "priest_t1b",
+     "name": "Holy Fire",
+     "desc": "Smite deals 20% more damage and casts 10% faster.",
+     "icon": "\ud83d\udd25",
+     "mods": {
+      "ability": {
+       "smite": {
+        "damage": 1.2,
+        "castTime": 0.9
        }
       }
      }
     },
     {
-     "id": "priest_holy_t1b",
-     "name": "Quickened Prayer",
-     "desc": "Flash Heal casts 12% faster and Greater Heal casts 8% faster.",
-     "icon": "\u23e9",
+     "id": "priest_t1c",
+     "name": "Dread Voice",
+     "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
+     "icon": "\ud83d\udce2",
      "mods": {
       "ability": {
-       "flash_heal": {
-        "castTime": 0.88
-       },
-       "greater_heal": {
-        "castTime": 0.92
+       "psychic_scream": {
+        "cooldown": 0.8
        }
+      },
+      "auraDuration": {
+       "psychic_scream": 1.25
       }
-     }
-    },
-    {
-     "id": "priest_holy_t1c",
-     "name": "Deep Wellspring",
-     "desc": "Resource regeneration is 25% faster and all healing is 4% stronger.",
-     "icon": "\ud83d\udca7",
-     "mods": {
-      "regen": 1.25,
-      "healingDone": 1.04
      }
     }
    ],
@@ -1927,48 +1980,48 @@
   "shadow": [
    [
     {
-     "id": "priest_shadow_t1a",
-     "name": "Festering Pain",
-     "desc": "Shadow Word: Pain deals 20% more damage and lasts 30% longer.",
-     "icon": "\ud83d\udd78\ufe0f",
+     "id": "priest_t1a",
+     "name": "Quick Mending",
+     "desc": "Flash Heal heals 10% more and Power Word: Shield lasts 30% longer.",
+     "icon": "\ud83d\udc96",
      "mods": {
       "ability": {
-       "plague_bloom": {
-        "damage": 1.2
+       "flash_heal": {
+        "heal": 1.1
        }
       },
       "auraDuration": {
-       "plague_bloom": 1.3
+       "pw_shield": 1.3
       }
      }
     },
     {
-     "id": "priest_shadow_t1b",
-     "name": "Searing Mind",
-     "desc": "Mind Blast deals 20% more damage and its cooldown is 15% shorter.",
-     "icon": "\ud83e\udde0",
+     "id": "priest_t1b",
+     "name": "Holy Fire",
+     "desc": "Smite deals 20% more damage and casts 10% faster.",
+     "icon": "\ud83d\udd25",
      "mods": {
       "ability": {
-       "mind_blast": {
+       "smite": {
         "damage": 1.2,
-        "cooldown": 0.85
+        "castTime": 0.9
        }
       }
      }
     },
     {
-     "id": "priest_shadow_t1c",
-     "name": "Grave Whisper",
-     "desc": "Shadow Word: Death damage over time is 25% stronger and lasts 40% longer.",
-     "icon": "\ud83d\udc80",
+     "id": "priest_t1c",
+     "name": "Dread Voice",
+     "desc": "Psychic Scream recharges 20% sooner and its fear lasts 25% longer.",
+     "icon": "\ud83d\udce2",
      "mods": {
       "ability": {
-       "shadow_word_death": {
-        "damage": 1.25
+       "psychic_scream": {
+        "cooldown": 0.8
        }
       },
       "auraDuration": {
-       "creeping_rot": 1.4
+       "psychic_scream": 1.25
       }
      }
     }
@@ -2170,41 +2223,51 @@
   "assassination": [
    [
     {
-     "id": "rogue_assassination_t1a",
-     "name": "Venomous Edge",
-     "desc": "Mutilate deals 20% more damage.",
-     "icon": "\u2620\ufe0f",
+     "id": "rogue_t1a",
+     "name": "Sudden Escape",
+     "desc": "Sprint recharges 20% sooner and Vanish recharges 15% sooner.",
+     "icon": "\ud83d\udca8",
      "mods": {
       "ability": {
-       "mutilate": {
-        "damage": 1.2
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_assassination_t1b",
-     "name": "Cold Blooded",
-     "desc": "Adrenaline Rush recharges 15% faster and Mutilate deals 10% more damage.",
-     "icon": "\ud83e\ude78",
-     "mods": {
-      "ability": {
-       "adrenaline_rush": {
-        "cooldown": 0.85
+       "sprint": {
+        "cooldown": 0.8
        },
-       "mutilate": {
-        "damage": 1.1
+       "vanish": {
+        "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "rogue_assassination_t1c",
-     "name": "Deadly Poise",
-     "desc": "All damage you deal is increased by 6%.",
-     "icon": "\ud83d\udde1\ufe0f",
+     "id": "rogue_t1b",
+     "name": "Iron Palms",
+     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 20% sooner.",
+     "icon": "\u270a",
      "mods": {
-      "damageDone": 1.06
+      "ability": {
+       "kick": {
+        "cooldown": 0.8
+       }
+      },
+      "auraDuration": {
+       "kidney_shot": 1.25
+      }
+     }
+    },
+    {
+     "id": "rogue_t1c",
+     "name": "Shadow Dancer",
+     "desc": "Evasion lasts 30% longer and recharges 15% sooner.",
+     "icon": "\ud83c\udf11",
+     "mods": {
+      "ability": {
+       "evasion": {
+        "cooldown": 0.85
+       }
+      },
+      "auraDuration": {
+       "evasion": 1.3
+      }
      }
     }
    ],
@@ -2402,41 +2465,51 @@
   "combat": [
    [
     {
-     "id": "rogue_combat_t1a",
-     "name": "Blade Flurry",
-     "desc": "Sinister Strike deals 20% more damage.",
-     "icon": "\ud83c\udf2a\ufe0f",
+     "id": "rogue_t1a",
+     "name": "Sudden Escape",
+     "desc": "Sprint recharges 20% sooner and Vanish recharges 15% sooner.",
+     "icon": "\ud83d\udca8",
      "mods": {
       "ability": {
-       "sinister_strike": {
-        "damage": 1.2
-       }
-      }
-     }
-    },
-    {
-     "id": "rogue_combat_t1b",
-     "name": "Adrenaline Surge",
-     "desc": "Adrenaline Rush lasts 25% longer and recharges 15% faster.",
-     "icon": "\u26a1",
-     "mods": {
-      "auraDuration": {
-       "adrenaline_rush": 1.25
-      },
-      "ability": {
-       "adrenaline_rush": {
+       "sprint": {
+        "cooldown": 0.8
+       },
+       "vanish": {
         "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "rogue_combat_t1c",
-     "name": "Duelist's Grit",
-     "desc": "All damage you deal is increased by 6%.",
-     "icon": "\ud83d\udcaa",
+     "id": "rogue_t1b",
+     "name": "Iron Palms",
+     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 20% sooner.",
+     "icon": "\u270a",
      "mods": {
-      "damageDone": 1.06
+      "ability": {
+       "kick": {
+        "cooldown": 0.8
+       }
+      },
+      "auraDuration": {
+       "kidney_shot": 1.25
+      }
+     }
+    },
+    {
+     "id": "rogue_t1c",
+     "name": "Shadow Dancer",
+     "desc": "Evasion lasts 30% longer and recharges 15% sooner.",
+     "icon": "\ud83c\udf11",
+     "mods": {
+      "ability": {
+       "evasion": {
+        "cooldown": 0.85
+       }
+      },
+      "auraDuration": {
+       "evasion": 1.3
+      }
      }
     }
    ],
@@ -2634,39 +2707,51 @@
   "subtlety": [
    [
     {
-     "id": "rogue_subtlety_t1a",
-     "name": "Shadow Dance",
-     "desc": "Sinister Strike deals 15% more damage and all damage is increased by 4%.",
-     "icon": "\ud83c\udf18",
+     "id": "rogue_t1a",
+     "name": "Sudden Escape",
+     "desc": "Sprint recharges 20% sooner and Vanish recharges 15% sooner.",
+     "icon": "\ud83d\udca8",
      "mods": {
-      "damageDone": 1.04,
       "ability": {
-       "sinister_strike": {
-        "damage": 1.15
+       "sprint": {
+        "cooldown": 0.8
+       },
+       "vanish": {
+        "cooldown": 0.85
        }
       }
      }
     },
     {
-     "id": "rogue_subtlety_t1b",
-     "name": "Veil of Night",
-     "desc": "Stealth recharges 25% faster so you can re-enter the shadows quickly.",
+     "id": "rogue_t1b",
+     "name": "Iron Palms",
+     "desc": "Kidney Shot stuns for 25% longer and Kick recharges 20% sooner.",
+     "icon": "\u270a",
+     "mods": {
+      "ability": {
+       "kick": {
+        "cooldown": 0.8
+       }
+      },
+      "auraDuration": {
+       "kidney_shot": 1.25
+      }
+     }
+    },
+    {
+     "id": "rogue_t1c",
+     "name": "Shadow Dancer",
+     "desc": "Evasion lasts 30% longer and recharges 15% sooner.",
      "icon": "\ud83c\udf11",
      "mods": {
       "ability": {
-       "stealth": {
-        "cooldown": 0.75
+       "evasion": {
+        "cooldown": 0.85
        }
+      },
+      "auraDuration": {
+       "evasion": 1.3
       }
-     }
-    },
-    {
-     "id": "rogue_subtlety_t1c",
-     "name": "Cloak of Shadow",
-     "desc": "You take 6% less damage.",
-     "icon": "\ud83e\udde5",
-     "mods": {
-      "damageTaken": 0.94
      }
     }
    ],

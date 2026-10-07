@@ -87,7 +87,7 @@ describe('cosmetics', () => {
     assert.equal(validateBuild('mage', build('fire' + 'x')).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['bogus'])).ok, false);
     assert.equal(validateBuild('mage', build('frost', ['', '', '', '', '', '', 'extra'])).ok, false);
-    assert.equal(validateBuild('mage', build('frost', [specTalents('mage', 'fire')[0][0].id])).ok, false, 'a talent of another spec is invalid');
+    assert.equal(validateBuild('mage', build('frost', ['', specTalents('mage', 'fire')[1][0].id])).ok, false, 'a talent of another spec is invalid');
     assert.equal(validateBuild('mage', build('frost', [specTalents('mage', 'frost')[0][0].id, '', specTalents('mage', 'frost')[2][1].id])).ok, true);
   });
 
