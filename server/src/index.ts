@@ -11,6 +11,7 @@ import { Accounts } from './accounts';
 import { createStore } from './store';
 import { BotLearner, MeasureWorker } from './botlearn';
 import { DevTools } from './devtools';
+import { AdminLog } from './adminlog';
 import { Suggestions } from './suggestions';
 import { AVATAR_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
@@ -65,7 +66,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
   // dev tuning: numbers saved in game apply over the data files for everyone, and are proposed as pull requests
   const devTools = new DevTools(store, process.env);
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools);
+  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store));
 
   const server = http.createServer((req, res) => {
     let url: URL;

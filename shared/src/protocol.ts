@@ -2,13 +2,16 @@ import { ABILITIES, ARENAS, CLASSES, SPECS } from './data';
 import { validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
-import type { AccountInfo, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
+import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
 export const PROTOCOL_VERSION = 9;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
+/** What the owner can do from the admin panel. */
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log'];
 /** A running match in the owner's admin panel. */
 export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
 /** What a unit is playing with, shown to people watching a match. */
@@ -86,6 +89,8 @@ export type ClientMsg =
   | { t: 'admin_announce'; text: string }
   | { t: 'admin_end'; id: string }
   | { t: 'overrides_clear' }
+  /** Owner moderation and server control from the admin panel (see AdminAct). */
+  | { t: 'admin_act'; act: AdminAct; name?: string; minutes?: number; reason?: string; value?: number; text?: string; id?: string; on?: boolean }
   /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
   | { t: 'follow'; name: string | null }
   | { t: 'bot_match'; size: TeamSize; teams: [BotPick[], BotPick[]]; difficulty: 'easy' | 'normal' | 'hard'; map: string }
@@ -132,8 +137,10 @@ export type ServerMsg =
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
-  /** Owner admin panel: who is online and every match running (private ones included). */
-  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[] }
+  /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
+  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null }
+  | { t: 'admin_log'; rows: AdminLogRow[] }
+  | { t: 'admin_history'; name: string; rows: MatchRecord[] }
   /** For people watching: every unit's spec, talents and ability bar. */
   | { t: 'builds'; units: UnitBuild[] }
   /** Who the owner is following into their matches (null: nobody). */
@@ -359,6 +366,33 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'admin_end', id: m.id };
     case 'overrides_clear':
       return { t: 'overrides_clear' };
+    case 'admin_act': {
+      if (!ADMIN_ACTS.includes(m.act)) return null;
+      const out: Extract<ClientMsg, { t: 'admin_act' }> = { t: 'admin_act', act: m.act };
+      if (m.name !== undefined) {
+        if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
+        out.name = m.name;
+      }
+      if (m.minutes !== undefined) {
+        if (typeof m.minutes !== 'number' || !Number.isFinite(m.minutes) || m.minutes < 0 || m.minutes > 60 * 24 * 3650) return null;
+        out.minutes = m.minutes;
+      }
+      if (m.value !== undefined) {
+        if (typeof m.value !== 'number' || !Number.isFinite(m.value)) return null;
+        out.value = m.value;
+      }
+      if (typeof m.reason === 'string') out.reason = m.reason.slice(0, 200);
+      if (typeof m.text === 'string') out.text = m.text.slice(0, 1000);
+      if (m.id !== undefined) {
+        if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
+        out.id = m.id;
+      }
+      if (m.on !== undefined) out.on = m.on === true;
+      // the acts on a player need a name, the ones on a match an id
+      if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history'].includes(out.act) && !out.name) return null;
+      if (out.act === 'pause_match' && !out.id) return null;
+      return out;
+    }
     case 'follow':
       if (m.name === null) return { t: 'follow', name: null };
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;

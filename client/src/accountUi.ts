@@ -20,6 +20,8 @@ export interface AccountHooks {
   onAccount(account: AccountInfo | null): void;
   /** Open a recorded match for playback. */
   onReplay(id: string): void;
+  /** Open the owner's admin panel. */
+  openAdmin?(): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -61,7 +63,7 @@ export class AccountUi {
   private matches: MatchRecord[] | null = null;
   private pendingResume: ((v: void) => void) | null = null;
   private settledPromise: Promise<void> = Promise.resolve();
-  private owner = new OwnerPanel({ send: (m) => this.hooks.send(m), token: () => this.token, rerender: () => this.modal && this.renderModal() });
+  private owner = new OwnerPanel({ send: (m) => this.hooks.send(m), token: () => this.token, rerender: () => this.modal && this.renderModal(), openAdmin: () => { this.closeModal(); this.hooks.openAdmin?.(); } });
 
   constructor(private hooks: AccountHooks) {
     this.chip.addEventListener('click', () => (this.account ? this.openProfile() : this.openAuth()));
@@ -81,6 +83,11 @@ export class AccountUi {
 
   /** True when the server keeps accounts in memory only (they vanish on restart). */
   private ephemeral = false;
+
+  /** Send through the account's connection (opened if needed). */
+  sendRaw(m: ClientMsg): void {
+    this.hooks.send(m);
+  }
 
   get token(): string {
     return store.get(SESSION_KEY);
@@ -153,6 +160,8 @@ export class AccountUi {
       case 'admin_overview':
       case 'overrides':
       case 'dev_result':
+      case 'admin_log':
+      case 'admin_history':
         this.owner.handle(m);
         break;
       case 'history':

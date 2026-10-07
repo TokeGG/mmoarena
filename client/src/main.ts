@@ -26,6 +26,7 @@ import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { DataLayers, DevPanel } from './devPanel';
+import { AdminPanel } from './adminPanel';
 import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
@@ -287,6 +288,12 @@ function onMessage(raw: MessageEvent) {
     case 'admin_accounts':
     case 'admin_result':
       accountUi.handle(m);
+      adminPanel.handle(m);
+      break;
+    case 'admin_log':
+    case 'admin_history':
+      accountUi.handle(m);
+      adminPanel.handle(m);
       break;
     case 'settings':
       if (!latest) settingsSync.onServer(m.data, accountUi.account?.name ?? 'default');
@@ -324,16 +331,20 @@ function onMessage(raw: MessageEvent) {
     case 'overrides':
       dataLayers.setLive(m.patches);
       accountUi.handle(m);
+      adminPanel.handle(m);
       break;
     case 'dev_state':
       devPanel.handle(m);
       break;
     case 'dev_result':
+      if (!m.ok && latest) hud.error(m.text); // a refusal is said where it is seen, not only in the panel
       devPanel.handle(m);
       accountUi.handle(m);
+      adminPanel.handle(m);
       break;
     case 'admin_overview':
       accountUi.handle(m);
+      adminPanel.handle(m);
       break;
     case 'following':
       following = m.name;
@@ -365,6 +376,7 @@ function onMessage(raw: MessageEvent) {
     case 'suggest_ack':
     case 'suggestions':
       suggestUi.handle(m);
+      adminPanel.handle(m);
       break;
     case 'rematch':
       endChoice.update(m.ready, m.total, m.you);
@@ -763,7 +775,7 @@ controls.onKey = (code, e) => {
     if (!spec) send({ t: 'dev_builds' });
     return void buildsPanel.toggle();
   }
-  if (code === 'F2' && !spec && !binds.actionForEvent(e)) {
+  if (code === 'F2' && (!spec || spec.kind === 'live') && !binds.actionForEvent(e)) {
     e.preventDefault();
     return void devPanel.toggle();
   }
@@ -1035,7 +1047,8 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
-  devPanel.setAvailable(false); // dev tools are for your own match, not for watching
+  devPanel.setAvailable(false); // test numbers never carry over from a match you played
+  if (accountUi.account?.ownerOk && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched
   audio.ambience(arena.theme);
   you = 0;
   team = 0;
@@ -1090,6 +1103,7 @@ function endSpectateState() {
   spec = null;
   spectateBar.hide();
   buildsPanel.clear();
+  devPanel.setAvailable(false);
   document.body.classList.remove('spectating');
   you = 0;
 }
@@ -1245,6 +1259,7 @@ function sendReady(on: boolean) {
 const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
   onReplay: (id) => void startReplay(id),
+  openAdmin: () => adminPanel.open(),
   send: (m) => {
     if (ws && ws.readyState === WebSocket.OPEN) send(m);
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
@@ -1253,6 +1268,13 @@ const accountUi = new AccountUi({
     flags.owner = a?.role === 'owner';
     friendsUi.setAccount(a?.name ?? null);
     paintHeader();
+    // the admin panel follows the account (unlocking the owner code there opens the rest of it)
+    queueMicrotask(() => {
+      if (adminPanel.isOpen) {
+        if (a?.role === 'owner') adminPanel.open();
+        else adminPanel.close();
+      }
+    });
     if (a) applyAccountProgress(a.matches, a.wins);
     else {
       restoreGuestProgress();
@@ -1277,6 +1299,15 @@ const friendsUi = new FriendsUi({
   },
 });
 const suggestUi = new SuggestUi({ send: (m) => send(m), isOwner: () => !!accountUi.account?.ownerOk, signedIn: () => !!accountUi.account, needSignIn: () => accountUi.openAuth() });
+/** The owner's admin panel (its own window, from the 🛡 button). */
+const adminPanel = new AdminPanel({
+  send: (m) => accountUi.sendRaw(m),
+  token: () => accountUi.token ?? '',
+  account: () => accountUi.account,
+  watch: (id) => send({ t: 'spectate', id }),
+  follow: (name) => send({ t: 'follow', name }),
+});
+registerPopup(adminPanel.popup);
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
 const header = buildHeaderBar([
@@ -1285,12 +1316,14 @@ const header = buildHeaderBar([
   { icon: 'patches', label: 'Patch notes', onClick: () => mainMenu.openPatches() },
   { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive() },
   { icon: 'suggest', label: 'Suggestions', onClick: () => suggestUi.open() },
+  { icon: 'admin', label: 'Admin panel', onClick: () => adminPanel.open() },
 ]);
 const paintHeader = () => {
   const a = accountUi.account;
   const b = header.buttons.profile;
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
+  header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner'); // only the founder account sees the admin button
 };
 paintHeader();
 menuExtras.append(header.root, friendsUi.partyChip);
