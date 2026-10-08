@@ -234,14 +234,14 @@ const menu = new Menu(binds, {
   onEditHud: () => (latest ? hudLayout.start() : editHudFromMenu()),
 });
 const hudLayout = new HudLayout();
-/** The HUD editor was opened from the main menu (over a pretend fight), not in a match. */
-let editingFromMenu = false;
-hudLayout.onChange = (editing) => {
+// the HUD editor opened from the main menu (over a pretend fight) is tracked by the editor itself (hudEditState.ts)
+hudLayout.onChange = (editing, restoreMenu) => {
   controls.enabled = !editing;
   if (editing) controls.releaseAll();
-  if (!editing && editingFromMenu) {
-    editingFromMenu = false;
+  if (!editing) {
     document.body.classList.remove('hud-demo');
+  }
+  if (!editing && restoreMenu) {
     // finished editing from the main menu: put the menu back (unless a match started meanwhile)
     if (!latest && !spec && you === 0) {
       hud.show(false);
@@ -254,16 +254,12 @@ hudLayout.onChange = (editing) => {
 function clearMenuLayers() {
   closeAllPopups();
   menu.close();
-  if (hudLayout.editing) {
-    editingFromMenu = false; // the editor must not bring the menu back over the match that is starting
-    hudLayout.stop();
-  }
+  hudLayout.stop(true); // the editor must not bring the menu back over the match that is starting
   document.body.classList.remove('hud-demo');
 }
 
 /** Edit the HUD before a match: show it filled with a pretend fight, over the menu's 3D backdrop. */
 function editHudFromMenu() {
-  editingFromMenu = true;
   document.body.classList.add('hud-demo');
   const c = mainMenu.selectedClass;
   mainMenu.show(false);
@@ -271,7 +267,7 @@ function editHudFromMenu() {
   relabel();
   hud.show(true);
   hudLayout.refit();
-  hudLayout.start();
+  hudLayout.start(true);
 }
 let leaving = false;
 const relabel = () => {
@@ -477,6 +473,7 @@ function onMessage(raw: MessageEvent) {
     case 'suggest_ack':
     case 'proposals':
     case 'train_status':
+    case 'bot_knowledge':
       adminPanel.handle(m);
       break;
     case 'suggestions':
@@ -974,11 +971,8 @@ window.addEventListener('keydown', (e) => {
 const joiningNow = () => document.getElementById('join')?.classList.contains('hidden') ?? false;
 controls.onKey = (code, e) => {
   if (code === 'Escape') {
+    if (hudLayout.editing) return hudLayout.stop(); // before anything else: Esc always leaves the HUD editor
     if (aiming) return void setAiming(null);
-    if (hudLayout.editing) {
-      hudLayout.stop();
-      return;
-    }
     // Esc closes the menu if open, else clears the target, else opens the menu (WoW behaviour).
     if (menu.isOpen) menu.back();
     else if (!latest) {

@@ -921,6 +921,29 @@ export class Lobby {
         void this.trainOnReplay(by, () => acc.getReplay(msg.id!), msg.id!);
         break;
       }
+      case 'train_passes': {
+        // the owner's forced training: the same replay, several passes (1..5), so its lessons count several times
+        if (!acc || !this.learner) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        void this.trainOnReplay(by, () => acc.getReplay(msg.id!), msg.id!, { passes: msg.value });
+        break;
+      }
+      case 'train_all': {
+        if (!this.learner) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        void this.trainOnArchive(by, msg.value);
+        break;
+      }
+      case 'bot_knowledge':
+        send(p, this.botKnowledgeMsg());
+        break;
+      case 'bot_reset': {
+        if (!this.learner) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        await this.learner.resetBrain();
+        log('reset the learned bot brain');
+        await this.adminLog?.add(by, 'reset learned bot brain', 'all classes');
+        send(p, { t: 'dev_result', ok: true, text: 'Every class is back on the brain it ships with. What the bots learned (lessons, habits, counters and the log) is cleared.' });
+        for (const q of this.conns) if (q.ownerOk) send(q, this.botKnowledgeMsg());
+        break;
+      }
       case 'train_status':
         send(p, this.trainStatusMsg());
         break;
@@ -934,6 +957,45 @@ export class Lobby {
   /** Milliseconds of measuring per replay tick, learned from finished jobs (0 = not known yet). */
   private msPerTick = 0;
   private trainTimer: ReturnType<typeof setInterval> | null = null;
+
+  private botKnowledgeMsg(): Extract<ServerMsg, { t: 'bot_knowledge' }> {
+    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [] };
+  }
+
+  /** Train on every archived replay in turn, with the progress shown in the queue like any other job. */
+  async trainOnArchive(by: string, passes?: number): Promise<{ ok: boolean; text: string }> {
+    const id = 'all-archived';
+    if (!this.learner) return { ok: false, text: 'Bot learning is not running on this server.' };
+    const running = this.trainRuns.get(id);
+    if (running) return running;
+    const job: TrainJobRow = { id, state: 'training', startedAt: Date.now(), etaMs: 60000, progress: { done: 0, total: 0, skipped: 0 } };
+    this.trainJobs.set(id, job);
+    this.pushTrain();
+    const run = (async (): Promise<{ ok: boolean; text: string }> => {
+      try {
+        const report = await this.learner!.trainArchive((p) => {
+          job.progress = p;
+          // the time left from the pace so far
+          if (p.done > 0) job.etaMs = Math.round(((Date.now() - job.startedAt) / p.done) * p.total);
+          this.pushTrain();
+        }, { passes });
+        job.state = 'done';
+        job.report = report;
+        job.text = report.headline;
+        void this.adminLog?.add(by, 'train bots on all archived replays', undefined, `${report.replaysRead} read, ${report.skipped} skipped`);
+      } catch {
+        job.state = 'failed';
+        job.text = 'Training on the archive failed.';
+      }
+      job.finishedAt = Date.now();
+      this.trainRuns.delete(id);
+      this.pushTrain();
+      for (const q of this.conns) if (q.ownerOk) send(q, this.botKnowledgeMsg());
+      return { ok: job.state === 'done', text: job.text ?? '' };
+    })();
+    this.trainRuns.set(id, run);
+    return run;
+  }
 
   private trainStatusMsg(): Extract<ServerMsg, { t: 'train_status' }> {
     const jobs = [...this.trainJobs.values()].sort((a, b) => b.startedAt - a.startedAt);
@@ -957,7 +1019,7 @@ export class Lobby {
    * Train the bots on a replay the owner picked (from the match list) or uploaded: gzipped or plain JSON. Logged in the
    * admin log; resolves to a message fit to show.
    */
-  async trainOnReplay(by: string, source: Buffer | (() => Promise<Buffer | null>), id: string): Promise<{ ok: boolean; text: string }> {
+  async trainOnReplay(by: string, source: Buffer | (() => Promise<Buffer | null>), id: string, opts: { passes?: number } = {}): Promise<{ ok: boolean; text: string }> {
     if (!this.learner) return { ok: false, text: 'Bot learning is not running on this server.' };
     const running = this.trainRuns.get(id);
     if (running) return running; // already training on it
@@ -995,7 +1057,7 @@ export class Lobby {
       const started = Date.now();
       let r: Awaited<ReturnType<BotLearner['trainOn']>>;
       try {
-        r = await this.learner!.trainOn(replay, id);
+        r = await this.learner!.trainOn(replay, id, { passes: opts.passes });
       } catch {
         return finish({ ok: false, text: 'Training on that replay failed.' });
       }
@@ -1003,10 +1065,13 @@ export class Lobby {
         const per = (Date.now() - started) / replay.ticks;
         this.msPerTick = this.msPerTick ? this.msPerTick * 0.6 + per * 0.4 : per;
       }
-      void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? `${r.lessons} bot${r.lessons === 1 ? '' : 's'} learned` : r.reason);
-      const habits = r.ok && r.habits ? `, and ${r.habits} player${r.habits === 1 ? '\u2019s' : 's\u2019'} habits were studied` : '';
-      // the learner has already put the new brains into the population, so the next bots spawned play with them
-      return finish(r.ok ? { ok: true, text: `${r.lessons} bot class${r.lessons === 1 ? '' : 'es'} took lessons from it${habits}. The bots already play with what they learned.` } : { ok: false, text: r.reason });
+      void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? r.report.headline.slice(0, 200) : r.reason);
+      if (r.ok) {
+        job.report = r.report;
+        for (const q of this.conns) if (q.ownerOk) send(q, this.botKnowledgeMsg());
+      }
+      // the learner has already put the new brains into the population, so the next bots spawned can draw them
+      return finish(r.ok ? { ok: true, text: r.report.headline } : { ok: false, text: r.reason });
     })();
     this.trainRuns.set(id, run);
     return run;

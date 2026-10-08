@@ -88,9 +88,13 @@ export const WEAPONS: Record<string, WeaponDef> = {
   // Barbarian: the Tyra polearm, carried diagonally across the body in both hands
   polearm: {
     url: '/models/weapons/polearm.glb',
-    right: { part: 'weapon', rot: [-0.378, -0.47, -1.611] },
+    right: { part: 'weapon', rot: [-0.379, -0.488, -1.659] },
     mid: 1.3,
-    hold: { r: { x: 0.097, z: 0.306, e: -1.304 }, l: { x: 0.033, z: -1.179, e: -1.705 }, walk: 0.3, arc: 0.6 },
+    // Both fists on the haft, the left hand reaching across at chest height. The old pose swung the left arm 68 degrees across the
+    // chest (z -1.18), which the knight's shoulder skin cannot follow: 320 edges of the shoulder, chest and neck stretched past 2.5x
+    // (up to 24x) and tore into shards. This one keeps the arm in front of the shoulder (z -0.4): 55 edges, none longer than 0.14 yd.
+    // `elbowArc: 0` keeps both fists rigid on the haft through a swing; `arc` 0.4 raises the weapon without dragging the shoulders past what the skin tolerates.
+    hold: { r: { x: 0.1, z: 0.2, e: -0.7 }, l: { x: -0.2, z: -0.4, e: -1.4 }, walk: 0.3, arc: 0.4, elbowArc: 0 },
   },
   // The mage staffs (Old Wizard, models.ts / riggedClips.ts). `rot` stands the staff up the way the wizard's own staff was held in
   // his idle clip (prep-character.mjs measures it: leaning 9 degrees forward); the grip is at the staff's middle, the head `mid` above it.

@@ -3,6 +3,7 @@ import { validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
+import type { ClassKnowledge, LearnReport } from './learnreport';
 import type { SlimSnapshot, UnitInfo } from './snapslim';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
@@ -11,12 +12,12 @@ export const PROTOCOL_VERSION = 10;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel. */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset'];
 /** A running match in the owner's admin panel. */
-export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
 /** One connection on the owner's "Online now" list (guests included). */
 export interface AdminOnline { name: string; guest: boolean; ip: string; where: string; status: string; sinceMs: number }
+export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
 /** One replay the bots are training on (or just trained on), for the admin panel's progress bars. */
 export interface TrainJobRow {
   id: string;
@@ -27,6 +28,10 @@ export interface TrainJobRow {
   finishedAt?: number;
   /** What came of it. */
   text?: string;
+  /** Exactly what was learned: mistakes found, numbers moved, or why nothing was. */
+  report?: LearnReport;
+  /** A batch (train on everything archived): replays done, of how many, and skipped. */
+  progress?: { done: number; total: number; skipped: number };
 }
 /** A change a dev sent to the owner's admin panel with "Send to the admin panel"; nothing in it is live until the owner acts. */
 export interface ProposalRow {
@@ -184,6 +189,8 @@ export type ServerMsg =
   | { t: 'proposals'; rows: ProposalRow[] }
   /** The replays the bots are training on right now and the ones just finished. */
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
+  /** Owner only: what the bots know now against what shipped, and the last reports of what they learned. */
+  | { t: 'bot_knowledge'; classes: ClassKnowledge[]; reports: LearnReport[] }
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */
@@ -503,7 +510,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.on !== undefined) out.on = m.on === true;
       // the acts on a player need a name, the ones on a match an id
       if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history', 'kill'].includes(out.act) && !out.name) return null;
-      if ((out.act === 'pause_match' || out.act === 'train') && !out.id) return null;
+      if ((out.act === 'pause_match' || out.act === 'train' || out.act === 'train_passes') && !out.id) return null;
+      if (out.act === 'train_passes' && !(out.value !== undefined && Number.isInteger(out.value) && out.value >= 1 && out.value <= 5)) return null;
       return out;
     }
     case 'follow':

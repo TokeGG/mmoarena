@@ -1,5 +1,6 @@
 import { clamp } from '@arena/shared';
 import { controlColor } from './hudText';
+import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
 import { LOOK_OPTIONS, loadLook, look, resetLook, setLook } from './hudLook';
 
 /**
@@ -39,6 +40,9 @@ const TARGETS: [string, string][] = [
   ['help', 'Help text'],
   ['err', 'Error text'],
   ['ccstate', 'Stun text'],
+  ['netstats', 'Network stats'],
+  ['mute-btn', 'Sound button'],
+  ['devbtn', 'Dev button'],
 ];
 const KEY = 'arena.hud.v1';
 const STYLE_KEY = 'arena.hud.style.v1';
@@ -103,8 +107,13 @@ export function parseLayout(rawIn: unknown, ids: string[], width: number, height
 export const HUD_ELEMENTS = TARGETS.map(([id]) => id);
 
 export class HudLayout {
-  editing = false;
-  onChange: (editing: boolean) => void = () => {};
+  /** Open / close state (see hudEditState.ts); `editing` is read all over main.ts. */
+  private st: HudEditState = EDIT_IDLE;
+  get editing(): boolean {
+    return this.st.editing;
+  }
+  /** The editor opened or closed; on closing, `restoreMenu` says it was opened over the main menu and that menu should come back. */
+  onChange: (editing: boolean, restoreMenu?: boolean) => void = () => {};
   private data: Record<string, Slot> = {};
   private bar: HTMLElement;
   private drag: { id: string; px: number; py: number; dx: number; dy: number } | null = null;
@@ -167,6 +176,12 @@ export class HudLayout {
       e.dataset.hud = label;
       e.addEventListener('pointerdown', (ev) => this.down(ev, id));
       e.addEventListener('wheel', (ev) => this.wheel(ev, id), { passive: false });
+      // a button (sound, dev tools) dragged in the editor must not also be clicked
+      e.addEventListener('click', (ev) => {
+        if (!this.editing) return;
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+      }, true);
     }
     window.addEventListener('pointermove', (ev) => this.move(ev));
     window.addEventListener('pointerup', () => {
@@ -181,8 +196,8 @@ export class HudLayout {
     requestAnimationFrame(() => this.fitAll());
   }
 
-  start() {
-    this.editing = true;
+  start(fromMenu = false) {
+    this.st = openEditor(this.st, fromMenu);
     document.body.classList.add('hud-edit');
     for (const [id] of TARGETS) this.addGrip(id);
     this.bar.classList.remove('hidden');
@@ -190,22 +205,47 @@ export class HudLayout {
     this.paintSelection();
     this.paintGrid();
     window.addEventListener('keydown', this.keyHandler);
+    window.addEventListener('keydown', this.escHandler, true);
     this.onChange(true);
   }
 
-  stop() {
-    if (!this.editing) return;
-    this.editing = false;
+  /** Leave the editor and put everything back; safe to call twice. `matchStarted`: a match is starting, so the main menu must not come back. */
+  stop(matchStarted = false) {
+    const was = this.st.editing;
+    const closed = closeEditor(this.st, matchStarted);
+    this.st = closed.state;
     this.drag = null;
-    document.body.classList.remove('hud-edit');
+    this.sizing = null;
+    this.selected = null;
+    for (const c of EDIT_BODY_CLASSES) document.body.classList.remove(c);
+    for (const [tid] of TARGETS) document.getElementById(tid)?.classList.remove('hud-selected');
     for (const g of this.grips.values()) g.remove();
     this.grips.clear();
     this.bar.classList.add('hidden');
     this.gridEl.classList.add('hidden');
     window.removeEventListener('keydown', this.keyHandler);
-    this.save();
-    this.onChange(false);
+    window.removeEventListener('keydown', this.escHandler, true);
+    const a = document.activeElement;
+    if (a instanceof HTMLElement && this.bar.contains(a)) a.blur(); // a drop-down left focused would otherwise keep swallowing keys
+    if (!was) return;
+    try {
+      this.save();
+    } finally {
+      this.onChange(false, closed.restoreMenu);
+    }
   }
+
+  /**
+   * Escape leaves the editor wherever the keyboard focus is. The game's own key handler ignores keys typed into a
+   * drop-down (the editor is full of them), so without this a press after choosing a preset did nothing. Capture phase:
+   * it runs before the game's handler, which must not also open the menu on the same press.
+   */
+  private escHandler = (ev: KeyboardEvent) => {
+    if (!leavesEditor(this.st, ev.code, ev.repeat)) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    this.stop();
+  };
 
   /** Switch skin and move every element to the preset's spots. Works while editing (elements are measured as laid out). */
   setStyle(id: string) {
@@ -263,7 +303,8 @@ export class HudLayout {
     const panel = mk('div', 'he-panel');
     const head = mk('div', 'he-head');
     head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Drag the corner to change width and height (double-click it for the natural size). Scroll to scale. Arrow keys nudge the last one you moved.'));
-    const done = mk('button', 'primary', 'Done');
+    const done = mk('button', 'primary', 'Done (Esc)');
+    done.title = 'Save and leave the editor (Esc)';
     done.addEventListener('click', () => this.stop());
     const reset = mk('button', '', 'Reset all');
     reset.addEventListener('click', () => this.reset());
@@ -309,7 +350,7 @@ export class HudLayout {
     row2.append(toggle('Show grid', () => this.grid.show, (v) => (this.grid.show = v)), toggle('Snap to grid and centre', () => this.grid.snap, (v) => (this.grid.snap = v)), sizeLabel, mk('small', '', 'Hold Alt while dragging to ignore snapping.'));
 
     // look options
-    const TEXT_GROUPS = ['Error text', 'Stun text'];
+    const TEXT_GROUPS = ['Error text', 'Stun text', 'Network stats'];
     const lookGrid = (summary: string, pick: (o: (typeof LOOK_OPTIONS)[number]) => boolean, open = false) => {
       const details = document.createElement('details');
       details.className = 'he-look';
@@ -338,7 +379,7 @@ export class HudLayout {
       return details;
     };
     const details = lookGrid('Frames, health bars, nameplates and slots', (o) => !TEXT_GROUPS.includes(o.group ?? ''));
-    const textDetails = lookGrid('Error text and stun text (drag them in the editor too)', (o) => TEXT_GROUPS.includes(o.group ?? ''));
+    const textDetails = lookGrid('Error text, stun text and network stats (drag them in the editor too)', (o) => TEXT_GROUPS.includes(o.group ?? ''));
     // live preview of both texts on a dark and a light floor, drawn by the same variables as the real ones
     const prev = mk('div', 'he-prev');
     this.prevErr = mk('span', 'he-prev-err', 'Out of range');

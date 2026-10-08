@@ -1,12 +1,29 @@
 import { promisify } from 'node:util';
-import { gzip as gzipCb } from 'node:zlib';
+import { gunzip as gunzipCb, gzip as gzipCb } from 'node:zlib';
 import { cpus } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import { CLASS_IDS, contentHash, forcedStudy, freshenPopulation, lessonBrain, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, styledBrain } from '@arena/shared';
-import type { Brain, ClassId, HumanStyle, Lessons, Population, ReplayData, StudyOptions } from '@arena/shared';
+import { BRAIN_BOUNDS, CLASS_IDS, MISTAKE_LABELS, brainDiff, mistakeLines, brainFor, buildReport, contentHash, forcedStudy, freshenPopulation, lessonBrain, limitChange, mergeLessons, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, sanityClamp, styledBrain, sumLines } from '@arena/shared';
+import type { Brain, ClassId, ClassKnowledge, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, Population, ReplayData, StudyOptions } from '@arena/shared';
 import type { Store } from './store';
 
 const gzip = promisify(gzipCb);
+const gunzip = promisify(gunzipCb);
+
+/** How many reports of what the bots learned are kept for the owner, newest first. */
+export const REPORTS_MAX = 50;
+const REPORTS_KEY = 'botreports';
+const STAT_KEY = (c: ClassId) => `botstat:${c}`;
+/** Per class: replays that taught it, when last, and the mistakes seen so far by label. */
+interface LearnStat { replays: number; lastAt: number | null; mistakes: Record<string, number>; /** Small graded adjustments added up per number. */ nudge?: Partial<Record<keyof Brain, number>>; /** How far (share of its range) each number may drift from the shipped brain; widened when a number reaches its limit. */ room?: Partial<Record<keyof Brain, number>> }
+/** One replay never moves a number by more than this share of its range (times the passes, up to 3). */
+const STEP_LIMIT = 0.2;
+/** However much is learned, a number stays within this share of its range of the shipped brain. */
+const DRIFT_LIMIT = 0.6;
+/** One graded nudge moves a number this share of its range at full strength (a loss; a win counts half). */
+const NUDGE_STEP = 0.04;
+/** A number at its drift limit gets this much more room, up to ROOM_MAX. */
+const ROOM_WIDEN = 0.1;
+const ROOM_MAX = 0.95;
 
 type Measured = ReturnType<typeof readReplay>;
 /**
@@ -125,6 +142,8 @@ export class BotLearner {
   private styles = new Map<ClassId, HumanStyle>();
   private lessons = new Map<ClassId, Lessons>();
   private ledger: Ledger = {};
+  private stats = new Map<ClassId, LearnStat>();
+  private reports: LearnReport[] = [];
   private ready: Promise<void>;
   /** Archive writes run one after another, so two matches ending together never lose each other's index entry. */
   private archiving: Promise<void> = Promise.resolve();
@@ -157,6 +176,19 @@ export class BotLearner {
       } catch {
         /* nothing learned yet */
       }
+      try {
+        const raw = await this.store.get(STAT_KEY(c));
+        if (raw) this.stats.set(c, JSON.parse(raw) as LearnStat);
+      } catch {
+        /* no counters yet */
+      }
+    }
+    try {
+      const raw = await this.store.get(REPORTS_KEY);
+      const v = raw ? (JSON.parse(raw) as unknown) : null;
+      if (Array.isArray(v)) this.reports = v as LearnReport[];
+    } catch {
+      /* no log yet */
     }
     try {
       const raw = await this.store.get(LEDGER_KEY);
@@ -212,23 +244,25 @@ export class BotLearner {
    * style, then keep a "human" variant (the best bot brain pulled towards that style) in the population. It competes with
    * the others like any variant, so people's habits only stick if they win against people.
    */
-  async learnFrom(replay: ReplayData, matchId?: string): Promise<void> {
+  async learnFrom(replay: ReplayData, matchId?: string): Promise<LearnReport | null> {
+    await this.ready;
     if (matchId) this.archive(matchId, replay);
     let measured: Measured;
     try {
       measured = await this.measure(replay);
     } catch {
-      return; // an unreadable recording teaches nothing
+      return null; // an unreadable recording teaches nothing
     }
-    this.apply(measured);
+    return this.learn(measured, { replayId: matchId ?? 'live', source: 'auto', passes: 1, log: true });
   }
 
   /**
    * The owner chose this replay to train on (from the match list, or an uploaded file): learn from it now, and keep it
-   * for offline study. A bots-only match teaches its losers through its winners. Resolves to how many bots learned
-   * something, or a reason it could not be used.
+   * for offline study. A bots-only match teaches its losers through its winners. `passes` (1..5) repeats the lesson, so
+   * the evidence counts several times. Resolves to the report of what was learned, or a reason it could not be used.
    */
-  async trainOn(replay: ReplayData, id: string): Promise<{ ok: true; lessons: number; habits: number } | { ok: false; reason: string }> {
+  async trainOn(replay: ReplayData, id: string, o: { passes?: number; source?: LearnSource; log?: boolean } = {}): Promise<{ ok: true; lessons: number; habits: number; report: LearnReport } | { ok: false; reason: string }> {
+    await this.ready;
     if (replay.hash !== contentHash(replay.tickMs)) return { ok: false, reason: 'That replay was recorded on an older version of the game, so it cannot be played back the same.' };
     const opts = forcedStudy(replay);
     if (!opts) return { ok: false, reason: 'Nothing to learn: no people played in it and nobody won.' };
@@ -238,11 +272,123 @@ export class BotLearner {
     } catch {
       return { ok: false, reason: 'That replay could not be played back.' };
     }
-    this.apply(measured);
+    const passes = Math.max(1, Math.min(5, Math.round(o.passes ?? 1)));
+    const report = this.learn(measured, { replayId: id, source: o.source ?? 'owner', passes, log: o.log ?? true });
     this.archive(id, replay, true);
     const lessons = measured.study.bots.filter((b) => Object.keys(b.lessons).length).length;
     const habits = measured.humans.filter((h) => Object.keys(h.sample).length).length + measured.study.players.filter((p) => Object.keys(p.sample).length).length;
-    return { ok: true, lessons, habits };
+    return { ok: true, lessons, habits, report };
+  }
+
+  /** Apply what a measured replay teaches and write down what came of it. */
+  private learn(measured: Measured, o: { replayId: string; source: LearnSource; passes: number; log: boolean; replaysRead?: number; skipped?: number }): LearnReport {
+    const classes = this.apply(measured, o.passes);
+    const habits = measured.humans.filter((h) => Object.keys(h.sample).length).length + measured.study.players.filter((p) => Object.keys(p.sample).length).length;
+    const report = buildReport({ id: `${Date.now().toString(36)}${Math.floor(this.rng() * 1e4).toString(36)}`, replayId: o.replayId, at: Date.now(), source: o.source, passes: o.passes, study: measured.study, classes, habits, replaysRead: o.replaysRead, skipped: o.skipped });
+    if (o.log) this.remember(report);
+    return report;
+  }
+
+  private remember(report: LearnReport): void {
+    this.reports = [report, ...this.reports].slice(0, REPORTS_MAX);
+    const json = JSON.stringify(this.reports);
+    this.archiving = this.archiving.then(() => this.store.set(REPORTS_KEY, json)).catch(() => undefined);
+  }
+
+  /** The last reports of what the bots learned, newest first. */
+  learnReports(): LearnReport[] {
+    return structuredClone(this.reports);
+  }
+
+  /**
+   * Train on every archived replay one after another. Replays recorded on another version of the game cannot be played
+   * back the same and are skipped (and counted). `progress` is told after each one. Resolves to one report for the lot.
+   */
+  async trainArchive(progress: (p: { done: number; total: number; skipped: number }) => void, o: { passes?: number } = {}): Promise<LearnReport> {
+    await this.ready;
+    const index = await this.archived();
+    const before = this.classBrains();
+    let skipped = 0;
+    let done = 0;
+    const reports: LearnReport[] = [];
+    for (const e of index) {
+      let replay: ReplayData | null = null;
+      try {
+        const gz = await this.archivedReplay(e.id);
+        replay = gz ? (JSON.parse((await gunzip(gz)).toString('utf8')) as ReplayData) : null;
+      } catch {
+        replay = null;
+      }
+      if (!replay || !Array.isArray(replay.units) || replay.hash !== contentHash(replay.tickMs)) skipped++;
+      else {
+        const r = await this.trainOn(replay, e.id, { passes: o.passes, source: 'archive', log: false }).catch(() => null);
+        if (r?.ok) reports.push(r.report);
+        else skipped++;
+      }
+      done++;
+      progress({ done, total: index.length, skipped });
+    }
+    const after = this.classBrains();
+    const classes: ClassReport[] = CLASS_IDS.map((c) => ({ classId: c, moved: brainDiff(before.get(c)!, after.get(c)!), replays: this.stats.get(c)?.replays ?? 0 }));
+    const merged = buildReport({ id: `${Date.now().toString(36)}all`, replayId: 'all archived replays', at: Date.now(), source: 'archive', passes: Math.max(1, Math.min(5, Math.round(o.passes ?? 1))), study: { bots: [], players: [] }, classes, habits: reports.reduce((n, r) => n + r.habits, 0), replaysRead: done - skipped, skipped });
+    // the batch's own mistake counts and bot lines come from the reports it read
+    merged.bots = reports.flatMap((r) => r.bots);
+    merged.totals = sumLines(reports.map((r) => r.totals));
+    if (!classes.some((c) => c.moved.length)) {
+      merged.nothing = done === 0 ? 'there are no archived replays yet' : done === skipped ? `all ${skipped} replays were skipped (another version of the game, or unreadable)` : 'every lesson in them points the way the bots already play, or the evidence is still too thin to move a number';
+      merged.headline = `Nothing to learn from ${done - skipped} replay${done - skipped === 1 ? '' : 's'}: ${merged.nothing}.`;
+    } else {
+      merged.headline = `${done - skipped} replay${done - skipped === 1 ? '' : 's'} read${skipped ? `, ${skipped} skipped` : ''}: ${classes.filter((c) => c.moved.length).map((c) => `${c.classId}: ${c.moved.map((m) => `${m.key} ${m.before.toFixed(2)} -> ${m.after.toFixed(2)}`).join(', ')}`).join('; ')}`;
+    }
+    this.remember(merged);
+    return merged;
+  }
+
+  /** The brain each class is playing its "lesson" with now (the best brain when nothing was learned yet). */
+  private classBrains(): Map<ClassId, Brain> {
+    const out = new Map<ClassId, Brain>();
+    for (const c of CLASS_IDS) out.set(c, this.learnedBrain(c));
+    return out;
+  }
+
+  private learnedBrain(c: ClassId): Brain {
+    const pop = this.pops.get(c);
+    const rate = (v: { wins: number; games: number }) => (v.wins + 1) / (v.games + 2);
+    const lesson = pop?.variants.find((v) => v.id === 'lesson');
+    if (lesson) return lesson.brain;
+    const base = pop ? [...pop.variants].filter((v) => v.id !== 'human').sort((a, b) => rate(b) - rate(a))[0] : undefined;
+    return base?.brain ?? brainFor(c);
+  }
+
+  /** What the bots know: per class the learned numbers against the shipped ones, how many replays taught them, and when last. */
+  knowledge(): ClassKnowledge[] {
+    return CLASS_IDS.map((c) => {
+      const st = this.stats.get(c);
+      const shipped = brainFor(c);
+      const learned = this.learnedBrain(c);
+      const lv = this.pops.get(c)?.variants.find((v) => v.id === 'lesson');
+      return {
+        classId: c, replays: st?.replays ?? 0, lastAt: st?.lastAt ?? null, shipped, learned, diff: brainDiff(shipped, learned),
+        mistakes: Object.entries(st?.mistakes ?? {}).map(([label, count]): CountLine => ({ label, count })).sort((a, b) => b.count - a.count),
+        variant: lv && lv.games ? { games: lv.games, winRate: lv.wins / lv.games } : null,
+      };
+    });
+  }
+
+  /** Put every class back to the brain it ships with: the learned variants, lessons, habits and counters are cleared. */
+  async resetBrain(): Promise<void> {
+    await this.ready;
+    for (const c of CLASS_IDS) {
+      const pop = newPopulation(c, this.rng);
+      this.pops.set(c, pop);
+      this.lessons.delete(c);
+      this.styles.delete(c);
+      this.stats.delete(c);
+      this.persist(c, () => Promise.all([this.store.set(KEY(c), JSON.stringify(pop)), this.store.set(LESSON_KEY(c), '{}'), this.store.set(STYLE_KEY(c), '{}'), this.store.set(STAT_KEY(c), JSON.stringify({ replays: 0, lastAt: null, mistakes: {} }))]));
+    }
+    this.reports = [];
+    await this.store.set(REPORTS_KEY, '[]').catch(() => undefined);
+    await this.flush();
   }
 
   /**
@@ -297,8 +443,8 @@ export class BotLearner {
     await Promise.all(this.saving.values());
   }
 
-  private apply(measured: Measured): void {
-    this.applyLessons(measured.study);
+  private apply(measured: Measured, passes = 1): ClassReport[] {
+    const classes = this.applyLessons(measured.study, passes);
     for (const { classId, sample } of measured.humans) {
       const pop = this.pops.get(classId);
       if (!pop || !Object.keys(sample).length) continue;
@@ -312,31 +458,94 @@ export class BotLearner {
       else pop.variants.push({ id: 'human', brain, wins: 0, games: 0 });
       this.persist(classId, () => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(STYLE_KEY(classId), JSON.stringify(style))]));
     }
+    return classes;
   }
 
   /**
-   * How people beat the bots (see shared/src/outplay.ts): each class's lessons are a running average, and a "lesson"
-   * variant (the best brain moved towards them) is rebuilt after every replay. It competes like any other variant.
+   * How people beat the bots (see shared/src/outplay.ts and mistakes.ts): each class's lessons are running evidence
+   * (older evidence fades a little with each replay), and a "lesson" variant (the best brain moved towards them) is
+   * rebuilt after every replay. It competes like any other variant. One replay moves a number at most STEP_LIMIT of its
+   * range (more with several passes), and nothing ends up further than DRIFT_LIMIT from the shipped brain.
    */
-  private applyLessons(study: Measured['study']): void {
+  private applyLessons(study: Measured['study'], passes: number): ClassReport[] {
     // the people's own kick and fake habits are part of how people play
     for (const { classId, sample } of study.players) {
       if (!Object.keys(sample).length || !this.pops.has(classId)) continue;
       this.styles.set(classId, mergeStyle(this.styles.get(classId) ?? {}, sample));
     }
-    for (const { classId, lessons } of study.bots) {
+    const out: ClassReport[] = [];
+    const classes = [...new Set(study.bots.map((b) => b.classId))];
+    for (const classId of classes) {
       const pop = this.pops.get(classId);
-      if (!pop || !Object.keys(lessons).length) continue;
-      const merged = mergeStyle(this.lessons.get(classId) ?? {}, lessons);
+      if (!pop) continue;
+      const bots = study.bots.filter((b) => b.classId === classId);
+      // the mistakes seen, whether or not they were enough to teach a number yet
+      const stat = this.stats.get(classId) ?? { replays: 0, lastAt: null, mistakes: {} };
+      stat.replays++;
+      stat.lastAt = Date.now();
+      for (const b of bots) {
+        for (const [k, v] of Object.entries(b.facts.mistakes)) stat.mistakes[MISTAKE_LABELS[k as keyof typeof MISTAKE_LABELS] ?? k] = (stat.mistakes[MISTAKE_LABELS[k as keyof typeof MISTAKE_LABELS] ?? k] ?? 0) + (v ?? 0);
+        for (const [label, n] of [['casts kicked', b.facts.kicked], ['died with a defensive ready', b.facts.diedWithDefensive], ['burst deaths', b.facts.burstDeaths], ['long casts taken in the open', b.facts.bigCastsTaken], ['hits taken in ground effects', b.facts.zoneHits]] as [string, number][]) if (n) stat.mistakes[label] = (stat.mistakes[label] ?? 0) + n;
+      }
+      this.stats.set(classId, stat);
+      let merged = this.lessons.get(classId) ?? {};
+      for (const b of bots) for (let i = 0; i < passes; i++) if (Object.keys(b.lessons).length) merged = mergeLessons(merged, b.lessons);
       this.lessons.set(classId, merged);
       const rate = (v: { wins: number; games: number }) => (v.wins + 1) / (v.games + 2);
       const base = [...pop.variants].filter((v) => v.id !== 'human' && v.id !== 'lesson').sort((a, b) => rate(b) - rate(a))[0] ?? pop.variants[0];
-      const brain = lessonBrain(base.brain, merged, LESSON_PULL, LESSON_FULL);
       const mine = pop.variants.find((v) => v.id === 'lesson');
+      const before = mine?.brain ?? base.brain;
+      const shipped = brainFor(classId);
+      let brain = lessonBrain(base.brain, merged, LESSON_PULL, LESSON_FULL);
+      brain = limitChange(before, brain, STEP_LIMIT * Math.min(3, passes));
+      // the graded nudges added up over every match so far ride on top of the lessons
+      const nudge = (stat.nudge ??= {});
+      const room = (stat.room ??= {});
+      for (const k of Object.keys(nudge) as (keyof Brain)[]) brain[k] = Math.min(BRAIN_BOUNDS[k][1], Math.max(BRAIN_BOUNDS[k][0], brain[k] + (nudge[k] ?? 0)));
+      brain = sanityClamp(brain, shipped, DRIFT_LIMIT, room);
+      const why = new Map<keyof Brain, string[]>();
+      const notes: string[] = [];
+      const lessonWhy = bots.flatMap((b) => mistakeLines(b.facts).slice(0, 3).map((c) => `${c.count} ${c.label}`)).slice(0, 3).join(', ');
+      for (const k of Object.keys(merged) as (keyof Brain)[]) if (Math.abs(brain[k] - before[k]) > 0.0049) why.set(k, [lessonWhy ? `lesson from ${lessonWhy}` : 'lesson from earlier matches']);
+      for (const b of bots) {
+        const m = b.won ? 0.5 : 1;
+        for (const n of b.nudges) {
+          let applied = false;
+          for (const k of n.keys) {
+            const [bl, bh] = BRAIN_BOUNDS[k];
+            const span = bh - bl;
+            const step = NUDGE_STEP * span * n.strength * m * Math.min(3, passes) * n.sign;
+            for (let attempt = 0; attempt < 2 && !applied; attempt++) {
+              const r = room[k] ?? DRIFT_LIMIT;
+              const allowLo = Math.max(bl, shipped[k] - r * span);
+              const allowHi = Math.min(bh, shipped[k] + r * span);
+              const next = Math.min(allowHi, Math.max(allowLo, brain[k] + step));
+              if (Math.abs(next - brain[k]) > 1e-9) {
+                nudge[k] = (nudge[k] ?? 0) + (next - brain[k]);
+                brain[k] = next;
+                const list = why.get(k) ?? [];
+                list.push(`${n.metric}: ${n.why}`);
+                why.set(k, list);
+                applied = true;
+              } else if (r < ROOM_MAX && ((n.sign > 0 && allowHi < bh) || (n.sign < 0 && allowLo > bl))) {
+                room[k] = Math.min(ROOM_MAX, r + ROOM_WIDEN);
+                notes.push(`${k} reached its limit (${Math.round(r * 100)}% of its range from what shipped), so the room was widened to ${Math.round(room[k]! * 100)}%.`);
+              } else {
+                notes.push(`${k} is at its hard bound ${n.sign > 0 ? bh : bl}, so ${n.metric} moved ${n.keys.filter((x) => x !== k)[0] ?? 'nothing else'} instead.`);
+                break;
+              }
+            }
+            if (applied) break;
+          }
+        }
+      }
       if (mine) mine.brain = brain;
-      else pop.variants.push({ id: 'lesson', brain, wins: 0, games: 0 });
-      this.persist(classId, () => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(LESSON_KEY(classId), JSON.stringify(merged))]));
+      else if (Object.keys(merged).length || Object.keys(nudge).length) pop.variants.push({ id: 'lesson', brain, wins: 0, games: 0 });
+      const moved = brainDiff(before, brain).map((mv) => ({ ...mv, why: (why.get(mv.key) ?? ['graded signals']).join('; ') }));
+      out.push({ classId, moved, notes, replays: stat.replays });
+      this.persist(classId, () => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(LESSON_KEY(classId), JSON.stringify(merged)), this.store.set(STAT_KEY(classId), JSON.stringify(stat))]));
     }
+    return out;
   }
 
   /** What the bots have learned from losing to people, per class. */

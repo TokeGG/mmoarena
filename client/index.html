@@ -194,8 +194,12 @@
   .own-room-info small { color:#9a90b0; }
   .own-overrides { margin:4px 0 8px 16px; padding:0; font-size:12px; color:#d9d2c0; }
 
-  .devp-btn { position:fixed; left:60px; bottom:14px; z-index:31; padding:6px 10px; border-radius:8px; background:#1a1424; border:1px solid #7a4bb0; color:#d9b8ff; font:600 12px sans-serif; cursor:pointer; }
+  .devp-btn { position:fixed; left:10px; bottom:56px; z-index:46; width:38px; height:38px; padding:0; border-radius:50%; background:#1a1424; border:1px solid #7a4bb0; color:#d9b8ff; font:600 16px sans-serif; cursor:pointer; } /* a column with the sound button, clear of the combat log */
   .devp-btn.hidden { display:none; }
+  /* network stats readout: a HUD element (netstats), bottom right above the help text, clear of the sound / dev buttons, log and action bars */
+  #netstats { position:fixed; right:12px; bottom:96px; z-index:30; padding:var(--net-pad,4px 8px); border-radius:6px; background:var(--net-bg,rgba(10,9,12,.62)); color:var(--net-color,#cfc6ae); font:var(--net-size,11px)/1.35 ui-monospace,Menlo,Consolas,monospace; white-space:pre; pointer-events:none; }
+  #netstats.hidden { display:none; }
+  body.hud-edit #netstats.hidden { display:block !important; }
   .devp { position:fixed; left:12px; top:90px; z-index:31; width:300px; max-height:calc(100vh - 160px); overflow:auto; background:rgba(16,12,24,.95); border:1px solid #7a4bb0; border-radius:10px; padding:8px 10px; color:#e6e1f0; font-size:12px; box-shadow:0 6px 24px rgba(0,0,0,.7); }
   .devp.hidden { display:none; }
   .devp-head { cursor:move; user-select:none; touch-action:none; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:14px; }
@@ -731,7 +735,7 @@
 
   /* ---------- HUD layout editor ---------- */
   #hud-edit-bar { position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:150; width:min(760px, calc(100vw - 24px)); font:600 13px var(--serif); }
-  #hud-edit-bar .he-panel { padding:12px 16px 12px; border:2px solid var(--gold); border-radius:14px; background:linear-gradient(180deg,rgba(40,34,28,.97),rgba(14,12,10,.97)); box-shadow:0 14px 40px rgba(0,0,0,.8), 0 0 24px rgba(201,162,74,.15); display:flex; flex-direction:column; gap:9px; }
+  #hud-edit-bar .he-panel { max-height:calc(100vh - 28px); overflow:auto; padding:12px 16px 12px; border:2px solid var(--gold); border-radius:14px; background:linear-gradient(180deg,rgba(40,34,28,.97),rgba(14,12,10,.97)); box-shadow:0 14px 40px rgba(0,0,0,.8), 0 0 24px rgba(201,162,74,.15); display:flex; flex-direction:column; gap:9px; }
   #hud-edit-bar .he-head { display:flex; align-items:center; gap:10px; } #hud-edit-bar .he-head b { font-size:17px; letter-spacing:3px; color:#e9c872; text-transform:uppercase; } #hud-edit-bar .he-sub { flex:1; font:11px/1.3 system-ui; color:#8b8372; }
   #hud-edit-bar .he-row { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
   #hud-edit-bar button { padding:7px 14px; border-radius:8px; border:1px solid #6b5a35; background:#1d1b20; color:#e9dcc0; cursor:pointer; font:600 12px var(--serif); }
