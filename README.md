@@ -36,7 +36,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
 - **Lobby:** drag on the empty middle of the menu to turn your character.
-- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, volume, the HUD editor and Leave match.
+- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor and Leave match. The default cursor is a steel gauntlet that turns into a red sword over enemies, a green cross over allies and a crosshair while you aim a ground spell (red when it cannot land); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
 - **Binding keys:** click a box and press a key, or hold Shift, Ctrl or Alt for a combo such as Shift+1. Every action has two slots, right-click clears a slot, and Esc is reserved.
 - Signed in, your keybinds, HUD, sound settings and builds follow your account to any device.
 
@@ -136,7 +136,7 @@ Bots use the same commands as a player, so they obey the global cooldown, range,
 - **Rating:** everyone starts at 1000 and one rating covers every team size. Elo K is 48 for your first 5 ranked games, 32 up to 20, then 24; teams are compared by their average rating. Tiers: Bronze, Silver (1100), Gold (1300), Platinum (1500), Diamond (1700), Gladiator (1900).
 - **Profile:** rating, tier, peak, wins and matches, unlocks and the Matches tab (history and replays). There is a leaderboard of every account.
 - **Looks:** headwear, wings, back, weapon glow, ground aura, armor dye and a companion. Looks never change how you fight. More of them unlock as you play (at 5, 15, 30, 60 and 100 matches); the Look menu shows what is still locked. Titles, emblems and name colours unlock with matches, wins or peak rating and show on your nameplate.
-- **Settings follow the account:** HUD layout and style, keybinds, sensitivity, volume, class, builds and practice options apply on any device after you sign in. Guests keep settings in the browser only.
+- **Settings follow the account:** HUD layout and style, keybinds, sensitivity, cursor, volume, class, builds and practice options apply on any device after you sign in. Guests keep settings in the browser only.
 - Passwords are never stored (only a salted hash), and a login lasts 30 days.
 
 ## Friends, parties and duels

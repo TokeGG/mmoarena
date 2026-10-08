@@ -35,6 +35,8 @@ import { Recap } from './recap';
 import { RecapCard } from './recapCard';
 import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
+import { initCursors, refreshCursor } from './cursors';
+import { buildCursorPanel } from './cursorUi';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -403,6 +405,7 @@ function onMessage(raw: MessageEvent) {
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
       mainMenu.refresh();
+      refreshCursor();
       break;
     case 'queued':
       joinMsg(`Waiting for players… ${m.waiting}/${m.needed}`);
@@ -1526,6 +1529,7 @@ const accountUi = new AccountUi({
     setTipProgress(progress.matches);
     mainMenu.setAccount(a);
     mainMenu.refresh();
+    refreshCursor(); // unlocked cursors follow the account
   },
 });
 
@@ -1636,5 +1640,33 @@ setTipBuild(mainMenu.selectedClass, mainMenu.currentBuild);
     show();
   }
 }
+// the mouse cursor (client/src/cursors.ts): a gauntlet that changes over enemies, allies and aimed ground spells, plus unlockable styles
+initCursors({
+  canvas,
+  situation: () => {
+    const me = latest?.units.find((u) => u.id === you);
+    const inMatch = !!latest && (!!spec || you !== 0);
+    let aim: 'aim' | 'aimBlocked' | null = null;
+    if (aiming && !spec && me?.alive) {
+      // the same checks as the aiming ring: red when the spell cannot be cast now or the spot has no line of sight, green otherwise
+      const def = ABILITIES[aiming];
+      const g = def ? groundAim(def.range) : null;
+      const sight = !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt));
+      aim = groundBlockedWhileAiming(aiming) || !sight ? 'aimBlocked' : 'aim';
+    }
+    return { inMatch, spectating: !!spec, aim, busy: !spec && !!me && (!me.alive || !!me.controlled), myTeam: me ? me.team : null };
+  },
+  pick: (x, y) => {
+    const id = scene.pick(x, y, you, true);
+    const u = id === null ? undefined : latest?.units.find((w) => w.id === id);
+    return u ? { team: u.team, alive: u.alive, self: u.id === you } : null;
+  },
+  stats: () => accountUi.account ?? { name: undefined, matches: progress.matches, wins: progress.wins, peak: 0 },
+  classColor: () => {
+    const me = latest?.units.find((u) => u.id === you);
+    return CLASSES[me && !spec ? me.classId : mainMenu.selectedClass]?.color ?? null;
+  },
+});
+document.getElementById('cursor-settings')?.append(buildCursorPanel());
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;
