@@ -82,6 +82,9 @@ export class ArenaScene {
   private lastUpdate = performance.now() / 1000;
   /** Bloom + colour grade. Null if the GPU refused it; we then fall back to a plain render. */
   private composer: EffectComposer | null = null;
+  /** Screen brightness (the Brightness setting, 0.6..1.6, 1 = as designed): a gamma lift in the colour grade, or a canvas filter when post-processing is unavailable. */
+  private brightness = 1;
+  private gradeUniforms: { bright: { value: number } } | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -100,6 +103,13 @@ export class ArenaScene {
     this.composer = this.buildComposer();
     window.addEventListener('resize', resize);
     resize();
+  }
+
+  /** Brightness setting: 0.6 (darker) .. 1.6 (brighter), 1 = as designed. Lifts the midtones without clipping highlights. */
+  setBrightness(v: number) {
+    this.brightness = Math.min(1.6, Math.max(0.6, v));
+    if (this.gradeUniforms) this.gradeUniforms.bright.value = this.brightness;
+    else this.renderer.domElement.style.filter = this.brightness === 1 ? '' : `brightness(${this.brightness})`;
   }
 
   private shift = { x: 0, y: 0 };
@@ -132,9 +142,9 @@ export class ArenaScene {
       composer.addPass(new OutputPass()); // tone mapping + sRGB
       composer.addPass(
         new ShaderPass({
-          uniforms: { tDiffuse: { value: null }, vig: { value: 0.42 }, sat: { value: 1.14 }, contrast: { value: 1.07 } },
+          uniforms: { tDiffuse: { value: null }, vig: { value: 0.42 }, sat: { value: 1.14 }, contrast: { value: 1.07 }, bright: { value: this.brightness } },
           vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-          fragmentShader: `uniform sampler2D tDiffuse; uniform float vig; uniform float sat; uniform float contrast; varying vec2 vUv;
+          fragmentShader: `uniform sampler2D tDiffuse; uniform float vig; uniform float sat; uniform float contrast; uniform float bright; varying vec2 vUv;
             void main(){
               vec4 c = texture2D(tDiffuse, vUv);
               float l = dot(c.rgb, vec3(0.299, 0.587, 0.114));
@@ -143,10 +153,12 @@ export class ArenaScene {
               c.rgb *= vec3(1.03, 1.0, 0.95);
               float d = distance(vUv, vec2(0.5));
               c.rgb *= 1.0 - vig * smoothstep(0.35, 0.85, d);
+              c.rgb = pow(max(c.rgb, vec3(0.0)), vec3(1.0 / bright));
               gl_FragColor = c;
             }`,
         }),
       );
+      this.gradeUniforms = (composer.passes[composer.passes.length - 1] as ShaderPass).uniforms as { bright: { value: number } };
       return composer;
     } catch (e) {
       console.warn('post-processing unavailable, using plain rendering', e);
@@ -186,6 +198,10 @@ export class ArenaScene {
   /** Cosmetic reactions, called from the effects system. */
   swing(id: number, fast = false): void {
     this.meshes.get(id)?.character.swing(fast);
+  }
+  /** A shout, roar, scream or breath: the model throws its head back and thrusts forward. */
+  shout(id: number): void {
+    this.meshes.get(id)?.character.shout();
   }
   /** A spell was cast: models with a cast animation play it. */
   cast(id: number): void {
@@ -413,7 +429,7 @@ export class ArenaScene {
   }
 
   render(): void {
-    this.env.update(performance.now() / 1000);
+    this.env.update(performance.now() / 1000, this.camera);
     if (this.composer) {
       try {
         this.composer.render();

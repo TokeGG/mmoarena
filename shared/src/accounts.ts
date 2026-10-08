@@ -77,6 +77,18 @@ export const TITLES: CosmeticDef[] = [
   { id: 'duelist', name: 'Duelist', unlock: { kind: 'peak', n: 1300 } },
   { id: 'warlord', name: 'Warlord', unlock: { kind: 'wins', n: 25 } },
   { id: 'gladiator', name: 'Gladiator', unlock: { kind: 'peak', n: 1900 } },
+  { id: 'regular', name: 'Regular', unlock: { kind: 'matches', n: 15 } },
+  { id: 'seasoned', name: 'Seasoned', unlock: { kind: 'matches', n: 60 } },
+  { id: 'lifer', name: 'Arena Lifer', unlock: { kind: 'matches', n: 150 } },
+  { id: 'legend', name: 'Living Legend', unlock: { kind: 'matches', n: 400 } },
+  { id: 'victor', name: 'Victor', unlock: { kind: 'wins', n: 10 } },
+  { id: 'conqueror', name: 'Conqueror', unlock: { kind: 'wins', n: 50 } },
+  { id: 'champion', name: 'Champion', unlock: { kind: 'wins', n: 100 } },
+  { id: 'unstoppable', name: 'the Unstoppable', unlock: { kind: 'wins', n: 250 } },
+  { id: 'contender', name: 'Contender', unlock: { kind: 'peak', n: 1100 } },
+  { id: 'elite', name: 'Elite', unlock: { kind: 'peak', n: 1600 } },
+  { id: 'master', name: 'Arena Master', unlock: { kind: 'peak', n: 1800 } },
+  { id: 'grandmaster', name: 'Grandmaster', unlock: { kind: 'peak', n: 2100 } },
   // owner only
   { id: 'founder', name: 'Founder', unlock: owner },
   { id: 'architect', name: 'Architect of the Arena', unlock: owner },
@@ -98,11 +110,27 @@ export const EMBLEMS: CosmeticDef[] = [
   { id: 'dragon', name: 'Dragon', value: '🐉', unlock: { kind: 'peak', n: 1500 } },
   { id: 'crown', name: 'Crown', value: '👑', unlock: { kind: 'peak', n: 1700 } },
   { id: 'trophy', name: 'Trophy', value: '🏆', unlock: { kind: 'peak', n: 1900 } },
+  { id: 'snake', name: 'Serpent', value: '🐍', unlock: { kind: 'matches', n: 5 } },
+  { id: 'bat', name: 'Bat', value: '🦇', unlock: { kind: 'matches', n: 30 } },
+  { id: 'wolf', name: 'Wolf', value: '🐺', unlock: { kind: 'matches', n: 50 } },
+  { id: 'bear', name: 'Bear', value: '🐻', unlock: { kind: 'matches', n: 100 } },
+  { id: 'moon', name: 'Moon', value: '🌙', unlock: { kind: 'matches', n: 200 } },
+  { id: 'axe', name: 'Axe', value: '🪓', unlock: { kind: 'wins', n: 15 } },
+  { id: 'bow', name: 'Bow', value: '🏹', unlock: { kind: 'wins', n: 25 } },
+  { id: 'wand', name: 'Wand', value: '🪄', unlock: { kind: 'wins', n: 40 } },
+  { id: 'scorpion', name: 'Scorpion', value: '🦂', unlock: { kind: 'wins', n: 75 } },
+  { id: 'sun', name: 'Sun', value: '☀️', unlock: { kind: 'wins', n: 150 } },
+  { id: 'tornado', name: 'Tornado', value: '🌪️', unlock: { kind: 'peak', n: 1300 } },
+  { id: 'eye', name: 'Evil eye', value: '🧿', unlock: { kind: 'peak', n: 1600 } },
+  { id: 'gem', name: 'Gem', value: '💎', unlock: { kind: 'peak', n: 1800 } },
+  { id: 'galaxy', name: 'Ringed planet', value: '🪐', unlock: { kind: 'peak', n: 2000 } },
   // owner only
   { id: 'trident', name: 'Sovereign trident', value: '🔱', unlock: owner },
   { id: 'comet', name: 'Comet', value: '☄️', unlock: owner },
   { id: 'cosmos', name: 'Cosmos', value: '🌌', unlock: owner },
   { id: 'volcano', name: 'Caldera', value: '🌋', unlock: owner },
+  { id: 'meteor', name: 'Falling star', value: '🌠', unlock: owner },
+  { id: 'tide', name: 'Tidal wave', value: '🌊', unlock: owner },
 ];
 
 export const NAME_COLORS: CosmeticDef[] = [
@@ -114,10 +142,24 @@ export const NAME_COLORS: CosmeticDef[] = [
   { id: 'violet', name: 'Void', value: '#c58bff', unlock: { kind: 'peak', n: 1300 } },
   { id: 'rose', name: 'Rose', value: '#ff7aa8', unlock: { kind: 'peak', n: 1500 } },
   { id: 'crimson', name: 'Crimson', value: '#ff4d4d', unlock: { kind: 'peak', n: 1700 } },
+  { id: 'teal', name: 'Lagoon', value: '#2fd1b0', unlock: { kind: 'matches', n: 25 } },
+  { id: 'sky', name: 'Skyline', value: '#7fb8ff', unlock: { kind: 'matches', n: 45 } },
+  { id: 'mint', name: 'Mint', value: '#9ff0c8', unlock: { kind: 'matches', n: 80 } },
+  { id: 'peach', name: 'Peach', value: '#ffb28a', unlock: { kind: 'matches', n: 120 } },
+  { id: 'amber', name: 'Amber', value: '#ffbf3a', unlock: { kind: 'wins', n: 15 } },
+  { id: 'coral', name: 'Coral', value: '#ff7f6e', unlock: { kind: 'wins', n: 30 } },
+  { id: 'lavender', name: 'Lavender', value: '#b9a4ff', unlock: { kind: 'wins', n: 60 } },
+  { id: 'bone', name: 'Bone', value: '#f3ead2', unlock: { kind: 'wins', n: 120 } },
+  { id: 'emerald', name: 'Emerald', value: '#33e07a', unlock: { kind: 'peak', n: 1400 } },
+  { id: 'sapphire', name: 'Sapphire', value: '#3f7bff', unlock: { kind: 'peak', n: 1600 } },
+  { id: 'ruby', name: 'Ruby', value: '#ff2f58', unlock: { kind: 'peak', n: 1800 } },
+  { id: 'diamond', name: 'Diamond', value: '#bdf3ff', unlock: { kind: 'peak', n: 2000 } },
   // owner only (drawn with a glow)
   { id: 'neon', name: 'Neon', value: '#ff2bd6', unlock: owner },
   { id: 'aurora', name: 'Aurora', value: '#2bffd0', unlock: owner },
   { id: 'sunfire', name: 'Sunfire', value: '#ffd23f', unlock: owner },
+  { id: 'voidlight', name: 'Voidlight', value: '#8a5cff', unlock: owner },
+  { id: 'bloodmoon', name: 'Blood moon', value: '#ff3b3b', unlock: owner },
 ];
 
 /** A hand-made name style. Only the owner can write one (for themselves or, through the admin panel, a friend). */
@@ -165,7 +207,9 @@ export type CosmeticKind = 'title' | 'emblem' | 'color';
 export function isUnlocked(def: CosmeticDef, s: Stats & { name?: string; grants?: string[] }, kind?: CosmeticKind): boolean {
   const u = def.unlock;
   if (u.kind === 'free') return true;
-  if (u.kind === 'owner') return (!!s.name && isOwnerName(s.name)) || (!!kind && !!s.grants?.includes(`${kind}:${def.id}`));
+  // the owner account has every title, icon and colour open, earned or not
+  if (s.name && isOwnerName(s.name)) return true;
+  if (u.kind === 'owner') return !!kind && !!s.grants?.includes(`${kind}:${def.id}`);
   return s[u.kind] >= u.n;
 }
 
@@ -344,6 +388,8 @@ export interface FriendRow {
   /** Only known while they are online. */
   rating?: number;
   cosmetics?: Cosmetics;
+  /** Version stamp of their animated icon (served at /avatar/<name>?v=n), if one is set. */
+  avatar?: number;
 }
 
 export interface PartyInfo {

@@ -60,13 +60,24 @@ export function canWear(item: CosmeticItem, isOwner = false, matches = Infinity)
   return isOwner || !item.unlock || matches >= item.unlock;
 }
 
-/** Keep only cosmetics that exist, sit in the right slot and are allowed (see `canWear`). */
+/**
+ * Old saves and recordings: wings used to be back items (and one was a head item), and the shoulders slot is gone. Moves the wings to the wings
+ * slot (an explicit wings pick wins) and drops what no longer exists or sits in the wrong slot. Says nothing about who may wear what (see `cleanGear`).
+ */
+export function currentGear(gear: Record<string, string> | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [at, id] of Object.entries(gear ?? {})) {
+    const item = itemById(id);
+    const slot = item?.slot === 'wings' && (at === 'back' || at === 'head') ? 'wings' : at;
+    if (item && item.slot === slot && !(slot === 'wings' && at !== 'wings' && out.wings)) out[slot] = id;
+  }
+  return out;
+}
+
+/** Keep only cosmetics that exist, sit in the right slot and are allowed (see `canWear`); wings saved in an old slot move to the wings slot. */
 export function cleanGear(gear: Record<string, string> | undefined, isOwner = false, matches = Infinity): Record<string, string> {
   const out: Record<string, string> = {};
-  for (const [slot, id] of Object.entries(gear ?? {})) {
-    const item = itemById(id);
-    if (item && item.slot === slot && canWear(item, isOwner, matches)) out[slot] = id;
-  }
+  for (const [slot, id] of Object.entries(currentGear(gear))) if (canWear(itemById(id)!, isOwner, matches)) out[slot] = id;
   return out;
 }
 
@@ -226,10 +237,11 @@ export function barSwapped(classId: ClassId, spec: string | null, bar: readonly 
  * Compact string for what a unit wears: one character per slot in `SLOT_IDS` order, the item's index within its slot
  * in base 36, or '-' for nothing. Carried in snapshots so everyone sees everyone's cosmetics.
  */
-export function gearLook(gear: Record<string, string> | undefined): string {
+export function gearLook(gearIn: Record<string, string> | undefined): string {
+  const gear = currentGear(gearIn);
   let out = '';
   for (const slot of SLOT_IDS) {
-    const item = gear?.[slot] ? itemById(gear[slot]) : undefined;
+    const item = gear[slot] ? itemById(gear[slot]) : undefined;
     const at = item && item.slot === slot ? itemsForSlot(slot).indexOf(item) : -1;
     out += at >= 0 ? at.toString(36) : '-';
   }

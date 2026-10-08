@@ -2,6 +2,7 @@ import { ABILITIES, AURAS } from '@arena/shared';
 import type { School, SimEvent } from '@arena/shared';
 import { ACTION_VOICE, STEP_SURFACE, castVoice, hitVoice, startVoice } from './voices';
 import type { Recipe } from './voices';
+import { SamplePlayer } from './samples';
 
 /**
  * All sound is synthesised here with the Web Audio API (no audio files to ship or license).
@@ -72,6 +73,8 @@ export class Audio {
   private vol = { master: num(KEY.master, DEFAULTS.master), sfx: num(KEY.sfx, DEFAULTS.sfx), amb: num(KEY.amb, DEFAULTS.amb) };
   private muted = read(KEY.mute) === '1';
   private last = new Map<string, number>();
+  /** Recorded sounds (sampleTable.ts) that take over from a recipe of the same id once they are loaded. */
+  private samples = new SamplePlayer();
   private ambNodes: { stop(): void }[] = [];
   private ambTimers: number[] = [];
   private theme = '';
@@ -145,6 +148,7 @@ export class Audio {
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     this.applyVolumes();
     if (this.theme) this.ambience(this.theme);
+    this.samples.preload(ctx); // small clips, fetched in the background; until they are decoded the recipes play
     return ctx;
   }
 
@@ -226,6 +230,8 @@ export class Audio {
     const ctx = this.ok(id, minGap);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', vol);
+    // a recorded sample of this id replaces the recipe (or adds to it when the entry is layered); not loaded yet or undecodable: the recipe
+    if (this.samples.has(id) && this.samples.play(ctx, o, id, { power }) && !this.samples.layered(id)) return;
     r({ tone: (t) => this.tone(ctx, o, t), noise: (n) => this.noise(ctx, o, n) }, Math.max(0.4, Math.min(1.4, power)));
   }
 
@@ -654,6 +660,11 @@ export class Audio {
         this.tone(ctx, quiet, { f, to: f * 0.6, d: 0.09, vol: 0.14 });
         this.tone(ctx, quiet, { f: f * 0.98, to: f * 0.58, d: 0.12, vol: 0.06, delay: 0.16 });
       }); // water dripping
+    } else if (theme === 'cinder' || theme === 'forge') {
+      loop(140, 0.7, 'lowpass', 0.11, 0.07, 0.5); // the roar of the lava below
+      loop(900, 1.2, 'bandpass', 0.03, 0.17, 0.9);
+      drone(41, 0.02);
+      every(180, 1100, () => this.noise(ctx, quiet, { d: 0.02 + Math.random() * 0.04, f: 2500 + Math.random() * 3500, type: 'highpass', vol: 0.16 })); // embers popping
     } else {
       loop(520, 0.5, 'bandpass', 0.05, 0.13, 0.6); // crowd murmur
       loop(350, 0.4, 'lowpass', 0.05, 0.05, 0.8);

@@ -19,8 +19,21 @@ export type VisualClass = 'projectile' | 'onTarget' | 'burst' | 'aura' | 'melee'
 /** The look of an impact or ground eruption. */
 export type ImpactKind = 'fire' | 'frost' | 'arcane' | 'shadow' | 'holy' | 'nature' | 'dust';
 
+/**
+ * A projectile drawn as a flipbook fireball (see fireballFx.ts): a white-hot core in a rolling shell of flames with a comet tail,
+ * embers, a glow on the ground and a burst on impact. `size` scales everything (1 = Fireball), `heat` 0..1 shifts the colours
+ * from bright orange (0) to a darker, redder, more intense fire (1).
+ */
+export interface FireballLook {
+  look: 'fireball';
+  size: number;
+  heat: number;
+}
+
 export interface AbilityVisual {
   cls: VisualClass;
+  /** projectile: a special look instead of the generic school-coloured bolt. */
+  proj?: FireballLook;
   /** onTarget / aura: what comes out of the ground or hits the target. */
   hit?: { kind: ImpactKind; style: 'eruption' | 'impact' | 'pillar' | 'swirl' };
 }
@@ -30,6 +43,7 @@ const impact = (kind: ImpactKind): AbilityVisual => ({ cls: 'onTarget', hit: { k
 const swirl = (kind: ImpactKind): AbilityVisual => ({ cls: 'onTarget', hit: { kind, style: 'swirl' } });
 const auraHit = (kind: ImpactKind, style: 'eruption' | 'impact' | 'pillar' | 'swirl' = 'impact'): AbilityVisual => ({ cls: 'aura', hit: { kind, style } });
 const c = (cls: VisualClass): AbilityVisual => ({ cls });
+const fireball = (size: number, heat: number): AbilityVisual => ({ cls: 'projectile', proj: { look: 'fireball', size, heat } });
 
 /** Every non-retired ability, exactly once. Retired ones fall back to `visualFor`'s guess from what the ability does. */
 export const ABILITY_VISUAL: Record<string, AbilityVisual> = {
@@ -40,7 +54,7 @@ export const ABILITY_VISUAL: Record<string, AbilityVisual> = {
   axe_throw: c('projectile'), heroic_leap: c('movement'), not_going_anywhere: c('zone'), battle_banner: c('zone'),
   dragon_roar: c('burst'),
   // mage
-  frostbolt: c('projectile'), fireball: c('projectile'), pyroblast: c('projectile'), arcane_blast: c('projectile'),
+  frostbolt: c('projectile'), fireball: fireball(1, 0), pyroblast: fireball(1.7, 1), arcane_blast: c('projectile'),
   arcane_missiles: c('channel'),
   scorch: eruption('fire'), ice_lance: impact('frost'), arcane_barrage: impact('arcane'),
   polymorph: swirl('arcane'), counterspell: impact('arcane'), deep_freeze: eruption('frost'),
@@ -62,6 +76,81 @@ export const ABILITY_VISUAL: Record<string, AbilityVisual> = {
   // trinkets
   trinket_cleanse: c('support'), trinket_shield: c('support'), trinket_heal: c('support'),
 };
+
+/** The flipbook fireball look an ability uses, or null (it then flies as the generic school-coloured bolt). */
+export const fireballLookFor = (ability: string | null | undefined): FireballLook | null => (ability && ABILITY_VISUAL[ability]?.proj) || null;
+
+/** How the fireball is built at a size and heat: every number the renderer uses, so a data row is all it takes (and tests can pin it). */
+export interface FireballShape {
+  /** Radius of the white-hot core, of the flame shell and of the glow halo (yards). */
+  core: number;
+  shell: number;
+  halo: number;
+  /** Tail length (yards) and the number of flipbook sprites rolling in the shell. */
+  tail: number;
+  shellSprites: number;
+  /** Seconds a tail flame lives, yards between tail flames, embers per second. */
+  tailLife: number;
+  tailSpacing: number;
+  /** Large flame tongues among the shell sprites (the rest are small licks close to the core). */
+  tongues: number;
+  embersPerSec: number;
+  /** Impact: radius of the flare, number of flames, embers and smoke puffs, ground ring radius. */
+  flare: number;
+  flames: number;
+  embers: number;
+  smoke: number;
+  ring: number;
+}
+export function fireballShape(size: number, heat: number): FireballShape {
+  const s = Math.max(0.3, size);
+  return {
+    core: 0.22 * s,
+    shell: 0.46 * s,
+    halo: 1.35 * s,
+    tail: (3.2 + heat * 1.8) * s,
+    shellSprites: heat > 0.5 ? 7 : 6,
+    tailLife: 0.15 + 0.03 * s,
+    tailSpacing: 0.13 * s,
+    tongues: 3,
+    embersPerSec: 26 + heat * 14 + 8 * s,
+    flare: 1.2 * s,
+    flames: Math.round(8 + 5 * s + heat * 4),
+    embers: Math.round(12 + 10 * s),
+    smoke: Math.round(3 + 2 * s),
+    ring: 2.2 * s,
+  };
+}
+
+/**
+ * How much of its full tail a fireball keeps over a flight of `range` yards: the tail is a length in yards, so on a short throw
+ * it would be most of the path and cover the caster. Full length from `TAIL_FULL_AT` times the tail onwards, never under 40 %.
+ */
+export const TAIL_FULL_AT = 5;
+export const fireballTailScale = (range: number, tail: number): number => (range >= 1e6 || !(range > 0) ? 1 : Math.max(0.4, Math.min(1, range / (tail * TAIL_FULL_AT))));
+
+/**
+ * The factor that keeps the ball in the caster's hand from swallowing the picture when the camera is close: its apparent radius
+ * (`radius` yards at `dist` yards from the camera) never goes above `cap` of the distance (0.2: about a third of the screen height
+ * for a 60 degree camera). 1 = unchanged.
+ */
+export const WINDUP_CAP = 0.2;
+export const windupScale = (dist: number, radius: number, cap = WINDUP_CAP): number => (radius <= 0 || !(dist > 0) ? 1 : Math.max(0.15, Math.min(1, (cap * dist) / radius)));
+
+/** Fraction of the cone's half angle that visible flame is spawned within, so the soft edge of the fire stays inside the real cone. */
+export const CONE_EDGE = 0.9;
+
+/** The real shape of a cone ability as the sim uses it (`radius` yards long, `coneDeg` wide), or null for anything that is not a cone. Visuals scale to this. */
+export function coneShape(def: AbilityDef): { range: number; half: number; deg: number } | null {
+  if (!def.coneDeg || (def.target !== 'aoe_enemy' && def.target !== 'aoe_all')) return null;
+  return { range: def.radius ?? 8, half: (def.coneDeg * Math.PI) / 360, deg: def.coneDeg };
+}
+
+/** Where (as an angle off the facing) a flame spawned with `u` in -1..1 goes: always inside the cone. */
+export const coneSpawnAngle = (u: number, half: number): number => Math.max(-1, Math.min(1, u)) * half * CONE_EDGE;
+
+/** Abilities whose caster throws his head back and shouts / breathes (see shoutPose.ts); the effect leaves the mouth when the pose releases. */
+export const SHOUT_ABILITIES: readonly string[] = ['intimidating_shout', 'dragon_roar', 'psychic_scream', 'dragons_breath'];
 
 const SCHOOL_KIND: Record<School, ImpactKind> = {
   physical: 'dust', fire: 'fire', frost: 'frost', arcane: 'arcane', holy: 'holy', shadow: 'shadow', nature: 'nature',

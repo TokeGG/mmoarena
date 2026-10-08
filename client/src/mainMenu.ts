@@ -4,6 +4,14 @@ import {
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
+import { partyReadiness } from './partyState';
+import { LAST_SEEN_KEY, markSeen, missedText, compareVersions, unseenPatchCount } from './patchSeen';
+
+/** The bubble on the Patch notes icon; created here so the header bar can hold it before the menu exists. */
+export const patchBadgeEl = document.createElement('span');
+patchBadgeEl.className = 'hdr-badge new hidden';
+
+const PARTY_BTN_TIP = 'A friendly match with your whole party: pick sides, bots fill the empty places.';
 import { flags, loadBuild, loadSpecTalents, progress, saveBuild, saveSpecTalents } from './profile';
 import { CLASS_BLURB, tipBuildKey } from './tips';
 import { patchTime } from './patchTime';
@@ -120,6 +128,8 @@ export class MainMenu {
   }
   private partyBox = el('div', 'mm-party hidden');
   private practiceBtn = el('button', 'mm-btn primary', 'Practice');
+  /** Count of patch notes newer than the last time the list was opened (the bubble on the Patch notes icon). */
+  readonly patchBadge = patchBadgeEl;
   private readyBtn = el('button', 'mm-btn primary rdy hidden', 'Ready');
   private partyBtn = el('button', 'mm-btn hidden', 'Party match');
   private isReady = false;
@@ -138,6 +148,7 @@ export class MainMenu {
     this.build = loadBuild(this.classId);
     this.buildDom();
     this.renderAll();
+    this.paintPatchBadge();
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Escape' && !this.modal.classList.contains('hidden')) this.closeGear();
     });
@@ -177,12 +188,20 @@ export class MainMenu {
     this.queueBtn.classList.toggle('hidden', !leader);
     this.readyBtn.classList.toggle('hidden', leader);
     this.partyBtn.classList.toggle('hidden', !leader || !info || info.members.length < 2);
+    // the leader can only pick a mode once everyone else is ready; the buttons say who is missing
+    const rd = partyReadiness(info);
+    for (const b of [this.practiceBtn, this.queueBtn, this.partyBtn]) {
+      b.disabled = !rd.canStart;
+      if (!rd.canStart) b.title = rd.label;
+      else if (b.title.startsWith('Waiting for ')) b.title = b === this.partyBtn ? PARTY_BTN_TIP : b === this.queueBtn ? (this.account ? 'Queue for a rated match. Your rating changes with the result.' : 'Sign in to play for rank.') : '';
+    }
+    if (!this.partyBtn.title) this.partyBtn.title = PARTY_BTN_TIP;
     this.readyBtn.textContent = this.isReady ? 'Ready ✓ (click to cancel)' : 'Ready';
     this.readyBtn.classList.toggle('on', this.isReady);
     this.partyBox.replaceChildren();
     this.queueBtn.textContent = this.queueLabel(!!this.account);
     if (!info) return;
-    const waiting = info.members.filter((m) => !m.ready && m.name !== info.leader).length;
+    const waiting = rd.waiting.length;
     const head = el('div', 'pr-head');
     head.append(el('b', '', `Party (${info.members.length}/${PARTY_MAX})`), el('small', '', leader ? 'You pick the mode and arena' : `${info.leader} picks the mode and arena`));
     this.partyBox.append(head);
@@ -203,7 +222,7 @@ export class MainMenu {
       row.append(side, el('span', `pr-rdy${lead || m.ready ? ' ok' : ''}`, lead ? 'Leader' : m.ready ? 'Ready ✓' : 'Not ready'));
       this.partyBox.append(row);
     }
-    this.partyBox.append(el('small', 'pr-foot', leader ? (waiting ? `Waiting for ${waiting} to ready up.` : 'Everyone is ready. Pick Practice or Ranked.') : 'Press Ready when you are set.'));
+    this.partyBox.append(el('small', 'pr-foot', leader ? (waiting ? rd.label : 'Everyone is ready. Pick Practice or Ranked.') : this.isReady ? `Ready. ${info.leader} picks the mode.` : 'Press Ready when you are set.'));
     this.queueBtn.textContent += (info.members.length > 1 ? ` (${info.members.length - waiting}/${info.members.length} ready)` : '');
   }
 
@@ -325,7 +344,6 @@ export class MainMenu {
       this.paintParty();
       this.hooks.onReady(this.isReady);
     });
-    this.partyBtn.title = 'A friendly match with your whole party: pick sides, bots fill the empty places.';
     this.partyBtn.addEventListener('click', () => this.play('party'));
     // the size buttons drive the (hidden) select so the saved setting and partner list keep working
     const segs = el('div', 'mm-seg');
@@ -606,7 +624,7 @@ export class MainMenu {
     this.lookCard.replaceChildren();
     const ico = el('span', 'lc-ico', '🎭');
     const txt = el('span', 'lc-txt');
-    txt.append(el('span', 'lc-t', 'Look'), el('span', 'lc-s', worn ? `${worn} of ${COSMETICS.slots.length} slots dressed · ${progress.matches} matches played` : 'Headwear, shoulders, back, glow and 3 more'));
+    txt.append(el('span', 'lc-t', 'Look'), el('span', 'lc-s', worn ? `${worn} of ${COSMETICS.slots.length} slots dressed · ${progress.matches} matches played` : 'Headwear, wings, back, glow and 3 more'));
     this.lookCard.append(ico, txt, el('span', 'lc-go', '›'));
     if (this.openSlot) this.openLook(this.openSlot);
   }
@@ -724,23 +742,44 @@ export class MainMenu {
 
   // ------------------------------------------------------------------ patch notes
 
+  /** Show how many updates came out since the list was last opened. A first visit counts as having seen everything. */
+  paintPatchBadge() {
+    const last = store.get(LAST_SEEN_KEY, '') || null;
+    if (!last) {
+      const first = markSeen(PATCHES, null);
+      if (first) store.set(LAST_SEEN_KEY, first);
+    }
+    const n = unseenPatchCount(PATCHES, last);
+    this.patchBadge.textContent = String(n);
+    this.patchBadge.classList.toggle('hidden', n === 0);
+    this.patchBadge.title = n ? `${n} new update${n === 1 ? '' : 's'}` : '';
+  }
+
   openPatches() {
+    const lastSeen = store.get(LAST_SEEN_KEY, '') || null;
+    const missed = unseenPatchCount(PATCHES, lastSeen);
     const card = el('div', 'mm-modal-card mm-patches');
     const head = el('div', 'mm-modal-head');
     const close = el('button', 'mm-small', 'Close');
     close.addEventListener('click', () => this.closeGear());
     head.append(el('h2', '', 'Patch notes'), close);
     card.append(head);
+    if (missed) card.append(el('div', 'mm-missed', missedText(missed)));
     PATCHES.forEach((p, i) => {
-      const box = el('section', `mm-patch${i === 0 ? ' latest' : ''}`);
+      const fresh = !!lastSeen && compareVersions(p.version, lastSeen) > 0;
+      const box = el('section', `mm-patch${i === 0 ? ' latest' : ''}${fresh ? ' fresh' : ''}`);
       const h = el('h3', '');
       h.append(el('span', 'pv', `v${p.version}`), el('span', 'pt', p.title), el('span', 'pd', patchTime(p)));
-      if (i === 0) h.append(el('span', 'pnew', 'Latest'));
+      if (fresh) h.append(el('span', 'pnew seen-new', 'NEW'));
+      else if (i === 0) h.append(el('span', 'pnew', 'Latest'));
       const ul = el('ul', '');
       for (const c of p.changes) ul.append(el('li', '', c));
       box.append(h, ul);
       card.append(box);
     });
+    const seen = markSeen(PATCHES, lastSeen);
+    if (seen) store.set(LAST_SEEN_KEY, seen);
+    this.paintPatchBadge();
     this.openSlot = null;
     this.root.classList.remove('look-open');
     this.modal.className = 'mm-modal';

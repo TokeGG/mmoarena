@@ -219,7 +219,9 @@ export class Accounts {
   async customize(a: AccountRecord, want: Cosmetics, ownerOk = false): Promise<AccountRecord | null> {
     return this.exclusive([a.key], async () => {
       const fresh = (await this.get(a.name)) ?? a;
-      const ok = validateCosmetics(want, ownerOk ? fresh : { ...fresh, name: undefined }, fresh.cosmetics, ownerOk);
+      // the owner account has every earned title, icon and colour open; the owner-tier ones also need the owner session
+      const asOwner = { ...fresh, matches: 1e9, wins: 1e9, peak: 1e9 };
+      const ok = validateCosmetics(want, ownerOk ? fresh : isOwnerName(fresh.name) ? { ...asOwner, name: undefined } : { ...fresh, name: undefined }, fresh.cosmetics, ownerOk);
       if (!ok) return null;
       fresh.cosmetics = ok;
       await this.save(fresh);

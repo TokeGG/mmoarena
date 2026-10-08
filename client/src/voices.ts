@@ -331,4 +331,7 @@ export const STEP_SURFACE: Record<string, { f: number; lp: number; thud: number 
   colosseum: { f: 420, lp: 1, thud: 85 },
   ruins: { f: 360, lp: 1, thud: 75 },
   frost: { f: 900, lp: 1.8, thud: 110 },
+  cinder: { f: 300, lp: 1, thud: 70 }, // cracked basalt
+  forge: { f: 520, lp: 1, thud: 95 }, // brick and iron
+  sandstone: { f: 380, lp: 1, thud: 80 }, // sand over cobble
 };

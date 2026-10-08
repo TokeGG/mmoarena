@@ -83,7 +83,7 @@ export function itemTip(id: string): TipContent | null {
   if (item.owner) notes.push('Founder only.');
   else if (item.unlock) (played >= item.unlock ? notes : bad).push(played >= item.unlock ? `Unlocked at ${item.unlock} matches.` : `Locked: play ${item.unlock} matches (you have ${played}).`);
   // "cosmetic only" is said once, in the Look window's header, not on every item
-  return { title: item.name, titleColor: item.color, tag: slot.name, bad, notes };
+  return { title: item.name, titleColor: item.color, tag: slot.name, lines: item.desc ? [item.desc] : undefined, bad, notes };
 }
 
 export function installTips() {

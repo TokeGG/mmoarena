@@ -39,7 +39,7 @@ for (let i = 0; i < rawPos.length; i++) {
   hi[i % 3] = Math.max(hi[i % 3], rawPos[i]);
 }
 const H = hi[1] - lo[1];
-const cx = (lo[0] + hi[0]) / 2, cz = cfg.centerZ ?? (lo[2] + hi[2]) / 2;
+const cx = cfg.centerX ?? (lo[0] + hi[0]) / 2, cz = cfg.centerZ ?? (lo[2] + hi[2]) / 2;
 const norm = new Float32Array(rawPos.length);
 for (let i = 0; i < rawPos.length; i += 3) {
   norm[i] = (rawPos[i] - cx) / H;
@@ -56,6 +56,14 @@ d = await decimate(w.pos, w.idx, cfg.targetTris ?? 12000);
 log(`decimated to ${d.idx.length / 3} triangles (error ${d.error.toFixed(4)})`);
 const dn = vertexNormals(d.pos, d.idx);
 baked = unwrapAndBake({ pos: d.pos, idx: d.idx, normals: dn }, { pos: norm, normals: rawNrm, colour: vertexColours(rawUv, img), cell: 0.006 }, cfg.textureSize ?? 1024, { log });
+if (cfg.textureGain) { // very dark sources (black assassin garb): stretch brightness so the dye shader and cosmetics have something to work with; detail stays in luminance
+  const gm = cfg.textureGamma ?? 1;
+  const ds = cfg.textureDesat ?? 0; // pull the colours toward their own brightness (strongly coloured sources, the sentinel's brown and gold): dyes then read as dyes, the engraving stays
+  for (let i = 0; i < baked.rgba.length; i += 4) {
+    const l = 0.2126 * baked.rgba[i] + 0.7152 * baked.rgba[i + 1] + 0.0722 * baked.rgba[i + 2];
+    for (let k = 0; k < 3; k++) baked.rgba[i + k] = Math.min(255, 255 * Math.pow((baked.rgba[i + k] * (1 - ds) + l * ds) / 255, gm) * cfg.textureGain);
+  }
+}
 jpg = encodeJpeg(baked.rgba, cfg.textureSize ?? 1024, cfg.textureSize ?? 1024, cfg.textureQuality ?? 88);
 log(`baked ${baked.charts} charts, texture ${(jpg.length / 1024).toFixed(0)} KB`);
 
@@ -86,7 +94,67 @@ for (let t = 0; t < ntri; t++) {
 }
 const partNames = ['body', 'head', 'shoulders', 'back'];
 const tris = Object.fromEntries(partNames.map((p) => [p, []]));
-partOfTri.forEach((p, t) => tris[p === 'shoulders_l' || p === 'shoulders_r' ? 'shoulders' : p].push(t));
+// splitLegs: legs that touch (boots, skirts) get bridged by triangles that tear apart when they scissor: drop every triangle that joins a left-leg vertex to a right-leg one
+const legSide = (v) => {
+  let best = -1, bw = 0;
+  for (let k = 0; k < 4; k++) if (vWeights[v * 4 + k] > bw) { bw = vWeights[v * 4 + k]; best = vJoints[v * 4 + k]; }
+  const n = BONES[best]?.name ?? '';
+  return /^(thigh|shin|foot)_l$/.test(n) ? 1 : /^(thigh|shin|foot)_r$/.test(n) ? -1 : 0;
+};
+const hipW = (v) => { let w = 0; for (let k = 0; k < 4; k++) if (BONES[vJoints[v * 4 + k]]?.name === 'hips') w += vWeights[v * 4 + k]; return w; };
+// splitArms: arms that hang against the hips and the skirt are fused to them by the source mesh; when the arms swing up for a two-handed hold those joining triangles stretch into long shards.
+// Drops every triangle that joins a forearm / hand vertex (or an upper-arm vertex below `splitArms` in height) to a hip, thigh or spine vertex.
+const armSide = (v) => {
+  let best = -1, bw = 0;
+  for (let k = 0; k < 4; k++) if (vWeights[v * 4 + k] > bw) { bw = vWeights[v * 4 + k]; best = vJoints[v * 4 + k]; }
+  const n = BONES[best]?.name ?? '';
+  if (/^(forearm|hand)_[lr]$/.test(n)) return 1;
+  if (/^upperarm_[lr]$/.test(n) && baked.pos[v * 3 + 1] < cfg.splitArms) return 1;
+  return /^(hips|spine|thigh_[lr])$/.test(n) ? -1 : 0;
+};
+let dropped = 0, droppedArms = 0;
+partOfTri.forEach((p, t) => {
+  if (cfg.splitArms) {
+    const sd = [0, 1, 2].map((k) => armSide(baked.idx[t * 3 + k]));
+    if (sd.includes(1) && sd.includes(-1)) { droppedArms++; return; }
+  }
+  if (cfg.splitLegs) {
+    const sd = [0, 1, 2].map((k) => legSide(baked.idx[t * 3 + k]));
+    if (sd.includes(1) && sd.includes(-1)) { dropped++; return; }
+    // the same for hanging cloth (hip-weighted below the hips) touching a boot: they are separate shells that the decimation fused
+    const cloth = [0, 1, 2].map((k) => { const v = baked.idx[t * 3 + k]; return baked.pos[v * 3 + 1] < cfg.splitLegs && hipW(v) > 0.6; });
+    if (cloth.includes(true) && sd.some((q) => q !== 0)) { dropped++; return; }
+  }
+  tris[p === 'shoulders_l' || p === 'shoulders_r' ? 'shoulders' : p].push(t);
+});
+if (dropped) log(`dropped ${dropped} triangles bridging the legs`);
+if (droppedArms) log(`dropped ${droppedArms} triangles bridging the arms and the hips`);
+// splitArms leaves bits of the gauntlet spikes (hip-weighted, they were fused to the skirt) floating beside the hips: small islands next to an arm go to that arm's forearm
+if (cfg.splitArms) {
+  const keep = partNames.flatMap((pn) => tris[pn]);
+  const pk = (v) => [0, 1, 2].map((k) => Math.round(baked.pos[v * 3 + k] * 2000)).join(',');
+  const ids = new Map(), rep = new Map();
+  const repOf = (v) => { let k = rep.get(v); if (k === undefined) { const key = pk(v); if (!ids.has(key)) ids.set(key, ids.size); k = ids.get(key); rep.set(v, k); } return k; };
+  const par = [];
+  const find = (a) => { while (par[a] !== a) { par[a] = par[par[a]]; a = par[a]; } return a; };
+  for (const t of keep) for (let k = 0; k < 3; k++) { const r = repOf(baked.idx[t * 3 + k]); while (par.length <= r) par.push(par.length); }
+  for (const t of keep) { const a = find(repOf(baked.idx[t * 3])); for (let k = 1; k < 3; k++) par[find(repOf(baked.idx[t * 3 + k]))] = a; }
+  const comp = new Map();
+  for (const t of keep) { const r = find(repOf(baked.idx[t * 3])); (comp.get(r) ?? comp.set(r, []).get(r)).push(t); }
+  let moved = 0;
+  for (const list of comp.values()) {
+    if (list.length >= 60) continue;
+    let cx = 0, cy = 0, n = 0;
+    const vs = new Set();
+    for (const t of list) for (let k = 0; k < 3; k++) { const v = baked.idx[t * 3 + k]; vs.add(v); cx += baked.pos[v * 3]; cy += baked.pos[v * 3 + 1]; n++; }
+    cx /= n; cy /= n;
+    if (Math.abs(cx) < 0.12 || cy < 0.25 || cy > 0.6) continue;
+    const bone = BONES.findIndex((b) => b.name === `forearm_${cx > 0 ? 'l' : 'r'}`);
+    for (const v of vs) { vJoints.set([bone, 0, 0, 0], v * 4); vWeights.set([1, 0, 0, 0], v * 4); }
+    moved++;
+  }
+  if (moved) log(`${moved} loose gauntlet pieces follow the forearm`);
+}
 log('parts: ' + partNames.map((p) => `${p} ${tris[p].length}`).join(', '));
 
 // ---- 5. write the GLB

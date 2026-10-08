@@ -1,0 +1,200 @@
+{
+  "_doc": "Rig config for the hooded assassin (rogue, client/public/models/rogue.glb). Source: USDZ converted to a static GLB (see DEVELOPING.md). Coordinates are fractions of the model's height, after centering on centerX/centerZ (raw source units).",
+  "height": 2.2,
+  "targetTris": 13500,
+  "textureSize": 1024,
+  "textureQuality": 88,
+  "joints": {
+    "hips": [
+      0,
+      0.53,
+      0
+    ],
+    "spine": [
+      0,
+      0.6,
+      0.005
+    ],
+    "chest": [
+      0,
+      0.69,
+      0.01
+    ],
+    "neck": [
+      0,
+      0.83,
+      0.02
+    ],
+    "head": [
+      0,
+      0.86,
+      0.03
+    ],
+    "headTop": [
+      0,
+      0.995,
+      0.03
+    ],
+    "shoulder": [
+      0.035,
+      0.8,
+      0.01
+    ],
+    "upperarm": [
+      0.11,
+      0.795,
+      0.01
+    ],
+    "forearm": [
+      0.18,
+      0.655,
+      0.02
+    ],
+    "hand": [
+      0.225,
+      0.53,
+      0.03
+    ],
+    "handTip": [
+      0.235,
+      0.47,
+      0.04
+    ],
+    "thigh": [
+      0.06,
+      0.52,
+      0.01
+    ],
+    "shin": [
+      0.065,
+      0.29,
+      0.02
+    ],
+    "foot": [
+      0.065,
+      0.085,
+      0.01
+    ],
+    "toe": [
+      0.065,
+      0.03,
+      0.08
+    ]
+  },
+  "radius": {},
+  "smooth": 0.03,
+  "regions": [
+    {
+      "part": "head",
+      "box": {
+        "x": [
+          -0.1,
+          0.1
+        ],
+        "y": [
+          0.845,
+          1.1
+        ]
+      }
+    },
+    {
+      "part": "shoulders",
+      "ellipsoid": {
+        "c": [
+          0.15,
+          0.79,
+          0.0
+        ],
+        "r": [
+          0.075,
+          0.09,
+          0.12
+        ],
+        "mirror": true
+      }
+    },
+    {
+      "part": "back",
+      "box": {
+        "y": [
+          0,
+          0.76
+        ],
+        "z": [
+          -1,
+          -0.065
+        ]
+      }
+    }
+  ],
+  "cloth": [
+    {
+      "box": {
+        "y": [
+          0.05,
+          0.5
+        ],
+        "z": [
+          0.075,
+          1
+        ]
+      },
+      "maxFollow": 0.5,
+      "ramp": 0.12,
+      "spread": 0.06
+    },
+    {
+      "box": {
+        "y": [
+          0.05,
+          0.5
+        ],
+        "z": [
+          -1,
+          -0.075
+        ]
+      },
+      "maxFollow": 0.5,
+      "ramp": 0.12,
+      "spread": 0.06
+    }
+  ],
+  "attach": {
+    "attach_hand_l": {
+      "bone": "hand_l",
+      "at": [
+        0.23,
+        0.5,
+        0.04
+      ]
+    },
+    "attach_hand_r": {
+      "bone": "hand_r",
+      "at": [
+        -0.23,
+        0.5,
+        0.04
+      ]
+    }
+  },
+  "runtime": {
+    "headCenter": [
+      0,
+      0.925,
+      0.03
+    ],
+    "headR": 0.058,
+    "shoulderJoint": [
+      0.115,
+      0.775,
+      0
+    ],
+    "chestBackZ": 0.075,
+    "torsoW": 0.24,
+    "deadY": 0.133
+  },
+  "centerX": -3,
+  "centerZ": 14,
+  "textureGain": 2.6,
+  "textureGamma": 0.9
+}

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { ArmHold, RigPoseInput } from './riggedPose';
+import { newShoutPose, shoutPose } from './shoutPose';
 
 /**
  * Clip-driven animation for rigged models that ship real animation clips (ModelDef.clips, written by scripts/prep-character.mjs).
@@ -38,6 +39,8 @@ export interface ClipOpts {
   blend?: number;
   /** Bone name pattern (regex source) of the lower body: those tracks are not part of the attack's upper layer. */
   lower?: string;
+  /** How much of the shout pose (shoutPose.ts) the clip skeleton takes (default 0.9). */
+  shoutGain?: number;
 }
 
 const clamp = (x: number, a: number, b: number) => (x < a ? a : x > b ? b : x);
@@ -45,6 +48,12 @@ const layerWeight = (a: number) => {
   const k = clamp(a, 0, 0.97);
   return k / (1 - k);
 };
+const _pq = new THREE.Quaternion();
+const _pqi = new THREE.Quaternion();
+const _rq = new THREE.Quaternion();
+const _rqi = new THREE.Quaternion();
+const _dq = new THREE.Quaternion();
+const _eul = new THREE.Euler();
 const easeOut = (x: number) => 1 - (1 - clamp(x, 0, 1)) ** 3;
 
 const find = (clips: THREE.AnimationClip[], name: string) => {
@@ -94,12 +103,15 @@ export class ClipAnimator {
   private lastSwing = -1;
   private wasDead = false;
   private lastCasting = false;
+  /** The canonical bones (set by the model builder) that the shout overlay turns after the mixer has run; without them the overlay is skipped. */
+  bones: Record<string, THREE.Object3D> | null = null;
+  private readonly sh = newShoutPose();
 
   constructor(body: THREE.Object3D, clips: THREE.AnimationClip[], opts: ClipOpts = {}) {
     this.body = body;
     this.o = {
       idle: 'idle', walk: 'walk', run: 'run', attack: 'attack', death: 'death',
-      walkSpeed: 2.6, runSpeed: 4.7, windup: 0.4, deathHold: 1.0, blend: 0.2,
+      walkSpeed: 2.6, runSpeed: 4.7, windup: 0.4, deathHold: 1.0, blend: 0.2, shoutGain: 0.9,
       lower: 'Pelvis|Thigh|Calf|Foot|Toe|Bip01_01$',
       ...opts,
     };
@@ -234,5 +246,63 @@ export class ClipAnimator {
     this.body.position.y = f * 0.2;
     this.body.position.z = -f * 0.9;
     this.mixer.update(dt);
+    if (p.shout !== undefined && p.shout >= 0 && !dead && this.bones) this.overlayShout(p.shout);
+    else {
+      this.lungeZ = 0;
+      if (this.rebased.size) this.releaseOverlay();
+    }
+  }
+
+  /** Per bone: its rotation before the overlay and the one the overlay wrote (a bone no clip keys is not rewritten by the mixer, so the overlay would add up frame after frame). */
+  private readonly rebased = new Map<string, { base: THREE.Quaternion; out: THREE.Quaternion }>();
+
+  /** Puts a bone back to what the clips (or the rest pose) say, undoing last frame's overlay, and notes it. */
+  private rebase(name: string, b: THREE.Object3D) {
+    let e = this.rebased.get(name);
+    if (!e) this.rebased.set(name, (e = { base: b.quaternion.clone(), out: b.quaternion.clone() }));
+    else if (b.quaternion.equals(e.out)) b.quaternion.copy(e.base);
+    else e.base.copy(b.quaternion);
+  }
+
+  /** After a shout: every bone the overlay turned goes back to its base rotation. */
+  private releaseOverlay() {
+    for (const [name, e] of this.rebased) {
+      const b = this.bones?.[name];
+      if (b && b.quaternion.equals(e.out)) b.quaternion.copy(e.base);
+    }
+    this.rebased.clear();
+  }
+
+  /** Turns a bone by a rotation given in character space (x = the character's left, +z forward), on top of what the clips just wrote. */
+  private turn(name: string, x: number, y: number, z: number) {
+    const b = this.bones?.[name];
+    if (!b || !b.parent) return;
+    this.rebase(name, b);
+    b.parent.getWorldQuaternion(_pq);
+    _pqi.copy(_pq).invert();
+    this.body.parent?.getWorldQuaternion(_rq);
+    _rqi.copy(_rq).invert();
+    // local' = parentWorld^-1 * (root * delta * root^-1) * parentWorld * local
+    _dq.setFromEuler(_eul.set(x, y, z)).premultiply(_rq).multiply(_rqi);
+    b.quaternion.premultiply(_pqi.multiply(_dq).multiply(_pq));
+    this.rebased.get(name)!.out.copy(b.quaternion);
+  }
+
+  /** The shout pose (shoutPose.ts) on the spine, head and arms. Applies after the mixer: the clips own the bones every frame, so nothing accumulates. */
+  private overlayShout(q: number) {
+    const sh = shoutPose(q, this.sh);
+    const g = this.o.shoutGain;
+    for (const k of ['spine', 'chest', 'neck', 'head', 'armX', 'armZ', 'elbow'] as const) sh[k] *= g;
+    this.body.updateMatrixWorld(true);
+    this.turn('spine', sh.spine, 0, 0);
+    this.turn('chest', sh.chest, 0, 0);
+    this.turn('neck', sh.neck, 0, 0);
+    this.turn('head', sh.head, 0, 0);
+    this.turn('upperarm_l', sh.armX, 0, sh.armZ);
+    this.turn('upperarm_r', sh.armX, 0, -sh.armZ);
+    this.turn('forearm_l', sh.elbow, 0, 0);
+    this.turn('forearm_r', sh.elbow, 0, 0);
+    this.lungeZ = sh.lunge;
+    this.body.updateMatrixWorld(true);
   }
 }

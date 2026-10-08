@@ -6,9 +6,9 @@
    "icon": "\ud83c\udfa9"
   },
   {
-   "id": "shoulders",
-   "name": "Shoulders",
-   "icon": "\ud83e\uddbe"
+   "id": "wings",
+   "name": "Wings",
+   "icon": "\ud83e\udd85"
   },
   {
    "id": "back",
@@ -43,13 +43,6 @@
    "name": "Horned Crown",
    "style": "horns",
    "color": "#d9472b"
-  },
-  {
-   "id": "wings_silver",
-   "slot": "head",
-   "name": "Winged Circlet",
-   "style": "wings",
-   "color": "#dfe6ee"
   },
   {
    "id": "crown_gold",
@@ -194,138 +187,126 @@
    "owner": true
   },
   {
-   "id": "spikes_steel",
-   "slot": "shoulders",
-   "name": "Spiked Pauldrons",
-   "style": "spikes",
-   "color": "#9aa3b2"
+   "id": "wings_angel",
+   "slot": "wings",
+   "name": "Angel Wings",
+   "style": "angel",
+   "color": "#fff3d0",
+   "desc": "Soft white feathers that drift loose as you move."
   },
   {
-   "id": "plates_gold",
-   "slot": "shoulders",
-   "name": "Gilded Plates",
-   "style": "plates",
-   "color": "#f0c53a"
+   "id": "wings_bat",
+   "slot": "wings",
+   "name": "Duskwings",
+   "style": "dusk",
+   "color": "#3a2a4a",
+   "desc": "Dark, ragged wings with a faint violet edge."
   },
   {
-   "id": "crystal_ice",
-   "slot": "shoulders",
-   "name": "Crystal Shards",
-   "style": "crystals",
-   "color": "#5de0ff"
-  },
-  {
-   "id": "fluff_wolf",
-   "slot": "shoulders",
-   "name": "Wolf Fur",
-   "style": "fluff",
-   "color": "#bdb2a0"
-  },
-  {
-   "id": "flames_ember",
-   "slot": "shoulders",
-   "name": "Flame Tufts",
-   "style": "flames",
-   "color": "#ff7a1a"
-  },
-  {
-   "id": "mantle_royal",
-   "slot": "shoulders",
-   "name": "Royal Mantle",
-   "style": "mantle",
-   "color": "#7a1f3d"
-  },
-  {
-   "id": "spikes_bone",
-   "slot": "shoulders",
-   "name": "Bone Spurs",
-   "style": "spikes",
-   "color": "#e8e0cc"
-  },
-  {
-   "id": "plates_emerald",
-   "slot": "shoulders",
-   "name": "Emerald Plates",
-   "style": "plates",
-   "color": "#2ecc71"
-  },
-  {
-   "id": "plates_bronze",
-   "slot": "shoulders",
-   "name": "Bronze Pauldrons",
-   "style": "plates",
-   "color": "#b07a3a"
-  },
-  {
-   "id": "spikes_obsidian",
-   "slot": "shoulders",
-   "name": "Obsidian Spikes",
-   "style": "spikes",
-   "color": "#2b2b36"
-  },
-  {
-   "id": "orbs_fire",
-   "slot": "shoulders",
-   "name": "Ember Spheres",
-   "style": "orbs",
+   "id": "wings_phoenix",
+   "slot": "wings",
+   "name": "Phoenix Wings",
+   "style": "phoenix",
    "color": "#ff7a1a",
-   "unlock": 5
+   "desc": "Feathers that burn from gold to deep red."
   },
   {
-   "id": "orbs_frost",
-   "slot": "shoulders",
-   "name": "Frost Spheres",
-   "style": "orbs",
+   "id": "wings_verdant",
+   "slot": "wings",
+   "name": "Verdant Wings",
+   "style": "verdant",
+   "color": "#5fbf5a",
+   "desc": "Leaf-green wings that shed fluttering green petals."
+  },
+  {
+   "id": "wings_ember",
+   "slot": "wings",
+   "name": "Emberwings",
+   "style": "ember",
+   "color": "#d9472b",
+   "unlock": 5,
+   "desc": "Charred wings with glowing edges; embers rise off them."
+  },
+  {
+   "id": "wings_frost",
+   "slot": "wings",
+   "name": "Frostfeather Wings",
+   "style": "frost",
    "color": "#7fdcff",
-   "unlock": 15
+   "unlock": 15,
+   "desc": "Icy blue feathers with falling frost crystals."
   },
   {
-   "id": "bolts_storm",
-   "slot": "shoulders",
-   "name": "Stormcallers",
-   "style": "bolts",
+   "id": "wings_storm",
+   "slot": "wings",
+   "name": "Stormwings",
+   "style": "storm",
    "color": "#ffe14a",
-   "unlock": 30
+   "unlock": 30,
+   "desc": "Wings crackling with arcs of lightning."
   },
   {
-   "id": "orbs_void",
-   "slot": "shoulders",
-   "name": "Void Spheres",
-   "style": "orbs",
+   "id": "wings_blossom",
+   "slot": "wings",
+   "name": "Blossom Wings",
+   "style": "blossom",
+   "color": "#ff9ec7",
+   "unlock": 30,
+   "desc": "Pale rose wings that scatter drifting petals."
+  },
+  {
+   "id": "wings_void",
+   "slot": "wings",
+   "name": "Voidwings",
+   "style": "void",
    "color": "#9b5cff",
-   "unlock": 60
+   "unlock": 60,
+   "desc": "Layered wings of dark purple with trailing void wisps."
   },
   {
-   "id": "bolts_azure",
-   "slot": "shoulders",
-   "name": "Azure Arcs",
-   "style": "bolts",
-   "color": "#6fa8ff",
-   "unlock": 100
-  },
-  {
-   "id": "dragon_pauldrons",
-   "slot": "shoulders",
-   "name": "Dragon Pauldrons",
-   "style": "dragon",
-   "color": "#7a1418",
-   "owner": true
-  },
-  {
-   "id": "sunforged_pauldrons",
-   "slot": "shoulders",
-   "name": "Sunforged Pauldrons",
-   "style": "sunplate",
+   "id": "wings_solar",
+   "slot": "wings",
+   "name": "Solar Wings",
+   "style": "solar",
    "color": "#ffd24a",
-   "owner": true
+   "unlock": 100,
+   "desc": "Blazing golden wings with a halo of sun rays."
   },
   {
-   "id": "aurora_pauldrons",
-   "slot": "shoulders",
-   "name": "Aurora Pauldrons",
-   "style": "curtain",
+   "id": "archon_wings",
+   "slot": "wings",
+   "name": "Archon Wings",
+   "style": "archon",
+   "color": "#ffd76a",
+   "owner": true,
+   "desc": "Two golden layers of feathers with a glowing halo."
+  },
+  {
+   "id": "eclipse_wings",
+   "slot": "wings",
+   "name": "Eclipse Wings",
+   "style": "eclipse",
+   "color": "#b08cff",
+   "owner": true,
+   "desc": "Black wings ringed with a violet eclipse glow."
+  },
+  {
+   "id": "wings_aurora",
+   "slot": "wings",
+   "name": "Aurora Wings",
+   "style": "aurora",
    "color": "#5dffb0",
-   "owner": true
+   "owner": true,
+   "desc": "Wings of shifting northern light."
+  },
+  {
+   "id": "wings_starfall",
+   "slot": "wings",
+   "name": "Starfall Wings",
+   "style": "stars",
+   "color": "#6fa8ff",
+   "owner": true,
+   "desc": "Midnight wings full of twinkling stars."
   },
   {
    "id": "cloak_crimson",
@@ -354,27 +335,6 @@
    "name": "Verdant Cloak",
    "style": "cloak",
    "color": "#2e8b4a"
-  },
-  {
-   "id": "wings_angel",
-   "slot": "back",
-   "name": "Angel Wings",
-   "style": "angel",
-   "color": "#fff3d0"
-  },
-  {
-   "id": "wings_bat",
-   "slot": "back",
-   "name": "Bat Wings",
-   "style": "bat",
-   "color": "#3a2a4a"
-  },
-  {
-   "id": "wings_phoenix",
-   "slot": "back",
-   "name": "Phoenix Wings",
-   "style": "phoenix",
-   "color": "#ff7a1a"
   },
   {
    "id": "banner_war",
@@ -406,14 +366,6 @@
    "unlock": 5
   },
   {
-   "id": "wings_frost",
-   "slot": "back",
-   "name": "Frostfeather Wings",
-   "style": "angel",
-   "color": "#7fdcff",
-   "unlock": 15
-  },
-  {
    "id": "ribbons_aurora",
    "slot": "back",
    "name": "Aurora Ribbons",
@@ -422,43 +374,11 @@
    "unlock": 30
   },
   {
-   "id": "wings_void",
-   "slot": "back",
-   "name": "Voidbat Wings",
-   "style": "bat",
-   "color": "#9b5cff",
-   "unlock": 60
-  },
-  {
-   "id": "wings_solar",
-   "slot": "back",
-   "name": "Solar Phoenix",
-   "style": "phoenix",
-   "color": "#ffd24a",
-   "unlock": 100
-  },
-  {
-   "id": "archon_wings",
-   "slot": "back",
-   "name": "Archon Wings",
-   "style": "archon",
-   "color": "#ffd76a",
-   "owner": true
-  },
-  {
    "id": "ember_cloak",
    "slot": "back",
    "name": "Cloak of Embers",
    "style": "embercloak",
    "color": "#1a1218",
-   "owner": true
-  },
-  {
-   "id": "eclipse_wings",
-   "slot": "back",
-   "name": "Eclipse Rift",
-   "style": "rift",
-   "color": "#b08cff",
    "owner": true
   },
   {

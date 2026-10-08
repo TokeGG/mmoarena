@@ -74,35 +74,6 @@
       "source": "https://sketchfab.com/3d-models/greatsword-ddb0054280be46dba275758194c9ee4d"
     }
   },
-  "axe": {
-    "out": "axe.glb",
-    "up": [
-      0,
-      1,
-      0
-    ],
-    "face": [
-      0,
-      0,
-      1
-    ],
-    "length": 2.6,
-    "grip": 0.377,
-    "textureSize": 1024,
-    "materials": {
-      "default": {
-        "brighten": 1.6,
-        "metallic": 0.4,
-        "roughness": 0.4
-      }
-    },
-    "credit": {
-      "title": "Divine Fantasy Axe",
-      "author": "Xardkorich_3D (https://sketchfab.com/grivko.artem2020)",
-      "license": "Sketchfab Standard licence (https://sketchfab.com/licenses): NOT a Creative Commons licence, redistribution to be confirmed by the owner",
-      "source": "https://sketchfab.com/3d-models/divine-fantasy-axe-188fe88f2dab4513b76f2a47eeb1daba"
-    }
-  },
   "staff-fire": {
     "up": [
       0,
@@ -262,5 +233,276 @@
     "simplifyFlags": [
       "Permissive"
     ]
+  },
+  "dagger": {
+    "out": "dagger.glb",
+    "up": [
+      0,
+      0,
+      1
+    ],
+    "face": [
+      0,
+      1,
+      0
+    ],
+    "length": 0.85,
+    "grip": 0.25,
+    "textureSize": 512,
+    "jpegQuality": 82,
+    "parts": [
+      {
+        "name": "dagger"
+      }
+    ],
+    "decimate": [
+      {
+        "match": "^Daga_Pyke",
+        "tris": 4500
+      }
+    ],
+    "materials": {
+      "0": {
+        "size": 512,
+        "metallic": 0.5,
+        "roughness": 0.4,
+        "brighten": 1.2,
+        "emissiveMap": {
+          "size": 512,
+          "quality": 78,
+          "strength": 1.4
+        }
+      }
+    },
+    "credit": {
+      "title": "Pyke\u2019s Dagger",
+      "author": "RickLop (https://sketchfab.com/RickLop)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/pykes-dagger-dfed510939ba407da280cdf03e1c85fa"
+    },
+    "note": "One dagger decimated 52k -> 4.5k triangles; the game puts it in both hands (the off hand mirrored).",
+    "simplifyFlags": [
+      "Permissive"
+    ]
+  },
+  "staff-holy": {
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "face": [
+      0,
+      0,
+      1
+    ],
+    "out": "staff-holy.glb",
+    "length": 2.3,
+    "grip": 0.5,
+    "parts": [
+      {
+        "name": "staff"
+      }
+    ],
+    "decimate": [
+      {
+        "match": "^Plane_Black",
+        "tris": 1500
+      },
+      {
+        "match": "^Plane_Crystal",
+        "tris": 700
+      },
+      {
+        "match": "^Plane\\.001_Gold",
+        "tris": 1800
+      },
+      {
+        "match": "^Circle_Gold",
+        "tris": 700
+      },
+      {
+        "match": "^Plane\\.002_Black",
+        "tris": 400
+      },
+      {
+        "match": "^Plane\\.002_silver",
+        "tris": 500
+      },
+      {
+        "match": "^Plane\\.003_silver",
+        "tris": 600
+      },
+      {
+        "match": "^Plane\\.004_silver",
+        "tris": 300
+      },
+      {
+        "match": "^Plane\\.006",
+        "tris": 300
+      },
+      {
+        "match": "^Plane\\.007",
+        "tris": 500
+      },
+      {
+        "match": "^Plane\\.008",
+        "tris": 300
+      },
+      {
+        "match": "^Plane\\.009",
+        "tris": 200
+      },
+      {
+        "match": "^Plane\\.010",
+        "tris": 200
+      },
+      {
+        "match": "^Plane\\.012",
+        "tris": 700
+      }
+    ],
+    "materials": {
+      "0": {
+        "metallic": 0.35,
+        "roughness": 0.4,
+        "color": [
+          0.62,
+          0.45,
+          0.16,
+          1
+        ]
+      },
+      "1": {
+        "metallic": 0.0,
+        "roughness": 0.25,
+        "color": [
+          1.0,
+          0.93,
+          0.72,
+          1
+        ],
+        "emissive": [
+          1.0,
+          0.82,
+          0.4
+        ]
+      },
+      "2": {
+        "metallic": 0.35,
+        "roughness": 0.3,
+        "color": [
+          1.0,
+          0.78,
+          0.22,
+          1
+        ]
+      },
+      "3": {
+        "metallic": 0.3,
+        "roughness": 0.35,
+        "color": [
+          0.96,
+          0.95,
+          0.9,
+          1
+        ]
+      }
+    },
+    "credit": {
+      "title": "Holy Staff",
+      "author": "3DMode (https://sketchfab.com/3DModele)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/holy-staff-e1c417929c424c15908014ef361bde15"
+    },
+    "note": "Untextured gold, silver and crystal parts: decimated 46.5k -> about 9k triangles and recoloured in warm gold and white (the crystal glows); the game tints it per spec.",
+    "simplifyFlags": [
+      "Permissive"
+    ]
+  },
+  "staff-necro": {
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "face": [
+      0,
+      0,
+      1
+    ],
+    "out": "staff-necro.glb",
+    "length": 1.9,
+    "grip": 0.5,
+    "parts": [
+      {
+        "name": "staff"
+      }
+    ],
+    "mergeByMaterial": true,
+    "decimate": [
+      {
+        "match": ".",
+        "tris": 7000
+      }
+    ],
+    "textureSize": 512,
+    "jpegQuality": 78,
+    "materials": {
+      "default": {
+        "size": 512,
+        "metallic": 0.1,
+        "roughness": 0.55,
+        "brighten": 2.0
+      }
+    },
+    "credit": {
+      "title": "Necro Staff",
+      "author": "suddel (https://sketchfab.com/suddel13)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/necro-staff-05bdb7eb36ea487a8acba0c71fa116ef"
+    },
+    "note": "Decimated 500k -> 7k triangles (the five source chunks joined first); one 512 px base colour map, normal and metal maps dropped.",
+    "uvWeight": 2,
+    "normalWeight": 0.3,
+    "simplifyFlags": [
+      "Permissive"
+    ]
+  },
+  "polearm": {
+    "out": "polearm.glb",
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "face": [
+      0,
+      0,
+      1
+    ],
+    "length": 2.6,
+    "grip": 0.377,
+    "textureSize": 1024,
+    "materials": {
+      "default": {
+        "brighten": 1.5,
+        "metallic": 0.4,
+        "roughness": 0.45
+      }
+    },
+    "credit": {
+      "title": "Tyra Polearm",
+      "author": "zenkuri (https://sketchfab.com/zenkuri)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/tyra-polearm-b538efe0811148c28d697e3151d6bf2e"
+    },
+    "parts": [
+      {
+        "name": "weapon",
+        "match": "^Polearm"
+      }
+    ],
+    "note": "The source comes on a display stand (pCylinder1/2); only the polearm itself is kept."
   }
 }

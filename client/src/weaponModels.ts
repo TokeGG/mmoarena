@@ -43,6 +43,8 @@ export interface WeaponDef {
   glow?: { color: number; from: number; to: number; r: number; opacity?: number };
   /** Arm pose while held (two-handers): the animator keeps both arms on the weapon and swings them together. */
   hold?: ArmHold;
+  /** Orientation (and offset) of the weapon in the right hand group while it rests on the shoulder one-handed (see ArmHold.rest); it turns into `right` as the second hand takes hold. */
+  rest?: { rot: [number, number, number]; pos?: [number, number, number] };
   /** What the wielder looks like with it (the mage specs): robe tint and the magic that hangs around the weapon's head (models.ts applies them). */
   look?: WeaponLook;
 }
@@ -67,20 +69,28 @@ export const WEAPONS: Record<string, WeaponDef> = {
     mid: 0.6,
     glow: { color: 0x7fd0ff, from: 0.1, to: 1.1, r: 0.05, opacity: 0.08 },
   },
-  // Rampager: the greatsword carried up and forward in both hands
+  // Rogue (every spec): the same dagger in each hand, point forward and a little out, held in a forward grip
+  daggers: {
+    url: '/models/weapons/dagger.glb',
+    right: { part: 'dagger', rot: [H, H, 0], lift: 0.3, out: 0.3 },
+    left: { part: 'dagger', rot: [H, H, 0], lift: 0.3, out: 0.3, mirror: true },
+    mid: 0.4,
+  },
+  // Rampager: the greatsword rests on the right shoulder in one hand; both hands take it up and forward to swing
   twohand: {
     url: '/models/weapons/greatsword.glb',
     right: { part: 'weapon', rot: [2.259, 1.199, -0.654] },
     mid: 1.0,
     glow: { color: 0xffb347, from: 0.3, to: 2.0, r: 0.07, opacity: 0.12 },
-    hold: { r: { x: -0.212, z: 0.46, e: -0.887 }, l: { x: -0.687, z: -0.769, e: -0.103 }, walk: 0.3, arc: 0.6 },
+    hold: { r: { x: -0.212, z: 0.46, e: -0.887 }, l: { x: -0.687, z: -0.769, e: -0.103 }, walk: 0.3, arc: 0.6, elbowArc: 0, rest: { r: { x: 0.016, z: 0.295, e: -1.661 }, walk: 0.3 } },
+    rest: { rot: [1.016, 0.17, -0.14] },
   },
-  // Barbarian: the axe held like a polearm
+  // Barbarian: the Tyra polearm, carried diagonally across the body in both hands
   polearm: {
-    url: '/models/weapons/axe.glb',
-    right: { part: 'weapon', rot: [1.252, -0.123, -0.172] },
+    url: '/models/weapons/polearm.glb',
+    right: { part: 'weapon', rot: [-0.378, -0.47, -1.611] },
     mid: 1.3,
-    hold: { r: { x: -0.134, z: 0.361, e: -0.728 }, l: { x: -1.019, z: -0.899, e: -0.034 }, walk: 0.3, arc: 0.6 },
+    hold: { r: { x: 0.097, z: 0.306, e: -1.304 }, l: { x: 0.033, z: -1.179, e: -1.705 }, walk: 0.3, arc: 0.6 },
   },
   // The mage staffs (Old Wizard, models.ts / riggedClips.ts). `rot` stands the staff up the way the wizard's own staff was held in
   // his idle clip (prep-character.mjs measures it: leaning 9 degrees forward); the grip is at the staff's middle, the head `mid` above it.
@@ -92,15 +102,26 @@ export const WEAPONS: Record<string, WeaponDef> = {
   },
   ice_staff: {
     url: '/models/weapons/staff-ice.glb',
-    right: { part: 'staff', rot: [0.159, 0, 0.034], pos: [-0.22, 0, 0.08], out: 0.06 },
+    right: { part: 'staff', rot: [0.159, 0, 0.034] },
     mid: 0.9,
     look: { robe: { color: 0x5f9ccc, k: 0.82, floor: 0.14, rim: 0.7, rimColor: 0xe2f8ff, glyph: 0xa8f0ff, glyphK: 1.5 }, fx: 'frost', color: 0x9fdcf0, color2: 0xdff6ff },
   },
   arcane_staff: {
     url: '/models/weapons/staff-arcane.glb',
-    right: { part: 'staff', rot: [0.159, 0, 0.034], pos: [-0.12, 0, 0.05], out: 0.04 },
+    right: { part: 'staff', rot: [0.159, 0, 0.034] },
     mid: 1.0,
     look: { robe: { color: 0x5a3cb0, k: 0.84, floor: 0.12, rim: 0.55, rimColor: 0xd8c4ff, glyph: 0xdcc8ff, glyphK: 1.6 }, fx: 'stars', color: 0xb08cf0, color2: 0xece0ff },
+  },
+  // Priest staffs (Abyssal Sentinel): the shaft stands up through the fist like the mage staffs, the gold head above it. Warden and Lightbearer share the holy staff.
+  holy_staff: {
+    url: '/models/weapons/staff-holy.glb',
+    right: { part: 'staff', rot: [0.159, 0, 0.034] },
+    mid: 1.0,
+  },
+  necro_staff: {
+    url: '/models/weapons/staff-necro.glb',
+    right: { part: 'staff', rot: [0.159, 0, 0.034] },
+    mid: 0.9,
   },
 };
 
@@ -188,6 +209,11 @@ export interface WeaponHost {
 export interface AttachedWeapon {
   /** Arm pose to hold while the weapon is carried (two-handers). */
   hold?: ArmHold;
+  /** The weapon's pivot in the right hand group, and where its middle is (cosmetics ride on it). */
+  pivot: THREE.Object3D;
+  mid: number;
+  /** Blend the weapon between its one-handed rest pose (0) and the two-handed hold (1); a no-op for weapons without a rest pose. */
+  setGrip(k: number): void;
   /** Where the middle of the weapon's glowing part is, in the right hand group's frame (weapon cosmetics are centred there). */
   glowAt: THREE.Vector3;
 }
@@ -256,5 +282,15 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
     }
   }
   const glowAt = new THREE.Vector3(0, mid, 0).applyQuaternion(right.quaternion).add(right.position);
-  return { hold: def.hold, glowAt };
+  const holdQ = right.quaternion.clone(), holdPos = right.position.clone();
+  const restQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(def.rest?.rot ?? [0, 0, 0])));
+  const restPos = GRIP.clone().add(new THREE.Vector3(...(def.rest?.pos ?? [0, 0, 0])));
+  let lastK = 1;
+  const setGrip = (k: number) => {
+    if (!def.rest || k === lastK) return;
+    lastK = k;
+    right.quaternion.slerpQuaternions(restQ, holdQ, k);
+    right.position.lerpVectors(restPos, holdPos, k);
+  };
+  return { hold: def.hold, pivot: right, mid, setGrip, glowAt };
 }

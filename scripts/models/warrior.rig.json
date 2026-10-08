@@ -83,6 +83,7 @@
   },
   "radius": {},
   "smooth": 0.03,
+  "splitArms": 0.62,
   "regions": [
     {
       "part": "head",

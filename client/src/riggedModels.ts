@@ -4,6 +4,10 @@ import { fetchModel } from './modelPack';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { ClassId } from '@arena/shared';
 import { preloadWeaponModels, weaponModelVersion } from './weaponModels';
+import { preloadCapeModel, capeModelVersion } from './capeModels';
+import { preloadWingModel, wingModelVersion } from './wingModels';
+import type { WingFit } from './wingModels';
+import type { CapeFit } from './capeModels';
 import { ClipAnimator } from './riggedClips';
 import type { ClipOpts } from './riggedClips';
 import type { RigPoseInput, ArmHold } from './riggedPose';
@@ -21,6 +25,10 @@ export interface ModelDef {
   textures?: Record<string, { map?: string; emissiveMap?: string; emissive?: number }>;
   /** Weapons are the model's own (an axe held in the fist): the spec weapons are not attached. */
   ownWeapon?: boolean;
+  /** Where the shared cape cosmetics (capeModels.ts) hang on this model, measured against its torso: overrides on top of the defaults computed from the rig metadata. */
+  cape?: Partial<CapeFit>;
+  /** Where the shared wings (wingModels.ts) grow on this model: overrides on top of the defaults computed from the rig metadata. */
+  wings?: Partial<WingFit>;
   /**
    * The model's own helm stays on when a head cosmetic is worn: the cosmetic is fitted on top of it instead (crowns above the crest,
    * horns over the helm's own). `helm` measures that helm in head-anchor units (head centre at y = 0.99): where its crest ends, its
@@ -37,14 +45,18 @@ export interface ModelDef {
   /** Sub-meshes (the part after `__` in their names) that armor dyes tint; the others (skin, beard) keep their colours. Default: all. */
   dye?: string[];
   /** Animation tuning. */
-  pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number; armIn?: number; legIn?: number };
+  pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number; armIn?: number; legIn?: number; castR?: number; castL?: number; swingArc?: number };
 }
 
 export const MODELS: Record<string, ModelDef> = {
-  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 } },
+  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 }, cape: { tilt: -0.08, sy: 0.95 } },
   // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
-  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0 }, dye: ['robe'] },
+  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0 }, dye: ['robe'], cape: { tilt: -0.08, sy: 1.12 } },
+  // the rogue's hooded assassin (rigged by scripts/rig-model.mjs from an unrigged mesh): the hood is part of the head and stays under head cosmetics
+  assassin: { url: '/models/rogue.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.6, armIn: 0.3 }, cape: { tilt: -0.08, sy: 0.95 } },
+  // the priest's Abyssal Sentinel (rigged by scripts/rig-model.mjs from an unrigged mesh): the horned helm is part of the head and stays under head cosmetics
+  sentinel: { url: '/models/priest.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.35, armIn: 0.3, castR: -0.35, castL: -1.1, swingArc: -1.6 }, cape: { tilt: -0.08, sy: 0.95 } },
   brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3, armIn: 0.6, legIn: 0.08 } },
 };
 
@@ -61,6 +73,10 @@ export const CLASS_MODEL: Partial<Record<ClassId, ClassModels>> = {
   warrior: { default: 'knight', alternatives: ['brute'] },
   // every mage spec wears the Old Wizard; the spec staff (weaponModels.ts) and the robe tint tell the specs apart
   mage: { default: 'wizard' },
+  // every rogue spec wears the hooded assassin with twin daggers in both hands
+  rogue: { default: 'assassin' },
+  // every priest spec wears the Abyssal Sentinel; the staff (weaponModels.ts) tells the specs apart
+  priest: { default: 'sentinel' },
 };
 
 export interface RigMeta {
@@ -92,6 +108,8 @@ export interface RigAsset {
 export interface RigDriver {
   hold: ArmHold | null;
   lungeZ: number;
+  /** 0..1 grip of the second hand on a shoulder-carried weapon (RigAnimator only). */
+  readonly grip?: number;
   /** The driver plays the death itself (the Character leaves the body upright). */
   readonly ownDeath?: boolean;
   /** A cast (Character.cast) plays an animation: the clip models. */
@@ -103,7 +121,7 @@ const assets = new Map<string, RigAsset>();
 let version = 0;
 
 /** Changes whenever a model finishes loading. Scenes compare it to the version their characters were built with. */
-export const modelVersion = () => version + weaponModelVersion(); // the warrior's weapon models count too
+export const modelVersion = () => version + weaponModelVersion() + capeModelVersion() + wingModelVersion(); // the weapon, cape and wing models count too
 
 const queryModel = (cls: string): string | null => {
   try {
@@ -179,7 +197,7 @@ export function forgetRiggedModels() {
 export function preloadRiggedModels(): Promise<void> {
   const loader = new GLTFLoader();
   const tex = new THREE.TextureLoader();
-  const weapons = preloadWeaponModels(); // the weapon models (weaponModels.ts) load alongside the characters that hold them
+  const weapons = Promise.all([preloadWeaponModels(), preloadCapeModel(), preloadWingModel()]).then(() => undefined); // the weapon and cape models load alongside the characters that wear them
   return Promise.all(
     Object.entries(MODELS).map(
       ([id, def]) =>
@@ -290,6 +308,7 @@ function instantiateClips(asset: RigAsset): RigInstance {
   });
   for (const [canon, name] of Object.entries(asset.meta.bones ?? {})) if (bones[name]) bones[canon] = bones[name];
   const anim = new ClipAnimator(body, asset.clips!, asset.def.clips);
+  anim.bones = bones;
   root.updateMatrixWorld(true);
   const rest: Record<string, THREE.Vector3> = {};
   for (const [n, b] of Object.entries(bones)) rest[n] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);

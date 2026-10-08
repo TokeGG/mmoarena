@@ -280,9 +280,9 @@ describe('party play', () => {
     const { lobby, us } = await party(['Ann', 'Bob', 'Cy_']);
     for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'ready', on: true, name: 'x', classId: i === 1 ? 'priest' : 'rogue' });
     const sides = last(us[0].s, 'party')!.party!.members.map((m) => m.side);
-    assert.deepEqual(sides, [0, 1, 0], 'sides start balanced');
-    lobby.handle(us[2].p, { t: 'party_side', side: 1 });
-    await until(() => last(us[0].s, 'party')!.party!.members.find((m) => m.name === 'Cy_')!.side === 1);
+    assert.deepEqual(sides, [0, 0, 0], 'members start on the leader team');
+    for (const i of [1, 2]) lobby.handle(us[i].p, { t: 'party_side', side: 1 });
+    await until(() => last(us[0].s, 'party')!.party!.members.every((m) => m.name === 'Ann' || m.side === 1));
     lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'party', size: 2 });
     const room = us[0].p.room!;
     assert.ok(room && us[1].p.room === room && us[2].p.room === room, 'everyone is in the match');

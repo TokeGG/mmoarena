@@ -121,8 +121,19 @@ export function computeWeights(pos, idx, cfg) {
   }
   // ---- blur over the surface: geodesic Gaussian (edges of the welded mesh), so weights fade across joints and never leap across the air
   const adj = Array.from({ length: n }, () => []);
+  // splitArms: arms that hang against the hips and the skirt are fused to them by the source mesh; blurring across that seam would give the skirt a share of the forearm. The seam stays sharp:
+  // no edge joins a forearm / hand node (or an upper-arm node below `splitArms` in height) to a hip, thigh or spine node
+  const armName = /^(forearm|hand)_[lr]$/, upperName = /^upperarm_[lr]$/, bodyName = /^(hips|spine|thigh_[lr])$/;
+  const group = new Int8Array(n);
+  if (cfg.splitArms) for (let i = 0; i < n; i++) {
+    let bi = 0;
+    for (let b = 1; b < BONES.length; b++) if (src[i * BONES.length + b] > src[i * BONES.length + bi]) bi = b;
+    const nm = BONES[bi].name;
+    group[i] = armName.test(nm) || (upperName.test(nm) && pos[i * 3 + 1] < cfg.splitArms) ? 1 : bodyName.test(nm) ? -1 : 0;
+  }
   for (let t = 0; t < idx.length; t += 3) for (let e = 0; e < 3; e++) {
     const a = idx[t + e], b = idx[t + ((e + 1) % 3)];
+    if (group[a] * group[b] < 0) continue;
     const l = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]);
     adj[a].push([b, l]);
     adj[b].push([a, l]);
