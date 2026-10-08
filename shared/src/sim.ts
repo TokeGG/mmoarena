@@ -53,7 +53,8 @@ export function mulberry32(seed: number) {
  * call step() once per tick (TUNING.tickMs). Same inputs + same seed = same outcome.
  */
 export class ArenaSim {
-  readonly arena: ArenaDef;
+  /** Fixed for a match; only `switchArena` (dev test matches) changes it. */
+  arena: ArenaDef;
   time = 0;
   tickNo = 0;
   /** Set to record commands for a replay. */
@@ -154,6 +155,17 @@ export class ArenaSim {
     this.phase = 'live';
     this.matchEndsAt = this.time + TUNING.maxMatchMs;
     this.emit({ t: 'phase', phase: 'live', winner: null });
+  }
+
+  /**
+   * Dev tools: move the running test match to another arena: everyone is put at the new arena's spawns (facing included)
+   * like `resetMatch`, with the same units, builds, bots, dummies and live numbers. Only used in dev test rooms, which are
+   * never replayed, so recorded matches (which never call it) are unaffected.
+   */
+  switchArena(arena: ArenaDef): void {
+    this.arena = arena;
+    this.resetMatch();
+    for (const u of this.units.values()) if (u.home) u.home = { x: u.pos.x, z: u.pos.z };
   }
 
   /**

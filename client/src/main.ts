@@ -377,6 +377,10 @@ function onMessage(raw: MessageEvent) {
       adminPanel.handle(m);
       break;
     case 'dev_state':
+    case 'dev_map':
+      swapMatchMap(m.map);
+      devPanel.handle(m);
+      break;
     case 'dev_session':
       devPanel.handle(m);
       break;
@@ -1182,7 +1186,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, menuClass: () => mainMenu.selectedClass }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
@@ -1236,6 +1240,25 @@ const livePicker = new LivePicker(
 );
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
+/** Dev tools: the running test match moved to another map (the server put everyone at its spawns). */
+function swapMatchMap(mapId: string) {
+  arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
+  scene.setMap(arena.id);
+  audio.ambience(arena.theme);
+  matchStarting = true;
+  // forget the old positions: the next snapshot says where everyone stands on the new map
+  snaps.length = 0;
+  pending = [];
+  targetId = null;
+  vis.ready = false;
+  const face = spec ? arena.spawnFacing[0] : arena.spawnFacing[team];
+  controls.yaw = controls.facing = face;
+  vis.facing = vis.yaw = face;
+  vis.pitch = controls.pitch;
+  vis.dist = controls.dist;
+  setAiming(null);
+}
+
   clearMenuLayers();
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];

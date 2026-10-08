@@ -165,7 +165,7 @@ export class Room {
   private deltas = new Map<number, { rating: number; delta: number }>();
 
   /** `countsForProgress`: whether finishing this match earns gear-tier progress (not true for dummy practice). */
-  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, readonly arenaId: string = ARENAS[0].id) {
+  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, public arenaId: string = ARENAS[0].id) {
     this.seed = Math.floor(Math.random() * 2 ** 31);
     this.prepMsUsed = prepMs;
     this.sim = new ArenaSim({ prepMs, seed: this.seed, arena: arenaById(arenaId), facing: true });
@@ -288,6 +288,19 @@ export class Room {
     this.finalSent = false;
     this.finalSentLate = false;
     this.paused = false;
+  }
+
+  /** Dev tools: the same match on another map: units, builds, bots, dummies and live numbers stay, everyone is back at the new spawns. */
+  devSwapMap(id: string): void {
+    this.devTest = true;
+    this.arenaId = id;
+    this.recorder = null; // the recording knows one map; a swapped match is never stored as a replay
+    withPatches(this.devPatches, () => this.sim.switchArena(arenaById(id)));
+    this.bots = this.bots.map((b) => new Bot(this.sim, b.unitId, b.difficulty, Math.floor(Math.random() * 2 ** 31)));
+    this.endedTicks = 0;
+    this.finalSent = false;
+    this.finalSentLate = false;
+    this.delayed = [];
   }
 
   /** Dev tools: a bot gets another class and build in the middle of the match (which then counts for nothing). */
@@ -1330,6 +1343,21 @@ export class Lobby {
           if (q !== p) send(q, { t: 'notice', text: `${by} restarted the match (it no longer counts).` });
         }
         send(p, { t: 'dev_result', ok: true, text: 'The match started over with the same builds.' });
+        break;
+      }
+      case 'dev_map': {
+        const room = this.devRoom(p);
+        if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
+        if (room.closed) return void send(p, { t: 'dev_result', ok: false, text: 'That match is over.' });
+        if (!p.ownerOk) return void send(p, { t: 'dev_result', ok: false, text: 'Only the owner can change the map.' });
+        const map = ARENAS.find((a) => a.id === msg.id);
+        if (!map) return void send(p, { t: 'dev_result', ok: false, text: 'That map does not exist.' });
+        room.devSwapMap(map.id);
+        const by = p.account?.name ?? p.name;
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'dev_map', map: map.id });
+          send(q, { t: 'notice', text: q === p ? `Map: ${map.name}` : `${by} changed the map to ${map.name} (the match no longer counts).` });
+        }
         break;
       }
       case 'dev_bot': {
