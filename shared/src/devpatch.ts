@@ -83,10 +83,10 @@ export function mergePatches(a: readonly DataPatch[], b: readonly DataPatch[]): 
 
 export interface TunableNumber { file: DataPatch['file']; id: string; path: (string | number)[]; label: string; value: number }
 
-/** Every number on an ability worth tuning, and on the auras it applies (durations, absorbs, slows, ticks). */
-export function tunables(abilityId: string): TunableNumber[] {
+/** Every tunable number on one ability or aura, labelled by where it sits ("damage · amount", "slowPct"). */
+export function tunableNumbers(file: DataPatch['file'], id: string, prefix = ''): TunableNumber[] {
   const out: TunableNumber[] = [];
-  const walk = (file: DataPatch['file'], id: string, obj: unknown, path: (string | number)[], label: string, depth: number) => {
+  const walk = (obj: unknown, path: (string | number)[], label: string, depth: number) => {
     if (depth > 4 || !obj || typeof obj !== 'object') return;
     for (const [k, v] of Object.entries(obj)) {
       if (NOT_TUNABLE.has(k)) continue;
@@ -94,19 +94,26 @@ export function tunables(abilityId: string): TunableNumber[] {
       const here = [...path, key];
       const name = Array.isArray(obj) ? `${label}${label ? ' ' : ''}#${Number(k) + 1}` : `${label}${label ? ' · ' : ''}${k}`;
       if (typeof v === 'number') out.push({ file, id, path: here, label: name, value: v });
-      else if (k === 'effects' && Array.isArray(v)) walk(file, id, v, here, label, depth + 1); // "damage · amount", not "effects · damage · amount"
+      else if (k === 'effects' && Array.isArray(v)) walk(v, here, label, depth + 1); // "damage · amount", not "effects · damage · amount"
       else if (v && typeof v === 'object') {
         // an effect is labelled by its type ("damage amount", "aura duration")
         const t = (v as { type?: string }).type;
-        walk(file, id, v, here, t ? `${label}${label ? ' · ' : ''}${t}` : name, depth + 1);
+        walk(v, here, t ? `${label}${label ? ' · ' : ''}${t}` : name, depth + 1);
       }
     }
   };
+  const obj = root(file, id);
+  if (obj) walk(obj, [], prefix, 0);
+  return out;
+}
+
+/** Every number on an ability worth tuning, and on the auras it applies (durations, absorbs, slows, ticks). */
+export function tunables(abilityId: string): TunableNumber[] {
   const def = ABILITIES[abilityId];
-  if (!def) return out;
-  walk('abilities', abilityId, def, [], '', 0);
+  if (!def) return [];
+  const out = tunableNumbers('abilities', abilityId);
   const auras = new Set<string>();
   for (const e of def.effects) if (e.type === 'aura') auras.add(e.aura);
-  for (const a of auras) if (AURAS[a]) walk('auras', a, AURAS[a], [], `${AURAS[a].name}`, 0);
+  for (const a of auras) if (AURAS[a]) out.push(...tunableNumbers('auras', a, AURAS[a].name));
   return out;
 }

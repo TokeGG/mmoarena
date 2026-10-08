@@ -12,8 +12,9 @@ import { createStore } from './store';
 import { BotLearner, MeasureWorker } from './botlearn';
 import { DevTools } from './devtools';
 import { AdminLog } from './adminlog';
+import { AiTune } from './aitune';
 import { Suggestions } from './suggestions';
-import { AVATAR_MAX_BYTES, validateGif } from './accounts';
+import { AVATAR_MAX_BYTES, REPLAY_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
 
 export interface ServerOptions {
@@ -66,7 +67,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
   // dev tuning: numbers saved in game apply over the data files for everyone, and are proposed as pull requests
   const devTools = new DevTools(store, process.env);
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store));
+  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env));
 
   const server = http.createServer((req, res) => {
     let url: URL;
@@ -99,6 +100,37 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       job
         .then((r) => (r ? res.writeHead(200, { 'content-type': r.type, 'cache-control': 'no-store' }).end(r.body) : res.writeHead(404, { 'content-type': 'text/plain' }).end('not found')))
         .catch(() => res.writeHead(500).end());
+      return;
+    }
+    // the owner uploads a replay file (saved from a match) and forces the bots to train on it
+    if (url.pathname === '/api/botlearn/upload' && req.method === 'POST') {
+      const token = /^Bearer (\S{10,80})$/.exec(String(req.headers.authorization ?? ''))?.[1];
+      const fail = (code: number, msg: string) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false, text: msg }));
+      if (!token) return void fail(401, 'Sign in first.');
+      const max = REPLAY_MAX_BYTES * 8; // a plain JSON replay is several times its gzipped size
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let dead = false;
+      req.on('data', (c: Buffer) => {
+        size += c.length;
+        if (size > max) {
+          dead = true;
+          fail(413, 'That file is too big for a replay.');
+          req.destroy();
+        } else chunks.push(c);
+      });
+      req.on('end', async () => {
+        if (dead) return;
+        try {
+          const a = await accounts.accountForToken(token);
+          if (!a || !(await accounts.isOwnerSession(token, a))) return void fail(403, 'Only the owner can train the bots on a file.');
+          const id = `up${Date.now().toString(36)}${crypto.randomBytes(3).toString('hex')}`;
+          const r = await lobby.trainOnReplay(a.name, Buffer.concat(chunks), id);
+          res.writeHead(r.ok ? 200 : 400, { 'content-type': 'application/json' }).end(JSON.stringify(r));
+        } catch {
+          fail(500, 'Could not train on that file.');
+        }
+      });
       return;
     }
     if (url.pathname.startsWith('/avatar/') && req.method === 'GET') {

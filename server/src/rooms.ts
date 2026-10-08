@@ -11,10 +11,11 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, specOf, validateBuild, withPatches, ABILITIES } from '@arena/shared';
-import type { AdminRoom, DataPatch, UnitBuild } from '@arena/shared';
+import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES } from '@arena/shared';
+import type { AdminRoom, DataPatch, ReplayData, UnitBuild } from '@arena/shared';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
+import type { AiTune } from './aitune';
 
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
@@ -57,6 +58,8 @@ export interface Player {
   size: TeamSize;
   /** The match this connection is watching, if any. */
   watching?: Room;
+  /** Dev tools: test numbers kept for this session, put into every match this dev plays (cleared on sign-out or by hand). */
+  devSession?: DataPatch[];
   /** Owner: the account (key) this connection follows into every match it plays. */
   follow?: string;
   party?: Party;
@@ -99,6 +102,7 @@ const MAX_PENDING_ACCOUNT_MSGS = 8;
 const SUGGEST_GAP_MS = 20000;
 
 const gzip = promisify(zlib.gzip);
+const gunzip = promisify(zlib.gunzip);
 
 export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
@@ -164,7 +168,8 @@ export class Room {
     this.prepMsUsed = prepMs;
     this.sim = new ArenaSim({ prepMs, seed: this.seed, arena: arenaById(arenaId), facing: true });
     // matches that count are recorded so they can be replayed; dummy practice is not worth storing
-    if (accounts && countsForProgress) this.recorder = new ReplayRecorder(this.sim, { arena: arenaId, seed: this.seed, prepMs });
+    // every match is recorded (the owner can watch any of them again, and train bots on it)
+    if (accounts) this.recorder = new ReplayRecorder(this.sim, { arena: arenaId, seed: this.seed, prepMs });
   }
 
   get isRanked(): boolean {
@@ -184,7 +189,12 @@ export class Room {
     this.notify?.(p);
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
+    this.onJoin?.(p);
+    if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
   }
+
+  /** A player joined (the lobby brings in a dev's session numbers). */
+  onJoin?: (p: Player) => void;
 
   /** Tell everyone in the room how the signed-in players want to be shown (emblem, title, name colour). */
   roster(): RosterEntry[] {
@@ -201,7 +211,8 @@ export class Room {
 
   /** Any match with a person in it can be watched while it runs (dummy training is private and skipped). */
   get watchable(): boolean {
-    return this.countsForProgress && this.players.size > 0 && !this.closed && this.sim.phase !== 'ended';
+    // bot matches the owner starts are open to everyone in Watch live too
+    return ((this.countsForProgress && this.players.size > 0) || this.botsOnly) && !this.closed && this.sim.phase !== 'ended';
   }
 
   live(): LiveMatch {
@@ -212,6 +223,7 @@ export class Room {
       elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
       ranked: this.ranked,
       players: [...this.sim.units.values()].map((u) => ({ name: u.name, classId: u.classId, team: u.team })),
+      ...(this.botsOnly ? { bots: true } : {}),
     };
   }
 
@@ -472,7 +484,8 @@ export class Room {
       const snap = this.sim.snapshot();
       if (this.countsForProgress) this.delayed.push({ snap, events });
       if (this.spectators.size) {
-        const live = [...this.spectators].filter((w) => w.ownerOk);
+        // nobody plays in a bot match, so everyone watching it sees it live
+        const live = [...this.spectators].filter((w) => w.ownerOk || this.botsOnly);
         if (live.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap, events });
           const stats = this.sim.tickNo % 10 === 0 ? JSON.stringify({ t: 'stats', rows: this.statRows() }) : null;
@@ -481,7 +494,7 @@ export class Room {
       }
       if (this.delayed.length > SPECTATE_DELAY_TICKS) {
         const f = this.delayed.shift()!;
-        const late = [...this.spectators].filter((w) => !w.ownerOk);
+        const late = [...this.spectators].filter((w) => !w.ownerOk && !this.botsOnly);
         if (late.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap: f.snap, events: f.events });
           // the delayed view reaches the end five seconds after the players do, and only then gets the scoreboard
@@ -500,6 +513,11 @@ export class Room {
         for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
       }
       this.creditProgress();
+      // matches that earn nothing (bots only, dummies, test numbers, too short) still go in the owner's match list
+      if (!this.recordSaved && !this.recordQueued) {
+        this.recordQueued = true;
+        void this.saveRecord(this.recorder?.finish(this.roster()) ?? null).catch(() => {});
+      }
       this.reportBots();
       if (++this.endedTicks >= TICKS_AFTER_END) this.close('match over');
     }
@@ -562,15 +580,22 @@ export class Room {
       if (won) p.wins++;
       send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     }
+    this.recordQueued = true;
     void Promise.all(jobs).then(() => this.saveRecord(replay)).catch(() => {});
   }
 
   /** Match history for every signed-in human who took part, plus the replay they can all open. */
+  /** The match's record has been (or is being) written: once per match, whichever way it ended. */
+  private recordSaved = false;
+  private recordQueued = false;
+
   private async saveRecord(replay: ReturnType<ReplayRecorder['finish']> | null): Promise<void> {
     const acc = this.accounts;
-    if (!acc || this.keys.size === 0) return;
+    if (!acc || this.recordSaved) return;
+    this.recordSaved = true;
     let stored = false;
-    if (replay && this.keepReplay) {
+    // kept for every match now: the owner's match list can play any of them again or train bots on it
+    if (replay) {
       let tooBig = false;
       try {
         const gz = await gzip(JSON.stringify(replay));
@@ -585,8 +610,9 @@ export class Room {
       const d = this.deltas.get(u.id);
       return { name: u.name, classId: u.classId, spec: u.spec, team: u.team, human: u.controller === 'player', ...(d ? { rating: d.rating, delta: d.delta } : {}) };
     });
-    const rec: MatchRecord = { id: this.id, at: Date.now(), size: this.size, ranked: this.ranked, map: this.arenaId, durationMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)), winner: this.sim.winner, players, replay: stored };
-    await acc.addHistory([...this.keys.values()], rec);
+    const rec: MatchRecord = { id: this.id, at: Date.now(), size: this.size, ranked: this.ranked, map: this.arenaId, durationMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)), winner: this.sim.winner, players, replay: stored, ...(this.botsOnly ? { bots: true } : {}) };
+    if (this.keys.size) await acc.addHistory([...this.keys.values()], rec);
+    await acc.addFeed(rec);
   }
 
   /** Players who took part and are still connected to this room or just left it at the end. */
@@ -630,7 +656,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog) {
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune) {
     // the saved state, unless the owner already changed it while it loaded
     void this.adminLog?.maintenance().then((m) => {
       if (!this.maintSet) this.maint = m;
@@ -646,6 +672,7 @@ export class Lobby {
     return {
       t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
       uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
+      pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
     };
   }
 
@@ -728,7 +755,58 @@ export class Lobby {
       case 'log':
         send(p, { t: 'admin_log', rows: (await this.adminLog?.list()) ?? [] });
         break;
+      case 'feed':
+        if (acc) send(p, { t: 'admin_feed', rows: await acc.feed() });
+        break;
+      case 'train': {
+        // train the bots on a stored replay of any match (bots-only matches teach the losers through the winners)
+        if (!acc || !this.learner) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        const gz = await acc.getReplay(msg.id!);
+        if (!gz) return void send(p, { t: 'dev_result', ok: false, text: 'That replay is gone (they are kept for 30 days).' });
+        const r = await this.trainOnReplay(by, gz, msg.id!);
+        send(p, { t: 'dev_result', ok: r.ok, text: r.text });
+        break;
+      }
     }
+  }
+
+  /**
+   * Train the bots on a replay the owner picked (from the match list) or uploaded: gzipped or plain JSON. Logged in the
+   * admin log; resolves to a message fit to show.
+   */
+  async trainOnReplay(by: string, raw: Buffer, id: string): Promise<{ ok: boolean; text: string }> {
+    if (!this.learner) return { ok: false, text: 'Bot learning is not running on this server.' };
+    let replay: ReplayData;
+    try {
+      const text = (raw[0] === 0x1f && raw[1] === 0x8b ? await gunzip(raw) : raw).toString('utf8');
+      replay = JSON.parse(text) as ReplayData;
+      if (!replay || typeof replay !== 'object' || !Array.isArray(replay.units) || !Array.isArray(replay.cmds)) throw new Error('shape');
+    } catch {
+      return { ok: false, text: 'That is not a replay file this game can read.' };
+    }
+    const r = await this.learner.trainOn(replay, id);
+    void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? `${r.lessons} bot${r.lessons === 1 ? '' : 's'} learned` : r.reason);
+    return r.ok ? { ok: true, text: `Trained on it: ${r.lessons} bot${r.lessons === 1 ? '' : 's'} took lessons from it, and it is kept for offline study.` } : { ok: false, text: r.reason };
+  }
+
+  /**
+   * Put test numbers into a match: everyone in it plays on the same numbers and sees them in their tooltips, and is told
+   * who changed what. From then on the match counts for nothing (progress, rating, replays, bot learning).
+   */
+  private setRoomPatches(room: Room, p: Player, patches: DataPatch[]): void {
+    room.devTest = true;
+    room.devPatches = patches;
+    const by = p.account?.name ?? p.name;
+    for (const q of [...room.players.values(), ...room.spectators]) {
+      send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+      if (q !== p) send(q, { t: 'notice', text: patches.length ? `${by} is testing ${patches.length} changed number${patches.length === 1 ? '' : 's'} in this match (it no longer counts${room.isRanked ? ' for rating' : ''}).` : `${by} put the real numbers back.` });
+    }
+  }
+
+  /** A dev with session numbers joined a match they may test in: the match gets those numbers. */
+  private bringSession(room: Room, p: Player): void {
+    if (!p.devSession?.length || !this.isDev(p) || room.isRanked) return; // ranked never silently stops counting
+    this.setRoomPatches(room, p, mergePatches(room.devPatches, p.devSession));
   }
 
   /** The owner (with the code entered this session) or an account the owner gave the 'dev' tag. */
@@ -835,6 +913,7 @@ export class Lobby {
             p.account = undefined;
             p.token = undefined;
             p.ownerOk = false;
+            p.devSession = undefined;
             send(p, { t: 'logged_out' });
             if (was) this.changed(p, was);
           }
@@ -1043,15 +1122,25 @@ export class Lobby {
       case 'dev_patch': {
         const room = this.devRoom(p);
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : p.room ? 'Not in ranked matches.' : 'Start a match first.' });
-        room.devTest = true; // from now on this match counts for nothing (progress, rating, replays, bot learning)
-        const by = p.account?.name ?? p.name;
-        if (msg.t === 'dev_pause') room.paused = msg.on;
-        else room.devPatches = msg.patches;
-        // everyone in the match plays on the same numbers and sees them in their tooltips, and is told who changed what
-        for (const q of [...room.players.values(), ...room.spectators]) {
-          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
-          if (q !== p) send(q, { t: 'notice', text: msg.t === 'dev_pause' ? `${by} ${msg.on ? 'paused' : 'resumed'} the match.` : msg.patches.length ? `${by} is testing ${msg.patches.length} changed number${msg.patches.length === 1 ? '' : 's'} in this match (it no longer counts${room.isRanked ? ' for rating' : ''}).` : `${by} put the real numbers back.` });
-        }
+        if (msg.t === 'dev_pause') {
+          room.devTest = true; // from now on this match counts for nothing (progress, rating, replays, bot learning)
+          room.paused = msg.on;
+          const by = p.account?.name ?? p.name;
+          for (const q of [...room.players.values(), ...room.spectators]) {
+            send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+            if (q !== p) send(q, { t: 'notice', text: `${by} ${msg.on ? 'paused' : 'resumed'} the match.` });
+          }
+        } else this.setRoomPatches(room, p, msg.patches);
+        break;
+      }
+      case 'dev_session': {
+        if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        p.devSession = msg.patches;
+        send(p, { t: 'dev_session', patches: p.devSession });
+        // the match running now gets them too
+        const room = this.devRoom(p);
+        if (room && msg.patches.length) this.setRoomPatches(room, p, mergePatches(room.devPatches, msg.patches));
+        send(p, { t: 'dev_result', ok: true, text: msg.patches.length ? `Kept ${msg.patches.length} number${msg.patches.length === 1 ? '' : 's'} for your session: every match you start uses them until you clear them or sign out.` : 'Session numbers cleared: your next match uses the real numbers.' });
         break;
       }
       case 'dev_builds': {
@@ -1088,6 +1177,18 @@ export class Lobby {
             send(p, { t: 'dev_result', ok: false, text: 'Could not save the numbers.' });
           }
         })();
+        break;
+      }
+      case 'dev_ai': {
+        const room = this.devRoom(p);
+        if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match (not ranked) first: Claude\u2019s numbers are tried in it.' });
+        if (!this.ai) return void send(p, { t: 'dev_result', ok: false, text: 'Ask Claude is off on this server.' });
+        const by = p.account?.name ?? p.name;
+        void this.ai.suggest(p.account?.key ?? p.ip, msg.ability, msg.text, room.devPatches).then((r) => {
+          if (r.ok && !room.closed) this.setRoomPatches(room, p, mergePatches(room.devPatches, r.patches));
+          void this.adminLog?.add(by, 'ask Claude', ABILITIES[msg.ability]?.name ?? msg.ability, `${msg.text} → ${r.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', ') || 'no change'}`);
+          send(p, { t: 'dev_result', ok: r.ok, text: r.ok ? `🤖 ${r.text} (trying it in this match now; "Keep for my session" or "Save for everyone" to keep it)` : `🤖 ${r.text}` });
+        });
         break;
       }
       case 'dev_note': {
@@ -1449,6 +1550,7 @@ export class Lobby {
       this.pullFollowers(q);
     };
     room.learner = this.learner;
+    room.onJoin = (q) => this.bringSession(room, q);
     room.onRematch = (old) => this.rematch(old);
     room.onAbort = (r, leaver) => this.abortRanked(r, leaver);
     room.onRequeue = (r, q) => this.requeueAfterRanked(r, q);

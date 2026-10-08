@@ -358,7 +358,7 @@ export class LivePicker {
       for (const m of rows) {
         const row = el('button', 'live-row');
         const teams = [0, 1].map((t) => m.players.filter((p) => p.team === t).map((p) => `${classIcon(p.classId)} ${p.name}`).join(', '));
-        row.append(el('b', '', `${m.ranked ? '🏆 Ranked ' : ''}${m.size}v${m.size} · ${mapName(m.map)}`), el('span', '', `${teams[0]}  vs  ${teams[1]}`), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
+        row.append(el('b', '', `${m.ranked ? '🏆 Ranked ' : m.bots ? '🤖 Bot match ' : ''}${m.size}v${m.size} · ${mapName(m.map)}`), el('span', '', `${teams[0]}  vs  ${teams[1]}`), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
         if (this.follow?.isOwner()) {
           // a follow button for each person in the match (bots have nobody to follow)
           const people = el('span', 'live-people');

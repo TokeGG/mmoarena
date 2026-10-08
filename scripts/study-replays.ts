@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { BRAIN_KEYS, CLASS_IDS, brainFor, contentHash, measureHumans, lessonBrain, mergeStyle, studyMatch } from '../shared/src/index';
+import { BRAIN_KEYS, CLASS_IDS, brainFor, contentHash, measureHumans, lessonBrain, mergeStyle, studyMatch, forcedStudy } from '../shared/src/index';
 import type { BotStudy, ClassId, HumanStyle, Lessons, ReplayData } from '../shared/src/index';
 import { createStore } from '../server/src/store';
 
@@ -93,10 +93,15 @@ for await (const replay of source()) {
     stale++;
     continue;
   }
-  const st = studyMatch(replay);
+  // a bots-only match the owner chose to train on teaches its losers through its winners
+  const opts = forcedStudy(replay);
+  if (!opts) continue;
+  const botsOnly = opts.teachers !== undefined;
+  const st = studyMatch(replay, opts);
   for (const b of st.bots) {
     studies.push(b);
     lessons.set(b.classId, mergeStyle(lessons.get(b.classId) ?? {}, b.lessons));
+    if (botsOnly) continue; // the bot-against-person tally is for matches with people
     const row = real.get(b.classId) ?? new Map();
     real.set(b.classId, row);
     for (const p of new Set(b.foes)) {

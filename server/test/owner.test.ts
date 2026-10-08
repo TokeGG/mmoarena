@@ -144,7 +144,7 @@ describe('owner powers', () => {
 });
 
 describe('owner bot match', () => {
-  it('only the owner can start one; it is private, has the picked specs, and closes when the owner stops watching', async () => {
+  it('only the owner can start one; everyone can watch it, it has the picked specs, and closes when nobody watches', async () => {
     const { a, toke, bob } = await setup();
     const lobby = new Lobby({ practicePrepMs: 100, queuePrepMs: 100 }, a);
     const sent: ServerMsg[] = [];
@@ -162,7 +162,7 @@ describe('owner bot match', () => {
     const room = owner.watching;
     assert.ok(room, 'watching the bot match');
     assert.equal(room.arenaId, 'colosseum');
-    assert.equal(room.watchable, false, 'not listed in Watch live');
+    assert.equal(room.watchable, true, 'listed in Watch live for everyone');
     const units = [...room.sim.units.values()] as any[];
     assert.equal(units.length, 4);
     assert.ok(units.every((u) => u.controller === 'bot'));

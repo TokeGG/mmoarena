@@ -346,7 +346,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
       case 'dropCombat':
         return 'Drops you out of combat: enemies lose their target on you and spells aimed at you are cancelled.';
       case 'smoke':
-        return `Drops a smoke cloud with a ${e.radius}-yard radius${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.`;
+        return `Drops a smoke cloud with a ${e.radius}-yard radius${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Its edge blocks sight: enemies outside cannot see or target anyone inside, and enemies inside cannot see or target anyone outside. Inside the cloud everyone sees and fights each other as usual.`;
       case 'zone': {
         const first = e.initial ? `Enemies in the area take ${M(dmgOf(e.initial))} ${def.school} damage the moment the cast lands. ` : '';
         return `${first}Marks a ${e.radius}-yard circle at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies ${e.initial ? 'still ' : ''}inside take ${M(dmgOf(e.amount))} ${def.school} damage every ${fmtS(e.pulse / 1000)}. Jump to avoid a pulse (one dodging jump every ${fmtS(JUMP_DODGE_CD / 1000)}).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`;
@@ -509,7 +509,7 @@ export function specPassives(classId: ClassId, specId: string): string[] {
  */
 export function auraOrigins(auraId: string): string[] {
   const out = new Set<string>();
-  for (const a of Object.values(ABILITIES)) if (a.effects.some((e) => e.type === 'aura' && e.aura === auraId)) out.add(a.name);
+  for (const a of Object.values(ABILITIES)) if (a.effects.some((e) => (e.type === 'aura' && e.aura === auraId) || (e.type === 'zone' && e.procOnHit === auraId))) out.add(a.name);
   for (const [cls, specs] of Object.entries(SPECS)) {
     for (const s of specs) {
       if (s.passive === 'cauterize' && auraId === 'cauterized') out.add(`${s.name}'s passive (Cauterize)`);

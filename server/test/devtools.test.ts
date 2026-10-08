@@ -67,6 +67,30 @@ describe('dev tools', () => {
     assert.equal(room.devTest, true, 'the match no longer counts');
   });
 
+  it('numbers kept for the session go into every match the dev starts (never ranked), until cleared', async () => {
+    const { lobby, devP, bobP, outD, outB } = await world();
+    const keep = [{ file: 'abilities' as const, id: 'fireball', path: ['cooldown'], value: 4321 }];
+    lobby.handle(bobP, { t: 'dev_session', patches: keep } as ClientMsg);
+    assert.equal(bobP.devSession, undefined, 'not without the dev tag');
+    assert.equal(last(outB, 'dev_result')?.ok, false);
+    lobby.handle(devP, parseClientMsg(JSON.stringify({ t: 'dev_session', patches: keep }))!);
+    assert.deepEqual(last(outD, 'dev_session')?.patches, keep);
+    lobby.handle(devP, { t: 'join', name: 'Dee', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    const first = devP.room;
+    assert.deepEqual(first.devPatches, keep, 'the first match has them');
+    assert.equal(first.devTest, true);
+    assert.deepEqual(last(outD, 'dev_state')?.patches, keep, 'and the dev’s client is told');
+    lobby.handle(devP, { t: 'leave' } as ClientMsg);
+    lobby.handle(devP, { t: 'join', name: 'Dee', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    assert.notEqual(devP.room, first);
+    assert.deepEqual(devP.room.devPatches, keep, 'so does the next one');
+    lobby.handle(devP, { t: 'leave' } as ClientMsg);
+    lobby.handle(devP, { t: 'dev_session', patches: [] } as ClientMsg);
+    lobby.handle(devP, { t: 'join', name: 'Dee', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    assert.deepEqual(devP.room.devPatches, [], 'cleared: real numbers again');
+    assert.equal(devP.room.devTest, false);
+  });
+
   it('bad patches are refused at the door', () => {
     const bad = [
       { file: 'abilities', id: 'fireball', path: ['__proto__', 'x'], value: 1 },

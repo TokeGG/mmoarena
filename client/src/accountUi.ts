@@ -21,7 +21,7 @@ export interface AccountHooks {
   /** Open a recorded match for playback. */
   onReplay(id: string): void;
   /** Open the owner's admin panel. */
-  openAdmin?(): void;
+  openAdmin?(tab?: 'replays'): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -441,6 +441,15 @@ export class AccountUi {
 
   private history(a: AccountInfo): HTMLElement {
     const box = el('div', 'hist-list');
+    if (a.ownerOk && this.hooks.openAdmin) {
+      // the owner sees every match on the server (bot matches too), with replays and training, in the admin panel
+      const all = el('button', 'mm-small mm-go', '🛡 Every match on the server (replays, train bots)');
+      all.addEventListener('click', () => {
+        this.closeModal();
+        this.hooks.openAdmin?.('replays');
+      });
+      box.append(all);
+    }
     if (!this.matches) {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));
       return box;

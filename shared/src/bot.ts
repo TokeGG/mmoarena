@@ -718,7 +718,10 @@ export class Bot {
           if (hurting && this.use(u, 'blind', attacker.id)) return true;
           if (u.cp >= 2 && hurting && this.use(u, 'kidney_shot', attacker.id)) return true;
         }
-        if (melee.length && hurting && this.use(u, 'choke_bomb')) return true;
+        // the smoke's edge blocks sight both ways: dropped at its feet it cuts off whoever shoots it from range (melee next
+        // to it are inside with it and keep fighting)
+        const shooters = byDist.filter((e) => !MELEE.has(e.classId) && dist(u.pos, e.pos) > 7 && (e.target === u.id || e.cast?.target === u.id));
+        if (shooters.length && hurting && this.use(u, 'choke_bomb')) return true;
         if (f < B.panicHp * 0.8 && enemies.length && this.use(u, 'vanish')) return true;
         if (emergency && (!attacker || dist(u.pos, attacker.pos) > 4)) this.use(u, 'sprint');
         return false;

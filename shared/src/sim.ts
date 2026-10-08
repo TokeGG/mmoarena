@@ -132,7 +132,6 @@ export class ArenaSim {
     this.onCommand?.([this.tickNo, 1, id, targetId]);
     const u = this.units.get(id);
     if (!u) return fail('no unit');
-    if (targetId !== null && this.inSmoke(u)) return fail('blinded by smoke');
     if (targetId === null) {
       u.target = null;
       u.autoAttack = false; // clicking off the target stops swinging
@@ -232,7 +231,6 @@ export class ArenaSim {
     if (u.resource < this.costOf(u, def)) return fail(`not enough ${u.resourceType}`);
     if (def.cpSpend && u.cp < 1) return fail('needs combo points');
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
-    if ((def.target === 'enemy' || def.target === 'ally' || def.target === 'ally_or_self' || def.target === 'any') && this.inSmoke(u)) return fail('blinded by smoke');
     if (def.outOfCombatOnly && this.time - u.lastCombatAt < TUNING.outOfCombatMs) return fail('cannot use in combat');
     if (this.hasAura(u, ['root']) && !def.allowWhileRooted && def.effects.some((e) => e.type === 'dashToTarget' || e.type === 'charge' || e.type === 'leap')) return fail('you are rooted');
 
@@ -1249,14 +1247,13 @@ export class ArenaSim {
   }
 
   /**
-   * Smoke Bomb, both ways: an enemy standing in the cloud cannot target anyone, and nobody outside a cloud can target an
-   * enemy of theirs inside it (the rogue who threw it, or its partner).
+   * Smoke Bomb is a wall of sight: enemies both inside the same cloud see and fight each other as usual, but nobody
+   * outside a cloud can see an enemy inside it, and nobody inside can see an enemy outside it.
    */
   smokeHides(viewer: Unit, other: Unit): boolean {
     if (viewer.team === other.team || !this.zones.length) return false;
-    if (this.inSmoke(viewer)) return true;
     const inCloud = (u: Unit, z: (typeof this.zones)[number]) => Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r && this.onZoneFloor(u, z);
-    return this.zones.some((z) => z.smoke && this.time < z.end && z.team === other.team && inCloud(other, z) && !inCloud(viewer, z));
+    return this.zones.some((z) => z.smoke && this.time < z.end && inCloud(viewer, z) !== inCloud(other, z));
   }
 
   /** Enemy units that `team` cannot see right now: stealthed, and no living member of the team is close enough to spot them. */
@@ -1330,29 +1327,16 @@ export class ArenaSim {
     return Math.abs(d) <= (TUNING.castConeDeg * Math.PI) / 360 + 0.03;
   }
 
-  /** True while the unit stands in an enemy smoke cloud: it cannot target. */
-  inSmoke(u: Unit): boolean {
-    return this.zones.some((z) => z.smoke && z.team !== u.team && this.time < z.end && Math.hypot(u.pos.x - z.x, u.pos.z - z.z) <= z.r && this.onZoneFloor(u, z));
-  }
-
   private tickZones(): void {
     if (!this.zones.length) return;
     for (const v of this.units.values()) {
       if (!v.alive) continue;
-      // an enemy who stepped into its own team's smoke is lost from sight: the target drops, the swing and the cast stop
+      // the smoke's edge cuts sight: a target on the other side of it is lost, and so are the swing and a cast at it
       const t = v.target !== null ? this.units.get(v.target) : undefined;
-      if (t && t.team !== v.team && !this.inSmoke(v) && this.smokeHides(v, t)) {
+      if (t && this.smokeHides(v, t)) {
         v.target = null;
         v.autoAttack = false;
         if (v.cast && v.cast.target === t.id) this.cancelCast(v, 'target vanished');
-        continue;
-      }
-      if (!this.inSmoke(v)) continue;
-      if (v.target !== null) v.target = null;
-      v.autoAttack = false;
-      if (v.cast) {
-        const kind = ABILITIES[v.cast.ability]?.target;
-        if (kind === 'enemy' || kind === 'ally' || kind === 'ally_or_self' || kind === 'any') this.cancelCast(v, 'blinded by smoke');
       }
     }
     for (const z of this.zones) {

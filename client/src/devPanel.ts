@@ -1,4 +1,4 @@
-import { ABILITIES, applyPatches, mergePatches, tunables } from '@arena/shared';
+import { ABILITIES, applyPatches, mergePatches, skillInfo } from '@arena/shared';
 import type { ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
@@ -62,6 +62,10 @@ export class DevPanel {
   private edits = new Map<string, DataPatch>();
   private result: { ok: boolean; text: string; url?: string } | null = null;
   private note = '';
+  /** Numbers kept for this session (the server puts them into every match the dev starts). */
+  private session: DataPatch[] = [];
+  private ask = '';
+  private asking = false;
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.title = 'Dev tools (F2)';
@@ -99,7 +103,11 @@ export class DevPanel {
       this.paused = m.paused;
       this.layers.setRoom(m.patches);
       this.edits.clear();
-    } else if (m.t === 'dev_result') this.result = { ok: m.ok, text: m.text, url: m.url };
+    } else if (m.t === 'dev_session') this.session = m.patches;
+    else if (m.t === 'dev_result') {
+      this.result = { ok: m.ok, text: m.text, url: m.url };
+      this.asking = false;
+    }
     if (this.open) this.paint();
   }
 
@@ -144,24 +152,47 @@ export class DevPanel {
     r.append(el('div', 'devp-title', ABILITIES[this.pick].name));
 
     const testing = new Map(this.layers.roomPatches.map((p) => [this.key(p), p]));
-    const list = el('div', 'devp-fields');
-    for (const t of tunables(this.pick)) {
-      const k = this.key(t);
-      const f = el('label', `devp-field${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
-      const input = el('input');
-      input.type = 'number';
-      input.step = 'any';
-      input.value = String(this.edits.get(k)?.value ?? t.value);
-      input.addEventListener('change', () => {
-        const v = Number(input.value);
-        if (!Number.isFinite(v)) return;
-        this.edits.set(k, { file: t.file, id: t.id, path: t.path, value: v });
-        f.classList.add('changed');
-      });
-      f.append(el('span', '', t.label), input);
-      list.append(f);
+    const info = skillInfo(this.pick);
+    for (const sec of info.sections) {
+      const box = el('div', `devp-sec ${sec.kind}`);
+      const head = el('div', 'devp-sec-head');
+      head.append(el('b', '', sec.kind === 'aura' ? `✦ ${sec.name}` : sec.name), el('small', 'devp-dim', ` ${sec.link}`));
+      box.append(head);
+      if (sec.from.length) box.append(el('div', 'devp-from', `From: ${sec.from.join(' · ')}`));
+      if (sec.does.length) box.append(el('div', 'devp-does', sec.does.join(' · ')));
+      const list = el('div', 'devp-fields');
+      for (const t of sec.fields) {
+        const k = this.key(t);
+        const f = el('label', `devp-field${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
+        const input = el('input');
+        input.type = 'number';
+        input.step = 'any';
+        input.value = String(this.edits.get(k)?.value ?? t.value);
+        input.addEventListener('change', () => {
+          const v = Number(input.value);
+          if (!Number.isFinite(v)) return;
+          this.edits.set(k, { file: t.file, id: t.id, path: t.path, value: v });
+          f.classList.add('changed');
+        });
+        f.append(el('span', '', t.label), input);
+        list.append(f);
+      }
+      if (!sec.fields.length) list.append(el('small', 'devp-dim', 'No numbers to tune.'));
+      box.append(list);
+      r.append(box);
     }
-    r.append(list);
+    if (info.modifiers.length) {
+      const box = el('div', 'devp-sec mods');
+      box.append(el('b', '', 'Also changed by'));
+      const ul = el('ul', 'devp-mods');
+      for (const m of info.modifiers) {
+        const li = el('li');
+        li.append(el('b', '', m.name), el('small', 'devp-dim', ` (${m.where})`), el('div', '', m.text));
+        ul.append(li);
+      }
+      box.append(ul);
+      r.append(box);
+    }
 
     const acts = el('div', 'devp-row');
     const tryIt = el('button', 'mm-small mm-go', 'Try in this match');
@@ -181,8 +212,43 @@ export class DevPanel {
       if (!window.confirm(`Keep ${all.length} changed number${all.length === 1 ? '' : 's'} for everyone? They go live at once, and a pull request for the data files is opened.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
-    acts.append(tryIt, reset, save);
+    const keep = el('button', 'mm-small mm-go', 'Keep for my session');
+    keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
+    keep.addEventListener('click', () => {
+      const all = mergePatches(mergePatches(this.session, this.layers.roomPatches), [...this.edits.values()]);
+      if (!all.length) {
+        this.result = { ok: false, text: 'Change a number first.' };
+        return this.paint();
+      }
+      this.hooks.send({ t: 'dev_session', patches: all });
+    });
+    acts.append(tryIt, keep, reset, save);
     r.append(acts);
+    if (this.session.length) {
+      const srow = el('div', 'devp-row');
+      srow.append(el('small', 'devp-dim', `🔁 ${this.session.length} number${this.session.length === 1 ? '' : 's'} kept for your session`));
+      const clear = el('button', 'mm-small', 'Clear session');
+      clear.addEventListener('click', () => this.hooks.send({ t: 'dev_session', patches: [] }));
+      srow.append(clear);
+      r.append(srow);
+    }
+
+    // ask Claude: plain words in, number changes out, tried in this match at once
+    const askBox = el('textarea', 'devp-note devp-ask');
+    askBox.placeholder = `🤖 Ask Claude to change ${ABILITIES[this.pick].name} (e.g. "hit 20% harder but cost more", "slow lasts 2s less")`;
+    askBox.maxLength = 600;
+    askBox.value = this.ask;
+    askBox.addEventListener('input', () => (this.ask = askBox.value));
+    const askGo = el('button', 'mm-small mm-go', this.asking ? 'Claude is thinking…' : '🤖 Ask Claude');
+    askGo.disabled = this.asking;
+    askGo.addEventListener('click', () => {
+      if (!this.ask.trim()) return;
+      this.asking = true;
+      this.result = null;
+      this.hooks.send({ t: 'dev_ai', ability: this.pick, text: this.ask.trim() });
+      this.paint();
+    });
+    r.append(askBox, askGo);
 
     const noteBox = el('textarea', 'devp-note');
     noteBox.placeholder = `A note on ${ABILITIES[this.pick].name} for the owner (sent to Discord)`;

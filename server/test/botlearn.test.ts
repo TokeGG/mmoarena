@@ -124,6 +124,10 @@ describe('bot learner', () => {
       const body = (await ok.json()) as { index: unknown[]; ledger: object };
       assert.ok(Array.isArray(body.index) && typeof body.ledger === 'object');
       assert.equal((await fetch(`http://127.0.0.1:${srv.port}/api/botlearn/replay/nope00`, { headers: { 'x-owner-code': 'study-code' } })).status, 404);
+      // uploading a replay to train on needs the owner's signed-in session
+      const up = `http://127.0.0.1:${srv.port}/api/botlearn/upload`;
+      assert.equal((await fetch(up, { method: 'POST', body: '{}' })).status, 401);
+      assert.equal((await fetch(up, { method: 'POST', body: '{}', headers: { authorization: 'Bearer not-a-real-session-token' } })).status, 403);
     } finally {
       await srv.close();
       if (prev === undefined) delete process.env.ARENA_OWNER_CODE;
