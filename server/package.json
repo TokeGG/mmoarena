@@ -1,6 +1,6 @@
 {
   "name": "@arena/server",
-  "version": "0.68.3",
+  "version": "0.68.4",
   "private": true,
   "type": "module",
   "scripts": {

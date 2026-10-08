@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.68.4",
+  "date": "2026-10-08",
+  "at": "2026-10-08T00:37:44Z",
+  "title": "Target arrow, raid marks, 6-player parties",
+  "changes": [
+   "Your target now has a bobbing arrow over its head (red on enemies, gold on allies), so you always see who you are hitting.",
+   "Raid marks: put a Skull, Cross, Square, Moon, Triangle, Diamond, Circle or Star over anyone's head for your whole team. Right-click the target frame to pick one, or press Alt+1 to Alt+8 (Alt+0 clears; rebindable under Marks in Keybinds). Marking someone else with the same mark moves it; the same mark again takes it off.",
+   "Parties hold up to 6 players, so friends can play an in-house 3v3 with no bots: pick Team 1 or Team 2 in the party box (3 per side) and start a party match.",
+   "Long names in the party box no longer stretch the lobby; they are cut off with …"
+  ]
+ },
+ {
   "version": "0.68.3",
   "date": "2026-10-08",
   "at": "2026-10-08T00:06:27Z",

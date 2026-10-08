@@ -5,7 +5,7 @@ import { ArenaScene, fallToward } from './scene';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
 import { Hud, blockedByCondition } from './hud';
-import { Keybinds, SLOT_ACTIONS } from './keybinds';
+import { Keybinds, MARK_ACTIONS, SLOT_ACTIONS } from './keybinds';
 import type { Action } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
@@ -28,6 +28,7 @@ import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spe
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel } from './adminPanel';
 import { AnnounceBanner } from './announce';
+import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
@@ -248,8 +249,10 @@ function onMessage(raw: MessageEvent) {
       arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
       scene.setMap(arena.id);
       matchStarting = true; // until its first snapshot, the menu backdrop must not swap the map back to the menu's pick
-      // dev tools start fresh in every match (test numbers never carry over)
+      // dev tools start fresh in every match (test numbers never carry over), and so do raid marks
       devPanel.setAvailable(false);
+      teamMarks = new Map();
+      markPicker.hide();
       buildsPanel.clear();
       lastBuilds = [];
       buildsAsked = false;
@@ -317,6 +320,9 @@ function onMessage(raw: MessageEvent) {
     case 'invite_gone':
     case 'notice':
       friendsUi.handle(m);
+      break;
+    case 'marks':
+      teamMarks = new Map(m.marks);
       break;
     case 'announce':
       announceBanner.show(m, () => audio.ui('select'));
@@ -591,6 +597,16 @@ function cycleTarget(dir: 1 | -1) {
   setTarget(next.id);
 }
 
+/** Your team's raid marks over heads (unit id -> mark 1-8), as the server last sent them. */
+let teamMarks = new Map<number, number>();
+
+/** Put a raid mark on your target for your team (the same mark again, or 0, takes it off). */
+function markTarget(mark: number) {
+  if (spec || !latest) return;
+  if (targetId === null) return void hud.error('Target someone to mark them');
+  send({ t: 'mark', unit: targetId, mark });
+}
+
 /** The ground point under the cursor for an aimed spell, pulled in to the spell's range from you. */
 function groundAim(range: number): { x: number; z: number; lv?: 1 } | null {
   const c = controls.cursor();
@@ -782,6 +798,10 @@ controls.onKey = (code, e) => {
     else menu.open(true);
     return;
   }
+  if (code === 'F2' && !latest && !binds.actionForEvent(e)) {
+    e.preventDefault();
+    return void devPanel.toggle(); // from the menu (only when the 🛠 button shows)
+  }
   if (!latest) return;
   if (code === 'KeyB' && (spec?.kind === 'live' || spectateBar.board.visible)) return void spectateBar.board.toggle();
   // N: the builds panel (watching, or a dev in a match); F2: dev tools. Only when the key is not bound to something else
@@ -799,6 +819,7 @@ controls.onKey = (code, e) => {
   if (slot >= 0) castSlot(slot);
   else if (action === 'nextTarget') cycleTarget(e.shiftKey ? -1 : 1);
   else if (action === 'prevTarget') cycleTarget(-1);
+  else if (action in MARK_ACTIONS) markTarget(MARK_ACTIONS[action]!);
   else if (action === 'autoAttack') {
     if (spec || !autoEnabled) return;
     const me = latest.units.find((u) => u.id === you);
@@ -813,6 +834,7 @@ let lastT = performance.now();
 let acc = 0;
 
 function frame(now: number) {
+  devPanel.menuAvailable(isDev() && mainMenu.visible && !spec); // a dev can open the tools from the menu too
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - lastT) / 1000);
   lastT = now;
@@ -1007,7 +1029,7 @@ function frame(now: number) {
     units.map((u) => {
       const s = scene.project(u.x, 2.7 + u.y, u.z);
       const meta = snap.units.find((x) => x.id === u.id)!;
-      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb };
+      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0 };
     }),
     estNow,
   );
@@ -1023,7 +1045,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => send(m), builds: () => lastBuilds, myBar: () => bar }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, menuClass: () => mainMenu.selectedClass }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
@@ -1313,6 +1335,8 @@ const friendsUi = new FriendsUi({
   },
 });
 const suggestUi = new SuggestUi({ send: (m) => send(m), isOwner: () => !!accountUi.account?.ownerOk, signedIn: () => !!accountUi.account, needSignIn: () => accountUi.openAuth() });
+/** Raid marks: right-click the target frame for the picker. */
+const markPicker = new MarkPicker((mark) => markTarget(mark), () => (targetId !== null ? teamMarks.get(targetId) ?? 0 : 0));
 /** The owner's announcements: a big banner at the top of the screen. */
 const announceBanner = new AnnounceBanner();
 /** The owner's admin panel (its own window, from the 🛡 button). */

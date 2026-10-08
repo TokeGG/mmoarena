@@ -1,5 +1,5 @@
-import { ABILITIES, applyPatches, mergePatches, skillInfo } from '@arena/shared';
-import type { ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
+import { ABILITIES, CLASSES, CLASS_IDS, applyPatches, mergePatches, skillInfo } from '@arena/shared';
+import type { ClassId, ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 
@@ -17,6 +17,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
 export class DataLayers {
   private live: DataPatch[] = [];
   private room: DataPatch[] = [];
+  private session: DataPatch[] = [];
   private undo: (() => void) | null = null;
   setLive(p: DataPatch[]) {
     this.live = p;
@@ -26,15 +27,22 @@ export class DataLayers {
     this.room = p;
     this.apply();
   }
+  /** The dev's session numbers (shown in tooltips in the menu; in a match the room's numbers already carry them). */
+  setSession(p: DataPatch[]) {
+    this.session = p;
+    this.apply();
+  }
   get roomPatches(): DataPatch[] {
     return this.room;
   }
   private apply() {
     this.undo?.();
     const a = applyPatches(this.live);
+    const s = applyPatches(this.session);
     const b = applyPatches(this.room);
     this.undo = () => {
       b();
+      s();
       a();
     };
     invalidateTip(); // open tooltips redraw with the new numbers
@@ -47,6 +55,8 @@ interface Hooks {
   builds(): UnitBuild[];
   /** The dev's own bar, offered first. */
   myBar(): string[];
+  /** In the menu: the class picked there, whose skills the panel opens on. */
+  menuClass(): ClassId;
 }
 
 /**
@@ -66,6 +76,9 @@ export class DevPanel {
   private session: DataPatch[] = [];
   private ask = '';
   private asking = false;
+  /** In a match the tools act on it; in the menu changes go to the dev's session or to everyone. */
+  private inMatch = false;
+  private menuCls: ClassId | null = null;
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.title = 'Dev tools (F2)';
@@ -77,16 +90,27 @@ export class DevPanel {
     return !this.root.classList.contains('hidden');
   }
 
-  /** In a match as a dev: the button shows; out of it everything hides and the test numbers go. */
+  /** In a match as a dev: the tools act on that match. Out of it the test numbers go (the menu mode may stay). */
   setAvailable(on: boolean) {
-    this.button.classList.toggle('hidden', !on);
+    this.inMatch = on;
+    if (on) this.button.classList.remove('hidden');
     if (!on) {
-      this.root.classList.add('hidden');
       this.paused = false;
       this.edits.clear();
       this.result = null;
       this.layers.setRoom([]);
+      this.button.classList.add('hidden');
+      this.root.classList.add('hidden');
     }
+  }
+
+  /** Out of a match: whether a dev may open the panel from the menu (called every frame; cheap when nothing changes). */
+  menuAvailable(on: boolean) {
+    if (this.inMatch) return;
+    const was = !this.button.classList.contains('hidden');
+    if (was === on) return;
+    this.button.classList.toggle('hidden', !on);
+    if (!on) this.root.classList.add('hidden');
   }
 
   toggle(on = !this.open) {
@@ -103,7 +127,11 @@ export class DevPanel {
       this.paused = m.paused;
       this.layers.setRoom(m.patches);
       this.edits.clear();
-    } else if (m.t === 'dev_session') this.session = m.patches;
+    } else if (m.t === 'dev_session') {
+      this.session = m.patches;
+      this.layers.setSession(m.patches);
+      if (!this.inMatch) this.edits.clear();
+    }
     else if (m.t === 'dev_result') {
       this.result = { ok: m.ok, text: m.text, url: m.url };
       this.asking = false;
@@ -128,14 +156,32 @@ export class DevPanel {
     head.append(close);
     r.append(head);
 
-    const row = el('div', 'devp-row');
-    const pause = el('button', `mm-small${this.paused ? ' mm-go' : ''}`, this.paused ? '▶ Resume' : '⏸ Pause');
-    pause.addEventListener('click', () => this.hooks.send({ t: 'dev_pause', on: !this.paused }));
-    row.append(pause, el('small', 'devp-dim', this.layers.roomPatches.length ? `${this.layers.roomPatches.length} test number${this.layers.roomPatches.length === 1 ? '' : 's'} in this match` : 'Real numbers'));
-    r.append(row);
-
-    // the skills in this match: yours first, then everyone else's
-    const ids = [...new Set([...this.hooks.myBar(), ...this.hooks.builds().flatMap((b) => b.bar)])].filter((id) => ABILITIES[id]);
+    let ids: string[];
+    if (this.inMatch) {
+      const row = el('div', 'devp-row');
+      const pause = el('button', `mm-small${this.paused ? ' mm-go' : ''}`, this.paused ? '▶ Resume' : '⏸ Pause');
+      pause.addEventListener('click', () => this.hooks.send({ t: 'dev_pause', on: !this.paused }));
+      row.append(pause, el('small', 'devp-dim', this.layers.roomPatches.length ? `${this.layers.roomPatches.length} test number${this.layers.roomPatches.length === 1 ? '' : 's'} in this match` : 'Real numbers'));
+      r.append(row);
+      // the skills in this match: yours first, then everyone else's
+      ids = [...new Set([...this.hooks.myBar(), ...this.hooks.builds().flatMap((b) => b.bar)])].filter((id) => ABILITIES[id]);
+    } else {
+      // in the menu: every skill of a class; changes go to your session (every match you start) or to everyone
+      r.append(el('small', 'devp-dim', 'From the menu: "Keep for my session" puts your numbers in every match you start (not ranked); "Save for everyone" makes them live for all.'));
+      const cls = this.menuCls ?? this.hooks.menuClass();
+      const tabs = el('div', 'devp-row');
+      for (const c of CLASS_IDS) {
+        const b = el('button', `mm-small${c === cls ? ' mm-go' : ''}`, CLASSES[c].name);
+        b.addEventListener('click', () => {
+          this.menuCls = c;
+          this.pick = '';
+          this.paint();
+        });
+        tabs.append(b);
+      }
+      r.append(tabs);
+      ids = Object.keys(ABILITIES).filter((id) => ABILITIES[id].class === cls);
+    }
     if (!this.pick || !ids.includes(this.pick)) this.pick = ids[0] ?? '';
     const picker = el('div', 'devp-skills');
     for (const id of ids) {
@@ -151,7 +197,7 @@ export class DevPanel {
     if (!this.pick) return;
     r.append(el('div', 'devp-title', ABILITIES[this.pick].name));
 
-    const testing = new Map(this.layers.roomPatches.map((p) => [this.key(p), p]));
+    const testing = new Map((this.inMatch ? this.layers.roomPatches : this.session).map((p) => [this.key(p), p]));
     const info = skillInfo(this.pick);
     for (const sec of info.sections) {
       const box = el('div', `devp-sec ${sec.kind}`);
@@ -204,9 +250,9 @@ export class DevPanel {
     });
     const save = el('button', 'mm-small', 'Save for everyone…');
     save.addEventListener('click', () => {
-      const all = mergePatches(this.layers.roomPatches, [...this.edits.values()]);
+      const all = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
       if (!all.length) {
-        this.result = { ok: false, text: 'Change a number and try it first.' };
+        this.result = { ok: false, text: 'Change a number first.' };
         return this.paint();
       }
       if (!window.confirm(`Keep ${all.length} changed number${all.length === 1 ? '' : 's'} for everyone? They go live at once, and a pull request for the data files is opened.`)) return;
@@ -222,7 +268,8 @@ export class DevPanel {
       }
       this.hooks.send({ t: 'dev_session', patches: all });
     });
-    acts.append(tryIt, keep, reset, save);
+    if (this.inMatch) acts.append(tryIt, keep, reset, save);
+    else acts.append(keep, save);
     r.append(acts);
     if (this.session.length) {
       const srow = el('div', 'devp-row');

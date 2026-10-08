@@ -53,6 +53,8 @@ export type ClientMsg =
   | { t: 'auto'; on: boolean }
   /** The auto-attack setting: `off` stops it from ever starting. */
   | { t: 'autoOff'; off: boolean }
+  /** Put a raid mark (1-8) over a unit's head for your team, or 0 to clear it. */
+  | { t: 'mark'; unit: number; mark: number }
   | { t: 'leave' }
   /** Accounts. Password-based; a successful register/login returns a session token for `resume`. */
   | { t: 'register'; name: string; password: string; ownerCode?: string }
@@ -93,6 +95,8 @@ export type ClientMsg =
   | { t: 'admin_announce'; text: string }
   | { t: 'admin_end'; id: string }
   | { t: 'overrides_clear' }
+  /** Owner: open a GitHub pull request with every live number change, for the data files. */
+  | { t: 'overrides_pr'; note?: string }
   /** Owner moderation and server control from the admin panel (see AdminAct). */
   | { t: 'admin_act'; act: AdminAct; name?: string; minutes?: number; reason?: string; value?: number; text?: string; id?: string; on?: boolean }
   /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
@@ -175,6 +179,8 @@ export type ServerMsg =
   | { t: 'duel_go'; with: string }
   /** A short message to show the player. */
   | { t: 'notice'; text: string }
+  /** Your team's raid marks: unit id and mark (1-8, see MARKS). */
+  | { t: 'marks'; marks: [number, number][] }
   /** The owner's announcement: a big banner for everyone online (and anyone joining in the next few minutes). */
   | { t: 'announce'; text: string; by: string; at: number }
   | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
@@ -185,6 +191,23 @@ export type ServerMsg =
   | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };
 
 /** Number patches from a client: well formed, at most 200, each naming an existing number in the data. */
+/** Most players in a party: two full teams of three for an in-house 3v3. */
+export const PARTY_MAX = 6;
+/** Most party members on one side of a party match. */
+export const PARTY_SIDE_MAX = 3;
+
+/** Raid marks a team can put over heads (index + 1 is the mark number), WoW style. */
+export const MARKS = [
+  { id: 'star', name: 'Star', icon: '⭐' },
+  { id: 'circle', name: 'Circle', icon: '🟠' },
+  { id: 'diamond', name: 'Diamond', icon: '💎' },
+  { id: 'triangle', name: 'Triangle', icon: '🔺' },
+  { id: 'moon', name: 'Moon', icon: '🌙' },
+  { id: 'square', name: 'Square', icon: '🟦' },
+  { id: 'cross', name: 'Cross', icon: '❌' },
+  { id: 'skull', name: 'Skull', icon: '💀' },
+] as const;
+
 export function parsePatches(raw: unknown): DataPatch[] | null {
   if (!Array.isArray(raw) || raw.length > 200) return null;
   const out: DataPatch[] = [];
@@ -275,6 +298,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'auto', on: !!m.on };
     case 'autoOff':
       return { t: 'autoOff', off: !!m.off };
+    case 'mark':
+      if (!Number.isInteger(m.unit) || !Number.isInteger(m.mark) || (m.mark as number) < 0 || (m.mark as number) > MARKS.length) return null;
+      return { t: 'mark', unit: m.unit as number, mark: m.mark as number };
     case 'leave':
       return { t: 'leave' };
     case 'register':
@@ -377,6 +403,10 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'admin_end', id: m.id };
     case 'overrides_clear':
       return { t: 'overrides_clear' };
+    case 'overrides_pr': {
+      const note = typeof m.note === 'string' ? m.note.trim().slice(0, 600) : '';
+      return { t: 'overrides_pr', ...(note ? { note } : {}) };
+    }
     case 'admin_act': {
       if (!ADMIN_ACTS.includes(m.act)) return null;
       const out: Extract<ClientMsg, { t: 'admin_act' }> = { t: 'admin_act', act: m.act };

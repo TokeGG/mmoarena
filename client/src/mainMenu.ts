@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, specPassives, switchTalents, talentsFor,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, specPassives, switchTalents, talentsFor, PARTY_MAX,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -176,7 +176,7 @@ export class MainMenu {
     if (!info) return;
     const waiting = info.members.filter((m) => !m.ready && m.name !== info.leader).length;
     const head = el('div', 'pr-head');
-    head.append(el('b', '', `Party (${info.members.length}/3)`), el('small', '', leader ? 'You pick the mode and arena' : `${info.leader} picks the mode and arena`));
+    head.append(el('b', '', `Party (${info.members.length}/${PARTY_MAX})`), el('small', '', leader ? 'You pick the mode and arena' : `${info.leader} picks the mode and arena`));
     this.partyBox.append(head);
     for (const m of info.members) {
       const lead = m.name === info.leader;
@@ -219,6 +219,10 @@ export class MainMenu {
     this.build = loadBuild(this.classId);
     this.renderAll();
     if (this.openSlot) this.openLook(this.openSlot); // keep the picker in step after a discard
+  }
+
+  get visible(): boolean {
+    return !this.root.classList.contains('hidden');
   }
 
   show(visible: boolean) {
