@@ -15,3 +15,4 @@ export * from './rotation';
 export * from './outplay';
 export * from './devpatch';
 export * from './devinfo';
+export * from './snapslim';

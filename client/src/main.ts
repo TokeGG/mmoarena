@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
@@ -38,10 +38,25 @@ import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
 import { initCursors, refreshCursor } from './cursors';
 import { buildCursorPanel } from './cursorUi';
+import { NetClock } from './netClock';
+import { IntervalTracker, InterpDelay, RenderTime, poseAt } from './interpDelay';
+import type { Pose } from './interpDelay';
+import { NetStats, NetStatsView } from './netStats';
+import { ownAhead } from './ownAhead';
 
 const DT = TUNING.tickMs / 1000;
-/** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
-const INTERP_DELAY_MS = 100;
+/** Smoothed server clock, snapshot interval and the adaptive delay other players are drawn in the past by (see netClock.ts, interpDelay.ts). */
+const netClock = new NetClock();
+/** Rebuilds full units from the slim snapshots of the player's own feed (identity arrives once, then only on change). */
+const merger = new SnapMerger();
+const snapInterval = new IntervalTracker();
+const interpDelay = new InterpDelay();
+const renderTime = new RenderTime();
+const netStats = new NetStats();
+const netView = new NetStatsView();
+let showNetStats = false;
+/** The server time of the world drawn in the last frame (what a cast's `vt` reports), and when that frame was drawn. */
+const drawn = { rt: 0, at: -1e9 };
 
 const audio = new Audio();
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -204,6 +219,7 @@ const menu = new Menu(binds, {
     autoEnabled = enabled;
     send({ t: 'autoOff', off: !enabled });
   },
+  onNetStats: (on) => (showNetStats = on),
   onEditHud: () => (latest ? hudLayout.start() : editHudFromMenu()),
 });
 const hudLayout = new HudLayout();
@@ -297,6 +313,10 @@ function onMessage(raw: MessageEvent) {
       setTipBuild(classId, myBuild);
       latest = null;
       snaps.length = 0;
+      netClock.reset();
+      renderTime.reset();
+      snapInterval.reset();
+      netStats.reset();
       pending = [];
       seq = 0;
       targetId = null;
@@ -402,6 +422,9 @@ function onMessage(raw: MessageEvent) {
       followBox.set(m.name);
       if (!m.name) friendsUi.handle({ t: 'notice', text: 'Stopped following.' });
       break;
+    case 'pong':
+      netStats.rtt.add(performance.now() - m.n);
+      break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
@@ -425,7 +448,7 @@ function onMessage(raw: MessageEvent) {
         spectateBar.board.toggle(false);
         endChoice.hide();
       }
-      onSnapshot(m.snap, m.events);
+      onSnapshot(merger.merge(m.snap, m.info), m.events);
       break;
     case 'suggest_ack':
     case 'proposals':
@@ -481,6 +504,13 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   if (snaps.length > 30) snaps.shift();
   latest = snap;
   latestAt = at;
+  if (!spec) {
+    netClock.sample(snap.time, at);
+    snapInterval.add(snap.time);
+    interpDelay.update(snapInterval.mean, netClock.latenessP95());
+    netStats.snapshot(at, snap.tick);
+    netStats.delayMs = interpDelay.delay;
+  }
   devPanel.feed(events as never, snap.time);
   if (spec && (!snap.units.some((u) => u.id === you) || you === 0)) {
     const first = snap.units.find((u) => u.team === 0) ?? snap.units[0];
@@ -603,13 +633,26 @@ const lerpAngle = (a: number, b: number, t: number) => {
   return a + d * t;
 };
 
-function interpolate(rt: number): Map<number, { x: number; z: number; y: number; facing: number }> {
+function interpolate(rt: number, extrapolate = false): Map<number, { x: number; z: number; y: number; facing: number }> {
   const out = new Map<number, { x: number; z: number; y: number; facing: number }>();
   if (!snaps.length) return out;
-  let i = snaps.length - 1;
+  const n = snaps.length;
+  if (extrapolate && n >= 2 && rt > snaps[n - 1].snap.time) {
+    // the buffer ran dry: carry on along the last movement for a moment (fading out) instead of freezing
+    const a = snaps[n - 2].snap;
+    const b = snaps[n - 1].snap;
+    const pose = (u: UnitSnap, t: number): Pose => ({ t, x: u.x, z: u.z, y: u.y, facing: u.facing });
+    for (const ub of b.units) {
+      const ua = a.units.find((u) => u.id === ub.id);
+      const p = poseAt(ua ? pose(ua, a.time) : pose(ub, a.time), pose(ub, b.time), rt);
+      out.set(ub.id, { x: p.x, z: p.z, y: p.y, facing: p.facing });
+    }
+    return out;
+  }
+  let i = n - 1;
   while (i > 0 && snaps[i].snap.time > rt) i--;
   const a = snaps[i].snap;
-  const b = snaps[Math.min(i + 1, snaps.length - 1)].snap;
+  const b = snaps[Math.min(i + 1, n - 1)].snap;
   const span = b.time - a.time;
   const t = span > 0 ? Math.min(1, Math.max(0, (rt - a.time) / span)) : 0;
   for (const ua of a.units) {
@@ -734,7 +777,9 @@ function castSlot(i: number) {
 
 /** Server time of the frame other players are drawn at right now; the server judges range against where they stood then (lag compensation). */
 function viewTime(): number {
-  return Math.round(estimatedNow() - INTERP_DELAY_MS);
+  // the world drawn in the last frame, exactly (a frame is at most a few tens of ms old); before any frame, the clock minus the delay
+  if (!spec && performance.now() - drawn.at < 250) return Math.round(drawn.rt);
+  return Math.round(estimatedNow() - (spec ? 100 : interpDelay.delay));
 }
 
 const QUEUE_SAME_MS = 250;
@@ -748,7 +793,9 @@ function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
 
 let queued: { ability: string; target: number | null; until: number; ground?: { x: number; z: number; lv?: 1 } } | null = null;
 function estimatedNow(): number {
-  return latest ? latest.time + (performance.now() - latestAt) : 0;
+  if (!latest) return 0;
+  if (!spec && netClock.ready) return netClock.now(performance.now());
+  return latest.time + (performance.now() - latestAt);
 }
 /** Sends the queued spell once the current cast and global cooldown are over. */
 function flushQueue() {
@@ -924,6 +971,11 @@ controls.onKey = (code, e) => {
 
 // ------------------------------------------------------------------ frame loop
 
+// a ping twice a second-ish: round trip time for the readout (the server answers at once)
+setInterval(() => {
+  if (ws && ws.readyState === WebSocket.OPEN) send({ t: 'ping', n: performance.now() });
+}, 2000);
+
 const lobbyTags = new LobbyTags();
 let lastT = performance.now();
 let acc = 0;
@@ -1037,9 +1089,15 @@ function frame(now: number) {
   flushQueue();
   const snap = latest!;
   const rate = !spec ? 1 : spec.paused || (spec.runner?.done ?? false) ? 0 : spec.rate;
-  const estNow = snap.time + (performance.now() - latestAt) * rate;
+  const estNow = !spec && netClock.ready ? netClock.now(performance.now()) : snap.time + (performance.now() - latestAt) * rate;
   scene.viewLevel = predLevel;
-  const interp = interpolate(estNow - (rate > 0 ? Math.max(INTERP_DELAY_MS * rate, 60) : 0));
+  const drawAt = spec ? estNow - (rate > 0 ? Math.max(100 * rate, 60) : 0) : renderTime.next(estNow, interpDelay.delay);
+  if (!spec) {
+    drawn.rt = drawAt;
+    drawn.at = performance.now();
+    netStats.frame(drawAt > snap.time);
+  }
+  const interp = interpolate(drawAt, !spec);
   if (spec) targetId = snap.units.find((u) => u.id === you)?.target ?? null;
 
   // our own unit: interpolate between the last two 20 Hz predictions, then ease towards that (hides corrections too)
@@ -1048,6 +1106,12 @@ function frame(now: number) {
     const meNow0 = spec ? undefined : snap.units.find((u) => u.id === you);
     let tx = prevPred.x + (pred.x - prevPred.x) * alpha;
     let tz = prevPred.z + (pred.z - prevPred.z) * alpha;
+    if (!spec && meNow0?.alive && !meNow0.controlled) {
+      // drawn where we are now: the last predicted step carried on for the time since it was taken (not blended up to a tick behind)
+      const p = ownAhead(pred, prevPred, acc, DT, TUNING.runSpeed * DT * 3);
+      tx = p.x;
+      tz = p.z;
+    }
     if (spec) {
       // watching: the camera follows the interpolated server position of the followed unit
       const f = interp.get(you);
@@ -1119,6 +1183,8 @@ function frame(now: number) {
     scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt)));
   }
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
+  netView.show(!spec && (showNetStats || isDev()));
+  netView.update(netStats, performance.now());
   // countdown ticks before the gates open, and our own footsteps
   if (snap.phase === 'prep') {
     const left = Math.ceil((snap.phaseEndsAt - estNow) / 1000);

@@ -453,6 +453,10 @@ export interface Unit {
   lastInput: MoveInput;
   lastSeq: number;
   starve: number;
+  /** Input catch-up credit: idle ticks owed back (see Sim.tickUnit). */
+  catchUp?: number;
+  /** Ticks that repeated the last input and are still to be matched by a queued input (see Sim.tickUnit). */
+  owed?: number;
   fearDir: Vec2;
   fearRetargetAt: number;
 }

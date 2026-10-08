@@ -13,6 +13,7 @@ export interface MenuHandlers {
   onBrightness: (v: number) => void;
   /** The auto-attack setting changed (also called once at start-up with the saved value). */
   onAutoAttack: (enabled: boolean) => void;
+  onNetStats: (on: boolean) => void;
   /** Open the HUD layout editor (only offered while in a match). */
   onEditHud: () => void;
 }
@@ -23,6 +24,8 @@ export interface MenuHandlers {
  */
 /** localStorage key of the auto-attack setting ('0' = off). Synced with the account like every `arena.*` key. */
 export const AUTO_KEY = 'arena.autoattack';
+/** localStorage key of the network stats readout ('1' = shown). Off by default. */
+export const NETSTATS_KEY = 'arena.netstats';
 
 export class Menu {
   private root = $('menu');
@@ -112,6 +115,25 @@ export class Menu {
     auto.addEventListener('change', applyAuto);
     $('auto-toggle-val').textContent = auto.checked ? 'On' : 'Off';
     handlers.onAutoAttack(auto.checked);
+
+    const net = $('netstats-toggle') as HTMLInputElement;
+    try {
+      net.checked = localStorage.getItem(NETSTATS_KEY) === '1';
+    } catch {
+      /* ignore */
+    }
+    const applyNet = () => {
+      $('netstats-toggle-val').textContent = net.checked ? 'On' : 'Off';
+      try {
+        localStorage.setItem(NETSTATS_KEY, net.checked ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      handlers.onNetStats(net.checked);
+    };
+    net.addEventListener('change', applyNet);
+    $('netstats-toggle-val').textContent = net.checked ? 'On' : 'Off';
+    handlers.onNetStats(net.checked);
 
     // Key capture. Runs in the capture phase so the game never sees the key that is being bound.
     window.addEventListener(

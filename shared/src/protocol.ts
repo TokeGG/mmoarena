@@ -3,9 +3,10 @@ import { validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
+import type { SlimSnapshot, UnitInfo } from './snapslim';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
-export const PROTOCOL_VERSION = 9;
+export const PROTOCOL_VERSION = 10;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
@@ -72,6 +73,8 @@ export type ClientMsg =
     }
   | { t: 'input'; seq: number; fwd: number; strafe: number; facing: number; jump?: boolean }
   | { t: 'target'; id: number | null }
+  /** Round-trip probe: the server answers at once with a `pong` carrying the same `n`. */
+  | { t: 'ping'; n: number }
   | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number; /** 1 when the point is on top of a walkway (the aim hit the deck, not the ground under it). */ lv?: 1; /** Sim time of the frame the player was looking at, so the server can judge range against what they saw. */ vt?: number }
   | { t: 'auto'; on: boolean }
   /** The auto-attack setting: `off` stops it from ever starting. */
@@ -166,7 +169,10 @@ export type ServerMsg =
   /** Progress (matches played). Store `token` and send it back on join. */
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
-  | { t: 'snapshot'; snap: Snapshot; events: SimEvent[] }
+  /** `snap` from a player's own team feed carries slim units plus the `info` (identity) of units new or changed; see snapslim.ts. Spectator and paused frames are full. */
+  | { t: 'snapshot'; snap: SlimSnapshot; events: SimEvent[]; info?: UnitInfo[] }
+  /** The answer to a `ping`. */
+  | { t: 'pong'; n: number }
   /** How many of the people in the finished match are ready to play again. */
   | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'suggest_ack'; ok: boolean; reason?: string }
@@ -330,6 +336,9 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'input':
       if (!isNum(m.seq) || !isNum(m.fwd) || !isNum(m.strafe) || !isNum(m.facing)) return null;
       return { t: 'input', seq: m.seq | 0, fwd: m.fwd, strafe: m.strafe, facing: m.facing, jump: m.jump === true ? true : undefined };
+    case 'ping':
+      if (!isNum(m.n) || Math.abs(m.n) > 1e12) return null;
+      return { t: 'ping', n: m.n };
     case 'target':
       if (m.id !== null && !isNum(m.id)) return null;
       return { t: 'target', id: m.id };
