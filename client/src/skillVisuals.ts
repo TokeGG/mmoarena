@@ -123,6 +123,56 @@ export function fireballShape(size: number, heat: number): FireballShape {
 }
 
 /**
+ * The shared flame look of every fire skill (see fireFx.ts and the helpers in effects.ts): which of its forms each fire ability uses.
+ * `fireball` = the flying ball (Fireball, Pyroblast: `ABILITY_VISUAL.proj`), `zone` = a field of tongues over a ground circle
+ * (Flamestrike), `burst` = fire erupting at a target's feet (Scorch), `cone` = a jet of flame (Dragon's Breath, Dragon Roar). The burning
+ * aura is a `body` field (AURA_VISUAL style 'burn'). Every ability of the fire school must be listed (tested).
+ */
+export type FireForm = 'fireball' | 'zone' | 'burst' | 'cone';
+export const FIRE_LOOK: Record<string, FireForm> = {
+  fireball: 'fireball', pyroblast: 'fireball', flamestrike: 'zone', scorch: 'burst', dragons_breath: 'cone', dragon_roar: 'cone',
+};
+export const fireFormFor = (ability: string | null | undefined): FireForm | null => (ability && FIRE_LOOK[ability]) || null;
+
+/**
+ * A field of flame tongues (`FireField`, fireFx.ts): `zone` over a ground circle, `burst` at a target's feet, `body` licking up a
+ * burning unit. Every number the renderer uses, so tests can pin that the fire never leaves its footprint. Yards.
+ */
+export interface FireFieldShape {
+  kind: 'zone' | 'burst' | 'body';
+  /** The real footprint (a zone's radius): no flame reaches past it. */
+  radius: number;
+  tongues: number;
+  /** Tallest tongue, width as a share of its height, and how much of the quad the visible flame fills (the rest is clear). */
+  height: number;
+  wid: number;
+  /** Largest distance of a tongue's base from the centre, so that base plus half its visible width stays inside `radius`. */
+  spread: number;
+  /** Spin of the whole field (rad/s), radius of the white-hot core, and where a body field's tongues start (yards up). */
+  swirl: number;
+  core: number;
+  baseLow: number;
+  baseHigh: number;
+}
+export const FIRE_VISIBLE = 0.5;
+export function fireFieldShape(kind: 'zone' | 'burst' | 'body', radius: number, scale = 1): FireFieldShape {
+  const r = Math.max(0.2, radius) * scale;
+  if (kind === 'body') {
+    const height = 1.75 * scale;
+    const wid = 0.8;
+    return { kind, radius: r, tongues: 9, height, wid, spread: r, swirl: 1.3, core: 0.3 * scale, baseLow: 0.1 * scale, baseHigh: 1.6 * scale };
+  }
+  const burst = kind === 'burst';
+  const height = burst ? 3.4 * scale : Math.min(4.2, 2 + 0.42 * r);
+  const wid = 0.8;
+  const half = height * wid * 1.4 * 0.5 * FIRE_VISIBLE;
+  return {
+    kind, radius: r, tongues: burst ? 9 : Math.max(12, Math.min(26, Math.round(r * 4.4))), height, wid,
+    spread: Math.max(0, r - half), swirl: burst ? 2.4 : 1.1, core: Math.min(1.1, 0.3 * r + 0.2), baseLow: 0, baseHigh: 0,
+  };
+}
+
+/**
  * How much of its full tail a fireball keeps over a flight of `range` yards: the tail is a length in yards, so on a short throw
  * it would be most of the path and cover the caster. Full length from `TAIL_FULL_AT` times the tail onwards, never under 40 %.
  */

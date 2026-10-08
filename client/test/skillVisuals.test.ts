@@ -2,9 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { ABILITIES, AURAS } from '@arena/shared';
 import * as THREE from 'three';
-import { ABILITY_VISUAL, AURA_VISUAL, CONE_EDGE, LayerBook, SHOUT_ABILITIES, TAIL_FULL_AT, WINDUP_CAP, auraVisualsOf, coneShape, coneSpawnAngle, dotAurasFor, fireballLookFor, fireballShape, fireballTailScale, isDotTick, layerAlpha, visualFor, windupScale } from '../src/skillVisuals';
+import { ABILITY_VISUAL, AURA_VISUAL, CONE_EDGE, FIRE_LOOK, FIRE_VISIBLE, fireFieldShape, fireFormFor, LayerBook, SHOUT_ABILITIES, TAIL_FULL_AT, WINDUP_CAP, auraVisualsOf, coneShape, coneSpawnAngle, dotAurasFor, fireballLookFor, fireballShape, fireballTailScale, isDotTick, layerAlpha, visualFor, windupScale } from '../src/skillVisuals';
 import { FIRE_FRAME_COUNT, FireballRig, fireballColors, makeRibbonTexture } from '../src/fireballFx';
 import type { RigHost } from '../src/fireballFx';
+import { FireField, newFirePlace } from '../src/fireFx';
+import { readFileSync } from 'node:fs';
 import { RIG_BONES, RigAnimator } from '../src/riggedPose';
 import { SHOUT_DUR, SHOUT_RELEASE, newShoutPose, shoutPose } from '../src/shoutPose';
 import type { AuraStyle, VisualClass } from '../src/skillVisuals';
@@ -377,6 +379,133 @@ describe('fireball polish', () => {
     rig.dispose();
     assert.ok(pool.length >= 15, 'layers handed back');
     assert.ok(pool.every((s) => s.renderOrder === 0), 'render order reset for the next user of the pool');
+    assert.equal(scene.children.length, 0);
+  });
+});
+
+describe('every fire skill shares one flame look', () => {
+  const fire = live.filter((a) => a.school === 'fire');
+  const src = readFileSync(new URL('../src/effects.ts', import.meta.url), 'utf8');
+
+  it('every fire ability and burning aura is drawn through the shared fire helpers', () => {
+    assert.ok(fire.length >= 6);
+    for (const a of fire) assert.ok(fireFormFor(a.id), `${a.id} has a fire form`);
+    assert.deepEqual(Object.keys(FIRE_LOOK).filter((id) => !ABILITIES[id]), [], 'no stale rows');
+    assert.equal(fireFormFor('flamestrike'), 'zone');
+    assert.equal(ABILITY_VISUAL.flamestrike.cls, 'zone');
+    assert.equal(fireFormFor('scorch'), 'burst');
+    assert.equal(ABILITY_VISUAL.scorch.hit?.kind, 'fire');
+    assert.equal(ABILITY_VISUAL.scorch.hit?.style, 'eruption');
+    assert.equal(fireFormFor('dragons_breath'), 'cone');
+    assert.equal(fireFormFor('dragon_roar'), 'cone');
+    for (const id of ['fireball', 'pyroblast']) assert.equal(ABILITY_VISUAL[id].proj?.look, 'fireball');
+    for (const [id, aura] of Object.entries(AURA_VISUAL)) if (aura.style === 'burn') assert.ok(AURAS[id], id);
+    // the renderer builds each form from the shared pieces
+    assert.ok((src.match(/new FireField\(/g) ?? []).length >= 3, 'zone, eruption and burn aura build a FireField');
+    assert.match(src, /if \(kind === 'fire'\) return this\.fireEruption/);
+    assert.match(src, /private fireZone[\s\S]*?fireFieldShape\('zone', r\)/);
+    assert.match(src, /case 'burn': \{[\s\S]*?fireFieldShape\('body'/);
+    assert.match(src, /flame\(x: number, y: number, z: number, scale = 1, color = 0xff5a14\) \{\s*this\.fireTongue\(/, 'the old flame helper is the shared tongue');
+    for (const h of ['fireTongue', 'smokeWisps', 'emberShower', 'fireGroundGlow', 'fireFlash']) assert.match(src, new RegExp(`this\\.${h}\\(`), `${h} is used`);
+  });
+
+  it('a field of flames stays inside its footprint: the zone radius is the data radius', () => {
+    const fs = ABILITIES.flamestrike.effects.find((e) => e.type === 'zone');
+    assert.ok(fs && fs.type === 'zone');
+    const r = fs.radius;
+    const sh = fireFieldShape('zone', r);
+    assert.equal(sh.radius, r);
+    assert.ok(sh.tongues >= 12 && sh.tongues <= 26);
+    assert.ok(sh.spread > 0 && sh.spread < r, 'bases inside the circle');
+    assert.ok(sh.spread + sh.height * sh.wid * 1.4 * 0.5 * FIRE_VISIBLE <= r + 1e-9, 'bases plus half the broadest flame fit');
+    for (const rr of [1, 2.5, 5, 8, 12]) {
+      const q = fireFieldShape('zone', rr);
+      assert.ok(q.spread + q.height * q.wid * 1.4 * 0.5 * FIRE_VISIBLE <= rr + 1e-9, `r ${rr}`);
+      assert.ok(q.tongues <= 26, 'capped');
+    }
+    assert.ok(fireFieldShape('body', 0.4).tongues < sh.tongues, 'a body burns smaller than a zone');
+    assert.ok(fireFieldShape('burst', 1).height > fireFieldShape('body', 0.4).height);
+  });
+
+  const mkHost = () => {
+    const live = new Set<THREE.Sprite>();
+    let made = 0;
+    const scene = new THREE.Scene();
+    const host: RigHost = {
+      scene,
+      sprite: () => {
+        made++;
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial());
+        live.add(sp);
+        scene.add(sp);
+        return sp;
+      },
+      release: (sp) => {
+        scene.remove(sp);
+        live.delete(sp);
+      },
+      frames: () => Array.from({ length: FIRE_FRAME_COUNT }, () => new THREE.Texture()),
+      glowTex: new THREE.Texture(),
+      discGeo: new THREE.CircleGeometry(1, 8),
+    };
+    return { host, live, scene, made: () => made };
+  };
+
+  it('FireField: layered, no flame leaves the radius, nothing made per frame, everything handed back', () => {
+    const { host, live, scene, made } = mkHost();
+    const r = 5;
+    const field = new FireField(host, fireFieldShape('zone', r), 0);
+    const built = made();
+    assert.ok(built >= fireFieldShape('zone', r).tongues * 3, 'a dark body, a tongue and a hot tongue each');
+    assert.ok(built <= 90, `sprites per field ${built}`);
+    const cam = new THREE.PerspectiveCamera(50, 1, 0.1, 100);
+    cam.position.set(0, 3, -14);
+    cam.lookAt(0, 1, 0);
+    cam.updateMatrixWorld(true);
+    cam.matrixWorldInverse.copy(cam.matrixWorld).invert();
+    const pl = newFirePlace();
+    let worst = 0;
+    for (let i = 0; i < 400; i++) {
+      pl.t = i / 60;
+      pl.build = Math.min(1, i / 40);
+      pl.flare = i % 60 === 0 ? 1 : Math.max(0, pl.flare - 0.05);
+      pl.flash = Math.max(0, 1 - i / 50);
+      field.place(pl, i % 2 ? cam : null);
+      worst = Math.max(worst, field.reach);
+    }
+    assert.equal(made(), built, 'no sprite made while it burns');
+    assert.ok(worst > r * 0.6, `the fire fills the zone (${worst})`);
+    assert.ok(worst <= r + 1e-6, `no flame beyond the radius (${worst})`);
+    // the ground meshes and the sprites are all in the scene while it burns, and out of it afterwards
+    assert.ok(scene.children.filter((o) => (o as THREE.Mesh).isMesh).length === 3);
+    pl.fade = 0;
+    field.place(pl, null);
+    assert.ok([...live].filter((s) => s.visible && s.renderOrder >= 3).length === 0, 'faded out: tongues hidden');
+    field.dispose();
+    field.dispose();
+    assert.equal(live.size, 0, 'every sprite handed back');
+    assert.equal(scene.children.length, 0, 'ground meshes out of the scene');
+  });
+
+  it('FireField without the flipbook still builds (the canvas flame is used) and a body field scales with the unit', () => {
+    const { host, live, scene } = mkHost();
+    host.frames = () => null;
+    const field = new FireField(host, fireFieldShape('body', 0.42), 0);
+    const pl = newFirePlace();
+    pl.sc = 1;
+    for (let i = 0; i < 60; i++) {
+      pl.t = i / 30;
+      field.place(pl, null);
+    }
+    const r1 = field.reach;
+    pl.sc = 2;
+    field.place(pl, null);
+    assert.ok(Number.isFinite(field.reach) && field.reach > 0);
+    assert.ok(Math.abs(field.reach - r1) < 0.5, 'reach is in unit-size terms');
+    const ys = [...live].map((s) => s.position.y);
+    assert.ok(Math.max(...ys) > 1.2, 'tongues lick up the body');
+    field.dispose();
+    assert.equal(live.size, 0);
     assert.equal(scene.children.length, 0);
   });
 });
