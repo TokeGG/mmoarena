@@ -87,9 +87,10 @@ describe('0.65 area attacks', () => {
     assert.ok(!under.auras.some((a) => a.id === 'psychic_scream'), 'the deck is in the way');
   });
 
-  it('Reel In\'s +4 yards talent makes the cone longer', () => {
+  it('a +4 yards range modifier on Reel In makes the cone longer', () => {
     const sim = new ArenaSim({ seed: 6, prepMs: 0 });
-    const w = add(sim, 'warrior', 0, 0, 0, 'protection', ['', '', 'warrior_protection_t3a']);
+    const w = add(sim, 'warrior', 0, 0, 0, 'protection', []);
+    w.mods.ability.reel_in = { range: 4 }; // (what a talent that added range would carry)
     const m = add(sim, 'mage', 1, 0, 12.5); // 12.5 yd: past the base 10, inside 14
     run(sim, TICK);
     w.facing = 0;
@@ -214,17 +215,6 @@ describe('0.65 casting', () => {
     const again = sim.useAbility(m.id, 'frostbolt', w.id);
     assert.equal(again.ok, false);
     assert.equal(m.cast!.start, start, 'same cast, not started over');
-  });
-
-  it('Deep Freeze works for Fire and Arcane mages who took it as a talent, without Fingers of Frost', () => {
-    const sim = new ArenaSim({ seed: 11, prepMs: 0 });
-    const fire = add(sim, 'mage', 0, 0, 0, 'fire', ['', '', '', 'mage_fire_t4b']);
-    const w = add(sim, 'warrior', 1, 10, 0);
-    run(sim, TICK);
-    assert.ok(fire.bar.includes('deep_freeze'));
-    const r = sim.useAbility(fire.id, 'deep_freeze', w.id);
-    assert.ok(r.ok, (r as any).reason);
-    assert.ok(w.auras.some((a) => a.id === 'deep_freeze_stun'));
   });
 
   it('refused presses are not recorded, a bot dropping a cast is, and the replay matches', () => {

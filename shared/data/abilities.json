@@ -494,7 +494,8 @@
     "type": "aura",
     "aura": "recklessness"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "intimidating_shout",
@@ -598,7 +599,8 @@
     "type": "aura",
     "aura": "concussion_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "shield_wall",
@@ -616,7 +618,8 @@
     "type": "aura",
     "aura": "shield_wall"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "ice_barrier",
@@ -995,7 +998,8 @@
     "type": "aura",
     "aura": "shockwave_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1014,7 +1018,8 @@
     "type": "aura",
     "aura": "howl_slow"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1032,7 +1037,8 @@
     "type": "aura",
     "aura": "die_by_the_sword"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 1500,
@@ -1077,7 +1083,8 @@
     "type": "heal",
     "amount": 300
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1095,7 +1102,8 @@
     "type": "aura",
     "aura": "power_infusion"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1162,7 +1170,8 @@
     "type": "aura",
     "aura": "crippling_slow"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "ice_lance",
@@ -1206,7 +1215,8 @@
     "amount": 38,
     "delay": 600
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "scorch",
@@ -1277,7 +1287,8 @@
     "lockout": 5000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "id": "hammer_toss",
@@ -1295,7 +1306,8 @@
     "type": "aura",
     "aura": "hammer_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "harpoon_throw",
@@ -1314,7 +1326,8 @@
     "lockout": 3000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "id": "judgment_hammer",
@@ -1332,7 +1345,8 @@
     "type": "aura",
     "aura": "judgment_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "hush",
@@ -1351,7 +1365,8 @@
     "lockout": 4000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "id": "plague_bloom",
@@ -1393,7 +1408,8 @@
     "radius": 6,
     "duration": 6000
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "knife_snipe",
@@ -1412,7 +1428,8 @@
     "lockout": 3000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1551,7 +1568,8 @@
     "type": "damage",
     "amount": 90
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "holy_nova",

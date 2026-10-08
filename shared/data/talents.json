@@ -181,7 +181,7 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon Roar",
+          "name": "Dragon's Fury",
           "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
           "icon": "🐉",
           "mods": {},
@@ -192,7 +192,7 @@
         },
         {
           "id": "warrior_t5c",
-          "name": "Battle Banner",
+          "name": "Rallying Banner",
           "desc": "Learn Battle Banner: plant a banner for 12 seconds; you and your allies near it deal 10% more damage and take 10% less. Replaces Heroic Leap.",
           "icon": "🚩",
           "mods": {},
@@ -384,7 +384,7 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon Roar",
+          "name": "Dragon's Fury",
           "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
           "icon": "🐉",
           "mods": {},
@@ -395,7 +395,7 @@
         },
         {
           "id": "warrior_t5c",
-          "name": "Battle Banner",
+          "name": "Rallying Banner",
           "desc": "Learn Battle Banner: plant a banner for 12 seconds; you and your allies near it deal 10% more damage and take 10% less. Replaces Heroic Leap.",
           "icon": "🚩",
           "mods": {},
@@ -587,7 +587,7 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon Roar",
+          "name": "Dragon's Fury",
           "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
           "icon": "🐉",
           "mods": {},
@@ -598,7 +598,7 @@
         },
         {
           "id": "warrior_t5c",
-          "name": "Battle Banner",
+          "name": "Rallying Banner",
           "desc": "Learn Battle Banner: plant a banner for 12 seconds; you and your allies near it deal 10% more damage and take 10% less. Replaces Heroic Leap.",
           "icon": "🚩",
           "mods": {},
@@ -662,11 +662,11 @@
         {
           "id": "mage_t2a",
           "name": "Quickened Casting",
-          "desc": "Casting speed and the global cooldown are 10% faster.",
+          "desc": "Casting time and the global cooldown are 10% shorter.",
           "icon": "⏩",
           "mods": {
-            "castTime": 0.9090909090909091,
-            "gcd": 0.9090909090909091
+            "castTime": 0.9,
+            "gcd": 0.9
           }
         },
         {
@@ -780,7 +780,7 @@
       [
         {
           "id": "mage_t5a",
-          "name": "Mirror Image",
+          "name": "Illusionist",
           "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
@@ -794,7 +794,7 @@
         },
         {
           "id": "mage_t5b",
-          "name": "Evocation",
+          "name": "Arcane Recovery",
           "desc": "Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🧘",
           "mods": {},
@@ -808,7 +808,7 @@
         },
         {
           "id": "mage_t5c",
-          "name": "Rune of Power",
+          "name": "Runecaster",
           "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🌠",
           "mods": {},
@@ -873,11 +873,11 @@
         {
           "id": "mage_t2a",
           "name": "Quickened Casting",
-          "desc": "Casting speed and the global cooldown are 10% faster.",
+          "desc": "Casting time and the global cooldown are 10% shorter.",
           "icon": "⏩",
           "mods": {
-            "castTime": 0.9090909090909091,
-            "gcd": 0.9090909090909091
+            "castTime": 0.9,
+            "gcd": 0.9
           }
         },
         {
@@ -987,7 +987,7 @@
       [
         {
           "id": "mage_t5a",
-          "name": "Mirror Image",
+          "name": "Illusionist",
           "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
@@ -1001,7 +1001,7 @@
         },
         {
           "id": "mage_t5b",
-          "name": "Evocation",
+          "name": "Arcane Recovery",
           "desc": "Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🧘",
           "mods": {},
@@ -1015,7 +1015,7 @@
         },
         {
           "id": "mage_t5c",
-          "name": "Rune of Power",
+          "name": "Runecaster",
           "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🌠",
           "mods": {},
@@ -1080,11 +1080,11 @@
         {
           "id": "mage_t2a",
           "name": "Quickened Casting",
-          "desc": "Casting speed and the global cooldown are 10% faster.",
+          "desc": "Casting time and the global cooldown are 10% shorter.",
           "icon": "⏩",
           "mods": {
-            "castTime": 0.9090909090909091,
-            "gcd": 0.9090909090909091
+            "castTime": 0.9,
+            "gcd": 0.9
           }
         },
         {
@@ -1201,7 +1201,7 @@
       [
         {
           "id": "mage_t5a",
-          "name": "Mirror Image",
+          "name": "Illusionist",
           "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
@@ -1215,7 +1215,7 @@
         },
         {
           "id": "mage_t5b",
-          "name": "Evocation",
+          "name": "Arcane Recovery",
           "desc": "Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🧘",
           "mods": {},
@@ -1229,7 +1229,7 @@
         },
         {
           "id": "mage_t5c",
-          "name": "Rune of Power",
+          "name": "Runecaster",
           "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🌠",
           "mods": {},
@@ -1250,7 +1250,7 @@
         {
           "id": "priest_t1a",
           "name": "Lingering Scream",
-          "desc": "Psychic Scream lasts 2 seconds longer.",
+          "desc": "Psychic Scream lasts 33.3% (2 seconds) longer.",
           "icon": "⏳",
           "mods": {
             "auraDuration": {
@@ -1261,7 +1261,7 @@
         {
           "id": "priest_t1b",
           "name": "Paralyzing Scream",
-          "desc": "Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 45 second cooldown.",
+          "desc": "Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 50% longer cooldown (45 seconds).",
           "icon": "🧱",
           "mods": {
             "ability": {
@@ -1294,11 +1294,11 @@
         {
           "id": "priest_t2a",
           "name": "Quickened Prayer",
-          "desc": "Casting speed and the global cooldown are 10% faster.",
+          "desc": "Casting time and the global cooldown are 10% shorter.",
           "icon": "⏩",
           "mods": {
-            "castTime": 0.9090909090909091,
-            "gcd": 0.9090909090909091
+            "castTime": 0.9,
+            "gcd": 0.9
           }
         },
         {
@@ -1351,7 +1351,7 @@
         {
           "id": "priest_discipline_t3c",
           "name": "Rapid Penance",
-          "desc": "Penance fires a tick every 0.25 seconds and lasts 2.5 seconds, each tick doing 40% of the old amount.",
+          "desc": "Penance fires a tick every 0.25 seconds and lasts 2.5 seconds, each tick doing 60% less damage and healing than before, and a 66.7% longer cast time.",
           "icon": "⏱️",
           "mods": {
             "ability": {
@@ -1394,7 +1394,7 @@
       [
         {
           "id": "priest_discipline_t5a",
-          "name": "Leap of Faith",
+          "name": "Leap of Trust",
           "desc": "Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Desperate Prayer.",
           "icon": "🕊️",
           "mods": {},
@@ -1405,7 +1405,7 @@
         },
         {
           "id": "priest_discipline_t5b",
-          "name": "Purifying Light",
+          "name": "Cleansing Radiance",
           "desc": "Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Desperate Prayer.",
           "icon": "✨",
           "mods": {},
@@ -1416,7 +1416,7 @@
         },
         {
           "id": "priest_discipline_t5c",
-          "name": "Ascend to the Heavens",
+          "name": "Heavenly Ascent",
           "desc": "Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer.",
           "icon": "👼",
           "mods": {},
@@ -1432,7 +1432,7 @@
         {
           "id": "priest_t1a",
           "name": "Lingering Scream",
-          "desc": "Psychic Scream lasts 2 seconds longer.",
+          "desc": "Psychic Scream lasts 33.3% (2 seconds) longer.",
           "icon": "⏳",
           "mods": {
             "auraDuration": {
@@ -1443,7 +1443,7 @@
         {
           "id": "priest_t1b",
           "name": "Paralyzing Scream",
-          "desc": "Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 45 second cooldown.",
+          "desc": "Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 50% longer cooldown (45 seconds).",
           "icon": "🧱",
           "mods": {
             "ability": {
@@ -1476,11 +1476,11 @@
         {
           "id": "priest_t2a",
           "name": "Quickened Prayer",
-          "desc": "Casting speed and the global cooldown are 10% faster.",
+          "desc": "Casting time and the global cooldown are 10% shorter.",
           "icon": "⏩",
           "mods": {
-            "castTime": 0.9090909090909091,
-            "gcd": 0.9090909090909091
+            "castTime": 0.9,
+            "gcd": 0.9
           }
         },
         {
@@ -1577,7 +1577,7 @@
       [
         {
           "id": "priest_holy_t5a",
-          "name": "Leap of Faith",
+          "name": "Leap of Trust",
           "desc": "Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Desperate Prayer.",
           "icon": "🕊️",
           "mods": {},
@@ -1588,7 +1588,7 @@
         },
         {
           "id": "priest_holy_t5b",
-          "name": "Purifying Light",
+          "name": "Cleansing Radiance",
           "desc": "Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Desperate Prayer.",
           "icon": "✨",
           "mods": {},
@@ -1599,7 +1599,7 @@
         },
         {
           "id": "priest_holy_t5c",
-          "name": "Ascend to the Heavens",
+          "name": "Heavenly Ascent",
           "desc": "Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer.",
           "icon": "👼",
           "mods": {},
@@ -1615,7 +1615,7 @@
         {
           "id": "priest_t1a",
           "name": "Lingering Scream",
-          "desc": "Psychic Scream lasts 2 seconds longer.",
+          "desc": "Psychic Scream lasts 33.3% (2 seconds) longer.",
           "icon": "⏳",
           "mods": {
             "auraDuration": {
@@ -1626,7 +1626,7 @@
         {
           "id": "priest_t1b",
           "name": "Paralyzing Scream",
-          "desc": "Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 45 second cooldown.",
+          "desc": "Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 50% longer cooldown (45 seconds).",
           "icon": "🧱",
           "mods": {
             "ability": {
@@ -1659,11 +1659,11 @@
         {
           "id": "priest_t2a",
           "name": "Quickened Prayer",
-          "desc": "Casting speed and the global cooldown are 10% faster.",
+          "desc": "Casting time and the global cooldown are 10% shorter.",
           "icon": "⏩",
           "mods": {
-            "castTime": 0.9090909090909091,
-            "gcd": 0.9090909090909091
+            "castTime": 0.9,
+            "gcd": 0.9
           }
         },
         {
@@ -1778,7 +1778,7 @@
       [
         {
           "id": "priest_shadow_t5a",
-          "name": "Leap of Faith",
+          "name": "Leap of Trust",
           "desc": "Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Power Word: Shield.",
           "icon": "🕊️",
           "mods": {},
@@ -1789,7 +1789,7 @@
         },
         {
           "id": "priest_shadow_t5b",
-          "name": "Purifying Light",
+          "name": "Cleansing Radiance",
           "desc": "Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Power Word: Shield.",
           "icon": "✨",
           "mods": {},
@@ -1800,7 +1800,7 @@
         },
         {
           "id": "priest_shadow_t5c",
-          "name": "Ascend to the Heavens",
+          "name": "Heavenly Ascent",
           "desc": "Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Power Word: Shield.",
           "icon": "👼",
           "mods": {},

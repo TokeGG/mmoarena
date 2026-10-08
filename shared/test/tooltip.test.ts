@@ -173,8 +173,8 @@ describe('tooltips state durations, costs and resource gains', () => {
       }
     }
     assert.ok(marks > 50, 'talents and specs do mark numbers');
-    const slam = describeAbility(ABILITIES.slam, compileMods('warrior', { spec: 'fury', talents: ['', '', 'warrior_fury_t3c'], gear: {} }), undefined, { mark: true });
-    assert.ok(slam.stats.some((s) => s.startsWith('⟦34|40|+⟧')), `cheaper Slam is marked: ${slam.stats.join(' · ')}`);
+    const ww = describeAbility(ABILITIES.whirlwind, compileMods('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} }), undefined, { mark: true });
+    assert.ok([...ww.stats, ...ww.lines].some((s) => s.includes('⟦') && s.includes('|+⟧')), `stronger Cleave is marked: ${ww.lines.join(' ')}`);
     assert.deepEqual(markedParts('Deals ⟦156|120|+⟧ damage.'), [{ text: 'Deals ' }, { value: '156', base: '120', better: true }, { text: ' damage.' }]);
   });
 });

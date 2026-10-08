@@ -678,6 +678,8 @@ export class Bot {
     // do not break crowd control that breaks on damage (a feared or blinded lone enemy is left alone until it wakes)
     if (tgt && this.isPolymorphed(tgt) && enemies.length === 1) tgt = undefined;
     this.kickRisk = (u.classId === 'mage' || u.classId === 'priest') && this.brain.jukeChance > 0 && this.kickThreat(u, enemies);
+    // the trinket's cleanse frees it from a stun, fear or sheep (it works while locked down), whatever its health
+    if (u.trinket === 'trinket_cleanse' && enemies.length && u.auras.some((a) => AURAS[a.id]?.harmful && ['stun', 'fear', 'incapacitate'].includes(a.kind)) && this.noticed(`cleanse:${u.auras.map((a) => a.id).join()}`) && this.use(u, 'trinket_cleanse')) return;
     if (this.survive(u, enemies, allies, tgt)) return;
     switch (u.classId) {
       case 'warrior':
@@ -716,6 +718,10 @@ export class Bot {
     const attacker = melee[0] ?? byDist.find((e) => e.target === u.id || dist(u.pos, e.pos) <= 12);
     const disabled = (e: Unit) => e.auras.some((a) => HARD_CC.includes(a.kind));
     const stuck = u.auras.some((a) => HARD_CC.includes(a.kind) && a.kind !== 'root') || u.auras.some((a) => a.kind === 'root');
+    // the trinket: a shield when it is being hit, a heal when low
+    if (u.trinket === 'trinket_heal' && (emergency || f < B.panicHp * 1.4) && this.use(u, 'trinket_heal')) return true;
+    if (u.trinket === 'trinket_shield' && hurting && attacker && this.use(u, 'trinket_shield')) return true;
+    if (u.trinket === 'trinket_cleanse' && stuck && enemies.length && this.use(u, 'trinket_cleanse')) return true;
     switch (u.classId) {
       case 'warrior': {
         if (emergency && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return true;
@@ -730,6 +736,7 @@ export class Bot {
         if (emergency && this.use(u, 'evasion')) return true;
         if (attacker && !disabled(attacker) && dist(u.pos, attacker.pos) <= 9) {
           if (hurting && this.use(u, 'blind', attacker.id)) return true;
+          if (hurting && dist(u.pos, attacker.pos) <= 3 && this.use(u, 'gouge', attacker.id)) return true; // an incapacitate to get away
           if (u.cp >= 2 && hurting && this.use(u, 'kidney_shot', attacker.id)) return true;
         }
         // the smoke's edge blocks sight both ways: dropped at its feet it cuts off whoever shoots it from range (melee next
@@ -745,6 +752,8 @@ export class Bot {
           if (!u.auras.some((a) => a.kind === 'absorb') && (emergency || loss > B.dangerAt * 0.5 || (hurting && enemies.length)) && this.use(u, 'ice_barrier')) return true;
         }
         if (u.cast && !emergency) return false;
+        // images: the enemy loses its target and half its hits are wasted
+        if ((emergency || (hurting && melee.length)) && this.use(u, 'mirror_image')) return true;
         if (loss > B.dangerAt * 0.5 && this.use(u, 'evocation')) return true; // 15% less damage taken (and the mana) while it is being burst
         const close = byDist.filter((e) => dist(u.pos, e.pos) <= 9);
         if (close.length && hurting) {
@@ -769,6 +778,8 @@ export class Bot {
       }
       case 'priest': {
         const shielded = u.auras.some((a) => a.kind === 'absorb');
+        // fly away from melee on it or a lock-down: nothing can touch it for a few seconds
+        if (emergency && (melee.length || u.auras.some((a) => LOCKED_DOWN.includes(a.kind))) && this.use(u, 'ascend')) return true;
         if (emergency && this.use(u, 'desperate_prayer')) return true;
         if (u.cast && !emergency) return false;
         if (!shielded && (emergency || loss > B.dangerAt * 0.5) && this.use(u, 'power_word_shield', u.id)) return true;
@@ -794,6 +805,9 @@ export class Bot {
     const slowed = tgt.auras.some((a) => a.kind === 'slow');
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
+    // the banner goes down once the fight is near, at its own feet (its circle buffs the team standing in it)
+    if (d <= 20 && this.use(u, 'battle_banner', undefined, { x: u.pos.x, z: u.pos.z, ...(u.level === 1 ? { lv: 1 as const } : {}) })) return;
+    if (d <= 10 && this.use(u, 'dragon_roar')) return; // a cone ahead: the bot already faces its target
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
     // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach): a warrior never walks in
     if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !hasLOS(u.pos, tgt.pos, this.sim.arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
@@ -823,6 +837,8 @@ export class Bot {
     if (this.sim.isStealthed(u)) {
       if (d > 12) this.use(u, 'sprint');
       if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
+      // against two or more: sap this one out of the fight first (the bot then turns on the other)
+      if (enemies.length >= 2 && this.use(u, 'sap', tgt.id)) return;
       this.useFirst(u, ['cheap_shot', 'garrote'], tgt.id);
       return;
     }
@@ -870,6 +886,8 @@ export class Bot {
     if (poly && this.use(u, 'polymorph', poly.id)) return;
     // out of mana and nobody on top of us: Evocation
     if (u.resource < u.resourceMax * 0.55 && !meleeNear.length && this.use(u, 'evocation')) return;
+    // a rune under our feet while we cast at range
+    if (tgt && !meleeNear.length && dist(u.pos, tgt.pos) <= 32 && !u.auras.some((a) => a.id === 'rune_of_power') && this.use(u, 'rune_of_power')) return;
 
     if (!tgt) return;
     // ground storms where the target cannot walk out in time: held in place, slowed, or standing still for the cast
@@ -927,6 +945,16 @@ export class Bot {
     // Smite is filler: drop it when something urgent shows up.
     if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(u.id);
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
+    // Purifying Light for a crowd of the team under something nasty (a stun, fear, root or damage over time on someone near)
+    {
+      const afflicted = [u, ...allies].filter((a) => dist(u.pos, a.pos) <= 11 && a.auras.some((x) => AURAS[x.id]?.harmful && AURAS[x.id]?.dispellable && ['stun', 'fear', 'incapacitate', 'root', 'dot'].includes(x.kind) && this.noticed(`pure:${a.id}:${x.id}:${x.expiresAt}`)));
+      if (afflicted.length && this.use(u, 'purifying_light')) return;
+    }
+    // Leap of Faith: a hurt ally out of reach is pulled in to be healed
+    {
+      const lost = allies.find((a) => a !== u && a.alive && hpFrac(a) < 0.65 && dist(u.pos, a.pos) > 18 && dist(u.pos, a.pos) <= 40 && hasLOS(u.pos, a.pos, sim.arena, u.level, a.level));
+      if (lost && this.use(u, 'leap_of_faith', lost.id)) return;
+    }
     if (this.tryInterrupt(u, enemies)) return; // Silence, if a talent put it on the bar
     // an enemy healing (itself or a partner): break the cast with a fear or a stun, unless our side needs healing first
     const mending = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.effects.some((x) => x.type === 'heal' || x.type === 'healMax' || x.type === 'healMissing') && !e.auras.some((a) => HARD_CC.includes(a.kind)));

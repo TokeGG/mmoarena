@@ -60,13 +60,12 @@ describe('tooltips follow the build', () => {
   const marks = (c: ReturnType<typeof resolveTip>) => [...(c?.stats ?? []), ...(c?.lines ?? [])].flatMap((l) => markedParts(l).filter((p) => !('text' in p)));
 
   it('picking a talent changes the numbers at once, marked against the base value', () => {
-    setTipBuild('warrior', { spec: 'fury', talents: [], gear: {} });
-    const before = resolveTip('ability:slam', {})!;
-    assert.ok(before.stats!.includes('40 rage'));
-    setTipBuild('warrior', { spec: 'fury', talents: ['', '', 'warrior_fury_t3c'], gear: {} });
-    const after = resolveTip('ability:slam', {})!;
-    assert.ok(after.stats!.some((s) => plainText(s) === '34 rage'), after.stats!.join(' · '));
-    assert.deepEqual(marks(after).find((p) => 'base' in p && p.base === '40'), { value: '34', base: '40', better: true });
+    setTipBuild('warrior', { spec: 'arms', talents: [], gear: {} });
+    const before = resolveTip('ability:whirlwind', {})!;
+    assert.ok(marks(before).length === 0);
+    setTipBuild('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} });
+    const after = resolveTip('ability:whirlwind', {})!;
+    assert.ok(marks(after).some((p) => 'base' in p && p.better), [...after.stats!, ...after.lines!].join(' · '));
   });
 
   it('what a talent adds to a skill is listed as a bonus', () => {
@@ -87,9 +86,10 @@ describe('tooltips follow the build', () => {
 
   it('a data-tip-build key describes that build instead of the current one (the spec cards in the menu)', () => {
     setTipBuild('warrior', { spec: 'arms', talents: [], gear: {} });
-    const fury = tipBuildKey('warrior', { spec: 'fury', talents: ['', '', 'warrior_fury_t3c'], gear: {} });
-    assert.ok(resolveTip('ability:slam', { tipBuild: fury })!.stats!.some((s) => plainText(s) === '34 rage'));
-    assert.ok(resolveTip('ability:slam', {})!.stats!.includes('40 rage'), 'the current build is untouched');
+    const key = tipBuildKey('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} });
+    const plain = (c: ReturnType<typeof resolveTip>) => (c?.lines ?? []).map(plainText).join(' ');
+    assert.notEqual(plain(resolveTip('ability:whirlwind', { tipBuild: key })), plain(resolveTip('ability:whirlwind', {})));
+    assert.equal(marks(resolveTip('ability:whirlwind', {})!).length, 0, 'the current build is untouched');
     setTipBuild('mage', undefined);
   });
 });

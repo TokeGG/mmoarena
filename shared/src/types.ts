@@ -241,6 +241,8 @@ export interface AbilityDef {
   name: string;
   /** 'trinket' for the tier 4 abilities every class can pick. */
   class: ClassId | 'trinket';
+  /** On no bar and in no talent right now (the old skill swaps were removed with the five-tier tree). Kept in the data so it can come back; audits, the wiki and the debug window skip it. */
+  retired?: boolean;
   school: School;
   target: TargetType;
   range: number;

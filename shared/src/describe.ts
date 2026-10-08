@@ -347,6 +347,20 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         return 'Drops you out of combat: enemies lose their target on you and spells aimed at you are cancelled.';
       case 'smoke':
         return `Drops a smoke cloud with a ${e.radius}-yard radius${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Its edge blocks sight: enemies outside cannot see or target anyone inside, and enemies inside cannot see or target anyone outside. Inside the cloud everyone sees and fights each other as usual.`;
+      case 'proc':
+        return `${Math.round(e.p * 100)}% chance: ${e.effects.map(describeEffect).filter(Boolean).join(' ')}`;
+      case 'cast': {
+        const other = ABILITIES[e.ability];
+        return `Also casts ${other?.name ?? e.ability} for free${other ? `: ${describeAbility(other).lines.join(' ')}` : ''}`;
+      }
+      case 'strip':
+        return `Removes ${e.kinds.map((k) => (k === 'dot' ? 'damage over time' : k === 'fear' ? 'fear' : `${k}`)).join(' and ')} effects from the target.`;
+      case 'dropTargets':
+        return 'Enemies lose their target on you and spells aimed at you are cancelled.';
+      case 'zoneBuff': {
+        const a = AURAS[e.aura];
+        return `Marks a ${e.radius}-yard circle at the chosen spot for ${fmtS(e.duration / 1000)}. ${e.who === 'allies' ? 'You and your allies' : 'You'} standing inside: ${a ? describeAura(e.aura, mods, o).replace(/\.$/, '') : e.aura}.`;
+      }
       case 'zone': {
         const first = e.initial ? `Enemies in the area take ${M(dmgOf(e.initial))} ${def.school} damage the moment the cast lands. ` : '';
         return `${first}Marks a ${e.radius}-yard circle at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies ${e.initial ? 'still ' : ''}inside take ${M(dmgOf(e.amount))} ${def.school} damage every ${fmtS(e.pulse / 1000)}. Jump to avoid a pulse (one dodging jump every ${fmtS(JUMP_DODGE_CD / 1000)}).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`;
