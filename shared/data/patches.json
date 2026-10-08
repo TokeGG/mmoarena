@@ -8,7 +8,7 @@
    "Fixed visual glitches on the Sandstone Yard in the lobby.",
    "The scoreboard at the end of a match is gone: the match recap is the end screen now.",
    "Flamestrike, Scorch and burning now use the same blazing flames as Fireball and Pyroblast.",
-   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh.",
+   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while casting anything else in between (another heal or any other skill) keeps it at full strength; a short pause starts fresh.",
    "Lava Forge's lava basins are now real lava: you can jump into one without being pushed out, but standing in it burns you (5% of your health every half second) and the rim holds you in, so you have to jump out.",
    "Line of sight is more accurate: a unit whose edge shows past a pillar or wall corner can now be seen and targeted, as the picture shows, instead of reporting 'no line of sight'.",
    "Pillars and cover now look exactly like what blocks you and your line of sight, so 'no line of sight' no longer shows up when you can plainly see your target (most of all on Cinder Crater, Lava Forge and Sandstone Yard).",

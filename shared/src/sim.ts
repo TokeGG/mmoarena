@@ -389,6 +389,7 @@ export class ArenaSim {
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks: this.abilityMod(u, def).ticks ?? def.channel.ticks, done: 0 };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
+      this.breakHealChain(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       if (def.channel.immediate) this.tickChannel(u); // the first strike (and its stun) lands the moment the channel starts, not a tick later
       return ok;
@@ -406,6 +407,7 @@ export class ArenaSim {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z, ...(ground.lv === 1 ? { gl: 1 as const } : {}) } : {}) };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      this.breakHealChain(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
@@ -844,6 +846,7 @@ export class ArenaSim {
     } else u.resource -= this.costOf(u, def);
     this.startCooldown(u, def);
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
+    this.breakHealChain(u, def.id);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
 
     const abMod = this.modsOf(u).ability[def.id];
@@ -1226,9 +1229,14 @@ export class ArenaSim {
 
   /**
    * Heal spam: pressing the same heal again and again weakens it (each repeat in a row is `healSpamStep` weaker, down to
-   * `healSpamFloor`), while rotating between different heals keeps each at full strength. A pause longer than
+   * `healSpamFloor`), while casting anything else in between (another heal or any other skill) keeps each heal at full strength. A pause longer than
    * `healSpamWindowMs` starts fresh. One cast (several targets, an echo) counts once.
    */
+  /** Any cast other than the heal being chained starts the heal-spam count again. */
+  private breakHealChain(u: Unit, abilityId: string): void {
+    if (u.lastHeal && u.lastHeal.ability !== abilityId) u.lastHeal = undefined;
+  }
+
   private healSpam(u: Unit, def: { id: string }): number {
     const st = u.lastHeal;
     if (st && st.ability === def.id && st.at === this.time) return st.mult;
