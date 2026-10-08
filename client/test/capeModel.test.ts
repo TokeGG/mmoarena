@@ -9,6 +9,7 @@ import { unpackModel } from '../src/modelPack';
 import { registerRiggedModel, forgetRiggedModels, modelVersion } from '../src/riggedModels';
 import { registerWeaponModel, forgetWeaponModels } from '../src/weaponModels';
 import { registerCapeModel, forgetCapeModel, capeAsset, capeSkinFor, capeMaterial, isCapeItem, capeModelVersion, CAPE_STYLES } from '../src/capeModels';
+import type { RobeBackUniforms } from '../src/robeBack';
 import { CREDITS } from '../src/credits';
 
 const DIR = fileURLToPath(new URL('../public/models/', import.meta.url));
@@ -118,6 +119,18 @@ describe('cape cosmetics', () => {
       for (const item of capeItems) {
         const ch = createCharacter(cls, gearLook({ back: item.id }), weapon);
         const capes = capeMeshes(ch);
+        if (cls === 'mage') {
+          assert.equal(capes.length, 0, `${item.id}: the wizard's robe is his cloak, no second cloth`);
+          run(ch, 1, { vf: 7 });
+          ch.flash();
+          ch.setState(false, false);
+          run(ch, 0.5);
+          ch.setState(true, true);
+          run(ch, 0.2);
+          const hurt = new THREE.Box3().setFromObject(ch.root);
+          assert.ok(Number.isFinite(hurt.min.y) && hurt.max.y < 3.2, `${item.id} stays finite and sane`);
+          continue;
+        }
         assert.equal(capes.length, 1, `${cls} ${item.id}: one cape`);
         assert.ok(ch.meshes.includes(capes[0]), 'pickable');
         run(ch, 1, { vf: 7 });
@@ -134,7 +147,7 @@ describe('cape cosmetics', () => {
     }
   });
 
-  it('the knight\'s own coat (back part) is replaced by the cape; a mage has none to replace; other back items do not use the cape', () => {
+  it('the knight\'s own coat (back part) is replaced by the cape; a mage has none to replace and his cloak is his robe; other back items do not use the cape', () => {
     const plain = createCharacter('warrior', '', 'dual');
     assert.ok(plain.parts.back?.length);
     assert.equal(capeMeshes(plain).length, 0);
@@ -150,25 +163,73 @@ describe('cape cosmetics', () => {
     assert.equal(createCharacter('mage', '', 'fire_staff').parts.back, undefined);
   });
 
-  it('on the wizard the cape hangs from under the hood at the shoulder blades, centred on the body, not floating behind it', () => {
-    const ch = createCharacter('mage', gearLook({ back: 'starfall_cloak' }), 'fire_staff');
-    run(ch, 1);
-    ch.root.updateMatrixWorld(true);
-    const wp = (n: string) => bone(ch, n).getWorldPosition(new THREE.Vector3());
-    const cape = ch.root.getObjectByName('cape:starfall_cloak')!.getWorldPosition(new THREE.Vector3());
-    const hips = wp('Bip01_Pelvis_02'), neck = wp('Bip01_Neck_055'), chest = wp('Bip01_Spine1_05');
-    assert.ok(Math.abs(cape.x - hips.x) < 0.05, `centred (${cape.x.toFixed(2)} vs ${hips.x.toFixed(2)})`);
-    assert.ok(cape.y < neck.y && cape.y > chest.y, `root between the chest and the neck (${cape.y.toFixed(2)})`);
-    assert.ok(cape.z < chest.z && cape.z > chest.z - 0.3, `on the back, not far behind it (${(chest.z - cape.z).toFixed(2)} behind the chest)`);
-    // the hem ends a little above the robe's hem, and no part of the cloth strays wide of the body
-    const box = new THREE.Box3().setFromObject(capeMeshes(ch)[0]);
-    assert.ok(box.min.y > 0.05 && box.min.y < 0.9, `hem at ${box.min.y.toFixed(2)}`);
-    assert.ok(box.max.x - box.min.x < 1.4, `${(box.max.x - box.min.x).toFixed(2)} wide`);
+  it('on the wizard a cloak recolours the back half of his own robe instead of adding a cape', () => {
+    const robe = (ch: ReturnType<typeof createCharacter>) => {
+      let m: THREE.SkinnedMesh | undefined;
+      ch.root.traverse((o) => o instanceof THREE.SkinnedMesh && o.name === 'part_body__robe' && (m = o));
+      return m!;
+    };
+    const plain = createCharacter('mage', '', 'fire_staff');
+    plain.setState(true, false);
+    assert.equal((robe(plain).material as THREE.Material).userData.back, undefined, 'no cloak, no back recolour');
+    for (const item of capeItems) {
+      const ch = createCharacter('mage', gearLook({ back: item.id }), 'fire_staff');
+      assert.equal(capeMeshes(ch).length, 0, `${item.id}: no cape mesh`);
+      const u = (robe(ch).material as THREE.Material).userData.back as RobeBackUniforms;
+      assert.ok(u, `${item.id}: back-recolour uniforms are set`);
+      assert.ok(u.uBTop.value instanceof THREE.Color && u.uBBot.value instanceof THREE.Color);
+      assert.equal(u.uBOn.value, 1);
+      // units own their robe material, so one mage's cloak never colours another's
+      assert.notEqual((robe(ch).material as THREE.Material), (robe(plain).material as THREE.Material));
+      ch.setState(false, false);
+      assert.equal(u.uBOn.value, 0, 'dead: the grey corpse look, no cloak glow');
+    }
+    // special cloaks carry a pattern, the plain ones only their colour
+    const pat = (id: string) => ((robe(createCharacter('mage', gearLook({ back: id }), 'fire_staff')).material as THREE.Material).userData.back as RobeBackUniforms).uBPat.value;
+    assert.equal(pat('cloak_crimson'), 0);
+    assert.equal(pat('starfall_cloak'), 1);
+    assert.equal(pat('ember_cloak'), 2);
+    assert.equal(pat('cloak_snow'), 3);
+    // a dye keeps the front: both programs are present on the same material
+    const dyed = createCharacter('mage', gearLook({ back: 'cloak_azure', tint: 'dye_crimson' }), 'fire_staff');
+    const dm = robe(dyed).material as THREE.Material;
+    assert.ok(dm.userData.dye && dm.userData.back, 'dye and cloak together');
+    // ribbons, banners and wings still do not touch the robe
+    for (const id of ['ribbons_ember', 'banner_war']) assert.equal((robe(createCharacter('mage', gearLook({ back: id }), 'fire_staff')).material as THREE.Material).userData.back, undefined);
+  });
+
+  it('the robe mask is 1 at the back centre, 0 at the front, smooth between, and keeps the sleeves', () => {
+    const ch = createCharacter('mage', gearLook({ back: 'cloak_violet' }), 'fire_staff');
+    let mesh!: THREE.SkinnedMesh;
+    ch.root.traverse((o) => o instanceof THREE.SkinnedMesh && o.name === 'part_body__robe' && (mesh = o));
+    const attr = mesh.geometry.getAttribute('aBack');
+    const pos = mesh.geometry.getAttribute('aBackPos');
+    assert.ok(attr && pos && attr.count === mesh.geometry.getAttribute('position').count);
+    // the torso band (chest height): z runs front (+) to back (-) in aBackPos
+    const v = Array.from({ length: attr.count }, (_, i) => ({ m: attr.getX(i), along: attr.getY(i), x: pos.getX(i), y: pos.getY(i), z: pos.getZ(i) }));
+    const torso = v.filter((p) => p.along > 0.3 && p.along < 0.7 && Math.abs(p.x) < 8);
+    const backmost = torso.reduce((a, p) => (p.z < a.z ? p : a));
+    const frontmost = torso.reduce((a, p) => (p.z > a.z ? p : a));
+    assert.ok(backmost.m > 0.99, `back centre ${backmost.m}`);
+    assert.ok(frontmost.m < 0.01, `front ${frontmost.m}`);
+    assert.ok(v.filter((p) => p.m > 0.05 && p.m < 0.95).length > 20, 'a smooth blend across the sides, not a hard edge');
+    // monotone in depth: the further back, the stronger
+    const sorted = [...torso].sort((a, b) => a.z - b.z);
+    for (let i = 1; i < sorted.length; i++) assert.ok(sorted[i].m <= sorted[i - 1].m + 0.35, 'no jumps');
+    assert.ok(v.every((p) => p.m >= 0 && p.m <= 1 && p.along >= 0 && p.along <= 1));
+    // the hood (top) and the hem train (bottom) are part of the back
+    assert.ok(v.some((p) => p.along < 0.12 && p.m > 0.99), 'hood back');
+    assert.ok(v.some((p) => p.along > 0.9 && p.m > 0.99), 'hem train');
+    // every unit shares the geometry's mask; it rides on the vertices, so it follows any animation
+    const other = createCharacter('mage', gearLook({ back: 'cloak_violet' }), 'fire_staff');
+    let m2!: THREE.SkinnedMesh;
+    other.root.traverse((o) => o instanceof THREE.SkinnedMesh && o.name === 'part_body__robe' && (m2 = o));
+    assert.equal(m2.geometry.getAttribute('aBack'), attr);
   });
 
   it('the cape is parented under the torso (so it follows the body) and units own their material and skeleton', () => {
-    const a = createCharacter('mage', gearLook({ back: 'cloak_violet' }), 'fire_staff');
-    const b = createCharacter('mage', gearLook({ back: 'cloak_violet' }), 'fire_staff');
+    const a = createCharacter('warrior', gearLook({ back: 'cloak_violet' }), 'dual');
+    const b = createCharacter('warrior', gearLook({ back: 'cloak_violet' }), 'dual');
     const ca = capeMeshes(a)[0], cb = capeMeshes(b)[0];
     assert.equal(ca.geometry, cb.geometry, 'geometry is shared');
     assert.notEqual(ca.skeleton, cb.skeleton);
@@ -176,7 +237,7 @@ describe('cape cosmetics', () => {
     let p: THREE.Object3D | null = ca;
     let underBone = false;
     while ((p = p.parent)) if (p instanceof THREE.Bone) underBone = true;
-    assert.ok(underBone, 'mounted below a bone of the wizard');
+    assert.ok(underBone, 'mounted below a bone of the knight');
     // a hit flash tints only that unit's cape
     a.flash();
     run(a, 0.1);
@@ -185,7 +246,7 @@ describe('cape cosmetics', () => {
   });
 
   it('the cloth bones swing with speed, strafing and turning, settle again, and go limp when dead', () => {
-    for (const [cls, weapon] of [['warrior', 'dual'], ['mage', 'fire_staff'], ['priest', undefined], ['rogue', undefined]] as const) {
+    for (const [cls, weapon] of [['warrior', 'dual'], ['priest', undefined], ['rogue', undefined]] as const) {
       const ch = createCharacter(cls, gearLook({ back: 'cloak_azure' }), weapon);
       run(ch, 2);
       const hem = () => at(ch, 'cape_10');
@@ -211,7 +272,7 @@ describe('cape cosmetics', () => {
   });
 
   it('is stable at low frame rates and with huge steps (dt is clamped), with no NaN', () => {
-    const ch = createCharacter('mage', gearLook({ back: 'starfall_cloak' }), 'fire_staff');
+    const ch = createCharacter('warrior', gearLook({ back: 'starfall_cloak' }), 'dual');
     for (const dt of [0.001, 0.016, 0.1, 0.5, 5]) for (let i = 0; i < 20; i++) ch.pose({ ...frame, dt, time: i * dt, move: 1, vf: 7, vs: i % 2 ? 6 : -6 });
     for (const n of ['cape_01', 'cape_05', 'cape_10', 'cape_L2_10', 'cape_R2_10']) {
       const q = bone(ch, n).quaternion;

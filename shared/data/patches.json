@@ -24,6 +24,7 @@
    "Lava Forge's lava basins are now real lava: you can still jump into one, but you are no longer pushed out, and standing in it burns you (5% of your health every half second) until you climb out.",
    "Line of sight is more accurate: a unit whose edge shows past a pillar or wall corner can now be seen and targeted, as the picture shows, instead of reporting 'no line of sight'.",
    "The mage now stands up straight and in the middle of his own spot, and wings and cloaks sit properly on his back.",
+   "The mage's cloaks now recolour the back of his robe instead of adding a second cape.",
    "New cursors: a steel gauntlet that changes over enemies, allies and ground spells, plus ten more to unlock and a Cursor section in settings with size, tint, trail and click ripple."
   ]
  },

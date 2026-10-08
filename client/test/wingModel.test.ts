@@ -145,6 +145,11 @@ describe('shared wing model', () => {
       const both = createCharacter(cls, gearLook({ wings: 'wings_angel', back: 'cloak_azure' }), weapon);
       const wing = findGroup(both.root, 'wings:')!;
       const cape = findGroup(both.root, 'cape:')!;
+      // the wizard's cloak is his own robe (robeBack.ts): no cape group, the wings simply grow out of the recoloured back
+      if (cls === 'mage') {
+        assert.ok(wing && !cape, 'mage: wings over the recoloured robe, no cape cloth');
+        continue;
+      }
       assert.ok(wing && cape, `${cls}: both worn`);
       assert.ok(wing.position.z < cape.position.z - 0.03, `${cls}: wings (${wing.position.z.toFixed(2)}) are further back than the cape (${cape.position.z.toFixed(2)})`);
       assert.ok(wing.position.y > cape.position.y - 0.25, `${cls}: wings grow at the collar`);

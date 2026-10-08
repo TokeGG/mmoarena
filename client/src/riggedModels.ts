@@ -27,6 +27,13 @@ export interface ModelDef {
   ownWeapon?: boolean;
   /** Where the shared cape cosmetics (capeModels.ts) hang on this model, measured against its torso: overrides on top of the defaults computed from the rig metadata. */
   cape?: Partial<CapeFit>;
+  /**
+   * Sub-meshes (`part_body__<name>`) that already are a cloak: a cloak cosmetic recolours their back half (robeBack.ts) instead of
+   * hanging the shared cape over them. The mage's robe has a hood and a back that fall like one.
+   */
+  robeBack?: string[];
+  /** Which way the model faces along the file's z axis in its rest pose (default +1; the Old Wizard's file faces -z: his beard hangs at lower z than his head). */
+  robeFront?: 1 | -1;
   /** Where the shared wings (wingModels.ts) grow on this model: overrides on top of the defaults computed from the rig metadata. */
   wings?: Partial<WingFit>;
   /**
@@ -52,7 +59,9 @@ export const MODELS: Record<string, ModelDef> = {
   knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 }, cape: { tilt: -0.08, sy: 0.95 } },
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
   wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0, posture: { chest: 0.2, neck: 0.22, head: 0.08, run: 0.5 } }, dye: ['robe'],
-    // the robe's back runs from the hood down to a train: the cloth hangs from under the hood, clear of the train, as wide as the shoulders
+    // a cloak recolours the back of his own robe (robeBack); this fit is only where ribbons and the rift hang
+    robeBack: ['robe'],
+    robeFront: -1,
     cape: { tilt: -0.12, sx: 1.3, sy: 1.1, sz: 1.0, z: 0.12 },
     // the pair grows out of the upper back, smaller than the default so the span is about 1.7 times the shoulders
     wings: { scale: 0.4, z: 0.22, y: 0.58, sx: 1 } },
