@@ -1,5 +1,5 @@
-import { ABILITIES, AURAS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
-import type { DataPatch, ProposalRow } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
+import type { ClassId, DataPatch, ProposalRow } from '@arena/shared';
 import type { Store } from './store';
 
 const KEY = 'devoverrides';
@@ -7,7 +7,7 @@ const PROPOSALS = 'devproposals';
 const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
-const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json' };
+const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json' };
 
 export interface DevToolsEnv {
   /** A GitHub token that may push branches and open pull requests on the repository. */
@@ -165,7 +165,7 @@ export class DevTools {
     const branch = `dev-tuning/${Date.now().toString(36)}`;
     await api('/git/refs', { method: 'POST', body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: ref.object.sha }) });
     const lines: string[] = [];
-    for (const file of ['abilities', 'auras'] as const) {
+    for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
       const mine = patches.filter((p) => p.file === file);
       if (!mine.length) continue;
       const got = (await api(`/contents/${FILES[file]}?ref=${branch}`)) as { content: string; sha: string };
@@ -211,15 +211,29 @@ export class DevTools {
 
 /** "Fireball · effects.0.amount" */
 export function label(p: DataPatch): string {
-  const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : AURAS[p.id]?.name;
+  const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : p.file === 'auras' ? AURAS[p.id]?.name : p.file === 'classes' ? CLASSES[p.id as ClassId]?.name : p.file === 'specs' ? Object.values(SPECS).flat().find((x) => x.id === p.id)?.name : Object.values(TALENTS).flatMap((b) => Object.values(b).flat(2)).find((x) => x.id === p.id)?.name;
   return `${name ?? p.id} · ${p.path.join('.')}`;
+}
+
+/** The objects in a data file's parsed JSON that a patch changes: one ability, aura, class or spec, or every copy of a talent. */
+function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[] {
+  switch (file) {
+    case 'abilities':
+      return [(data as { id: string }[]).find((a) => a.id === id)];
+    case 'auras':
+    case 'classes':
+      return [(data as Record<string, unknown>)[id]];
+    case 'specs':
+      return Object.values(data as Record<string, { id: string }[]>).flat().filter((x) => x.id === id);
+    case 'talents':
+      return Object.values(data as Record<string, Record<string, { id: string }[][]>>).flatMap((bySpec) => Object.values(bySpec).flat(2)).filter((x) => x.id === id);
+  }
 }
 
 /** The number at a patch's spot in a data file's text (the file as the repository has it). */
 function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | undefined {
   try {
-    const data = JSON.parse(text) as unknown;
-    let o: unknown = file === 'abilities' ? (data as { id: string }[]).find((a) => a.id === p.id) : (data as Record<string, unknown>)[p.id];
+    let o: unknown = targetsIn(JSON.parse(text) as unknown, file, p.id)[0];
     for (const k of p.path) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[k] : undefined;
     return typeof o === 'number' ? o : undefined;
   } catch {
@@ -227,15 +241,43 @@ function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number 
   }
 }
 
-/** A data file's text with the patches applied, keeping its indentation (abilities.json uses one space, auras.json two). */
+/** classes.json is laid out by hand, so its numbers are replaced in the text and nothing else moves. */
+function patchClassesText(text: string, patches: DataPatch[]): string {
+  let out = text;
+  for (const p of patches) {
+    const start = out.indexOf(`"${p.id}": {`);
+    if (start < 0) continue;
+    const end = out.indexOf('\n  }', start);
+    let from = start;
+    for (let i = 0; i < p.path.length - 1; i++) {
+      const at = out.indexOf(`"${String(p.path[i])}": {`, from);
+      if (at < 0 || at > end) { from = -1; break; }
+      from = at;
+    }
+    if (from < 0) continue;
+    const key = String(p.path[p.path.length - 1]);
+    const re = new RegExp(`("${key}": )-?[0-9.]+`);
+    const seg = out.slice(from, end);
+    if (re.test(seg)) out = out.slice(0, from) + seg.replace(re, `$1${p.value}`) + out.slice(end);
+  }
+  return out;
+}
+
+/** A data file's text with the patches applied, keeping its layout (abilities.json indents by one space, the others by two). */
 export function patchJsonText(text: string, file: DataPatch['file'], patches: DataPatch[]): string {
+  if (file === 'classes') return patchClassesText(text, patches);
   const data = JSON.parse(text) as unknown;
   for (const p of patches) {
-    let o: unknown = file === 'abilities' ? (data as { id: string }[]).find((a) => a.id === p.id) : (data as Record<string, unknown>)[p.id];
-    for (let i = 0; i < p.path.length - 1; i++) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[p.path[i]] : undefined;
-    const last = p.path[p.path.length - 1];
-    if (o && typeof o === 'object' && typeof (o as Record<string | number, unknown>)[last] === 'number') (o as Record<string | number, unknown>)[last] = p.value;
+    for (const start of targetsIn(data, file, p.id)) {
+      let o: unknown = start;
+      for (let i = 0; i < p.path.length - 1; i++) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[p.path[i]] : undefined;
+      const last = p.path[p.path.length - 1];
+      if (o && typeof o === 'object' && typeof (o as Record<string | number, unknown>)[last] === 'number') (o as Record<string | number, unknown>)[last] = p.value;
+    }
   }
   const indent = /\n( +)\S/.exec(text)?.[1].length ?? 2;
-  return JSON.stringify(data, null, indent) + (text.endsWith('\n') ? '\n' : '');
+  let json = JSON.stringify(data, null, indent);
+  // specs.json keeps its symbols as \u escapes
+  if (file === 'specs') json = json.replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  return json + (text.endsWith('\n') ? '\n' : '');
 }

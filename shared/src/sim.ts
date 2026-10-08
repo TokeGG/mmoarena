@@ -97,7 +97,7 @@ export class ArenaSim {
       pos: { x: spawn.x, z: spawn.z }, facing, alive: true,
       health: maxHealth, maxHealth,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      level: 0, gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, talents: [...(o.build?.talents ?? [])], trinket: trinketFor(o.classId, o.build), stealthSwaps: stealthSwapsFor(o.classId, o.build), look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
+      level: 0, gearMult: gear, bar: barFor(o.classId, o.build, cls.bar), spec: o.build?.spec ?? null, talents: [...(o.build?.talents ?? [])], trinket: trinketFor(o.classId, o.build), stealthSwaps: stealthSwapsFor(o.classId, o.build), buildRef: o.build, look: gearLook(o.build?.gear), mods, target: null, cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {},
       autoAttack: false, autoSince: 0, autoDisabled: false, nextSwing: 0, lastCombatAt: -1e9,
       inputQueue: [], charge: null, leap: null, lastCast: null, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, lastInput: { seq: 0, fwd: 0, strafe: 0, facing }, lastSeq: 0, starve: 0,
       fearDir: { x: 0, z: 0 }, fearRetargetAt: 0,
@@ -123,10 +123,29 @@ export class ArenaSim {
     Object.assign(u, {
       classId, name: name ?? u.name, alive: true, health: maxHealth, maxHealth, mods,
       resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
-      bar: barFor(classId, build, cls.bar), spec: build?.spec ?? null, talents: [...(build?.talents ?? [])], trinket: trinketFor(classId, build), stealthSwaps: stealthSwapsFor(classId, build),
+      bar: barFor(classId, build, cls.bar), spec: build?.spec ?? null, talents: [...(build?.talents ?? [])], trinket: trinketFor(classId, build), stealthSwaps: stealthSwapsFor(classId, build), buildRef: build,
       look: gearLook(build?.gear), cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {}, autoAttack: false, leap: null, target: null,
     } as Partial<Unit>);
     return u;
+  }
+
+  /**
+   * Dev tools: work every unit's numbers out again from the data as it is now (class health and resource, spec and talent
+   * bonuses), after a dev changed a class, spec or talent number. Health and resource keep their share.
+   */
+  refreshMods(): void {
+    for (const u of this.units.values()) {
+      const cls = CLASSES[u.classId];
+      const mods = compileMods(u.classId, u.buildRef);
+      const maxHealth = Math.round(cls.maxHealth * u.gearMult * mods.maxHealth);
+      const frac = u.maxHealth > 0 ? u.health / u.maxHealth : 1;
+      const rf = u.resourceMax > 0 ? u.resource / u.resourceMax : 0;
+      u.mods = mods;
+      u.maxHealth = maxHealth;
+      if (u.alive) u.health = Math.max(1, Math.round(maxHealth * frac));
+      u.resourceMax = cls.resource.max;
+      u.resource = Math.round(cls.resource.max * rf);
+    }
   }
 
   /** A disconnect counts as a forfeit: the unit dies so match-end logic runs normally. */

@@ -18,7 +18,8 @@
    "Following someone now keeps a box on screen with a Stop button, and the Watch live list updates by itself while it is open.",
    "Every skill and buff now has its own icon (no two skills share one any more). Fixed wrong or empty tooltip text on Mirror Image, Plague Ready, Purified, Ascended, Purifying Light, Penance Barrier and several talents.",
    "All the cosmetics only the founder can wear were redrawn so each one is a different shape and animation, not a recolour; a few were renamed.",
-   "Bot training starts the moment it is pressed, shows the time left, can run a batch of replays at the same time and shows when the bots are actively training. The bots play with what they learned as soon as it finishes. (The bots have not been retrained for this patch yet.)"
+   "Bot training starts the moment it is pressed, shows the time left, can run a batch of replays at the same time and shows when the bots are actively training. The bots play with what they learned as soon as it finishes. (The bots have not been retrained for this patch yet.)",
+   "Debug window: every number of a class (health, resource, auto-attack), each spec (bonuses, weapon swing) and each talent can be edited under \"Class, specs and talents\", and the talents, specs and buffs listed under a skill show their numbers to edit there too. In a match you can also change your own class, spec, talents and skills on the fly (\"Change my build and the bots'\") for faster testing. The debug window can be dragged by its title bar."
   ]
  },
  {
