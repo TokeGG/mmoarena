@@ -1,5 +1,5 @@
 import { CLASSES } from '@arena/shared';
-import type { AccountInfo, AdminLogRow, ClientMsg, MatchRecord, ServerMsg } from '@arena/shared';
+import type { AccountInfo, AdminLogRow, ClientMsg, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
 import { mapName } from './spectate';
 import { makeResizable } from './resizable';
@@ -57,11 +57,55 @@ export class AdminPanel {
   /** Every match played on the server (newest first), with its replay. */
   private feed: MatchRecord[] | null = null;
   private feedFilter: 'all' | 'people' | 'bots' | 'ranked' = 'all';
+  /** What devs sent in from the debug window, newest first. */
+  private proposals: ProposalRow[] | null = null;
+  private picked = new Set<string>();
+  private propNote = '';
+  private propMsg: { ok: boolean; text: string; url?: string } | null = null;
   private trainMsg: { ok: boolean; text: string } | null = null;
-  private training = new Set<string>();
+  /** The replays the bots are training on or just trained on, pushed by the server every second while any runs. */
+  private jobs: TrainJobRow[] = [];
+  private picks = new Set<string>();
   /** The same tools as the profile's Owner tab (players, matches, tuning), drawn here. */
   private op: OwnerPanel;
   readonly popup: Popup = { isOpen: () => !!this.root, close: () => this.close(), el: () => this.root };
+
+  /** The bot battle window, started from the main menu (owner only). */
+  private bb: HTMLElement | null = null;
+  readonly bbPopup: Popup = { isOpen: () => !!this.bb, close: () => this.closeBotBattle(), el: () => this.bb };
+
+  /** Pick both sides of a bot match and watch it, without going through the admin panel. */
+  openBotBattle() {
+    if (!this.bb) {
+      this.bb = el('div', 'admp');
+      this.bb.addEventListener('mousedown', (e) => e.target === this.bb && this.closeBotBattle());
+      document.body.append(this.bb);
+    }
+    this.paintBotBattle();
+  }
+
+  closeBotBattle() {
+    this.bb?.remove();
+    this.bb = null;
+  }
+
+  private paintBotBattle() {
+    const r = this.bb;
+    if (!r) return;
+    const a = this.hooks.account();
+    const card = el('div', 'admp-card admp-small');
+    const head = el('div', 'admp-head');
+    const close = el('button', 'mm-small', 'Close');
+    close.addEventListener('click', () => this.closeBotBattle());
+    head.append(el('h2', '', '🤖 Bot battle'), el('span', 'admp-status', 'Watch bots fight each other'), close);
+    card.append(head);
+    const body = el('div', 'admp-body');
+    if (!a || a.role !== 'owner') body.append(el('p', 'mm-modal-foot', 'Only the founder account can start a bot battle.'));
+    else if (!a.ownerOk) body.append(this.op.render(a));
+    else body.append(this.op.botMatch(() => this.closeBotBattle()));
+    card.append(body);
+    r.replaceChildren(card);
+  }
 
   /** The window itself, kept between redraws so its size (grab the corner) sticks. */
   private card = el('div', 'admp-card');
@@ -75,8 +119,17 @@ export class AdminPanel {
     return !!this.root;
   }
 
+  /** Live matches and the dashboard keep themselves up to date while the panel is open. */
+  private timer = 0;
+
   open(tab?: Tab) {
     if (tab) this.tab = tab;
+    window.clearInterval(this.timer);
+    this.timer = window.setInterval(() => {
+      if (!this.root || !this.hooks.account()?.ownerOk) return;
+      if (this.tab === 'matches' || this.tab === 'dashboard') this.hooks.send({ t: 'admin_overview' });
+      else if (this.tab === 'replays') this.hooks.send({ t: 'admin_act', act: 'feed' });
+    }, 3000);
     if (!this.root) {
       this.root = el('div', 'admp');
       this.root.addEventListener('mousedown', (e) => e.target === this.root && this.close());
@@ -87,6 +140,7 @@ export class AdminPanel {
   }
 
   close() {
+    window.clearInterval(this.timer);
     this.root?.remove();
     this.root = null;
   }
@@ -97,9 +151,13 @@ export class AdminPanel {
     const s = this.hooks.send;
     s({ t: 'admin_overview' });
     if (this.tab === 'players') s({ t: 'admin_list' });
+    if (this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
-    if (this.tab === 'replays') s({ t: 'admin_act', act: 'feed' });
+    if (this.tab === 'replays') {
+      s({ t: 'admin_act', act: 'feed' });
+      s({ t: 'admin_act', act: 'train_status' });
+    }
   }
 
   handle(m: ServerMsg) {
@@ -113,10 +171,20 @@ export class AdminPanel {
       case 'admin_feed':
         this.feed = m.rows;
         break;
+      case 'train_status':
+        this.jobs = m.jobs;
+        break;
+      case 'proposals':
+        this.proposals = m.rows;
+        for (const id of [...this.picked]) if (!m.rows.some((r) => r.id === id && r.status === 'pending')) this.picked.delete(id);
+        break;
       case 'dev_result':
+        if (this.tab === 'tuning') {
+          this.propMsg = { ok: m.ok, text: m.text, url: m.url };
+          this.picked.clear();
+        }
         if (this.tab === 'replays') {
           this.trainMsg = { ok: m.ok, text: m.text };
-          this.training.clear();
         }
         break;
       case 'owner':
@@ -126,6 +194,7 @@ export class AdminPanel {
     this.op.handle(m);
     if (m.t === 'admin_overview' && m.maintenance && !this.maintText) this.maintText = m.maintenance;
     if (this.root) this.paint();
+    if (this.bb) this.paintBotBattle();
   }
 
   private paint() {
@@ -185,7 +254,7 @@ export class AdminPanel {
         body.append(this.moderation());
         break;
       case 'tuning':
-        body.append(el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox(), el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Bot matches show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'), this.op.botMatch());
+        body.append(el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox(), el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
         break;
       case 'server':
         body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance());
@@ -222,6 +291,12 @@ export class AdminPanel {
     }
     box.append(grid);
     if (o?.maintenance) box.append(el('div', 'adm-state warn', `🛠 Maintenance mode is on: ${o.maintenance}`));
+    const pending = this.proposals?.filter((r) => r.status === 'pending').length ?? 0;
+    if (pending) {
+      const b = el('button', 'adm-state warn adm-link', `📨 ${pending} dev proposal${pending === 1 ? '' : 's'} waiting for you`);
+      b.addEventListener('click', () => { this.tab = 'tuning'; this.refresh(); this.paint(); });
+      box.append(b);
+    }
     if (o) box.append(this.prState());
     box.append(el('h3', '', 'Recent admin actions'), this.logList(this.log ?? [], 10));
     return box;
@@ -260,6 +335,94 @@ export class AdminPanel {
       });
       row.append(info, del);
       box.append(row);
+    }
+    return box;
+  }
+
+  /**
+   * Everything devs sent with "Send to the admin panel", stacked: each shows who, when and every number with its old
+   * and new value. Tick the ones you want, then open one pull request with them all, make them live, or dismiss them.
+   * Nothing is live until you do.
+   */
+  private proposalBox(): HTMLElement {
+    const box = el('div', 'own-box admp-props');
+    const rows = this.proposals?.filter((r) => r.status === 'pending') ?? [];
+    if (!this.proposals) {
+      box.append(el('p', 'mm-modal-foot', 'Loading…'));
+      return box;
+    }
+    if (this.propMsg) {
+      const m = el('div', `adm-state ${this.propMsg.ok ? 'ok' : 'warn'}`, this.propMsg.text);
+      if (this.propMsg.url) {
+        const a = el('a', '', ' Open the pull request');
+        a.href = this.propMsg.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        m.append(a);
+      }
+      box.append(m);
+    }
+    if (!rows.length) box.append(el('p', 'mm-modal-foot', 'Nothing waiting. Devs send their number changes here from the debug window (F2): "Send to the admin panel". Nothing they send is live until you act on it.'));
+    for (const r of rows) {
+      const card = el('div', 'admp-prop');
+      const top = el('label', 'admp-prop-head');
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = this.picked.has(r.id);
+      cb.addEventListener('change', () => (cb.checked ? this.picked.add(r.id) : this.picked.delete(r.id)));
+      top.append(cb, el('b', '', ` ${r.by}`), el('small', '', ` · ${new Date(r.at).toLocaleString()} (${ago(r.at)}) · ${r.changes.length} change${r.changes.length === 1 ? '' : 's'}`));
+      card.append(top);
+      if (r.note) card.append(el('div', 'admp-prop-note', `“${r.note}”`));
+      const ul = el('ul', 'admp-prop-list');
+      for (const c of r.changes) {
+        const li = el('li');
+        li.append(el('span', '', c.label), el('span', 'admp-prop-num', ` ${c.from ?? '?'} → `), el('b', '', String(c.to)));
+        ul.append(li);
+      }
+      card.append(ul);
+      box.append(card);
+    }
+    const done = this.proposals.filter((r) => r.status !== 'pending').slice(0, 5);
+    if (rows.length) {
+      const all = el('button', 'mm-small', 'Select all');
+      all.addEventListener('click', () => { for (const r of rows) this.picked.add(r.id); this.paint(); });
+      const note = el('input');
+      note.type = 'text';
+      note.maxLength = 600;
+      note.placeholder = 'Note for the pull request (optional)';
+      note.value = this.propNote;
+      note.addEventListener('input', () => (this.propNote = note.value));
+      const act = (op: 'pr' | 'live' | 'dismiss') => {
+        const ids = [...this.picked];
+        if (!ids.length) return;
+        if (op === 'live' && !window.confirm(`Make ${ids.length} proposal${ids.length === 1 ? '' : 's'} live for everyone now?`)) return;
+        this.hooks.send({ t: 'admin_proposals', op, ids, ...(op === 'pr' && this.propNote.trim() ? { note: this.propNote.trim() } : {}) });
+      };
+      const pr = el('button', 'mm-small mm-go', '⤴ One pull request with the ticked ones');
+      pr.addEventListener('click', () => act('pr'));
+      const live = el('button', 'mm-small', 'Make live');
+      live.addEventListener('click', () => act('live'));
+      const del = el('button', 'mm-small', 'Dismiss');
+      del.addEventListener('click', () => act('dismiss'));
+      const r1 = el('div', 'own-row');
+      r1.append(all, pr, live, del);
+      const r2 = el('div', 'own-row');
+      r2.append(note);
+      box.append(r1, r2);
+    }
+    if (done.length) {
+      box.append(el('small', 'devp-dim', 'Recently handled'));
+      for (const r of done) {
+        const line = el('div', 'admp-prop-done', `${r.by} · ${r.changes.length} change${r.changes.length === 1 ? '' : 's'} · ${r.status === 'pr' ? 'pull request' : r.status}`);
+        if (r.url) {
+          const a = el('a', '', ' open');
+          a.href = r.url;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          line.append(a);
+        }
+        box.append(line);
+      }
     }
     return box;
   }
@@ -312,6 +475,7 @@ export class AdminPanel {
     cb.addEventListener('change', () => this.hooks.send({ t: 'admin_act', act: 'autotrain', on: cb.checked }));
     auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
     box.append(auto);
+    box.append(this.trainBanner());
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));
@@ -319,6 +483,26 @@ export class AdminPanel {
     }
     const rows = this.feed.filter((m) => (this.feedFilter === 'bots' ? m.bots : this.feedFilter === 'people' ? !m.bots : this.feedFilter === 'ranked' ? m.ranked : true));
     if (!rows.length) box.append(el('p', 'mm-modal-foot', 'No matches yet.'));
+    // batches: tick several and train them all at the same time
+    const trainable = rows.filter((m) => m.replay && !this.isTraining(m.id));
+    const bar = el('div', 'own-row');
+    const picked = trainable.filter((m) => this.picks.has(m.id));
+    const go = el('button', 'mm-small mm-go', `🧠 Train the ${picked.length} ticked`);
+    go.disabled = !picked.length;
+    go.addEventListener('click', () => this.trainMany(picked.map((m) => m.id)));
+    const all = el('button', 'mm-small', `Tick all ${trainable.length} shown`);
+    all.disabled = !trainable.length;
+    all.addEventListener('click', () => {
+      for (const m of trainable) this.picks.add(m.id);
+      this.paint();
+    });
+    const none = el('button', 'mm-small', 'Clear ticks');
+    none.addEventListener('click', () => {
+      this.picks.clear();
+      this.paint();
+    });
+    bar.append(go, all, none);
+    box.append(bar);
     for (const m of rows) box.append(this.feedRow(m));
     return box;
   }
@@ -346,17 +530,73 @@ export class AdminPanel {
       save.href = `/api/replay/${m.id}`;
       save.download = `replay-${m.id}.json.gz`;
       save.title = 'Save the replay file (it can be uploaded here later to train on it)';
-      const train = el('button', 'mm-small mm-go', this.training.has(m.id) ? 'Training…' : '🧠 Train bots');
-      train.disabled = this.training.has(m.id);
-      train.addEventListener('click', () => {
-        this.training.add(m.id);
-        this.trainMsg = null;
-        this.hooks.send({ t: 'admin_act', act: 'train', id: m.id });
+      const job = this.jobs.find((j) => j.id === m.id);
+      const busy = job?.state === 'training';
+      const train = el('button', 'mm-small mm-go', busy ? 'Training…' : '🧠 Train bots');
+      train.disabled = busy;
+      train.addEventListener('click', () => this.trainMany([m.id]));
+      const tick = el('input');
+      tick.type = 'checkbox';
+      tick.checked = this.picks.has(m.id);
+      tick.disabled = busy;
+      tick.title = 'Tick to train several at once';
+      tick.addEventListener('change', () => {
+        if (tick.checked) this.picks.add(m.id);
+        else this.picks.delete(m.id);
         this.paint();
       });
+      row.prepend(tick);
+      if (job) info.append(this.jobBar(job));
       row.append(watch, save, train);
     } else row.append(el('small', 'devp-dim', 'no replay'));
     return row;
+  }
+
+  private isTraining(id: string): boolean {
+    return this.jobs.some((j) => j.id === id && j.state === 'training');
+  }
+
+  /** Start training on every one of these replays now, all at the same time. */
+  private trainMany(ids: string[]) {
+    this.trainMsg = null;
+    for (const id of ids) {
+      if (this.isTraining(id)) continue;
+      // show it at once; the server's first status replaces this
+      this.jobs = [{ id, state: 'training', startedAt: Date.now(), etaMs: 8000 }, ...this.jobs.filter((j) => j.id !== id)];
+      this.hooks.send({ t: 'admin_act', act: 'train', id });
+      this.picks.delete(id);
+    }
+    this.paint();
+  }
+
+  /** A bar for one job: fills as the time passes, the time left beside it. */
+  private jobBar(job: TrainJobRow): HTMLElement {
+    const wrap = el('div', `admp-job ${job.state}`);
+    const left = Math.max(0, job.etaMs - (Date.now() - job.startedAt));
+    const frac = job.state === 'training' ? Math.min(0.95, (Date.now() - job.startedAt) / Math.max(1, job.etaMs)) : 1;
+    const track = el('div', 'admp-job-track');
+    const fill = el('div', 'admp-job-fill');
+    fill.style.width = `${Math.round(frac * 100)}%`;
+    track.append(fill);
+    const label = job.state === 'training' ? (left > 0 ? `~${Math.ceil(left / 1000)}s left` : 'almost done…') : job.state === 'done' ? `Done in ${Math.round(((job.finishedAt ?? Date.now()) - job.startedAt) / 1000)}s` : 'Failed';
+    wrap.append(track, el('small', '', label));
+    if (job.state !== 'training' && job.text) wrap.append(el('small', 'devp-dim', ` ${job.text}`));
+    return wrap;
+  }
+
+  /** On top of the replays: what the bots are actively training on and how long is left (the longest of the batch). */
+  private trainBanner(): HTMLElement {
+    const active = this.jobs.filter((j) => j.state === 'training');
+    const box = el('div', `admp-train ${active.length ? 'on' : ''}`);
+    if (!active.length) {
+      box.append(el('small', 'devp-dim', 'The bots are not training right now. Training starts the moment you press the button, and they play with what they learn as soon as it is done: there is nothing to save or deploy.'));
+      return box;
+    }
+    const left = Math.max(...active.map((j) => Math.max(0, j.etaMs - (Date.now() - j.startedAt))));
+    const head = el('div', 'admp-train-head');
+    head.append(el('span', 'admp-pulse'), el('b', '', `Actively training on ${active.length} replay${active.length === 1 ? '' : 's'}`), el('small', '', left > 0 ? ` · about ${Math.ceil(left / 1000)}s left` : ' · almost done…'));
+    box.append(head);
+    return box;
   }
 
   private async upload(f: File) {

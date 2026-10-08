@@ -362,6 +362,7 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'following':
       following = m.name;
+      followBox.set(m.name);
       if (!m.name) friendsUi.handle({ t: 'notice', text: 'Stopped following.' });
       break;
     case 'profile':
@@ -388,6 +389,10 @@ function onMessage(raw: MessageEvent) {
       onSnapshot(m.snap, m.events);
       break;
     case 'suggest_ack':
+    case 'proposals':
+    case 'train_status':
+      adminPanel.handle(m);
+      break;
     case 'suggestions':
       suggestUi.handle(m);
       adminPanel.handle(m);
@@ -1072,6 +1077,23 @@ const spectateBar = new SpectateBar({
 });
 /** Owner: who is being followed into their matches. */
 let following: string | null = null;
+/** A box that stays on screen for as long as you are following someone, with a way to stop. */
+const followBox = (() => {
+  const box = document.createElement('div');
+  box.className = 'follow-box hidden';
+  const text = document.createElement('span');
+  const stop = document.createElement('button');
+  stop.textContent = 'Stop following';
+  stop.addEventListener('click', () => send({ t: 'follow', name: null }));
+  box.append(text, stop);
+  document.body.append(box);
+  return {
+    set(name: string | null) {
+      box.classList.toggle('hidden', !name);
+      text.textContent = name ? `👁 Following ${name}: you join every match they play` : '';
+    },
+  };
+})();
 const livePicker = new LivePicker(
   (id) => send({ t: 'spectate', id }),
   () => send({ t: 'live' }),
@@ -1352,6 +1374,7 @@ const adminPanel = new AdminPanel({
   replay: (id) => void startReplay(id),
 });
 registerPopup(adminPanel.popup);
+registerPopup(adminPanel.bbPopup);
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
 const header = buildHeaderBar([
@@ -1360,6 +1383,7 @@ const header = buildHeaderBar([
   { icon: 'patches', label: 'Patch notes', onClick: () => mainMenu.openPatches() },
   { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive() },
   { icon: 'suggest', label: 'Suggestions', onClick: () => suggestUi.open() },
+  { icon: 'bots', label: 'Bot battle (owner)', onClick: () => adminPanel.openBotBattle() },
   { icon: 'admin', label: 'Admin panel', onClick: () => adminPanel.open() },
 ]);
 const paintHeader = () => {
@@ -1368,6 +1392,7 @@ const paintHeader = () => {
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
   header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner'); // only the founder account sees the admin button
+  header.buttons.bots.classList.toggle('hidden', a?.role !== 'owner'); // and the bot battle button
 };
 paintHeader();
 menuExtras.append(header.root, friendsUi.partyChip);

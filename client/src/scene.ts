@@ -12,6 +12,7 @@ import { createCharacter, createSheep } from './models';
 import { buildArenaEnvironment } from './arenaMap';
 import type { ArenaEnvironment } from './arenaMap';
 import type { Character } from './models';
+import { TARGET_COLORS, look as hudLook } from './hudLook';
 
 export interface RenderUnit {
   id: number;
@@ -57,6 +58,13 @@ interface UnitMesh {
 
 
 /** Units are low-poly class models from models.ts. Swap those for glTF later. */
+const TARGET_RING_GEO: Record<string, THREE.BufferGeometry> = {
+  normal: new THREE.RingGeometry(0.95, 1.12, 32),
+  thin: new THREE.RingGeometry(1.0, 1.06, 32),
+  thick: new THREE.RingGeometry(0.85, 1.2, 32),
+  disc: new THREE.CircleGeometry(1.1, 32),
+};
+
 export class ArenaScene {
   readonly renderer: THREE.WebGLRenderer;
   readonly scene = new THREE.Scene();
@@ -210,7 +218,19 @@ export class ArenaScene {
       active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt, vf: m.vf, vs: m.vs });
       (m.ring.material as THREE.MeshBasicMaterial).color.set(u.team === myTeam ? 0x3fbf5f : 0xc0392b);
       m.ring.visible = u.alive && this.teamRings;
-      m.targetRing.visible = u.id === targetId;
+      const isTarget = u.id === targetId && hudLook.targetRing !== 'off';
+      m.targetRing.visible = isTarget;
+      if (isTarget) {
+        const mat = m.targetRing.material as THREE.MeshBasicMaterial;
+        mat.color.set(TARGET_COLORS[hudLook.targetColor] ?? (u.team === myTeam ? '#6dff8a' : '#ff5a4a'));
+        const geo = TARGET_RING_GEO[hudLook.targetRing] ?? TARGET_RING_GEO.normal;
+        if (m.targetRing.geometry !== geo) m.targetRing.geometry = geo;
+        mat.transparent = hudLook.targetRing === 'disc';
+        mat.opacity = hudLook.targetRing === 'disc' ? 0.4 : 1;
+        const base = { sm: 0.9, md: 1.1, lg: 1.4, xl: 1.8 }[hudLook.targetSize] ?? 1.1;
+        const pulse = hudLook.targetAnim === 'pulse' ? 1 + 0.1 * Math.sin(nowS * 5) : 1;
+        m.targetRing.scale.set(base * pulse, base * pulse, 1);
+      }
     }
     for (const [id, m] of this.meshes) {
       if (seen.has(id)) continue;

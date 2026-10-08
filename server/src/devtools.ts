@@ -1,8 +1,10 @@
 import { ABILITIES, AURAS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
-import type { DataPatch } from '@arena/shared';
+import type { DataPatch, ProposalRow } from '@arena/shared';
 import type { Store } from './store';
 
 const KEY = 'devoverrides';
+const PROPOSALS = 'devproposals';
+const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
 const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json' };
@@ -36,7 +38,70 @@ export class DevTools {
     this.ready = this.load();
   }
 
+  private props: ProposalRow[] = [];
+
+  /** What devs sent to the owner, newest first. */
+  get proposals(): ProposalRow[] {
+    return this.props;
+  }
+
+  /** A dev's changes go to the owner's admin panel, stacked with the others; nothing changes in the game. */
+  async propose(by: string, patches: DataPatch[], note?: string): Promise<ProposalRow> {
+    const row: ProposalRow = {
+      id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      by, at: Date.now(), ...(note ? { note } : {}), patches,
+      changes: patches.map((p) => ({ label: label(p), from: currentValue(p) ?? null, to: p.value })),
+      status: 'pending',
+    };
+    this.props = [row, ...this.props].slice(0, MAX_PROPOSALS);
+    await this.persistProposals();
+    return row;
+  }
+
+  private persistProposals(): Promise<void> {
+    return this.store.set(PROPOSALS, JSON.stringify(this.props));
+  }
+
+  /**
+   * The owner acts on proposals: `live` applies them over the data files, `pr` opens one pull request with all of them
+   * (later changes to the same number win), `dismiss` forgets them. Returns a line to show and a pull request link.
+   */
+  async actOn(op: 'live' | 'pr' | 'dismiss', ids: string[] | undefined, by: string, note?: string): Promise<{ ok: boolean; text: string; url?: string }> {
+    const rows = this.props.filter((r) => r.status === 'pending' && (!ids || ids.includes(r.id)));
+    if (!rows.length) return { ok: false, text: 'There is nothing pending to act on.' };
+    // oldest first, so a newer proposal for the same number wins
+    const merged = [...rows].reverse().reduce<DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
+    if (op === 'dismiss') {
+      for (const r of rows) r.status = 'dismissed';
+      await this.persistProposals();
+      return { ok: true, text: `Dismissed ${rows.length} proposal${rows.length === 1 ? '' : 's'}.` };
+    }
+    if (op === 'live') {
+      await this.save(merged);
+      for (const r of rows) r.status = 'live';
+      await this.persistProposals();
+      return { ok: true, text: `${rows.length} proposal${rows.length === 1 ? ' is' : 's are'} live for everyone now (${merged.length} number${merged.length === 1 ? '' : 's'}).` };
+    }
+    const names = [...new Set(rows.map((r) => r.by))].join(', ');
+    const notes = [...rows.filter((r) => r.note).map((r) => `${r.by}: ${r.note}`), ...(note ? [note] : [])].join('\n');
+    try {
+      const url = await this.openPullRequest(merged, names, notes || undefined);
+      for (const r of rows) { r.status = 'pr'; r.url = url; }
+      await this.persistProposals();
+      return { ok: true, text: `One pull request with ${rows.length} proposal${rows.length === 1 ? '' : 's'} is open.`, url };
+    } catch (e) {
+      return { ok: false, text: (e as Error).message };
+    }
+  }
+
   private async load(): Promise<void> {
+    try {
+      const rawP = await this.store.get(PROPOSALS);
+      const vp = rawP ? (JSON.parse(rawP) as unknown) : [];
+      if (Array.isArray(vp)) this.props = (vp as ProposalRow[]).filter((r) => r && typeof r.id === 'string' && Array.isArray(r.patches)).slice(0, MAX_PROPOSALS);
+    } catch {
+      /* none */
+    }
     try {
       const raw = await this.store.get(KEY);
       const v = raw ? (JSON.parse(raw) as unknown) : [];

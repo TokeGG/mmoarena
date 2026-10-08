@@ -39,11 +39,19 @@ export const LOOK_OPTIONS: LookOption[] = [
   { id: 'plateText', label: 'Nameplate text size', group: 'Nameplates', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] },
   { id: 'plateCast', label: 'Cast bars on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'plateDebuffs', label: 'Debuffs on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
+  // how your current target is marked: the arrow over its head, the circle under its feet, its health bars
+  { id: 'targetArrow', label: 'Arrow over the target', group: 'Target', choices: [['arrow', '▼ Arrow'], ['chevron', '⌄ Chevron'], ['diamond', '◆ Diamond'], ['star', '★ Star'], ['cross', '⌖ Crosshair'], ['off', 'Hidden']] },
+  { id: 'targetColor', label: 'Target mark colour', group: 'Target', choices: [['auto', 'Red enemy / green ally'], ['gold', 'Gold'], ['white', 'White'], ['cyan', 'Cyan'], ['magenta', 'Magenta'], ['lime', 'Lime']] },
+  { id: 'targetSize', label: 'Target mark size', group: 'Target', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'Huge']] },
+  { id: 'targetAnim', label: 'Target mark movement', group: 'Target', choices: [['bob', 'Bobbing'], ['pulse', 'Pulsing'], ['still', 'Still']] },
+  { id: 'targetRing', label: 'Circle under the target', group: 'Target', choices: [['normal', 'Ring'], ['thin', 'Thin ring'], ['thick', 'Thick ring'], ['disc', 'Glowing disc'], ['off', 'Off']] },
+  { id: 'targetBars', label: 'Target health bar highlight', group: 'Target', choices: [['glow', 'Glow'], ['bright', 'Bright outline'], ['off', 'Off']] },
 ];
 
 const DEFAULTS: Record<string, string> = {
   bar: 'smooth', hpText: 'value', hpColor: 'team', portrait: 'left', slots: 'rounded', slotSize: 'md', keys: 'show', names: 'show', cast: 'classic', log: 'show', help: 'show',
   barHeight: 'normal', allyColor: 'green', enemyColor: 'red', hpFont: 'md',
+  targetArrow: 'arrow', targetColor: 'auto', targetSize: 'md', targetAnim: 'bob', targetRing: 'normal', targetBars: 'glow',
   plates: 'all', plateWidth: 'normal', plateBar: 'normal', plateHp: 'none', plateColor: 'team', plateName: 'show', plateText: 'md', plateCast: 'show', plateDebuffs: 'show',
 };
 
@@ -54,9 +62,14 @@ const KEY = 'arena.hud.look.v1';
 
 export const look: Record<string, string> = { ...DEFAULTS };
 
+/** The target mark's colours (auto = red for an enemy, green for an ally, chosen where it is drawn). */
+export const TARGET_COLORS: Record<string, string> = { gold: '#ffd24a', white: '#ffffff', cyan: '#4fd8ff', magenta: '#ff4fd8', lime: '#8dff3a' };
+export const TARGET_ARROWS: Record<string, string> = { arrow: '▼', chevron: '⌄', diamond: '◆', star: '★', cross: '⌖' };
+
 export function applyLook() {
   if (typeof document === 'undefined') return;
   for (const o of LOOK_OPTIONS) document.body.dataset[`hud${o.id.charAt(0).toUpperCase()}${o.id.slice(1)}`] = look[o.id];
+  document.body.style.setProperty('--tgt-color', TARGET_COLORS[look.targetColor] ?? '');
 }
 
 export function loadLook() {

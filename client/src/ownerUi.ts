@@ -179,6 +179,22 @@ export class OwnerPanel {
       end.addEventListener('click', () => window.confirm('End this match for everyone in it?') && this.hooks.send({ t: 'admin_end', id: r.id }));
       row.append(info, watch, pause, end);
       wrap.append(row);
+      // follow any person in it: you are taken into every match they play
+      const humans = r.players.filter((x) => x.human);
+      if (humans.length && this.hooks.follow) {
+        const fr = el('div', 'own-row own-follow');
+        fr.append(el('small', 'devp-dim', 'Follow:'));
+        for (const x of humans) {
+          const f = el('button', 'mm-small', `👁 ${x.name}`);
+          f.title = `Watch this match and every match ${x.name} plays after it`;
+          f.addEventListener('click', () => {
+            this.hooks.follow!(x.name);
+            this.hooks.watch?.(r.id);
+          });
+          fr.append(f);
+        }
+        wrap.append(fr);
+      }
     }
     return wrap;
   }
@@ -248,7 +264,7 @@ export class OwnerPanel {
    * Pick both sides (class and spec of each bot), the difficulty and the arena, and watch them fight live in a private
    * room: it is not listed in Watch live and closes when you stop watching.
    */
-  botMatch(): HTMLElement {
+  botMatch(started?: () => void): HTMLElement {
     const wrap = el('div', 'own-box own-bots');
     wrap.append(el('p', 'mm-modal-foot', 'Watch bots fight each other in a private match only you can see. It closes when you leave it.'));
     const select = (opts: [string, string][], value: string, on: (v: string) => void) => {
@@ -285,6 +301,7 @@ export class OwnerPanel {
     go.addEventListener('click', () => {
       const n = this.bm.size;
       this.hooks.send({ t: 'bot_match', size: n, teams: [this.bm.teams[0].slice(0, n), this.bm.teams[1].slice(0, n)], difficulty: this.bm.difficulty, map: this.bm.map });
+      started?.();
     });
     wrap.append(go);
     return wrap;
@@ -419,12 +436,20 @@ export class OwnerPanel {
     reason.type = 'text';
     reason.maxLength = 200;
     reason.placeholder = 'Reason (shown to them)';
-    const dur = el('select');
-    for (const [v, label] of [['60', '1 hour'], ['1440', '1 day'], ['10080', '7 days'], ['43200', '30 days'], ['0', 'For good']]) {
-      const o = el('option', '', label);
-      o.value = v;
-      dur.append(o);
-    }
+    // how long: a number of minutes; 00 means for good
+    const dur = el('input');
+    dur.type = 'text';
+    dur.inputMode = 'numeric';
+    dur.maxLength = 7;
+    dur.placeholder = 'Minutes (00 = for good)';
+    dur.title = 'How many minutes the ban or mute lasts. Type 00 for indefinite.';
+    dur.style.width = '150px';
+    const minutes = (): number | null => {
+      const t = dur.value.trim();
+      if (!/^\d+$/.test(t)) return null;
+      return Number(t); // "00" and "0" are 0: for good
+    };
+    const lengthText = (m: number) => (m === 0 ? 'for good' : `for ${m} minute${m === 1 ? '' : 's'}`);
     const row1 = el('div', 'own-row');
     const kick = el('button', 'mm-small', 'Kick');
     kick.disabled = !r.online;
@@ -433,11 +458,22 @@ export class OwnerPanel {
     const ban = el('button', 'mm-small adm-danger', r.banned ? 'Unban' : 'Ban');
     ban.addEventListener('click', () => {
       if (r.banned) return act({ act: 'unban' });
-      if (window.confirm(`Ban ${r.name} (${dur.selectedOptions[0].textContent})? They are disconnected and cannot sign in.`)) act({ act: 'ban', minutes: Number(dur.value), reason: reason.value });
+      const m = minutes();
+      if (m === null) return this.say('Type how many minutes (00 for good) before banning.', true);
+      if (window.confirm(`Ban ${r.name} ${lengthText(m)}? They are disconnected and cannot sign in.`)) act({ act: 'ban', minutes: m, reason: reason.value });
     });
     const mute = el('button', 'mm-small', r.muted ? 'Unmute' : 'Mute');
-    mute.addEventListener('click', () => (r.muted ? act({ act: 'unmute' }) : act({ act: 'mute', minutes: Number(dur.value), reason: reason.value })));
-    row1.append(dur, reason, kick, mute, ban);
+    mute.addEventListener('click', () => {
+      if (r.muted) return act({ act: 'unmute' });
+      const m = minutes();
+      if (m === null) return this.say('Type how many minutes (00 for good) before muting.', true);
+      act({ act: 'mute', minutes: m, reason: reason.value });
+    });
+    const killBtn = el('button', 'mm-small adm-danger', 'Kill in match');
+    killBtn.disabled = !r.online;
+    killBtn.title = 'Kill them if they are in a match right now';
+    killBtn.addEventListener('click', () => window.confirm(`Kill ${r.name} in their match?`) && act({ act: 'kill' }));
+    row1.append(dur, reason, kick, mute, ban, killBtn);
     box.append(el('b', '', 'Moderation'), row1);
 
     const row2 = el('div', 'own-row');

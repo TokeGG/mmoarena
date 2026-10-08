@@ -22,6 +22,8 @@ export interface ModSource {
 const sec = (ms: number) => `${Math.round(ms / 100) / 10}s`;
 const pct = (v: number) => `${Math.round(Math.abs(v - 1) * 1000) / 10}%`;
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "a 5" or "an 8": the article that goes with a number said aloud. */
+const an = (n: number) => `${/^(8|11|18)/.test(String(n)) ? 'an' : 'a'} ${n}`;
 const mult = (v: number) => `x${Math.round(v * 100) / 100}`;
 
 /** One generated modifier line plus what it is about, so a hand-written description that already says it can be detected. */
@@ -179,7 +181,7 @@ function describeBase(id: string, mods: Mods | undefined, opts: DescribeOptions)
     }
     case 'slow': return `Movement speed reduced by ${a.slowPct ?? 0}%.`;
     case 'speed': return `Movement speed increased by ${a.speedPct ?? 0}%.`;
-    case 'absorb': return a.absorbPct ? `Absorbs damage equal to ${Math.round(a.absorbPct * 100)}% of max health.` : `Absorbs ${a.absorb ?? 0} damage.`;
+    case 'absorb': return a.note ? a.note : a.absorbPct ? `Absorbs damage equal to ${Math.round(a.absorbPct * 100)}% of max health.` : `Absorbs ${a.absorb ?? 0} damage.`;
     case 'stealth': return `Hidden from enemies farther than ${TUNING.stealthDetect} yards. Broken by damage or attacking.`;
     case 'buff': {
       if (a.instantFor) return `Your next ${ABILITIES[a.instantFor]?.name ?? a.instantFor} is instant.`;
@@ -188,6 +190,7 @@ function describeBase(id: string, mods: Mods | undefined, opts: DescribeOptions)
       if (a.hot) parts.push(`Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s`);
       if (a.noCast) parts.push('You cannot use any ability while it lasts');
       if (a.maxStacks) parts.push(`Stacks up to ${a.maxStacks} times`);
+      if (a.note) parts.unshift(a.note.replace(/\.$/, ''));
       return parts.join('. ') + '.';
     }
     case 'dot': {
@@ -312,7 +315,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
           const lead = youLead ? `On you${dur ? ` for ${D(e)}` : ''}` : dur ? `For ${D(e)}` : '';
           return `${lead ? `${lead}${extra}: ` : ''}${body}.`;
         }
-        const who = onYou ? 'You gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
+        const who = onYou ? 'You gain' : def.target === 'aoe_all' && e.only === 'ally' ? 'You and every ally in range gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
         const when = e.fullCast ? ' (only from a full-length cast)' : '';
         return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
       }
@@ -321,6 +324,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
       case 'interrupt':
         return `Interrupts the target's spellcasting and locks out that school for ${sec(e.lockout)}.`;
       case 'dispel':
+        if (e.all) return `Removes every harmful magic effect from ${def.target === 'aoe_all' ? 'you and every ally in range' : 'the target'}.`;
         return def.target === 'any' ? 'Removes one magic effect: a harmful one from allies, a beneficial one from enemies.' : 'Removes one magic effect.';
       case 'charge':
         return `Stuns the target${chargeStun && auraSecs(chargeStun, mods) ? ` for up to ${D(chargeStun)}` : ''} as you sprint at it, closing the distance in about a second${e.hit ? `, then hits it for ${M(dmgOf(e.hit))} and ends the stun when you land` : ''}. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).`;
@@ -359,11 +363,11 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         return 'Enemies lose their target on you and spells aimed at you are cancelled.';
       case 'zoneBuff': {
         const a = AURAS[e.aura];
-        return `Marks a ${e.radius}-yard circle at the chosen spot for ${fmtS(e.duration / 1000)}. ${e.who === 'allies' ? 'You and your allies' : 'You'} standing inside: ${a ? describeAura(e.aura, mods, o).replace(/\.$/, '') : e.aura}.`;
+        return `Marks ${an(e.radius)}-yard circle at the chosen spot for ${fmtS(e.duration / 1000)}. ${e.who === 'allies' ? 'You and your allies' : 'You'} standing inside: ${a ? describeAura(e.aura, mods, o).replace(/\.$/, '') : e.aura}.`;
       }
       case 'zone': {
         const first = e.initial ? `Enemies in the area take ${M(dmgOf(e.initial))} ${def.school} damage the moment the cast lands. ` : '';
-        return `${first}Marks a ${e.radius}-yard circle at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies ${e.initial ? 'still ' : ''}inside take ${M(dmgOf(e.amount))} ${def.school} damage every ${fmtS(e.pulse / 1000)}. Jump to avoid a pulse (one dodging jump every ${fmtS(JUMP_DODGE_CD / 1000)}).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`;
+        return `${first}Marks ${an(e.radius)}-yard circle at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies ${e.initial ? 'still ' : ''}inside take ${M(dmgOf(e.amount))} ${def.school} damage every ${fmtS(e.pulse / 1000)}. Jump to avoid a pulse (one dodging jump every ${fmtS(JUMP_DODGE_CD / 1000)}).${e.procOnHit && AURAS[e.procOnHit] ? ` If the opening hit lands on an enemy you always gain ${AURAS[e.procOnHit].name}.` : ''}`;
       }
     }
   };
@@ -408,6 +412,10 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
   if (def.ignoresLockout) notes.push('Usable while locked out.');
+  if (def.ignoresControl && !lines.some((l) => /while stunned/i.test(l))) {
+    const locks = Object.values(AURAS).filter((a) => a.locksAbilities).map((a) => a.name);
+    notes.push(`Works while stunned, feared or rooted${locks.length ? `, but not while ${locks.join(' or ')} holds you` : ''}.`);
+  }
   if (!def.gcd) notes.push('Does not trigger the global cooldown.');
   return { name: def.name, school: def.school, stats, lines, added, notes };
 }

@@ -3,7 +3,7 @@
   "version": "0.69.0",
   "date": "2026-10-08",
   "at": "2026-10-08T05:20:00Z",
-  "title": "A new five-tier talent tree, trinkets and class skills",
+  "title": "Five-tier talents, trinkets and class skills, target marks, new icons and cosmetics",
   "changes": [
    "The talent tree is now five tiers. Tiers I and II are shared by all three specs of a class, tier III is your spec's own, tier IV is a trinket and tier V is a class skill. The old tiers IV to VI and their skill swaps are gone, and so are the skills only they gave (Smoke Bomb and the rest); your saved picks are cleared where they no longer exist.",
    "Mage tier I changes Blink: Twin Blink (two charges, each on its own timer, with a number on the button for how many are ready), Blink and Cast (blink in the middle of a cast without losing it) or Frozen Departure (a Frost Nova where you stood). Tier II: 10% faster casts and global cooldown, 10% more health or 10% more damage. Tier III per spec: Frostbolt, Fireball or Arcane Blast do 10% more damage, plus a better chance of their proc, plus a 10% chance of an extra effect (root and Shatter, a 25 a second burn, free Arcane Power for 8 s or two Arcane Charges).",
@@ -11,7 +11,14 @@
    "Priest tier I changes Psychic Scream: 2 seconds longer, a 3 second stun in place on a 45 second cooldown, or targets flee as far from you as they can. Tier II: 10% faster casts, 10% more healing or 10% more damage. Tier III per spec: Penance (10% stronger, ticks every 0.25 s for 2.5 s with a barrier worth half of each tick's healing), Greater Heal (15% stronger, also heals you or your ally for 50% when you target the other, and a Renew on the target) or Mind Blast (10% stronger, a chance to make Devouring Plague free for 10 s, and a chance to slow 30% for 4 s).",
    "Tier IV is a trinket for every class: an extra button beside the action bar, bound to F by default (change it under Controls). Choose Cleansing Charm (remove every harmful effect, even while stunned), Warding Charm (a shield worth 20% of your health for 8 s) or Healing Charm (heal 25% of your health). Each has a 60 second cooldown and no global cooldown.",
    "Tier V gives each class a new skill in place of one it has. Warrior replaces Heroic Leap with Intimidating Shout (fear), Dragon Roar (a cone of dragon fire) or Battle Banner (you and your allies near it deal 10% more damage and take 10% less). Mage replaces Polymorph or Counterspell, your choice, with Mirror Image, Evocation or Rune of Power. Priest replaces Desperate Prayer (Warden, Lightbearer) or Power Word: Shield (Gloomweaver) with Leap of Faith, Purifying Light (an area dispel that blocks new debuffs) or Ascend to the Heavens (fly away, untouchable). Rogue replaces Sprint with Blind or Evasion, or learns Sap, which appears on the Kidney Shot button while you are stealthed. Duelist now starts with Gouge in place of Evasion.",
-   "All numbers on the new skills and trinkets are first guesses: expect them to be tuned over the next patches. Bots use every new skill and talent, and the tooltips and wiki cover them all."
+   "All numbers on the new skills and trinkets are first guesses: expect them to be tuned over the next patches. Bots use every new skill and talent, and the tooltips and wiki cover them all.",
+   "Target marks: in Edit HUD there is a new Target group. Choose the arrow over your target (arrow, chevron, diamond, star, crosshair or none), its colour, size and movement, the circle under the target (ring, thin, thick, glowing disc or off) and how the target's health bars are highlighted.",
+   "Debug window: the text no longer overlaps (long labels wrap), and every skill now shows chips for how it behaves: affected by the global cooldown, cast time, works while stunned, needs stealth, range, cost and more (hover a chip for what it means). Dev tools can also edit a bot's class, spec and talents in the middle of a match.",
+   "\"Save for everyone\" in the debug window is now \"Send to the admin panel\": the changes, with the old and new numbers, wait for the owner and nothing goes live until the owner acts.",
+   "Following someone now keeps a box on screen with a Stop button, and the Watch live list updates by itself while it is open.",
+   "Every skill and buff now has its own icon (no two skills share one any more). Fixed wrong or empty tooltip text on Mirror Image, Plague Ready, Purified, Ascended, Purifying Light, Penance Barrier and several talents.",
+   "All the cosmetics only the founder can wear were redrawn so each one is a different shape and animation, not a recolour; a few were renamed.",
+   "Bot training starts the moment it is pressed, shows the time left, can run a batch of replays at the same time and shows when the bots are actively training. The bots play with what they learned as soon as it finishes. (The bots have not been retrained for this patch yet.)"
   ]
  },
  {

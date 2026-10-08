@@ -322,7 +322,7 @@ Talent: Warbringer tier V *Dragon's Fury* (replaces Heroic Leap); Rampager tier 
 
 *Physical* · 20 rage · 20 yd range · Aimed at the cursor · Instant · 60s cooldown
 
-- Marks a 8-yard circle at the chosen spot for 12s. You and your allies standing inside: +10% damage dealt. −10% damage taken.
+- Marks an 8-yard circle at the chosen spot for 12s. You and your allies standing inside: +10% damage dealt. −10% damage taken.
 
 Talent: Warbringer tier V *Rallying Banner* (replaces Heroic Leap); Rampager tier V *Rallying Banner* (replaces Heroic Leap); Barbarian tier V *Rallying Banner* (replaces Heroic Leap).
 
@@ -349,8 +349,8 @@ Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
 |  | 💚 **Healing Charm** | A trinket button beside your bar: heals you for 25% of your maximum health. 60 second cooldown, no global cooldown, works while stunned. |
 | V | 🪞 **Illusionist** | Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose). → [Mirror Image](#skill-mirror-image) |
-|  | 🧘 **Arcane Recovery** | Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose). → [Evocation](#skill-evocation) |
-|  | 🌠 **Runecaster** | Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose). → [Rune of Power](#skill-rune-of-power) |
+|  | 🧘 **Arcane Recovery** | Learn Evocation: for 6 seconds you heal 2% of your maximum health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose). → [Evocation](#skill-evocation) |
+|  | 🌠 **Runecaster** | Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and your casts are 15% shorter. Replaces Polymorph or Counterspell (you choose). → [Rune of Power](#skill-rune-of-power) |
 
 <a id="mage-frost"></a>
 ### ❄️ Cryomancy · Control / kiting
@@ -375,7 +375,7 @@ Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance i
 | Tier | Talent | What it does |
 |---|---|---|
 | III | 🧊 **Sharper Frostbolt** | Frostbolt does 10% more damage. |
-|  | 🖐️ **Fingers Crossed** | Frostbolt has a 5% higher chance to give Fingers of Frost. |
+|  | 🖐️ **Fingers Crossed** | Frostbolt has an extra 5% chance to give Fingers of Frost. |
 |  | 🥶 **Deep Chill** | Frostbolt has a 10% chance to root the target and leave it Shattered for 4 seconds. |
 
 <a id="mage-fire"></a>
@@ -401,7 +401,7 @@ Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyrob
 | Tier | Talent | What it does |
 |---|---|---|
 | III | ☄️ **Hotter Fireball** | Fireball does 10% more damage. |
-|  | 🔥 **Streaking** | Fireball has a 5% higher chance to give Hot Streak. |
+|  | 🔥 **Streaking** | Fireball has an extra 5% chance to give Hot Streak. |
 |  | 🌋 **Searing Touch** | Fireball has a 10% chance to set the target burning for 4 seconds, dealing 25 damage every second. |
 
 <a id="mage-arcane"></a>
@@ -629,7 +629,7 @@ On the bar: [Starweaving](#mage-arcane) (key 8).
 *Arcane* · 40 mana · Instant · 90s cooldown · 8s buff
 
 - Enemies lose their target on you and spells aimed at you are cancelled.
-- .
+- Images stand in for you: half the hits meant for you strike an image instead and do nothing.
 - *Does not trigger the global cooldown.*
 
 Talent: Cryomancy tier V *Illusionist* (replaces Polymorph); Pyromancy tier V *Illusionist* (replaces Polymorph); Starweaving tier V *Illusionist* (replaces Polymorph).
@@ -649,7 +649,7 @@ Talent: Cryomancy tier V *Arcane Recovery* (replaces Polymorph); Pyromancy tier 
 
 *Arcane* · 30 mana · Instant · 45s cooldown
 
-- Marks a 8-yard circle at the chosen spot for 12s. You standing inside: +15% damage dealt. −15% cast time.
+- Marks an 8-yard circle at the chosen spot for 12s. You standing inside: +15% damage dealt. −15% cast time.
 
 Talent: Cryomancy tier V *Runecaster* (replaces Polymorph); Pyromancy tier V *Runecaster* (replaces Polymorph); Starweaving tier V *Runecaster* (replaces Polymorph).
 
@@ -700,7 +700,7 @@ Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a 
 |  | 🛡️ **Penitent Barrier** | Penance also gives a barrier equal to 50% of the healing it does, on every tick. |
 |  | ⏱️ **Rapid Penance** | Penance fires a tick every 0.25 seconds and lasts 2.5 seconds, each tick doing 60% less damage and healing than before, and a 66.7% longer cast time. |
 | V | 🕊️ **Leap of Trust** | Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Desperate Prayer. → [Leap of Faith](#skill-leap-of-faith) |
-|  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Desperate Prayer. → [Purifying Light](#skill-purifying-light) |
+|  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Desperate Prayer. → [Purifying Light](#skill-purifying-light) |
 |  | 👼 **Heavenly Ascent** | Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer. → [Ascend to the Heavens](#skill-ascend) |
 
 <a id="priest-holy"></a>
@@ -727,7 +727,7 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 |  | 🪞 **Mirrored Heal** | Greater Heal also heals an ally for 50% of the amount when you heal yourself, or heals you for 50% when you heal an ally. |
 |  | 🌿 **Renewing Heal** | Greater Heal also gives the target Renew: 1% of their maximum health every second for 5 seconds. |
 | V | 🕊️ **Leap of Trust** | Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Desperate Prayer. → [Leap of Faith](#skill-leap-of-faith) |
-|  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Desperate Prayer. → [Purifying Light](#skill-purifying-light) |
+|  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Desperate Prayer. → [Purifying Light](#skill-purifying-light) |
 |  | 👼 **Heavenly Ascent** | Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer. → [Ascend to the Heavens](#skill-ascend) |
 
 <a id="priest-shadow"></a>
@@ -754,7 +754,7 @@ Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Bla
 |  | ☣️ **Plague Ready** | Mind Blast has a 10% chance to give you Plague Ready for 10 seconds: Devouring Plague comes off cooldown, and the next one you cast does not start its cooldown. |
 |  | 🐌 **Mind Numbing** | Mind Blast has a 20% chance to slow the target by 30% for 4 seconds. |
 | V | 🕊️ **Leap of Trust** | Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Power Word: Shield. → [Leap of Faith](#skill-leap-of-faith) |
-|  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Power Word: Shield. → [Purifying Light](#skill-purifying-light) |
+|  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Power Word: Shield. → [Purifying Light](#skill-purifying-light) |
 |  | 👼 **Heavenly Ascent** | Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Power Word: Shield. → [Ascend to the Heavens](#skill-ascend) |
 
 ### Priest skills
@@ -901,6 +901,7 @@ On the bar: [Gloomweaver](#priest-shadow) (key 4).
 - Removes every root and slow from you.
 - −90% damage taken. You cannot use any ability while it lasts.
 - *Usable while locked out.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
 - *Does not trigger the global cooldown.*
 
 On the bar: [Gloomweaver](#priest-shadow) (key 6).
@@ -919,8 +920,8 @@ Talent: Warden tier V *Leap of Trust* (replaces Desperate Prayer); Lightbearer t
 
 *Holy* · 60 mana · 12 yd radius · Instant · 50s cooldown
 
-- Removes one magic effect.
-- Target gains Purified for 4s: .
+- Removes every harmful magic effect from you and every ally in range.
+- You and every ally in range gain Purified for 4s: Harmful effects cannot take hold.
 - Effects: [Purified](#effect-purified)
 
 Talent: Warden tier V *Cleansing Radiance* (replaces Desperate Prayer); Lightbearer tier V *Cleansing Radiance* (replaces Desperate Prayer); Gloomweaver tier V *Cleansing Radiance* (replaces Power Word: Shield).
@@ -932,7 +933,7 @@ Talent: Warden tier V *Cleansing Radiance* (replaces Desperate Prayer); Lightbea
 
 - Enemies lose their target on you and spells aimed at you are cancelled.
 - Removes every root and slow from you.
-- You gain Ascended for 4s: +60% movement speed. You cannot use any ability while it lasts.
+- You gain Ascended for 4s: You fly away: nothing can target or hurt you, and harmful effects cannot take hold. +60% movement speed. You cannot use any ability while it lasts.
 - *Does not trigger the global cooldown.*
 - Effects: [Ascended](#effect-ascended)
 
@@ -1247,6 +1248,7 @@ Tier IV of every class gives an extra button beside the action bar (bind it to a
 
 - Removes every harmful effect from you.
 - *Usable while locked out.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
 - *Does not trigger the global cooldown.*
 
 Talent: tier IV *Cleansing Charm*.
@@ -1258,6 +1260,7 @@ Talent: tier IV *Cleansing Charm*.
 
 - Absorbs 20% of your max health.
 - *Usable while locked out.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
 - *Does not trigger the global cooldown.*
 
 Talent: tier IV *Warding Charm*.
@@ -1269,6 +1272,7 @@ Talent: tier IV *Warding Charm*.
 
 - Heals you for 25% of your maximum health.
 - *Usable while locked out.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
 - *Does not trigger the global cooldown.*
 
 Talent: tier IV *Healing Charm*.
@@ -1284,7 +1288,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-arcane-charge"></a>**Arcane Charge** | Buff | 12s | Stacks up to 5 times. | [Arcane Blast](#skill-arcane-blast), [Arcane Missiles](#skill-arcane-missiles) |
 | <a id="effect-arcane-slow"></a>**Arcane Explosion** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Arcane Explosion](#skill-arcane-explosion) |
 | <a id="effect-arcane-power"></a>**Arcane Power** | Buff, magic | 15s | +25% damage dealt. −30% cast time. | [Arcane Power](#skill-arcane-power) |
-| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | +60% movement speed. You cannot use any ability while it lasts. | [Ascend to the Heavens](#skill-ascend) |
+| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | You fly away: nothing can target or hurt you, and harmful effects cannot take hold. +60% movement speed. You cannot use any ability while it lasts. | [Ascend to the Heavens](#skill-ascend) |
 | <a id="effect-blind"></a>**Blind** | Debuff (incapacitate) | 5s | Cannot move, cast or act. Breaks on damage. | [Blind](#skill-blind) |
 | <a id="effect-cauterized"></a>**Cauterized** | Buff (mark) | 4s | Cheated death: a killing blow left you at 35% health. Cauterize is ready again in 3 minutes. | Pyromancy passive (Cauterize) |
 | <a id="effect-charge-stun"></a>**Charge** | Debuff (stun) | 2.5s | Cannot move, cast or act. | [Charge](#skill-charge) |
@@ -1310,14 +1314,14 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-intimidating-shout"></a>**Intimidating Shout** | Debuff (fear) | 5s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Intimidating Shout](#skill-intimidating-shout) |
 | <a id="effect-kidney-shot"></a>**Kidney Shot** | Debuff (stun) | 2s | Cannot move, cast or act. | [Kidney Shot](#skill-kidney-shot) |
 | <a id="effect-mind-flay-slow"></a>**Mind Flay** | Debuff (slow) | 1.5s | Movement speed reduced by 30%. | [Mind Flay](#skill-mind-flay) |
-| <a id="effect-mirror-image"></a>**Mirror Image** | Buff | 8s | . | [Mirror Image](#skill-mirror-image) |
+| <a id="effect-mirror-image"></a>**Mirror Image** | Buff | 8s | Images stand in for you: half the hits meant for you strike an image instead and do nothing. | [Mirror Image](#skill-mirror-image) |
 | <a id="effect-mortal-wounds"></a>**Mortal Wounds** | Debuff (mark) | 8s | −40% healing received. | [Mortal Strike](#skill-mortal-strike) |
 | <a id="effect-mutilate-bleed"></a>**Mutilate** | Debuff (dot) | 6s | Bleeding: takes 14 physical damage every 1s (84 total). | [Mutilate](#skill-mutilate) |
 | <a id="effect-pain-suppression"></a>**Pain Suppression** | Buff | 8s | −40% damage taken. | [Pain Suppression](#skill-pain-suppression) |
 | <a id="effect-polymorph"></a>**Polymorph** | Debuff (incapacitate), magic | 8s | Cannot move, cast or act (can still turn), not even Blink. Breaks on damage. Heals 10% of maximum health every 1s. | [Polymorph](#skill-polymorph) |
 | <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 250 damage. | [Power Word: Shield](#skill-power-word-shield) |
 | <a id="effect-psychic-scream"></a>**Psychic Scream** | Debuff (fear), magic | 6s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Psychic Scream](#skill-psychic-scream) |
-| <a id="effect-purified"></a>**Purified** | Buff | 4s | . | [Purifying Light](#skill-purifying-light) |
+| <a id="effect-purified"></a>**Purified** | Buff | 4s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
 | <a id="effect-renew"></a>**Renew** | Buff, magic | 5s | Heals 1% of maximum health every 1s. | talent *Renewing Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |
 | <a id="effect-creeping-rot"></a>**Shadow Word: Pain** | Debuff (dot), magic | 10s | Takes 30 shadow damage every 1s (300 total). | [Shadow Word: Pain](#skill-shadow-word-death) |

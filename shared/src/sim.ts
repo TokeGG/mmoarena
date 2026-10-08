@@ -107,6 +107,28 @@ export class ArenaSim {
     return u;
   }
 
+  /**
+   * Dev tools: give a unit another class and build in the middle of a match (a bot picked in the debug window). It keeps
+   * its place, team and name but starts fresh: full health and resource, no auras or cooldowns. Only used in test matches,
+   * which are never recorded.
+   */
+  rebuildUnit(id: number, classId: ClassId, build: Build | undefined, name?: string): Unit | null {
+    const u = this.units.get(id);
+    if (!u) return null;
+    const cls = CLASSES[classId];
+    const mods = compileMods(classId, build);
+    const maxHealth = Math.round(cls.maxHealth * u.gearMult * mods.maxHealth);
+    this.endCharge(u, false);
+    this.recharge.delete(id);
+    Object.assign(u, {
+      classId, name: name ?? u.name, alive: true, health: maxHealth, maxHealth, mods,
+      resource: cls.resource.start, resourceMax: cls.resource.max, resourceType: cls.resource.type,
+      bar: barFor(classId, build, cls.bar), spec: build?.spec ?? null, talents: [...(build?.talents ?? [])], trinket: trinketFor(classId, build), stealthSwaps: stealthSwapsFor(classId, build),
+      look: gearLook(build?.gear), cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {}, autoAttack: false, leap: null, target: null,
+    } as Partial<Unit>);
+    return u;
+  }
+
   /** A disconnect counts as a forfeit: the unit dies so match-end logic runs normally. */
   forfeit(id: number): void {
     this.onCommand?.([this.tickNo, 4, id]);
@@ -1107,6 +1129,14 @@ export class ArenaSim {
     if (!b) return;
     b.absorbLeft += amount;
     b.expiresAt = this.time + AURAS.penance_barrier.duration;
+  }
+
+  /** The owner removes a unit from the match (admin panel): it dies at once, no kill credit. */
+  adminKill(unitId: number): boolean {
+    const u = this.units.get(unitId);
+    if (!u || !u.alive) return false;
+    this.die(u, null);
+    return true;
   }
 
   private die(u: Unit, killer: number | null): void {

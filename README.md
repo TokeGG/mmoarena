@@ -25,6 +25,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 | Strafe left / right | Q / E |
 | Jump | Space |
 | Abilities | 1 to 8 |
+| Trinket (talent tier IV) | F |
 | Next enemy | Tab |
 | Auto-attack on or off | R |
 | Detailed tooltips | Hold Alt while hovering |
@@ -73,15 +74,15 @@ Every class has three specs, each with its own eight-skill action bar (and, for 
 | [Lightbearer](WIKI.md#priest-holy) | Priest | Pure healer | Direct healing. Holy Nova heals your team and hurts every enemy. |
 | [Gloomweaver](WIKI.md#priest-shadow) | Priest | Damage | Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Blast hit hard. |
 | [Cutthroat](WIKI.md#rogue-assassination) | Rogue | Burst melee | Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate cashes in on them. |
-| [Duelist](WIKI.md#rogue-combat) | Rogue | Sustained melee | Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swings, energy and healing. |
+| [Duelist](WIKI.md#rogue-combat) | Rogue | Sustained melee | Steady damage with Sinister Strike and Sprint. Gouge buys a moment; Adrenaline Rush gives faster swings, energy and healing. |
 | [Shade](WIKI.md#rogue-subtlety) | Rogue | Control / mobility | Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes. |
 
 **Talents:** five tiers, one pick per tier, remembered for each spec.
 
-- **Tiers I and II** are the same for every spec of a class. Tier I changes one of the class's own skills (Mage: how Blink works; Warrior: Charge; Priest: Psychic Scream; Rogue: its stealth kit). Tier II is a flat boost: speed, health or damage.
-- **Tier III** is your spec's own: stronger skills and a chance to trigger an extra effect.
-- **Tier IV, the trinket,** adds an extra button beside the action bar (default key **F**, rebindable under Controls): **Cleanse** (remove every harmful effect), **Shield** (an absorb) or **Heal**. It is the same for every class and costs nothing but its cooldown.
-- **Tier V** gives your class a new skill that replaces one you have (the mage chooses which: Polymorph or Counterspell).
+- **Tiers I and II** are the same for every spec of a class. Tier I changes one of the class's own skills (Mage: how Blink works; Warrior: Charge; Priest: Psychic Scream; Rogue: its stealth kit). Tier II is a flat boost (health, speed, damage, healing, casting speed, energy or combo points, depending on the class).
+- **Tier III** is your spec's own: stronger skills, an extra chance to trigger a proc, or a side effect on your main skill.
+- **Tier IV, the trinket,** adds an extra button beside the action bar (default key **F**, rebindable under Controls): **Cleansing Charm** (removes every harmful effect), **Warding Charm** (an absorb of 20% of your health) or **Healing Charm** (heals 25% of your health). It is the same for every class, has a 60 second cooldown, triggers no global cooldown and works while stunned.
+- **Tier V** gives your class a new skill that replaces one you have, three to choose from. Warrior (replaces Heroic Leap): Intimidating Shout, Dragon Roar or Battle Banner. Mage (replaces Polymorph or Counterspell, you choose which): Mirror Image, Evocation or Rune of Power. Priest (replaces Desperate Prayer, or Power Word: Shield for Shadow): Leap of Faith, Purifying Light or Ascend to the Heavens. Rogue: Blind or Evasion in place of Sprint, or Sap, which takes the Kidney Shot button while you are stealthed.
 
 **Tooltips** show the numbers for your build: hover any skill, buff, talent or look. Numbers your spec or talents change are green, with the base value struck through, and the spec card on the menu flags the skills your talents change. Hold **Alt** for how each number is worked out.
 
@@ -99,19 +100,19 @@ Pick one on the menu or leave it on Random.
 | Icebound Ring | A raised square walkway around an open courtyard with an ice spire, with ramps down towards each team. |
 | Sun Terraces | Two long raised terraces along the north and south walls with a ramp at each end, plus a centre obelisk and barricades. |
 
-**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, Blizzard, the banner, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground. Barricades are as tall as a person: on the ground they block walking and sight, and a jump clears them and lifts your sight line over them for a moment, long enough for an instant spell (and for them to hit you back).
+**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, the banners, Rune of Power, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground. Barricades are as tall as a person: on the ground they block walking and sight, and a jump clears them and lifts your sight line over them for a moment, long enough for an instant spell (and for them to hit you back).
 
 ## Rules worth knowing
 
 - **Casting:** most skills trigger a 1 second global cooldown. Starting another spell cancels the one you are casting. A spell you press while casting or on the global cooldown is queued and goes off as soon as you are free (the newest press wins).
-- **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, and a blade never reaches between floors, so someone up on a walkway is out of melee reach from the ground below (and the other way round). Ground spells (Flamestrike, Blizzard, the banner) are aimed at the cursor: press the key, then click to place; one still on its cooldown does not bring the ring up.
+- **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, and a blade never reaches between floors, so someone up on a walkway is out of melee reach from the ground below (and the other way round). Ground spells (Flamestrike, Battle Banner, Not Going Anywhere, Rune of Power) are aimed at the cursor: press the key, then click to place; one still on its cooldown does not bring the ring up.
 - **Dampening:** from 90 seconds into a fight, all healing and new shields get 0.5% weaker every second (up to 90%), shown at the top of the screen, so two healers cannot out-heal each other forever.
-- **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.
+- **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind, Gouge, Sap and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.
 - **Blink** frees you from stuns, roots and slows and works while stunned, but not while polymorphed or under Dragon's Breath.
 - **Auto-attack:** warriors and rogues deal steady damage (and warriors build rage) with auto-attack. It starts with a right-click on an enemy, R or any melee skill, stays on while you have an enemy targeted (so it is ready when you close in), and stops when you clear your target, or 5 seconds after combat if nothing hostile is targeted.
 - **Resources:** mana and energy refill over time. Rage starts empty, builds from damage you deal with free skills and auto-attacks and from damage you take, and drains out of combat. Rogue builders award combo points that finishers spend (Kidney Shot, Eviscerate, Exsanguinate, Adrenaline Rush); while stealthed, the builder slot becomes Cheap Shot.
 - **Stealth:** a stealthed rogue is seen only within 2 yards. Damage or attacking breaks it, and enemies you cannot see are never sent to your browser.
-- **Ground zones:** while you are in the air you dodge a pulse of Flamestrike, Blizzard and the like (one dodging jump every 1.5 seconds). Spells aimed at you always hit.
+- **Ground zones:** while you are in the air you dodge a pulse of Flamestrike and the like (one dodging jump every 1.5 seconds). Spells aimed at you always hit.
 - **Exact numbers:** there is no random damage or healing: every hit does exactly what its tooltip says.
 
 ## Practice bots

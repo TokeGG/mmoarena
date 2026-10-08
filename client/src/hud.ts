@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
-import { hpFill, hpText, plateFill, plateHpText, plateShown } from './hudLook';
+import { TARGET_ARROWS, hpFill, hpText, look, plateFill, plateHpText, plateShown } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
@@ -555,7 +555,8 @@ export class Hud {
         p.mark.dataset.mark = def?.id ?? '';
         p.mark.classList.toggle('hidden', !def);
       }
-      p.arrow.classList.toggle('hidden', !u.target);
+      p.arrow.classList.toggle('hidden', !u.target || look.targetArrow === 'off');
+      if (u.target) p.arrow.textContent = TARGET_ARROWS[look.targetArrow] ?? '▼';
       p.arrow.classList.toggle('enemy', u.enemy);
       p.root.classList.toggle('targeted', !!u.target);
       p.title.textContent = who?.title ? `«${who.title}»` : '';

@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, CLASSES, SPECS } from './data';
+import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS } from './data';
 import { validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
@@ -10,12 +10,35 @@ export const PROTOCOL_VERSION = 9;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel. */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'autotrain';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'autotrain'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill'];
 /** A running match in the owner's admin panel. */
 export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
+/** One replay the bots are training on (or just trained on), for the admin panel's progress bars. */
+export interface TrainJobRow {
+  id: string;
+  state: 'training' | 'done' | 'failed';
+  startedAt: number;
+  /** How long it should take in all, from the replay's length and how long earlier ones took. */
+  etaMs: number;
+  finishedAt?: number;
+  /** What came of it. */
+  text?: string;
+}
+/** A change a dev sent to the owner's admin panel with "Send to the admin panel"; nothing in it is live until the owner acts. */
+export interface ProposalRow {
+  id: string;
+  by: string;
+  at: number;
+  note?: string;
+  patches: DataPatch[];
+  /** The same changes in words: what, old number, new number. */
+  changes: { label: string; from: number | null; to: number }[];
+  status: 'pending' | 'live' | 'pr' | 'dismissed';
+  url?: string;
+}
 /** What a unit is playing with, shown to people watching a match. */
-export interface UnitBuild { id: number; name: string; classId: ClassId; team: TeamId; spec: string | null; talents: string[]; bar: string[] }
+export interface UnitBuild { id: number; name: string; classId: ClassId; team: TeamId; spec: string | null; talents: string[]; bar: string[]; /** A bot (its class and build can be changed from the dev panel). */ bot?: boolean; }
 /** One bot in an owner's bot match: its class and, if chosen, its spec (else a random one). */
 export interface BotPick { classId: ClassId; spec?: string }
 
@@ -88,6 +111,8 @@ export type ClientMsg =
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
   | { t: 'dev_ai'; ability: string; text: string }
+  /** Dev tools: give a bot in the dev's match another class and build, on the fly. */
+  | { t: 'dev_bot'; unit: number; classId: ClassId; build: Build }
   /** Dev tools: everyone's build in the dev's own match. */
   | { t: 'dev_builds' }
   /** Owner admin panel. */
@@ -97,6 +122,8 @@ export type ClientMsg =
   | { t: 'overrides_clear' }
   /** Owner: open a GitHub pull request with every live number change, for the data files. */
   | { t: 'overrides_pr'; note?: string }
+  /** Owner: the dev proposals (list), or act on some: make them live, open one pull request with them all, or dismiss them. */
+  | { t: 'admin_proposals'; op: 'list' | 'live' | 'pr' | 'dismiss'; ids?: string[]; note?: string }
   /** Owner moderation and server control from the admin panel (see AdminAct). */
   | { t: 'admin_act'; act: AdminAct; name?: string; minutes?: number; reason?: string; value?: number; text?: string; id?: string; on?: boolean }
   /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
@@ -142,6 +169,9 @@ export type ServerMsg =
   | { t: 'suggestions'; rows: { at: number; name: string; text: string; note?: string }[] }
   /** Numbers changed for everyone by a dev (applied over the data files). */
   | { t: 'overrides'; patches: DataPatch[] }
+  | { t: 'proposals'; rows: ProposalRow[] }
+  /** The replays the bots are training on right now and the ones just finished. */
+  | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[] }
   | { t: 'dev_session'; patches: DataPatch[] }
@@ -397,6 +427,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: m.t, ability: m.ability, text: m.text.trim().slice(0, 600) };
     case 'dev_builds':
       return { t: 'dev_builds' };
+    case 'dev_bot': {
+      if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || !CLASS_IDS.includes(m.classId)) return null;
+      const build = parseBuild(m.build);
+      if (!build) return null;
+      return { t: 'dev_bot', unit: m.unit, classId: m.classId, build };
+    }
     case 'admin_overview':
       return { t: 'admin_overview' };
     case 'admin_announce':
@@ -407,6 +443,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'admin_end', id: m.id };
     case 'overrides_clear':
       return { t: 'overrides_clear' };
+    case 'admin_proposals': {
+      if (!['list', 'live', 'pr', 'dismiss'].includes(m.op)) return null;
+      const ids = Array.isArray(m.ids) ? m.ids.filter((x: unknown): x is string => typeof x === 'string' && /^[0-9a-z]{4,20}$/.test(x)).slice(0, 100) : undefined;
+      const note = typeof m.note === 'string' ? m.note.trim().slice(0, 600) : '';
+      return { t: 'admin_proposals', op: m.op, ...(ids ? { ids } : {}), ...(note ? { note } : {}) };
+    }
     case 'overrides_pr': {
       const note = typeof m.note === 'string' ? m.note.trim().slice(0, 600) : '';
       return { t: 'overrides_pr', ...(note ? { note } : {}) };
@@ -434,7 +476,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       }
       if (m.on !== undefined) out.on = m.on === true;
       // the acts on a player need a name, the ones on a match an id
-      if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history'].includes(out.act) && !out.name) return null;
+      if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history', 'kill'].includes(out.act) && !out.name) return null;
       if ((out.act === 'pause_match' || out.act === 'train') && !out.id) return null;
       return out;
     }

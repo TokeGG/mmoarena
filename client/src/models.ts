@@ -548,16 +548,54 @@ const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x888888;
 const lighter = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), k).getHex();
 const darker = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0x000000), k).getHex();
 
-/** Armor dye: pulls every cloth and metal colour of the class model towards the dye. Skin, eye whites, dark details and glows stay. */
-function dye(b: Builder, color: number) {
+/**
+ * Armor dye: pulls every cloth and metal colour of the class model towards the dye. Skin, eye whites, dark details and glows stay.
+ * Owner dyes do more than recolour: `midas` turns the armour to polished gold with glints, `eclipse` breathes between black and
+ * violet, and `aurora` ripples through green, teal and violet from the feet up.
+ */
+function dye(b: Builder, r: Rig, color: number, style: string) {
   const target = new THREE.Color(color);
-  for (const m of b.mats) {
+  const dyed: { m: THREE.MeshStandardMaterial; base: THREE.Color; y: number }[] = [];
+  for (const m of [...b.mats]) {
     const base = m.userData.base as THREE.Color;
     const hx = base.getHex();
     const lum = (((hx >> 16) & 255) + ((hx >> 8) & 255) + (hx & 255)) / 765;
     if (hx === SKIN || m.userData.glow || lum > 0.93 || lum < 0.05) continue;
-    base.lerp(target, 0.6);
+    base.lerp(target, style === 'midas' ? 0.88 : style === 'eclipse' ? 0.8 : 0.6);
     m.color.copy(base);
+    if (style === 'midas') {
+      m.metalness = 0.95;
+      m.roughness = 0.22;
+    }
+    dyed.push({ m, base, y: dyed.length });
+  }
+  if (style === 'aurora' || style === 'eclipse') {
+    const col = new THREE.Color();
+    b.anim.push((t) => {
+      const alive = r.root.rotation.x === 0;
+      dyed.forEach(({ m, base, y }, i) => {
+        if (style === 'aurora') col.setHSL((0.36 + 0.24 * (0.5 + 0.5 * Math.sin(t * 0.7 + i * 0.55 + y * 0.2))) % 1, 0.75, 0.5);
+        else col.setHSL(0.74 + 0.05 * Math.sin(t * 0.6 + i), 0.7, 0.04 + 0.2 * (0.5 + 0.5 * Math.sin(t * 1.1 + i * 0.4)) ** 2);
+        base.copy(col);
+        if (alive) m.color.copy(base);
+      });
+    });
+  }
+  if (style === 'midas') {
+    // a few glints that flash over the gold
+    const gl: THREE.Object3D[] = [];
+    for (let i = 0; i < 5; i++) {
+      const g = b.glow(r.upper, new THREE.OctahedronGeometry(0.035), 0xfff6c8, 0.95, 0, 0, 0);
+      g.scale.set(0.35, 1.6, 0.35);
+      gl.push(g);
+    }
+    b.anim.push((t) => gl.forEach((g, i) => {
+      const k = (t * 0.55 + i * 0.2) % 1;
+      const a = i * 2.4 + t * 0.5;
+      g.position.set(Math.cos(a) * 0.42, 0.25 + ((i * 37) % 10) / 10 * 0.9, Math.sin(a) * 0.3 + 0.1);
+      g.scale.set(0.35 * Math.sin(k * Math.PI), 1.6 * Math.sin(k * Math.PI), 0.35 * Math.sin(k * Math.PI));
+      g.rotation.y = t * 3 + i;
+    }));
   }
 }
 
@@ -568,10 +606,13 @@ function dye(b: Builder, color: number) {
 function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string, CosmeticItem>) {
   const fit = FIT[classId];
   const { upper } = r;
-  if (look.tint) dye(b, hexNum(look.tint.color));
+  if (look.tint) dye(b, r, hexNum(look.tint.color), look.tint.style);
   const metal = (c: number) => b.m(c, { metal: 0.6, rough: 0.35 });
   const cloth = (c: number) => b.m(c, { rough: 0.9 });
   const gemMat = (c: number) => b.m(c, { glow: 1.3, rough: 0.25 });
+  /** A glow shape with a material of its own, so its colour can change by itself. */
+  const own = <T extends THREE.Mesh>(m: T): T => ((m.material = (m.material as THREE.MeshBasicMaterial).clone()), m);
+  const hue = (m: THREE.Mesh, h: number, l = 0.6) => (m.material as THREE.MeshBasicMaterial).color.setHSL(((h % 1) + 1) % 1, 1, l);
 
   // ---- head
   const head = look.head;
@@ -723,6 +764,28 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         });
         break;
       }
+      case 'eclipse': {
+        // a black sun hanging over the head: a dark orb in a spinning gold corona with a ring of long rays
+        const sun = new THREE.Group();
+        sun.position.set(0, top + 0.36, 0);
+        upper.add(sun);
+        b.plain(() => b.ball(sun, 0.15, b.m(0x07040d, { rough: 0.35 }), 0, 0, 0));
+        b.glow(sun, new THREE.SphereGeometry(0.25, 14, 10), c, 0.16, 0, 0, 0);
+        b.glow(sun, new THREE.TorusGeometry(0.19, 0.026, 8, 40), c, 0.95, 0, 0, 0);
+        const spokes = new THREE.Group();
+        sun.add(spokes);
+        for (let i = 0; i < 12; i++) {
+          const a = (i / 12) * Math.PI * 2;
+          const ray = b.glow(spokes, new THREE.BoxGeometry(0.014, 0.12 + (i % 2) * 0.1, 0.014), i % 2 ? lighter(c, 0.4) : c, 0.9, Math.cos(a) * 0.34, Math.sin(a) * 0.34, 0);
+          ray.rotation.z = a - Math.PI / 2;
+        }
+        b.anim.push((t) => {
+          sun.rotation.y = t * 0.9;
+          spokes.rotation.z = -t * 0.5;
+          sun.position.y = top + 0.36 + Math.sin(t * 1.6) * 0.03;
+        });
+        break;
+      }
       case 'voidhorns': {
         const flames: THREE.Object3D[] = [];
         for (const sd of sides) {
@@ -810,6 +873,40 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
             zs.push(z);
           }
           b.anim.push((t) => zs.forEach((z, i) => (z.visible = Math.sin(t * 14 + i * 2.3 + sd) + Math.sin(t * 5.1 + i) > 0.2)));
+          break;
+        }
+        case 'sunplate': {
+          // a polished gold sun disc on each shoulder with a slowly turning wheel of rays
+          b.ball(upper, 0.15, metal(darker(c, 0.4)), x, y - 0.02, 0).scale.set(1.15, 0.7, 1.1);
+          const disc = b.cyl(upper, 0.2, 0.2, 0.05, metal(c), x + sd * 0.1, y + 0.05, 0, 28);
+          disc.rotation.z = Math.PI / 2;
+          const rim = b.torus(upper, 0.2, 0.022, metal(lighter(c, 0.3)), x + sd * 0.125, y + 0.05, 0);
+          rim.rotation.y = Math.PI / 2;
+          b.plain(() => b.ball(upper, 0.065, gemMat(0xfff2b0), x + sd * 0.14, y + 0.05, 0));
+          const wheel = new THREE.Group();
+          wheel.position.set(x + sd * 0.15, y + 0.05, 0);
+          upper.add(wheel);
+          for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            const ray = b.glow(wheel, new THREE.ConeGeometry(0.03, 0.18, 5), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, Math.cos(a) * 0.3, Math.sin(a) * 0.3);
+            ray.rotation.x = a;
+          }
+          b.anim.push((t) => (wheel.rotation.x = t * 0.8 * sd));
+          break;
+        }
+        case 'curtain': {
+          // tall ribbons of northern light rising off the shoulders, swaying and shifting colour
+          b.ball(upper, 0.14, metal(darker(c, 0.55)), x, y, 0).scale.set(1.2, 0.7, 1.1);
+          const strips: THREE.Mesh[] = [];
+          for (let i = 0; i < 4; i++) {
+            strips.push(own(b.glow(upper, new THREE.BoxGeometry(0.07, 0.6, 0.008).translate(0, 0.3, 0), c, 0.75, x + sd * i * 0.05, y + 0.04, (i - 1.5) * 0.08)));
+          }
+          b.anim.push((t) => strips.forEach((m, i) => {
+            m.scale.y = 0.8 + 0.3 * Math.sin(t * 2 + i * 1.3 + sd);
+            m.rotation.z = sd * (0.12 + 0.12 * Math.sin(t * 1.5 + i));
+            m.rotation.x = 0.15 * Math.sin(t * 1.9 + i * 2);
+            hue(m, 0.36 + 0.22 * (0.5 + 0.5 * Math.sin(t * 0.8 + i * 0.9 + sd)));
+          }));
           break;
         }
         case 'dragon': {
@@ -920,6 +1017,63 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         });
         break;
       }
+      case 'rift': {
+        // not wings but a hole in the air: a big black disc with a bright rim hung behind the back, with arcs and moons turning around it
+        const portal = new THREE.Group();
+        portal.position.set(0, 0.95, -fit.chestZ - 0.24);
+        portal.rotation.y = Math.PI; // faces the camera behind the runner
+        upper.add(portal);
+        b.plain(() => b.add(portal, new THREE.CircleGeometry(0.64, 40), b.m(0x06030f, { rough: 0.5 }), 0, 0, 0));
+        b.glow(portal, new THREE.TorusGeometry(0.64, 0.032, 8, 56), c, 0.95, 0, 0, 0.01);
+        b.glow(portal, new THREE.CircleGeometry(0.7, 40), c, 0.1, 0, 0, -0.01);
+        const arcs = new THREE.Group();
+        portal.add(arcs);
+        for (let i = 0; i < 3; i++) {
+          const arc = b.glow(arcs, new THREE.TorusGeometry(0.2 + i * 0.12, 0.014, 6, 24, 2.2), i % 2 ? lighter(c, 0.4) : c, 0.8, 0, 0, 0.02);
+          arc.rotation.z = i * 2.1;
+        }
+        const moons: THREE.Object3D[] = [];
+        for (let i = 0; i < 3; i++) moons.push(b.glow(portal, new THREE.SphereGeometry(0.045, 8, 6), lighter(c, 0.5), 0.95, 0, 0, 0.03));
+        b.anim.push((t, move) => {
+          arcs.rotation.z = t * 0.8;
+          arcs.children.forEach((a, i) => (a.rotation.z = i * 2.1 + t * (i % 2 ? -0.6 : 0.9)));
+          moons.forEach((m, i) => {
+            const a = -t * 1.2 + (i / 3) * Math.PI * 2;
+            m.position.set(Math.cos(a) * 0.64, Math.sin(a) * 0.64, 0.03);
+          });
+          portal.rotation.x = move * 0.15;
+        });
+        break;
+      }
+      case 'starcloak': {
+        // a midnight cape full of twinkling stars, with shooting stars sliding down it
+        const len = fit.robe ? 1.3 : 1.0;
+        const pivot = new THREE.Group();
+        pivot.position.set(0, 0.72, -fit.chestZ + 0.02);
+        const w = fit.tw * 1.2;
+        b.rbox(pivot, w, len, 0.045, cloth(darker(c, 0.78)), 0, -len / 2, 0, 0.02);
+        b.plain(() => b.rbox(pivot, w * 1.06, 0.05, 0.06, b.m(c, { glow: 1.2 }), 0, -len + 0.025, 0, 0.02));
+        upper.add(pivot);
+        const stars: THREE.Object3D[] = [];
+        for (let i = 0; i < 14; i++) {
+          const st = b.glow(pivot, new THREE.OctahedronGeometry(0.022 + (i % 3) * 0.008), i % 3 ? lighter(c, 0.55) : 0xffffff, 0.95, (((i * 53) % 10) / 10 - 0.5) * w * 0.85, -0.08 - (((i * 37) % 10) / 10) * (len - 0.18), -0.04);
+          stars.push(st);
+        }
+        const streaks: THREE.Object3D[] = [];
+        for (let i = 0; i < 3; i++) streaks.push(b.glow(pivot, new THREE.BoxGeometry(0.014, 0.3, 0.014), 0xffffff, 0.9, 0, 0, -0.06));
+        b.anim.push((t, move) => {
+          pivot.rotation.x = 0.1 + move * 0.5 + Math.sin(t * 1.8) * 0.03;
+          stars.forEach((st, i) => st.scale.setScalar(0.3 + 1.0 * Math.abs(Math.sin(t * 2.6 + i * 1.7))));
+          streaks.forEach((m, i) => {
+            const k = (t * 0.6 + i / 3) % 1;
+            m.position.set((i - 1) * w * 0.3, -0.1 - k * (len - 0.1), -0.06);
+            m.rotation.z = 0.35;
+            m.visible = k < 0.9;
+            m.scale.y = 1 - k * 0.6;
+          });
+        });
+        break;
+      }
       case 'embercloak': {
         const len = fit.robe ? 1.3 : 1.0;
         const pivot = new THREE.Group();
@@ -1003,6 +1157,84 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         sp.forEach((m, i) => {
           const a = t * 3.2 + (i / 6) * Math.PI * 2;
           m.position.set(Math.cos(a) * 0.4, 0.1 + ((t * 0.8 + i * 0.17) % 1) * 0.6, Math.sin(a) * 0.4);
+        });
+      });
+    } else if (weapon.style === 'godfire') {
+      // a pillar of fire as tall as the wielder with rings of flame turning round it and sparks rising
+      b.glow(aura, new THREE.SphereGeometry(0.3, 16, 12), c, 0.2, 0, 0, 0);
+      const col: THREE.Object3D[] = [];
+      for (let i = 0; i < 5; i++) col.push(b.glow(aura, new THREE.ConeGeometry(0.15 - i * 0.022, 0.5, 8), i % 2 ? lighter(c, 0.45) : c, 0.75, 0, 0.3 + i * 0.3, 0));
+      const rings: THREE.Mesh[] = [];
+      for (let i = 0; i < 3; i++) rings.push(b.glow(aura, new THREE.TorusGeometry(0.2 + i * 0.07, 0.016, 8, 30), lighter(c, 0.3), 0.85, 0, 0.15 + i * 0.4, 0));
+      const em: THREE.Object3D[] = [];
+      for (let i = 0; i < 8; i++) em.push(b.glow(aura, new THREE.SphereGeometry(0.03, 6, 5), 0xfff0b0, 0.95, 0, 0, 0));
+      b.anim.push((t) => {
+        col.forEach((f, i) => {
+          f.scale.set(1 + 0.15 * Math.sin(t * 9 + i * 2), 0.8 + 0.4 * Math.abs(Math.sin(t * 7 + i * 1.3)), 1 + 0.15 * Math.cos(t * 8 + i));
+          f.position.x = Math.sin(t * 4 + i) * 0.03 * i;
+        });
+        rings.forEach((m, i) => {
+          m.rotation.x = Math.PI / 2 + Math.sin(t * 2 + i) * 0.25;
+          m.rotation.z = t * (i % 2 ? -2.2 : 2.2);
+        });
+        em.forEach((m, i) => {
+          const k = (t * 0.5 + i * 0.125) % 1;
+          const a = i * 2.4 + t;
+          m.position.set(Math.cos(a) * 0.25 * (1 - k * 0.5), 0.1 + k * 1.6, Math.sin(a) * 0.25 * (1 - k * 0.5));
+          m.scale.setScalar(1 - k * 0.8);
+        });
+      });
+    } else if (weapon.style === 'starforge') {
+      // a four-point star flaring at the weapon, with little stars circling it and glowing sparks thrown off the anvil
+      const star = new THREE.Group();
+      star.position.set(0, 0.2, 0.08);
+      aura.add(star);
+      for (const [w, len, rot, k] of [[0.05, 0.8, 0, 0], [0.05, 0.8, Math.PI / 2, 0], [0.025, 0.5, Math.PI / 4, 0.5], [0.025, 0.5, -Math.PI / 4, 0.5]] as const) {
+        b.glow(star, new THREE.BoxGeometry(w, len, 0.012), k ? lighter(c, 0.5) : c, 0.9, 0, 0, 0).rotation.z = rot;
+      }
+      const minis: THREE.Object3D[] = [];
+      for (let i = 0; i < 4; i++) {
+        const m = b.glow(aura, new THREE.OctahedronGeometry(0.05), lighter(c, 0.4), 0.95, 0, 0, 0);
+        m.scale.set(0.5, 1.5, 0.5);
+        minis.push(m);
+      }
+      const sp: THREE.Object3D[] = [];
+      for (let i = 0; i < 8; i++) sp.push(b.glow(aura, new THREE.SphereGeometry(0.025, 6, 5), 0xfff6c8, 0.95, 0, 0, 0));
+      b.anim.push((t) => {
+        star.rotation.z = t * 0.9;
+        star.scale.setScalar(0.85 + 0.25 * Math.sin(t * 5));
+        minis.forEach((m, i) => {
+          const a = t * 2.4 + (i / 4) * Math.PI * 2;
+          m.position.set(Math.cos(a) * 0.4, 0.2 + Math.sin(a) * 0.4, 0.08);
+          m.rotation.z = a;
+        });
+        sp.forEach((m, i) => {
+          const k = (t * 1.3 + i / 8) % 1;
+          const a = (i / 8) * Math.PI * 2 + Math.floor(t * 1.3 + i / 8);
+          m.position.set(Math.cos(a) * k * 0.7, 0.2 + Math.sin(a) * k * 0.5 - k * k * 0.45, Math.sin(a * 1.7) * 0.15);
+          m.scale.setScalar(1 - k * 0.8);
+        });
+      });
+    } else if (weapon.style === 'voidstorm') {
+      // a black core that drags light in: tilted rings spin around it and glowing motes spiral into the dark
+      b.plain(() => b.ball(aura, 0.1, b.m(0x050208, { rough: 0.4 }), 0, 0.05, 0));
+      b.glow(aura, new THREE.SphereGeometry(0.2, 12, 10), c, 0.3, 0, 0.05, 0);
+      const rings: THREE.Mesh[] = [];
+      for (let i = 0; i < 3; i++) rings.push(b.glow(aura, new THREE.TorusGeometry(0.18 + i * 0.07, 0.013, 8, 32), i === 1 ? lighter(c, 0.4) : c, 0.85, 0, 0.05, 0));
+      const motes: THREE.Object3D[] = [];
+      for (let i = 0; i < 12; i++) motes.push(b.glow(aura, new THREE.SphereGeometry(0.03, 6, 5), lighter(c, 0.35), 0.95, 0, 0, 0));
+      b.anim.push((t) => {
+        rings.forEach((m, i) => {
+          m.rotation.x = t * (1.4 + i * 0.5) + i * 1.1;
+          m.rotation.y = t * (0.8 - i * 0.6);
+        });
+        motes.forEach((m, i) => {
+          const k = (t * 0.7 + i / 12) % 1;
+          const a = i * 2.1 + k * 7;
+          const rad = 0.65 * (1 - k);
+          m.position.set(Math.cos(a) * rad, 0.05 + Math.sin(i * 1.9) * 0.25 * (1 - k), Math.sin(a) * rad);
+          m.scale.setScalar(0.4 + k * 0.9);
+          m.visible = k < 0.96;
         });
       });
     } else {
@@ -1101,6 +1333,102 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
             const a = i * 2.2 + t * 0.9;
             m.position.set(Math.cos(a) * (0.3 + 0.25 * ((i * 37) % 10) / 10), 0.1 + k * 2.6, Math.sin(a) * (0.3 + 0.25 * ((i * 37) % 10) / 10));
             m.scale.setScalar(1 - k * 0.6);
+          });
+        });
+        break;
+      }
+      case 'eclipsedisc': {
+        // a black disc cut into the floor, ringed by a flaring corona with long rays turning round it and light draining inward
+        const disc = b.plain(() => b.add(root, new THREE.CircleGeometry(1.05, 48), b.m(0x05030c, { rough: 0.35 }), 0, 0.03, 0));
+        disc.rotation.x = -Math.PI / 2;
+        disc.castShadow = false;
+        const ring = flat(b.glow(root, new THREE.TorusGeometry(1.05, 0.04, 8, 56), c, 0.95, 0, 0.05, 0));
+        const outer = flat(b.glow(root, new THREE.TorusGeometry(1.3, 0.012, 8, 56), lighter(c, 0.4), 0.6, 0, 0.045, 0));
+        const rays = new THREE.Group();
+        rays.position.y = 0.05;
+        root.add(rays);
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * Math.PI * 2;
+          const len = i % 2 ? 0.28 : 0.5;
+          const ray = b.glow(rays, new THREE.BoxGeometry(0.035, 0.008, len), i % 2 ? lighter(c, 0.4) : c, 0.85, Math.cos(a) * (1.12 + len / 2), 0, Math.sin(a) * (1.12 + len / 2));
+          ray.rotation.y = -a + Math.PI / 2;
+        }
+        const drain: THREE.Object3D[] = [];
+        for (let i = 0; i < 8; i++) drain.push(b.glow(root, new THREE.SphereGeometry(0.035, 6, 5), lighter(c, 0.5), 0.95, 0, 0.06, 0));
+        b.anim.push((t) => {
+          ring.scale.setScalar(1 + Math.sin(t * 2.2) * 0.03);
+          outer.scale.setScalar(1 + Math.sin(t * 1.3 + 1) * 0.05);
+          rays.rotation.y = t * 0.35;
+          drain.forEach((m, i) => {
+            const k = (t * 0.4 + i / 8) % 1;
+            const a = i * 0.785 + k * 2;
+            m.position.set(Math.cos(a) * (1.25 * (1 - k)), 0.06, Math.sin(a) * (1.25 * (1 - k)));
+            m.scale.setScalar(1 - k * 0.7);
+          });
+        });
+        break;
+      }
+      case 'stormlord': {
+        // four lightning pylons round you joined by crackling arcs, and a bolt that now and then strikes the middle
+        const R = 1.0;
+        const tops: THREE.Vector3[] = [];
+        flat(b.glow(root, new THREE.TorusGeometry(R, 0.025, 8, 48), c, 0.7, 0, 0.04, 0));
+        for (let i = 0; i < 4; i++) {
+          const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+          const px = Math.cos(a) * R;
+          const pz = Math.sin(a) * R;
+          b.glow(root, new THREE.BoxGeometry(0.07, 1.2, 0.07), lighter(c, 0.2), 0.9, px, 0.6, pz);
+          b.glow(root, new THREE.OctahedronGeometry(0.1), lighter(c, 0.55), 0.95, px, 1.28, pz);
+          tops.push(new THREE.Vector3(px, 1.28, pz));
+        }
+        const arcs: THREE.Mesh[] = [];
+        for (let i = 0; i < 4; i++) {
+          const p = tops[i];
+          const q = tops[(i + 1) % 4];
+          const len = p.distanceTo(q);
+          const arc = b.glow(root, new THREE.BoxGeometry(len, 0.03, 0.03), 0xffffff, 0.95, (p.x + q.x) / 2, 1.28, (p.z + q.z) / 2);
+          arc.rotation.y = -Math.atan2(q.z - p.z, q.x - p.x);
+          arcs.push(arc);
+        }
+        const bolt = b.glow(root, new THREE.BoxGeometry(0.07, 2.8, 0.07), 0xffffff, 0.95, 0, 1.4, 0);
+        const flash = flat(b.glow(root, new THREE.RingGeometry(0.05, 0.55, 32), lighter(c, 0.5), 0.6, 0, 0.05, 0));
+        b.anim.push((t) => {
+          arcs.forEach((m, i) => {
+            m.visible = Math.sin(t * 19 + i * 2.3) + Math.sin(t * 7.1 + i) > -0.3;
+            m.position.y = 1.28 + Math.sin(t * 40 + i) * 0.06;
+          });
+          const k = (t * 0.6) % 1.4;
+          bolt.visible = flash.visible = k < 0.16 && Math.sin(t * 60) > -0.4;
+          bolt.position.x = Math.sin(t * 90) * 0.04;
+        });
+        break;
+      }
+      case 'cyclone': {
+        // a tall funnel of whirling bands that widens as it climbs, with leaves torn up inside it
+        const levels: THREE.Group[] = [];
+        for (let i = 0; i < 9; i++) {
+          const g = new THREE.Group();
+          g.position.y = 0.1 + i * 0.26;
+          const rad = 0.3 + i * 0.075;
+          flat(b.glow(g, new THREE.TorusGeometry(rad, 0.014, 6, 36), i % 2 ? lighter(c, 0.3) : c, 0.6 - i * 0.04, 0, 0, 0));
+          for (let j = 0; j < 3; j++) {
+            const a = (j / 3) * Math.PI * 2;
+            const bl = b.glow(g, new THREE.BoxGeometry(0.2 + i * 0.012, 0.02, 0.05), c, 0.7 - i * 0.04, Math.cos(a) * rad, 0, Math.sin(a) * rad);
+            bl.rotation.y = -a;
+          }
+          root.add(g);
+          levels.push(g);
+        }
+        const leaves: THREE.Object3D[] = [];
+        for (let i = 0; i < 9; i++) leaves.push(b.glow(root, new THREE.BoxGeometry(0.09, 0.012, 0.05), i % 2 ? 0xd8ffd0 : lighter(c, 0.5), 0.95, 0, 0, 0));
+        b.anim.push((t) => {
+          levels.forEach((g, i) => (g.rotation.y = t * (2.6 - i * 0.18) * (i % 2 ? -1 : 1)));
+          leaves.forEach((m, i) => {
+            const k = (t * 0.3 + i * 0.111) % 1;
+            const a = t * 3 + i * 2.2;
+            const rad = 0.2 + k * 0.7;
+            m.position.set(Math.cos(a) * rad, 0.1 + k * 2.2, Math.sin(a) * rad);
+            m.rotation.set(t * 3 + i, a, t * 2);
           });
         });
         break;
@@ -1243,6 +1571,81 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         b.anim.push((t) => {
           g.position.copy(pos(t));
           tail.forEach((m, i) => m.position.copy(pos(t - (i + 1) * 0.07)));
+        });
+        break;
+      }
+      case 'crownring': {
+        // four little golden crowns circling at chest height, each turning on its own
+        const minis: THREE.Group[] = [];
+        for (let i = 0; i < 4; i++) {
+          const g = new THREE.Group();
+          b.torus(g, 0.07, 0.012, metal(c), 0, 0, 0).rotation.x = Math.PI / 2;
+          for (let j = 0; j < 5; j++) {
+            const a = (j / 5) * Math.PI * 2;
+            b.cone(g, 0.014, 0.07 + (j % 2) * 0.03, metal(c), Math.cos(a) * 0.07, 0.045, Math.sin(a) * 0.07, 5);
+          }
+          b.plain(() => b.ball(g, 0.016, gemMat(i % 2 ? 0xff3355 : 0x55ccff), 0, 0, 0.07));
+          upper.add(g);
+          minis.push(g);
+        }
+        const trail = b.glow(upper, new THREE.TorusGeometry(0.68, 0.008, 6, 48), c, 0.4, 0, 0.8, 0);
+        trail.rotation.x = Math.PI / 2;
+        b.anim.push((t) => minis.forEach((g, i) => {
+          const a = t * 1.1 + (i / 4) * Math.PI * 2;
+          g.position.set(Math.cos(a) * 0.68, 0.8 + Math.sin(t * 2 + i * 1.6) * 0.06, Math.sin(a) * 0.68);
+          g.rotation.y = -a + t * 2;
+          g.rotation.z = Math.sin(t * 1.5 + i) * 0.35;
+        }));
+        break;
+      }
+      case 'armillary': {
+        // a miniature sun held in three turning golden rings, hovering over the shoulder
+        const g = new THREE.Group();
+        b.plain(() => b.ball(g, 0.075, b.m(c, { glow: 1.9, rough: 0.2 }), 0, 0, 0));
+        b.glow(g, new THREE.SphereGeometry(0.2, 12, 10), c, 0.28, 0, 0, 0);
+        const rings: THREE.Mesh[] = [];
+        for (let i = 0; i < 3; i++) rings.push(b.glow(g, new THREE.TorusGeometry(0.15 + i * 0.05, 0.011, 6, 32), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, 0, 0));
+        const flare = b.glow(g, new THREE.SphereGeometry(0.03, 6, 5), 0xffffff, 0.95, 0.3, 0, 0);
+        upper.add(g);
+        b.anim.push((t) => {
+          rings.forEach((m, i) => {
+            m.rotation.x = t * (1.1 + i * 0.4) + i * 2;
+            m.rotation.y = t * (0.7 - i * 0.5) + i;
+          });
+          flare.position.set(Math.cos(t * 3) * 0.3, Math.sin(t * 3) * 0.1, Math.sin(t * 3) * 0.3);
+          g.position.set(-0.55, fit.headTop * 0.85 + Math.sin(t * 1.8) * 0.07, 0.05);
+        });
+        break;
+      }
+      case 'eclipseorb': {
+        // a black star with a thin flaring corona that traces a figure of eight round you, leaving a violet wake
+        const g = new THREE.Group();
+        b.plain(() => b.ball(g, 0.085, b.m(0x07040d, { rough: 0.3 }), 0, 0, 0));
+        const corona = b.glow(g, new THREE.TorusGeometry(0.12, 0.016, 8, 32), c, 0.95, 0, 0, 0);
+        b.glow(g, new THREE.SphereGeometry(0.2, 12, 10), c, 0.18, 0, 0, 0);
+        upper.add(g);
+        const wake: THREE.Object3D[] = [];
+        for (let i = 0; i < 5; i++) wake.push(b.glow(upper, new THREE.SphereGeometry(0.035 - i * 0.005, 6, 5), c, 0.7 - i * 0.12, 0, 0, 0));
+        const pos = (t: number) => new THREE.Vector3(Math.sin(t * 0.9) * 0.85, fit.headTop * 0.7 + Math.sin(t * 1.8) * 0.2, Math.sin(t * 1.8) * 0.55);
+        b.anim.push((t) => {
+          g.position.copy(pos(t));
+          corona.rotation.set(t * 2.2, t * 1.4, 0);
+          wake.forEach((m, i) => m.position.copy(pos(t - (i + 1) * 0.12)));
+        });
+        break;
+      }
+      case 'serpent': {
+        // a long ribbon of light that winds up and down round you, its colour drifting through green, teal and violet
+        const head = make(0.06);
+        const segs: THREE.Mesh[] = [];
+        for (let i = 0; i < 14; i++) segs.push(own(b.glow(upper, new THREE.SphereGeometry(0.058 - i * 0.003, 8, 6), c, 0.85 - i * 0.04, 0, 0, 0)));
+        const pos = (t: number) => new THREE.Vector3(Math.cos(t * 1.3) * 0.75, 0.85 + Math.sin(t * 0.9) * 0.7, Math.sin(t * 1.3) * 0.75);
+        b.anim.push((t) => {
+          head.position.copy(pos(t));
+          segs.forEach((m, i) => {
+            m.position.copy(pos(t - (i + 1) * 0.085));
+            hue(m, 0.36 + 0.24 * (0.5 + 0.5 * Math.sin(t * 0.9 - i * 0.35)));
+          });
         });
         break;
       }
