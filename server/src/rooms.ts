@@ -103,6 +103,8 @@ const SUGGEST_GAP_MS = 20000;
 
 const gzip = promisify(zlib.gzip);
 const gunzip = promisify(zlib.gunzip);
+/** How long an announcement is still shown to people who come online after it. */
+const ANNOUNCE_KEEP_MS = 10 * 60_000;
 
 export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
@@ -846,8 +848,13 @@ export class Lobby {
     const out = this.connectNow(ws, ip);
     // numbers a dev saved for everyone: the client applies them over its own copy of the data
     if (this.dev?.overrides.length) send(out, { t: 'overrides', patches: this.dev.overrides });
+    // a recent announcement greets people who come online just after it
+    if (this.lastAnnounce && Date.now() - this.lastAnnounce.at < ANNOUNCE_KEEP_MS) send(out, this.lastAnnounce);
     return out;
   }
+
+  /** The owner's last announcement. */
+  private lastAnnounce: Extract<ServerMsg, { t: 'announce' }> | null = null;
 
   private connectNow(ws: WebSocket, ip = ''): Player {
     const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random', size: 2, pending: 0 };
@@ -1213,7 +1220,8 @@ export class Lobby {
       }
       case 'admin_announce': {
         if (!p.ownerOk) return;
-        for (const q of this.conns) send(q, { t: 'notice', text: `📣 ${msg.text}` });
+        this.lastAnnounce = { t: 'announce', text: msg.text, by: p.account?.name ?? p.name, at: Date.now() };
+        for (const q of this.conns) send(q, this.lastAnnounce);
         void this.adminLog?.add(p.account?.name ?? p.name, 'announce', undefined, msg.text);
         break;
       }

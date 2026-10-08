@@ -27,6 +27,7 @@ import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel } from './adminPanel';
+import { AnnounceBanner } from './announce';
 import { closeAllPopups, registerPopup } from './popups';
 
 const DT = TUNING.tickMs / 1000;
@@ -316,6 +317,9 @@ function onMessage(raw: MessageEvent) {
     case 'invite_gone':
     case 'notice':
       friendsUi.handle(m);
+      break;
+    case 'announce':
+      announceBanner.show(m, () => audio.ui('select'));
       break;
     case 'duel_go':
       void joinDuel(m.with);
@@ -1309,6 +1313,8 @@ const friendsUi = new FriendsUi({
   },
 });
 const suggestUi = new SuggestUi({ send: (m) => send(m), isOwner: () => !!accountUi.account?.ownerOk, signedIn: () => !!accountUi.account, needSignIn: () => accountUi.openAuth() });
+/** The owner's announcements: a big banner at the top of the screen. */
+const announceBanner = new AnnounceBanner();
 /** The owner's admin panel (its own window, from the 🛡 button). */
 const adminPanel = new AdminPanel({
   send: (m) => accountUi.sendRaw(m),

@@ -193,6 +193,13 @@
   .devp-skills { display:flex; flex-wrap:wrap; gap:3px; margin:6px 0; }
   .devp-skill { width:28px; height:28px; display:grid; place-items:center; background:#1c1a26; border:1px solid #3d3550; border-radius:6px; cursor:pointer; font-size:15px; }
   .devp-skill.sel { border-color:#c9a24a; background:#2a2238; }
+  .announce { position:fixed; top:70px; left:50%; transform:translate(-50%,-30px); opacity:0; z-index:9000; width:min(720px, calc(100vw - 32px)); background:linear-gradient(#2a2110f2,#17120af2); border:2px solid #e8b84a; border-radius:14px; box-shadow:0 10px 40px #000a, 0 0 24px #e8b84a55; padding:14px 44px 16px 18px; color:#fff; transition:transform .3s ease, opacity .3s ease; pointer-events:auto; }
+  .announce.in { transform:translate(-50%,0); opacity:1; }
+  .announce-head { font-size:13px; font-weight:700; color:#ffd24a; text-transform:uppercase; letter-spacing:.06em; display:flex; gap:10px; align-items:baseline; }
+  .announce-head small { color:#c9b98f; font-weight:400; text-transform:none; letter-spacing:0; }
+  .announce-text { font-size:22px; line-height:1.35; margin-top:6px; white-space:pre-wrap; overflow-wrap:anywhere; }
+  .announce-x { position:absolute; top:8px; right:10px; background:none; border:0; color:#ffd24a; font-size:18px; cursor:pointer; }
+  @media (max-width: 600px) { .announce { top:56px; } .announce-text { font-size:18px; } }
   .devp-title { font-weight:700; color:#ffd24a; margin:4px 0; }
   .devp-fields { display:grid; gap:3px; }
   .devp-field { display:flex; justify-content:space-between; align-items:center; gap:6px; }
