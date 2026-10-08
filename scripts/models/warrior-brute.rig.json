@@ -1,0 +1,127 @@
+{
+  "_doc": "Conversion config for the already-rigged brute (FBX). Coordinates in the regions/attach/runtime blocks are fractions of the model's height (feet y = 0, hips centred, +x = the character's left, +z = front). See DEVELOPING.md.",
+  "mesh": "dede",
+  "height": 2.1,
+  "heightMaterials": [
+    0
+  ],
+  "bodyOnlyMaterials": [
+    1
+  ],
+  "bones": {
+    "hips": "Hips",
+    "spine": "Spine",
+    "chest": "Spine2",
+    "neck": "Neck",
+    "head": "Head",
+    "shoulder_l": "LeftShoulder",
+    "upperarm_l": "LeftArm",
+    "forearm_l": "LeftForeArm",
+    "hand_l": "LeftHand",
+    "shoulder_r": "RightShoulder",
+    "upperarm_r": "RightArm",
+    "forearm_r": "RightForeArm",
+    "hand_r": "RightHand",
+    "thigh_l": "LeftUpLeg",
+    "shin_l": "LeftLeg",
+    "foot_l": "LeftFoot",
+    "thigh_r": "RightUpLeg",
+    "shin_r": "RightLeg",
+    "foot_r": "RightFoot"
+  },
+  "extraBones": {
+    "spine1": "Spine1",
+    "toe_l": "LeftToeBase",
+    "toe_r": "RightToeBase"
+  },
+  "materials": [
+    {
+      "name": "body",
+      "texture": "4.jpg",
+      "size": 960,
+      "metal": 0.2,
+      "rough": 0.7
+    },
+    {
+      "name": "axe",
+      "texture": "5.jpg",
+      "emissive": "8.jpg",
+      "emissiveFactor": [
+        1,
+        0.75,
+        0.35
+      ],
+      "size": 512,
+      "metal": 0.5,
+      "rough": 0.4
+    }
+  ],
+  "regions": [
+    {
+      "part": "head",
+      "box": {
+        "x": [
+          -0.14,
+          0.14
+        ],
+        "y": [
+          0.79,
+          1.2
+        ]
+      }
+    },
+    {
+      "part": "shoulders",
+      "ellipsoid": {
+        "c": [
+          0.2,
+          0.745,
+          -0.05
+        ],
+        "r": [
+          0.13,
+          0.13,
+          0.19
+        ],
+        "mirror": true
+      }
+    }
+  ],
+  "attach": {
+    "attach_hand_l": {
+      "bone": "hand_l",
+      "at": [
+        0.328,
+        0.58,
+        0.0
+      ]
+    },
+    "attach_hand_r": {
+      "bone": "hand_r",
+      "at": [
+        -0.328,
+        0.58,
+        0.0
+      ]
+    }
+  },
+  "runtime": {
+    "headCenter": [
+      0,
+      0.87,
+      -0.03
+    ],
+    "headR": 0.085,
+    "shoulderJoint": [
+      0.19,
+      0.76,
+      -0.05
+    ],
+    "chestBackZ": 0.19,
+    "torsoW": 0.42,
+    "deadY": 0.207
+  },
+  "runtimeRaw": {
+    "ownWeapon": true
+  }
+}

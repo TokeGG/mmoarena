@@ -2,6 +2,7 @@ import { ABILITIES, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, 
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
+import { preloadRiggedModels } from './riggedModels';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
 import { Hud, blockedByCondition } from './hud';
@@ -41,6 +42,7 @@ const INTERP_DELAY_MS = 100;
 const audio = new Audio();
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const scene = new ArenaScene(canvas);
+void preloadRiggedModels(); // skinned character models load in the background; until then (or if one fails) the procedural models are used
 const binds = new Keybinds();
 const controls = new Controls(canvas, binds);
 controls.inMatch = () => !!latest;

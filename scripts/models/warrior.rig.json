@@ -1,0 +1,209 @@
+{
+  "_doc": "Rig config for the gold/black horned knight (client/public/models/warrior.glb). Coordinates are fractions of the model's height: y from the feet, x/z from the centre, +x = the character's left, +z = front. See DEVELOPING.md.",
+  "height": 2.25,
+  "targetTris": 12000,
+  "textureSize": 1024,
+  "textureQuality": 88,
+  "joints": {
+    "hips": [
+      0,
+      0.5,
+      0
+    ],
+    "spine": [
+      0,
+      0.575,
+      0
+    ],
+    "chest": [
+      0,
+      0.67,
+      0
+    ],
+    "neck": [
+      0,
+      0.8,
+      0.005
+    ],
+    "head": [
+      0,
+      0.835,
+      0.01
+    ],
+    "headTop": [
+      0,
+      0.99,
+      0.0
+    ],
+    "shoulder": [
+      0.03,
+      0.775,
+      0
+    ],
+    "upperarm": [
+      0.16,
+      0.765,
+      0
+    ],
+    "forearm": [
+      0.205,
+      0.54,
+      0
+    ],
+    "hand": [
+      0.2,
+      0.41,
+      0.02
+    ],
+    "handTip": [
+      0.19,
+      0.345,
+      0.03
+    ],
+    "thigh": [
+      0.065,
+      0.5,
+      0
+    ],
+    "shin": [
+      0.075,
+      0.29,
+      0.01
+    ],
+    "foot": [
+      0.075,
+      0.075,
+      0
+    ],
+    "toe": [
+      0.075,
+      0.02,
+      0.07
+    ]
+  },
+  "radius": {},
+  "smooth": 0.03,
+  "regions": [
+    {
+      "part": "head",
+      "box": {
+        "x": [
+          0,
+          0.105
+        ],
+        "y": [
+          0.835,
+          1.1
+        ]
+      }
+    },
+    {
+      "part": "head",
+      "box": {
+        "x": [
+          -0.105,
+          0
+        ],
+        "y": [
+          0.835,
+          1.1
+        ]
+      }
+    },
+    {
+      "part": "shoulders",
+      "ellipsoid": {
+        "c": [
+          0.175,
+          0.775,
+          0
+        ],
+        "r": [
+          0.105,
+          0.11,
+          0.13
+        ],
+        "mirror": true
+      }
+    },
+    {
+      "part": "back",
+      "box": {
+        "y": [
+          0.07,
+          0.53
+        ],
+        "z": [
+          -1,
+          -0.06
+        ]
+      }
+    }
+  ],
+  "cloth": [
+    {
+      "box": {
+        "y": [
+          0.07,
+          0.5
+        ],
+        "z": [
+          0.075,
+          1
+        ]
+      },
+      "maxFollow": 0.5,
+      "ramp": 0.12,
+      "spread": 0.06
+    },
+    {
+      "box": {
+        "y": [
+          0.07,
+          0.5
+        ],
+        "z": [
+          -1,
+          -0.075
+        ]
+      },
+      "maxFollow": 0.5,
+      "ramp": 0.12,
+      "spread": 0.06
+    }
+  ],
+  "attach": {
+    "attach_hand_l": {
+      "bone": "hand_l",
+      "at": [
+        0.2,
+        0.38,
+        0.03
+      ]
+    },
+    "attach_hand_r": {
+      "bone": "hand_r",
+      "at": [
+        -0.2,
+        0.38,
+        0.03
+      ]
+    }
+  },
+  "runtime": {
+    "headCenter": [
+      0,
+      0.905,
+      0.005
+    ],
+    "headR": 0.062,
+    "shoulderJoint": [
+      0.17,
+      0.775,
+      0
+    ],
+    "chestBackZ": 0.085,
+    "torsoW": 0.26,
+    "deadY": 0.133
+  }
+}

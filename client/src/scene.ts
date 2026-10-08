@@ -9,6 +9,7 @@ import { arenaById, heightAt, onRaised, clamp } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
+import { modelVersion } from './riggedModels';
 import { buildArenaEnvironment } from './arenaMap';
 import type { ArenaEnvironment } from './arenaMap';
 import type { Character } from './models';
@@ -45,6 +46,8 @@ interface UnitMesh {
   classId: ClassId;
   look: string;
   weapon: string;
+  /** `modelVersion()` the character was built with: a rigged model that loads later triggers a rebuild. */
+  modelVer: number;
   lastX: number;
   /** Drawn floor height under the unit: follows ramps directly, drops with gravity off a ledge. */
   baseY?: number;
@@ -167,7 +170,7 @@ export class ArenaScene {
     group.add(ring, targetRing);
     for (const mesh of [...character.meshes, ...sheep.meshes, ring, targetRing]) mesh.userData.unitId = id;
     this.scene.add(group);
-    return { group, character, sheep, ring, targetRing, classId, look, weapon, lastX: x, lastZ: z, phase: 0, move: 0, vf: 0, vs: 0 };
+    return { group, character, sheep, ring, targetRing, classId, look, weapon, modelVer: modelVersion(), lastX: x, lastZ: z, phase: 0, move: 0, vf: 0, vs: 0 };
   }
 
   /** Swap the scenery (and the camera's pillar collision) to another arena. A no-op if it is already showing. */
@@ -201,7 +204,7 @@ export class ArenaScene {
       if (!m) {
         m = this.createUnitMesh(u.id, u.classId, u.look ?? '', u.weapon ?? '', u.x, u.z);
         this.meshes.set(u.id, m);
-      } else if (m.classId !== u.classId || m.look !== (u.look ?? '') || m.weapon !== (u.weapon ?? '')) {
+      } else if (m.classId !== u.classId || m.look !== (u.look ?? '') || m.weapon !== (u.weapon ?? '') || m.modelVer !== modelVersion()) {
         // a different class or different gear (menu preview, or a spectated unit): rebuild the model in place
         m.group.remove(m.character.root);
         m.character = createCharacter(u.classId, u.look ?? '', u.weapon || undefined);
@@ -210,6 +213,7 @@ export class ArenaScene {
         m.classId = u.classId;
         m.look = u.look ?? '';
         m.weapon = u.weapon ?? '';
+        m.modelVer = modelVersion(); // a rigged model that finished loading replaces the procedural stand-in
       }
       // walk cycle driven by how far the unit actually moved this frame
       const vx = (u.x - m.lastX) / dt;
@@ -235,7 +239,7 @@ export class ArenaScene {
       m.character.root.visible = !u.sheep;
       m.sheep.root.visible = u.sheep;
       active.setState(u.alive, u.stealthed);
-      active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt, vf: m.vf, vs: m.vs });
+      active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt, vf: m.vf, vs: m.vs, air: u.y });
       (m.ring.material as THREE.MeshBasicMaterial).color.set(u.team === myTeam ? 0x3fbf5f : 0xc0392b);
       m.ring.visible = u.alive && this.teamRings;
       const isTarget = u.id === targetId && hudLook.targetRing !== 'off';

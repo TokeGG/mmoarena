@@ -63,6 +63,21 @@ The full list is in [CLAUDE.md](CLAUDE.md). In short:
 | `scripts/` | `train-bots.ts` (bot training), `study-replays.ts` (learning from real replays), `train-rotations.ts` and `gen-wiki.ts` (writes WIKI.md). |
 | tests | `shared/test`, `server/test` and `client/test`, run by `npm test`. |
 
+## Character models
+
+Classes can wear a skinned GLB instead of the procedural primitives. The warrior currently has two: the gold/black horned `knight` (default, `client/public/models/warrior.glb`) and an alternative `brute` with its own axe (`warrior-brute.glb`). Preview an alternative with `?warriormodel=brute` in the URL or `localStorage['arena.model.warrior'] = 'brute'` (`procedural` forces the old model). Until a model has loaded, or if it fails to load, the procedural model is used and scenes rebuild their characters when the load finishes.
+
+**The owner must have the right to use every model that is committed (licence and credit them); never commit the original multi-megabyte source file, keep it outside the repo.**
+
+Two scripts produce a game GLB (feet at y = 0, about 2.1-2.25 units tall, facing +z, character's left on +x), both configured by a JSON next to them in `scripts/models/`; coordinates in the configs are fractions of the model's height:
+
+- `node scripts/rig-model.mjs <static.glb> scripts/models/warrior.rig.json client/public/models/warrior.glb [--debug <prefix>] [--cache <file>]` for an UNRIGGED mesh (e.g. AI generated, hundreds of thousands of triangles). It decimates (meshoptimizer) to `targetTris`, builds new UVs and bakes the original texture into a `textureSize` JPEG (the source atlas is too fragmented to survive decimation), splits the triangles into the cosmetic parts `head` / `shoulders` / `back` / `body` by `regions`, builds the standard skeleton from `joints`, and computes smooth skin weights (nearest bone capsule, blurred over the surface; `cloth` boxes make hanging cloth follow the thighs only partly so it does not tear). `--debug` writes `<prefix>.parts.glb` and `<prefix>.weights.glb` (vertex colours) to tune regions and joints by eye; `--cache` skips the slow decimate and bake step between runs.
+- `node scripts/convert-skinned.mjs <model.fbx> scripts/models/warrior-brute.rig.json client/public/models/warrior-brute.glb --assets <texture dir>` for a model that is ALREADY skinned: keeps its weights, renames bones to the standard names (`bones`, `extraBones`), splits parts by `regions`, embeds the textures listed under `materials` (`texture`, optional `emissive` glow map).
+
+Config fields: `height` (output size), `joints` (rig-model only), `regions` (`{part, box|ellipsoid}`, first match wins; `back` may be absent), `cloth`, `attach` (hand grip points, `attach_hand_l/r`), `runtime` (headCenter, headR, shoulderJoint, chestBackZ, torsoW, deadY: measured on the model, they place the cosmetics and the bare head and shoulder joints shown where an item replaces a part), `runtimeRaw`. The pose is procedural (`client/src/riggedPose.ts`, driven by bone rotations from the same inputs the procedural models use), so no clips are needed.
+
+To add a model for another class or spec: run the script, put the GLB in `client/public/models/`, add a `ModelDef` to `MODELS` in `client/src/riggedModels.ts` and point `CLASS_MODEL` at it (`default`, `byWeapon` for a per-spec model, `alternatives` for preview choices; `pose` tunes the gait, `ownWeapon` skips attaching the spec weapons). Class-specific weapon building lives in `models.ts` (`warriorWeapons`), so another class needs its own held-item function the same way. Run `npx tsx --test client/test/models.test.ts` (it loads the GLBs from disk).
+
 ## Hosting on Render
 
 The game is built from the GitHub repo `TokeGG/mmoarena` and hosted on Render at https://mmoarena.onrender.com; every push to `main` redeploys it (wait for **Deploy live**, then reload with Ctrl+Shift+R).

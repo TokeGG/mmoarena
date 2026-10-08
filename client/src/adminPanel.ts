@@ -112,7 +112,10 @@ export class AdminPanel {
 
   constructor(private hooks: Hooks) {
     makeResizable(this.card, { key: 'admin', corner: 'br', minW: 480, minH: 320, z: 61 });
-    this.op = new OwnerPanel({ send: hooks.send, token: hooks.token, rerender: () => this.paint(), watch: (id) => { this.close(); hooks.watch(id); }, follow: (n) => hooks.follow(n) });
+    this.op = new OwnerPanel({ send: hooks.send, token: hooks.token, rerender: () => {
+        this.paint();
+        this.paintBotBattle(); // the bot battle window from the main menu redraws too (more bots when the size changes)
+      }, watch: (id) => { this.close(); hooks.watch(id); }, follow: (n) => hooks.follow(n) });
   }
 
   get isOpen(): boolean {
