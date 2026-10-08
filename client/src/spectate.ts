@@ -306,8 +306,15 @@ export class LivePicker {
     private follow?: { isOwner: () => boolean; current: () => string | null; set: (name: string | null) => void },
   ) {}
 
+  /** The follow box's text, kept while the list redraws itself. */
+  private draft: string | null = null;
+  private timer = 0;
+
   show(rows: LiveMatch[] | null) {
-    this.close();
+    const hadFocus = document.activeElement instanceof HTMLInputElement && this.modal?.contains(document.activeElement);
+    this.modal?.remove();
+    this.modal = null;
+    window.clearInterval(this.timer);
     const modal = el('div', 'mm-modal');
     modal.addEventListener('mousedown', (e) => e.target === modal && this.close());
     const card = el('div', 'mm-modal-card');
@@ -327,7 +334,9 @@ export class LivePicker {
       input.type = 'text';
       input.placeholder = 'Player name';
       input.maxLength = 16;
-      input.value = now ?? '';
+      input.value = this.draft ?? now ?? '';
+      input.addEventListener('input', () => (this.draft = input.value));
+      if (hadFocus) queueMicrotask(() => input.focus());
       const go = el('button', 'mm-small mm-go', 'Follow');
       const submit = () => {
         if (!input.value.trim()) return;
@@ -386,9 +395,13 @@ export class LivePicker {
     modal.append(card);
     document.body.append(modal);
     this.modal = modal;
+    // the list keeps itself up to date while it is open: matches appear and disappear as they start and end
+    if (this.signedIn()) this.timer = window.setInterval(() => this.modal && this.refresh(), 3000);
   }
 
   close() {
+    window.clearInterval(this.timer);
+    this.draft = null;
     this.modal?.remove();
     this.modal = null;
   }

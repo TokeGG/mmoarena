@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
-import { hpFill, hpText, plateFill, plateHpText, plateShown } from './hudLook';
+import { TARGET_ARROWS, hpFill, hpText, look, plateFill, plateHpText, plateShown } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
@@ -235,7 +235,8 @@ export class Hud {
     $('self-frame').classList.add('clickable');
     $('self-frame').addEventListener('mousedown', (e) => {
       e.stopPropagation();
-      if (this.youId !== null) this.handlers.onTarget(this.youId);
+      // only a plain left click targets; a right button (camera) pressed over the frame must not
+      if (e.button === 0 && e.buttons === 1 && this.youId !== null) this.handlers.onTarget(this.youId);
     });
   }
 
@@ -460,6 +461,7 @@ export class Hud {
         const root = el('div', 'frame clickable');
         root.addEventListener('mousedown', (e) => {
           e.stopPropagation();
+          if (e.button !== 0 || e.buttons !== 1) return; // the camera buttons never target
           this.handlers.onTarget(u.id);
         });
         f = new UnitFrame(root, false);
@@ -555,7 +557,8 @@ export class Hud {
         p.mark.dataset.mark = def?.id ?? '';
         p.mark.classList.toggle('hidden', !def);
       }
-      p.arrow.classList.toggle('hidden', !u.target);
+      p.arrow.classList.toggle('hidden', !u.target || look.targetArrow === 'off');
+      if (u.target) p.arrow.textContent = TARGET_ARROWS[look.targetArrow] ?? '▼';
       p.arrow.classList.toggle('enemy', u.enemy);
       p.root.classList.toggle('targeted', !!u.target);
       p.title.textContent = who?.title ? `«${who.title}»` : '';

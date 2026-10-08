@@ -1,5 +1,6 @@
 import { promisify } from 'node:util';
 import { gzip as gzipCb } from 'node:zlib';
+import { cpus } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import { CLASS_IDS, contentHash, forcedStudy, freshenPopulation, lessonBrain, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, styledBrain } from '@arena/shared';
 import type { Brain, ClassId, HumanStyle, Lessons, Population, ReplayData, StudyOptions } from '@arena/shared';
@@ -30,61 +31,78 @@ export type Ledger = Record<string, { w: number; g: number }>;
 export const ledgerKey = (bot: ClassId, person: ClassId, difficulty: string) => `${bot}>${person}:${difficulty}`;
 
 /**
- * One long-lived worker thread that measures replays off the game loop. If the worker cannot start (or dies), the
+ * A small pool of worker threads that measure replays off the game loop, so several replays can be trained on at the
+ * same time. Each job goes to the worker with the fewest jobs waiting. If a worker cannot start (or dies), the
  * measurement falls back to the main thread rather than being lost.
  */
 export class MeasureWorker {
-  private worker: Worker | null = null;
+  private workers: { w: Worker; pending: number }[] = [];
   private nextId = 1;
-  private waiting = new Map<number, { resolve: (m: Measured) => void; reject: (e: unknown) => void }>();
+  private waiting = new Map<number, { resolve: (m: Measured) => void; reject: (e: unknown) => void; slot: { pending: number } }>();
   private broken = false;
 
+  constructor(private size = Math.min(4, Math.max(1, cpus().length - 1))) {}
+
   readonly measure: Measure = (replay, opts) => {
-    const w = this.ensure();
-    if (!w) return measureInline(replay, opts);
+    const slot = this.pick();
+    if (!slot) return measureInline(replay, opts);
     const id = this.nextId++;
     return new Promise<Measured>((resolve, reject) => {
       // a worker that never answers must not leak the job forever
-      const timer = setTimeout(() => { if (this.waiting.delete(id)) reject(new Error('measuring timed out')); }, 120000);
+      const timer = setTimeout(() => { const j = this.waiting.get(id); if (j) { this.waiting.delete(id); j.slot.pending--; reject(new Error('measuring timed out')); } }, 180000);
       timer.unref();
-      this.waiting.set(id, { resolve: (m) => { clearTimeout(timer); resolve(m); }, reject: (e) => { clearTimeout(timer); reject(e); } });
-      w.postMessage({ id, replay, opts });
+      this.waiting.set(id, { resolve: (m) => { clearTimeout(timer); resolve(m); }, reject: (e) => { clearTimeout(timer); reject(e); }, slot });
+      slot.pending++;
+      slot.w.postMessage({ id, replay, opts });
     });
   };
 
-  private ensure(): Worker | null {
+  /** The worker with the least waiting, starting another one while the pool has room. */
+  private pick(): { w: Worker; pending: number } | null {
     if (this.broken) return null;
-    if (this.worker) return this.worker;
+    const idle = this.workers.find((x) => x.pending === 0);
+    if (idle) return idle;
+    if (this.workers.length < this.size) {
+      const made = this.spawn();
+      if (made) return made;
+      if (!this.workers.length) return null;
+    }
+    return this.workers.reduce((a, b) => (b.pending < a.pending ? b : a));
+  }
+
+  private spawn(): { w: Worker; pending: number } | null {
     try {
       const w = new Worker(new URL('./learnWorkerBoot.mjs', import.meta.url));
       w.unref(); // never keeps the process alive
+      const slot = { w, pending: 0 };
       w.on('message', (m: { id: number; ok: boolean; measured?: Measured }) => {
         const job = this.waiting.get(m.id);
         if (!job) return;
         this.waiting.delete(m.id);
+        job.slot.pending--;
         if (m.ok && m.measured) job.resolve(m.measured);
         else job.reject(new Error('unreadable replay'));
       });
       const fail = (e: unknown) => {
-        this.worker = null;
-        this.broken = true; // no endless respawning: later replays are measured inline
-        for (const job of this.waiting.values()) job.reject(e);
-        this.waiting.clear();
+        if (!this.workers.includes(slot)) return; // already closed on purpose
+        this.workers = this.workers.filter((x) => x !== slot);
+        if (!this.workers.length) this.broken = true; // no endless respawning: later replays are measured inline
+        for (const [id, job] of this.waiting) if (job.slot === slot) { this.waiting.delete(id); job.reject(e); }
       };
       w.on('error', fail);
-      w.on('exit', (code) => { if (this.worker === w && code !== 0) fail(new Error(`worker exited ${code}`)); else if (this.worker === w) this.worker = null; });
-      this.worker = w;
-      return w;
+      w.on('exit', (code) => { if (code !== 0) fail(new Error(`worker exited ${code}`)); else this.workers = this.workers.filter((x) => x !== slot); });
+      this.workers.push(slot);
+      return slot;
     } catch {
-      this.broken = true;
+      this.broken = this.workers.length === 0;
       return null;
     }
   }
 
   close(): Promise<void> {
-    const w = this.worker;
-    this.worker = null;
-    return w ? w.terminate().then(() => undefined) : Promise.resolve();
+    const ws = this.workers;
+    this.workers = [];
+    return Promise.all(ws.map((x) => x.w.terminate())).then(() => undefined);
   }
 }
 

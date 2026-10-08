@@ -102,7 +102,7 @@ describe('dev tools', () => {
     for (const p of bad) assert.equal(parseClientMsg(JSON.stringify({ t: 'dev_patch', patches: [p] })), null, JSON.stringify(p));
   });
 
-  it('saving makes the numbers live for everyone, keeps them over a restart, and opens a pull request', async () => {
+  it('saving only sends a proposal to the owner; the owner makes proposals live or opens one pull request for all', async () => {
     const calls: { url: string; method: string; body?: any }[] = [];
     const abilitiesText = fs.readFileSync(new URL('../../shared/data/abilities.json', import.meta.url), 'utf8');
     let pushed = '';
@@ -122,34 +122,46 @@ describe('dev tools', () => {
     try {
       lobby.handle(devP, { t: 'dev_save', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
       await new Promise((r) => setTimeout(r, 30));
-      assert.equal(ABILITIES.fireball.cooldown, 7000, 'live on the server');
-      assert.deepEqual(last(outB, 'overrides')?.patches.map((p) => p.value), [7000], 'every client is told');
-      const res = last(outD, 'dev_result');
-      assert.ok(res?.ok && res.url?.endsWith('/pull/99'), JSON.stringify(res));
-      assert.ok(calls.some((c) => c.url.endsWith('/pulls') && c.body.base === 'main'));
-      // the pull request only changes that number
+      assert.equal(ABILITIES.fireball.cooldown, before, 'nothing goes live');
+      assert.equal(last(outB, 'overrides'), undefined, 'nobody is told of live numbers');
+      assert.ok(last(outD, 'dev_result')?.ok);
+      assert.equal(calls.length, 0, 'no pull request yet');
+      assert.equal(dev.proposals.length, 1);
+      assert.equal(dev.proposals[0].changes[0].to, 7000);
+      assert.equal(dev.proposals[0].changes[0].from, before);
+      lobby.handle(devP, { t: 'dev_save', patches: [{ file: 'abilities', id: 'frostbolt', path: ['castTime'], value: 900 }] } as ClientMsg);
+      await new Promise((r) => setTimeout(r, 30));
+      assert.equal(dev.proposals.length, 2, 'proposals stack');
+      const owner = [...(lobby as any).conns].find((q: any) => q.name === 'Toke');
+      const outO: ServerMsg[] = [];
+      owner.ws.send = (x: string) => outO.push(JSON.parse(x));
+      lobby.handle(owner, { t: 'admin_proposals', op: 'pr' } as ClientMsg);
+      await new Promise((r) => setTimeout(r, 20));
+      assert.equal(calls.length, 0, 'not without the owner code');
+      owner.ownerOk = true;
+      lobby.handle(owner, { t: 'admin_proposals', op: 'list' } as ClientMsg);
+      assert.equal((last(outO, 'proposals') as any).rows.length, 2);
+      lobby.handle(owner, parseClientMsg(JSON.stringify({ t: 'admin_proposals', op: 'pr', note: 'together' }))!);
+      await new Promise((r) => setTimeout(r, 40));
+      assert.equal(calls.filter((c) => c.url.endsWith('/pulls')).length, 1, 'one pull request for both');
+      assert.ok(last(outO, 'dev_result')?.url?.endsWith('/pull/99'));
       const a = JSON.parse(pushed).find((x: any) => x.id === 'fireball');
       assert.equal(a.cooldown, 7000);
-      assert.equal(pushed.replace('"cooldown": 7000', `"cooldown": ${before}`), abilitiesText.replace(/("id": "fireball"[\s\S]*?"cooldown": )\d+/, `$1${before}`));
-      // the owner can open another pull request with every live change from the admin panel
-      const { owner, outO } = await (async () => ({ owner: (lobby as any).conns && [...(lobby as any).conns].find((q: any) => q.name === 'Toke'), outO: [] as ServerMsg[] }))();
-      owner.ws.send = (x: string) => outO.push(JSON.parse(x));
-      lobby.handle(owner, { t: 'overrides_pr' } as ClientMsg);
-      await new Promise((r) => setTimeout(r, 20));
-      assert.equal(calls.filter((c) => c.url.endsWith('/pulls')).length, 1, 'not without the owner code');
-      owner.ownerOk = true;
-      lobby.handle(owner, parseClientMsg(JSON.stringify({ t: 'overrides_pr', note: 'all live numbers' }))!);
+      assert.ok(dev.proposals.every((r) => r.status === 'pr'));
+      assert.equal(ABILITIES.fireball.cooldown, before, 'a pull request does not make them live');
+      // a new proposal can be made live by the owner
+      lobby.handle(devP, { t: 'dev_save', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 6500 }] } as ClientMsg);
       await new Promise((r) => setTimeout(r, 30));
-      assert.equal(calls.filter((c) => c.url.endsWith('/pulls')).length, 2);
-      assert.ok(last(outO, 'dev_result')?.url?.endsWith('/pull/99'));
-      // a restart loads the overrides again
+      lobby.handle(owner, { t: 'admin_proposals', op: 'live' } as ClientMsg);
+      await new Promise((r) => setTimeout(r, 30));
+      assert.equal(ABILITIES.fireball.cooldown, 6500);
+      assert.deepEqual(last(outB, 'overrides')?.patches.map((p) => p.value), [6500], 'every client is told when it goes live');
+      // a restart loads the overrides and the proposals again
       await dev.clear();
       assert.equal(ABILITIES.fireball.cooldown, before, 'clearing puts the file number back');
-      await store.set('devoverrides', JSON.stringify([{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 6500 }]));
       const again = new DevTools(store, {});
       await again.whenReady();
-      assert.equal(ABILITIES.fireball.cooldown, 6500);
-      await again.clear();
+      assert.equal(again.proposals.length, 3);
     } finally {
       ABILITIES.fireball.cooldown = before;
     }

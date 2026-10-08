@@ -1,5 +1,5 @@
-import { ABILITIES, CLASSES, CLASS_IDS, applyPatches, mergePatches, skillInfo } from '@arena/shared';
-import type { ClassId, ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
+import { ABILITIES, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, skillInfo, talentsFor } from '@arena/shared';
+import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
@@ -80,12 +80,55 @@ export class DevPanel {
   /** In a match the tools act on it; in the menu changes go to the dev's session or to everyone. */
   private inMatch = false;
   private menuCls: ClassId | null = null;
+  /** Bots being edited: the class and build chosen for each, until applied. */
+  private botDraft = new Map<number, { classId: ClassId; build: Build }>();
+  private botsOpen = false;
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.title = 'Dev tools (F2)';
     this.button.addEventListener('click', () => this.toggle());
     document.body.append(this.root, this.button);
     makeResizable(this.root, { key: 'dev', corner: 'br', minW: 240, minH: 200, z: 32 });
+    this.draggable();
+  }
+
+  /** Drag the window by its title bar; where you leave it is remembered. */
+  private draggable() {
+    const KEY = 'arena.pos.dev';
+    const place = (x: number, y: number) => {
+      const w = this.root.offsetWidth || 300;
+      this.root.style.left = `${Math.max(0, Math.min(x, window.innerWidth - Math.min(w, 120)))}px`;
+      this.root.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 40))}px`;
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as [number, number] | null;
+      if (Array.isArray(saved) && saved.every((n) => Number.isFinite(n))) place(saved[0], saved[1]);
+    } catch {
+      /* default spot */
+    }
+    let drag: { dx: number; dy: number } | null = null;
+    this.root.addEventListener('pointerdown', (e) => {
+      const head = (e.target as HTMLElement).closest('.devp-head');
+      if (!head || (e.target as HTMLElement).closest('button')) return;
+      const r = this.root.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      this.root.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    this.root.addEventListener('pointermove', (e) => {
+      if (drag) place(e.clientX - drag.dx, e.clientY - drag.dy);
+    });
+    const end = () => {
+      if (!drag) return;
+      drag = null;
+      try {
+        localStorage.setItem(KEY, JSON.stringify([parseInt(this.root.style.left, 10), parseInt(this.root.style.top, 10)]));
+      } catch {
+        /* not remembered */
+      }
+    };
+    this.root.addEventListener('pointerup', end);
+    this.root.addEventListener('pointercancel', end);
   }
 
   get open(): boolean {
@@ -146,6 +189,87 @@ export class DevPanel {
     if (this.open) this.paint();
   }
 
+  /** Change a bot's class, spec and talents on the fly: pick, press Apply, and it plays the new build at once. */
+  private botEditor(): HTMLElement {
+    const box = el('div', 'devp-sec bots');
+    const bots = this.hooks.builds().filter((b) => b.bot);
+    const head = el('button', 'mm-small', `${this.botsOpen ? '▾' : '▸'} Edit bots (${bots.length})`);
+    head.addEventListener('click', () => {
+      this.botsOpen = !this.botsOpen;
+      this.hooks.send({ t: 'dev_builds' });
+      this.paint();
+    });
+    box.append(head);
+    if (!this.botsOpen) return box;
+    if (!bots.length) box.append(el('small', 'devp-dim', ' No bots in this match.'));
+    const select = (opts: [string, string][], value: string, on: (v: string) => void) => {
+      const s = el('select', 'devp-sel');
+      for (const [v, label] of opts) {
+        const o = el('option', '', label);
+        o.value = v;
+        s.append(o);
+      }
+      s.value = value;
+      s.addEventListener('change', () => on(s.value));
+      return s;
+    };
+    for (const b of bots) {
+      let d = this.botDraft.get(b.id);
+      if (!d) {
+        d = { classId: b.classId, build: { spec: b.spec ?? SPECS[b.classId][0].id, talents: [...b.talents], gear: {} } };
+        this.botDraft.set(b.id, d);
+      }
+      const draft = d;
+      const card = el('div', 'devp-bot');
+      card.append(el('b', '', `${b.name} · team ${b.team + 1}`));
+      const redraw = () => this.paint();
+      const row1 = el('div', 'devp-row');
+      row1.append(
+        select(CLASS_IDS.map((c): [string, string] => [c, CLASSES[c].name]), draft.classId, (v) => {
+          draft.classId = v as ClassId;
+          draft.build = { spec: SPECS[draft.classId][0].id, talents: [], gear: {} };
+          redraw();
+        }),
+        select(SPECS[draft.classId].map((s): [string, string] => [s.id, s.name]), draft.build.spec, (v) => {
+          draft.build = { spec: v, talents: draft.build.talents.map((t, i) => (talentsFor(draft.classId, v)[i]?.some((x) => x.id === t) ? t : '')), gear: {}, ...(draft.build.replace ? { replace: draft.build.replace } : {}) };
+          redraw();
+        }),
+      );
+      card.append(row1);
+      talentsFor(draft.classId, draft.build.spec).forEach((tier, i) => {
+        const roman = ['I', 'II', 'III', 'IV', 'V'][i];
+        const row = el('div', 'devp-row');
+        row.append(
+          el('small', 'devp-dim', roman),
+          select([['', 'none'], ...tier.map((t): [string, string] => [t.id, t.name])], draft.build.talents[i] ?? '', (v) => {
+            const talents = [...draft.build.talents];
+            while (talents.length < 5) talents.push('');
+            talents[i] = v;
+            draft.build = { ...draft.build, talents };
+            redraw();
+          }),
+        );
+        const picked = tier.find((t) => t.id === draft.build.talents[i]);
+        if (picked?.swap?.alt?.length) {
+          row.append(el('small', 'devp-dim', 'replaces'), select([picked.swap.from, ...picked.swap.alt].map((a): [string, string] => [a, ABILITIES[a]?.name ?? a]), draft.build.replace?.[picked.id] ?? picked.swap.from, (v) => {
+            draft.build = { ...draft.build, replace: { ...(draft.build.replace ?? {}), [picked.id]: v } };
+          }));
+        }
+        card.append(row);
+      });
+      const apply = el('button', 'mm-small mm-go', 'Apply to this bot');
+      apply.addEventListener('click', () => {
+        const talents = [...draft.build.talents];
+        while (talents.length < 5) talents.push('');
+        this.botDraft.delete(b.id);
+        this.hooks.send({ t: 'dev_bot', unit: b.id, classId: draft.classId, build: { ...draft.build, talents } });
+      });
+      card.append(apply);
+      box.append(card);
+    }
+    return box;
+  }
+
   private key = (p: Pick<DataPatch, 'file' | 'id' | 'path'>) => `${p.file}:${p.id}:${p.path.join('.')}`;
 
   private paint() {
@@ -158,6 +282,7 @@ export class DevPanel {
     head.append(close);
     r.append(head);
 
+    if (this.inMatch) r.append(this.botEditor());
     let ids: string[];
     if (this.inMatch) {
       const row = el('div', 'devp-row');
@@ -167,9 +292,11 @@ export class DevPanel {
       r.append(row);
       // the skills in this match: yours first, then everyone else's
       ids = [...new Set([...this.hooks.myBar(), ...this.hooks.builds().flatMap((b) => b.bar)])].filter((id) => ABILITIES[id]);
+      // the trinkets are tier IV picks on every class: offered after the bars
+      for (const id of Object.keys(ABILITIES)) if (ABILITIES[id].class === 'trinket' && !ABILITIES[id].retired) ids.push(id);
     } else {
       // in the menu: every skill of a class; changes go to your session (every match you start) or to everyone
-      r.append(el('small', 'devp-dim', 'From the menu: "Keep for my session" puts your numbers in every match you start (not ranked); "Save for everyone" makes them live for all.'));
+      r.append(el('small', 'devp-dim', 'From the menu: "Keep for my session" puts your numbers in every match you start (not ranked); "Send to the admin panel" proposes them to the owner (nothing is live until the owner acts).'));
       const cls = this.menuCls ?? this.hooks.menuClass();
       const tabs = el('div', 'devp-row');
       for (const c of CLASS_IDS) {
@@ -182,7 +309,7 @@ export class DevPanel {
         tabs.append(b);
       }
       r.append(tabs);
-      ids = Object.keys(ABILITIES).filter((id) => ABILITIES[id].class === cls);
+      ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === cls || ABILITIES[id].class === 'trinket'));
     }
     if (!this.pick || !ids.includes(this.pick)) this.pick = ids[0] ?? '';
     const picker = el('div', 'devp-skills');
@@ -201,8 +328,16 @@ export class DevPanel {
 
     const testing = new Map((this.inMatch ? this.layers.roomPatches : this.session).map((p) => [this.key(p), p]));
     const info = skillInfo(this.pick);
+    // how the skill behaves, as chips (hover for what each means)
+    const chips = el('div', 'devp-chips');
+    for (const f of info.flags) {
+      const c = el('span', `devp-chip ${f.tone}`, f.label);
+      c.title = f.tip;
+      chips.append(c);
+    }
+    r.append(chips);
     for (const sec of info.sections) {
-      const box = el('div', `devp-sec ${sec.kind}`);
+      const box = el('div', `devp-sec ${sec.kind === 'aura' ? 'effect' : sec.kind}`);
       const head = el('div', 'devp-sec-head');
       head.append(el('b', '', sec.kind === 'aura' ? `✦ ${sec.name}` : sec.name), el('small', 'devp-dim', ` ${sec.link}`));
       box.append(head);
@@ -250,14 +385,15 @@ export class DevPanel {
       this.edits.clear();
       this.hooks.send({ t: 'dev_patch', patches: [] });
     });
-    const save = el('button', 'mm-small', 'Save for everyone…');
+    const save = el('button', 'mm-small', 'Send to the admin panel…');
+    save.title = 'Sends these changes, with the old and new numbers, to the owner\'s admin panel. Nothing goes live until the owner acts on it.';
     save.addEventListener('click', () => {
       const all = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
       if (!all.length) {
         this.result = { ok: false, text: 'Change a number first.' };
         return this.paint();
       }
-      if (!window.confirm(`Keep ${all.length} changed number${all.length === 1 ? '' : 's'} for everyone? They go live at once, and a pull request for the data files is opened.`)) return;
+      if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
     const keep = el('button', 'mm-small mm-go', 'Keep for my session');

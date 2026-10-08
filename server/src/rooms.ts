@@ -12,7 +12,7 @@ import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
 import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX } from '@arena/shared';
-import type { AdminRoom, DataPatch, ReplayData, UnitBuild } from '@arena/shared';
+import type { AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
 import type { AiTune } from './aitune';
@@ -275,7 +275,18 @@ export class Room {
 
   /** Every unit's spec, talents and bar, for people watching (and a dev in the match). */
   builds(): UnitBuild[] {
-    return [...this.sim.units.values()].map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar }));
+    return [...this.sim.units.values()].map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar, ...(u.controller === 'bot' ? { bot: true } : {}) }));
+  }
+
+  /** Dev tools: a bot gets another class and build in the middle of the match (which then counts for nothing). */
+  devRebuild(unitId: number, classId: ClassId, build: Build): boolean {
+    const i = this.bots.findIndex((b) => b.unitId === unitId);
+    const u = this.sim.units.get(unitId);
+    if (i < 0 || !u || u.controller !== 'bot') return false;
+    this.devTest = true;
+    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build, `Bot ${specOf(classId, build.spec)?.name ?? CLASSES[classId].name}`));
+    this.bots[i] = new Bot(this.sim, unitId, this.bots[i].difficulty, Math.floor(Math.random() * 2 ** 31));
+    return true;
   }
 
   /** This match, as the owner's admin panel lists it. */
@@ -750,6 +761,13 @@ export class Lobby {
         send(p, { t: 'dev_result', ok: true, text: conns.length ? `Kicked ${msg.name}.` : `${msg.name} is not online.` });
         break;
       }
+      case 'kill': {
+        const conn = this.connsOf(key).find((q) => q.room && q.unitId !== undefined);
+        const killed = !!conn?.room && !conn.room.closed && conn.room.sim.adminKill(conn.unitId!);
+        log('kill', msg.name, killed ? conn!.room!.id : 'not in a match');
+        send(p, { t: 'dev_result', ok: killed, text: killed ? `Killed ${msg.name} in their match.` : `${msg.name} is not alive in a match right now.` });
+        break;
+      }
       case 'ban':
       case 'unban':
       case 'mute':
@@ -819,14 +837,40 @@ export class Lobby {
         if (acc) send(p, { t: 'admin_feed', rows: await acc.feed() });
         break;
       case 'train': {
-        // train the bots on a stored replay of any match (bots-only matches teach the losers through the winners)
+        // training starts at once; the progress comes back as train_status
         if (!acc || !this.learner) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
-        const gz = await acc.getReplay(msg.id!);
-        if (!gz) return void send(p, { t: 'dev_result', ok: false, text: 'That replay is gone (they are kept for 30 days).' });
-        const r = await this.trainOnReplay(by, gz, msg.id!);
-        send(p, { t: 'dev_result', ok: r.ok, text: r.text });
+        void this.trainOnReplay(by, () => acc.getReplay(msg.id!), msg.id!);
         break;
       }
+      case 'train_status':
+        send(p, this.trainStatusMsg());
+        break;
+    }
+  }
+
+  // ------------------------------------------------------------------ bot training queue
+
+  private trainJobs = new Map<string, TrainJobRow>();
+  private trainRuns = new Map<string, Promise<{ ok: boolean; text: string }>>();
+  /** Milliseconds of measuring per replay tick, learned from finished jobs (0 = not known yet). */
+  private msPerTick = 0;
+  private trainTimer: ReturnType<typeof setInterval> | null = null;
+
+  private trainStatusMsg(): Extract<ServerMsg, { t: 'train_status' }> {
+    const jobs = [...this.trainJobs.values()].sort((a, b) => b.startedAt - a.startedAt);
+    return { t: 'train_status', jobs, active: jobs.filter((j) => j.state === 'training').length };
+  }
+
+  private pushTrain(): void {
+    const msg = this.trainStatusMsg();
+    for (const q of this.conns) if (q.ownerOk) send(q, msg);
+    // while something trains, the time left is refreshed every second
+    if (msg.active && !this.trainTimer) {
+      this.trainTimer = setInterval(() => this.pushTrain(), 1000);
+      this.trainTimer.unref();
+    } else if (!msg.active && this.trainTimer) {
+      clearInterval(this.trainTimer);
+      this.trainTimer = null;
     }
   }
 
@@ -834,20 +878,59 @@ export class Lobby {
    * Train the bots on a replay the owner picked (from the match list) or uploaded: gzipped or plain JSON. Logged in the
    * admin log; resolves to a message fit to show.
    */
-  async trainOnReplay(by: string, raw: Buffer, id: string): Promise<{ ok: boolean; text: string }> {
+  async trainOnReplay(by: string, source: Buffer | (() => Promise<Buffer | null>), id: string): Promise<{ ok: boolean; text: string }> {
     if (!this.learner) return { ok: false, text: 'Bot learning is not running on this server.' };
-    let replay: ReplayData;
-    try {
-      const text = (raw[0] === 0x1f && raw[1] === 0x8b ? await gunzip(raw) : raw).toString('utf8');
-      replay = JSON.parse(text) as ReplayData;
-      if (!replay || typeof replay !== 'object' || !Array.isArray(replay.units) || !Array.isArray(replay.cmds)) throw new Error('shape');
-    } catch {
-      return { ok: false, text: 'That is not a replay file this game can read.' };
-    }
-    const r = await this.learner.trainOn(replay, id);
-    void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? `${r.lessons} bot${r.lessons === 1 ? '' : 's'} learned` : r.reason);
-    const habits = r.ok && r.habits ? `, and ${r.habits} player${r.habits === 1 ? '\u2019s' : 's\u2019'} habits were studied` : '';
-    return r.ok ? { ok: true, text: `Trained on it: ${r.lessons} bot class${r.lessons === 1 ? '' : 'es'} took lessons from it${habits}. It is kept for offline study.` } : { ok: false, text: r.reason };
+    const running = this.trainRuns.get(id);
+    if (running) return running; // already training on it
+    const finishedAvg = [...this.trainJobs.values()].filter((j) => j.state === 'done' && j.finishedAt).map((j) => j.finishedAt! - j.startedAt);
+    const guess = finishedAvg.length ? finishedAvg.reduce((x, y) => x + y, 0) / finishedAvg.length : 8000;
+    const job: TrainJobRow = { id, state: 'training', startedAt: Date.now(), etaMs: Math.round(guess) };
+    this.trainJobs.set(id, job);
+    // only a few finished jobs are kept for the list
+    for (const old of [...this.trainJobs.values()].filter((j) => j.state !== 'training').sort((x, y) => (y.finishedAt ?? 0) - (x.finishedAt ?? 0)).slice(30)) this.trainJobs.delete(old.id);
+    this.pushTrain();
+    const finish = (r: { ok: boolean; text: string }) => {
+      job.state = r.ok ? 'done' : 'failed';
+      job.finishedAt = Date.now();
+      job.text = r.text;
+      this.pushTrain();
+      this.trainRuns.delete(id);
+      return r;
+    };
+    const run = (async (): Promise<{ ok: boolean; text: string }> => {
+      const raw = typeof source === 'function' ? await source() : source;
+      if (!raw) return finish({ ok: false, text: 'That replay is gone (they are kept for 30 days).' });
+      let replay: ReplayData;
+      try {
+        const text = (raw[0] === 0x1f && raw[1] === 0x8b ? await gunzip(raw) : raw).toString('utf8');
+        replay = JSON.parse(text) as ReplayData;
+        if (!replay || typeof replay !== 'object' || !Array.isArray(replay.units) || !Array.isArray(replay.cmds)) throw new Error('shape');
+      } catch {
+        return finish({ ok: false, text: 'That is not a replay file this game can read.' });
+      }
+      // the time it should take, from how long replays took before per tick of play
+      if (this.msPerTick > 0 && replay.ticks > 0) {
+        job.etaMs = Math.max(1000, Math.round(replay.ticks * this.msPerTick));
+        this.pushTrain();
+      }
+      const started = Date.now();
+      let r: Awaited<ReturnType<BotLearner['trainOn']>>;
+      try {
+        r = await this.learner!.trainOn(replay, id);
+      } catch {
+        return finish({ ok: false, text: 'Training on that replay failed.' });
+      }
+      if (r.ok && replay.ticks > 0) {
+        const per = (Date.now() - started) / replay.ticks;
+        this.msPerTick = this.msPerTick ? this.msPerTick * 0.6 + per * 0.4 : per;
+      }
+      void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? `${r.lessons} bot${r.lessons === 1 ? '' : 's'} learned` : r.reason);
+      const habits = r.ok && r.habits ? `, and ${r.habits} player${r.habits === 1 ? '\u2019s' : 's\u2019'} habits were studied` : '';
+      // the learner has already put the new brains into the population, so the next bots spawned play with them
+      return finish(r.ok ? { ok: true, text: `${r.lessons} bot class${r.lessons === 1 ? '' : 'es'} took lessons from it${habits}. The bots already play with what they learned.` } : { ok: false, text: r.reason });
+    })();
+    this.trainRuns.set(id, run);
+    return run;
   }
 
   /**
@@ -1211,6 +1294,20 @@ export class Lobby {
         send(p, { t: 'dev_result', ok: true, text: msg.patches.length ? `Kept ${msg.patches.length} number${msg.patches.length === 1 ? '' : 's'} for your session: every match you start uses them until you clear them or sign out.` : 'Session numbers cleared: your next match uses the real numbers.' });
         break;
       }
+      case 'dev_bot': {
+        const room = this.devRoom(p);
+        if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
+        const ok = validateBuild(msg.classId, msg.build, !!p.ownerOk, 99);
+        if (!ok.ok) return void send(p, { t: 'dev_result', ok: false, text: `That build is not valid: ${ok.reason}` });
+        if (!room.devRebuild(msg.unit, msg.classId, msg.build)) return void send(p, { t: 'dev_result', ok: false, text: 'That is not a bot in this match.' });
+        const by = p.account?.name ?? p.name;
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'builds', units: room.builds() });
+          if (q !== p) send(q, { t: 'notice', text: `${by} changed a bot's class and build (the match no longer counts).` });
+        }
+        send(p, { t: 'dev_result', ok: true, text: 'The bot has its new class and build.' });
+        break;
+      }
       case 'dev_builds': {
         const room = p.room ?? p.watching;
         if (!room || (!this.isDev(p) && !p.watching)) return;
@@ -1221,30 +1318,32 @@ export class Lobby {
         if (!this.isDev(p) || !this.dev) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         const by = p.account?.name ?? p.name;
         const dev = this.dev;
-        void this.adminLog?.add(by, 'save numbers', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
+        // nothing goes live: the changes wait in the owner's admin panel, stacked with everyone else's
         void (async () => {
           try {
-            const all = await dev.save(msg.patches);
-            for (const q of this.conns) send(q, { t: 'overrides', patches: all });
-            // the dev's own test room now runs on the saved numbers, so its test list is cleared
-            const room = this.devRoom(p);
-            if (room) {
-              room.devPatches = [];
-              send(p, { t: 'dev_state', paused: room.paused, patches: [] });
-            }
-            let url: string | undefined;
-            let prText = '';
-            try {
-              url = await dev.openPullRequest(msg.patches, by, msg.note);
-              prText = ' A pull request for the data files is open.';
-            } catch (e) {
-              prText = ` ${(e as Error).message}`;
-            }
-            send(p, { t: 'dev_result', ok: true, text: `Saved ${msg.patches.length} number${msg.patches.length === 1 ? '' : 's'}: live for everyone now.${prText}`, ...(url ? { url } : {}) });
+            await dev.propose(by, msg.patches, msg.note);
+            void this.adminLog?.add(by, 'proposed numbers', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
+            for (const q of this.conns) if (q.ownerOk) send(q, { t: 'proposals', rows: dev.proposals });
+            send(p, { t: 'dev_result', ok: true, text: `Sent ${msg.patches.length} change${msg.patches.length === 1 ? '' : 's'} to the owner's admin panel. Nothing is live until the owner applies it.` });
           } catch {
-            send(p, { t: 'dev_result', ok: false, text: 'Could not save the numbers.' });
+            send(p, { t: 'dev_result', ok: false, text: 'Could not send the changes.' });
           }
         })();
+        break;
+      }
+      case 'admin_proposals': {
+        if (!p.ownerOk || !this.dev) return;
+        const dev = this.dev;
+        if (msg.op === 'list') return void send(p, { t: 'proposals', rows: dev.proposals });
+        const by = p.account?.name ?? p.name;
+        void dev.actOn(msg.op, msg.ids, by, msg.note).then(async (r) => {
+          if (r.ok) {
+            void this.adminLog?.add(by, `proposals: ${msg.op}`, undefined, r.text);
+            if (msg.op === 'live') for (const q of this.conns) send(q, { t: 'overrides', patches: dev.overrides });
+          }
+          send(p, { t: 'dev_result', ok: r.ok, text: r.text, ...(r.url ? { url: r.url } : {}) });
+          for (const q of this.conns) if (q.ownerOk) send(q, { t: 'proposals', rows: dev.proposals });
+        });
         break;
       }
       case 'dev_ai': {

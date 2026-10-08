@@ -188,8 +188,8 @@
   {
    "id": "eclipse_horns",
    "slot": "head",
-   "name": "Eclipse Horns",
-   "style": "voidhorns",
+   "name": "Eclipse Corona",
+   "style": "eclipse",
    "color": "#ffd24a",
    "owner": true
   },
@@ -315,7 +315,7 @@
    "id": "sunforged_pauldrons",
    "slot": "shoulders",
    "name": "Sunforged Pauldrons",
-   "style": "dragon",
+   "style": "sunplate",
    "color": "#ffd24a",
    "owner": true
   },
@@ -323,7 +323,7 @@
    "id": "aurora_pauldrons",
    "slot": "shoulders",
    "name": "Aurora Pauldrons",
-   "style": "bolts",
+   "style": "curtain",
    "color": "#5dffb0",
    "owner": true
   },
@@ -456,8 +456,8 @@
   {
    "id": "eclipse_wings",
    "slot": "back",
-   "name": "Eclipse Wings",
-   "style": "archon",
+   "name": "Eclipse Rift",
+   "style": "rift",
    "color": "#b08cff",
    "owner": true
   },
@@ -465,7 +465,7 @@
    "id": "starfall_cloak",
    "slot": "back",
    "name": "Starfall Cloak",
-   "style": "embercloak",
+   "style": "starcloak",
    "color": "#6fa8ff",
    "owner": true
   },
@@ -583,7 +583,7 @@
    "id": "godfire",
    "slot": "weapon",
    "name": "Godfire",
-   "style": "inferno",
+   "style": "godfire",
    "color": "#ff7a1a",
    "owner": true
   },
@@ -591,7 +591,7 @@
    "id": "starforge",
    "slot": "weapon",
    "name": "Starforge",
-   "style": "inferno",
+   "style": "starforge",
    "color": "#ffd24a",
    "owner": true
   },
@@ -599,7 +599,7 @@
    "id": "voidstorm",
    "slot": "weapon",
    "name": "Voidstorm",
-   "style": "lightning",
+   "style": "voidstorm",
    "color": "#9b5cff",
    "owner": true
   },
@@ -725,7 +725,7 @@
    "id": "storm_lord",
    "slot": "aura",
    "name": "Stormlord",
-   "style": "storm",
+   "style": "stormlord",
    "color": "#6fa8ff",
    "owner": true
   },
@@ -733,7 +733,7 @@
    "id": "eclipse_throne",
    "slot": "aura",
    "name": "Eclipse Throne",
-   "style": "throne",
+   "style": "eclipsedisc",
    "color": "#b08cff",
    "owner": true
   },
@@ -741,7 +741,7 @@
    "id": "emerald_tempest",
    "slot": "aura",
    "name": "Emerald Tempest",
-   "style": "storm",
+   "style": "cyclone",
    "color": "#3df08a",
    "owner": true
   },
@@ -873,7 +873,7 @@
    "id": "midas",
    "slot": "tint",
    "name": "Midas Gold",
-   "style": "dye",
+   "style": "midas",
    "color": "#ffcc33",
    "owner": true
   },
@@ -881,7 +881,7 @@
    "id": "dye_eclipse",
    "slot": "tint",
    "name": "Eclipse Dye",
-   "style": "dye",
+   "style": "eclipse",
    "color": "#2a1a55",
    "owner": true
   },
@@ -889,7 +889,7 @@
    "id": "dye_aurora",
    "slot": "tint",
    "name": "Aurora Dye",
-   "style": "dye",
+   "style": "aurora",
    "color": "#5dffb0",
    "owner": true
   },
@@ -1006,8 +1006,8 @@
   {
    "id": "crown_satellites",
    "slot": "orbit",
-   "name": "Crown Satellites",
-   "style": "satellites",
+   "name": "Court Crowns",
+   "style": "crownring",
    "color": "#ffd24a",
    "owner": true
   },
@@ -1015,7 +1015,7 @@
    "id": "mini_sun",
    "slot": "orbit",
    "name": "Mini Sun",
-   "style": "sun",
+   "style": "armillary",
    "color": "#ffb52e",
    "owner": true
   },
@@ -1023,15 +1023,15 @@
    "id": "eclipse_sun",
    "slot": "orbit",
    "name": "Eclipse Star",
-   "style": "sun",
+   "style": "eclipseorb",
    "color": "#b08cff",
    "owner": true
   },
   {
    "id": "aurora_comet",
    "slot": "orbit",
-   "name": "Aurora Comet",
-   "style": "comet",
+   "name": "Aurora Serpent",
+   "style": "serpent",
    "color": "#5dffb0",
    "owner": true
   }

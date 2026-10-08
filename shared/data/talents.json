@@ -705,7 +705,7 @@
         {
           "id": "mage_frost_t3b",
           "name": "Fingers Crossed",
-          "desc": "Frostbolt has a 5% higher chance to give Fingers of Frost.",
+          "desc": "Frostbolt has an extra 5% chance to give Fingers of Frost.",
           "icon": "🖐️",
           "mods": {
             "ability": {
@@ -795,7 +795,7 @@
         {
           "id": "mage_t5b",
           "name": "Arcane Recovery",
-          "desc": "Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Evocation: for 6 seconds you heal 2% of your maximum health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🧘",
           "mods": {},
           "swap": {
@@ -809,7 +809,7 @@
         {
           "id": "mage_t5c",
           "name": "Runecaster",
-          "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and your casts are 15% shorter. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🌠",
           "mods": {},
           "swap": {
@@ -916,7 +916,7 @@
         {
           "id": "mage_fire_t3b",
           "name": "Streaking",
-          "desc": "Fireball has a 5% higher chance to give Hot Streak.",
+          "desc": "Fireball has an extra 5% chance to give Hot Streak.",
           "icon": "🔥",
           "mods": {
             "ability": {
@@ -1002,7 +1002,7 @@
         {
           "id": "mage_t5b",
           "name": "Arcane Recovery",
-          "desc": "Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Evocation: for 6 seconds you heal 2% of your maximum health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🧘",
           "mods": {},
           "swap": {
@@ -1016,7 +1016,7 @@
         {
           "id": "mage_t5c",
           "name": "Runecaster",
-          "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and your casts are 15% shorter. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🌠",
           "mods": {},
           "swap": {
@@ -1216,7 +1216,7 @@
         {
           "id": "mage_t5b",
           "name": "Arcane Recovery",
-          "desc": "Learn Evocation: for 6 seconds you heal 2% of your health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Evocation: for 6 seconds you heal 2% of your maximum health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🧘",
           "mods": {},
           "swap": {
@@ -1230,7 +1230,7 @@
         {
           "id": "mage_t5c",
           "name": "Runecaster",
-          "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and cast 15% faster. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and your casts are 15% shorter. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🌠",
           "mods": {},
           "swap": {
@@ -1406,7 +1406,7 @@
         {
           "id": "priest_discipline_t5b",
           "name": "Cleansing Radiance",
-          "desc": "Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Desperate Prayer.",
+          "desc": "Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Desperate Prayer.",
           "icon": "✨",
           "mods": {},
           "swap": {
@@ -1589,7 +1589,7 @@
         {
           "id": "priest_holy_t5b",
           "name": "Cleansing Radiance",
-          "desc": "Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Desperate Prayer.",
+          "desc": "Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Desperate Prayer.",
           "icon": "✨",
           "mods": {},
           "swap": {
@@ -1790,7 +1790,7 @@
         {
           "id": "priest_shadow_t5b",
           "name": "Cleansing Radiance",
-          "desc": "Learn Purifying Light: removes every harmful magic effect from allies within 12 yards and keeps new harmful effects off them for 4 seconds. Replaces Power Word: Shield.",
+          "desc": "Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Power Word: Shield.",
           "icon": "✨",
           "mods": {},
           "swap": {

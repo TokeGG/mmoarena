@@ -129,7 +129,7 @@ export class Bot {
   /** The floor the cover spot is on. */
   private coverLv: 0 | 1 = 0;
 
-  constructor(private sim: ArenaSim, readonly unitId: number, difficulty: Difficulty = 'normal', seed = 1, brain?: Brain) {
+  constructor(private sim: ArenaSim, readonly unitId: number, readonly difficulty: Difficulty = 'normal', seed = 1, brain?: Brain) {
     this.P = PARAMS[difficulty];
     // a brain from storage may be missing newer traits: those come from the class's trained baseline
     const b = clampBrain(brain, brainFor(sim.units.get(unitId)?.classId ?? 'warrior'));

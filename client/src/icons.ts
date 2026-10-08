@@ -2,31 +2,37 @@ import type { ClassId, School } from '@arena/shared';
 
 /** Emoji stand-ins for ability and aura art. Swap for real icon sprites later; only this file changes. */
 export const ABILITY_ICON: Record<string, string> = {
-  trinket_cleanse: '🧼', trinket_shield: '🔰', trinket_heal: '🧪', gouge: '👁️', sap: '🪵', dragon_roar: '🦖', battle_banner: '🏴', mirror_image: '👥', rune_of_power: '🔯', leap_of_faith: '🤝', purifying_light: '🕊️', ascend: '☁️',
-  mortal_strike: '⚔️', charge: '🐗', pummel: '👊', hamstring: '🩸',
-  frostbolt: '❄️', fireball: '🔥', polymorph: '🐑', counterspell: '🚫', frost_nova: '🧊', blink: '✨',
-  flash_heal: '💚', power_word_shield: '🛡️', smite: '☀️', dispel_magic: '🪄', psychic_scream: '😱',
-  stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', backstab: '🔪', kidney_shot: '🥊', kick: '🦶', sprint: '💨',
-  recklessness: '😡', execute: '💀', intimidating_shout: '📢', bloodthirst: '💢', whirlwind: '🌪️', enraged_regeneration: '💖',
-  concussion_blow: '🔨', shield_wall: '🧱',
-  heroic_leap: '🦘', slice_and_dice: '🌀', bladestorm: '🌪️', slam: '🔨', reel_in: '⛓️', deep_cuts: '🩸', axe_throw: '🪓', not_going_anywhere: '🚩',
-  ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋', arcane_blast: '🔮', arcane_barrage: '🌟', arcane_missiles: '🌠', arcane_explosion: '💥', evocation: '🧘', dragons_breath: '🐉', arcane_power: '⚡',
-  greater_heal: '💗', pain_suppression: '🙏', desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '💀', dispersion: '🌫️',
-  mutilate: '🔪', vanish: '🌑', adrenaline_rush: '💉', shadowstep: '👣', evasion: '🌀',
-  shockwave: '💥', piercing_howl: '📯', die_by_the_sword: '🗡️', 
-  ice_lance: '🗡️', blizzard: '🌨️', scorch: '🔥', deep_freeze: '🧊', arcane_silence: '🤐', hammer_toss: '🔨', harpoon_throw: '🪝',
-  judgment_hammer: '⚖️', hush: '🤫', plague_bloom: '🦠', choke_bomb: '💨', knife_snipe: '🗡️', garrote: '🩸', holy_nova: '✨', mind_flay: '🧠', fan_of_knives: '🔪',
-  penance: '🔆', holy_word: '🌟', power_infusion: '🙌', blind: '😵', eviscerate: '🩸', exsanguinate: '🧛', crippling_strike: '🦵',
+  // trinkets
+  trinket_cleanse: '🧼', trinket_shield: '🔰', trinket_heal: '🧪',
+  // warrior
+  mortal_strike: '⚔️', charge: '🐗', pummel: '👊', hamstring: '🥾', execute: '💀', intimidating_shout: '📢', bloodthirst: '💢', whirlwind: '🌪️',
+  enraged_regeneration: '💖', heroic_leap: '🦘', slice_and_dice: '🌀', bladestorm: '🪚', slam: '🔨', reel_in: '⛓️', deep_cuts: '✂️', axe_throw: '🪓',
+  not_going_anywhere: '🚩', dragon_roar: '🦖', battle_banner: '🏴',
+  // mage
+  frostbolt: '❄️', fireball: '🔥', polymorph: '🐑', counterspell: '🚫', frost_nova: '🧊', blink: '✨', ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋',
+  arcane_blast: '🔮', arcane_barrage: '🌟', arcane_power: '⚡', arcane_missiles: '🌠', arcane_explosion: '💥', ice_lance: '🔱', scorch: '🧨', deep_freeze: '⛄',
+  dragons_breath: '🐉', evocation: '🧘', mirror_image: '👥', rune_of_power: '🔯',
+  // priest
+  flash_heal: '💚', power_word_shield: '🛡️', smite: '☀️', dispel_magic: '🪄', psychic_scream: '😱', greater_heal: '💗', pain_suppression: '🙏',
+  desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '☠️', dispersion: '🌫️', penance: '🔆', plague_bloom: '🦠', holy_nova: '🔔', mind_flay: '🧿',
+  leap_of_faith: '🤝', purifying_light: '🕊️', ascend: '☁️',
+  // rogue
+  stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', backstab: '🔪', kidney_shot: '🥊', kick: '🦶', sprint: '💨', mutilate: '🥩', vanish: '🌑',
+  adrenaline_rush: '💉', shadowstep: '👣', evasion: '🤺', blind: '😵', eviscerate: '🩸', garrote: '🪢', exsanguinate: '🧛', gouge: '👁️', sap: '🪵',
 };
 
+/** Auras are unique among themselves; an aura an ability applies mostly wears that ability's icon, and the rest get their own. */
 export const AURA_ICON: Record<string, string> = {
-  polymorph: '🐑', frost_nova_root: '🧊', frostbolt_slow: '❄️', hamstring_slow: '🩸', charge_stun: '💫', rogue_slow: '🦶',
-  cheap_shot_stun: '💫', kidney_shot: '💫', psychic_scream: '😱', pw_shield: '🛡️', stealth: '👤', sprint: '💨',
-  recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '🩸', slice_stun: '🌀', intimidating_shout: '📢', concussion_stun: '🔨', ice_barrier: '🥶', arcane_power: '⚡',
-  pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🌀',
-  shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', 
-  power_infusion: '🙌', blind: '😵', crippling_slow: '🦵', blink_speed: '💨', blink_haste: '⚡', arcane_slow: '💥', garrote_bleed: '🩸', mutilate_bleed: '🩸', shatter: '💎', fingers_of_frost: '🖐️', arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', cauterized: '🔥', cauterize: '🔥',
-  deep_freeze_stun: '🧊', mortal_wounds: '🩸', mind_flay_slow: '🧠', hammer_stun: '🔨', judgment_stun: '⚖️', creeping_rot: '☠️', plague_bloom: '🦠',
+  polymorph: '🐑', frost_nova_root: '🧊', frostbolt_slow: '❄️', frostbolt_root: '🌨️', hamstring_slow: '🥾', charge_stun: '🐗', charge_root: '⚓',
+  cheap_shot_stun: '💫', kidney_shot: '🥊', psychic_scream: '😱', psychic_stun: '🤯', psychic_flee: '🏃', pw_shield: '🛡️', stealth: '👤', sprint: '💨',
+  recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '✂️', slice_stun: '🌀', intimidating_shout: '📢', concussion_stun: '🪨',
+  ice_barrier: '🥶', arcane_power: '⚡', pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🤺',
+  shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', power_infusion: '🙌', blind: '😵', crippling_slow: '🦂', rogue_slow: '🕸️',
+  blink_speed: '👟', blink_haste: '🚀', arcane_slow: '💠', garrote_bleed: '🪢', mutilate_bleed: '🥩', shatter: '💎', fingers_of_frost: '🖐️',
+  arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', cauterized: '🧯', burn: '♨️', deep_freeze_stun: '⛄',
+  mortal_wounds: '🩸', mind_flay_slow: '🧿', mind_slow: '💭', hammer_stun: '🌩️', judgment_stun: '⚖️', creeping_rot: '☠️', plague_bloom: '🦠', plague_ready: '🧫',
+  trinket_shield: '🔰', gouge: '👁️', sap: '🪵', banner_buff: '🏴', mirror_image: '👥', rune_of_power: '🔯', purified: '🕊️', ascended: '☁️',
+  intercept_guard: '🤝', renew: '🌿', penance_barrier: '🔆',
 };
 
 export const CLASS_ICON: Record<ClassId, string> = { warrior: '⚔️', mage: '🔮', priest: '✝️', rogue: '🗡️' };

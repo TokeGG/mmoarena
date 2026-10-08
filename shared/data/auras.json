@@ -531,7 +531,7 @@
     "noCast": true,
     "untargetable": true,
     "invulnerable": true,
-    "note": "You fly away: nothing can target or hurt you, and you cannot act."
+    "note": "You fly away: nothing can target or hurt you, and harmful effects cannot take hold"
   },
   "intercept_guard": {
     "name": "Intercepted",
@@ -602,7 +602,8 @@
     "name": "Penance Barrier",
     "kind": "absorb",
     "duration": 8000,
-    "harmful": false
+    "harmful": false,
+    "note": "Absorbs damage up to a share of what Penance's healing restored (each tick adds to it)"
   },
   "psychic_stun": {
     "name": "Psychic Stun",

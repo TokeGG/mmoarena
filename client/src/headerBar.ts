@@ -11,6 +11,7 @@ const SVG = {
   patches: '<path d="M6 3h11a3 3 0 0 1 0 6H9"/><path d="M6 3a3 3 0 0 0 0 6v9a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3V9"/>',
   watch: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
   suggest: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+  bots: '<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V4M9.5 4h5"/><circle cx="9.5" cy="13" r="1.2"/><circle cx="14.5" cy="13" r="1.2"/><path d="M2.5 12v3M21.5 12v3"/>',
   admin: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
 } as const;
 
