@@ -89,6 +89,46 @@ export class DevPanel {
     this.button.addEventListener('click', () => this.toggle());
     document.body.append(this.root, this.button);
     makeResizable(this.root, { key: 'dev', corner: 'br', minW: 240, minH: 200, z: 32 });
+    this.draggable();
+  }
+
+  /** Drag the window by its title bar; where you leave it is remembered. */
+  private draggable() {
+    const KEY = 'arena.pos.dev';
+    const place = (x: number, y: number) => {
+      const w = this.root.offsetWidth || 300;
+      this.root.style.left = `${Math.max(0, Math.min(x, window.innerWidth - Math.min(w, 120)))}px`;
+      this.root.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 40))}px`;
+    };
+    try {
+      const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as [number, number] | null;
+      if (Array.isArray(saved) && saved.every((n) => Number.isFinite(n))) place(saved[0], saved[1]);
+    } catch {
+      /* default spot */
+    }
+    let drag: { dx: number; dy: number } | null = null;
+    this.root.addEventListener('pointerdown', (e) => {
+      const head = (e.target as HTMLElement).closest('.devp-head');
+      if (!head || (e.target as HTMLElement).closest('button')) return;
+      const r = this.root.getBoundingClientRect();
+      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      this.root.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+    this.root.addEventListener('pointermove', (e) => {
+      if (drag) place(e.clientX - drag.dx, e.clientY - drag.dy);
+    });
+    const end = () => {
+      if (!drag) return;
+      drag = null;
+      try {
+        localStorage.setItem(KEY, JSON.stringify([parseInt(this.root.style.left, 10), parseInt(this.root.style.top, 10)]));
+      } catch {
+        /* not remembered */
+      }
+    };
+    this.root.addEventListener('pointerup', end);
+    this.root.addEventListener('pointercancel', end);
   }
 
   get open(): boolean {
@@ -297,7 +337,7 @@ export class DevPanel {
     }
     r.append(chips);
     for (const sec of info.sections) {
-      const box = el('div', `devp-sec ${sec.kind}`);
+      const box = el('div', `devp-sec ${sec.kind === 'aura' ? 'effect' : sec.kind}`);
       const head = el('div', 'devp-sec-head');
       head.append(el('b', '', sec.kind === 'aura' ? `✦ ${sec.name}` : sec.name), el('small', 'devp-dim', ` ${sec.link}`));
       box.append(head);

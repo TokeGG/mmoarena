@@ -190,7 +190,7 @@
   .devp-btn.hidden { display:none; }
   .devp { position:fixed; left:12px; top:90px; z-index:31; width:300px; max-height:calc(100vh - 160px); overflow:auto; background:rgba(16,12,24,.95); border:1px solid #7a4bb0; border-radius:10px; padding:8px 10px; color:#e6e1f0; font-size:12px; box-shadow:0 6px 24px rgba(0,0,0,.7); }
   .devp.hidden { display:none; }
-  .devp-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:14px; }
+  .devp-head { cursor:move; user-select:none; touch-action:none; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:14px; }
   .devp-row { display:flex; gap:6px; align-items:center; flex-wrap:wrap; margin:6px 0; }
   .devp-dim { color:#9a90b0; }
   .devp-skills { display:flex; flex-wrap:wrap; gap:3px; margin:6px 0; }
@@ -262,7 +262,7 @@
   .devp-chips { display:flex; flex-wrap:wrap; gap:4px; margin:4px 0 6px; }
   .devp-chip { padding:1px 7px; border-radius:10px; font-size:10.5px; line-height:1.5; border:1px solid #3d3550; background:#1c1a26; color:#c8c0da; cursor:help; white-space:nowrap; }
   .devp-chip.yes { border-color:#7a4bb0; color:#d9b8ff; } .devp-chip.no { border-color:#3f8a55; color:#a6f0b5; }
-  .devp-sec { border-top:1px solid #ffffff1a; padding:6px 0 4px; margin-top:4px; } .devp-sec-head { display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; } .devp-sec-head b { color:#ffd24a; } .devp-sec.aura .devp-sec-head b { color:#9fd0ff; } .devp-from { font-size:11px; color:#c9b98f; margin:2px 0; overflow-wrap:anywhere; } .devp-does { font-size:11px; color:#d8d8d8; margin:2px 0 4px; white-space:normal; overflow-wrap:anywhere; } .devp-mods { margin:4px 0 0; padding-left:16px; font-size:11px; } .devp-mods li { margin:2px 0; overflow-wrap:anywhere; }
+  .devp-sec { border-top:1px solid #ffffff1a; padding:6px 0 4px; margin-top:4px; } .devp-sec-head { display:flex; flex-wrap:wrap; gap:2px 6px; align-items:baseline; } .devp-sec-head b { color:#ffd24a; } .devp-sec.effect .devp-sec-head b { color:#9fd0ff; } .devp-from { font-size:11px; color:#c9b98f; margin:2px 0; overflow-wrap:anywhere; } .devp-does { font-size:11px; color:#d8d8d8; margin:2px 0 4px; white-space:normal; overflow-wrap:anywhere; } .devp-mods { margin:4px 0 0; padding-left:16px; font-size:11px; } .devp-mods li { margin:2px 0; overflow-wrap:anywhere; }
   .devp-field span { color:#c8c0da; min-width:0; flex:1 1 auto; white-space:normal; overflow-wrap:anywhere; line-height:1.25; }
   .devp-field input { flex:none; width:84px; background:#0f0d16; color:#fff; border:1px solid #3d3550; border-radius:4px; padding:2px 4px; }
   .devp-field.changed span { color:#8dff9a; }
