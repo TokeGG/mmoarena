@@ -486,6 +486,10 @@ export interface UnitSnap {
   spec: string | null;
   /** Only present when talents changed the spec's default ability bar. */
   bar?: string[];
+  /** The tier IV trinket: an extra button beside the bar. */
+  trinket?: string;
+  /** Slots that turn into another ability while stealthed, from talents (Sap on the Kidney Shot slot). */
+  stealthSwaps?: Record<string, string>;
   /** Cosmetic gear summary (see gearLook). */
   look: string;
   /** 1 while up on a walkway's deck or ramps; absent on the ground. */

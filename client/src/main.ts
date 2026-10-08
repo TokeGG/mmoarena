@@ -220,7 +220,7 @@ function editHudFromMenu() {
 }
 let leaving = false;
 const relabel = () => {
-  hud.setKeyLabels(SLOT_ACTIONS.map((a) => binds.label(a)));
+  hud.setKeyLabels([...SLOT_ACTIONS, 'trinket' as const].map((a) => binds.label(a)));
   hud.autoKey = binds.label('autoAttack'); // hints name the key you bound, not the default
 };
 binds.onChange = relabel;
@@ -631,7 +631,8 @@ function aimLevel(g: { x: number; z: number; lv?: 1 }): 0 | 1 {
 function shownBar(): string[] {
   const me = latest?.units.find((u) => u.id === you);
   const stealthed = !!me?.stealthed;
-  return bar.map((id) => (stealthed && ABILITIES[id]?.stealthSwap) || id);
+  const slots = bar.map((id) => (stealthed && (me?.stealthSwaps?.[id] ?? ABILITIES[id]?.stealthSwap)) || id);
+  return me?.trinket ? [...slots, me.trinket] : slots;
 }
 let shownKey = '';
 
@@ -816,7 +817,9 @@ controls.onKey = (code, e) => {
   const action = binds.actionForEvent(e);
   if (!action) return;
   const slot = SLOT_ACTIONS.indexOf(action);
-  if (slot >= 0) castSlot(slot);
+  if (action === 'trinket') {
+    if (shownBar().length > bar.length) castSlot(bar.length);
+  } else if (slot >= 0) castSlot(slot);
   else if (action === 'nextTarget') cycleTarget(e.shiftKey ? -1 : 1);
   else if (action === 'prevTarget') cycleTarget(-1);
   else if (action in MARK_ACTIONS) markTarget(MARK_ACTIONS[action]!);
@@ -1020,7 +1023,7 @@ function frame(now: number) {
   const shown = shownBar();
   if (shown.join() !== shownKey) {
     shownKey = shown.join();
-    hud.setBar(classId, shown);
+    hud.setBar(classId, shown, !!shown.length && shown.length > bar.length);
     relabel();
   }
   hud.autoEnabled = autoEnabled;

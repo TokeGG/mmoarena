@@ -1496,6 +1496,8 @@ export class ArenaSim {
     return {
       id: u.id, name: u.name, team: u.team, classId: u.classId, spec: u.spec, look: u.look,
       ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}),
+      ...(u.trinket ? { trinket: u.trinket } : {}),
+      ...(u.stealthSwaps && Object.keys(u.stealthSwaps).length ? { stealthSwaps: u.stealthSwaps } : {}),
       ...(u.level ? { lv: 1 as const } : {}),
       x: r2(u.pos.x), z: r2(u.pos.z), facing: Math.round(u.facing * 1000) / 1000,
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,

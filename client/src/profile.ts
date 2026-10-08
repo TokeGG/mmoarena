@@ -50,7 +50,13 @@ export function sanitize(classId: ClassId, b: Build): Build {
   const tiers = talentsFor(classId, spec);
   const talents = tiers.map((tier, i) => (tier.some((t) => t.id === b.talents[i]) ? b.talents[i] : ''));
   const gear = cleanGear(b.gear, flags.owner, progress.matches);
-  return { spec, talents, gear };
+  // which skill a tier 5 pick replaces, where the talent lets the player choose
+  const replace: Record<string, string> = {};
+  for (const [id, from] of Object.entries(b.replace ?? {})) {
+    const t = tiers.flat().find((x) => x.id === id);
+    if (t?.swap && talents.includes(id) && (from === t.swap.from || t.swap.alt?.includes(from))) replace[id] = from;
+  }
+  return { spec, talents, gear, ...(Object.keys(replace).length ? { replace } : {}) };
 }
 
 export function defaultBuild(classId: ClassId): Build {

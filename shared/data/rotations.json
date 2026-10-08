@@ -2,78 +2,55 @@
  "warrior:arms": [
   "mortal_strike",
   "whirlwind",
-  "slice_and_dice"
+  "slice_and_dice",
+  "dragon_roar"
  ],
  "warrior:fury": [
   "bloodthirst",
   "bladestorm",
-  "slam"
+  "slam",
+  "dragon_roar"
  ],
  "warrior:protection": [
   "deep_cuts",
-  "axe_throw"
+  "axe_throw",
+  "dragon_roar"
  ],
  "mage:frost": [
-  "pyroblast",
   "frostbolt",
-  "ice_lance",
-  "arcane_explosion",
-  "arcane_barrage"
+  "ice_lance"
  ],
  "mage:fire": [
   "pyroblast",
   "scorch",
-  "ice_lance",
-  "fireball",
-  "arcane_barrage",
-  "arcane_explosion"
+  "fireball"
  ],
  "mage:arcane": [
-  "pyroblast",
   "arcane_barrage",
-  "arcane_missiles",
   "arcane_blast",
-  "ice_lance",
+  "arcane_missiles",
   "arcane_explosion"
  ],
  "priest:discipline": [
-  "mind_blast",
-  "penance",
   "smite",
-  "plague_bloom",
-  "mind_flay"
+  "penance"
  ],
  "priest:holy": [
-  "smite",
-  "mind_blast",
-  "mind_flay",
-  "plague_bloom"
+  "smite"
  ],
  "priest:shadow": [
   "plague_bloom",
   "mind_blast",
-  "mind_flay",
-  "smite"
+  "mind_flay"
  ],
  "rogue:assassination": [
   "mutilate",
-  "garrote",
-  "crippling_strike",
-  "fan_of_knives",
-  "sinister_strike"
+  "garrote"
  ],
  "rogue:combat": [
-  "garrote",
-  "mutilate",
-  "sinister_strike",
-  "crippling_strike",
-  "fan_of_knives"
+  "sinister_strike"
  ],
  "rogue:subtlety": [
-  "backstab",
-  "crippling_strike",
-  "garrote",
-  "mutilate",
-  "fan_of_knives"
+  "backstab"
  ]
 }

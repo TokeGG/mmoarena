@@ -221,7 +221,7 @@ export class Hud {
   private target = new UnitFrame($('target-frame'), true);
   private partyFrames = new Map<number, UnitFrame>();
   private enemyFrames = new Map<number, UnitFrame>();
-  private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
+  private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string; badge: HTMLElement }[] = [];
   private castBar = new Bar('#f1c40f');
   private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string; mark: HTMLElement; arrow: HTMLElement; mk: number }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
@@ -276,12 +276,14 @@ export class Hud {
     if (!visible) this.clearLabels();
   }
 
-  setBar(classId: ClassId, abilities: string[]) {
+  /** `trinket`: the last ability is the tier IV trinket, drawn apart from the bar. */
+  setBar(classId: ClassId, abilities: string[], trinket = false) {
     const bar = $('actionbar');
     bar.replaceChildren();
     this.slots = abilities.map((ability, i) => {
-      const root = el('div', 'slot');
-      const key = el('span', 'key', String(i + 1));
+      const isTrinket = trinket && i === abilities.length - 1;
+      const root = el('div', isTrinket ? 'slot trinket' : 'slot');
+      const key = el('span', 'key', isTrinket ? 'F' : String(i + 1));
       const def = ABILITIES[ability];
       root.style.background = SCHOOL_GRADIENT[def.school];
       root.dataset.tip = `ability:${ability}`;
@@ -290,7 +292,8 @@ export class Hud {
       const nm = el('span', 'nm', def.name);
       const cd = el('div', 'cd');
       cd.append(el('span'));
-      root.append(ico, nm, cd, key);
+      const badge = el('span', 'charges hidden');
+      root.append(ico, nm, cd, key, badge);
       root.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         if (e.button !== 0) return;
@@ -336,7 +339,7 @@ export class Hud {
         window.addEventListener('mouseup', up, true);
       });
       bar.append(root);
-      return { root, cd, key, ability };
+      return { root, cd, key, ability, badge };
     });
   }
 
@@ -350,8 +353,9 @@ export class Hud {
   /** Action bar key captions, one per slot, e.g. from the player's keybinds. */
   setKeyLabels(labels: string[]) {
     this.slots.forEach((s, i) => {
-      s.key.textContent = labels[i] ?? '';
-      s.root.dataset.tipSub = (labels[i] ? `Hotkey: ${labels[i]}  ·  ` : '') + 'Drag to move';
+      const label = s.root.classList.contains('trinket') ? labels[8] : labels[i];
+      s.key.textContent = label ?? '';
+      s.root.dataset.tipSub = (label ? `Hotkey: ${label}` : '') + (s.root.classList.contains('trinket') ? '' : `${label ? '  ·  ' : ''}Drag to move`);
     });
   }
 
@@ -379,6 +383,9 @@ export class Hud {
       const cd = Math.max(me.cooldowns[s.ability] ? me.cooldowns[s.ability] - now : 0, def.gcd ? gcdLeft : 0);
       const total = me.cooldowns[s.ability] && me.cooldowns[s.ability] - now >= gcdLeft ? def.cooldown || gcdTotal : gcdTotal;
       const frac = Math.min(1, cd / total);
+      const stored = me.charges?.[s.ability];
+      s.badge.classList.toggle('hidden', stored === undefined);
+      if (stored !== undefined) s.badge.textContent = String(stored);
       s.cd.classList.toggle('hidden', cd <= 50);
       s.cd.style.background = `conic-gradient(rgba(0,0,0,.72) ${frac * 360}deg, rgba(0,0,0,.08) 0)`;
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';

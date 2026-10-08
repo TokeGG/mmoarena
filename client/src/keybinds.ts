@@ -6,7 +6,7 @@
 
 export type Action =
   | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
-  | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8'
+  | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8' | 'trinket'
   | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail'
   | 'markSkull' | 'markCross' | 'markSquare' | 'markMoon' | 'markTriangle' | 'markDiamond' | 'markCircle' | 'markStar' | 'markClear';
 
@@ -26,6 +26,7 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'slot6', label: 'Ability 6', group: 'Abilities' },
   { id: 'slot7', label: 'Ability 7', group: 'Abilities' },
   { id: 'slot8', label: 'Ability 8', group: 'Abilities' },
+  { id: 'trinket', label: 'Trinket (the extra button beside the bar)', group: 'Abilities' },
   { id: 'nextTarget', label: 'Next enemy', group: 'Targeting' },
   { id: 'prevTarget', label: 'Previous enemy', group: 'Targeting' },
   { id: 'autoAttack', label: 'Toggle auto-attack', group: 'Targeting' },
@@ -65,6 +66,7 @@ const DEFAULTS: Record<Action, [string, string]> = {
   slot6: ['Digit6', ''],
   slot7: ['Digit7', ''],
   slot8: ['Digit8', ''],
+  trinket: ['KeyF', ''],
   nextTarget: ['Tab', ''],
   prevTarget: ['', ''],
   autoAttack: ['KeyR', ''],
