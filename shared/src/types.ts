@@ -406,6 +406,8 @@ export interface Unit {
   trinket?: string;
   /** Slots that turn into another ability while this unit is stealthed, from talents (Sap on Kidney Shot): slot ability -> ability. */
   stealthSwaps?: Record<string, string>;
+  /** The build the unit was made with, kept so dev tools can work its numbers out again after a change. */
+  buildRef?: Build;
   /** Cosmetic gear summary (see gearLook). */
   look: string;
   mods: Mods;

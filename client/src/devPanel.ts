@@ -1,5 +1,5 @@
-import { ABILITIES, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, skillInfo, talentsFor } from '@arena/shared';
-import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
+import { ABILITIES, CLASSES, CLASS_IDS, SPECS, TALENTS, applyPatches, mergePatches, skillInfo, talentsFor, tunableNumbers } from '@arena/shared';
+import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, TunableNumber, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
@@ -56,6 +56,8 @@ interface Hooks {
   builds(): UnitBuild[];
   /** The dev's own bar, offered first. */
   myBar(): string[];
+  /** The dev's own unit in the match (it can be rebuilt like a bot). */
+  youId(): number;
   /** In the menu: the class picked there, whose skills the panel opens on. */
   menuClass(): ClassId;
 }
@@ -83,6 +85,8 @@ export class DevPanel {
   /** Bots being edited: the class and build chosen for each, until applied. */
   private botDraft = new Map<number, { classId: ClassId; build: Build }>();
   private botsOpen = false;
+  /** Skills, or every number of a class, its specs and its talents. */
+  private mode: 'skills' | 'class' = 'skills';
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.title = 'Dev tools (F2)';
@@ -192,8 +196,9 @@ export class DevPanel {
   /** Change a bot's class, spec and talents on the fly: pick, press Apply, and it plays the new build at once. */
   private botEditor(): HTMLElement {
     const box = el('div', 'devp-sec bots');
-    const bots = this.hooks.builds().filter((b) => b.bot);
-    const head = el('button', 'mm-small', `${this.botsOpen ? '▾' : '▸'} Edit bots (${bots.length})`);
+    const you = this.hooks.youId();
+    const bots = this.hooks.builds().filter((b) => b.bot || b.id === you).sort((a, b) => Number(b.id === you) - Number(a.id === you));
+    const head = el('button', 'mm-small', `${this.botsOpen ? '▾' : '▸'} Change my build and the bots' (${bots.length})`);
     head.addEventListener('click', () => {
       this.botsOpen = !this.botsOpen;
       this.hooks.send({ t: 'dev_builds' });
@@ -221,7 +226,7 @@ export class DevPanel {
       }
       const draft = d;
       const card = el('div', 'devp-bot');
-      card.append(el('b', '', `${b.name} · team ${b.team + 1}`));
+      card.append(el('b', '', b.id === you ? `You · ${b.name}` : `${b.name} · team ${b.team + 1}`));
       const redraw = () => this.paint();
       const row1 = el('div', 'devp-row');
       row1.append(
@@ -257,7 +262,7 @@ export class DevPanel {
         }
         card.append(row);
       });
-      const apply = el('button', 'mm-small mm-go', 'Apply to this bot');
+      const apply = el('button', 'mm-small mm-go', b.id === you ? 'Apply to me' : 'Apply to this bot');
       apply.addEventListener('click', () => {
         const talents = [...draft.build.talents];
         while (talents.length < 5) talents.push('');
@@ -282,7 +287,6 @@ export class DevPanel {
     head.append(close);
     r.append(head);
 
-    if (this.inMatch) r.append(this.botEditor());
     let ids: string[];
     if (this.inMatch) {
       const row = el('div', 'devp-row');
@@ -311,6 +315,23 @@ export class DevPanel {
       r.append(tabs);
       ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === cls || ABILITIES[id].class === 'trinket'));
     }
+    const testing = new Map((this.inMatch ? this.layers.roomPatches : this.session).map((p) => [this.key(p), p]));
+    if (this.inMatch) r.append(this.botEditor());
+    const modes = el('div', 'devp-row');
+    for (const [id, label] of [['skills', 'Skills'], ['class', 'Class, specs and talents']] as const) {
+      const b = el('button', `mm-small${this.mode === id ? ' mm-go' : ''}`, label);
+      b.addEventListener('click', () => {
+        this.mode = id;
+        this.paint();
+      });
+      modes.append(b);
+    }
+    r.append(modes);
+    if (this.mode === 'class') {
+      r.append(this.classView(testing));
+      this.tail(r, false);
+      return;
+    }
     if (!this.pick || !ids.includes(this.pick)) this.pick = ids[0] ?? '';
     const picker = el('div', 'devp-skills');
     for (const id of ids) {
@@ -326,7 +347,6 @@ export class DevPanel {
     if (!this.pick) return;
     r.append(el('div', 'devp-title', ABILITIES[this.pick].name));
 
-    const testing = new Map((this.inMatch ? this.layers.roomPatches : this.session).map((p) => [this.key(p), p]));
     const info = skillInfo(this.pick);
     // how the skill behaves, as chips (hover for what each means)
     const chips = el('div', 'devp-chips');
@@ -343,23 +363,7 @@ export class DevPanel {
       box.append(head);
       if (sec.from.length) box.append(el('div', 'devp-from', `From: ${sec.from.join(' · ')}`));
       if (sec.does.length) box.append(el('div', 'devp-does', sec.does.join(' · ')));
-      const list = el('div', 'devp-fields');
-      for (const t of sec.fields) {
-        const k = this.key(t);
-        const f = el('label', `devp-field${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
-        const input = el('input');
-        input.type = 'number';
-        input.step = 'any';
-        input.value = String(this.edits.get(k)?.value ?? t.value);
-        input.addEventListener('change', () => {
-          const v = Number(input.value);
-          if (!Number.isFinite(v)) return;
-          this.edits.set(k, { file: t.file, id: t.id, path: t.path, value: v });
-          f.classList.add('changed');
-        });
-        f.append(el('span', '', t.label), input);
-        list.append(f);
-      }
+      const list = this.fieldList(sec.fields, testing);
       if (!sec.fields.length) list.append(el('small', 'devp-dim', 'No numbers to tune.'));
       box.append(list);
       r.append(box);
@@ -371,12 +375,18 @@ export class DevPanel {
       for (const m of info.modifiers) {
         const li = el('li');
         li.append(el('b', '', m.name), el('small', 'devp-dim', ` (${m.where})`), el('div', '', m.text));
+        if (m.fields.length) li.append(this.fieldList(m.fields, testing));
         ul.append(li);
       }
       box.append(ul);
       r.append(box);
     }
 
+    this.tail(r, true);
+  }
+
+  /** The buttons that try, keep, send or clear the changes, then (for skills) Ask Claude and a note, and the last result. */
+  private tail(r: HTMLElement, withAsk: boolean) {
     const acts = el('div', 'devp-row');
     const tryIt = el('button', 'mm-small mm-go', 'Try in this match');
     tryIt.addEventListener('click', () => this.hooks.send({ t: 'dev_patch', patches: mergePatches(this.layers.roomPatches, [...this.edits.values()]) }));
@@ -418,45 +428,48 @@ export class DevPanel {
       r.append(srow);
     }
 
-    // ask Claude: plain words in, number changes out, tried in this match at once
-    const askBox = el('textarea', 'devp-note devp-ask');
-    askBox.placeholder = `🤖 Ask Claude to change ${ABILITIES[this.pick].name} (e.g. "hit 20% harder but cost more", "slow lasts 2s less")`;
-    askBox.maxLength = 600;
-    askBox.value = this.ask;
-    askBox.addEventListener('input', () => (this.ask = askBox.value));
-    // Enter sends (Shift+Enter for a new line)
-    askBox.addEventListener('keydown', (e) => {
-      e.stopPropagation(); // typing here never casts spells
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        askGo.click();
-      }
-    });
-    const askGo = el('button', 'mm-small mm-go', this.asking ? 'Claude is thinking…' : '🤖 Ask Claude');
-    askGo.disabled = this.asking;
-    askGo.addEventListener('click', () => {
-      if (!this.ask.trim()) return;
-      this.asking = true;
-      this.result = null;
-      this.hooks.send({ t: 'dev_ai', ability: this.pick, text: this.ask.trim() });
-      this.paint();
-    });
-    r.append(askBox, askGo);
+    if (withAsk) {
+      // ask Claude: plain words in, number changes out, tried in this match at once
+      const askBox = el('textarea', 'devp-note devp-ask');
+      askBox.placeholder = `🤖 Ask Claude to change ${(ABILITIES[this.pick]?.name ?? 'a skill')} (e.g. "hit 20% harder but cost more", "slow lasts 2s less")`;
+      askBox.maxLength = 600;
+      askBox.value = this.ask;
+      askBox.addEventListener('input', () => (this.ask = askBox.value));
+      // Enter sends (Shift+Enter for a new line)
+      askBox.addEventListener('keydown', (e) => {
+        e.stopPropagation(); // typing here never casts spells
+        if (e.key === 'Enter' && !e.shiftKey) {
+          e.preventDefault();
+          askGo.click();
+        }
+      });
+      const askGo = el('button', 'mm-small mm-go', this.asking ? 'Claude is thinking…' : '🤖 Ask Claude');
+      askGo.disabled = this.asking;
+      askGo.addEventListener('click', () => {
+        if (!this.ask.trim()) return;
+        this.asking = true;
+        this.result = null;
+        this.hooks.send({ t: 'dev_ai', ability: this.pick, text: this.ask.trim() });
+        this.paint();
+      });
+      r.append(askBox, askGo);
 
-    const noteBox = el('textarea', 'devp-note');
-    noteBox.placeholder = `A note on ${ABILITIES[this.pick].name} for the owner (sent to Discord)`;
-    noteBox.maxLength = 600;
-    noteBox.value = this.note;
-    noteBox.addEventListener('input', () => (this.note = noteBox.value));
-    const send = el('button', 'mm-small', 'Send note');
-    send.addEventListener('click', () => {
-      if (!this.note.trim()) return;
-      this.hooks.send({ t: 'dev_note', ability: this.pick, text: this.note.trim() });
-      this.note = '';
-      noteBox.value = '';
-    });
-    r.append(noteBox, send);
+      const noteBox = el('textarea', 'devp-note');
+      noteBox.placeholder = `A note on ${(ABILITIES[this.pick]?.name ?? 'a skill')} for the owner (sent to Discord)`;
+      noteBox.maxLength = 600;
+      noteBox.value = this.note;
+      noteBox.addEventListener('input', () => (this.note = noteBox.value));
+      const send = el('button', 'mm-small', 'Send note');
+      send.addEventListener('click', () => {
+        if (!this.note.trim()) return;
+        this.hooks.send({ t: 'dev_note', ability: this.pick, text: this.note.trim() });
+        this.note = '';
+        noteBox.value = '';
+      });
+      r.append(noteBox, send);
 
+
+    }
     if (this.result) {
       const res = el('div', `devp-result ${this.result.ok ? 'ok' : 'bad'}`, this.result.text);
       if (this.result.url) {
@@ -468,5 +481,78 @@ export class DevPanel {
       }
       r.append(res);
     }
+  }
+
+  /** One row per number: its name and a box to type the new value in (green once changed). */
+  private fieldList(fields: TunableNumber[], testing: Map<string, DataPatch>): HTMLElement {
+    const list = el('div', 'devp-fields');
+    for (const t of fields) {
+      const k = this.key(t);
+      const f = el('label', `devp-field${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
+      const input = el('input');
+      input.type = 'number';
+      input.step = 'any';
+      input.value = String(this.edits.get(k)?.value ?? t.value);
+      input.addEventListener('change', () => {
+        const v = Number(input.value);
+        if (!Number.isFinite(v)) return;
+        this.edits.set(k, { file: t.file, id: t.id, path: t.path, value: v });
+        f.classList.add('changed');
+      });
+      f.append(el('span', '', t.label), input);
+      list.append(f);
+    }
+    return list;
+  }
+
+  /** Every number of a class (health, resource, auto-attack), of each of its specs (bonuses, weapon swing) and of every talent. */
+  private classView(testing: Map<string, DataPatch>): HTMLElement {
+    const wrap = el('div');
+    const me = this.hooks.builds().find((b) => b.id === this.hooks.youId());
+    const cls = this.menuCls ?? (this.inMatch && me ? me.classId : this.hooks.menuClass());
+    const tabs = el('div', 'devp-row');
+    for (const c of CLASS_IDS) {
+      const b = el('button', `mm-small${c === cls ? ' mm-go' : ''}`, CLASSES[c].name);
+      b.addEventListener('click', () => {
+        this.menuCls = c;
+        this.pick = '';
+        this.paint();
+      });
+      tabs.append(b);
+    }
+    wrap.append(tabs);
+    const clean = (fields: TunableNumber[], strip: string[]) => fields.map((f) => ({ ...f, label: f.path.filter((k) => !strip.includes(String(k))).join(' · ') }));
+    const section = (title: string, sub: string, fields: TunableNumber[], open = false) => {
+      const box = el('details', 'devp-sec');
+      box.open = open;
+      const sum = el('summary', 'devp-sec-head');
+      sum.append(el('b', '', title), el('small', 'devp-dim', ` ${sub} · ${fields.length} numbers`));
+      box.append(sum, fields.length ? this.fieldList(fields, testing) : el('small', 'devp-dim', 'No numbers to tune.'));
+      return box;
+    };
+    wrap.append(section(`${CLASSES[cls].name}`, 'class: health, resource, auto-attack', clean(tunableNumbers('classes', cls), []), true));
+    for (const sp of SPECS[cls]) {
+      wrap.append(section(sp.name, 'spec: bonuses and weapon', clean(tunableNumbers('specs', sp.id), ['mods']), true));
+    }
+    // talents: the shared tiers once, the spec tiers under their spec
+    const seen = new Set<string>();
+    TALENTS[cls][SPECS[cls][0].id].forEach((tier, ti) => {
+      for (const t of tier) {
+        const id = t.id;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        wrap.append(section(`${['I', 'II', 'III', 'IV', 'V'][ti]} · ${t.name}`, 'talent', clean(tunableNumbers('talents', id), ['mods', 'ability'])));
+      }
+    });
+    for (const sp of SPECS[cls]) {
+      (TALENTS[cls][sp.id] ?? []).forEach((tier, ti) => {
+        for (const t of tier) {
+          if (seen.has(t.id)) continue;
+          seen.add(t.id);
+          wrap.append(section(`${sp.name} · ${['I', 'II', 'III', 'IV', 'V'][ti]} · ${t.name}`, 'talent', clean(tunableNumbers('talents', t.id), ['mods', 'ability'])));
+        }
+      });
+    }
+    return wrap;
   }
 }

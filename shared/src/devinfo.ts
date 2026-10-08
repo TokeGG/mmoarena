@@ -23,6 +23,8 @@ export interface SkillModifier {
   name: string;
   where: string;
   text: string;
+  /** The numbers of this talent, spec or buff that act on the skill, to edit in the dev panel. */
+  fields: TunableNumber[];
 }
 
 /** A small fact about how a skill behaves ("Uses the global cooldown"), for the chips at the top of the dev panel. */
@@ -124,17 +126,29 @@ export function skillInfo(abilityId: string): SkillInfo {
   if (def.exploit) tie(def.exploit.aura, `it does ×${def.exploit.mult} to targets with it`);
   for (const [id, a] of Object.entries(AURAS)) if ((a as { dot?: { ability?: string } }).dot?.ability === abilityId) tie(id, 'its damage over time');
 
+  // the numbers of a talent, spec or buff that touch this skill (or its effects), labelled in plain words
+  const modFields = (file: 'specs' | 'talents' | 'auras', id: string): TunableNumber[] =>
+    tunableNumbers(file, id)
+      .filter((f) => {
+        const [top, kind, key] = f.path;
+        if (top !== 'mods') return false;
+        if (kind === 'ability') return key === abilityId;
+        if (kind === 'auraDuration' || kind === 'auraExtend') return typeof key === 'string' && links.has(key);
+        return true;
+      })
+      .map((f) => ({ ...f, label: f.path.slice(1).filter((k, i) => !(i === 0 && k === 'ability') && k !== abilityId).join(' · ') }));
+
   const modifiers: SkillModifier[] = [];
   for (const cls of Object.keys(SPECS) as ClassId[]) {
     for (const s of SPECS[cls]) {
       const sm = s.mods?.ability?.[abilityId];
-      if (sm) modifiers.push({ name: s.name, where: `${CLASSES[cls]?.name ?? cls} spec`, text: describeMods({ ability: { [abilityId]: sm } }).map(cap).join(' ') });
+      if (sm) modifiers.push({ name: s.name, where: `${CLASSES[cls]?.name ?? cls} spec`, text: describeMods({ ability: { [abilityId]: sm } }).map(cap).join(' '), fields: modFields('specs', s.id) });
       for (const tier of TALENTS[cls]?.[s.id] ?? []) {
         for (const t of tier) {
           const m = t.mods?.ability?.[abilityId];
           for (const a of m?.after ?? []) tie(a, `added by talent ${t.name}`);
           for (const x of m?.extra ?? []) if (x.type === 'aura') tie(x.aura, `added by talent ${t.name}`);
-          if (m || t.swap?.to === abilityId) modifiers.push({ name: t.name, where: `${CLASSES[cls]?.name ?? cls} ${s.name} talent`, text: t.desc });
+          if (m || t.swap?.to === abilityId) modifiers.push({ name: t.name, where: `${CLASSES[cls]?.name ?? cls} ${s.name} talent`, text: t.desc, fields: modFields('talents', t.id) });
         }
       }
     }
@@ -145,7 +159,7 @@ export function skillInfo(abilityId: string): SkillInfo {
       for (const tier of TALENTS[cls]?.[s.id] ?? []) {
         for (const t of tier) {
           const hits = Object.keys(t.mods?.auraDuration ?? {}).some((a) => links.has(a)) || Object.keys(t.mods?.auraExtend ?? {}).some((a) => links.has(a));
-          if (hits && !modifiers.some((x) => x.name === t.name)) modifiers.push({ name: t.name, where: `${CLASSES[cls]?.name ?? cls} ${s.name} talent`, text: t.desc });
+          if (hits && !modifiers.some((x) => x.name === t.name)) modifiers.push({ name: t.name, where: `${CLASSES[cls]?.name ?? cls} ${s.name} talent`, text: t.desc, fields: modFields('talents', t.id) });
         }
       }
     }
@@ -153,7 +167,7 @@ export function skillInfo(abilityId: string): SkillInfo {
   // buffs (from any skill) that change this one while they are up
   for (const [id, a] of Object.entries(AURAS)) {
     const am = (a as { mods?: { ability?: Record<string, unknown> } }).mods?.ability?.[abilityId];
-    if (am) modifiers.push({ name: a.name, where: `aura (${auraOrigins(id).join(', ') || 'no source'})`, text: plainText(describeAura(id)) });
+    if (am) modifiers.push({ name: a.name, where: `aura (${auraOrigins(id).join(', ') || 'no source'})`, text: plainText(describeAura(id)), fields: modFields('auras', id) });
   }
 
   for (const [aura, how] of links) {

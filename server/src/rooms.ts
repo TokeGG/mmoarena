@@ -279,13 +279,16 @@ export class Room {
   }
 
   /** Dev tools: a bot gets another class and build in the middle of the match (which then counts for nothing). */
-  devRebuild(unitId: number, classId: ClassId, build: Build): boolean {
+  devRebuild(unitId: number, classId: ClassId, build: Build, own = false): boolean {
     const i = this.bots.findIndex((b) => b.unitId === unitId);
     const u = this.sim.units.get(unitId);
-    if (i < 0 || !u || u.controller !== 'bot') return false;
+    if (!u) return false;
+    // a bot, or the dev's own unit
+    if (!(u.controller === 'bot' && i >= 0) && !(own && u.controller === 'player')) return false;
     this.devTest = true;
-    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build, `Bot ${specOf(classId, build.spec)?.name ?? CLASSES[classId].name}`));
-    this.bots[i] = new Bot(this.sim, unitId, this.bots[i].difficulty, Math.floor(Math.random() * 2 ** 31));
+    const name = u.controller === 'bot' ? `Bot ${specOf(classId, build.spec)?.name ?? CLASSES[classId].name}` : undefined;
+    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build, name));
+    if (i >= 0) this.bots[i] = new Bot(this.sim, unitId, this.bots[i].difficulty, Math.floor(Math.random() * 2 ** 31));
     return true;
   }
 
@@ -940,6 +943,8 @@ export class Lobby {
   private setRoomPatches(room: Room, p: Player, patches: DataPatch[]): void {
     room.devTest = true;
     room.devPatches = patches;
+    // class, spec and talent numbers are worked into each unit, so they are worked out again
+    withPatches(patches, () => room.sim.refreshMods());
     const by = p.account?.name ?? p.name;
     for (const q of [...room.players.values(), ...room.spectators]) {
       send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
@@ -1299,13 +1304,15 @@ export class Lobby {
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
         const ok = validateBuild(msg.classId, msg.build, !!p.ownerOk, 99);
         if (!ok.ok) return void send(p, { t: 'dev_result', ok: false, text: `That build is not valid: ${ok.reason}` });
-        if (!room.devRebuild(msg.unit, msg.classId, msg.build)) return void send(p, { t: 'dev_result', ok: false, text: 'That is not a bot in this match.' });
+        const mine = msg.unit === p.unitId && p.room === room;
+        if (!room.devRebuild(msg.unit, msg.classId, msg.build, mine)) return void send(p, { t: 'dev_result', ok: false, text: 'That is not a bot in this match, or your own character.' });
+        if (mine) p.classId = msg.classId;
         const by = p.account?.name ?? p.name;
         for (const q of [...room.players.values(), ...room.spectators]) {
           send(q, { t: 'builds', units: room.builds() });
           if (q !== p) send(q, { t: 'notice', text: `${by} changed a bot's class and build (the match no longer counts).` });
         }
-        send(p, { t: 'dev_result', ok: true, text: 'The bot has its new class and build.' });
+        send(p, { t: 'dev_result', ok: true, text: mine ? 'You have your new class and build.' : 'The bot has its new class and build.' });
         break;
       }
       case 'dev_builds': {

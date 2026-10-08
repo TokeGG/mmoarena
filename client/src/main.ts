@@ -140,6 +140,9 @@ effects.onSwing = (id) => scene.swing(id);
 effects.onHit = (id) => scene.flash(id);
 
 let barSpec: string | null = null;
+/** The bar as the server built it (before you reordered it) and the build it came from, to notice a dev changing your class or talents mid-match. */
+let baseBar = '';
+let ownBuildKey = '';
 const hud = new Hud({
   onTarget: (id) => setTarget(id),
   onSlot: (i) => castSlot(i),
@@ -264,6 +267,8 @@ function onMessage(raw: MessageEvent) {
       send({ t: 'autoOff', off: !autoEnabled });
       barSpec = m.spec ?? myBuild.spec ?? null;
       bar = applyOrder(m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar, loadOrder(classId, barSpec));
+      baseBar = (m.bar ?? specOf(classId, m.spec ?? '')?.bar ?? CLASSES[classId].bar).join();
+      ownBuildKey = '';
       setTipBuild(classId, myBuild);
       latest = null;
       snaps.length = 0;
@@ -1025,6 +1030,27 @@ function frame(now: number) {
   scene.render(); // render first so projection uses this frame's camera
 
   if (!spec && targetId !== null && smokeHidden(targetId)) setTarget(null); // the smoke's edge takes your target away
+  // a dev rebuilt you in the middle of the match (class, talents or skills): the bar and tooltips follow
+  {
+    const mine = !spec ? latest?.units.find((u) => u.id === you) : undefined;
+    if (mine) {
+      const mb = mine.bar ?? specOf(mine.classId, mine.spec ?? '')?.bar ?? CLASSES[mine.classId].bar;
+      const tal = lastBuilds.find((b) => b.id === you)?.talents ?? [];
+      const key = `${mine.classId}|${mine.spec}|${tal.join()}|${mb.join()}`;
+      if (!ownBuildKey) ownBuildKey = key;
+      else if (key !== ownBuildKey) {
+        ownBuildKey = key;
+        if (mb.join() !== baseBar || mine.classId !== classId) {
+          classId = mine.classId;
+          barSpec = mine.spec;
+          baseBar = mb.join();
+          bar = applyOrder(mb, loadOrder(classId, barSpec));
+          shownKey = '';
+        }
+        setTipBuild(classId, { spec: mine.spec ?? specOf(classId, '')?.id ?? '', talents: tal, gear: {} });
+      }
+    }
+  }
   const shown = shownBar();
   if (shown.join() !== shownKey) {
     shownKey = shown.join();
@@ -1053,7 +1079,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, menuClass: () => mainMenu.selectedClass }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, menuClass: () => mainMenu.selectedClass }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
