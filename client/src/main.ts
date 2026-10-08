@@ -565,11 +565,11 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'stats':
       if (m.final) {
-        // the match is over: put the scoreboard up for everyone, with the result as its title
+        // the match is over: the recap card is the end screen. The scoreboard only stands in when there is no exact recap (a scrubbed replay)
         const w = latest?.winner;
         const mine = latest?.units.find((u) => u.id === you)?.team;
         spectateBar.board.update(m.rows, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat');
-        spectateBar.board.toggle(true);
+        if (!recapExact) spectateBar.board.toggle(true);
         endBoardUp = true;
         if (!spec) endChoice.show();
       } else if (spec?.kind === 'live') spectateBar.setStats(m.rows);
