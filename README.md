@@ -36,7 +36,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
 - **Lobby:** drag on the empty middle of the menu to turn your character.
-- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, volume, the HUD editor and Leave match.
+- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, volume, the HUD editor and Leave match.
 - **Binding keys:** click a box and press a key, or hold Shift, Ctrl or Alt for a combo such as Shift+1. Every action has two slots, right-click clears a slot, and Esc is reserved.
 - Signed in, your keybinds, HUD, sound settings and builds follow your account to any device.
 
@@ -44,8 +44,8 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Practice:** a private match against bots or training dummies. Choose 1v1, 2v2 or 3v3, the arena, the bot skill and (under Advanced) your bot partners; the opponents are random classes, rolled each time. Nothing moves your rating.
 - **Ranked** (needs an account): queues for the team size you picked. Players are paired in the order they queued; if you pick an arena you only play there, Random fits anywhere. Your rating changes with the result, and leaving a live ranked match is a loss.
-- **Parties** (up to 3 friends): the leader picks the mode and arena, everyone else presses Ready. A party plays on one team, in practice too (friends replace partner bots). A party bigger than the team size queues as separate players.
-- **Party match:** with two or three friends in a party, the leader can start a friendly match for the whole party. Pick Team 1 or Team 2 on your party card; bots fill the empty places.
+- **Parties** (up to 6 players): the leader picks the mode and arena, everyone else presses Ready. A party plays on one team, in practice too (friends replace partner bots). A party bigger than the team size queues as separate players.
+- **Party match:** with friends in a party, the leader can start a friendly match for the whole party. Everyone starts on the leader's team (a team holds 3), and you can pick Team 1 or Team 2 on your party card; bots fill the empty places.
 - **Duels:** challenge an online friend to an unranked 1v1 with the class and build you have picked on the menu.
 - **Watch live:** the menu lists every match in progress except solo dummy training. Spectators see everything five seconds late, so watching cannot help the players.
 - **Replays:** Profile > Matches keeps your last 30 counted matches, each with a replay you can pause, speed up, seek and share by link.
@@ -60,7 +60,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 | [Priest](WIKI.md#priest) | 2500 | Mana | Healer and support: shields, heals, dispels and fears |
 | [Rogue](WIKI.md#rogue) | 2800 | Energy and combo points | Stealth melee: stuns from stealth, kicks casters |
 
-Every class has three specs, each with its own eight-skill action bar (and, for warriors, its own weapon):
+Every class has three specs, each with its own eight-skill action bar (and each warrior and mage spec carries its own weapon):
 
 | Spec | Class | Role | Playstyle |
 |---|---|---|---|
@@ -162,4 +162,4 @@ Developing or hosting the game: see [DEVELOPING.md](DEVELOPING.md).
 
 ## Credits
 
-The warrior's weapons (dual sabers by Shadow Models 3D, greatsword by denisdezmand, Tyra Polearm by zenkuri) and character models are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.
+The characters, weapons, cape, wings and arena scenery (for example the dual sabers by Shadow Models 3D, the greatsword by denisdezmand, the Tyra Polearm by zenkuri, the Old Wizard by JuanCarlosOsanteHernandez, the Hooded Shadow Assassin by iRahulRajput and the Abyssal Sentinel by Rignu) and one recorded sound are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.

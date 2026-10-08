@@ -60,12 +60,12 @@ The full list is in [CLAUDE.md](CLAUDE.md). In short:
 | `server/src/matchmaking.ts` | Pairs queued players and parties into two equal teams. |
 | `server/src/accounts.ts`, `store.ts` | Accounts, sessions, owner tools, history, replays, friends; the Upstash/memory store. |
 | `client/src/` | Three.js + Vite client: scene and models, HUD and HUD editor, menus, tooltips, audio, spectate and replay viewer, friends panel. |
-| `scripts/` | `train-bots.ts` (bot training), `study-replays.ts` (learning from real replays), `train-rotations.ts` and `gen-wiki.ts` (writes WIKI.md). |
+| `scripts/` | `train-bots.ts` (bot training), `study-replays.ts` (learning from real replays), `train-rotations.ts` and `gen-wiki.ts` (writes WIKI.md), and the model tools (`rig-model.mjs`, `convert-skinned.mjs`, `prep-*.mjs`, `pack-models.ts`; see Character models). |
 | tests | `shared/test`, `server/test` and `client/test`, run by `npm test`. |
 
 ## Character models
 
-Classes can wear a skinned GLB instead of the procedural primitives. The warrior currently has two: the gold/black horned `knight` (default, `client/public/models/warrior.glb`) and an alternative `brute` with its own axe (`warrior-brute.glb`). Preview an alternative with `?warriormodel=brute` in the URL or `localStorage['arena.model.warrior'] = 'brute'` (`procedural` forces the old model). Until a model has loaded, or if it fails to load, the procedural model is used and scenes rebuild their characters when the load finishes.
+Every class wears a skinned model; the procedural primitives (`createCharacter` in `models.ts`) are the fallback while a model loads or if it fails to load, and what `?warriormodel=procedural` forces. Warrior: the gold/black horned `knight` (default, every spec) and an optional `brute` with its own axe, previewed with `?warriormodel=brute` or `localStorage['arena.model.warrior'] = 'brute'` (it is only fetched when picked). Mage: the animated Old Wizard (`wizard`). Rogue: the Hooded Shadow Assassin (`assassin`). Priest: the Abyssal Sentinel (`sentinel`). A `ModelDef` names its file by a `.glb` url, but only the packed `.pak` next to it is served and fetched (see Packed models below), so a path such as `client/public/models/warrior.glb` below means `warrior.pak` in the repo. Scenes rebuild their characters when a model finishes loading.
 
 **The owner must have the right to use every model that is committed (licence and credit them); never commit the original multi-megabyte source file, keep it outside the repo.**
 
@@ -104,6 +104,7 @@ Generic effects a data row or a `case` can pick (all in `effects.ts`):
 - `soundWaves(unit, radius, color)`: pressure shells (open spherical caps with a rippled rim) leaving the face along the facing and growing to the real radius, plus a head-height ripple. `shockwave(x, z, radius)`: ground rings and ringed dust. `shout(...)` = body pose + the two above at the moment of release.
 - `spinBlades(unit, radius, color, dur, turns)`: blades whirling round the caster (Cleave, Bladestorm, Slice and Dice).
 - Flipbook fireball (`fireballFx.ts` + `fireballFlight` / `fireballWindup` / `fireballImpact` in `effects.ts`): the look of Fireball and Pyroblast, picked by a data row, `proj: { look: 'fireball', size, heat }` in `ABILITY_VISUAL` (`fireball(1, 0)`, `fireball(1.7, 1)`); every other projectile keeps the generic bolt. `fireballShape(size, heat)` (`skillVisuals.ts`, tested) gives every radius, count and rate. The `FireballRig` moves pooled sprites in readable layers, back to front: two glow halos, a dark red body (normal blending, so the fire has a darker edge), three large flame tongues of different sizes and rates that lick round the ball with their tips turned away from it and back along the flight (tip angles come from `effects.camera`, set in `main.ts`), a few small licks, a yellow-white flame body, a small white-hot core, and a soft light on the ground. The tail is a continuous tapered ribbon (a camera-facing strip with vertex colours and alpha: orange to red to dark to nothing, plus a longer dark smoke ribbon in normal blending), two stretched flame sprites on it, a few faint heat-shimmer sprites rising over it (the fake for heat distortion), and `Effects` adds short overlapping tail flames, dark smoke wisps in normal blending that stay in the air behind the path, and embers. `fireballTailScale(range, tail)` shortens the tail on a short throw (a 5 yd throw keeps about 40 %, from 16 yd on it is full; tested). On the hit `Effects` draws a flash, flames flaring outward, saturated ground rings (a normal-blended orange ring under an additive hot one, so they read on light and dark floors), embers, smoke, and what stays on the ground: an orange glow (normal blending under an additive core) over a short-lived dark scorch decal. `Effects` owns ONE `PointLight` created in its constructor and never added or removed (three.js recompiles every lit material when the light count changes): it is moved to the strongest fireball, dimmed to intensity 0 when none flies and flashes on a hit. Pyroblast (`size` 1.7, `heat` 1) is bigger and a darker red, and its cast time grows the ball in the caster's hand (`fireballWindup`), held out to the right of the caster; `windupScale(dist, radius)` caps its apparent size to a share of the screen (`WINDUP_CAP`, tested) and a close camera slides it aside and down, so a close-up never fills the view. Cost: about 25 pooled sprites and two 19-station ribbons per ball plus tail particles under the global `PARTICLE_CAP`, no per-frame allocation (the ribbons rewrite their own vertex arrays), everything handed back when the flight ends. To give another spell the look, add a `fireball(size, heat)` row (any school, but the colours are fire). Without the flipbook file the canvas flame is used. To preview, drive `Effects` with synthetic events from a throwaway page (a test scene, `Effects.update(dt, units)` stepped by hand, `effects.camera` set) and screenshot it.
+- Shared fire look (`fireFx.ts`, `FIRE_LOOK` / `fireFieldShape` in `skillVisuals.ts`): every fire skill is built from the same pieces as the Fireball. `FireField` is a persistent field of flipbook tongues (a dark red body in normal blending, a large tongue and a smaller hot one per tongue, each on its own lick cycle and frame phase, tips leaning along the swirl, low broad tongues between the tall ones) round a white-hot core, over an orange glow and a scorch mark: `zone` (Flamestrike: fills the real radius, `fireFieldShape('zone', radius)` keeps every flame inside it, tested; pillar at cast, a jump and ring on every pulse, scorch that builds and stays), `burst` (Scorch, `fireEruption`) and `body` (the burning aura layer, scaled by the unit). The emitters in `effects.ts` are shared too: `fireTongue` (the old `flame()` is now this, so every caller and cosmetic gets the look), `smokeWisps`, `emberShower`, `fireFlash` and `fireGroundGlow` (also used by the fireball hit). Dragon's Breath and Dragon Roar (`fireCone`) add the dark red body, a mouth flash and tongue plus glow patches. A field is about 55 pooled sprites (zone), 30 (Scorch) or 25 (a burning unit) and moves them without allocating; everything is handed back when it ends and the 900 particle cap still applies. Without the flipbook the host's canvas flame is used. Fire forms by ability: `fireball`/`pyroblast` ball, `flamestrike` zone, `scorch` burst, `dragons_breath`/`dragon_roar` cone, aura `burn` body (tested for every fire-school ability).
 - `sector(...)`: a flat fan on the ground (any cone).
 - Shout pose (`client/src/shoutPose.ts`): a one-shot overlay (lean back with the chest out, then snap forward at `SHOUT_RELEASE`, settle by `SHOUT_DUR`) added on top of the normal pose by all three animators: `RigAnimator` (procedural bones), `ClipAnimator` (applied after the mixer to the canonical bones, `shoutGain`) and the procedural `createCharacter`. `Effects.onShout` -> `Scene.shout` -> `Character.shout()`; the abilities are listed in `SHOUT_ABILITIES`.
 
@@ -125,7 +126,8 @@ Audit of every live ability (before -> after of the 0.69.2 pass; "ok" = already 
 | Battle Banner, You're Not Going Anywhere | flag and zone | ok | ok (waving flag zones) |
 | Frostbolt, Fireball, Pyroblast, Arcane Blast | projectiles | ok | ok (the fire ones now use the flipbook flames) |
 | Arcane Missiles, Mind Flay, Penance | channels | ok | ok (curving missiles, beam, holy bolts) |
-| Scorch, Deep Freeze, Ice Lance, Arcane Barrage, Mind Blast, Shadow Word: Pain, Devouring Plague | instant hits | ok | ok (eruption or impact at the target; DoT auras leave layers) |
+| Scorch | instant fire hit | canvas flames at the feet | shared flame field erupting at the feet (flash, rings, embers, smoke, scorch mark) |
+| Deep Freeze, Ice Lance, Arcane Barrage, Mind Blast, Shadow Word: Pain, Devouring Plague | instant hits | ok | ok (eruption or impact at the target; DoT auras leave layers) |
 | Polymorph, Dispel Magic, Leap of Faith, Blind | swirls at the target | ok | ok |
 | Counterspell, Pummel, Kick | interrupts | ok | ok (red star and school ring on the target) |
 | Frost Nova | 10 yd frost ring, root | ok | ok |
@@ -134,7 +136,8 @@ Audit of every live ability (before -> after of the 0.69.2 pass; "ok" = already 
 | Ice Barrier, Power Word: Shield, Pain Suppression, trinket shield | shields | ok | ok (bubble aura) |
 | Arcane Power, Evocation | self buff | buff ring and column | arcane energy streams in towards the caster |
 | Mirror Image | decoys | buff column | three puffs and columns where the images appear |
-| Flamestrike, Rune of Power | ground zones | ok | ok (flames now use the flipbook) |
+| Flamestrike | ground zone, 5 yd | swirling canvas tongues | shared flame field: flipbook tongues over a dark red body round a white-hot core, pillar at cast, ring and jump on every pulse, scorch that builds and stays |
+| Rune of Power | ground zone | ok | ok |
 | Flash Heal, Greater Heal, Desperate Prayer, trinket heal | heals | ok | ok (healing column, ring, crosses) |
 | Holy Nova | 12 yd, hurts and heals | plain ring | gold double ring, light column, rising motes |
 | Purifying Light, Ascend, Dispersion | dispel / escape | ok | ok |
@@ -143,7 +146,7 @@ Audit of every live ability (before -> after of the 0.69.2 pass; "ok" = already 
 | Cheap Shot, Kidney Shot, Gouge, Sap, Sinister Strike, Backstab, Mutilate, Eviscerate, Garrote, Exsanguinate | melee | ok | ok |
 | Shadowstep | dash behind | ok | ok (streak and impact) |
 
-Known gaps (see the report of the pass): no true heat-distortion refraction on the flame (a few faint rising sprites fake it) and only one real light, shared by the fireball in flight (flames elsewhere cast none), the waves are additive shells rather than refraction, and unknown-licence assets (the flipbook) are credited as "to be confirmed".
+Known gaps (see the report of the pass): no true heat-distortion refraction on the flame (a few faint rising sprites fake it) and only one real light, shared by the fireball in flight (flames elsewhere cast none), the waves are additive shells rather than refraction, and assets whose licence is still to be confirmed (the knight and brute models, the wings' Sketchfab Standard licence, the Fireball sound) are marked as such in CREDITS.md.
 
 ## Sample bank (recorded sounds)
 
@@ -237,7 +240,7 @@ Friend lists live on the account record; who is online is held in memory only, s
 - Numbers are tuned with bot duels, not with many humans yet. Retune after you play.
 - Matchmaking pairs players in queue order; it does not use rating yet. One rating covers 1v1, 2v2 and 3v3.
 - Duels are 1v1 only.
-- Characters are rounded primitives with outlines (`client/src/models.ts`); swap for glTF later.
+- The procedural character models (`client/src/models.ts`) are only a fallback; every class has a skinned model. Some licences are still to be confirmed (CREDITS.md).
 - Replays recorded before a simulation or data change stop playing.
 
 ## Change history before 0.47

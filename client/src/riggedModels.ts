@@ -50,13 +50,13 @@ export interface ModelDef {
 
 export const MODELS: Record<string, ModelDef> = {
   knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 }, cape: { tilt: -0.08, sy: 0.95 } },
-  // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
   wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0 }, dye: ['robe'], cape: { tilt: -0.08, sy: 1.12 } },
   // the rogue's hooded assassin (rigged by scripts/rig-model.mjs from an unrigged mesh): the hood is part of the head and stays under head cosmetics
   assassin: { url: '/models/rogue.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.6, armIn: 0.3 }, cape: { tilt: -0.08, sy: 0.95 } },
   // the priest's Abyssal Sentinel (rigged by scripts/rig-model.mjs from an unrigged mesh): the horned helm is part of the head and stays under head cosmetics
   sentinel: { url: '/models/priest.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.35, armIn: 0.3, castR: -0.35, castL: -1.1, swingArc: -1.6 }, cape: { tilt: -0.08, sy: 0.95 } },
+  // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
   brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3, armIn: 0.6, legIn: 0.08 } },
 };
 
@@ -198,8 +198,10 @@ export function preloadRiggedModels(): Promise<void> {
   const loader = new GLTFLoader();
   const tex = new THREE.TextureLoader();
   const weapons = Promise.all([preloadWeaponModels(), preloadCapeModel(), preloadWingModel()]).then(() => undefined); // the weapon and cape models load alongside the characters that wear them
+  // an alternative that nobody picked (the brute, 1.3 MB) is not downloaded: only defaults, per-weapon models and the preview choice
+  const wanted = (id: string) => Object.entries(CLASS_MODEL).some(([cls, c]) => !!c && (c.default === id || Object.values(c.byWeapon ?? {}).includes(id) || queryModel(cls as ClassId) === id));
   return Promise.all(
-    Object.entries(MODELS).map(
+    Object.entries(MODELS).filter(([id]) => wanted(id)).map(
       ([id, def]) =>
         fetchModel(def.url)
           .then(

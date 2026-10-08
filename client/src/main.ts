@@ -1,11 +1,11 @@
-import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
 import { preloadRiggedModels } from './riggedModels';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
-import { Hud, blockedByCondition } from './hud';
+import { Hud } from './hud';
 import { Keybinds, MARK_ACTIONS, SLOT_ACTIONS } from './keybinds';
 import type { Action } from './keybinds';
 import { Menu } from './menu';

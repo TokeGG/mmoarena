@@ -1,8 +1,10 @@
 import { describe, it } from 'node:test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import assert from 'node:assert/strict';
 import { CREDITS } from '../src/credits';
+import { unpackModel } from '../src/modelPack';
 
 const read = (rel: string) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
@@ -28,5 +30,24 @@ describe('credits', () => {
   });
   it('the README links to CREDITS.md', () => {
     assert.match(read('../../README.md'), /\[CREDITS\.md\]\(CREDITS\.md\)/);
+  });
+  it('every shipped model that names its source (asset.extras) is credited, with the same author and licence', () => {
+    const root = fileURLToPath(new URL('../public/models', import.meta.url));
+    const paks = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? paks(join(d, e.name)) : e.name.endsWith('.pak') ? [join(d, e.name)] : []));
+    let checked = 0;
+    for (const f of paks(root)) {
+      const buf = Buffer.from(unpackModel(readFileSync(f)));
+      const extras = JSON.parse(buf.subarray(20, 20 + buf.readUInt32LE(12)).toString('utf8')).asset?.extras ?? {};
+      for (const e of (extras.credits ?? [extras]) as { source?: string; author?: string; license?: string }[]) {
+        if (!e.source) continue;
+        const c = CREDITS.find((x) => x.url === e.source);
+        assert.ok(c, `${f}: ${e.source} has no entry in client/src/credits.ts`);
+        const name = (a?: string | null) => (a ?? '').replace(/ \(https?:.*$/, '').toLowerCase();
+        assert.equal(name(c.author), name(e.author), `${f}: author`);
+        assert.ok(e.license?.startsWith(c.license.split(' ')[0]) || c.license.toLowerCase().includes((e.license ?? '').split(' ')[0].toLowerCase()), `${f}: licence ${e.license} vs ${c.license}`);
+        checked++;
+      }
+    }
+    assert.ok(checked >= 15, `only ${checked} credited sources found in the packs`);
   });
 });
