@@ -313,6 +313,7 @@ export class AdminPanel {
       box.append(b);
     }
     if (o) box.append(this.prState());
+    if (o?.players) box.append(this.onlineNow(o.players));
     box.append(el('h3', '', 'Recent admin actions'), this.logList(this.log ?? [], 10));
     return box;
   }
@@ -323,11 +324,11 @@ export class AdminPanel {
       const li = el('li');
       li.append(el('small', '', `${new Date(row.at).toLocaleString()} (${ago(row.at)})`), el('span', '', ` ${row.by}: ${row.action}${row.target ? ` · ${row.target}` : ''}${row.detail ? ` · ${row.detail}` : ''}`));
       ul.append(li);
-    if (o?.players) box.append(this.onlineNow(o.players));
     }
     if (!rows.length) ul.append(el('li', '', 'Nothing logged yet.'));
     return ul;
   }
+
   /** Everyone connected right now, guests included: name, address, country, what they are doing, how long. The address links to a city lookup that opens from your own browser. */
   private onlineNow(list: AdminOnline[]): HTMLElement {
     const box = el('div');
