@@ -96,6 +96,10 @@ export class Bot {
   private unstickSign = 1;
   /** Running round to a target's back is only worth a short try: a target that keeps turning just makes both spin. */
   private backUntil = 0;
+  /** When the bot last had its melee target in sight (a moment out of sight at a pillar edge keeps it circling). */
+  private meleeSightAt = -1e9;
+  /** Running round to the target's back right now (a try runs to its end). */
+  private backTry = false;
   private backReadyAt = 0;
 
   readonly brain: Brain;
@@ -1096,17 +1100,27 @@ export class Bot {
         const back = { x: tgt.pos.x - Math.sin(tgt.facing) * 2, z: tgt.pos.z - Math.cos(tgt.facing) * 2 };
         const helpless = tgt.auras.some((a) => HARD_CC.includes(a.kind));
         const turned = Math.abs(angleDiff(tgt.facing, angleTo(tgt.pos, u.pos))) > 1.6; // the target is not looking at us
-        if (sim.time >= this.backReadyAt && (helpless || turned) && d < 12) {
-          if (this.backUntil < sim.time) this.backUntil = sim.time + 1500; // one short try, then fight from the front
-          if (sim.time < this.backUntil && dist(u.pos, back) > 1.2) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
-          if (sim.time >= this.backUntil) this.backReadyAt = sim.time + 5000;
+        // one short try (then fight from the front for a while). Once started it runs to the end: the target turning back
+        // and forth as both circle must not start and stop it every tick, which would whip the bot round on the spot
+        if (!this.backTry && sim.time >= this.backReadyAt && (helpless || turned) && d < 12) {
+          this.backTry = true;
+          this.backUntil = sim.time + 1500;
+        }
+        if (this.backTry) {
+          if (sim.time < this.backUntil && dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
+          this.backTry = false; // made it, ran out of time, or the target got away: the next try waits a while
+          this.backReadyAt = sim.time + 5000;
         }
         if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
       }
       // out of reach includes a pillar in the way and a target on another floor (standing under someone on the deck is not melee range):
       // the route goes round the pillar or up the ramp
       const floorGap = Math.abs(heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));
-      if (d > reach || floorGap > 1.6 || !hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level)) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
+      // circling right at a pillar's edge, sight comes and goes every few steps: only a target out of sight for a moment
+      // sends it round the pillar (flipping between the two every tick spins the bot on the spot)
+      if (hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level)) this.meleeSightAt = sim.time;
+      const blind = sim.time - this.meleeSightAt > 400;
+      if (d > reach || floorGap > 1.6 || blind) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
       // in melee range: circle the target like a player does (strafing round it, stepping in when it drifts out, now and
       // then a hop), never a standing target. The step in keeps the circle tight enough to stay in reach.
       const circle = 0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility); // faster than this, the orbit itself spins the bot round
