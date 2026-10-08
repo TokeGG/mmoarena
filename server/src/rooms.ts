@@ -1349,7 +1349,6 @@ export class Lobby {
         const room = this.devRoom(p);
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
         if (room.closed) return void send(p, { t: 'dev_result', ok: false, text: 'That match is over.' });
-        if (!p.ownerOk) return void send(p, { t: 'dev_result', ok: false, text: 'Only the owner can change the map.' });
         const map = ARENAS.find((a) => a.id === msg.id);
         if (!map) return void send(p, { t: 'dev_result', ok: false, text: 'That map does not exist.' });
         room.devSwapMap(map.id);

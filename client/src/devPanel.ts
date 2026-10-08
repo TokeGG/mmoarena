@@ -66,7 +66,7 @@ interface Hooks {
   mapId(): string;
   /** In the menu: the class picked there, whose skills the panel opens on. */
   menuClass(): ClassId;
-  /** Whether the signed-in account is the owner (the map swap is owner only). */
+  /** Whether the signed-in account is the owner. */
   isOwner(): boolean;
 }
 
@@ -208,7 +208,7 @@ export class DevPanel {
         this.paint();
       });
       row.append(restart, meter);
-      if (this.hooks.isOwner()) wrap.append(this.mapPicker());
+      wrap.append(this.mapPicker());
     }
     const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
     setups.addEventListener('click', () => {

@@ -90,15 +90,15 @@ describe('dev map swap', () => {
     assert.equal(last(got, 'dev_map')?.map, to.id, 'the watcher is told');
   });
 
-  it('is refused for a dev who is not the owner, outside a match and for unknown maps', async () => {
+  it('a dev (not only the owner) swaps the map; refused outside a match and for unknown maps', async () => {
     const { lobby, owner, devP, outD, outO } = await world();
     join(lobby, devP);
     const room = devP.room;
     const from = room.arenaId;
     const other = ARENAS.find((a) => a.id !== from)!.id;
     lobby.handle(devP, { t: 'dev_map', id: other } as ClientMsg);
-    assert.equal(room.arenaId, from);
-    assert.equal(last(outD, 'dev_result')?.ok, false);
+    assert.equal(room.arenaId, other, 'a dev can change the map of their own test match');
+    assert.equal(last(outD, 'dev_map')?.map, other);
     // no match at all
     lobby.handle(owner, { t: 'dev_map', id: other } as ClientMsg);
     assert.equal(last(outO, 'dev_result')?.ok, false);
