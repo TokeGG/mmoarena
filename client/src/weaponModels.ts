@@ -44,7 +44,7 @@ export interface WeaponDef {
   /** Arm pose while held (two-handers): the animator keeps both arms on the weapon and swings them together. */
   hold?: ArmHold;
   /** Orientation (and offset) of the weapon in the right hand group while it rests on the shoulder one-handed (see ArmHold.rest); it turns into `right` as the second hand takes hold. */
-  rest?: { rot: [number, number, number]; pos?: [number, number, number] };
+  rest?: { rot: [number, number, number]; pos?: [number, number, number]; /** Turn about the weapon's own long axis (radians): which face of the blade rests on the shoulder. */ roll?: number };
   /** What the wielder looks like with it (the mage specs): robe tint and the magic that hangs around the weapon's head (models.ts applies them). */
   look?: WeaponLook;
 }
@@ -83,7 +83,7 @@ export const WEAPONS: Record<string, WeaponDef> = {
     mid: 1.0,
     glow: { color: 0xffb347, from: 0.3, to: 2.0, r: 0.07, opacity: 0.12 },
     hold: { r: { x: -0.212, z: 0.46, e: -0.887 }, l: { x: -0.687, z: -0.769, e: -0.103 }, walk: 0.3, arc: 0.6, elbowArc: 0, rest: { r: { x: 0.016, z: 0.295, e: -1.661 }, walk: 0.3 } },
-    rest: { rot: [1.016, 0.17, -0.14] },
+    rest: { rot: [1.016, 0.17, -0.14], roll: Math.PI / 2 },
   },
   // Barbarian: the Tyra polearm, carried diagonally across the body in both hands
   polearm: {
@@ -284,6 +284,7 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
   const glowAt = new THREE.Vector3(0, mid, 0).applyQuaternion(right.quaternion).add(right.position);
   const holdQ = right.quaternion.clone(), holdPos = right.position.clone();
   const restQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(...(def.rest?.rot ?? [0, 0, 0])));
+  if (def.rest?.roll) restQ.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), def.rest.roll));
   const restPos = GRIP.clone().add(new THREE.Vector3(...(def.rest?.pos ?? [0, 0, 0])));
   let lastK = 1;
   const setGrip = (k: number) => {
