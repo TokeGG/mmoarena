@@ -524,6 +524,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     if (ev.t === 'turn' && ev.unit === you && !spec) controls.yaw = controls.facing = ev.facing;
     hud.event(ev, ctx);
     effects.event(ev);
+    if (ev.t === 'cast') scene.cast(ev.unit);
     audio.event(ev, you, team, spatial);
   }
 }

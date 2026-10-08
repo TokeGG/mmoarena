@@ -4,9 +4,10 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { parseLook, clamp } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 import { RigAnimator } from './riggedPose';
-import { attachWeapon } from './weaponModels';
+import { attachWeapon, WEAPONS } from './weaponModels';
+import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
-import type { RigAsset } from './riggedModels';
+import type { RigAsset, RigDriver } from './riggedModels';
 
 /**
  * Stylized heroic humanoids built from rounded primitives with ink outlines, one silhouette per class so you can read a fight at a glance:
@@ -54,6 +55,8 @@ export interface Character {
   /** Flash red for a moment (took a hit). */
   flash(): void;
   setState(alive: boolean, stealthed: boolean): void;
+  /** A spell was cast (only models with a cast animation have it: clip models play their attack clip). */
+  cast?(): void;
 }
 
 const lerp = (a: number, b: number, k: number) => a + (b - a) * k;
@@ -249,7 +252,7 @@ interface Rig {
   shoulderL?: THREE.Object3D;
   shoulderR?: THREE.Object3D;
   fit?: Fit;
-  rigged?: { anim: RigAnimator; ensureOwn(): void; deadY: number };
+  rigged?: { anim: RigDriver; ensureOwn(): void; deadY: number };
   /** Where weapon cosmetics are centred, in the right hand group's frame, when a real weapon model is held (default: at the grip). */
   weaponGlowAt?: THREE.Vector3;
 }
@@ -501,23 +504,28 @@ function warrior(b: Builder, weapon?: string): Rig {
   return r;
 }
 
+/** Put the spec's real weapon model (weaponModels.ts) into the hands of a rigged unit; false while it is not loaded (the caller builds the procedural one). */
+function heldWeapon(b: Builder, r: Rig, weapon?: string): AttachedWeapon | undefined {
+  if (!r.rigged) return undefined;
+  const held = attachWeapon(weapon, {
+    armR: r.armR,
+    armL: r.armL,
+    addMesh: (m) => b.meshes.push(m),
+    addMaterial: (m) => b.mats.push(m),
+    addFx: (o) => b.fx.push(o),
+    glow: (parent, geo, color, opacity, x, y, z) => b.glow(parent, geo, color, opacity, x, y, z),
+  });
+  if (held) {
+    r.rigged.anim.hold = held.hold ?? null;
+    r.weaponGlowAt = held.glowAt;
+  }
+  return held;
+}
+
 /** The warrior's spec weapons, held in the hands (`armR` / `armL` are the hand groups of whichever model is worn). */
 function warriorWeapons(b: Builder, r: Rig, weapon?: string) {
   // the real weapon models (weaponModels.ts) once loaded, on the rigged knight; the procedural weapons below are the fallback
-  const held = r.rigged
-    ? attachWeapon(weapon, {
-        armR: r.armR,
-        armL: r.armL,
-        addMesh: (m) => b.meshes.push(m),
-        addMaterial: (m) => b.mats.push(m),
-        glow: (parent, geo, color, opacity, x, y, z) => b.glow(parent, geo, color, opacity, x, y, z),
-      })
-    : undefined;
-  if (held) {
-    r.rigged!.anim.hold = held.hold ?? null;
-    r.weaponGlowAt = held.glowAt;
-    return;
-  }
+  if (heldWeapon(b, r, weapon)) return;
   const goldC = 0xe2b53f;
   // weapons: dual wield (a sword in each hand), a two-handed greatsword, a polearm, or the default sword and shield
   const blade = (len: number, width: number, glow = 0x7fd0ff) => {
@@ -791,19 +799,22 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     bones[bone].add(g);
     return g;
   };
-  const anchor = (bone: string, name: string) => {
+  const anchor = (bone: string, name: string, dx = 0, dz = 0) => {
     const g = new THREE.Group();
     g.name = name;
-    return place(g, bone, new THREE.Vector3(0, O, 0));
+    return place(g, bone, new THREE.Vector3(dx, O, dz));
   };
   const upper = anchor('chest', 'upper');
-  const head = anchor('head', 'head-anchor');
+  // head items are centred on the model's own head (a stooping model's head is not over the middle of its body)
+  const head = anchor('head', 'head-anchor', meta.headCenter[0], meta.headCenter[2]);
   const shoulderL = anchor('shoulder_l', 'shoulder-anchor-l');
   const shoulderR = anchor('shoulder_r', 'shoulder-anchor-r');
   // hand groups behave like the procedural arm groups: the old weapon offset (0, -0.62, 0.05) lands on the grip point
   const hand = (side: 'l' | 'r') => {
     const a = attach[`attach_hand_${side}`];
     const at = a ? a.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3().setFromMatrixPosition(bones[`hand_${side}`].matrixWorld);
+    // clip models: the fist closes where the model's own staff was held (measured by prep-character.mjs), right hand only
+    if (!a && side === 'r' && meta.hold) at.add(new THREE.Vector3(...meta.hold.grip));
     return place(new THREE.Group(), `hand_${side}`, at.add(new THREE.Vector3(0, 0.62, -0.05)));
   };
   const armL = hand('l');
@@ -811,7 +822,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
   const R = meta.headR;
   const helm = asset.def.keepHead ? asset.def.helm : undefined;
   const fit: Fit = {
-    headTop: helm?.top ?? 0.99 + R,
+    headTop: helm?.top ?? 0.99 + Math.max(R, (meta.headTop ?? 0) - meta.headCenter[1]),
     headR: helm?.r ?? R,
     tw: meta.torsoW,
     chestZ: meta.chestBackZ,
@@ -830,7 +841,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     const replaceable = (REPLACEABLE_SLOTS as readonly string[]).includes(slot) && !(slot === 'head' && asset.def.keepHead);
     if (!replaceable) {
       for (const m of list) {
-        root.add(m);
+        if (!inst.anim) root.add(m); // clip models keep their node hierarchy: the meshes stay where the skeleton is
         bodyMeshes.push(m);
         b.meshes.push(m);
       }
@@ -849,12 +860,12 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
 
   // what shows where a worn item took a part away: a bare face under the helm, plain joints under the pauldrons
   const skin = b.m(SKIN, { rough: 0.8 });
-  if (!asset.def.keepHead) b.bare.head = () => {
+  if (!asset.def.keepHead && b.parts.head) b.bare.head = () => {
     b.ball(head, R, skin, 0, 0.99, 0);
     eyes(b, r, 0.99, R * 0.93, 0x3a5f8f, R * 0.33, R * 0.11);
     b.ball(head, R * 1.06, b.m(0x4a3222, { rough: 0.9 }), 0, 0.99 + R * 0.1, -R * 0.18).scale.set(1, 1, 0.92);
   };
-  b.bare.shoulders = () => {
+  if (b.parts.shoulders) b.bare.shoulders = () => {
     const joint = b.m(0x2b2a30, { metal: 0.5, rough: 0.5 });
     for (const sd of [-1, 1]) b.ball(sd < 0 ? shoulderR : shoulderL, 0.1 * (meta.height / 2.25), joint, sd * meta.shoulderJoint[0], meta.shoulderJoint[1] - O, 0);
   };
@@ -870,15 +881,89 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
         c.userData.base = c.color.clone();
         c.userData.glow = c.emissiveMap ? 1 : 0;
         c.userData.rigged = true;
+        // models that dye only some parts (the wizard's robe, not his skin) list them in ModelDef.dye
+        if (asset.def.dye && !asset.def.dye.includes(m.name.split('__')[1])) c.userData.noDye = true;
         b.mats.push(c);
         return c;
       };
       m.material = Array.isArray(m.material) ? m.material.map(clone) : clone(m.material);
     }
   };
-  r.rigged = { anim: new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3 };
-  if (classId === 'warrior' && !asset.def.ownWeapon) warriorWeapons(b, r, weapon);
+  r.rigged = { anim: inst.anim ?? new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3 };
+  root.userData.driver = r.rigged.anim; // for tests and debugging
+  if (!asset.def.ownWeapon) {
+    if (classId === 'warrior') warriorWeapons(b, r, weapon);
+    else {
+      const held = heldWeapon(b, r, weapon);
+      const look = weapon ? WEAPONS[weapon]?.look : undefined;
+      if (held && look) specLook(b, r, held, look);
+    }
+  }
   return r;
+}
+
+/**
+ * What a held weapon does to its wielder (WeaponLook in weaponModels.ts): the robe is tinted through the dye shader (its own
+ * material per unit, texture detail kept; the trim glows in the spec's colour) and the weapon's head gets its magic: embers
+ * rising, frost motes drifting, stars orbiting. Cosmetic dyes later replace the tint; the motes stay.
+ */
+function specLook(b: Builder, r: Rig, held: AttachedWeapon, look: WeaponLook) {
+  r.rigged!.ensureOwn();
+  const rb = look.robe;
+  for (const m of [...b.mats]) {
+    if (!m.userData.rigged || m.userData.noDye) continue;
+    const u: DyeUniforms = {
+      uDye: { value: new THREE.Color(rb.color) },
+      uRimCol: { value: new THREE.Color(rb.rimColor ?? 0xffffff) },
+      uK: { value: rb.k ?? 0.8 },
+      uLift: { value: 0.14 },
+      uGain: { value: 2.3 },
+      uFloor: { value: rb.floor ?? 0.12 },
+      uRim: { value: rb.rim ?? 0 },
+      uOn: { value: 1 },
+      uGlyph: { value: new THREE.Color(rb.glyph).multiplyScalar(rb.glyphK) },
+    };
+    m.metalness = 0.1;
+    dyeShader(m, u);
+  }
+  // the motes are placed in world-aligned axes around the staff head (the hand turns with the animation, the sparks keep rising)
+  const hand = r.armR;
+  const qi = new THREE.Quaternion();
+  const v = new THREE.Vector3();
+  const at = (o: THREE.Object3D, x: number, y: number, z: number) => {
+    hand.getWorldQuaternion(qi).invert();
+    o.position.copy(v.set(x, y, z).applyQuaternion(qi)).add(held.glowAt);
+  };
+  const mote = (geo: THREE.BufferGeometry, color: number, opacity: number) => b.glow(hand, geo, color, opacity, 0, 0, 0);
+  if (look.fx === 'embers') {
+    const geo = new THREE.SphereGeometry(0.028, 6, 5);
+    const es = Array.from({ length: 9 }, (_, i) => mote(geo, i % 3 ? look.color : look.color2, 0.6));
+    b.anim.push((t) => es.forEach((e, i) => {
+      const k = (t * 0.5 + i / es.length) % 1;
+      const a = i * 2.4 + t * 0.7;
+      at(e, Math.cos(a) * 0.14 * (1 - k * 0.5), -0.1 + k * 0.85, Math.sin(a) * 0.14 * (1 - k * 0.5));
+      e.scale.setScalar(Math.max(0.05, Math.sin(k * Math.PI)));
+    }));
+  } else if (look.fx === 'frost') {
+    const geo = new THREE.OctahedronGeometry(0.03);
+    const ms = Array.from({ length: 8 }, (_, i) => mote(geo, i % 2 ? look.color : look.color2, 0.85));
+    b.anim.push((t) => ms.forEach((m, i) => {
+      const k = (t * 0.16 + i / ms.length) % 1;
+      const a = i * 2.1 + t * 0.5;
+      at(m, Math.cos(a) * (0.2 + 0.08 * Math.sin(i)), 0.4 - k * 0.8, Math.sin(a) * (0.2 + 0.08 * Math.sin(i)));
+      m.scale.setScalar(Math.max(0.05, Math.sin(k * Math.PI)));
+      m.rotation.set(t + i, t * 1.3, 0);
+    }));
+  } else {
+    const geo = new THREE.OctahedronGeometry(0.035);
+    const ss = Array.from({ length: 4 }, (_, i) => mote(geo, i % 2 ? look.color : look.color2, 0.95));
+    b.anim.push((t) => ss.forEach((m, i) => {
+      const a = t * 1.3 + (i / ss.length) * Math.PI * 2;
+      at(m, Math.cos(a) * 0.3, 0.05 + Math.sin(a * 2 + i) * 0.06, Math.sin(a) * 0.3);
+      m.scale.set(0.7, 1.7, 0.7);
+      m.rotation.y = t * 2 + i;
+    }));
+  }
 }
 
 // ------------------------------------------------------------------ cosmetics
@@ -907,6 +992,8 @@ interface DyeUniforms {
   uRim: { value: number };
   /** 1 while alive, 0 when dead (the grey corpse look must not glow). */
   uOn: { value: number };
+  /** The robe's red trim glows in this colour (the mage specs): `uGlyph` is the colour times its strength; zero for every dye. */
+  uGlyph: { value: THREE.Color };
 }
 
 const DYE_STYLES: Record<string, { k: number; lift: number; gain: number; floor: number; rim: number; rimCol: number; metal: number; rough: number }> = {
@@ -926,18 +1013,19 @@ function dyeShader(m: THREE.MeshStandardMaterial, u: DyeUniforms) {
     Object.assign(sh.uniforms, u);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
-uniform vec3 uDye; uniform vec3 uRimCol; uniform float uK; uniform float uLift; uniform float uGain; uniform float uFloor; uniform float uRim; uniform float uOn;
-float dyeShade;`)
+uniform vec3 uDye; uniform vec3 uRimCol; uniform float uK; uniform float uLift; uniform float uGain; uniform float uFloor; uniform float uRim; uniform float uOn; uniform vec3 uGlyph;
+float dyeShade; float dyeGlyph;`)
       .replace('#include <map_fragment>', `#include <map_fragment>
 {
   float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  dyeGlyph = clamp((diffuseColor.r - max(diffuseColor.g, diffuseColor.b) - 0.05) * 6.0, 0.0, 1.0);
   dyeShade = clamp(uLift + uGain * pow(l, 0.8), 0.0, 1.0);
   diffuseColor.rgb = mix(diffuseColor.rgb, uDye * dyeShade, uK * uOn);
 }`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
 {
   float fr = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.5);
-  totalEmissiveRadiance += uOn * (uDye * uFloor * (0.4 + 0.6 * dyeShade) + uRimCol * uRim * fr * 0.45);
+  totalEmissiveRadiance += uOn * (uDye * uFloor * (0.4 + 0.6 * dyeShade) + uRimCol * uRim * fr * 0.45) + uOn * uGlyph * dyeGlyph;
 }`);
   };
   m.customProgramCacheKey = () => 'dye';
@@ -966,6 +1054,7 @@ function dye(b: Builder, r: Rig, color: number, style: string) {
     const base = m.userData.base as THREE.Color;
     const hx = base.getHex();
     const lum = (((hx >> 16) & 255) + ((hx >> 8) & 255) + (hx & 255)) / 765;
+    if (m.userData.noDye) continue;
     if (!m.userData.rigged && (hx === SKIN || m.userData.glow || lum > 0.93 || lum < 0.05)) continue;
     const u: DyeUniforms = {
       uDye: { value: target.clone() },
@@ -976,6 +1065,7 @@ function dye(b: Builder, r: Rig, color: number, style: string) {
       uFloor: { value: floor },
       uRim: { value: st.rim },
       uOn: { value: 1 },
+      uGlyph: { value: new THREE.Color(0, 0, 0) },
     };
     m.metalness = Math.min(m.metalness, st.metal);
     m.roughness = style === 'midas' ? st.rough : Math.min(m.roughness, st.rough + 0.15);
@@ -2156,6 +2246,12 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
     }
   };
 
+  const doSwing = (fast = false) => {
+    swingDur = fast ? 0.2 : SWING;
+    swingT = swingDur;
+    if (classId === 'rogue' || (r.rigged && weapon === 'dual')) swingHand = 1 - swingHand; // twin blades strike in turn
+  };
+
   return {
     root: r.root,
     meshes: b.meshes,
@@ -2168,7 +2264,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       }
       // lie flat on the ground when dead
       dead = !alive;
-      if (alive) {
+      if (alive || r.rigged?.anim.ownDeath) {
         r.root.rotation.x = 0;
         r.root.position.y = 0;
       } else {
@@ -2176,14 +2272,12 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         r.root.position.y = r.rigged?.deadY ?? 0.28;
       }
     },
-    swing(fast = false) {
-      swingDur = fast ? 0.2 : SWING;
-      swingT = swingDur;
-      if (classId === 'rogue' || (r.rigged && weapon === 'dual')) swingHand = 1 - swingHand; // twin blades strike in turn
-    },
+    swing: doSwing,
     flash() {
       flashT = 0.2;
     },
+    // a clip model plays its attack animation for a cast (the swing path starts it, see ClipAnimator)
+    cast: r.rigged?.anim.castable ? () => doSwing(true) : undefined,
     pose({ phase, move, casting, time, dt: rawDt, vf: vfIn, vs: vsIn, air }) {
       const dt = clamp(rawDt, 0.001, 0.1);
       const vf = vfIn ?? move * 7;

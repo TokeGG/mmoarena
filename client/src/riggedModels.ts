@@ -4,6 +4,9 @@ import { fetchModel } from './modelPack';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { ClassId } from '@arena/shared';
 import { preloadWeaponModels, weaponModelVersion } from './weaponModels';
+import { ClipAnimator } from './riggedClips';
+import type { ClipOpts } from './riggedClips';
+import type { RigPoseInput, ArmHold } from './riggedPose';
 
 /**
  * Registry and loader for rigged (skinned) character models, written by scripts/rig-model.mjs (see DEVELOPING.md,
@@ -25,6 +28,14 @@ export interface ModelDef {
    */
   keepHead?: boolean;
   helm?: { top: number; r: number; brow: number };
+  /**
+   * The model brings its own animation clips (scripts/prep-character.mjs) and the skeleton hierarchy stays intact: it is driven by a
+   * THREE.AnimationMixer (riggedClips.ts) instead of procedural bone rotations. The value tunes the clips; the bone names the
+   * cosmetics anchor to come from the file (rig.bones: canonical name -> the file's bone name).
+   */
+  clips?: ClipOpts;
+  /** Sub-meshes (the part after `__` in their names) that armor dyes tint; the others (skin, beard) keep their colours. Default: all. */
+  dye?: string[];
   /** Animation tuning. */
   pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number; armIn?: number; legIn?: number };
 }
@@ -32,6 +43,8 @@ export interface ModelDef {
 export const MODELS: Record<string, ModelDef> = {
   knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 } },
   // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
+  // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
+  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0 }, dye: ['robe'] },
   brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3, armIn: 0.6, legIn: 0.08 } },
 };
 
@@ -46,6 +59,8 @@ export interface ClassModels {
 export const CLASS_MODEL: Partial<Record<ClassId, ClassModels>> = {
   // the gold knight for every warrior spec (dual swords, greatsword, polearm); the brute with its own axe is only an optional alternative (?warriormodel=brute)
   warrior: { default: 'knight', alternatives: ['brute'] },
+  // every mage spec wears the Old Wizard; the spec staff (weaponModels.ts) and the robe tint tell the specs apart
+  mage: { default: 'wizard' },
 };
 
 export interface RigMeta {
@@ -57,6 +72,10 @@ export interface RigMeta {
   torsoW: number;
   deadY?: number;
   skin?: number;
+  /** Clip models: the file's names for the canonical bones, and how its own staff was held (axis, fist offset from the grip bone, in character space). */
+  bones?: Record<string, string>;
+  hold?: { axis: [number, number, number]; grip: [number, number, number]; length: number; along: number };
+  headTop?: number;
   [k: string]: unknown;
 }
 
@@ -65,6 +84,19 @@ export interface RigAsset {
   def: ModelDef;
   scene: THREE.Group;
   meta: RigMeta;
+  /** The file's animation clips (clip models only), shared by every unit. */
+  clips?: THREE.AnimationClip[];
+}
+
+/** What drives a unit's bones each frame: the procedural RigAnimator or the ClipAnimator. */
+export interface RigDriver {
+  hold: ArmHold | null;
+  lungeZ: number;
+  /** The driver plays the death itself (the Character leaves the body upright). */
+  readonly ownDeath?: boolean;
+  /** A cast (Character.cast) plays an animation: the clip models. */
+  readonly castable?: boolean;
+  update(p: RigPoseInput): void;
 }
 
 const assets = new Map<string, RigAsset>();
@@ -103,7 +135,7 @@ export function riggedAssetFor(classId: ClassId, weapon?: string): RigAsset | un
   return id ? assets.get(id) : undefined;
 }
 
-function finish(id: string, def: ModelDef, gltf: { scene: THREE.Group }): RigAsset {
+function finish(id: string, def: ModelDef, gltf: { scene: THREE.Group; animations: THREE.AnimationClip[] }): RigAsset {
   const scene = gltf.scene;
   let meta: RigMeta | undefined;
   scene.traverse((o) => {
@@ -118,7 +150,8 @@ function finish(id: string, def: ModelDef, gltf: { scene: THREE.Group }): RigAss
       for (const m of mats) if (m instanceof THREE.MeshStandardMaterial) m.side = THREE.DoubleSide;
     }
   });
-  const asset = { id, def, scene, meta };
+  const asset: RigAsset = { id, def, scene, meta };
+  if (def.clips) asset.clips = gltf.animations;
   assets.set(id, asset);
   version++;
   return asset;
@@ -202,6 +235,8 @@ export interface RigInstance {
   bones: Record<string, THREE.Bone>;
   /** Skinned meshes per cosmetic part name (body, head, shoulders, back). */
   parts: Record<string, THREE.SkinnedMesh[]>;
+  /** Clip models: the unit's own animator (already on its idle pose, so the rest positions below are measured from that pose). */
+  anim?: ClipAnimator;
   /** Rest-pose world position of every bone, in character units. */
   rest: Record<string, THREE.Vector3>;
   attach: Record<string, THREE.Object3D>;
@@ -209,6 +244,7 @@ export interface RigInstance {
 
 /** A private skeleton for one unit: geometry, materials and textures stay shared with the asset. */
 export function instantiate(asset: RigAsset): RigInstance {
+  if (asset.clips) return instantiateClips(asset);
   const src = cloneSkinned(asset.scene) as THREE.Group;
   const root = new THREE.Group();
   root.name = 'rigged';
@@ -231,4 +267,31 @@ export function instantiate(asset: RigAsset): RigInstance {
   const rest: Record<string, THREE.Vector3> = {};
   for (const [n, b] of Object.entries(bones)) rest[n] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
   return { root, bones, parts, rest, attach };
+}
+
+/**
+ * Clip models keep their whole node hierarchy (the skeleton sits under scaled and rotated ancestors that the clips rely on), so the
+ * clone is added as it is under a body group. Bones are listed under the file's names and under the canonical ones (meta.bones);
+ * the sub-meshes are named `part_<slot>__<what>` like the procedural-bone models'.
+ */
+function instantiateClips(asset: RigAsset): RigInstance {
+  const src = cloneSkinned(asset.scene) as THREE.Group;
+  const root = new THREE.Group();
+  root.name = 'rigged';
+  const body = new THREE.Group();
+  body.name = 'body';
+  body.add(src);
+  root.add(body);
+  const bones: Record<string, THREE.Bone> = {};
+  const parts: Record<string, THREE.SkinnedMesh[]> = {};
+  src.traverse((o) => {
+    if (o instanceof THREE.Bone) bones[o.name] = o;
+    if (o instanceof THREE.SkinnedMesh) (parts[o.name.replace(/^part_/, '').split('__')[0]] ??= []).push(o);
+  });
+  for (const [canon, name] of Object.entries(asset.meta.bones ?? {})) if (bones[name]) bones[canon] = bones[name];
+  const anim = new ClipAnimator(body, asset.clips!, asset.def.clips);
+  root.updateMatrixWorld(true);
+  const rest: Record<string, THREE.Vector3> = {};
+  for (const [n, b] of Object.entries(bones)) rest[n] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
+  return { root, bones, parts, rest, attach: {}, anim };
 }

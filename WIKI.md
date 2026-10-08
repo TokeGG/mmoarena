@@ -357,6 +357,7 @@ Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.
 
 Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance into a huge hit; Deep Freeze locks it in.
 
+- **Weapon:** Ice staff
 - **Spec bonuses:** Frostbolt: +50% duration, Frost Nova: +15% duration
 
 | Key | Skill | Numbers with this spec |
@@ -383,6 +384,7 @@ Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance i
 
 Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Cauterize saves you from one killing blow.
 
+- **Weapon:** Fire staff
 - **Passive, Cauterize:** a killing blow leaves you at 35% health instead, once every 3 minutes
 
 | Key | Skill | Numbers with this spec |
@@ -408,6 +410,8 @@ Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyrob
 ### 🔮 Starweaving · Sustain / utility
 
 A damage cooldown, and Arcane Missiles and Barrage that hit hard; Explosion slows what is close.
+
+- **Weapon:** Arcane staff
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|

@@ -254,7 +254,7 @@ export function autoFor(classId: ClassId, specId: string | null | undefined): Au
   return spec?.auto ?? CLASSES[classId].auto;
 }
 
-/** The weapon id a unit's spec is built around ('dual', 'twohand', 'polearm'), if any. */
+/** The weapon id a unit's spec is built around ('dual', 'twohand', 'polearm', 'fire_staff', ...), if any. */
 export function weaponFor(classId: ClassId, specId: string | null | undefined): string | undefined {
   return specId ? SPECS[classId]?.find((x) => x.id === specId)?.weapon?.id : undefined;
 }

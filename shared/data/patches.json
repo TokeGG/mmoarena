@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.2",
+  "date": "2026-10-08",
+  "at": "2026-10-08T16:37:57Z",
+  "title": "An animated wizard mage and skill visuals that match what skills do",
+  "changes": [
+   "The mage is now a fully animated old wizard with a staff to match your spec: Pyromancy has a fire staff and an ember-red robe, Cryomancy an ice staff and an icy blue robe, and Starweaving an arcane staff and a violet robe, each with its own glow. Hats, crowns and other cosmetics sit on the wizard, and dyes tint the robe.",
+   "Instant spells and damage-over-time effects now look like what they are: Scorch makes fire erupt at the target's feet instead of throwing a fireball, instant hits show their impact on the target, and damage-over-time and shield effects leave a lasting aura on the target (shadow swirls, bleeding drips, burning flames, frost shards, a golden shimmer) that flares on every tick. Real projectiles such as Frostbolt, Fireball and Smite still fly."
+  ]
+ },
+ {
   "version": "0.69.1",
   "date": "2026-10-08",
   "at": "2026-10-08T15:06:04Z",

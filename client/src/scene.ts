@@ -187,6 +187,10 @@ export class ArenaScene {
   swing(id: number, fast = false): void {
     this.meshes.get(id)?.character.swing(fast);
   }
+  /** A spell was cast: models with a cast animation play it. */
+  cast(id: number): void {
+    this.meshes.get(id)?.character.cast?.();
+  }
   flash(id: number): void {
     const m = this.meshes.get(id);
     m?.character.flash();

@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { ABILITIES, AURAS } from '@arena/shared';
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
 import { clothShade, clothWave, endFade, unfurlProgress } from './flagCloth';
+import { AURA_VISUAL, LayerBook, hotAuras, impactKindFor, isDotTick, layerAlpha, visualFor } from './skillVisuals';
+import type { AuraStyle, AuraVisual, ImpactKind } from './skillVisuals';
 
 /**
  * Spell and combat visuals, driven entirely by sim events plus the aura list on each unit.
@@ -15,6 +17,8 @@ export interface EffectUnit {
   facing: number;
   alive: boolean;
   auras: string[];
+  /** Model size relative to a normal unit (default 1); aura visuals around the body scale with it. */
+  scale?: number;
 }
 
 interface Pos {
@@ -36,6 +40,16 @@ const SCHOOL_COLOR: Record<School, number> = {
 const BUFF_COLOR: Record<string, number> = {
   recklessness: 0xff4a2a, shield_wall: 0x9db4d8, arcane_power: 0xc58bff, pain_suppression: 0xfff1a8,
   dispersion: 0x9a4dff, adrenaline_rush: 0xfff079, evasion: 0xb8c4d8,
+};
+
+const ERUPT: Record<ImpactKind, { col: number; core: number; tex: string; disc: number; discAdd: boolean; spark: number }> = {
+  fire: { col: 0xff5a14, core: 0xffd45a, tex: 'flame', disc: 0x1a0d06, discAdd: false, spark: 0xffc060 },
+  frost: { col: 0x8fdcff, core: 0xeaf9ff, tex: 'ice', disc: 0xcdf1ff, discAdd: true, spark: 0xe6f8ff },
+  shadow: { col: 0x7a2fd8, core: 0xd9a8ff, tex: 'flame', disc: 0x1a0a2a, discAdd: false, spark: 0xb06bff },
+  holy: { col: 0xffd75a, core: 0xffffff, tex: 'glow', disc: 0xffe98a, discAdd: true, spark: 0xfff1a8 },
+  arcane: { col: 0xb06bff, core: 0xf0dcff, tex: 'flame', disc: 0x5a2a8a, discAdd: true, spark: 0xe0c2ff },
+  nature: { col: 0x6aff5a, core: 0xe4ffb0, tex: 'flame', disc: 0x1a3a10, discAdd: false, spark: 0xb8ff9a },
+  dust: { col: 0xc9b99a, core: 0xffffff, tex: 'smoke', disc: 0x8a7a60, discAdd: false, spark: 0xe6d8b8 },
 };
 
 const CHEST = 1.2;
@@ -126,6 +140,19 @@ interface Fx {
 interface ZoneVfx {
   last: number;
   update(z: ZoneSnap, now: number, dt: number): void;
+  dispose(): void;
+}
+
+/** A persistent aura visual around one unit (DoT swirl, bleed drips, burn flames, frost shards, holy shimmer). */
+interface Layer {
+  group: THREE.Group;
+  x: number;
+  z: number;
+  sc: number;
+  age: number;
+  /** 1 right after a tick, decays to 0. */
+  flare: number;
+  update(dt: number, alpha: number, t: number): void;
   dispose(): void;
 }
 
@@ -584,6 +611,522 @@ export class Effects {
     });
   }
 
+  // ------------------------------------------------------------ on-target toolkit
+  // Instants draw their result where it lands: eruptions out of the ground, impacts on the body, swirls around it.
+
+  private lastCast = new Map<string, number>();
+  private unitAuras = new Map<number, readonly string[]>();
+  private hotIds = new Set(hotAuras());
+  private layers = new Map<string, Layer>();
+  private layerBook = new LayerBook();
+
+  /** Flames, ice, shadow or light shooting up out of the ground under a point, with a ring, a scorch mark and sparks. */
+  groundEruption(x: number, z: number, kind: ImpactKind, scale = 1) {
+    const P = ERUPT[kind];
+    const gy = this.groundY(x, z);
+    const ice = P.tex === 'ice';
+    const group = new THREE.Group();
+    group.position.set(x, gy, z);
+    const map = ice ? null : this.tex[P.tex as TexName];
+    const mat = new THREE.MeshBasicMaterial({ color: P.col, map, transparent: true, opacity: 0.95, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    const matCore = mat.clone();
+    matCore.color.set(P.core);
+    const discMat = new THREE.MeshBasicMaterial({ color: P.disc, transparent: true, opacity: 0, depthWrite: false, blending: P.discAdd ? THREE.AdditiveBlending : THREE.NormalBlending });
+    const disc = new THREE.Mesh(this.discGeo, discMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.04;
+    group.add(disc);
+    const N = 10;
+    const tongues: { m: THREE.Mesh; h: number; w: number; d: number; ph: number }[] = [];
+    for (let i = 0; i < N; i++) {
+      const inner = i >= 7;
+      const a = (i / N) * Math.PI * 2 + rnd(-0.3, 0.3);
+      const r = inner ? rnd(0, 0.25) * scale : rnd(0.45, 1.0) * scale;
+      const m = new THREE.Mesh(ice ? this.iceGeo : this.tongueGeo, inner ? matCore : mat);
+      m.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+      if (ice) m.rotation.set(Math.sin(a) * 0.3, 0, -Math.cos(a) * 0.3);
+      group.add(m);
+      tongues.push({
+        m,
+        h: (ice ? rnd(1.2, 2.1) : inner ? rnd(2.8, 3.4) : rnd(1.8, 2.7)) * scale * (inner && ice ? 1.3 : 1),
+        w: (ice ? 2.3 : rnd(0.9, 1.3)) * (inner ? 0.65 : 1) * scale,
+        d: i * 0.012 + rnd(0, 0.08),
+        ph: rnd(0, 6.28),
+      });
+    }
+    this.scene.add(group);
+    // flash, ring, sparks flying up
+    this.particle(x, gy + 0.6, z, { tex: 'glow', color: P.col, s0: 1, s1: 4.2 * scale, life: 0.35, a: 0.9 });
+    this.ring(x, z, P.col, 0.4, 2.6 * scale, 0.45, 0.08, 1);
+    this.ring(x, z, 0xffffff, 0.2, 1.5 * scale, 0.3, 0.09, 0.7);
+    for (let i = 0; i < 14; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 0.8 * scale;
+      this.particle(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, { color: P.spark, vx: rnd(-1, 1), vz: rnd(-1, 1), vy: rnd(3.5, 8) * scale, s0: rnd(0.15, 0.3), life: rnd(0.5, 0.9), grav: 8, drag: 0.6 });
+    }
+    if (kind === 'fire') this.puff(x, gy + 0.5, z, 0x2f2622, 4, 1.5 * scale);
+    if (kind === 'shadow') this.puff(x, gy + 0.5, z, 0x2a1040, 4, 1.4 * scale);
+    let t = 0;
+    let acc = 0;
+    const LIFE = ice ? 0.9 : 0.7;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const fall = Math.min(1, Math.max(0, (t - 0.3) / (LIFE - 0.3)));
+        for (const q of tongues) {
+          const u = Math.min(1, Math.max(0, (t - q.d) / 0.16));
+          const grow = 1 - (1 - u) * (1 - u) * (1 - u);
+          const sink = Math.min(1, Math.max(0, (t - 0.28 - q.d) / (LIFE - 0.28)));
+          const hh = Math.max(0.001, q.h * grow * (1 - sink * sink));
+          const ww = q.w * (ice ? 1 : 1 + 0.18 * Math.sin(t * 32 + q.ph)) * (1 - sink * 0.5);
+          q.m.scale.set(ww, hh, ww);
+          if (ice) q.m.position.y = hh / 2;
+        }
+        mat.opacity = matCore.opacity = 0.95 * (1 - fall * fall);
+        const dk = Math.min(1, t / 0.1) * (1 - Math.min(1, Math.max(0, (t - 0.3) / 1.0)));
+        discMat.opacity = (P.discAdd ? 0.35 : 0.55) * dk;
+        const ds = scale * (1.1 + t * 0.5);
+        disc.scale.set(ds, ds, 1);
+        acc += dt;
+        while (t < 0.35 && acc > 0.03) {
+          acc -= 0.03;
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * 0.9 * scale;
+          if (kind === 'fire') this.flame(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, 0.9 * scale);
+          else this.particle(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, { color: P.spark, vy: rnd(2, 4), s0: 0.22, life: 0.5, drag: 0.8 });
+        }
+        return t >= 1.3;
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        mat.dispose();
+        matCore.dispose();
+        discMat.dispose();
+      },
+    });
+  }
+
+  /** Flying shards of ice (or anything pointed) that scatter from a point and drop. One shared material. */
+  private shards(x: number, y: number, z: number, color: number, n = 6, speed = 5) {
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+    const list: { m: THREE.Mesh; vx: number; vy: number; vz: number }[] = [];
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rnd(-0.3, 0.3);
+      const sp = speed * rnd(0.7, 1.2);
+      const v = { vx: Math.cos(a) * sp, vy: rnd(0.5, 3), vz: Math.sin(a) * sp };
+      const m = new THREE.Mesh(this.iceGeo, mat);
+      m.position.set(x, y, z);
+      _v.set(v.vx, v.vy, v.vz).normalize();
+      m.quaternion.setFromUnitVectors(_y, _v);
+      m.scale.set(1.1, 0.6, 1.1);
+      this.scene.add(m);
+      list.push({ m, ...v });
+    }
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        for (const s of list) {
+          s.vy -= 9 * dt;
+          s.m.position.x += s.vx * dt;
+          s.m.position.y = Math.max(0.05, s.m.position.y + s.vy * dt);
+          s.m.position.z += s.vz * dt;
+          _v.set(s.vx, s.vy, s.vz).normalize();
+          s.m.quaternion.setFromUnitVectors(_y, _v);
+        }
+        mat.opacity = 0.9 * (1 - (t / 0.5) ** 2);
+        return t >= 0.5;
+      },
+      dispose: () => {
+        for (const s of list) this.scene.remove(s.m);
+        mat.dispose();
+      },
+    });
+  }
+
+  /** An instant hit shown on the target itself: flash, shock rings and a few school specific accents. Nothing travels. */
+  impactAt(tgt: number | { x: number; z: number }, kind: ImpactKind, scale = 1, y = CHEST) {
+    const p = typeof tgt === 'number' ? this.pos(tgt) : tgt;
+    if (!p) return;
+    const P = ERUPT[kind];
+    this.particle(p.x, y, p.z, { tex: 'star', color: 0xffffff, s0: 0.4 * scale, s1: 2.6 * scale, life: 0.2 });
+    this.particle(p.x, y, p.z, { tex: 'glow', color: P.col, s0: 0.6 * scale, s1: 3.2 * scale, life: 0.35, a: 0.8 });
+    this.ring(p.x, p.z, P.col, 0.3, 2.0 * scale, 0.4, 0.08, 0.9);
+    this.ring(p.x, p.z, P.col, 0.2 * scale, 1.7 * scale, 0.3, y, 0.7); // shock disc at body height
+    this.burst(p.x, y, p.z, P.spark, Math.round(12 * scale), 5 * scale, 0.3, 0.5, kind === 'frost' ? 4 : 2);
+    switch (kind) {
+      case 'fire':
+        for (let i = 0; i < 4; i++) this.flame(p.x + rnd(-0.4, 0.4), y - 0.5 + rnd(0, 0.6), p.z + rnd(-0.4, 0.4), 1.1 * scale);
+        this.puff(p.x, y, p.z, 0x3a2f2a, 3, 1.2 * scale);
+        break;
+      case 'frost':
+        this.shards(p.x, y, p.z, 0xbfeaff, 6, 5 * scale);
+        break;
+      case 'arcane':
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          this.particle(p.x, y, p.z, { tex: 'star', color: 0xe0c2ff, vx: Math.cos(a) * 4, vz: Math.sin(a) * 4, vy: rnd(-0.3, 0.5), s0: 0.35 * scale, life: 0.45, drag: 3 });
+        }
+        break;
+      case 'shadow':
+        // wisps are pulled in, then the dark bursts out
+        for (let i = 0; i < 10; i++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = rnd(1.3, 1.9) * scale;
+          this.particle(p.x + Math.cos(a) * r, y + rnd(-0.6, 0.6), p.z + Math.sin(a) * r, { tex: 'glow', color: 0x8a3dff, vx: -Math.cos(a) * r * 4, vz: -Math.sin(a) * r * 4, s0: 0.5, s1: 0.15, life: 0.25 });
+        }
+        this.later(0.22, () => this.puff(p.x, y, p.z, 0x2a1040, 4, 1.4 * scale));
+        break;
+      case 'holy':
+        this.column(p.x, p.z, 0xfff1a8, 0.45, 0.35 * scale, 6, 0.28);
+        for (let i = 0; i < 4; i++) this.particle(p.x + rnd(-0.5, 0.5), y - 0.5, p.z + rnd(-0.5, 0.5), { tex: 'plus', color: 0xfff1a8, vy: rnd(1, 2), s0: 0.35, s1: 0.1, life: 0.8, drag: 0.5 });
+        break;
+      case 'dust':
+        this.puff(p.x, HEAD - 0.1, p.z, 0xc9b99a, 5, 1.1 * scale);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** A spiral of motes winding up around a target (polymorph, dispel, leaps of faith). */
+  swirlAt(tgt: number | { x: number; z: number }, kind: ImpactKind, scale = 1) {
+    const P = ERUPT[kind];
+    let t = 0;
+    let acc = 0;
+    this.addFx({
+      update: (dt) => {
+        const p = typeof tgt === 'number' ? this.pos(tgt) : tgt;
+        if (!p) return true;
+        t += dt;
+        acc += dt;
+        while (acc > 0.025) {
+          acc -= 0.025;
+          const k = Math.min(1, t / 0.6);
+          for (const o of [0, Math.PI]) {
+            const a = t * 14 + o;
+            const r = (1.0 - 0.55 * k) * scale;
+            this.particle(p.x + Math.cos(a) * r, 0.2 + k * 1.9, p.z + Math.sin(a) * r, { tex: k > 0.5 ? 'star' : 'glow', color: o ? P.core : P.col, s0: 0.3 * scale, s1: 0.1, life: 0.35 });
+          }
+        }
+        if (t >= 0.6) {
+          this.burst(p.x, 2, p.z, P.spark, 12, 3, 0.3, 0.5, 0);
+          this.ring(p.x, p.z, P.col, 0.4, 1.8 * scale, 0.4);
+          return true;
+        }
+        return false;
+      },
+      dispose: () => {},
+    });
+  }
+
+  /** Fan of flames out along a cone (Dragon's Breath) in place of the old beams. */
+  private coneFlames(s: Pos, r: number, half: number, color: number) {
+    for (const e of [-half * 0.8, -half * 0.35, 0, half * 0.35, half * 0.8]) {
+      for (let d = 1.5; d < r; d += 2) {
+        this.later(d * 0.025, () => {
+          const a = s.facing + e;
+          if (color === SCHOOL_COLOR.fire) this.flame(s.x + Math.sin(a) * d, 0.6 + rnd(0, 0.5), s.z + Math.cos(a) * d, 1.2 + d * 0.06);
+          else this.particle(s.x + Math.sin(a) * d, 0.8, s.z + Math.cos(a) * d, { color, s0: 0.9, s1: 0.2, life: 0.4 });
+        });
+      }
+    }
+  }
+
+  /** The table-driven result of an instant spell, drawn at (or under) the target. */
+  private hitVisual(h: { kind: ImpactKind; style: 'eruption' | 'impact' | 'pillar' | 'swirl' }, p: { x: number; z: number }, target: number) {
+    switch (h.style) {
+      case 'eruption':
+        this.groundEruption(p.x, p.z, h.kind, 1);
+        this.impactAt(p, h.kind, 0.55); // and a flare around the body
+        break;
+      case 'swirl':
+        if (target) this.swirlAt(target, h.kind);
+        else this.swirlAt(p, h.kind);
+        this.impactAt(p, h.kind, 0.6);
+        break;
+      case 'pillar':
+        this.column(p.x, p.z, ERUPT[h.kind].col, 0.5, 0.7, 7);
+        this.impactAt(p, h.kind, 0.7);
+        break;
+      default:
+        this.impactAt(p, h.kind, 1);
+    }
+  }
+
+  // ------------------------------------------------------------ aura layers (DoTs, bleeds, burns, frost, shields)
+
+  /** Pulse the visual of one aura on a unit (damage or heal tick). */
+  private layerFlare(unit: number, aura: string) {
+    const l = this.layers.get(`${unit}:${aura}`);
+    if (l) l.flare = 1;
+  }
+
+  /** A damage-over-time tick: flare the aura layer and add a small accent on the body. */
+  private auraTick(tgt: number, aura: string, _amount: number) {
+    this.layerFlare(tgt, aura);
+    const p = this.pos(tgt);
+    const v = AURA_VISUAL[aura];
+    if (!p || !v) return;
+    const s = v.strength;
+    switch (v.style) {
+      case 'shadow':
+        for (let i = 0; i < 4; i++) {
+          const a = Math.random() * Math.PI * 2;
+          this.particle(p.x + Math.cos(a) * 0.9, rnd(0.6, 1.8), p.z + Math.sin(a) * 0.9, { tex: 'glow', color: 0x8a3dff, vx: -Math.cos(a) * 3, vz: -Math.sin(a) * 3, s0: 0.4, s1: 0.1, life: 0.3 });
+        }
+        this.particle(p.x, CHEST, p.z, { tex: 'glow', color: 0x7a2fd8, s0: 0.5, s1: 2.2, life: 0.35, a: 0.8 });
+        break;
+      case 'bleed':
+        for (let i = 0; i < 6; i++) this.particle(p.x + rnd(-0.25, 0.25), rnd(0.8, 1.6), p.z + rnd(-0.25, 0.25), { color: 0xb8101c, add: false, vx: rnd(-1, 1), vz: rnd(-1, 1), vy: rnd(0.5, 2), s0: 0.24, s1: 0.14, life: 0.6, grav: 9 });
+        this.ring(p.x, p.z, 0xc01820, 0.3, 1.3, 0.35, 0.06, 0.7 * s);
+        break;
+      case 'burn':
+        for (let i = 0; i < 3; i++) this.flame(p.x + rnd(-0.3, 0.3), 0.6 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.7);
+        this.burst(p.x, CHEST, p.z, 0xffc060, 5, 3, 0.2, 0.5, 2);
+        break;
+      default:
+        break;
+    }
+  }
+
+  /** The small accent when a lasting aura lands. */
+  private auraStart(p: Pos, style: AuraStyle) {
+    switch (style) {
+      case 'shadow':
+        this.ring(p.x, p.z, 0x7a2fd8, 0.4, 2.0, 0.5);
+        this.puff(p.x, 1.0, p.z, 0x2a1040, 3, 1.1);
+        break;
+      case 'bleed':
+        this.burst(p.x, CHEST, p.z, 0xc01820, 8, 3, 0.2, 0.5, 8);
+        this.ring(p.x, p.z, 0xc01820, 0.3, 1.5, 0.4, 0.06, 0.8);
+        break;
+      case 'burn':
+        for (let i = 0; i < 3; i++) this.flame(p.x + rnd(-0.3, 0.3), 0.6 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.9);
+        break;
+      case 'frost':
+        this.ring(p.x, p.z, 0x9fe0ff, 0.3, 1.8, 0.45);
+        break;
+      default:
+        break;
+    }
+  }
+
+  private makeLayer(aura: string, vis: AuraVisual): Layer {
+    const group = new THREE.Group();
+    this.scene.add(group);
+    const sprites: THREE.Sprite[] = [];
+    const mats: THREE.Material[] = [];
+    const sp = (tex: TexName, color: number, size: number, additive = true) => {
+      const s = this.sprite(tex, color, additive);
+      this.scene.remove(s);
+      group.add(s);
+      s.scale.set(size, size, 1);
+      sprites.push(s);
+      return s;
+    };
+    const flat = (color: number, op: number, geo: THREE.BufferGeometry, r: number, tex?: THREE.Texture, y = 0.06) => {
+      const m = this.flatMat(color, op, tex);
+      mats.push(m);
+      return { mesh: this.flat(group, geo, m, y, r), mat: m, op };
+    };
+    const opac = (s: THREE.Sprite, a: number) => ((s.material as THREE.SpriteMaterial).opacity = Math.max(0, Math.min(1, a)));
+    const S = vis.strength;
+    let acc = 0;
+    // the body's centre in the world, for particles
+    const wx = (l: Layer, dx = 0) => l.x + dx * l.sc;
+    let upd: (l: Layer, dt: number, a: number, t: number) => void;
+
+    switch (vis.style) {
+      case 'shadow': {
+        const wisps = [0, 1, 2, 3].map(() => sp('glow', 0x9a4dff, 0.6));
+        const smokes = [0, 1, 2].map(() => sp('smoke', 0x2a0f45, 1.0, false));
+        const rune = flat(0x9ab04a, 0.4, this.discGeo, 1.05, this.getRuneTex());
+        const ring = flat(0x7a3fc0, 0.35, this.ringGeo, 0.8);
+        const all = [...wisps, ...smokes];
+        upd = (l, dt, a, t) => {
+          all.forEach((s, i) => {
+            const ang = t * (1.4 + i * 0.12) * (i % 2 ? -1 : 1) + (i / all.length) * Math.PI * 2;
+            const r = 0.55 + 0.15 * Math.sin(t * 1.7 + i);
+            const h = 1.0 + 0.85 * Math.sin(t * 0.9 + i * 1.7);
+            s.position.set(Math.cos(ang) * r, h, Math.sin(ang) * r);
+            const big = 1 + l.flare * 0.8;
+            const base = i < wisps.length ? 0.6 : 1.0;
+            s.scale.set(base * big, base * big, 1);
+            opac(s, a * (i < wisps.length ? 0.9 : 0.55) * S + l.flare * 0.3);
+          });
+          rune.mesh.rotation.z = t * 0.6;
+          rune.mat.opacity = rune.op * a * S * (1 + l.flare * 0.8);
+          ring.mat.opacity = ring.op * a * S;
+          ring.mesh.scale.set(0.8 + 0.1 * Math.sin(t * 3), 0.8 + 0.1 * Math.sin(t * 3), 1);
+          acc += dt * 7 * S * a;
+          while (acc > 1) {
+            acc -= 1;
+            const ang = Math.random() * Math.PI * 2;
+            this.particle(wx(l, Math.cos(ang) * 0.6), 0.2, l.z + Math.sin(ang) * 0.6 * l.sc, { tex: 'glow', color: 0xb06bff, vy: rnd(0.6, 1.2), s0: 0.22 * l.sc, s1: 0.05, life: 1.0, a: 0.8 });
+          }
+        };
+        break;
+      }
+      case 'bleed': {
+        const spots: [number, number, number][] = [[0.16, 1.5, 0.2], [-0.2, 1.1, 0.24], [0.12, 0.7, -0.2]];
+        const wounds = spots.map(() => sp('glow', 0x9a0f1a, 0.5));
+        const pool = flat(0x5a0a10, 0.55, this.discGeo, 0.5, undefined, 0.035);
+        pool.mat.blending = THREE.NormalBlending;
+        upd = (l, dt, a, t) => {
+          wounds.forEach((w, i) => {
+            w.position.set(spots[i][0], spots[i][1], spots[i][2]);
+            const f = 0.28 + 0.1 * Math.sin(t * 5 + i * 2) + l.flare * 0.3;
+            w.scale.set(f * 1.4, f * 1.4, 1);
+            opac(w, a * S * (0.55 + l.flare * 0.35));
+          });
+          const pr = 0.4 + Math.min(0.5, l.age * 0.12) + 0.04 * Math.sin(t * 2);
+          pool.mesh.scale.set(pr, pr, 1);
+          pool.mat.opacity = pool.op * a * S;
+          acc += dt * 8 * S * a;
+          while (acc > 1) {
+            acc -= 1;
+            const sIdx = (Math.random() * 3) | 0;
+            this.particle(wx(l, spots[sIdx][0]), spots[sIdx][1] * l.sc, l.z + spots[sIdx][2] * l.sc, { color: 0xb8101c, add: false, s0: 0.22 * l.sc, s1: 0.14 * l.sc, life: 0.8, grav: 9, a: 1 });
+          }
+        };
+        break;
+      }
+      case 'burn': {
+        const glows = [sp('glow', 0xff5a14, 1.3), sp('glow', 0xff9a3a, 0.8)];
+        const ring = flat(0xff6a1a, 0.4, this.ringGeo, 0.75);
+        upd = (l, dt, a, t) => {
+          glows[0].position.set(0, 1.1, 0);
+          glows[1].position.set(0.1 * Math.sin(t * 3), 1.5, 0.1 * Math.cos(t * 4));
+          const fl = 1 + 0.2 * Math.sin(t * 17) + 0.15 * Math.sin(t * 29) + l.flare * 0.8;
+          glows[0].scale.set(1.3 * fl, 1.6 * fl, 1);
+          glows[1].scale.set(0.8 * fl, 0.8 * fl, 1);
+          glows.forEach((g) => opac(g, a * S * (0.22 + l.flare * 0.35)));
+          ring.mat.opacity = ring.op * a * S * (0.7 + 0.3 * Math.sin(t * 13) + l.flare);
+          acc += dt * 20 * S * a;
+          while (acc > 1) {
+            acc -= 1;
+            const ang = Math.random() * Math.PI * 2;
+            const r = rnd(0.1, 0.45) * l.sc;
+            this.flame(l.x + Math.cos(ang) * r, rnd(0.4, 1.8) * l.sc, l.z + Math.sin(ang) * r, 0.42 * l.sc);
+            if (Math.random() < 0.3) this.particle(l.x + Math.cos(ang) * r, rnd(0.6, 1.6) * l.sc, l.z + Math.sin(ang) * r, { color: 0xffb040, vy: rnd(1.2, 2.2), s0: 0.1 * l.sc, life: 1.0, drag: 0.3 });
+          }
+        };
+        break;
+      }
+      case 'frost': {
+        const n = S >= 1.2 ? 9 : S >= 0.7 ? 7 : 5;
+        const mat = new THREE.MeshBasicMaterial({ color: 0x5ab4f0, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false });
+        mats.push(mat);
+        const shards: { m: THREE.Mesh; h: number }[] = [];
+        for (let i = 0; i < n; i++) {
+          const a = (i / n) * Math.PI * 2 + rnd(-0.15, 0.15);
+          const m = new THREE.Mesh(this.iceGeo, mat);
+          const h = rnd(0.5, 0.9) * (0.8 + 0.3 * S);
+          m.position.set(Math.cos(a) * 0.55, h / 2, Math.sin(a) * 0.55);
+          m.rotation.set(Math.sin(a) * 0.4, 0, -Math.cos(a) * 0.4);
+          m.scale.set(1.5, h, 1.5);
+          group.add(m);
+          shards.push({ m, h });
+        }
+        const stars = [sp('star', 0xe6f8ff, 0.3), sp('star', 0xcdf1ff, 0.26), sp('star', 0xe6f8ff, 0.3)];
+        const disc = flat(0xcdf1ff, 0.2, this.discGeo, 0.85, undefined, 0.04);
+        upd = (l, dt, a, t) => {
+          const grow = Math.min(1, l.age / 0.25);
+          for (const q of shards) {
+            const hh = q.h * grow * (0.4 + 0.6 * a);
+            q.m.scale.set(1.5, Math.max(0.001, hh), 1.5);
+            q.m.position.y = hh / 2;
+          }
+          mat.opacity = 0.55 * a + 0.12 * Math.sin(t * 4) * a;
+          stars.forEach((s, i) => {
+            const ang = t * 0.9 + (i / 3) * Math.PI * 2;
+            s.position.set(Math.cos(ang) * 0.7, 0.55 + 0.1 * Math.sin(t * 2 + i), Math.sin(ang) * 0.7);
+            opac(s, a * 0.9);
+          });
+          disc.mat.opacity = disc.op * a;
+          acc += dt * 3 * a;
+          while (acc > 1) {
+            acc -= 1;
+            const ang = Math.random() * Math.PI * 2;
+            this.particle(l.x + Math.cos(ang) * 0.6 * l.sc, 0.15, l.z + Math.sin(ang) * 0.6 * l.sc, { tex: 'smoke', color: 0xbfe8ff, add: false, s0: 0.35 * l.sc, s1: 0.9 * l.sc, life: 0.9, a: 0.35, vy: 0.35, vx: rnd(-0.2, 0.2) });
+          }
+        };
+        break;
+      }
+      case 'holy': {
+        const N = 6;
+        const motes = Array.from({ length: N }, (_, i) => sp(i % 3 === 2 ? 'plus' : 'glow', i % 3 === 2 ? 0xfff1a8 : 0xffe07a, i % 3 === 2 ? 0.3 : 0.4));
+        const ring = flat(0xffe98a, 0.3, this.ringGeo, 0.8);
+        let bubble: { mesh: THREE.Mesh; mat: THREE.MeshBasicMaterial } | null = null;
+        if (vis.bubble) {
+          const bm = new THREE.MeshBasicMaterial({ color: 0xffe98a, transparent: true, opacity: vis.bubble, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+          mats.push(bm);
+          const mesh = new THREE.Mesh(this.sphereGeo, bm);
+          mesh.scale.set(1.0, 1.4, 1.0);
+          mesh.position.y = 1.0;
+          group.add(mesh);
+          bubble = { mesh, mat: bm };
+        }
+        upd = (l, _dt, a, t) => {
+          motes.forEach((s, i) => {
+            const f = (t * 0.55 + i / N) % 1;
+            const ang = t * 2.4 + (i / N) * Math.PI * 2;
+            const r = 0.62 + 0.08 * Math.sin(t * 3 + i);
+            s.position.set(Math.cos(ang) * r, 0.1 + f * 2.0, Math.sin(ang) * r);
+            const g = 1 + l.flare * 0.7;
+            const base = i % 3 === 2 ? 0.3 : 0.4;
+            s.scale.set(base * g, base * g, 1);
+            opac(s, a * Math.sin(Math.PI * f) * (0.9 + l.flare * 0.4));
+          });
+          ring.mat.opacity = ring.op * a * (0.7 + 0.3 * Math.sin(t * 3) + l.flare);
+          const rs = 0.8 + l.flare * 0.2;
+          ring.mesh.scale.set(rs, rs, 1);
+          if (bubble) {
+            bubble.mat.opacity = (vis.bubble ?? 0.15) * a * (0.8 + 0.2 * Math.sin(t * 3) + l.flare * 0.8);
+            bubble.mesh.rotation.y = t * 0.5;
+          }
+        };
+        break;
+      }
+      default: {
+        // poison: green bubbles rising off the body
+        const bubbles = [0, 1, 2, 3].map(() => sp('glow', 0x7dff4a, 0.3));
+        upd = (l, dt, a, t) => {
+          bubbles.forEach((b, i) => {
+            const f = (t * 0.5 + i / 4) % 1;
+            b.position.set(Math.cos(t * 2 + i * 1.6) * 0.4, 0.3 + f * 1.8, Math.sin(t * 2 + i * 1.6) * 0.4);
+            opac(b, a * Math.sin(Math.PI * f));
+          });
+          acc += dt * 4 * a;
+          while (acc > 1) {
+            acc -= 1;
+            this.particle(l.x + rnd(-0.3, 0.3) * l.sc, rnd(0.4, 1.6) * l.sc, l.z + rnd(-0.3, 0.3) * l.sc, { tex: 'smoke', color: 0x5aa83a, add: false, vy: 0.6, s0: 0.2, s1: 0.5, life: 0.8, a: 0.4 });
+          }
+        };
+      }
+    }
+    const layer: Layer = {
+      group, x: 0, z: 0, sc: 1, age: 0, flare: 0,
+      update: (dt, a, t) => {
+        layer.flare = Math.max(0, layer.flare - dt * 3.5);
+        group.position.set(layer.x, 0, layer.z);
+        group.scale.setScalar(layer.sc);
+        upd(layer, dt, a, t);
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        for (const s of sprites) {
+          s.visible = false;
+          this.pool.push(s);
+        }
+        for (const m of mats) m.dispose();
+      },
+    };
+    void aura;
+    return layer;
+  }
+
   // ------------------------------------------------------------ casting
 
   private startCast(unit: number, ability: string) {
@@ -670,6 +1213,7 @@ export class Effects {
         break;
       case 'cast':
         if (!ABILITIES[ev.ability]?.channel) this.stopCast(ev.unit);
+        this.lastCast.set(`${ev.unit}:${ev.ability}`, this.clock);
         this.onCast(ev.unit, ev.ability, ev.target);
         break;
       case 'channel_end':
@@ -719,6 +1263,14 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (!p) break;
         this.onHit(ev.tgt);
+        {
+          // a tick of a damage-over-time aura flares the aura on the target instead of replaying the spell's hit
+          const tickAura = ev.ability ? isDotTick(ev.ability, this.unitAuras.get(ev.tgt) ?? [], this.clock - (this.lastCast.get(`${ev.src}:${ev.ability}`) ?? -99)) : null;
+          if (tickAura) {
+            this.auraTick(ev.tgt, tickAura, ev.amount);
+            break;
+          }
+        }
         if (ev.ability === 'slice_and_dice') {
           // a flurry: a short swing of the warrior's on every tick and a slash across the held target from a new angle each time
           const a = this.pos(ev.src);
@@ -743,10 +1295,17 @@ export class Effects {
         if (key) this.flights.delete(key);
         const big = Math.min(1.6, 0.6 + ev.amount / 600);
         const absorbed = ev.absorbed > 0 && ev.amount === 0;
+        const adef = ev.ability ? ABILITIES[ev.ability] : undefined;
+        const vcls = adef ? visualFor(adef).cls : null;
+        const quiet = vcls === 'onTarget' || vcls === 'aura'; // the cast already drew the impact at the target
         this.later(delay, () => {
           const q = this.pos(ev.tgt) ?? p;
           if (absorbed) {
             this.burst(q.x, CHEST, q.z, 0xfff1a8, 10, 3, 0.25, 0.4, 0);
+            return;
+          }
+          if (quiet) {
+            this.burst(q.x, CHEST, q.z, color, 4, 3, 0.25, 0.4);
             return;
           }
           this.burst(q.x, CHEST, q.z, color, Math.round(8 * big), 4 * big, 0.3, 0.5);
@@ -776,6 +1335,7 @@ export class Effects {
           });
         }
         this.ring(p.x, p.z, 0x7dff9a, 0.4, 1.6, 0.55);
+        if (this.hotIds.has(ev.ability)) this.layerFlare(ev.tgt, ev.ability);
         break;
       }
       case 'aura': {
@@ -800,6 +1360,10 @@ export class Effects {
             this.burst(p.x, 1.0, p.z, 0xfff1a8, 14, 3, 0.3, 0.6, 0);
             this.ring(p.x, p.z, 0xffe98a, 0.4, 1.8, 0.5);
             break;
+          default: {
+            const v = AURA_VISUAL[ev.aura];
+            if (v && v.style !== 'holy') this.auraStart(p, v.style);
+          }
         }
         break;
       }
@@ -892,15 +1456,15 @@ export class Effects {
         this.column(p.x, p.z, 0xfff1a8, 0.7, 0.9, 4);
         break;
       }
-      case 'polymorph':
-        if (t) this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, 0xc58bff, 0.45, 0.1);
+      case 'penance': {
+        // holy light falls on the target on every pulse (a bolt of damage on an enemy, a mending glow on an ally)
+        const p = this.pos(target) ?? s;
+        this.onSwing(unit);
+        this.column(p.x, p.z, 0xfff1a8, 0.4, 0.45, 8, 0.32);
+        this.ring(p.x, p.z, 0xffe98a, 0.3, 1.6, 0.35, 0.08);
+        this.burst(p.x, CHEST, p.z, 0xfff1a8, 6, 3, 0.25, 0.4, 0);
         break;
-      case 'counterspell':
-        if (t) this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, 0xc58bff, 0.25, 0.07);
-        break;
-      case 'dispel_magic':
-        if (t) this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, 0xfff1a8, 0.35, 0.07);
-        break;
+      }
       case 'frost_nova': {
         const r = def.radius ?? 10;
         this.ring(s.x, s.z, 0x7fd8ff, 0.5, r, 0.55, 0.08, 1);
@@ -1035,6 +1599,16 @@ export class Effects {
       });
       return;
     }
+    const vis = visualFor(def);
+    if ((vis.cls === 'onTarget' || vis.cls === 'aura') && vis.hit) {
+      // an instant that lands now: drawn at the target, nothing flies there
+      const tp = target ? this.pos(target) : null;
+      if (tp) {
+        this.hitVisual(vis.hit, tp, target);
+        if (def.target === 'ally' && unit !== target) this.ring(s.x, s.z, color, 0.3, 1.8, 0.4);
+        return;
+      }
+    }
     if (def.target === 'aoe_enemy' || def.target === 'aoe_all') {
       const r = Math.min(def.radius ?? 8, 24);
       if (def.coneDeg) {
@@ -1045,7 +1619,7 @@ export class Effects {
           const sp = rnd(r * 0.8, r * 1.9);
           this.particle(s.x + Math.sin(a) * 0.8, rnd(0.6, 1.6), s.z + Math.cos(a) * 0.8, { color: i % 3 === 0 ? 0xffe066 : color, vx: Math.sin(a) * sp, vz: Math.cos(a) * sp, vy: rnd(-0.2, 0.8), s0: rnd(0.4, 0.8), life: 0.6, drag: 2.3 });
         }
-        for (const e of [-half, 0, half]) this.beam(s.x, 1.2, s.z, s.x + Math.sin(s.facing + e) * r, 0.8, s.z + Math.cos(s.facing + e) * r, color, 0.35, 0.07);
+        this.coneFlames(s, r, half, color);
         if (has('damage')) this.onSwing(unit);
         return;
       }
@@ -1081,12 +1655,12 @@ export class Effects {
         const big = def.effects.some((e) => e.type === 'damage' && e.amount >= 300) ? 1.35 : 1;
         this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, big));
       } else {
-        this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, color, 0.22, 0.08);
+        this.impactAt(t, impactKindFor(def.school));
       }
       return;
     }
     if (enemyTarget && t) {
-      this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, color, 0.3, 0.07);
+      this.impactAt(t, impactKindFor(def.school), 0.8);
       return;
     }
     if (has('heal')) {
@@ -1180,32 +1754,6 @@ export class Effects {
             if (Math.random() < 0.15) {
               const ang = Math.random() * Math.PI * 2;
               this.particle(group.position.x + Math.cos(ang) * 1.1, rnd(0.2, 2), group.position.z + Math.sin(ang) * 1.1, { color: 0xfff1a8, s0: 0.2, life: 0.6, vy: 0.8 });
-            }
-          },
-        });
-      }
-      case 'frost_nova_root': {
-        const mat = new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0.75, blending: THREE.AdditiveBlending, depthWrite: false });
-        mats.push(mat);
-        const spikes: THREE.Mesh[] = [];
-        for (let i = 0; i < 7; i++) {
-          const m = new THREE.Mesh(this.iceGeo, mat);
-          const a = (i / 7) * Math.PI * 2;
-          m.userData.h = rnd(0.7, 1.3);
-          m.position.set(Math.cos(a) * 0.75, 0, Math.sin(a) * 0.75);
-          m.rotation.set(Math.sin(a) * 0.35, 0, -Math.cos(a) * 0.35);
-          group.add(m);
-          spikes.push(m);
-        }
-        let age = 0;
-        return finish({
-          update: (dt) => {
-            age += dt;
-            const k = Math.min(1, age / 0.25);
-            for (const m of spikes) {
-              const h = (m.userData.h as number) * k;
-              m.scale.set(1, h, 1);
-              m.position.y = h / 2;
             }
           },
         });
@@ -2114,12 +2662,27 @@ export class Effects {
 
     // persistent aura visuals
     const wanted = new Set<string>();
+    const wantedLayers = new Set<string>();
     for (const u of units) {
       const prev = this.prevPos.get(u.id);
       const moving = !!prev && Math.hypot(u.x - prev.x, u.z - prev.z) / Math.max(dt, 0.001) > 1;
       this.prevPos.set(u.id, { x: u.x, z: u.z });
+      this.unitAuras.set(u.id, u.alive ? u.auras : []);
       if (!u.alive) continue;
       for (const a of u.auras) {
+        const vis = AURA_VISUAL[a];
+        if (vis) {
+          const lk = `${u.id}:${a}`;
+          wantedLayers.add(lk);
+          let l = this.layers.get(lk);
+          if (!l) {
+            l = this.makeLayer(a, vis);
+            this.layers.set(lk, l);
+          }
+          l.x = u.x;
+          l.z = u.z;
+          l.sc = u.scale ?? 1;
+        }
         const key = `${u.id}:${a}`;
         wanted.add(key);
         let att = this.attach.get(key);
@@ -2141,5 +2704,17 @@ export class Effects {
       (att as Attachment & { dispose?: () => void }).dispose?.();
       this.attach.delete(key);
     }
+
+    // lasting aura layers fade in, and fade out once their aura (or the unit) is gone
+    for (const k of this.layerBook.step(wantedLayers, dt)) {
+      this.layers.get(k)?.dispose();
+      this.layers.delete(k);
+    }
+    for (const [k, l] of this.layers) {
+      l.age += dt;
+      l.update(dt, layerAlpha(l.age, this.layerBook.goneFor(k)), this.clock);
+    }
   }
+
+
 }

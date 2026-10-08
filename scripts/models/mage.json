@@ -1,0 +1,108 @@
+{
+  "out": "mage-wizard.glb",
+  "height": 2.15,
+  "rotateY": 180,
+  "dropMeshes": [
+    "^OldWizStaff"
+  ],
+  "parts": [
+    {
+      "match": "^MedBaseHead",
+      "name": "part_body__head"
+    },
+    {
+      "match": "^MedBaseMaleHands",
+      "name": "part_body__hands"
+    },
+    {
+      "match": "^KnightBoots",
+      "name": "part_body__boots"
+    },
+    {
+      "match": "^Robe1",
+      "name": "part_body__robe"
+    },
+    {
+      "match": "^Beard",
+      "name": "part_body__beard"
+    }
+  ],
+  "materials": {
+    "Head": {
+      "base": {
+        "size": 1024,
+        "quality": 84
+      },
+      "emissive": {
+        "size": 512,
+        "quality": 80
+      },
+      "roughness": 0.7
+    },
+    "KnightBootsA": {
+      "base": {
+        "size": 512,
+        "quality": 82
+      },
+      "roughness": 0.8
+    },
+    "OldWizardHands": {
+      "base": {
+        "size": 512,
+        "quality": 84
+      },
+      "roughness": 0.7
+    },
+    "robe": {
+      "base": {
+        "size": 1024,
+        "quality": 84
+      },
+      "roughness": 0.85
+    },
+    "Beard": {
+      "base": {
+        "size": 384,
+        "alpha": true
+      },
+      "roughness": 0.9,
+      "alphaMode": "MASK",
+      "alphaCutoff": 0.35
+    }
+  },
+  "bones": {
+    "hips": "Bip01_Pelvis_02",
+    "spine": "Bip01_Spine_03",
+    "chest": "Bip01_Spine1_05",
+    "neck": "Bip01_Neck_055",
+    "head": "Bip01_Head_056",
+    "shoulder_l": "Bip01_L_Clavicle_028",
+    "upperarm_l": "Bip01_L_UpperArm_029",
+    "forearm_l": "Bip01_L_Forearm_030",
+    "hand_l": "Bip01_L_Hand_031",
+    "shoulder_r": "Bip01_R_Clavicle_06",
+    "upperarm_r": "Bip01_R_UpperArm_07",
+    "forearm_r": "Bip01_R_Forearm_08",
+    "hand_r": "Bip01_R_Hand_09",
+    "foot_l": "Bip01_L_Foot_035",
+    "foot_r": "Bip01_R_Foot_060"
+  },
+  "grip": "hand_r",
+  "credit": {
+    "title": "Terror Engine - Old Wizard",
+    "author": "JuanCarlosOsanteHernandez (https://sketchfab.com/juancarlososantehernandez)",
+    "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+    "source": "https://sketchfab.com/3d-models/terror-engine-old-wizard-0561d94ddd46405aaea85043dbebbdaa"
+  },
+  "note": "Rigged by the original author (63 joints, clips attack / death / idle / run / walk, all kept). The original OldWizStaff mesh is removed: the spec staffs (weapons/staff-*.glb) replace it. Textures downscaled, normal / occlusion maps dropped.",
+  "holdFrom": "OldWizStaff",
+  "rig": {
+    "headR": 0.17,
+    "torsoW": 0.7,
+    "shoulderJoint": [
+      0.33,
+      1.62,
+      0
+    ]
+  }
+}

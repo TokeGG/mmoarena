@@ -81,7 +81,7 @@ export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExt
 };
 
 /** A weapon a spec is built around: it sets the auto-attack and how the character is drawn. */
-export interface WeaponDef { id: 'dual' | 'twohand' | 'polearm'; name: string }
+export interface WeaponDef { id: 'dual' | 'twohand' | 'polearm' | 'fire_staff' | 'ice_staff' | 'arcane_staff'; name: string }
 export interface AutoDef { interval: number; damage: number; range: number }
 export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput; /** A built-in effect with no button (Cauterize). */ passive?: 'cauterize'; weapon?: WeaponDef; /** Replaces the class auto-attack (dual wield swings fast, two-handers slowly, polearms reach further). */ auto?: AutoDef }
 /** A talent that trades one of the spec's bar abilities (`from`) for another (`to`). */
