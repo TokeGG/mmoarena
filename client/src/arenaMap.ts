@@ -1,8 +1,10 @@
 import * as THREE from 'three';
-import { LOW_HEIGHT, RAIL_THICKNESS, deckPiers, deckRails, heightAt, onRaised } from '@arena/shared';
+import { RAIL_THICKNESS, deckPiers, deckRails, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
-import { BoxBatch, KIT_URL, arenaPackUrl, canvasTex, crystalCluster, emissiveFromVertexColor, fbm2, hornGeometry, jaggedBox, kitMaterial, loadPack, mergeGeometries, pieceMesh, releaseKitMaterial, ringTerrain, rng, rockGeometry, shade, skyDome, smoothstep, spireGeometry, worldBox } from './arenaKit';
+import { KIT_URL, arenaPackUrl, canvasTex, emissiveFromVertexColor, fbm2, jaggedBox, kitMaterial, loadPack, mergeGeometries, pieceMesh, releaseKitMaterial, ringTerrain, rng, rockGeometry, shade, skyDome, smoothstep, worldBox } from './arenaKit';
 import type { Pack } from './arenaKit';
+import { COVER_WALL_H, LOW_H, lowParts, lowTopParts, partMatrix, pillarParts, scannedObelisk, wallKindOf, wallParts } from './cover';
+import type { CoverMat, CoverPart, LowKind, PillarKind, WallKind } from './cover';
 
 /**
  * The arena environment. Every arena is dressed from one kit (arenaKit.ts): the same tiling stone, sand, ice, wood and
@@ -30,8 +32,6 @@ export interface ArenaEnvironment {
   dispose(): void;
 }
 
-type PillarKind = 'column' | 'ruin' | 'crystal' | 'spire' | 'chimney' | 'obelisk';
-type LowKind = 'crates' | 'rubble' | 'ice' | 'basalt' | 'basin';
 
 /** Look of each arena. Gameplay geometry never depends on this; it only changes what you see. */
 interface Theme {
@@ -361,11 +361,10 @@ const glowTexture = (rgb: string) =>
     g.fillRect(0, 0, 64, 64);
   });
 
-/** Scale a geometry's UVs (cylinders and wedges take their texture density from this). */
-function scaleUV(g: THREE.BufferGeometry, su: number, sv: number) {
-  const uv = g.attributes.uv as THREE.BufferAttribute;
-  for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * su, uv.getY(i) * sv);
-  return g;
+/** Which cover pieces an arena's theme draws (the audit and the tests build the same parts without a renderer). */
+export function coverStyle(themeId: string): { pillar: PillarKind; low: LowKind; wall: WallKind; brickWalls: boolean } {
+  const th = THEMES[themeId] ?? THEMES.colosseum;
+  return { pillar: th.pillar, low: th.low, wall: wallKindOf(th.pillar, th.extras), brickWalls: th.pillar === 'chimney' };
 }
 
 const SHARED = 'shared';
@@ -851,234 +850,122 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   const rockMat = M(th.pillar === 'spire' ? 'basalt' : th.body.mat, { color: th.body.tint, roughness: 1, flatShading: true });
   const iceGlow = glowTexture('160,220,255');
   let hornMat: THREE.MeshStandardMaterial | undefined;
-  const obeliskSlots: { mesh: THREE.Mesh; r: number; h: number; x: number; z: number; extra: THREE.Mesh[] }[] = [];
-  const shaftUV = (r: number, h: number, tile: number) => [Math.max(1, Math.round((r * Math.PI * 2) / tile)), h / tile] as const;
-  for (const [pi, p] of ARENA.pillars.entries()) {
-    const kind = th.pillar;
-    if (kind === 'column') {
-      const H = 8;
-      const geo = new THREE.CylinderGeometry(p.r * 0.94, p.r, H, 24);
-      scaleUV(geo, ...shaftUV(p.r, H, 4));
-      const shaft = new THREE.Mesh(geo, stone('obeliskstone', 0xe6dcc8));
-      shaft.position.set(p.x, H / 2, p.z);
-      shaft.castShadow = shaft.receiveShadow = true;
-      root.add(shaft);
-      pillars.push(shaft);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 1.12, p.r * 1.2, 0.7, 24), trimMat);
-      base.position.set(p.x, 0.35, p.z);
-      const cap = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 1.25, p.r * 0.98, 0.8, 24), trimMat);
-      cap.position.set(p.x, H + 0.1, p.z);
-      const ring1 = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 1.04, p.r * 1.04, 0.16, 24), goldMat);
-      ring1.position.set(p.x, H - 1.3, p.z);
-      const ring2 = ring1.clone();
-      ring2.position.y = 1.6;
-      base.castShadow = cap.castShadow = true;
-      root.add(base, cap, ring1, ring2);
-    } else if (kind === 'ruin') {
-      const big = p.r > 3;
-      const h = big ? 10.5 : 4.5 + rand() * 3.5;
-      const geo = new THREE.CylinderGeometry(p.r * 0.9, p.r, h, 14);
-      scaleUV(geo, ...shaftUV(p.r, h, 3.5));
-      const shaft = new THREE.Mesh(geo, stone('mossbrick', 0xc8d0b8));
-      shaft.position.set(p.x, h / 2, p.z);
-      shaft.castShadow = shaft.receiveShadow = true;
-      root.add(shaft);
-      pillars.push(shaft);
-      const jag = new THREE.Mesh(rockGeometry(p.r * 0.85, 900 + pi, 0.5), rockMat);
-      jag.position.set(p.x, h + 0.1, p.z);
-      jag.rotation.set(rand() * 2, rand() * 6, rand());
-      jag.castShadow = true;
-      const moss = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 1.2, p.r * 1.3, 0.6, 14), mossMat);
-      moss.position.set(p.x, 0.3, p.z);
-      root.add(jag, moss);
-      for (let k = 0; k < 5; k++) {
-        const a = rand() * Math.PI * 2;
-        const rr = p.r * (1.3 + rand() * 0.8);
-        const s = 0.25 + rand() * 0.45;
-        const c = new THREE.Mesh(rockGeometry(s, 40 + k + pi * 7), rockMat);
-        c.position.set(p.x + Math.cos(a) * rr, s * 0.35, p.z + Math.sin(a) * rr);
-        c.rotation.set(rand() * 3, rand() * 3, rand() * 3);
-        c.castShadow = true;
-        root.add(c);
+  const obeliskSlots: { r: number; x: number; z: number; meshes: THREE.Mesh[] }[] = [];
+  const crateMat = M('carved', { repeat: [1, 1], roughness: 0.9 });
+  const sandCap = M('sandstone', { roughness: 0.9 });
+  const lowStone = M(th.low === 'rubble' ? 'mossbrick' : th.body.mat, { color: th.body.tint, roughness: 0.95 });
+  const brickWalls = th.pillar === 'chimney';
+  const kitCache = new Map<string, THREE.Material>();
+  const memo = (key: string, make: () => THREE.Material) => {
+    let m = kitCache.get(key);
+    if (!m) kitCache.set(key, (m = make()));
+    return m;
+  };
+  /** The themed material for a cover part (cover.ts says which slot a part is made of). */
+  const coverMat = (slot: CoverMat): THREE.Material => {
+    switch (slot) {
+      case 'shaft':
+        return memo('shaft', () => (th.pillar === 'column' ? stone('obeliskstone', 0xe6dcc8) : th.pillar === 'ruin' ? stone('mossbrick', 0xc8d0b8) : stone('blackbrick', 0xe0d8d4)));
+      case 'trim': return trimMat;
+      case 'gold': return goldMat;
+      case 'ember': return emberMat;
+      case 'moss': return mossMat;
+      case 'rock': return rockMat;
+      case 'ice': return iceMat;
+      case 'snow': return memo('snow', () => M('snow', { roughness: 0.8 }));
+      case 'horn':
+        return (hornMat ??= (() => {
+          const m = M('lavacrack', { color: 0x9a9aa4, roughness: 0.55, glow: 0.8, normalScale: 1.3 });
+          emissiveFromVertexColor(m);
+          return m;
+        })());
+      case 'body': return bodyMat;
+      case 'carved': return crateMat;
+      case 'cap': return sandCap;
+      case 'basinBrick': return memo('basinBrick', () => M('greybrick', { color: 0xc4c0bc, roughness: 0.9 }));
+      case 'basinLip': return trimMat;
+      case 'lowBasalt': return memo('lowBasalt', () => M('basalt', { roughness: 0.9, flatShading: true }));
+      case 'lowIce': return memo('lowIce', () => M('ice', { color: 0xcfe8ff, roughness: 0.2, transparent: true, opacity: 0.94 }));
+      case 'lowStone': return lowStone;
+      case 'wallRock': return memo('wallRock', () => M(brickWalls ? 'greybrick' : 'basalt', { color: brickWalls ? 0xc0b0a6 : 0xffffff, roughness: 0.95, flatShading: true }));
+      case 'obelisk': return memo('obelisk', () => stone('obeliskstone', 0xeee6d6));
+      case 'pedestal': return crateMat;
+    }
+  };
+  /** Bake cover parts into one mesh per material (a barricade of fifty blocks costs a draw call or two). */
+  const addCover = (parts: CoverPart[]) => {
+    const groups = new Map<string, { mat: CoverMat; role: CoverPart['role']; camera: boolean; geos: THREE.BufferGeometry[] }>();
+    const slotted = new Map<CoverPart, THREE.Mesh>();
+    for (const part of parts) {
+      if (part.slot || part.mat === 'horn') {
+        // own meshes: the horn carries vertex colours, and the scanned obelisk replaces its slot later
+        const m = new THREE.Mesh(part.geo, coverMat(part.mat));
+        m.position.set(...part.pos);
+        if (part.rot) m.rotation.set(...part.rot);
+        m.castShadow = true;
+        m.receiveShadow = part.role !== 'decal';
+        root.add(m);
+        if (part.camera) pillars.push(m);
+        slotted.set(part, m);
+        continue;
       }
-    } else if (kind === 'crystal') {
-      const h = 8 + (pi % 3) * 1.2;
-      const spire = new THREE.Mesh(spireGeometry(p.r, h, 300 + pi, 6, 0.04), iceMat);
-      spire.position.set(p.x, 0, p.z);
-      spire.castShadow = true;
-      root.add(spire);
-      pillars.push(spire);
-      const cl = new THREE.Mesh(crystalCluster(p.r * 1.7, h * 0.34, 500 + pi, 6), iceMat);
-      cl.position.set(p.x, 0, p.z);
-      cl.castShadow = true;
-      root.add(cl);
-      const snowCap = new THREE.Mesh(rockGeometry(p.r * 1.25, 700 + pi, 0.3), M('snow', { roughness: 0.8 }));
-      snowCap.position.set(p.x, 0.15, p.z);
-      root.add(snowCap);
+      const key = `${part.mat}/${part.role}/${part.camera ? 1 : 0}`;
+      let g = groups.get(key);
+      if (!g) groups.set(key, (g = { mat: part.mat, role: part.role, camera: !!part.camera, geos: [] }));
+      g.geos.push(part.geo.clone().applyMatrix4(partMatrix(part)));
+    }
+    for (const g of groups.values()) {
+      const m = new THREE.Mesh(g.geos.length === 1 ? g.geos[0] : mergeGeometries(g.geos), coverMat(g.mat));
+      m.castShadow = g.role !== 'decal';
+      m.receiveShadow = true;
+      if (g.mat === 'ember' && g.role === 'decal') (m.material as THREE.MeshBasicMaterial).opacity = 0.22;
+      root.add(m);
+      if (g.camera) pillars.push(m);
+    }
+    return slotted;
+  };
+
+  const kind = th.pillar;
+  for (const [pi, p] of ARENA.pillars.entries()) {
+    const parts = pillarParts(kind, { p, i: pi });
+    const slotted = addCover(parts);
+    if (kind === 'obelisk') obeliskSlots.push({ r: p.r, x: p.x, z: p.z, meshes: [...slotted.values()] });
+    if (kind === 'crystal') {
       const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: iceGlow, color: 0x8fd0ff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
       glow.position.set(p.x, 1.2, p.z);
       glow.scale.set(p.r * 4.5, p.r * 3, 1);
       root.add(glow);
-    } else if (kind === 'spire') {
-      // obsidian horn: a tall crooked ridged shaft of black glass, cracked with lava low down
-      const h = 8.5 + (pi % 3) * 1.4;
-      hornMat ??= (() => {
-        const m = M('lavacrack', { color: 0x9a9aa4, roughness: 0.55, glow: 0.8, normalScale: 1.3 });
-        emissiveFromVertexColor(m);
-        return m;
-      })();
-      const mesh = new THREE.Mesh(hornGeometry(p.r * 1.05, h, 60 + pi, 5), hornMat);
-      mesh.position.set(p.x, 0, p.z);
-      mesh.rotation.y = pi * 1.9;
-      mesh.castShadow = mesh.receiveShadow = true;
-      root.add(mesh);
-      pillars.push(mesh);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(p.r * 1.0, p.r * 1.35, 18), emberMat);
-      ring.rotation.x = -Math.PI / 2;
-      ring.position.set(p.x, 0.03, p.z);
-      (ring.material as THREE.MeshBasicMaterial).transparent = true;
-      (ring.material as THREE.MeshBasicMaterial).opacity = 0.22;
-      root.add(ring);
-      for (let k = 0; k < 4; k++) {
-        const a = rand() * Math.PI * 2, rr = p.r * (1.2 + rand() * 0.7), s = 0.3 + rand() * 0.5;
-        const c = new THREE.Mesh(rockGeometry(s, 80 + k + pi * 5), rockMat);
-        c.position.set(p.x + Math.cos(a) * rr, s * 0.35, p.z + Math.sin(a) * rr);
-        c.castShadow = true;
-        root.add(c);
-      }
     } else if (kind === 'chimney') {
-      // a brick forge chimney with a glowing band and a fire bowl on its top
       const H = 7.5;
-      const geo = new THREE.CylinderGeometry(p.r * 0.86, p.r, H, 16);
-      scaleUV(geo, ...shaftUV(p.r, H, 3));
-      const shaft = new THREE.Mesh(geo, stone('blackbrick', 0xe0d8d4));
-      shaft.position.set(p.x, H / 2, p.z);
-      shaft.castShadow = shaft.receiveShadow = true;
-      root.add(shaft);
-      pillars.push(shaft);
-      const base = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 1.15, p.r * 1.22, 0.9, 16), trimMat);
-      base.position.set(p.x, 0.45, p.z);
-      const band = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 0.93, p.r * 0.93, 0.18, 16), emberMat);
-      band.position.set(p.x, 2.0, p.z);
-      const band2 = band.clone();
-      band2.position.y = H - 1.2;
-      const lip = new THREE.Mesh(new THREE.CylinderGeometry(p.r * 1.2, p.r * 0.9, 0.7, 16), trimMat);
-      lip.position.set(p.x, H + 0.2, p.z);
       const fire = new THREE.Sprite(flameGlow);
       fire.position.set(p.x, H + 1.1, p.z);
       const tongue = new THREE.Sprite(flameTongue);
       tongue.position.set(p.x, H + 1.0, p.z);
-      root.add(base, band, band2, lip, fire, tongue);
+      root.add(fire, tongue);
       flames.push({ glow: fire, tongue, base: 0, s: 2.6 });
-    } else {
-      // obelisk: a tall four-sided shaft with a gilded pyramidion; the scanned obelisk replaces it when loaded
-      const H = 7.4;
-      const geo = new THREE.CylinderGeometry(p.r * 0.62, p.r * 1.1, H, 4, 1);
-      geo.rotateY(Math.PI / 4);
-      scaleUV(geo, 1.4, H / 3.5);
-      const shaft = new THREE.Mesh(geo, stone('obeliskstone', 0xeee6d6));
-      shaft.position.set(p.x, H / 2 + 0.5, p.z);
-      shaft.castShadow = shaft.receiveShadow = true;
-      root.add(shaft);
-      pillars.push(shaft);
-      const plinth = new THREE.Mesh(worldBox(p.r * 2.6, 0.5, p.r * 2.6, 2), trimMat);
-      plinth.position.set(p.x, 0.25, p.z);
-      plinth.castShadow = plinth.receiveShadow = true;
-      const tip = new THREE.Mesh(new THREE.ConeGeometry(p.r * 0.62 * Math.SQRT2, 1.1, 4), goldMat);
-      tip.rotation.y = Math.PI / 4;
-      tip.position.set(p.x, H + 0.5 + 0.55, p.z);
-      tip.castShadow = true;
-      root.add(plinth, tip);
-      obeliskSlots.push({ mesh: shaft, r: p.r, h: H, x: p.x, z: p.z, extra: [tip] });
     }
   }
 
-  const crateMat = M('carved', { repeat: [1, 1], roughness: 0.9 });
-  const sandCap = M('sandstone', { roughness: 0.9 });
-  const wallBlocks = new BoxBatch(), lowBlocks = new BoxBatch();
-  // walls: a solid straight stone wall with a capstone (jagged rock in the hell halls)
-  const SW_H = 5;
+  // walls: a solid straight stone wall with a capstone (jagged rock in the hell halls, stacked carved blocks in the stadium)
+  const wallKind = wallKindOf(th.pillar, th.extras);
   for (const [wi, wl] of (ARENA.walls ?? []).entries()) {
-    const ww = wl.x1 - wl.x0, wd = wl.z1 - wl.z0, wx = (wl.x0 + wl.x1) / 2, wz = (wl.z0 + wl.z1) / 2;
-    if (th.pillar === 'spire' || th.extras === 'lava') {
-      const brick = th.pillar === 'chimney';
-      const mat = M(brick ? 'greybrick' : 'basalt', { color: brick ? 0xc0b0a6 : 0xffffff, roughness: 0.95, flatShading: true });
-      const body = new THREE.Mesh(jaggedBox(ww, SW_H, wd, 200 + wi, 0.34, 3), mat);
-      body.position.set(wx, SW_H / 2, wz);
-      body.castShadow = body.receiveShadow = true;
-      root.add(body);
-      pillars.push(body);
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.12, 0.1, wd + 0.12), emberMat);
-      seam.position.set(wx, 0.5, wz);
-      root.add(seam);
-      for (let k = 0; k < 3; k++) {
-        const s = 0.35 + rand() * 0.5;
-        const c = new THREE.Mesh(rockGeometry(s, 300 + wi * 3 + k), mat);
-        c.position.set(wx + (rand() - 0.5) * (ww + 1.2), s * 0.3, wz + (rand() - 0.5) * (wd + 1.2));
-        c.castShadow = true;
-        root.add(c);
-      }
-    } else if (th.pillar === 'obelisk') {
-      // stacked carved sandstone blocks, two high (a person is 2.2 tall: sight over the stack is blocked like the rule says)
-      const CH = 1.7;
-      const nx = Math.max(1, Math.round(ww / 1.7)), nz = Math.max(1, Math.round(wd / 1.7)), layers = 2;
-      for (let ly = 0; ly < layers; ly++)
-        for (let i = 0; i < nx; i++)
-          for (let k = 0; k < nz; k++) {
-            const bw = ww / nx, bd = wd / nz;
-            wallBlocks.add(bw - 0.05, CH - 0.04, bd - 0.05, wl.x0 + bw * (i + 0.5) + (ly ? (i % 2 ? 0.08 : -0.06) : 0), CH * (ly + 0.5), wl.z0 + bd * (k + 0.5));
-          }
-      wallBlocks.add(ww + 0.2, 0.18, wd + 0.2, wx, CH * layers + 0.09, wz, 'cap');
-    } else {
-      const body = new THREE.Mesh(worldBox(ww, SW_H, wd, 4), bodyMat);
-      body.position.set(wx, SW_H / 2, wz);
-      body.castShadow = body.receiveShadow = true;
-      root.add(body);
-      pillars.push(body); // the camera treats it like a pillar
-      const capStone = new THREE.Mesh(worldBox(ww + 0.25, 0.4, wd + 0.25, 2), trimMat);
-      capStone.position.set(wx, SW_H + 0.2, wz);
-      capStone.castShadow = true;
-      const foot = new THREE.Mesh(worldBox(ww + 0.3, 0.5, wd + 0.3, 2), trimMat);
-      foot.position.set(wx, 0.25, wz);
-      const band = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.08, 0.14, wd + 0.08), goldMat);
-      band.position.set(wx, SW_H - 0.7, wz);
-      root.add(capStone, foot, band);
-      if (th.pillar === 'ruin' || th.pillar === 'crystal') {
-        const c = new THREE.Mesh(rockGeometry(0.5, 400 + wi), th.pillar === 'ruin' ? rockMat : iceMat);
-        c.position.set(wx + (rand() - 0.5) * ww, SW_H + 0.45, wz + (rand() - 0.5) * wd);
-        c.castShadow = true;
-        root.add(c);
-      }
+    addCover(wallParts(wallKind, wl, wi));
+    if (wallKind === 'stone' && (th.pillar === 'ruin' || th.pillar === 'crystal')) {
+      const ww = wl.x1 - wl.x0, wd = wl.z1 - wl.z0;
+      const c = new THREE.Mesh(rockGeometry(0.5, 400 + wi), th.pillar === 'ruin' ? rockMat : iceMat);
+      c.position.set((wl.x0 + wl.x1) / 2 + (rand() - 0.5) * ww, COVER_WALL_H + 0.45, (wl.z0 + wl.z1) / 2 + (rand() - 0.5) * wd);
+      c.castShadow = true;
+      root.add(c);
     }
   }
 
   // low barricades: person-high; they block sight on the ground, a jump clears them
-  const LOW_H = LOW_HEIGHT - 0.14; // the cap finishes at the height that blocks sight
-  const lowStone = M(th.low === 'rubble' ? 'mossbrick' : th.body.mat, { color: th.body.tint, roughness: 0.95 });
   const lavaFlowMat = M('lavaflow', { roughness: 0.35, glow: 1.2 });
   lavaMats.push(lavaFlowMat);
   for (const [li, lw] of (ARENA.lows ?? []).entries()) {
     const ww = lw.x1 - lw.x0, wd = lw.z1 - lw.z0, wx = (lw.x0 + lw.x1) / 2, wz = (lw.z0 + lw.z1) / 2;
-    if (th.low === 'crates') {
-      // carved sandstone blocks laid side by side, a block-wide cap on top (all baked into the two crate meshes)
-      const n = Math.max(1, Math.round(Math.max(ww, wd) / 1.6));
-      for (let i = 0; i < n; i++) {
-        const t0 = i / n, t1 = (i + 1) / n;
-        const x0 = ww > wd ? lw.x0 + ww * t0 : lw.x0, x1 = ww > wd ? lw.x0 + ww * t1 : lw.x1;
-        const z0 = ww > wd ? lw.z0 : lw.z0 + wd * t0, z1 = ww > wd ? lw.z1 : lw.z0 + wd * t1;
-        const gap = 0.04;
-        lowBlocks.add(x1 - x0 - gap, LOW_H, z1 - z0 - gap, (x0 + x1) / 2, LOW_H / 2, (z0 + z1) / 2);
-      }
-      lowBlocks.add(ww + 0.12, 0.14, wd + 0.12, wx, LOW_H + 0.07, wz, 'cap');
-    } else if (th.low === 'basin') {
-      // a stone lava basin: brick sides, a glowing lava surface just under the brim
-      const body = new THREE.Mesh(worldBox(ww, LOW_H, wd, 3), M('greybrick', { color: 0xc4c0bc, roughness: 0.9 }));
-      body.position.set(wx, LOW_H / 2, wz);
-      body.castShadow = body.receiveShadow = true;
-      root.add(body);
-      const lip = new THREE.Mesh(worldBox(ww + 0.3, 0.16, wd + 0.3, 2), trimMat);
-      lip.position.set(wx, LOW_H - 0.02, wz);
-      root.add(lip);
+    addCover([...lowParts(th.low, lw, li), ...lowTopParts(th.low, lw, li)]);
+    if (th.low === 'basin') {
       const surf = new THREE.Mesh(new THREE.PlaneGeometry(ww - 0.5, wd - 0.5), lavaFlowMat);
       surf.rotation.x = -Math.PI / 2;
       surf.position.set(wx, LOW_H + 0.07, wz);
@@ -1088,53 +975,6 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       glow.position.set(wx, LOW_H + 0.9, wz);
       glow.scale.set(Math.max(ww, wd) * 1.5, 2.6, 1);
       root.add(glow);
-    } else if (th.low === 'basalt') {
-      const body = new THREE.Mesh(jaggedBox(ww, LOW_H, wd, 500 + li, 0.18, 3), M('basalt', { roughness: 0.9, flatShading: true }));
-      body.position.set(wx, LOW_H / 2, wz);
-      body.castShadow = body.receiveShadow = true;
-      root.add(body);
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(ww + 0.1, 0.08, wd + 0.1), emberMat);
-      seam.position.set(wx, 0.35, wz);
-      root.add(seam);
-    } else if (th.low === 'ice') {
-      const body = new THREE.Mesh(worldBox(ww, LOW_H, wd, 3), M('ice', { color: 0xcfe8ff, roughness: 0.2, transparent: true, opacity: 0.94 }));
-      body.position.set(wx, LOW_H / 2, wz);
-      body.castShadow = body.receiveShadow = true;
-      const top = new THREE.Mesh(worldBox(ww + 0.2, 0.2, wd + 0.2, 2), M('snow', { roughness: 0.7 }));
-      top.position.set(wx, LOW_H + 0.05, wz);
-      root.add(body, top);
-      const n = Math.max(2, Math.round(Math.max(ww, wd) / 1.6));
-      for (let i = 0; i < n; i++) {
-        const t = (i + 0.5) / n;
-        const c = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.35 + rand() * 0.25, 5), iceMat);
-        c.position.set(ww > wd ? lw.x0 + ww * t : wx, LOW_H + 0.3, ww > wd ? wz : lw.z0 + wd * t);
-        root.add(c);
-      }
-    } else {
-      // rubble wall: broken moss brick with tumbled blocks on top
-      const body = new THREE.Mesh(worldBox(ww, LOW_H, wd, 3), lowStone);
-      body.position.set(wx, LOW_H / 2, wz);
-      body.castShadow = body.receiveShadow = true;
-      root.add(body);
-      const n = Math.max(2, Math.round(Math.max(ww, wd) / 1.4));
-      for (let i = 0; i < n; i++) {
-        const t = (i + 0.5) / n;
-        const c = new THREE.Mesh(rockGeometry(0.22 + rand() * 0.2, 600 + li * 9 + i), rockMat);
-        c.position.set(ww > wd ? lw.x0 + ww * t : wx + (rand() - 0.5) * 0.3, LOW_H + 0.08, ww > wd ? wz + (rand() - 0.5) * 0.3 : lw.z0 + wd * t);
-        c.castShadow = true;
-        root.add(c);
-      }
-    }
-  }
-
-  for (const [batch, camera] of [[wallBlocks, true], [lowBlocks, false]] as const) {
-    const { sides, caps } = batch.build();
-    for (const [geo, mat] of [[sides, crateMat], [caps, sandCap]] as const) {
-      if (!geo) continue;
-      const m = new THREE.Mesh(geo, mat);
-      m.castShadow = m.receiveShadow = true;
-      root.add(m);
-      if (camera) pillars.push(m);
     }
   }
 
@@ -1387,10 +1227,10 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       obeliskSlots.forEach((s, i) => {
         const ob = pieceMesh(pack, `prop_obelisk_${i % 2}`);
         if (!ob) return;
-        ob.scale.set(s.r * 2.1, s.h + 1.2, s.r * 2.1);
-        ob.position.set(s.x, 0.5, s.z);
-        s.mesh.visible = false;
-        for (const e of s.extra) e.visible = false;
+        const at = scannedObelisk(s.r);
+        ob.scale.set(at.sx, at.sy, at.sx);
+        ob.position.set(s.x, at.y, s.z);
+        for (const m of s.meshes) m.visible = false;
         addShared(ob);
         (ob.material as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
       });

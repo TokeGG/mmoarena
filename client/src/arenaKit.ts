@@ -350,18 +350,64 @@ export function rockGeometry(r: number, seed: number, squash = 0.7): THREE.Buffe
   return g;
 }
 
-/** A tapering faceted spire, a little crooked, with a jagged broken top; origin at its foot. */
-export function spireGeometry(r: number, h: number, seed: number, sides = 7, lean = 0.12): THREE.BufferGeometry {
+/** Cover keeps its exact collision footprint up to this height (yards); a taper, flare or lean only starts above it. */
+export const COVER_FLAT = 2.6;
+
+/**
+ * A shaft of circumradius r that stays exactly r up to COVER_FLAT (a ring of vertices sits right at that height, so nothing
+ * is cut off between rings) and tapers linearly to `top * r` at height h; origin at the foot, UVs like a cylinder's.
+ */
+export function taperedShaft(r: number, h: number, sides: number, top: number, segs = 8): THREE.BufferGeometry {
+  const ys = [0, COVER_FLAT / 2, COVER_FLAT];
+  for (let i = 1; i <= segs; i++) ys.push(COVER_FLAT + ((h - COVER_FLAT) * i) / segs);
+  const pos: number[] = [], uv: number[] = [], idx: number[] = [];
+  for (const y of ys) {
+    const k = 1 - (1 - top) * Math.min(1, Math.max(0, (y - COVER_FLAT) / Math.max(1e-6, h - COVER_FLAT)));
+    for (let i = 0; i <= sides; i++) {
+      const a = (i / sides) * Math.PI * 2;
+      pos.push(Math.sin(a) * r * k, y, Math.cos(a) * r * k);
+      uv.push(i / sides, y / h);
+    }
+  }
+  const row = sides + 1;
+  for (let j = 0; j < ys.length - 1; j++)
+    for (let i = 0; i < sides; i++) {
+      const a = j * row + i, b = a + row, c = b + 1, d = a + 1;
+      idx.push(a, d, b, b, d, c);
+    }
+  const centre = pos.length / 3; // a cap on top so the tip is closed
+  pos.push(0, h, 0);
+  uv.push(0.5, 1);
+  const last = (ys.length - 1) * row;
+  for (let i = 0; i < sides; i++) idx.push(centre, last + i, last + i + 1);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/**
+ * A faceted spire, a little crooked, with a jagged broken top; origin at its foot. Up to COVER_FLAT it is a plain prism of
+ * circumradius r (what blocks you is a circle of radius r, so what you see there must be the same); the taper to a point,
+ * the lean and the jitter all start above that.
+ */
+export function spireGeometry(r: number, h: number, seed: number, sides = 12, lean = 0.12): THREE.BufferGeometry {
   const rnd = rng(seed);
-  const g = new THREE.CylinderGeometry(r * 0.07, r, h, sides, 5, false);
-  g.translate(0, h / 2, 0);
+  const g = taperedShaft(r, h, sides, 0.07, 8);
   const p = g.attributes.position;
   const ang = rnd() * Math.PI * 2;
+  const jit = new Map<string, number>();
   for (let i = 0; i < p.count; i++) {
-    const t = p.getY(i) / h;
-    const j = 1 + (rnd() - 0.5) * 0.18 * (1 - t);
-    p.setX(i, p.getX(i) * j + Math.cos(ang) * lean * h * t * t);
-    p.setZ(i, p.getZ(i) * j + Math.sin(ang) * lean * h * t * t);
+    const y = p.getY(i);
+    const u = Math.min(1, Math.max(0, (y - COVER_FLAT) / Math.max(1e-6, h - COVER_FLAT)));
+    const side = Math.round(((Math.atan2(p.getX(i), p.getZ(i)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2) * sides) % sides;
+    const key = `${y.toFixed(3)}/${side}`;
+    if (!jit.has(key)) jit.set(key, rnd());
+    const j = 1 + (jit.get(key)! - 0.5) * 0.18 * u;
+    p.setX(i, p.getX(i) * j + Math.cos(ang) * lean * h * u * u);
+    p.setZ(i, p.getZ(i) * j + Math.sin(ang) * lean * h * u * u);
   }
   g.computeVertexNormals();
   return g;
@@ -531,24 +577,31 @@ export function ringTerrain(o: RingOpts): THREE.BufferGeometry {
   return g;
 }
 
-/** A crooked obsidian horn: a tapering, ridged, curved shaft with a flared foot, UVs in yards (no stretching); origin at the foot. */
+/**
+ * A crooked obsidian horn: a tapering, ridged, curved shaft, UVs in yards (no stretching); origin at the foot. Up to
+ * COVER_FLAT it is a round shaft of radius r (the ridges only cut inward, at most 0.03); the taper, the ridges' full depth
+ * and the bend all start above that, so the footprint you see is the circle that blocks you.
+ */
 export function hornGeometry(r: number, h: number, seed: number, tile = 3.5): THREE.BufferGeometry {
   const rnd = rng(seed);
-  const SIDES = 14, RINGS = 28;
+  const SIDES = 16, RINGS = 28;
   const ang = rnd() * Math.PI * 2, bend = 0.1 + rnd() * 0.12, wob = rnd() * 6;
   const ph = [rnd() * 6.28, rnd() * 6.28, rnd() * 6.28];
   const pos: number[] = [], col: number[] = [], uv: number[] = [], idx: number[] = [];
+  const flat = COVER_FLAT / h;
   for (let j = 0; j <= RINGS; j++) {
-    const t = j / RINGS;
+    // rings are packed low so the flat part has a few of its own
+    const t = (j / RINGS) ** 1.5;
     const y = t * h;
-    const cxo = Math.cos(ang) * bend * h * t * t + Math.sin(t * 5 + wob) * 0.05 * r * t;
-    const czo = Math.sin(ang) * bend * h * t * t + Math.cos(t * 4 + wob) * 0.05 * r * t;
-    const flare = 1 + 0.55 * Math.exp(-t * 14);
-    const rad = Math.max(0.015 * r, r * flare * Math.pow(1 - t, 0.9) * (0.92 + 0.08 * Math.sin(t * 9 + wob)));
+    const u = Math.max(0, (t - flat) / (1 - flat)); // 0 up to the flat height, then 0..1 to the tip
+    const cxo = Math.cos(ang) * bend * h * u * u + Math.sin(u * 5 + wob) * 0.05 * r * u;
+    const czo = Math.sin(ang) * bend * h * u * u + Math.cos(u * 4 + wob) * 0.05 * r * u;
+    const rad = Math.max(0.015 * r, r * Math.pow(1 - u, 0.9) * (1 - 0.08 * u * (0.5 - 0.5 * Math.sin(u * 9 + wob))));
+    const depth = 0.03 / r + (0.31 - 0.03 / r) * Math.min(1, u * 4); // how deep the ridges cut (a fraction of the radius)
     for (let i = 0; i <= SIDES; i++) {
       const a = (i / SIDES) * Math.PI * 2;
-      const ridge = 1 + 0.16 * Math.sin(a * 3 + ph[0] + t * 2.2) + 0.1 * Math.sin(a * 5 + ph[1] - t * 3) + 0.05 * Math.sin(a * 9 + ph[2]);
-      const rr = rad * ridge;
+      const ridge = (Math.sin(a * 3 + ph[0] + t * 2.2) * 0.52 + Math.sin(a * 5 + ph[1] - t * 3) * 0.32 + Math.sin(a * 8 + ph[2]) * 0.16) * 0.5 + 0.5; // 0..1
+      const rr = rad * (1 - depth * (1 - ridge));
       pos.push(cxo + Math.cos(a) * rr, y, czo + Math.sin(a) * rr);
       uv.push((i / SIDES) * ((r * 2 * Math.PI) / tile), (y * 1.15) / tile);
       // dark glassy shaft, an ember glow low on it (the green channel drives the glow of materials that have one)
