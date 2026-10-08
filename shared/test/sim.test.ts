@@ -1561,20 +1561,60 @@ describe('auto-attack persistence', () => {
   });
 });
 
-describe('dampening', () => {
-  it('healing and new shields get weaker from 90 s into the fight, by 0.5% a second, up to 90%', () => {
+describe('heal spam', () => {
+  const setup = () => {
     const sim = new ArenaSim({ seed: 1, prepMs: 0 });
     const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, controller: 'player' });
     sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
     sim.step();
-    const heal = () => { p.health = 100; return sim.heal(p, p, 1000, 'flash_heal'); };
-    assert.equal(sim.dampening(), 0);
-    assert.equal(heal(), 1000, 'full healing at the start');
-    for (let t = 0; t < 150000; t += TUNING.tickMs) sim.step(); // 60 s past the start of dampening
-    assert.ok(Math.abs(sim.dampening() - 0.3) < 0.01, `dampening ${sim.dampening()}`);
-    assert.ok(Math.abs(heal() - 700) <= 6, 'healing 30% weaker');
-    assert.equal(sim.snapshot().damp, Math.round(sim.dampening() * 100) / 100, 'the HUD is told');
-    for (let t = 0; t < 400000; t += TUNING.tickMs) sim.step();
-    assert.equal(sim.dampening(), TUNING.dampenMax, 'capped');
+    return { sim, p };
+  };
+  const cast = (sim: ArenaSim, p: ReturnType<typeof setup>['p'], ability: string): number => {
+    p.health = 1;
+    p.resource = p.resourceMax;
+    p.cooldowns = {};
+    p.gcdEnd = 0;
+    p.cast = null;
+    const before = sim.drainEvents().length;
+    void before;
+    assert.ok(sim.useAbility(p.id, ability, p.id).ok, `${ability} goes off`);
+    for (let t = 0; t < 3000; t += TUNING.tickMs) { sim.step(); if (!p.cast) break; }
+    const heal = sim.drainEvents().filter((e) => e.t === 'heal' && e.src === p.id && e.ability === ability);
+    return heal.reduce((a, e) => a + (e as { amount: number; overheal: number }).amount + (e as { overheal: number }).overheal, 0);
+  };
+  it('the same heal pressed again and again is weaker each time, down to the floor', () => {
+    const { sim, p } = setup();
+    p.maxHealth = p.health = 1e6;
+    const first = cast(sim, p, 'flash_heal');
+    const second = cast(sim, p, 'flash_heal');
+    const third = cast(sim, p, 'flash_heal');
+    assert.ok(second < first * (1 - TUNING.healSpamStep) * 1.02 && second > first * (1 - TUNING.healSpamStep) * 0.9, `second ${second} vs first ${first}`);
+    assert.ok(third < second, 'weaker again');
+    let last = third;
+    for (let i = 0; i < 8; i++) last = cast(sim, p, 'flash_heal');
+    assert.ok(last >= first * TUNING.healSpamFloor * 0.9 && last <= first * TUNING.healSpamFloor * 1.1, `floor ${last} vs ${first * TUNING.healSpamFloor}`);
+  });
+  it('rotating between heals keeps each at full strength', () => {
+    const { sim, p } = setup();
+    p.maxHealth = p.health = 1e6;
+    p.bar = [...p.bar, 'greater_heal'];
+    const a = cast(sim, p, 'flash_heal');
+    const b = cast(sim, p, 'greater_heal');
+    const a2 = cast(sim, p, 'flash_heal');
+    assert.ok(a2 >= a * 0.8, `flash heal back at full after a different heal: ${a2} vs ${a}`);
+    assert.ok(b > 0);
+  });
+  it('a long pause starts the count again, and there is no dampening any more', () => {
+    const { sim, p } = setup();
+    p.maxHealth = p.health = 1e6;
+    const first = cast(sim, p, 'flash_heal');
+    cast(sim, p, 'flash_heal');
+    for (let t = 0; t < TUNING.healSpamWindowMs + 1000; t += TUNING.tickMs) sim.step();
+    const again = cast(sim, p, 'flash_heal');
+    assert.ok(again >= first * 0.8, `fresh after a pause: ${again} vs ${first}`);
+    for (let t = 0; t < 200000; t += TUNING.tickMs) sim.step(); // far past the old dampening start
+    const late = cast(sim, p, 'flash_heal');
+    assert.ok(late >= first * 0.8, 'no time-based weakening');
+    assert.equal((sim.snapshot() as { damp?: number }).damp, undefined);
   });
 });

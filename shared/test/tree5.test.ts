@@ -82,7 +82,7 @@ describe('trinkets', () => {
 
     const w = unit(sim, 'warrior', 0, 0, 5, 'arms', { 3: 'trinket_shield' });
     ok(sim.useAbility(w.id, 'trinket_shield'));
-    assert.equal(w.auras.find((a) => a.id === 'trinket_shield')?.absorbLeft, Math.round(w.maxHealth * 0.2 * w.gearMult * (1 - sim.dampening())));
+    assert.equal(w.auras.find((a) => a.id === 'trinket_shield')?.absorbLeft, Math.round(w.maxHealth * 0.2 * w.gearMult));
     const p = unit(sim, 'priest', 0, 0, -5, 'holy', { 3: 'trinket_heal' });
     p.health = 1000;
     ok(sim.useAbility(p.id, 'trinket_heal'));

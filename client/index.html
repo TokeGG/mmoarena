@@ -52,8 +52,6 @@
 
   #banner { position:fixed; top:14%; left:0; right:0; text-align:center; font-size:44px; font-weight:700; text-shadow:0 2px 12px #000; pointer-events:none; }
   #banner small { display:block; font-size:16px; font-weight:400; color:var(--dim); }
-  #damp { position:fixed; top:6px; left:50%; transform:translateX(-50%); padding:2px 10px; border-radius:10px; background:rgba(20,10,30,.7); border:1px solid #7a4bb0; color:#d9b8ff; font-size:12px; letter-spacing:.5px; z-index:5; }
-  #damp.hidden { display:none; }
   #err { position:fixed; bottom:170px; left:0; right:0; text-align:center; color:#ff6b5e; font-weight:600; text-shadow:0 1px 4px #000; pointer-events:none; opacity:0; transition:opacity .4s; }
   #err.show { opacity:1; transition:none; }
 
@@ -530,6 +528,17 @@
   #menu .m-tiles { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
   #menu button.tile { height:64px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; border:1px solid #3a352c; border-radius:10px; background:#15141a; color:#e9dcc0; font:700 13px Georgia,serif; cursor:pointer; }
   #menu button.tile:hover { border-color:#c9a24a; background:#1d1a14; } #menu button.tile .bi { font-size:18px; color:#f0c260; }
+  .cur-details { border-top:1px solid #2b2830; padding-top:8px; } .cur-details summary { cursor:pointer; color:#cfc6b2; font-size:13px; } .cur-details[open] summary { margin-bottom:8px; }
+  .cur-panel { display:flex; flex-direction:column; gap:10px; color:#cfc6b2; font-size:13px; }
+  .cur-row { display:flex; align-items:center; gap:10px; min-height:30px; } .cur-l { width:64px; flex:none; }
+  .cur-row select { flex:1; min-width:0; padding:5px 6px; background:#1d1b22; color:#e9dcc0; border:1px solid #4a4538; border-radius:6px; font:13px Georgia,serif; }
+  .cur-row input[type=range] { flex:1; min-width:0; accent-color:#f0c260; } .cur-v { width:34px; text-align:right; color:#e9c872; font-weight:700; }
+  .cur-tgl { display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap; } .cur-tgl input { accent-color:#f0c260; }
+  .cur-prev { display:flex; flex-direction:column; gap:8px; padding:8px; border:1px solid #2b2830; border-radius:8px; background:#0e0d13; }
+  .cur-chips { display:flex; flex-wrap:wrap; gap:4px 8px; } .cur-chip { display:flex; flex-direction:column; align-items:center; gap:1px; width:50px; } .cur-chip small { font-size:10px; color:#a79d88; text-align:center; }
+  .cur-img { width:44px; height:44px; display:grid; place-items:center; background:repeating-conic-gradient(#1b1a22 0 25%, #2a2832 0 50%) 0 0/12px 12px; border-radius:6px; } .cur-img svg { width:40px; height:40px; }
+  .cur-try { display:grid; place-items:center; height:48px; border:1px dashed #4a4538; border-radius:6px; color:#8b8372; font-size:12px; }
+  .cur-hint { font-size:11px; color:#8b8372; line-height:1.4; }
   #menu .m-settings { margin-top:6px; padding:14px 16px; border:1px solid #2b2830; border-radius:10px; background:#12111a; display:flex; flex-direction:column; gap:12px; }
   #menu .m-settings .srow { padding:0; gap:12px; font-size:13px; color:#cfc6b2; }
   #menu .srow .sl { width:130px; flex:none; }
@@ -865,7 +874,6 @@
   <div id="party"></div>
   <div id="enemies"></div>
   <div id="banner"></div>
-  <div id="damp" class="hidden" data-tip="text:" data-tip-title="Dampening" data-tip-text="Healing and shields get weaker the longer a fight lasts, so two healers cannot out-heal each other forever."></div>
   <div id="err"></div>
   <div id="cast" class="hidden"></div>
   <div id="ccvig" class="hidden"></div>
@@ -897,6 +905,7 @@
           <div class="srow"><span class="sl">Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /><b class="sw"></b> <span id="auto-toggle-val">On</span></label></div>
           <div class="srow"><span class="sl">Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
           <div class="srow"><span class="sl">Brightness</span><input id="brightness" type="range" min="0.6" max="1.6" step="0.05" value="1" /><span id="brightness-val">100%</span></div>
+          <details class="cur-details"><summary>Cursor</summary><div id="cursor-settings"></div></details>
           <div class="srow"><span class="sl">Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
           <div class="srow"><span class="sl">Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>
           <div class="srow"><span class="sl">Ambience</span><input id="vol-amb" type="range" min="0" max="1" step="0.05" value="0.5" /><span id="vol-amb-val">50%</span></div>

@@ -27,6 +27,13 @@ export interface ModelDef {
   ownWeapon?: boolean;
   /** Where the shared cape cosmetics (capeModels.ts) hang on this model, measured against its torso: overrides on top of the defaults computed from the rig metadata. */
   cape?: Partial<CapeFit>;
+  /**
+   * Sub-meshes (`part_body__<name>`) that already are a cloak: a cloak cosmetic recolours their back half (robeBack.ts) instead of
+   * hanging the shared cape over them. The mage's robe has a hood and a back that fall like one.
+   */
+  robeBack?: string[];
+  /** Which way the model faces along the file's z axis in its rest pose (default +1; the Old Wizard's file faces -z: his beard hangs at lower z than his head). */
+  robeFront?: 1 | -1;
   /** Where the shared wings (wingModels.ts) grow on this model: overrides on top of the defaults computed from the rig metadata. */
   wings?: Partial<WingFit>;
   /**
@@ -50,13 +57,19 @@ export interface ModelDef {
 
 export const MODELS: Record<string, ModelDef> = {
   knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 }, cape: { tilt: -0.08, sy: 0.95 } },
-  // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
-  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0 }, dye: ['robe'], cape: { tilt: -0.08, sy: 1.12 } },
+  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0, posture: { chest: 0.2, neck: 0.22, head: 0.08, run: 0.5 } }, dye: ['robe'],
+    // a cloak recolours the back of his own robe (robeBack); this fit is only where ribbons and the rift hang
+    robeBack: ['robe'],
+    robeFront: -1,
+    cape: { tilt: -0.12, sx: 1.3, sy: 1.1, sz: 1.0, z: 0.12 },
+    // the pair grows out of the upper back, smaller than the default so the span is about 1.7 times the shoulders
+    wings: { scale: 0.4, z: 0.22, y: 0.58, sx: 1 } },
   // the rogue's hooded assassin (rigged by scripts/rig-model.mjs from an unrigged mesh): the hood is part of the head and stays under head cosmetics
   assassin: { url: '/models/rogue.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.6, armIn: 0.3 }, cape: { tilt: -0.08, sy: 0.95 } },
   // the priest's Abyssal Sentinel (rigged by scripts/rig-model.mjs from an unrigged mesh): the horned helm is part of the head and stays under head cosmetics
   sentinel: { url: '/models/priest.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.35, armIn: 0.3, castR: -0.35, castL: -1.1, swingArc: -1.6 }, cape: { tilt: -0.08, sy: 0.95 } },
+  // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
   brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3, armIn: 0.6, legIn: 0.08 } },
 };
 
@@ -198,8 +211,10 @@ export function preloadRiggedModels(): Promise<void> {
   const loader = new GLTFLoader();
   const tex = new THREE.TextureLoader();
   const weapons = Promise.all([preloadWeaponModels(), preloadCapeModel(), preloadWingModel()]).then(() => undefined); // the weapon and cape models load alongside the characters that wear them
+  // an alternative that nobody picked (the brute, 1.3 MB) is not downloaded: only defaults, per-weapon models and the preview choice
+  const wanted = (id: string) => Object.entries(CLASS_MODEL).some(([cls, c]) => !!c && (c.default === id || Object.values(c.byWeapon ?? {}).includes(id) || queryModel(cls as ClassId) === id));
   return Promise.all(
-    Object.entries(MODELS).map(
+    Object.entries(MODELS).filter(([id]) => wanted(id)).map(
       ([id, def]) =>
         fetchModel(def.url)
           .then(
@@ -310,6 +325,15 @@ function instantiateClips(asset: RigAsset): RigInstance {
   const anim = new ClipAnimator(body, asset.clips!, asset.def.clips);
   anim.bones = bones;
   root.updateMatrixWorld(true);
+  // a model that stands beside its origin (the wizard's hips are 0.17 to the left of it) is moved onto it: the unit turns, aims and wears
+  // its cosmetics about the middle of its body, not about a point next to it
+  const hips = bones.hips;
+  const cx = hips ? new THREE.Vector3().setFromMatrixPosition(hips.matrixWorld).x : 0;
+  if (Math.abs(cx) > 0.02) {
+    body.position.x = -cx;
+    root.updateMatrixWorld(true);
+  }
+  root.userData.centerX = Math.abs(cx) > 0.02 ? cx : 0;
   const rest: Record<string, THREE.Vector3> = {};
   for (const [n, b] of Object.entries(bones)) rest[n] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
   return { root, bones, parts, rest, attach: {}, anim };

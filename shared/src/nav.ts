@@ -1,5 +1,5 @@
 import type { ArenaDef, Vec2 } from './types';
-import { PLAYER_RADIUS, STEP_HEIGHT, dist, hasLOS, heightAt, rectDist, resolveCollisions } from './geometry';
+import { PLAYER_RADIUS, STEP_HEIGHT, dist, hasLOS, heightAt, inLava, rectDist, resolveCollisions } from './geometry';
 import type { Level } from './geometry';
 import { JUMP_HEIGHT } from './jump';
 
@@ -48,7 +48,7 @@ function gridOf(arena: ArenaDef): Grid {
   for (let i = 0; i < N; i++) {
     const p = { x: x0 + (i % cols) * CELL, z: z0 + Math.floor(i / cols) * CELL };
     if (still(p, resolveCollisions(p, arena, 0, 0))) open[i] = 1;
-    else if (still(p, resolveCollisions(p, arena, 0, 9))) open[i] = 2; // only a barricade in the way: jumpable
+    else if (still(p, resolveCollisions(p, arena, 0, 9)) && !inLava(arena, p)) open[i] = 2; // only a barricade in the way: jumpable (never into lava)
     if (dk && onDeck(p) && still(p, resolveCollisions(p, arena, 1, 0))) open[N + i] = 1;
   }
   const out: Edge[][] = Array.from({ length: N * 2 }, () => []);

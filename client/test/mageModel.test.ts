@@ -140,6 +140,46 @@ describe('mage wizard model', () => {
     for (const m of ch.meshes) if (m instanceof THREE.SkinnedMesh) assert.ok(!Array.isArray(m.material));
   });
 
+  it('stands upright and on its own origin: the idle clip\'s stoop is countered, the body is centred', () => {
+    const wp = (ch: ReturnType<typeof createCharacter>, n: string) => bonesOf(ch)[n].getWorldPosition(new THREE.Vector3());
+    const pitch = (ch: ReturnType<typeof createCharacter>) => {
+      ch.root.updateMatrixWorld(true);
+      const out: Record<string, number> = {};
+      for (const n of ['Bip01_Spine1_05', 'Bip01_Neck_055', 'Bip01_Head_056']) {
+        const q = bonesOf(ch)[n].getWorldQuaternion(new THREE.Quaternion());
+        out[n] = Math.atan2(new THREE.Vector3(0, 1, 0).applyQuaternion(q).z, new THREE.Vector3(0, 1, 0).applyQuaternion(q).y);
+      }
+      return out;
+    };
+    const ch = createCharacter('mage', '', 'fire_staff');
+    run(ch, 1);
+    ch.root.updateMatrixWorld(true);
+    const hips = wp(ch, 'Bip01_Pelvis_02'), head = wp(ch, 'Bip01_Head_056');
+    assert.ok(Math.abs(hips.x) < 0.04, `the hips are over the unit's origin (x ${hips.x.toFixed(2)})`);
+    const lean = Math.atan2(head.z - hips.z, head.y - hips.y) * (180 / Math.PI);
+    assert.ok(Math.abs(lean) < 6, `head over the hips (${lean.toFixed(1)} degrees)`);
+    // the correction tips chest, neck and head forward against the bare clip, and a run keeps only part of it
+    const withFix = pitch(ch);
+    const d = driver(ch) as unknown as { o: { posture: object } };
+    const saved = d.o.posture;
+    d.o.posture = {};
+    run(ch, 0.1);
+    const bare = pitch(ch);
+    d.o.posture = saved;
+    for (const n of Object.keys(bare)) assert.ok(withFix[n] > bare[n] + 0.05, `${n} is tipped forward (${bare[n].toFixed(2)} -> ${withFix[n].toFixed(2)})`);
+    run(ch, 0.1);
+    // the staff stays in the closed fist while the spine is corrected, in idle and in a cast
+    const staff = ch.meshes.find((m) => !(m instanceof THREE.SkinnedMesh) && (m.material as THREE.MeshStandardMaterial).map)!;
+    const grip = (c: typeof ch) => {
+      c.root.updateMatrixWorld(true);
+      return staff.getWorldPosition(new THREE.Vector3()).distanceTo(wp(c, 'Bip01_R_Hand_09'));
+    };
+    assert.ok(grip(ch) < 0.35, `staff at the hand (${grip(ch).toFixed(2)})`);
+    ch.cast!();
+    run(ch, 0.4);
+    assert.ok(grip(ch) < 0.35, 'and in a cast');
+  });
+
   it('the three specs tint the robe differently and leave skin alone', () => {
     const tints = new Map<string, string>();
     for (const spec of ['fire', 'frost', 'arcane']) {

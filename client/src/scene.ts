@@ -1,11 +1,12 @@
 import { cameraReach } from './camera';
+import { snapUnit } from './unitSmoothing';
 import * as THREE from 'three';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { arenaById, heightAt, onRaised, clamp } from '@arena/shared';
+import { arenaById, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -57,6 +58,8 @@ interface UnitMesh {
   move: number;
   vf: number;
   vs: number;
+  /** The arena changed under the unit: its speed, walk blend and floor height restart from where it stands on the next update. */
+  snap?: boolean;
 }
 
 
@@ -187,12 +190,20 @@ export class ArenaScene {
 
   /** Swap the scenery (and the camera's pillar collision) to another arena. A no-op if it is already showing. */
   setMap(id: string): void {
-    if (id === this.arena.id) return;
-    this.env.dispose();
-    this.arena = arenaById(id);
+    const next = arenaById(id);
+    if (next.id === this.arena.id) return;
+    this.env.dispose(); // frees its meshes and keeps a pack that loads later from adding pieces (never two sceneries alive)
+    this.arena = next;
     this.env = buildArenaEnvironment(this.scene, this.renderer, this.arena);
     this.pillars = this.env.pillars;
     this.env.setPhase(this.phase);
+    // every unit was placed for the old map: the jump to the new spawns is not a run, and its floor height is the new map's
+    for (const m of this.meshes.values()) m.snap = true;
+  }
+
+  /** The arena the scene is showing now (what the menu must place its characters on). */
+  get arenaId(): string {
+    return this.arena.id;
   }
 
   /** Cosmetic reactions, called from the effects system. */
@@ -234,6 +245,10 @@ export class ArenaScene {
         m.look = u.look ?? '';
         m.weapon = u.weapon ?? '';
         m.modelVer = modelVersion(); // a rigged model that finished loading replaces the procedural stand-in
+      }
+      if (m.snap) {
+        m.snap = false;
+        snapUnit(m, u.x, u.z, heightAt(this.arena, u.x, u.z, u.lv ? 1 : 0));
       }
       // walk cycle driven by how far the unit actually moved this frame
       const vx = (u.x - m.lastX) / dt;

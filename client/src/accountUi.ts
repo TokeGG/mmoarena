@@ -2,6 +2,7 @@ import type { Popup } from './popups';
 import { OwnerPanel } from './ownerUi';
 import { applyName, avatarImg, avatarUrl } from './nameStyle';
 import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
+import { buildCursorPanel } from './cursorUi';
 import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, MatchRecord, ServerMsg } from '@arena/shared';
 import { classIcon, mapName } from './spectate';
 
@@ -424,6 +425,7 @@ export class AccountUi {
     pick('emblem', EMBLEMS, (d) => d.value ?? '', 'Emblem');
     pick('title', TITLES, (d) => (d.id ? '«»' : '—'), 'Title');
     pick('color', NAME_COLORS, () => 'Aa', 'Name colour');
+    box.append(el('h3', '', 'Cursor'), buildCursorPanel()); // a local setting, saved with the other settings
     if (a.cosmetics.custom && a.role !== 'owner') {
       const l = el('label', 'chk');
       const i = el('input');

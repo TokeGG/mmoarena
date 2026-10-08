@@ -36,7 +36,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
 - **Lobby:** drag on the empty middle of the menu to turn your character.
-- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, volume, the HUD editor and Leave match.
+- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor and Leave match. Your cursor style (a steel gauntlet by default) is used everywhere, except that every player sees the same red sword over enemies, green cross over allies and crosshair while aiming a ground spell (red when it cannot be cast); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
 - **Binding keys:** click a box and press a key, or hold Shift, Ctrl or Alt for a combo such as Shift+1. Every action has two slots, right-click clears a slot, and Esc is reserved.
 - Signed in, your keybinds, HUD, sound settings and builds follow your account to any device.
 
@@ -44,8 +44,8 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Practice:** a private match against bots or training dummies. Choose 1v1, 2v2 or 3v3, the arena, the bot skill and (under Advanced) your bot partners; the opponents are random classes, rolled each time. Nothing moves your rating.
 - **Ranked** (needs an account): queues for the team size you picked. Players are paired in the order they queued; if you pick an arena you only play there, Random fits anywhere. Your rating changes with the result, and leaving a live ranked match is a loss.
-- **Parties** (up to 3 friends): the leader picks the mode and arena, everyone else presses Ready. A party plays on one team, in practice too (friends replace partner bots). A party bigger than the team size queues as separate players.
-- **Party match:** with two or three friends in a party, the leader can start a friendly match for the whole party. Pick Team 1 or Team 2 on your party card; bots fill the empty places.
+- **Parties** (up to 6 players): the leader picks the mode and arena, everyone else presses Ready. A party plays on one team, in practice too (friends replace partner bots). A party bigger than the team size queues as separate players.
+- **Party match:** with friends in a party, the leader can start a friendly match for the whole party. Everyone starts on the leader's team (a team holds 3), and you can pick Team 1 or Team 2 on your party card; bots fill the empty places.
 - **Duels:** challenge an online friend to an unranked 1v1 with the class and build you have picked on the menu.
 - **Watch live:** the menu lists every match in progress except solo dummy training. Spectators see everything five seconds late, so watching cannot help the players.
 - **Replays:** Profile > Matches keeps your last 30 counted matches, each with a replay you can pause, speed up, seek and share by link.
@@ -60,7 +60,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 | [Priest](WIKI.md#priest) | 2500 | Mana | Healer and support: shields, heals, dispels and fears |
 | [Rogue](WIKI.md#rogue) | 2800 | Energy and combo points | Stealth melee: stuns from stealth, kicks casters |
 
-Every class has three specs, each with its own eight-skill action bar (and, for warriors, its own weapon):
+Every class has three specs, each with its own eight-skill action bar (and each warrior and mage spec carries its own weapon):
 
 | Spec | Class | Role | Playstyle |
 |---|---|---|---|
@@ -109,7 +109,9 @@ Pick one on the menu or leave it on Random.
 
 - **Casting:** most skills trigger a 1 second global cooldown. Starting another spell cancels the one you are casting. A spell you press while casting or on the global cooldown is queued and goes off as soon as you are free (the newest press wins).
 - **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, and a blade never reaches between floors, so someone up on a walkway is out of melee reach from the ground below (and the other way round). Ground spells (Flamestrike, Battle Banner, Not Going Anywhere, Rune of Power) are aimed at the cursor: press the key, then click to place; one still on its cooldown does not bring the ring up.
-- **Dampening:** from 90 seconds into a fight, all healing and new shields get 0.5% weaker every second (up to 90%), shown at the top of the screen, so two healers cannot out-heal each other forever.
+- **Lava:** the four basins on Lava Forge are lava. Jump in and you are no longer pushed out, but you burn for 5% of your health every half second until you climb out; on foot you cannot walk in.
+- **Line of sight:** a body, not a single thread: a unit whose edge shows past a pillar or wall end (about a third of a yard) is in sight and can be targeted.
+- **Heal spam:** pressing the same heal again and again weakens it (each repeat in a row is 15% weaker, down to 40% of full), while rotating between different heals keeps each at full strength. A pause of 6 seconds starts it fresh.
 - **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind, Gouge, Sap and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.
 - **Blink** frees you from stuns, roots and slows and works while stunned, but not while polymorphed or under Dragon's Breath.
 - **Auto-attack:** warriors and rogues deal steady damage (and warriors build rage) with auto-attack. It starts with a right-click on an enemy, R or any melee skill, stays on while you have an enemy targeted (so it is ready when you close in), and stops when you clear your target, or 5 seconds after combat if nothing hostile is targeted.
@@ -134,7 +136,7 @@ Bots use the same commands as a player, so they obey the global cooldown, range,
 - **Rating:** everyone starts at 1000 and one rating covers every team size. Elo K is 48 for your first 5 ranked games, 32 up to 20, then 24; teams are compared by their average rating. Tiers: Bronze, Silver (1100), Gold (1300), Platinum (1500), Diamond (1700), Gladiator (1900).
 - **Profile:** rating, tier, peak, wins and matches, unlocks and the Matches tab (history and replays). There is a leaderboard of every account.
 - **Looks:** headwear, wings, back, weapon glow, ground aura, armor dye and a companion. Looks never change how you fight. More of them unlock as you play (at 5, 15, 30, 60 and 100 matches); the Look menu shows what is still locked. Titles, emblems and name colours unlock with matches, wins or peak rating and show on your nameplate.
-- **Settings follow the account:** HUD layout and style, keybinds, sensitivity, volume, class, builds and practice options apply on any device after you sign in. Guests keep settings in the browser only.
+- **Settings follow the account:** HUD layout and style, keybinds, sensitivity, cursor, volume, class, builds and practice options apply on any device after you sign in. Guests keep settings in the browser only.
 - Passwords are never stored (only a salted hash), and a login lasts 30 days.
 
 ## Friends, parties and duels
@@ -162,4 +164,4 @@ Developing or hosting the game: see [DEVELOPING.md](DEVELOPING.md).
 
 ## Credits
 
-The warrior's weapons (dual sabers by Shadow Models 3D, greatsword by denisdezmand, Tyra Polearm by zenkuri) and character models are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.
+The characters, weapons, cape, wings and arena scenery (for example the dual sabers by Shadow Models 3D, the greatsword by denisdezmand, the Tyra Polearm by zenkuri, the Old Wizard by JuanCarlosOsanteHernandez, the Hooded Shadow Assassin by iRahulRajput and the Abyssal Sentinel by Rignu) and one recorded sound are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.

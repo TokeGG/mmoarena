@@ -568,10 +568,18 @@ export class Bot {
   private useFirst(u: Unit, abilities: string[], target?: number): boolean {
     // with an enemy interrupt ready and in reach, instants go first: a cast is only started when there is nothing else (and may be a fake)
     const list = this.kickRisk ? [...abilities].sort((a, b) => Number((ABILITIES[a]?.castTime ?? 0) > 0) - Number((ABILITIES[b]?.castTime ?? 0) > 0)) : abilities;
-    for (const a of list) if (this.use(u, a, target)) return true;
+    for (const a of this.rotateHeals(u, list)) if (this.use(u, a, target)) return true;
     return false;
   }
   private kickRisk = false;
+
+  /** Heal spam is weaker each repeat (see Sim.healSpam): from the second repeat on, a different heal on the list goes first so the heals are rotated. */
+  private rotateHeals(u: Unit, list: string[]): string[] {
+    const last = u.lastHeal;
+    if (!last || last.stacks < 1 || this.sim.time - last.at > TUNING.healSpamWindowMs || list.length < 2 || list[0] !== last.ability) return list;
+    if (!list.every((a) => ABILITIES[a]?.effects.some((e) => e.type === 'heal'))) return list;
+    return [...list.slice(1), list[0]];
+  }
 
   /**
    * The spec's damage rotation (learned offline: the order that deals the most damage with the real cooldowns and costs),
@@ -980,7 +988,7 @@ export class Bot {
     const th = (x: number) => Math.min(0.99, x * H);
     if (lowest) {
       const f = hpFrac(lowest);
-      if (f < 0.35 && lowest !== u && this.use(u, 'pain_suppression', lowest.id)) return;
+      if (f < (lowest === u ? 0.3 : Math.min(0.45, 0.35 * Math.max(1, H))) && this.use(u, 'pain_suppression', lowest.id)) return; // a priest that heals early still saves an ally on the edge, and itself when it is the one dying
       if (f < th(0.55) && this.use(u, 'holy_word', lowest.id)) return; // the instant heal first, then the casts
       // someone is beating on the low ally: stun them
       const onLow = enemies.find((e) => e.target === lowest.id && dist(e.pos, lowest.pos) <= 8 && !e.auras.some((a) => HARD_CC.includes(a.kind)));

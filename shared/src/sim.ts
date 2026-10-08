@@ -1,6 +1,6 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, stealthSwapsFor, trinketFor, withAuraMods } from './build';
-import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
+import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, inLava, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
@@ -53,7 +53,8 @@ export function mulberry32(seed: number) {
  * call step() once per tick (TUNING.tickMs). Same inputs + same seed = same outcome.
  */
 export class ArenaSim {
-  readonly arena: ArenaDef;
+  /** Fixed for a match; only `switchArena` (dev test matches) changes it. */
+  arena: ArenaDef;
   time = 0;
   tickNo = 0;
   /** Set to record commands for a replay. */
@@ -154,6 +155,17 @@ export class ArenaSim {
     this.phase = 'live';
     this.matchEndsAt = this.time + TUNING.maxMatchMs;
     this.emit({ t: 'phase', phase: 'live', winner: null });
+  }
+
+  /**
+   * Dev tools: move the running test match to another arena: everyone is put at the new arena's spawns (facing included)
+   * like `resetMatch`, with the same units, builds, bots, dummies and live numbers. Only used in dev test rooms, which are
+   * never replayed, so recorded matches (which never call it) are unaffected.
+   */
+  switchArena(arena: ArenaDef): void {
+    this.arena = arena;
+    this.resetMatch();
+    for (const u of this.units.values()) if (u.home) u.home = { x: u.pos.x, z: u.pos.z };
   }
 
   /**
@@ -563,7 +575,14 @@ export class ArenaSim {
     }
     // come down from a jump on top of a barricade (and stopped there): step off it, never stand inside it
     if (u.level === 0 && this.arena.lows?.length && jumpHeight(this.time - u.jumpStart) < LOW_CLEAR && this.arena.lows.some((r) => u.pos.x > r.x0 - 0.3 && u.pos.x < r.x1 + 0.3 && u.pos.z > r.z0 - 0.3 && u.pos.z < r.z1 + 0.3)) {
-      u.pos = resolveCollisions(u.pos, this.arena, 0, jumpHeight(this.time - u.jumpStart));
+      u.pos = resolveCollisions(u.pos, this.arena, 0, jumpHeight(this.time - u.jumpStart), before);
+    }
+    // lava pits: whoever stands in one (jumped in, nobody walks in) burns every half second until they climb out
+    if (u.alive && u.level === 0 && this.arena.lows?.some((r) => r.lava) && jumpHeight(this.time - u.jumpStart) < 0.3 && inLava(this.arena, u.pos)) {
+      if ((u.lavaAt ?? 0) <= this.time) {
+        u.lavaAt = this.time + TUNING.lavaIntervalMs;
+        this.dealDamage(null, u, u.maxHealth * TUNING.lavaPct, 'fire', 'lava', true);
+      }
     }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
     if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
@@ -882,7 +901,7 @@ export class ArenaSim {
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
       {
-        const healed = this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1), def.id);
+        const healed = this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1) * this.healSpam(u, def), def.id);
         const echo = this.abilityMod(u, def).echo;
         if (echo && healed > 0) {
           // the same heal arrives on the other side of the pair: your ally if you healed yourself, you if you healed an ally
@@ -1145,18 +1164,23 @@ export class ArenaSim {
   }
 
   /**
-   * Dampening, as in arena matches elsewhere: from `dampenStartMs` into the fight, healing and new shields get weaker by
-   * `dampenPerSec` every second (up to `dampenMax`), so two healers cannot out-heal each other forever.
+   * Heal spam: pressing the same heal again and again weakens it (each repeat in a row is `healSpamStep` weaker, down to
+   * `healSpamFloor`), while rotating between different heals keeps each at full strength. A pause longer than
+   * `healSpamWindowMs` starts fresh. One cast (several targets, an echo) counts once.
    */
-  dampening(): number {
-    if (this.phase !== 'live' && this.phase !== 'ended') return 0;
-    const t = (this.time - this.prepEndsAt - TUNING.dampenStartMs) / 1000;
-    return t <= 0 ? 0 : Math.min(TUNING.dampenMax, t * TUNING.dampenPerSec);
+  private healSpam(u: Unit, def: { id: string }): number {
+    const st = u.lastHeal;
+    if (st && st.ability === def.id && st.at === this.time) return st.mult;
+    const chained = !!st && st.ability === def.id && this.time - st.at <= TUNING.healSpamWindowMs;
+    const stacks = chained ? st!.stacks + 1 : 0;
+    const mult = Math.max(TUNING.healSpamFloor, 1 - stacks * TUNING.healSpamStep);
+    u.lastHeal = { ability: def.id, stacks, at: this.time, mult };
+    return mult;
   }
 
   heal(src: Unit, tgt: Unit, raw: number, ability: string): number {
     if (!tgt.alive) return 0;
-    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken * (1 - this.dampening())));
+    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken));
     const amount = Math.min(want, tgt.maxHealth - tgt.health);
     tgt.health += amount;
     src.lastCombatAt = this.time;
@@ -1297,7 +1321,7 @@ export class ArenaSim {
     const inst: AuraInst = {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
-      absorbLeft: Math.round(((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone * (1 - this.dampening())),
+      absorbLeft: Math.round(((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone),
       ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + 1) } : {}),
       ...(def.dot ? { nextTick: this.time + def.dot.interval } : def.hot ? { nextTick: this.time + def.hot.interval } : {}),
     };
@@ -1561,7 +1585,6 @@ export class ArenaSim {
     return {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
-      ...(this.dampening() > 0 ? { damp: Math.round(this.dampening() * 100) / 100 } : {}),
       winner: this.winner, units,
       zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}), ...(z.flag ? { flag: true } : {}), ...(z.buff ? { buff: z.buff.who } : {}), ...(z.h > 0.05 ? { y: Math.round(z.h * 100) / 100 } : {}) })),
     };

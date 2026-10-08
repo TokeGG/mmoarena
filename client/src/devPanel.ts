@@ -1,8 +1,9 @@
-import { ABILITIES, CLASSES, CLASS_IDS, SPECS, TALENTS, applyPatches, mergePatches, skillInfo, talentsFor, tunableNumbers } from '@arena/shared';
+import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, TALENTS, applyPatches, mergePatches, skillInfo, talentsFor, tunableNumbers } from '@arena/shared';
 import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, TunableNumber, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
+import { cycleArena } from './mapCycle';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -61,8 +62,12 @@ interface Hooks {
   myBar(): string[];
   /** The dev's own unit in the match (it can be rebuilt like a bot). */
   youId(): number;
+  /** The map of the match being played or watched. */
+  mapId(): string;
   /** In the menu: the class picked there, whose skills the panel opens on. */
   menuClass(): ClassId;
+  /** Whether the signed-in account is the owner. */
+  isOwner(): boolean;
 }
 
 /**
@@ -163,6 +168,29 @@ export class DevPanel {
     box.replaceChildren(table);
   }
 
+  /** Owner only: swap the map of this test match on the fly (everyone stays, builds and numbers are kept). */
+  private mapPicker(): HTMLElement {
+    const row = el('div', 'devp-row');
+    const ids = ARENAS.map((a) => a.id);
+    const go = (id: string) => this.hooks.send({ t: 'dev_map', id });
+    const sel = document.createElement('select');
+    sel.title = 'Swap the map of this match at once: same units, builds, bots and numbers, everyone back at the new spawns (works while paused)';
+    for (const a of ARENAS) {
+      const o = document.createElement('option');
+      o.value = a.id;
+      o.textContent = a.name;
+      sel.append(o);
+    }
+    sel.value = this.hooks.mapId();
+    sel.addEventListener('change', () => go(sel.value));
+    const prev = el('button', 'mm-small', '◀ Prev map');
+    prev.addEventListener('click', () => go(cycleArena(ids, this.hooks.mapId(), -1)));
+    const next = el('button', 'mm-small', 'Next map ▶');
+    next.addEventListener('click', () => go(cycleArena(ids, this.hooks.mapId(), 1)));
+    row.append(prev, sel, next);
+    return row;
+  }
+
   /** The meter, the match restart and saved setups (numbers and builds you want back later). */
   private matchTools(): HTMLElement {
     const wrap = el('div', 'devp-sec tools');
@@ -180,6 +208,7 @@ export class DevPanel {
         this.paint();
       });
       row.append(restart, meter);
+      wrap.append(this.mapPicker());
     }
     const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
     setups.addEventListener('click', () => {
@@ -365,7 +394,9 @@ export class DevPanel {
   }
 
   handle(m: ServerMsg) {
-    if (m.t === 'dev_state') {
+    if (m.t === 'dev_map') {
+      this.meter.clear();
+    } else if (m.t === 'dev_state') {
       this.paused = m.paused;
       this.layers.setRoom(m.patches);
       this.edits.clear();

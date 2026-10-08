@@ -162,6 +162,26 @@ export const NAME_COLORS: CosmeticDef[] = [
   { id: 'bloodmoon', name: 'Blood moon', value: '#ff3b3b', unlock: owner },
 ];
 
+/**
+ * Mouse cursors (a local cosmetic: the client draws them, the server never checks them). The default is the steel gauntlet that
+ * changes over enemies, allies and ground spells; the rest are chosen in Settings > Cursor. Same unlock rules as titles and icons.
+ */
+export const DEFAULT_CURSOR = 'gauntlet';
+export const CURSORS: CosmeticDef[] = [
+  { id: 'gauntlet', name: 'Steel gauntlet', unlock: free },
+  { id: 'wand', name: 'Arcane wand', unlock: free },
+  { id: 'dagger', name: 'Rune dagger', unlock: free },
+  { id: 'pixel', name: 'Pixel arrow', unlock: free },
+  { id: 'dot', name: 'Plain ring', unlock: free },
+  { id: 'ember', name: 'Ember', unlock: { kind: 'wins', n: 5 } },
+  { id: 'frost', name: 'Frost shard', unlock: { kind: 'wins', n: 15 } },
+  { id: 'claw', name: 'Dragon claw', unlock: { kind: 'matches', n: 25 } },
+  { id: 'void', name: 'Void eye', unlock: { kind: 'peak', n: 1300 } },
+  { id: 'crown', name: 'Golden crown', unlock: { kind: 'peak', n: 1700 } },
+  // owner only
+  { id: 'star', name: 'Starfall', unlock: owner },
+];
+
 /** A hand-made name style. Only the owner can write one (for themselves or, through the admin panel, a friend). */
 export interface CustomStyle {
   /** Free-text title, up to CUSTOM_TITLE_MAX characters. */
@@ -201,7 +221,7 @@ export interface Cosmetics {
 }
 export const DEFAULT_COSMETICS: Cosmetics = { title: '', emblem: 'swords', color: 'white' };
 
-export type CosmeticKind = 'title' | 'emblem' | 'color';
+export type CosmeticKind = 'title' | 'emblem' | 'color' | 'cursor';
 
 /** `grants` are owner-given unlocks like 'title:founder'; they open owner-tier items for a friend. */
 export function isUnlocked(def: CosmeticDef, s: Stats & { name?: string; grants?: string[] }, kind?: CosmeticKind): boolean {

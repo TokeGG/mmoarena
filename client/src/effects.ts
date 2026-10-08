@@ -2,8 +2,9 @@ import * as THREE from 'three';
 import { ABILITIES, AURAS } from '@arena/shared';
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
 import { clothShade, clothWave, endFade, unfurlProgress } from './flagCloth';
-import { AURA_VISUAL, LayerBook, coneShape, coneSpawnAngle, fireballLookFor, fireballShape, fireballTailScale, hotAuras, impactKindFor, isDotTick, layerAlpha, visualFor, windupScale } from './skillVisuals';
+import { AURA_VISUAL, LayerBook, coneShape, fireFieldShape, coneSpawnAngle, fireballLookFor, fireballShape, fireballTailScale, hotAuras, impactKindFor, isDotTick, layerAlpha, visualFor, windupScale } from './skillVisuals';
 import { FireballRig, fireballColors, makeRibbonTexture } from './fireballFx';
+import { FireField, newFirePlace } from './fireFx';
 import type { RigHost } from './fireballFx';
 import { SHOUT_RELEASE } from './shoutPose';
 import type { AuraStyle, AuraVisual, FireballLook, ImpactKind } from './skillVisuals';
@@ -180,6 +181,10 @@ const _y = new THREE.Vector3(0, 1, 0);
 const _fd = new THREE.Vector3();
 
 const rnd = (a = -1, b = 1) => a + Math.random() * (b - a);
+const smoothstep = (x: number) => {
+  const k = Math.max(0, Math.min(1, x));
+  return k * k * (3 - 2 * k);
+};
 
 export class Effects {
   private tex = buildTextures();
@@ -565,7 +570,12 @@ export class Effects {
   private rigHost: RigHost | null = null;
   private ribbonTex: THREE.Texture | null = null;
   private makeRig(look: FireballLook): FireballRig {
-    this.rigHost ??= {
+    return new FireballRig(this.getRigHost(), look);
+  }
+
+  /** The sprite pool, flipbook frames and ground disc the flame rigs (fireball and fire fields) draw with. */
+  private getRigHost(): RigHost {
+    return (this.rigHost ??= {
       scene: this.scene,
       sprite: (tex, color, additive) => this.sprite(tex, color, additive),
       release: (sp) => {
@@ -577,8 +587,7 @@ export class Effects {
       glowTex: this.tex.glow,
       discGeo: this.discGeo,
       ribbonTex: (this.ribbonTex ??= makeRibbonTexture()),
-    };
-    return new FireballRig(this.rigHost, look);
+    });
   }
 
   /** The ball grows in the caster's hand during the cast time (Pyroblast), with embers drawn into it. Ends at `stop()`. */
@@ -717,9 +726,7 @@ export class Effects {
     const pk = Math.max(0.7, Math.min(1.4, 0.7 + 0.3 * power));
     const gy = this.groundY(x, z);
     // the flash and the heat bloom
-    this.particle(x, y, z, { tex: 'glow', color: 0xfff2c8, s0: sh.flare * 1.3, s1: sh.flare * 4 * pk, life: 0.2, a: 1, drag: 0 });
-    this.particle(x, y, z, { tex: 'spark', color: 0xffffff, s0: sh.flare * 1.2, s1: sh.flare * 0.2, life: 0.12, a: 1, drag: 0 });
-    this.particle(x, y, z, { tex: 'glow', color: col.halo, s0: sh.flare * 2, s1: sh.flare * 6 * pk, life: 0.5, a: 0.7, drag: 0 });
+    this.fireFlash(x, y, z, sh.flare, look.heat, pk);
     // flipbook flames flaring outward and up
     const n = Math.round(sh.flames * pk);
     for (let i = 0; i < n; i++) {
@@ -753,9 +760,7 @@ export class Effects {
     }
     // what lingers on the ground: an orange glow (normal blending under an additive core, so it reads on light and dark floors) and,
     // under it, a short-lived darkened scorch mark
-    this.decal(x, z, 0x0e0705, sh.ring * 0.5, sh.ring * 1.15, 2.6, 0.62, false, 0.3, 0.045);
-    this.decal(x, z, col.ringBase, sh.ring * 0.6, sh.ring * 1.5, 1.0, 0.5, false, 0.15, 0.052);
-    this.decal(x, z, col.ground, sh.ring * 0.5, sh.ring * 1.1, 0.8, 0.65, true, 0.2, 0.058);
+    this.fireGroundGlow(x, z, sh.ring, look.heat);
     this.lightFlash = 90 * look.size * pk;
     this.lightFlashPos.set(x, Math.max(y, gy + 0.8), z);
   }
@@ -923,8 +928,52 @@ export class Effects {
   private layers = new Map<string, Layer>();
   private layerBook = new LayerBook();
 
+  /**
+   * Fire erupting under a target (Scorch): the shared flame field (fireFx.ts) at the target's feet, tongues leaping up in a swirl round a
+   * white-hot core, a flash, ground rings, embers, smoke, and an orange glow over a scorch mark that stays. About 30 pooled sprites.
+   */
+  private fireEruption(x: number, z: number, scale = 1) {
+    const gy = this.groundY(x, z);
+    const field = new FireField(this.getRigHost(), fireFieldShape('burst', 1.15, scale), 0);
+    const pl = newFirePlace();
+    pl.x = x;
+    pl.y = gy;
+    pl.z = z;
+    this.fireFlash(x, gy + 0.9 * scale, z, 0.8 * scale);
+    const fc = fireballColors(0);
+    this.ring(x, z, fc.ringBase, 0.4, 2.6 * scale, 0.45, 0.075, 0.95, false);
+    this.ring(x, z, fc.ringHot, 0.4, 2.5 * scale, 0.4, 0.085, 1);
+    this.ring(x, z, fc.ringHot, 0.2, 1.5 * scale, 0.3, 0.09, 0.8);
+    this.emberShower(x, gy, z, 0.9 * scale, 16, { rise: 1.6 });
+    this.smokeWisps(x, gy + 1.2 * scale, z, 3, 1.2 * scale, { spread: 0.5 });
+    this.fireGroundGlow(x, z, 1.4 * scale);
+    let t = 0;
+    let acc = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        pl.t = t;
+        pl.build = smoothstep(t / 0.2);
+        pl.fade = 1 - smoothstep((t - 0.55) / 0.6);
+        pl.flash = Math.max(0, 1 - t / 0.35);
+        pl.scorch = pl.fade;
+        field.place(pl, this.camera);
+        acc += dt * 34;
+        while (t < 0.4 && acc > 1) {
+          acc -= 1;
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.sqrt(Math.random()) * 0.85 * scale;
+          this.fireTongue(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, 0.9 * scale, 0xff5a14, { vy: rnd(2, 3.4) * scale });
+        }
+        return t >= 1.2;
+      },
+      dispose: () => field.dispose(),
+    });
+  }
+
   /** Flames, ice, shadow or light shooting up out of the ground under a point, with a ring, a scorch mark and sparks. */
   groundEruption(x: number, z: number, kind: ImpactKind, scale = 1) {
+    if (kind === 'fire') return this.fireEruption(x, z, scale);
     const P = ERUPT[kind];
     const gy = this.groundY(x, z);
     const ice = P.tex === 'ice';
@@ -967,7 +1016,6 @@ export class Effects {
       const r = Math.random() * 0.8 * scale;
       this.particle(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, { color: P.spark, vx: rnd(-1, 1), vz: rnd(-1, 1), vy: rnd(3.5, 8) * scale, s0: rnd(0.15, 0.3), life: rnd(0.5, 0.9), grav: 8, drag: 0.6 });
     }
-    if (kind === 'fire') this.puff(x, gy + 0.5, z, 0x2f2622, 4, 1.5 * scale);
     if (kind === 'shadow') this.puff(x, gy + 0.5, z, 0x2a1040, 4, 1.4 * scale);
     let t = 0;
     let acc = 0;
@@ -995,8 +1043,7 @@ export class Effects {
           acc -= 0.03;
           const a = Math.random() * Math.PI * 2;
           const r = Math.random() * 0.9 * scale;
-          if (kind === 'fire') this.flame(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, 0.9 * scale);
-          else this.particle(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, { color: P.spark, vy: rnd(2, 4), s0: 0.22, life: 0.5, drag: 0.8 });
+          this.particle(x + Math.cos(a) * r, gy + 0.1, z + Math.sin(a) * r, { color: P.spark, vy: rnd(2, 4), s0: 0.22, life: 0.5, drag: 0.8 });
         }
         return t >= 1.3;
       },
@@ -1219,6 +1266,7 @@ export class Effects {
     const hot = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex.glow, color: 0xfff0b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.scene.add(hot);
     this.sector(p0.x, p0.z, p0.facing, range, half, 0xff5a14, dur + 0.15, 0.55, unit);
+    this.fireFlash(p0.x + Math.sin(p0.facing) * 0.8, 1.7, p0.z + Math.cos(p0.facing) * 0.8, 0.6);
     let t = 0;
     let acc = 0;
     let accS = 0;
@@ -1253,6 +1301,12 @@ export class Effects {
           const sz = Math.cos(a);
           const size1 = near ? 2.0 : Math.min(7.5, 2.4 + dist * 0.4);
           const yEnd = size1 * 0.32 + rnd(0.1, 1.1); // big sprites stay clear of the ground instead of being cut off by it
+          if (!near && Math.random() < 0.35) {
+            // the dark red body behind the flames (normal blending), like the fireball's: the jet has a darker edge and depth
+            this.particle(mx + sx * 0.3, MY + rnd(-0.1, 0.1), mz + sz * 0.3, {
+              tex: 'glow', color: 0x7a1a08, add: false, vx: sx * sp * 0.9, vz: sz * sp * 0.9, vy: (yEnd - MY) / life, s0: 1.2, s1: size1 * 0.9, life: life * 1.1, a: 0.26, drag: 0.1,
+            });
+          }
           this.particle(mx + sx * 0.3, MY + rnd(-0.1, 0.1), mz + sz * 0.3, {
             fire: true, color: near ? 0xffe8b0 : 0xffd0a0, col1: near ? 0xff9030 : 0xff2a08,
             vx: sx * sp, vz: sz * sp, vy: (yEnd - MY) / life,
@@ -1295,7 +1349,11 @@ export class Effects {
         const a = p0.facing + coneSpawnAngle(rnd(-1, 1), half);
         const d = range * rnd(0.3, 0.95);
         const p = this.pos(unit) ?? p0;
-        this.flame(p.x + Math.sin(a) * d, 0.1, p.z + Math.cos(a) * d, rnd(0.6, 1.0));
+        const fx = p.x + Math.sin(a) * d;
+        const fz = p.z + Math.cos(a) * d;
+        this.fireTongue(fx, this.groundY(fx, fz) + 0.1, fz, rnd(0.8, 1.2));
+        this.fireGroundGlow(fx, fz, 1.1, 0, { light: true, life: 0.8 });
+        this.emberShower(fx, 0, fz, 0.5, 2);
       });
     }
   }
@@ -1476,8 +1534,9 @@ export class Effects {
         this.ring(p.x, p.z, 0xc01820, 0.3, 1.3, 0.35, 0.06, 0.7 * s);
         break;
       case 'burn':
-        for (let i = 0; i < 3; i++) this.flame(p.x + rnd(-0.3, 0.3), 0.6 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.7);
-        this.burst(p.x, CHEST, p.z, 0xffc060, 5, 3, 0.2, 0.5, 2);
+        // a tick flares the field on the body (see the burn layer); a few tongues and embers fly off it
+        for (let i = 0; i < 2; i++) this.fireTongue(p.x + rnd(-0.3, 0.3), 0.7 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.55);
+        this.emberShower(p.x, 0.8, p.z, 0.35, 5, { rise: 1.2 });
         break;
       default:
         break;
@@ -1496,7 +1555,9 @@ export class Effects {
         this.ring(p.x, p.z, 0xc01820, 0.3, 1.5, 0.4, 0.06, 0.8);
         break;
       case 'burn':
-        for (let i = 0; i < 3; i++) this.flame(p.x + rnd(-0.3, 0.3), 0.6 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.9);
+        this.fireFlash(p.x, 1.1, p.z, 0.35);
+        for (let i = 0; i < 4; i++) this.fireTongue(p.x + rnd(-0.3, 0.3), 0.5 + rnd(0, 0.9), p.z + rnd(-0.3, 0.3), 0.7);
+        this.smokeWisps(p.x, 1.6, p.z, 2, 0.7, { spread: 0.3 });
         break;
       case 'frost':
         this.ring(p.x, p.z, 0x9fe0ff, 0.3, 1.8, 0.45);
@@ -1530,6 +1591,7 @@ export class Effects {
     // the body's centre in the world, for particles
     const wx = (l: Layer, dx = 0) => l.x + dx * l.sc;
     let upd: (l: Layer, dt: number, a: number, t: number) => void;
+    let fire: FireField | null = null;
 
     switch (vis.style) {
       case 'shadow': {
@@ -1587,23 +1649,32 @@ export class Effects {
         break;
       }
       case 'burn': {
-        const glows = [sp('glow', 0xff5a14, 1.3), sp('glow', 0xff9a3a, 0.8)];
-        const ring = flat(0xff6a1a, 0.4, this.ringGeo, 0.75);
+        // the shared flame field (fireFx.ts) licking up the body: small tongues round a glowing middle, flaring on every tick, with
+        // embers and smoke rising off it; about 25 pooled sprites per burning unit
+        const field = new FireField(this.getRigHost(), fireFieldShape('body', 0.42), 0);
+        fire = field;
+        const pl = newFirePlace();
         upd = (l, dt, a, t) => {
-          glows[0].position.set(0, 1.1, 0);
-          glows[1].position.set(0.1 * Math.sin(t * 3), 1.5, 0.1 * Math.cos(t * 4));
-          const fl = 1 + 0.2 * Math.sin(t * 17) + 0.15 * Math.sin(t * 29) + l.flare * 0.8;
-          glows[0].scale.set(1.3 * fl, 1.6 * fl, 1);
-          glows[1].scale.set(0.8 * fl, 0.8 * fl, 1);
-          glows.forEach((g) => opac(g, a * S * (0.22 + l.flare * 0.35)));
-          ring.mat.opacity = ring.op * a * S * (0.7 + 0.3 * Math.sin(t * 13) + l.flare);
-          acc += dt * 20 * S * a;
+          pl.x = l.x;
+          pl.z = l.z;
+          pl.y = this.groundY(l.x, l.z);
+          pl.t = t;
+          pl.build = a;
+          pl.fade = Math.min(1, a * 1.5) * (0.75 + 0.25 * S);
+          pl.flare = l.flare;
+          pl.sc = l.sc;
+          field.place(pl, this.camera);
+          acc += dt * 7 * S * a;
           while (acc > 1) {
             acc -= 1;
             const ang = Math.random() * Math.PI * 2;
-            const r = rnd(0.1, 0.45) * l.sc;
-            this.flame(l.x + Math.cos(ang) * r, rnd(0.4, 1.8) * l.sc, l.z + Math.sin(ang) * r, 0.42 * l.sc);
-            if (Math.random() < 0.3) this.particle(l.x + Math.cos(ang) * r, rnd(0.6, 1.6) * l.sc, l.z + Math.sin(ang) * r, { color: 0xffb040, vy: rnd(1.2, 2.2), s0: 0.1 * l.sc, life: 1.0, drag: 0.3 });
+            const r = rnd(0.1, 0.4) * l.sc;
+            const hy = rnd(0.3, 1.5) * l.sc;
+            const gx = l.x + Math.cos(ang) * r;
+            const gz = l.z + Math.sin(ang) * r;
+            if (Math.random() < 0.5) this.fireTongue(gx, pl.y + hy, gz, 0.5 * l.sc, 0xff5a14, { vy: rnd(0.9, 1.6) * l.sc });
+            else this.emberShower(gx, pl.y + hy, gz, 0.1, 1, { rise: 0.9 });
+            if (Math.random() < 0.18) this.smokeWisps(gx, pl.y + 1.7 * l.sc, gz, 1, 0.55 * l.sc, { spread: 0.1 });
           }
         };
         break;
@@ -1715,6 +1786,7 @@ export class Effects {
           this.pool.push(s);
         }
         for (const m of mats) m.dispose();
+        fire?.dispose();
       },
     };
     void aura;
@@ -1877,6 +1949,12 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (!p) break;
         this.onHit(ev.tgt);
+        if (ev.ability === 'lava') {
+          // standing in a lava pit: flames lick up the body and embers fly, every burn tick
+          this.fireFlash(p.x, 0.4, p.z, 0.7, 0.3);
+          this.emberShower(p.x, 0.2, p.z, 0.8, 6, { heat: 0.3, rise: 1.4 });
+          break;
+        }
         {
           // a tick of a damage-over-time aura flares the aura on the target instead of replaying the spell's hit
           const tickAura = ev.ability ? isDotTick(ev.ability, this.unitAuras.get(ev.tgt) ?? [], this.clock - (this.lastCast.get(`${ev.src}:${ev.ability}`) ?? -99)) : null;
@@ -2686,17 +2764,83 @@ export class Effects {
     return this.glyphTex[i % this.glyphTex.length];
   }
 
-  /** Reusable flame: a flickering tongue with a hotter core that rises and dies. Colour is the outer flame. */
-  flame(x: number, y: number, z: number, scale = 1, color = 0xff5a14) {
+  /**
+   * The one flame every fire effect shares: a layered tongue that rises and dies. With the flipbook: a dark red body behind it (normal
+   * blending, so the fire has a darker edge), a large flame tongue and a smaller, hotter one inside it, each on its own frame phase.
+   * `color` tints the outer tongue (the default keeps the fireball orange); without the flipbook the canvas flame is drawn.
+   */
+  fireTongue(x: number, y: number, z: number, scale = 1, color = 0xff5a14, o: { vy?: number; life?: number; heat?: number } = {}) {
     const j = 0.12 * scale;
+    const life = o.life ?? rnd(0.4, 0.6);
+    const vy = o.vy ?? rnd(0.9, 1.8) * scale;
     if (this.fireFrames) {
-      // the flipbook flame: already hot-coloured, so only a non-default colour tints it
-      const tint = color === 0xff5a14 ? 0xffffff : color;
-      this.particle(x + rnd(-j, j), y, z + rnd(-j, j), { fire: true, color: tint, col1: 0xff5a20, vy: rnd(0.9, 1.8) * scale, vx: rnd(-0.25, 0.25), vz: rnd(-0.25, 0.25), s0: 1.1 * scale, s1: 0.6 * scale, life: rnd(0.4, 0.6), drag: 0.8, a: 0.95, fps: rnd(18, 28), rot: rnd(-0.25, 0.25) });
+      const c = fireballColors(o.heat ?? 0);
+      const tint = color === 0xff5a14 ? c.tongueA : color;
+      const px = x + rnd(-j, j);
+      const pz = z + rnd(-j, j);
+      const vx = rnd(-0.25, 0.25);
+      const vz = rnd(-0.25, 0.25);
+      this.particle(px, y + 0.15 * scale, pz, { tex: 'glow', color: c.outer, add: false, vx, vz, vy: vy * 0.8, s0: 0.9 * scale, s1: 1.1 * scale, life: life * 1.1, drag: 0.8, a: 0.3 });
+      this.particle(px, y, pz, { fire: true, color: tint, col1: c.tailMid, vy, vx, vz, s0: 1.15 * scale, s1: 0.7 * scale, life, drag: 0.8, a: 0.95, fps: rnd(16, 26), rot: rnd(-0.25, 0.25) });
+      this.particle(px, y - 0.05 * scale, pz, { fire: true, color: c.body, col1: c.tailHot, vy: vy * 1.05, vx: vx * 0.6, vz: vz * 0.6, s0: 0.6 * scale, s1: 0.32 * scale, life: life * 0.75, drag: 0.8, a: 0.9, fps: rnd(18, 28), rot: rnd(-0.25, 0.25) });
       return;
     }
     this.particle(x + rnd(-j, j), y, z + rnd(-j, j), { tex: 'flame', color, vy: rnd(0.9, 1.8) * scale, vx: rnd(-0.25, 0.25), vz: rnd(-0.25, 0.25), s0: 0.95 * scale, s1: 0.25 * scale, life: rnd(0.35, 0.55), drag: 0.8, a: 0.9 });
     this.particle(x + rnd(-j, j) * 0.5, y, z + rnd(-j, j) * 0.5, { tex: 'flame', color: 0xffd45a, vy: rnd(0.8, 1.5) * scale, s0: 0.5 * scale, s1: 0.1 * scale, life: rnd(0.25, 0.4), drag: 0.8, a: 1 });
+  }
+
+  /** Reusable flame (the old name of `fireTongue`): every caller, the cosmetics included, gets the shared fire look. */
+  flame(x: number, y: number, z: number, scale = 1, color = 0xff5a14) {
+    this.fireTongue(x, y, z, scale, color);
+  }
+
+  /** Dark smoke rising off a fire: normal-blended wisps that stay in the air, a share of them tinted by the fire under them. */
+  smokeWisps(x: number, y: number, z: number, n: number, size = 1, o: { spread?: number; heat?: number } = {}) {
+    const c = fireballColors(o.heat ?? 0);
+    const sp = o.spread ?? 0.4;
+    for (let i = 0; i < n; i++) {
+      this.particle(x + rnd(-sp, sp), y + rnd(0, 0.3), z + rnd(-sp, sp), {
+        tex: 'smoke', color: i % 3 === 0 ? 0x3a1209 : c.smoke, add: false, vx: rnd(-0.4, 0.4), vy: rnd(0.8, 1.7), vz: rnd(-0.4, 0.4),
+        s0: size * 0.6, s1: size * rnd(1.7, 2.4), life: rnd(1.2, 1.9), a: 0.42, drag: 0.4, spin: rnd(-0.4, 0.4),
+      });
+    }
+  }
+
+  /** Embers drifting up over a disc of `radius` yards (a slow swirl round its middle), orange and pale yellow, fading as they rise. */
+  emberShower(x: number, y: number, z: number, radius: number, n: number, o: { heat?: number; swirl?: number; rise?: number } = {}) {
+    const c = fireballColors(o.heat ?? 0);
+    const sw = o.swirl ?? 0.25;
+    const rise = o.rise ?? 1;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * radius;
+      const dx = Math.cos(a) * d;
+      const dz = Math.sin(a) * d;
+      this.particle(x + dx, y + 0.2, z + dz, {
+        tex: Math.random() < 0.25 ? 'star' : 'spark', color: Math.random() < 0.6 ? c.ember : 0xffe9a0, col1: c.tailMid,
+        vy: rnd(1.5, 3.8) * rise, vx: rnd(-0.6, 0.6) - dz * sw, vz: rnd(-0.6, 0.6) + dx * sw, s0: rnd(0.12, 0.26), s1: 0.03, life: rnd(0.9, 1.6), drag: 0.3,
+      });
+    }
+  }
+
+  /** The white-hot flash and heat bloom of a fire lighting (fireball hit, Scorch, Flamestrike cast). `size` is the flare radius in yards. */
+  fireFlash(x: number, y: number, z: number, size: number, heat = 0, grow = 1) {
+    const c = fireballColors(heat);
+    this.particle(x, y, z, { tex: 'glow', color: 0xfff2c8, s0: size * 1.3, s1: size * 4 * grow, life: 0.2, a: 1, drag: 0 });
+    this.particle(x, y, z, { tex: 'spark', color: 0xffffff, s0: size * 1.2, s1: size * 0.2, life: 0.12, a: 1, drag: 0 });
+    this.particle(x, y, z, { tex: 'glow', color: c.halo, s0: size * 2, s1: size * 6 * grow, life: 0.5, a: 0.7, drag: 0 });
+  }
+
+  /**
+   * What a fire leaves on the ground: an orange glow (normal blending under an additive core, so it reads on light and dark floors) over
+   * a darker scorch mark that outlasts it. `radius` is the footprint of the fire; `light` leaves out the additive core (many small ones).
+   */
+  fireGroundGlow(x: number, z: number, radius: number, heat = 0, o: { light?: boolean; life?: number } = {}) {
+    const c = fireballColors(heat);
+    const k = o.life ?? 1;
+    this.decal(x, z, 0x0e0705, radius * 0.5, radius * 1.15, 2.6 * k, 0.62, false, 0.3, 0.045);
+    this.decal(x, z, c.ringBase, radius * 0.6, radius * 1.5, 1.0 * k, 0.5, false, 0.15, 0.052);
+    if (!o.light) this.decal(x, z, c.ground, radius * 0.5, radius * 1.1, 0.8 * k, 0.65, true, 0.2, 0.058);
   }
 
   private flatMat(color: number, opacity: number, tex?: THREE.Texture) {
@@ -2758,50 +2902,43 @@ export class Effects {
     };
   }
 
-  /** Flamestrike: gathering runic ring, then a swirl of flame tongues, embers, smoke and a flare on every pulse. */
+  /**
+   * Flamestrike: a gathering runic ring over the zone's real radius, then a field of flipbook flame tongues (fireFx.ts) swirling round a
+   * white-hot core, a pillar of fire when it lights, an orange glow over a scorch mark that builds up, and on every damage pulse a ring
+   * out to the radius, a jump of the flames and a burst of embers. Embers drift and smoke rises while it burns; a scorch mark stays
+   * after it. About 55 pooled sprites for the field plus the particles, all under the global cap.
+   */
   private fireZone(z: ZoneSnap, now: number): ZoneVfx {
     const r = z.r;
     const y0 = z.y ?? 0;
     const group = new THREE.Group();
     group.position.set(z.x, y0, z.z);
-    const glowM = this.flatMat(0xff4a10, 0.3);
     const ringM = this.flatMat(0xff6a1a, 0.9);
     const runeM = this.flatMat(0xffa23a, 0, this.getRuneTex());
-    const outerM = new THREE.MeshBasicMaterial({ map: this.tex.flame, color: 0xff3a0a, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
-    const innerM = outerM.clone();
-    innerM.color.set(0xffc23a);
-    innerM.opacity = 0.75;
-    this.flat(group, this.discGeo, glowM, 0.05, r);
     this.flat(group, this.ringGeo, ringM, 0.07, r);
     const rune = this.flat(group, this.discGeo, runeM, 0.08, r * 1.02);
-    interface Tongue { o: THREE.Mesh; i: THREE.Mesh; a: number; rad: number; ph: number; dir: number; h: number }
-    const tongues: Tongue[] = [];
-    const mk = (n: number, rad: number, dir: number, h: number) => {
-      for (let k = 0; k < n; k++) {
-        const o = new THREE.Mesh(this.tongueGeo, outerM);
-        const i = new THREE.Mesh(this.tongueGeo, innerM);
-        group.add(o, i);
-        tongues.push({ o, i, a: (k / n) * Math.PI * 2, rad, ph: Math.random() * 6.28, dir, h });
-      }
-    };
-    mk(12, r * 0.86, 1, 1.0);
-    mk(6, r * 0.45, -1, 0.8);
+    const field = new FireField(this.getRigHost(), fireFieldShape('zone', r), 0);
+    const pl = newFirePlace();
+    pl.x = z.x;
+    pl.y = y0;
+    pl.z = z.z;
     this.scene.add(group);
+    let flash = 0;
     if (this.hasOpening(z)) {
-      this.column(z.x, z.z, 0xff7a2a, 0.7, r * 0.45, 9, 0.4);
-      this.column(z.x, z.z, 0xffd27a, 0.5, r * 0.2, 10, 0.5);
+      flash = 1;
+      this.fireFlash(z.x, y0 + 1, z.z, r * 0.3);
+      this.column(z.x, z.z, 0xff7a2a, 0.6, r * 0.3, 9, 0.3);
       this.ring(z.x, z.z, 0xff7a2a, 0.5, r * 1.1, 0.55, 0.08, 1);
       this.ring(z.x, z.z, 0xffffff, 0.3, r * 0.7, 0.4, 0.09, 0.8);
-      this.burst(z.x, 0.8, z.z, 0xff9a3a, 34, 7, 0.6, 0.7);
-      for (let k = 0; k < 10; k++) this.flame(z.x + rnd(-r, r) * 0.7, y0 + 0.1, z.z + rnd(-r, r) * 0.7, rnd(1.4, 2.2));
+      for (let k = 0; k < 8; k++) this.fireTongue(z.x + rnd(-r, r) * 0.6, y0 + 0.1, z.z + rnd(-r, r) * 0.6, rnd(1.4, 2.2), 0xff5a14, { vy: rnd(2, 4) });
+      this.emberShower(z.x, y0, z.z, r * 0.8, 26, { rise: 1.5 });
     }
     let lastPulse = now >= z.firstAt ? Math.floor((now - z.firstAt) / z.pulse) : -1;
     let flare = 0;
     let accE = 0, accS = 0, accF = 0, accG = 0;
-    const cRed = new THREE.Color(0xff2a08), cOra = new THREE.Color(0xff8a1a), cYel = new THREE.Color(0xffc23a), cHot = new THREE.Color(0xfff0b0);
-    const disc = () => {
+    const disc = (k = 0.92) => {
       const a = Math.random() * Math.PI * 2;
-      const d = Math.sqrt(Math.random()) * r * 0.92;
+      const d = Math.sqrt(Math.random()) * r * k;
       return [Math.cos(a) * d, Math.sin(a) * d] as const;
     };
     return {
@@ -2817,58 +2954,49 @@ export class Effects {
           lastPulse = idx;
           flare = 1;
           this.ring(zz.x, zz.z, 0xffa23a, r * 0.4, r, 0.4, 0.09, 0.9);
-          this.column(zz.x, zz.z, 0xff8a2a, 0.35, r * 0.2, 4, 0.3);
-          for (let k = 0; k < 8; k++) this.flame(zz.x + rnd(-r, r) * 0.7, y0 + 0.1, zz.z + rnd(-r, r) * 0.7, rnd(1.2, 1.9));
-          this.burst(zz.x, 0.5, zz.z, 0xffb040, 14, 5, 0.4, 0.6);
+          this.ring(zz.x, zz.z, 0xe8500e, r * 0.3, r, 0.45, 0.075, 0.6, false);
+          this.column(zz.x, zz.z, 0xff8a2a, 0.35, r * 0.16, 4, 0.25);
+          for (let k = 0; k < 6; k++) {
+            const [dx, dz] = disc(0.8);
+            this.fireTongue(zz.x + dx, y0 + 0.1, zz.z + dz, rnd(1.2, 1.9), 0xff5a14, { vy: rnd(1.6, 3) });
+          }
+          this.emberShower(zz.x, y0, zz.z, r * 0.9, 12, { rise: 1.3 });
+          this.fireFlash(zz.x, y0 + 0.8, zz.z, r * 0.12);
         }
         flare = Math.max(0, flare - dt * 2.8);
-        const gather = armed ? 1 : 0.1 + 0.3 * prog;
-        // ground: glow, ring and the runic sigil (bright while gathering, a scorched mark once burning)
-        glowM.opacity = (armed ? 0.32 + 0.1 * Math.sin(t / 110) + flare * 0.35 : 0.06 + 0.2 * prog) * fade;
+        flash = Math.max(0, flash - dt * 1.1);
+        const build = armed ? Math.min(1, 0.45 + (t - zz.firstAt) / 700) : 0.12 + 0.3 * prog;
+        // the ground ring (bright while gathering) and the runic sigil (a scorched mark once burning)
         ringM.opacity = (armed ? 0.65 + flare * 0.3 : 0.45 + 0.4 * Math.sin(t / 90) * 0.5 + 0.2) * fade;
         runeM.opacity = (armed ? 0.22 : 0.3 + 0.5 * prog) * fade;
         rune.rotation.z = age * (armed ? 0.5 : 1.6);
-        // flame tongues swirling round the circle
-        const sw = age * 1.3;
-        const fk = 0.5 + 0.5 * Math.sin(t / 55);
-        outerM.color.copy(cRed).lerp(cOra, fk);
-        innerM.color.copy(cYel).lerp(cHot, 0.5 - 0.5 * Math.sin(t / 70));
-        outerM.opacity = 0.5 * fade;
-        innerM.opacity = 0.6 * fade;
-        for (const f of tongues) {
-          const a = f.a + sw * f.dir;
-          const flick = 0.65 + 0.35 * Math.sin(age * 11 + f.ph) + 0.15 * Math.sin(age * 23 + f.ph * 2);
-          const h = f.h * (1.05 + flare * 0.9) * gather * (0.7 + flick * 0.5) * fade;
-          const w = (0.9 + 0.3 * flick) * (0.7 + 0.3 * gather);
-          const px = Math.cos(a) * f.rad, pz = Math.sin(a) * f.rad;
-          const tx = -Math.sin(a) * f.dir, tz = Math.cos(a) * f.dir;
-          const lean = 0.3 + 0.12 * flick;
-          f.o.position.set(px, 0.05, pz);
-          f.o.rotation.set(lean * tz, 0, -lean * tx);
-          f.o.scale.set(w * 1.5, h * 2.5, w * 1.5);
-          f.i.position.set(px, 0.05, pz);
-          f.i.rotation.set(lean * tz * 0.8, 0, -lean * tx * 0.8);
-          f.i.scale.set(w * 0.85, h * 1.6, w * 0.85);
-        }
+        pl.t = age;
+        pl.build = build;
+        pl.fade = fade;
+        pl.flare = flare;
+        pl.flash = flash;
+        pl.scorch = Math.min(1, age / 3 + 0.1) * Math.min(1, left / 1200);
+        field.place(pl, this.camera);
         // embers, flames and smoke
         accE += dt * (armed ? r * 5 : r * 1.2) * fade;
-        while (accE > 1) {
-          accE--;
-          const [dx, dz] = disc();
-          this.particle(zz.x + dx, y0 + 0.2, zz.z + dz, { color: Math.random() < 0.5 ? 0xff9a3a : 0xffd27a, vy: rnd(1.5, 3.8), vx: rnd(-0.6, 0.6) - dz * 0.25, vz: rnd(-0.6, 0.6) + dx * 0.25, s0: rnd(0.14, 0.26), life: rnd(0.9, 1.6), drag: 0.3 });
+        if (accE > 1) {
+          const n = Math.floor(accE);
+          accE -= n;
+          this.emberShower(zz.x, y0, zz.z, r * 0.92, n);
         }
         if (armed) {
-          accF += dt * r * 2.2 * fade;
+          accF += dt * r * 1.6 * fade;
           while (accF > 1) {
             accF--;
             const [dx, dz] = disc();
-            this.flame(zz.x + dx, y0 + 0.1, zz.z + dz, rnd(0.9, 1.5));
+            this.fireTongue(zz.x + dx, y0 + 0.1, zz.z + dz, rnd(0.8, 1.3));
           }
           accS += dt * 3 * fade;
-          while (accS > 1) {
-            accS--;
-            const [dx, dz] = disc();
-            this.particle(zz.x + dx, y0 + 1.5, zz.z + dz, { tex: 'smoke', color: 0x2a2320, add: false, vy: rnd(1, 1.8), vx: rnd(-0.4, 0.4), s0: 0.9, s1: 2.4, life: rnd(1.2, 1.8), a: 0.45, drag: 0.4 });
+          if (accS > 1) {
+            const n = Math.floor(accS);
+            accS -= n;
+            const [dx, dz] = disc(0.7);
+            this.smokeWisps(zz.x + dx, y0 + 2.2, zz.z + dz, n, 1.1, { spread: 0.5 });
           }
         } else {
           // gathering: sparks drawn in from the rim
@@ -2882,7 +3010,10 @@ export class Effects {
       },
       dispose: () => {
         this.scene.remove(group);
-        for (const m of [glowM, ringM, runeM, outerM, innerM]) m.dispose();
+        field.dispose();
+        for (const m of [ringM, runeM]) m.dispose();
+        // what is left once the fire is out: a scorch mark that fades slowly
+        this.decal(z.x, z.z, 0x0e0705, r * 0.9, r * 1.05, 3, 0.5, false, 0.35, 0.045);
       },
     };
   }

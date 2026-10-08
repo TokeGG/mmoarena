@@ -44,7 +44,7 @@ export const RAIL_THICKNESS = 0.4;
  * on the ground, the rails up on a walkway. `air` is how high the unit is in a jump: from CLEAR_HEIGHT up it sails over
  * rails, from LOW_CLEAR up over barricades.
  */
-export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, air = 0): Vec2 {
+export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, air = 0, from?: Vec2): Vec2 {
   const b = arena.bounds;
   const R = PLAYER_RADIUS;
   let x = clamp(p.x, b.minX + R, b.maxX - R);
@@ -53,7 +53,13 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, ai
   const dk = arena.deck;
   const solids: Rect[] = [...(arena.walls ?? [])];
   if (dk) solids.push(...(level === 1 ? (clear ? [] : deckRails(arena)) : [...dk.ramps, ...deckPiers(arena)]));
-  if (level === 0 && air < LOW_CLEAR) solids.push(...(arena.lows ?? []));
+  if (level === 0 && air < LOW_CLEAR) {
+    for (const r of arena.lows ?? []) {
+      // a lava pit takes whoever is in a jump or already in it (they are not pushed out, they burn); walking in from outside is still blocked
+      if (r.lava && (air > 0 || (from && from.x > r.x0 && from.x < r.x1 && from.z > r.z0 && from.z < r.z1))) continue;
+      solids.push(r);
+    }
+  }
   for (let i = 0; i < 2; i++) {
     for (const pl of arena.pillars) {
       const dx = x - pl.x;
@@ -256,9 +262,8 @@ export function heightAt(arena: ArenaDef, x: number, z: number, level: Level = 1
  * you are a body's width clear of the walkway you are on the ground again (walked off a ramp's foot or jumped off).
  */
 export function moveTo(arena: ArenaDef, level: Level, from: Vec2, to: Vec2, air = 0): { pos: Vec2; level: Level } {
-  void from;
   const dk = arena.deck;
-  if (!dk) return { pos: resolveCollisions(to, arena, 0, air), level: 0 };
+  if (!dk) return { pos: resolveCollisions(to, arena, 0, air, from), level: 0 };
   let lv = level;
   if (lv === 0) {
     for (const r of dk.ramps) {
@@ -268,12 +273,17 @@ export function moveTo(arena: ArenaDef, level: Level, from: Vec2, to: Vec2, air 
       }
     }
   }
-  let pos = resolveCollisions(to, arena, lv, air);
+  let pos = resolveCollisions(to, arena, lv, air, from);
   if (lv === 1 && deckDistance(arena, pos) >= PLAYER_RADIUS) {
     lv = 0;
-    pos = resolveCollisions(pos, arena, 0, air);
+    pos = resolveCollisions(pos, arena, 0, air, from);
   }
   return { pos, level: lv };
+}
+
+/** Is this spot inside a lava pit (on the ground; whoever stands there burns)? */
+export function inLava(arena: ArenaDef, p: Vec2): boolean {
+  return (arena.lows ?? []).some((r) => r.lava && p.x > r.x0 && p.x < r.x1 && p.z > r.z0 && p.z < r.z1);
 }
 
 export const angleTo = (a: Vec2, b: Vec2): number => Math.atan2(b.x - a.x, b.z - a.z);
@@ -292,7 +302,7 @@ export function distPointToSegment(p: Vec2, a: Vec2, b: Vec2): number {
  * past one, and a jump lifts the line over it. Pillars and walls always block it; on the ground so do ramps and piers;
  * across levels the deck overhead does.
  */
-export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Level = 0, ha = 0, hb = 0): boolean {
+function rayLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level, lb: Level, ha: number, hb: number): boolean {
   for (const pl of arena.pillars) {
     if (distPointToSegment(pl, a, b) < pl.r) return false;
   }
@@ -333,6 +343,27 @@ export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Lev
     }
   }
   return true;
+}
+
+/** Half the width of the body that sees and is seen: the sight line may slide this far to either side to get past an edge. */
+export const LOS_PEEK = 0.35;
+
+/**
+ * Line of sight between two points, as a body sees it rather than a single thread: if the centre line is blocked, the
+ * line may slide up to LOS_PEEK to either side (from either end), so a unit whose edge shows past a pillar or a wall end
+ * is seen and can be targeted, as the picture shows. A pillar, wall or barricade still blocks whatever stands fully behind it.
+ */
+export function hasLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level = 0, lb: Level = 0, ha = 0, hb = 0): boolean {
+  if (rayLOS(a, b, arena, la, lb, ha, hb)) return true;
+  const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
+  if (d < 1e-6) return false;
+  const px = (-dz / d) * LOS_PEEK, pz = (dx / d) * LOS_PEEK;
+  for (const s of [-1, 1]) {
+    const o = { x: px * s, z: pz * s };
+    const a2 = { x: a.x + o.x, z: a.z + o.z }, b2 = { x: b.x + o.x, z: b.z + o.z };
+    if (rayLOS(a2, b2, arena, la, lb, ha, hb) || rayLOS(a, b2, arena, la, lb, ha, hb) || rayLOS(a2, b, arena, la, lb, ha, hb)) return true;
+  }
+  return false;
 }
 
 function segmentHitsRect(a: Vec2, b: Vec2, x0: number, x1: number, z0: number, z1: number): boolean {

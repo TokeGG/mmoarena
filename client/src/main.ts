@@ -1,11 +1,12 @@
-import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
+import { menuSpots } from './lobbySpot';
 import { preloadRiggedModels } from './riggedModels';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
-import { Hud, blockedByCondition } from './hud';
+import { Hud } from './hud';
 import { Keybinds, MARK_ACTIONS, SLOT_ACTIONS } from './keybinds';
 import type { Action } from './keybinds';
 import { Menu } from './menu';
@@ -35,6 +36,8 @@ import { Recap } from './recap';
 import { RecapCard } from './recapCard';
 import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
+import { initCursors, refreshCursor } from './cursors';
+import { buildCursorPanel } from './cursorUi';
 
 const DT = TUNING.tickMs / 1000;
 /** Remote units are drawn this far in the past so there are always two snapshots to blend between. */
@@ -376,6 +379,10 @@ function onMessage(raw: MessageEvent) {
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
+    case 'dev_map':
+      swapMatchMap(m.map);
+      devPanel.handle(m);
+      break;
     case 'dev_state':
     case 'dev_session':
       devPanel.handle(m);
@@ -399,6 +406,7 @@ function onMessage(raw: MessageEvent) {
       saveProfile(m.token, m.matches, m.wins);
       setTipProgress(m.matches);
       mainMenu.refresh();
+      refreshCursor();
       break;
     case 'queued':
       joinMsg(`Waiting for players… ${m.waiting}/${m.needed}`);
@@ -946,8 +954,9 @@ function frame(now: number) {
     // preview the arena picked in the menu (random shows the last one)
     const previewMap = mainMenu.selectedMap;
     if (previewMap !== 'random' && !matchStarting) scene.setMap(previewMap);
-    const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
-    const spot = prev.spawns[0][0];
+    // the scene is the truth about which arena is on screen ('random' keeps showing whatever it already shows, and a map
+    // being started is not swapped): the characters stand on ITS spawn, never on another map's coordinates
+    const prev = ARENAS.find((a) => a.id === scene.arenaId) ?? ARENAS[0];
     // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
     // the Look window's buttons: turn steps ease in, auto-rotate keeps turning (and holds the idle sway off)
     const lv = mainMenu.lookView;
@@ -973,13 +982,16 @@ function frame(now: number) {
     // party members stand beside you with the class, weapon and skins they picked
     const me = accountUi.account?.name;
     const mates = (mainMenu.currentParty?.members ?? []).filter((m) => m.name !== me && m.classId && CLASSES[m.classId as ClassId]);
+    const spots = menuSpots(prev, mates.length);
+    const spot = spots[0]!; // always the first spawn
     const f0 = prev.spawnFacing[0];
-    const right = { x: Math.cos(f0), z: -Math.sin(f0) };
-    const slot = (i: number) => (i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 2.4);
-    const menuUnits: RenderUnit[] = [{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x + right.x * slot(0), z: spot.z + right.z * slot(0), y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }];
+    const menuUnits: RenderUnit[] = [{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x, z: spot.z, y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }];
+    const placedMates: typeof mates = [];
     mates.forEach((m, i) => {
-      const o = slot(i + 1);
-      menuUnits.push({ id: -2 - i, classId: m.classId as ClassId, look: m.look ?? '', weapon: weaponFor(m.classId as ClassId, m.spec), team: 0, x: spot.x + right.x * o, z: spot.z + right.z * o, y: 0, facing: f0 + Math.PI + Math.sin(t * 0.6 + i + 1) * 0.55, alive: true, stealthed: false, casting: false, sheep: false });
+      const o = spots[i + 1]; // free ground beside you; a mate with no room is left out
+      if (!o) return;
+      placedMates.push(m);
+      menuUnits.push({ id: -2 - i, classId: m.classId as ClassId, look: m.look ?? '', weapon: weaponFor(m.classId as ClassId, m.spec), team: 0, x: o.x, z: o.z, y: 0, facing: f0 + Math.PI + Math.sin(t * 0.6 + i + 1) * 0.55, alive: true, stealthed: false, casting: false, sheep: false });
     });
     scene.update(menuUnits, 0, null);
     // Look window open: slide the picture so the model sits in the free half, and zoom to head / weapon on request
@@ -992,7 +1004,7 @@ function frame(now: number) {
     // everyone in the party: their model's name tag with a check once ready (the leader is always ready)
     const party = mainMenu.currentParty;
     if (party && me) {
-      const placed = [{ name: me, x: menuUnits[0].x, z: menuUnits[0].z }, ...mates.map((m, i) => ({ name: m.name, x: menuUnits[i + 1].x, z: menuUnits[i + 1].z }))];
+      const placed = [{ name: me, x: menuUnits[0].x, z: menuUnits[0].z }, ...placedMates.map((m, i) => ({ name: m.name, x: menuUnits[i + 1].x, z: menuUnits[i + 1].z }))];
       lobbyTags.show(party, placed, (x, y, z) => scene.project(x, y, z));
     } else lobbyTags.hide();
     scene.render();
@@ -1182,7 +1194,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, menuClass: () => mainMenu.selectedClass }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
@@ -1234,6 +1246,25 @@ const livePicker = new LivePicker(
   () => accountUi.openAuth(),
   { isOwner: () => !!accountUi.account?.ownerOk, current: () => following, set: (name) => send({ t: 'follow', name }) },
 );
+
+/** Dev tools: the running test match moved to another map (the server put everyone at its spawns). */
+function swapMatchMap(mapId: string) {
+  arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
+  scene.setMap(arena.id);
+  audio.ambience(arena.theme);
+  matchStarting = true;
+  // forget the old positions: the next snapshot says where everyone stands on the new map
+  snaps.length = 0;
+  pending = [];
+  targetId = null;
+  vis.ready = false;
+  const face = spec ? arena.spawnFacing[0] : arena.spawnFacing[team];
+  controls.yaw = controls.facing = face;
+  vis.facing = vis.yaw = face;
+  vis.pitch = controls.pitch;
+  vis.dist = controls.dist;
+  setAiming(null);
+}
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
   clearMenuLayers();
@@ -1503,6 +1534,7 @@ const accountUi = new AccountUi({
     setTipProgress(progress.matches);
     mainMenu.setAccount(a);
     mainMenu.refresh();
+    refreshCursor(); // unlocked cursors follow the account
   },
 });
 
@@ -1613,5 +1645,33 @@ setTipBuild(mainMenu.selectedClass, mainMenu.currentBuild);
     show();
   }
 }
+// the mouse cursor (client/src/cursors.ts): your chosen style, except a red sword over enemies, a green cross over allies and a crosshair while aiming
+initCursors({
+  canvas,
+  situation: () => {
+    const me = latest?.units.find((u) => u.id === you);
+    const inMatch = !!latest && (!!spec || you !== 0);
+    let aim: 'aim' | 'aimBlocked' | null = null;
+    if (aiming && !spec && me?.alive) {
+      // the same checks as the aiming ring: red when the spell cannot be cast now or the spot has no line of sight, green otherwise
+      const def = ABILITIES[aiming];
+      const g = def ? groundAim(def.range) : null;
+      const sight = !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt));
+      aim = groundBlockedWhileAiming(aiming) || !sight ? 'aimBlocked' : 'aim';
+    }
+    return { inMatch, spectating: !!spec, aim, myTeam: me ? me.team : null };
+  },
+  pick: (x, y) => {
+    const id = scene.pick(x, y, you, true);
+    const u = id === null ? undefined : latest?.units.find((w) => w.id === id);
+    return u ? { team: u.team, alive: u.alive, self: u.id === you } : null;
+  },
+  stats: () => accountUi.account ?? { name: undefined, matches: progress.matches, wins: progress.wins, peak: 0 },
+  classColor: () => {
+    const me = latest?.units.find((u) => u.id === you);
+    return CLASSES[me && !spec ? me.classId : mainMenu.selectedClass]?.color ?? null;
+  },
+});
+document.getElementById('cursor-settings')?.append(buildCursorPanel());
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;

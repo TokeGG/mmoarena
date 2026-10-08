@@ -2,16 +2,19 @@
  "warrior:arms": [
   "mortal_strike",
   "whirlwind",
-  "slice_and_dice"
+  "slice_and_dice",
+  "dragon_roar"
  ],
  "warrior:fury": [
   "bloodthirst",
   "bladestorm",
-  "slam"
+  "slam",
+  "dragon_roar"
  ],
  "warrior:protection": [
   "deep_cuts",
-  "axe_throw"
+  "axe_throw",
+  "dragon_roar"
  ],
  "mage:frost": [
   "pyroblast",

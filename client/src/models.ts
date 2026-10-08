@@ -10,6 +10,8 @@ import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
 import type { RigAsset, RigDriver } from './riggedModels';
 import { buildCape, isCapeItem, DEFAULT_CAPE_FIT } from './capeModels';
+import { robeBackLook, robeBackUniforms, robeBackAttribute, ROBE_BACK_GLSL } from './robeBack';
+import type { RobeBackUniforms } from './robeBack';
 import { buildWings, DEFAULT_WING_FIT } from './wingModels';
 import type { WingFit } from './wingModels';
 import type { CapeFit, CapeInput } from './capeModels';
@@ -266,7 +268,7 @@ interface Rig {
   shoulderL?: THREE.Object3D;
   shoulderR?: THREE.Object3D;
   fit?: Fit;
-  rigged?: { anim: RigDriver; ensureOwn(): void; deadY: number };
+  rigged?: { anim: RigDriver; ensureOwn(): void; deadY: number; /** The robe sub-meshes a mage's cloak recolours (ModelDef.robeBack). */ robe: THREE.SkinnedMesh[]; robeFront: 1 | -1 };
   /** Where weapon cosmetics are centred, in the right hand group's frame, when a real weapon model is held (default: at the grip). */
   weaponGlowAt?: THREE.Vector3;
   /** Blends a shoulder-carried weapon between its one-handed rest and the two-handed hold (weaponModels.ts); the weapon cosmetics ride on `weaponPivot`. */
@@ -827,7 +829,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
   };
   const upper = anchor('chest', 'upper');
   // head items are centred on the model's own head (a stooping model's head is not over the middle of its body)
-  const head = anchor('head', 'head-anchor', meta.headCenter[0], meta.headCenter[2]);
+  const head = anchor('head', 'head-anchor', meta.headCenter[0] - ((root.userData.centerX as number) ?? 0), meta.headCenter[2]);
   const shoulderL = anchor('shoulder_l', 'shoulder-anchor-l');
   const shoulderR = anchor('shoulder_r', 'shoulder-anchor-r');
   // hand groups behave like the procedural arm groups: the old weapon offset (0, -0.62, 0.05) lands on the grip point
@@ -908,7 +910,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
       m.material = Array.isArray(m.material) ? m.material.map(clone) : clone(m.material);
     }
   };
-  r.rigged = { anim: inst.anim ?? new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3 };
+  r.rigged = { anim: inst.anim ?? new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3, robe: bodyMeshes.filter((m) => asset.def.robeBack?.includes(m.name.split('__')[1])), robeFront: asset.def.robeFront ?? 1 };
   root.userData.driver = r.rigged.anim; // for tests and debugging
   if (!asset.def.ownWeapon) {
     if (classId === 'warrior') warriorWeapons(b, r, weapon);
@@ -1025,29 +1027,48 @@ const DYE_STYLES: Record<string, { k: number; lift: number; gain: number; floor:
 };
 const lumOf = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
 
-/** Make `m` dye-capable: the shader blends its (texture) colour toward the dye by brightness, adds an emissive floor and a rim. */
+/**
+ * Make `m` dye-capable: the shader blends its (texture) colour toward the dye by brightness, adds an emissive floor and a rim.
+ * A material can also carry the mage's cloak (`userData.back`, robeBack.ts): its back half is then recoloured on top of the dye, and
+ * the dye's glow gives way to the cloak's there. Either set of uniforms is read when the program compiles.
+ */
 function dyeShader(m: THREE.MeshStandardMaterial, u: DyeUniforms) {
   m.userData.dye = u;
+  robeShader(m);
+}
+
+function robeShader(m: THREE.MeshStandardMaterial) {
   m.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, u);
+    const du = m.userData.dye as DyeUniforms | undefined;
+    const bu = m.userData.back as RobeBackUniforms | undefined;
+    if (du) Object.assign(sh.uniforms, du);
+    if (bu) Object.assign(sh.uniforms, bu);
+    const G = ROBE_BACK_GLSL;
+    if (bu) sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>\n${G.vertDecl}`).replace('#include <begin_vertex>', `#include <begin_vertex>\n${G.vertMain}`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
-uniform vec3 uDye; uniform vec3 uRimCol; uniform float uK; uniform float uLift; uniform float uGain; uniform float uFloor; uniform float uRim; uniform float uOn; uniform vec3 uGlyph;
-float dyeShade; float dyeGlyph;`)
+float backM = 0.0;
+${du ? `uniform vec3 uDye; uniform vec3 uRimCol; uniform float uK; uniform float uLift; uniform float uGain; uniform float uFloor; uniform float uRim; uniform float uOn; uniform vec3 uGlyph;
+float dyeShade; float dyeGlyph;` : ''}
+${bu ? G.fragDecl : ''}`)
       .replace('#include <map_fragment>', `#include <map_fragment>
-{
+${bu ? G.fragLum : ''}
+${du ? `{
   float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
   dyeGlyph = clamp((diffuseColor.r - max(diffuseColor.g, diffuseColor.b) - 0.05) * 6.0, 0.0, 1.0);
   dyeShade = clamp(uLift + uGain * pow(l, 0.8), 0.0, 1.0);
   diffuseColor.rgb = mix(diffuseColor.rgb, uDye * dyeShade, uK * uOn);
-}`)
+}` : ''}
+${bu ? G.fragColor : ''}`)
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-{
+${bu ? G.fragEmissiveFirst : ''}
+${du ? `{
   float fr = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.5);
-  totalEmissiveRadiance += uOn * (uDye * uFloor * (0.4 + 0.6 * dyeShade) + uRimCol * uRim * fr * 0.45) + uOn * uGlyph * dyeGlyph;
-}`);
+  totalEmissiveRadiance += (1.0 - backM) * (uOn * (uDye * uFloor * (0.4 + 0.6 * dyeShade) + uRimCol * uRim * fr * 0.45) + uOn * uGlyph * dyeGlyph);
+}` : ''}
+${bu ? G.fragEmissive : ''}`);
   };
-  m.customProgramCacheKey = () => 'dye';
+  m.customProgramCacheKey = () => (m.userData.dye ? 'dye' : '') + (m.userData.back ? 'back' : '');
   m.needsUpdate = true;
 }
 
@@ -1350,13 +1371,26 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     const wk = clamp(fit.tw / 0.62, 0.9, 1.25);
     const wingRoot = new THREE.Vector3(0.09 * wk, cf.y - 0.16, -(cf.z + 0.167 * cf.sz + 0.03));
     // every cape and cloak is the same cloth model in the item's own skin (capeModels.ts); the planks below are the stand-in until it has loaded
-    const capeRig = isCapeItem(back) ? buildCape(back, fit.cape ?? DEFAULT_CAPE_FIT, upper) : undefined;
+    // ... except on a model with a cloak-like robe of its own (the mage's): there the cloak recolours the back half of the robe instead
+    const robeCloak = isCapeItem(back) && !!r.rigged?.robe.length;
+    if (robeCloak) {
+      r.rigged!.ensureOwn();
+      const bu = robeBackUniforms(robeBackLook(back));
+      for (const mesh of r.rigged!.robe) {
+        robeBackAttribute(mesh, r.rigged!.robeFront);
+        const m = mesh.material as THREE.MeshStandardMaterial;
+        m.userData.back = bu;
+        robeShader(m);
+      }
+      b.anim.push((t) => (bu.uBTime.value = t));
+    }
+    const capeRig = isCapeItem(back) && !robeCloak ? buildCape(back, fit.cape ?? DEFAULT_CAPE_FIT, upper) : undefined;
     if (capeRig) {
       b.mats.push(capeRig.material);
       b.meshes.push(capeRig.mesh);
       b.motion.push(capeRig.update);
     }
-    switch (capeRig ? '' : back.style) {
+    switch (capeRig || robeCloak ? '' : back.style) {
       case 'cloak': {
         const len = fit.robe ? 1.25 : 0.95;
         const pivot = new THREE.Group();
@@ -2065,6 +2099,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       m.color.copy(base);
       if (!alive) m.color.lerp(DEAD_GRAY, 0.75);
       if (m.userData.dye) (m.userData.dye as DyeUniforms).uOn.value = alive ? 1 : 0;
+      if (m.userData.back) (m.userData.back as RobeBackUniforms).uBOn.value = alive ? 1 : 0;
       m.emissiveIntensity = alive ? (m.userData.glow as number) : 0;
       m.transparent = stealthed;
       m.opacity = stealthed ? 0.35 : 1;

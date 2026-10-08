@@ -310,7 +310,7 @@ describe('0.64 replays', () => {
     for (const u of prac.sim.units.values()) if (u.controller !== 'player') prac.sim.forfeit(u.id);
     lobby.tick();
     await until(() => (last(us[0].s, 'account')?.account.matches ?? 0) >= 1);
-    await new Promise((r) => setTimeout(r, 30));
+    await until(() => saved >= 1, 'the replay is saved (this takes a moment on a busy machine)');
     assert.equal(saved, 1, 'solo practice is stored too');
     const hist = await accounts.history('ann');
     assert.equal(hist[0]?.replay, true, 'and the history links it');

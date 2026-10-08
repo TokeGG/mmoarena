@@ -145,6 +145,11 @@ describe('shared wing model', () => {
       const both = createCharacter(cls, gearLook({ wings: 'wings_angel', back: 'cloak_azure' }), weapon);
       const wing = findGroup(both.root, 'wings:')!;
       const cape = findGroup(both.root, 'cape:')!;
+      // the wizard's cloak is his own robe (robeBack.ts): no cape group, the wings simply grow out of the recoloured back
+      if (cls === 'mage') {
+        assert.ok(wing && !cape, 'mage: wings over the recoloured robe, no cape cloth');
+        continue;
+      }
       assert.ok(wing && cape, `${cls}: both worn`);
       assert.ok(wing.position.z < cape.position.z - 0.03, `${cls}: wings (${wing.position.z.toFixed(2)}) are further back than the cape (${cape.position.z.toFixed(2)})`);
       assert.ok(wing.position.y > cape.position.y - 0.25, `${cls}: wings grow at the collar`);
@@ -184,6 +189,23 @@ describe('shared wing model', () => {
         const box = new THREE.Box3().setFromObject(wingGroup(ch) ?? ch.root);
         assert.ok(box.max.x - box.min.x < 3, `${cls} ${item.id}: ${(box.max.x - box.min.x).toFixed(2)} wide`);
       }
+    }
+  });
+
+  it('on the wizard the wings grow out of the middle of the upper back and are scaled to his body', () => {
+    for (const id of ['wings_bat', 'archon_wings', 'wings_void', 'wings_solar']) {
+      const ch = createCharacter('mage', gearLook({ wings: id, back: 'starfall_cloak' }), 'fire_staff');
+      run(ch, 1);
+      ch.root.updateMatrixWorld(true);
+      const wp = (n: string) => bone(ch, n).getWorldPosition(new THREE.Vector3());
+      const root = wingGroup(ch)!.getWorldPosition(new THREE.Vector3());
+      const hips = wp('Bip01_Pelvis_02'), neck = wp('Bip01_Neck_055'), chest = wp('Bip01_Spine1_05');
+      const shoulders = Math.abs(wp('Bip01_L_UpperArm_029').x - wp('Bip01_R_UpperArm_07').x);
+      assert.ok(Math.abs(root.x - hips.x) < 0.05, `${id}: between the shoulder blades (${(root.x - hips.x).toFixed(2)})`);
+      assert.ok(root.y > chest.y && root.y < neck.y, `${id}: upper back (${root.y.toFixed(2)})`);
+      assert.ok(chest.z - root.z < 0.4, `${id}: close to the back (${(chest.z - root.z).toFixed(2)})`);
+      const box = new THREE.Box3().setFromObject(wingGroup(ch)!);
+      assert.ok(box.max.x - box.min.x < 1.6 && shoulders > 0.3, `${id}: ${(box.max.x - box.min.x).toFixed(2)} wide for shoulders of ${shoulders.toFixed(2)}`);
     }
   });
 

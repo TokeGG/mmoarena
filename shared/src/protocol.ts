@@ -113,6 +113,8 @@ export type ClientMsg =
   | { t: 'dev_ai'; ability: string; text: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
+  /** Owner, dev test matches: move the running match to another map. */
+  | { t: 'dev_map'; id: string }
   /** Dev tools: give a bot in the dev's match another class and build, on the fly. */
   | { t: 'dev_bot'; unit: number; classId: ClassId; build: Build }
   /** Dev tools: everyone's build in the dev's own match. */
@@ -176,6 +178,8 @@ export type ServerMsg =
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[] }
+  /** The test match is now on this map (everyone in it, players and watchers). */
+  | { t: 'dev_map'; map: string }
   | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
   /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
@@ -436,6 +440,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_builds' };
     case 'dev_restart':
       return { t: 'dev_restart' };
+    case 'dev_map':
+      return typeof m.id === 'string' && ARENAS.some((a) => a.id === m.id) ? { t: 'dev_map', id: m.id } : null;
     case 'dev_bot': {
       if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || !CLASS_IDS.includes(m.classId)) return null;
       const build = parseBuild(m.build);
