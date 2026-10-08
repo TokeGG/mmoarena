@@ -43,6 +43,8 @@ import { IntervalTracker, InterpDelay, LEAD_EXTRAPOLATE_MS, Lead, RenderTime, po
 import type { Pose } from './interpDelay';
 import { NetStats, NetStatsView } from './netStats';
 import { ownAhead } from './ownAhead';
+import { FREE_PITCH, FreeCam, NO_INPUT, canFreeCam, wheelSpeed } from './freeCam';
+import { bindFreeCamSettings, freeCamPrefs } from './freeCamSettings';
 
 /** Milliseconds per server tick: the server says so in `welcome` (a replay uses the tick length it was recorded at); prediction, the input cadence and the snapshot buffer all follow it. */
 let tickMs: number = TUNING.tickMs;
@@ -91,6 +93,8 @@ let ws: WebSocket | null = null;
 let arena: ArenaDef = ARENAS[0];
 /** A match was joined and its first snapshot has not arrived yet. */
 let matchStarting = false;
+/** The match is ranked (the server says in `welcome`): the dead get no free camera there. */
+let ranked = false;
 let you = 0;
 let team: TeamId = 0;
 let classId: ClassId = 'mage';
@@ -185,6 +189,70 @@ const renderPos = new Map<number, { x: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
 effects.groundY = (x, z) => heightAt(arena, x, z, predLevel);
 effects.camera = scene.camera;
+
+// ------------------------------------------------------------------ free camera (dead or watching)
+const freeCam = new FreeCam();
+/** The player switched it on (G); it only takes effect while canFreeCam allows. */
+let wantFree = false;
+const freeHint = document.getElementById('freecam-hint');
+const groundForFree = (x: number, z: number) => Math.max(heightAt(arena, x, z, 0), heightAt(arena, x, z, 1));
+function setWantFree(on: boolean) {
+  wantFree = on;
+  freeCamPrefs.saveOn(on);
+}
+function endFreeCam() {
+  if (freeCam.active) {
+    freeCam.exit();
+    controls.freeCam = false;
+    controls.pitchMin = -0.15;
+    controls.pitchMax = 1.35;
+    controls.pitch = Math.min(1.35, Math.max(-0.15, controls.pitch));
+  }
+  freeHint?.classList.add('hidden');
+}
+/** G: fly the camera, or go back to following (only while dead outside ranked, or watching). */
+function toggleFreeCam() {
+  const me = !spec ? latest?.units.find((u) => u.id === you) : undefined;
+  if (!latest || !canFreeCam({ dead: !!me && !me.alive, spectating: !!spec, ranked })) return;
+  setWantFree(!wantFree);
+}
+/** Each frame after the normal camera is placed: enter or leave the free camera, fly it, and show the hint. */
+function updateFreeCam(dt: number, snap: Snapshot) {
+  const me = !spec ? snap.units.find((u) => u.id === you) : undefined;
+  const can = canFreeCam({ dead: !!me && !me.alive, spectating: !!spec, ranked });
+  if (can && wantFree && !freeCam.active) {
+    const c = scene.camera.position; // from where the camera is now: no jump
+    freeCam.enter({ x: c.x, y: c.y, z: c.z, yaw: vis.yaw, pitch: vis.pitch }, arena.bounds, groundForFree);
+    controls.freeCam = true;
+    controls.pitchMin = -FREE_PITCH;
+    controls.pitchMax = FREE_PITCH;
+    controls.pitch = freeCam.pose.pitch;
+  } else if (!(can && wantFree) && freeCam.active) endFreeCam();
+  if (freeHint) {
+    const key = binds.label('freeCam');
+    const text = !can ? '' : freeCam.active ? `${freeCam.hint()} · ${key}: back to following${spec ? ' · click a unit to follow' : ''}` : `Free cam: ${key}${spec ? ' · follow: click a unit' : ''}`;
+    if (freeHint.textContent !== text) freeHint.textContent = text;
+    freeHint.classList.toggle('hidden', !text);
+  }
+  if (!freeCam.active) return;
+  freeCam.setting = freeCamPrefs.speed();
+  freeCam.look(vis.yaw, vis.pitch);
+  const b = (v: boolean) => (v ? 1 : 0);
+  const pose = freeCam.update(
+    dt,
+    {
+      ...NO_INPUT,
+      forward: b(controls.held('forward')) - b(controls.held('back')),
+      right: b(controls.held('turnRight') || controls.held('strafeRight')) - b(controls.held('turnLeft') || controls.held('strafeLeft')),
+      up: b(controls.held('jump') || controls.heldCode('Space')) - b(controls.heldCode('KeyC') || controls.heldCode('ControlLeft') || controls.heldCode('ControlRight')),
+      fast: controls.heldCode('ShiftLeft') || controls.heldCode('ShiftRight'),
+      slow: controls.heldCode('AltLeft') || controls.heldCode('AltRight') || controls.heldCode('KeyZ'),
+    },
+    arena.bounds,
+    groundForFree,
+  );
+  scene.setFreeCamera(pose.x, pose.y, pose.z, pose.yaw, pose.pitch);
+}
 effects.onSwing = (id, fast) => scene.swing(id, fast);
 effects.onShout = (id) => scene.shout(id);
 effects.onHit = (id) => scene.flash(id);
@@ -234,6 +302,12 @@ const menu = new Menu(binds, {
   onEditHud: () => (latest ? hudLayout.start() : editHudFromMenu()),
 });
 const hudLayout = new HudLayout();
+bindFreeCamSettings();
+controls.onWheel = (dy) => {
+  if (!freeCam.active) return false;
+  freeCam.wheel = wheelSpeed(freeCam.wheel, dy); // flying: the wheel is the fly speed
+  return true;
+};
 /** The HUD editor was opened from the main menu (over a pretend fight), not in a match. */
 let editingFromMenu = false;
 hudLayout.onChange = (editing) => {
@@ -315,6 +389,9 @@ function onMessage(raw: MessageEvent) {
       audio.ambience(arena.theme);
       setTickMs(m.tickMs);
       devPaused = false;
+      ranked = !!m.ranked;
+      endFreeCam();
+      wantFree = freeCamPrefs.wasOn();
       wasPausedSnap = false;
       interpDelay.reset(tickMs);
       you = m.unitId;
@@ -629,7 +706,8 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
 function spatial(id: number): Spatial | null {
   const p = renderPos.get(id);
   if (!p) return { gain: 0.6, pan: 0 };
-  const dist = Math.hypot(p.x - vis.x, p.z - vis.z);
+  const ear = freeCam.active ? freeCam.pose : vis; // the sound is heard from the free camera when it flies
+  const dist = Math.hypot(p.x - ear.x, p.z - ear.z);
   if (dist > 60) return null;
   const s = scene.project(p.x, 1.5, p.z);
   const pan = s.visible ? Math.max(-1, Math.min(1, (s.x / window.innerWidth - 0.5) * 2)) * 0.7 : 0;
@@ -731,7 +809,10 @@ function smokeHidden(id: number, snap = latest): boolean {
 
 function setTarget(id: number | null) {
   if (spec) {
-    if (id !== null) setFollow(id, latest);
+    if (id !== null) {
+      setWantFree(false); // following a unit (click or Tab) leaves the free camera
+      setFollow(id, latest);
+    }
     return;
   }
   if (id !== null && smokeHidden(id)) {
@@ -920,6 +1001,7 @@ function confirmAim() {
 }
 
 controls.aimActive = () => !!aiming && !spec;
+  if (freeCam.active && !spec) return; // flying while dead: no targeting
 controls.onAimPress = () => confirmAim(); // placed on mouse DOWN, so no click-and-hold nudges the camera
 controls.onClick = (x, y) => {
   if (aiming && !spec) return void confirmAim();
@@ -989,6 +1071,7 @@ controls.onKey = (code, e) => {
     else if (!spec && targetId !== null) setTarget(null);
     else menu.open(true);
     return;
+  if (binds.matches('freeCam', e)) return void toggleFreeCam();
   }
   if (code === 'F2' && !latest && !binds.actionForEvent(e)) {
     e.preventDefault();
@@ -1047,6 +1130,7 @@ function frame(now: number) {
     scene.setCamera(0, 0, controls.yaw, 0.6, 30);
     scene.render();
     return;
+    endFreeCam();
   }
   if (latest || spec) {
     lobbyTags.hide();
@@ -1223,6 +1307,7 @@ function frame(now: number) {
   effects.setZones(snap.zones ?? [], estNow);
   effects.update(
     dt,
+  updateFreeCam(dt, snap);
     snap.units.map((s) => {
       const p = renderPos.get(s.id)!;
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
@@ -1395,6 +1480,9 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
+  ranked = false; // watchers always get the free camera
+  endFreeCam();
+  wantFree = freeCamPrefs.wasOn();
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
   devPanel.setAvailable(false); // test numbers never carry over from a match you played
   if (accountUi.account?.ownerOk && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched

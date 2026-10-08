@@ -7,7 +7,7 @@
 export type Action =
   | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
   | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8' | 'trinket'
-  | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail'
+  | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail' | 'freeCam'
   | 'markSkull' | 'markCross' | 'markSquare' | 'markMoon' | 'markTriangle' | 'markDiamond' | 'markCircle' | 'markStar' | 'markClear';
 
 export const ACTIONS: { id: Action; label: string; group: string }[] = [
@@ -40,6 +40,7 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'markStar', label: '⭐ Mark target: Star', group: 'Marks' },
   { id: 'markClear', label: 'Clear the target\u2019s mark', group: 'Marks' },
   { id: 'detail', label: 'Detailed tooltips (hold while hovering)', group: 'Interface' },
+  { id: 'freeCam', label: 'Free camera (when dead or watching)', group: 'Interface' },
 ];
 
 /** Mark actions and the mark number each puts on the target (MARKS index + 1; 0 clears). */
@@ -71,6 +72,7 @@ const DEFAULTS: Record<Action, [string, string]> = {
   prevTarget: ['', ''],
   autoAttack: ['KeyR', ''],
   detail: ['AltLeft', 'AltRight'],
+  freeCam: ['KeyG', ''], // not F: that is the trinket
   markSkull: ['Alt+Digit1', ''],
   markCross: ['Alt+Digit2', ''],
   markSquare: ['Alt+Digit3', ''],

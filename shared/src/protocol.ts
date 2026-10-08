@@ -165,7 +165,7 @@ export const MAX_SETTINGS = 24000;
 export const NOTE_MAX = 10000;
 
 export type ServerMsg =
-  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string; /** Milliseconds per server tick (absent: TUNING.tickMs, what older servers ran at). */ tickMs?: number }
+  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string; /** Milliseconds per server tick (absent: TUNING.tickMs, what older servers ran at). */ tickMs?: number; /** A ranked match (absent: not ranked): the dead get no free camera there. Additive and optional, so PROTOCOL_VERSION stays. */ ranked?: boolean }
   /** Progress (matches played). Store `token` and send it back on join. */
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
