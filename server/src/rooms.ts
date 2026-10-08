@@ -12,7 +12,8 @@ import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
 import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
-import type { AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
+import { whereIs } from './geoip';
+import type { AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
@@ -43,6 +44,9 @@ export interface Player {
   view?: { classId: ClassId; spec: string; look: string };
   /** Network address, for rate limiting account actions. */
   ip: string;
+  /** When the connection opened, and the country the host's proxy reported, if any. */
+  since?: number;
+  country?: string;
   /** Signed-in account (authoritative progress and rating) and its session token. */
   account?: AccountRecord;
   token?: string;
@@ -796,9 +800,19 @@ export class Lobby {
     return { ...this.meter.report(), rooms: this.rooms.size };
   }
 
+  /** Everyone connected, guests included, for the owner: name, address, country and what they are doing. */
+  private onlineList(): AdminOnline[] {
+    const now = Date.now();
+    return [...this.conns].map((q) => ({
+      name: q.account?.name ?? q.name, guest: !q.account, ip: q.ip, where: whereIs(q.ip, q.country),
+      status: q.room && !q.room.closed ? `in a ${q.room.adminRow().kind} match` : this.inQueue(q) ? 'in the queue' : 'in the menu',
+      sinceMs: now - (q.since ?? now),
+    })).sort((a, b) => a.sinceMs - b.sinceMs);
+  }
+
   private overviewMsg(): ServerMsg {
     return {
-      t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
+      t: 'admin_overview', online: this.conns.size, players: this.onlineList(), queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
       uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
       tick: this.tickReport(), pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, autoTrain: this.autoTrain, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
     };
@@ -1053,7 +1067,7 @@ export class Lobby {
     }
   }
 
-  connect(ws: WebSocket, ip = ''): Player {
+  connect(ws: WebSocket, ip = '', country?: string): Player {
     const out = this.connectNow(ws, ip);
     // numbers a dev saved for everyone: the client applies them over its own copy of the data
     if (this.dev?.overrides.length) send(out, { t: 'overrides', patches: this.dev.overrides });
@@ -1066,7 +1080,7 @@ export class Lobby {
   private lastAnnounce: Extract<ServerMsg, { t: 'announce' }> | null = null;
 
   private connectNow(ws: WebSocket, ip = ''): Player {
-    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, chain: Promise.resolve(), mapPref: 'random', size: 2, pending: 0 };
+    const p: Player = { id: this.nextPlayerId++, ws, name: 'Player', classId: 'warrior', matches: 0, wins: 0, ip, since: Date.now(), chain: Promise.resolve(), mapPref: 'random', size: 2, pending: 0 };
     this.conns.add(p);
     return p;
   }
@@ -1120,6 +1134,7 @@ export class Lobby {
         }
         case 'logout':
           // signing out mid-match would dodge the result: finish (or leave, which counts as a loss) first
+    out.country = country;
           if ((p.room && p.room.sim.phase !== 'ended') || this.inQueue(p) || p.duelWith !== undefined) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
           if (p.token) await acc.logout(p.token);
           this.leaveParty(p);

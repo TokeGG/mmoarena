@@ -238,7 +238,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
 
   wss.on('connection', (ws, req) => {
     const ip = clientIp(req.headers['x-forwarded-for'], req.socket.remoteAddress);
-    const player = lobby.connect(ws, ip);
+    const player = lobby.connect(ws, ip, String(req.headers['cf-ipcountry'] ?? ''));
     alive.add(ws);
     ws.on('pong', () => alive.add(ws));
 

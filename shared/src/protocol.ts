@@ -15,6 +15,8 @@ export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_ratin
 const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill'];
 /** A running match in the owner's admin panel. */
 export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
+/** One connection on the owner's "Online now" list (guests included). */
+export interface AdminOnline { name: string; guest: boolean; ip: string; where: string; status: string; sinceMs: number }
 /** One replay the bots are training on (or just trained on), for the admin panel's progress bars. */
 export interface TrainJobRow {
   id: string;
@@ -189,7 +191,7 @@ export type ServerMsg =
   | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
   /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
-  | { t: 'admin_overview'; /** How the server loop copes (owner only). */ tick?: { ms: number; avgMs: number; maxMs: number; load: number; late: number; worstMs: number; rooms: number }; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
+  | { t: 'admin_overview'; /** How the server loop copes (owner only). */ tick?: { ms: number; avgMs: number; maxMs: number; load: number; late: number; worstMs: number; rooms: number }; online: number; /** Everyone connected, guests too (owner only). */ players?: AdminOnline[]; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
   | { t: 'admin_log'; rows: AdminLogRow[] }
   | { t: 'admin_history'; name: string; rows: MatchRecord[] }
   /** Every match played on the server (the owner's match list). */
