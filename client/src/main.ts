@@ -379,11 +379,11 @@ function onMessage(raw: MessageEvent) {
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
-    case 'dev_state':
     case 'dev_map':
       swapMatchMap(m.map);
       devPanel.handle(m);
       break;
+    case 'dev_state':
     case 'dev_session':
       devPanel.handle(m);
       break;
@@ -1247,7 +1247,6 @@ const livePicker = new LivePicker(
   { isOwner: () => !!accountUi.account?.ownerOk, current: () => following, set: (name) => send({ t: 'follow', name }) },
 );
 
-function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
 /** Dev tools: the running test match moved to another map (the server put everyone at its spawns). */
 function swapMatchMap(mapId: string) {
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
@@ -1267,6 +1266,7 @@ function swapMatchMap(mapId: string) {
   setAiming(null);
 }
 
+function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
   clearMenuLayers();
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
