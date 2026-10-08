@@ -2,6 +2,7 @@ import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CL
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
+import { menuSpots } from './lobbySpot';
 import { preloadRiggedModels } from './riggedModels';
 import type { RenderUnit } from './scene';
 import { Controls } from './input';
@@ -953,8 +954,9 @@ function frame(now: number) {
     // preview the arena picked in the menu (random shows the last one)
     const previewMap = mainMenu.selectedMap;
     if (previewMap !== 'random' && !matchStarting) scene.setMap(previewMap);
-    const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
-    const spot = prev.spawns[0][0];
+    // the scene is the truth about which arena is on screen ('random' keeps showing whatever it already shows, and a map
+    // being started is not swapped): the characters stand on ITS spawn, never on another map's coordinates
+    const prev = ARENAS.find((a) => a.id === scene.arenaId) ?? ARENAS[0];
     // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
     // the Look window's buttons: turn steps ease in, auto-rotate keeps turning (and holds the idle sway off)
     const lv = mainMenu.lookView;
@@ -980,13 +982,16 @@ function frame(now: number) {
     // party members stand beside you with the class, weapon and skins they picked
     const me = accountUi.account?.name;
     const mates = (mainMenu.currentParty?.members ?? []).filter((m) => m.name !== me && m.classId && CLASSES[m.classId as ClassId]);
+    const spots = menuSpots(prev, mates.length);
+    const spot = spots[0]!; // always the first spawn
     const f0 = prev.spawnFacing[0];
-    const right = { x: Math.cos(f0), z: -Math.sin(f0) };
-    const slot = (i: number) => (i === 0 ? 0 : (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 2.4);
-    const menuUnits: RenderUnit[] = [{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x + right.x * slot(0), z: spot.z + right.z * slot(0), y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }];
+    const menuUnits: RenderUnit[] = [{ id: -1, classId: mainMenu.selectedClass, look: gearLook(mainMenu.currentBuild.gear), weapon: weaponFor(mainMenu.selectedClass, mainMenu.currentBuild.spec), team: 0, x: spot.x, z: spot.z, y: 0, facing: face, alive: true, stealthed: false, casting: false, sheep: false }];
+    const placedMates: typeof mates = [];
     mates.forEach((m, i) => {
-      const o = slot(i + 1);
-      menuUnits.push({ id: -2 - i, classId: m.classId as ClassId, look: m.look ?? '', weapon: weaponFor(m.classId as ClassId, m.spec), team: 0, x: spot.x + right.x * o, z: spot.z + right.z * o, y: 0, facing: f0 + Math.PI + Math.sin(t * 0.6 + i + 1) * 0.55, alive: true, stealthed: false, casting: false, sheep: false });
+      const o = spots[i + 1]; // free ground beside you; a mate with no room is left out
+      if (!o) return;
+      placedMates.push(m);
+      menuUnits.push({ id: -2 - i, classId: m.classId as ClassId, look: m.look ?? '', weapon: weaponFor(m.classId as ClassId, m.spec), team: 0, x: o.x, z: o.z, y: 0, facing: f0 + Math.PI + Math.sin(t * 0.6 + i + 1) * 0.55, alive: true, stealthed: false, casting: false, sheep: false });
     });
     scene.update(menuUnits, 0, null);
     // Look window open: slide the picture so the model sits in the free half, and zoom to head / weapon on request
@@ -999,7 +1004,7 @@ function frame(now: number) {
     // everyone in the party: their model's name tag with a check once ready (the leader is always ready)
     const party = mainMenu.currentParty;
     if (party && me) {
-      const placed = [{ name: me, x: menuUnits[0].x, z: menuUnits[0].z }, ...mates.map((m, i) => ({ name: m.name, x: menuUnits[i + 1].x, z: menuUnits[i + 1].z }))];
+      const placed = [{ name: me, x: menuUnits[0].x, z: menuUnits[0].z }, ...placedMates.map((m, i) => ({ name: m.name, x: menuUnits[i + 1].x, z: menuUnits[i + 1].z }))];
       lobbyTags.show(party, placed, (x, y, z) => scene.project(x, y, z));
     } else lobbyTags.hide();
     scene.render();
