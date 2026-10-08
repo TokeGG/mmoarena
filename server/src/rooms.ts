@@ -278,6 +278,18 @@ export class Room {
     return [...this.sim.units.values()].map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar, ...(u.controller === 'bot' ? { bot: true } : {}) }));
   }
 
+  /** Dev tools: the match starts over with the same units and builds. */
+  devRestart(): void {
+    this.devTest = true;
+    withPatches(this.devPatches, () => this.sim.resetMatch());
+    // the bots start with a clear head too
+    this.bots = this.bots.map((b) => new Bot(this.sim, b.unitId, b.difficulty, Math.floor(Math.random() * 2 ** 31)));
+    this.endedTicks = 0;
+    this.finalSent = false;
+    this.finalSentLate = false;
+    this.paused = false;
+  }
+
   /** Dev tools: a bot gets another class and build in the middle of the match (which then counts for nothing). */
   devRebuild(unitId: number, classId: ClassId, build: Build, own = false): boolean {
     const i = this.bots.findIndex((b) => b.unitId === unitId);
@@ -1297,6 +1309,19 @@ export class Lobby {
         const room = this.devRoom(p);
         if (room && msg.patches.length) this.setRoomPatches(room, p, mergePatches(room.devPatches, msg.patches));
         send(p, { t: 'dev_result', ok: true, text: msg.patches.length ? `Kept ${msg.patches.length} number${msg.patches.length === 1 ? '' : 's'} for your session: every match you start uses them until you clear them or sign out.` : 'Session numbers cleared: your next match uses the real numbers.' });
+        break;
+      }
+      case 'dev_restart': {
+        const room = this.devRoom(p);
+        if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
+        if (room.closed) return void send(p, { t: 'dev_result', ok: false, text: 'That match is over.' });
+        room.devRestart();
+        const by = p.account?.name ?? p.name;
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+          if (q !== p) send(q, { t: 'notice', text: `${by} restarted the match (it no longer counts).` });
+        }
+        send(p, { t: 'dev_result', ok: true, text: 'The match started over with the same builds.' });
         break;
       }
       case 'dev_bot': {

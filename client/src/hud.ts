@@ -281,6 +281,7 @@ export class Hud {
   setBar(classId: ClassId, abilities: string[], trinket = false) {
     const bar = $('actionbar');
     bar.replaceChildren();
+    $('trinketbar').replaceChildren();
     this.slots = abilities.map((ability, i) => {
       const isTrinket = trinket && i === abilities.length - 1;
       const root = el('div', isTrinket ? 'slot trinket' : 'slot');
@@ -334,12 +335,12 @@ export class Hud {
           ghost.remove();
           const over = document.elementFromPoint(u.clientX, u.clientY)?.closest('.slot');
           const to = over ? this.slots.findIndex((x) => x.root === over) : -1;
-          if (to >= 0 && to !== i) this.handlers.onReorder?.(i, to);
+          if (to >= 0 && to !== i && !this.slots[to].root.classList.contains('trinket') && !root.classList.contains('trinket')) this.handlers.onReorder?.(i, to);
         };
         window.addEventListener('mousemove', move, true);
         window.addEventListener('mouseup', up, true);
       });
-      bar.append(root);
+      (isTrinket ? $('trinketbar') : bar).append(root); // the trinket is a button of its own, moved apart from the bar
       return { root, cd, key, ability, badge };
     });
   }

@@ -33,7 +33,7 @@ export interface ProposalRow {
   note?: string;
   patches: DataPatch[];
   /** The same changes in words: what, old number, new number. */
-  changes: { label: string; from: number | null; to: number }[];
+  changes: { label: string; from: number | string | null; to: number | string }[];
   status: 'pending' | 'live' | 'pr' | 'dismissed';
   url?: string;
 }
@@ -111,6 +111,8 @@ export type ClientMsg =
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
   | { t: 'dev_ai'; ability: string; text: string }
+  /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
+  | { t: 'dev_restart' }
   /** Dev tools: give a bot in the dev's match another class and build, on the fly. */
   | { t: 'dev_bot'; unit: number; classId: ClassId; build: Build }
   /** Dev tools: everyone's build in the dev's own match. */
@@ -244,9 +246,9 @@ export function parsePatches(raw: unknown): DataPatch[] | null {
   for (const p of raw) {
     if (!p || typeof p !== 'object') return null;
     const { file, id, path, value } = p as Record<string, unknown>;
-    if ((file !== 'abilities' && file !== 'auras') || typeof id !== 'string' || id.length > 40 || typeof value !== 'number') return null;
+    if (!['abilities', 'auras', 'specs', 'talents', 'classes'].includes(file as string) || typeof id !== 'string' || id.length > 40 || (typeof value !== 'number' && !(typeof value === 'string' && value.length <= 20))) return null;
     if (!Array.isArray(path) || !path.every((k) => (typeof k === 'string' && k.length <= 32) || (typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < 32))) return null;
-    const patch: DataPatch = { file, id, path: path as (string | number)[], value };
+    const patch: DataPatch = { file: file as DataPatch['file'], id, path: path as (string | number)[], value };
     if (!validPatch(patch)) return null;
     out.push(patch);
   }
@@ -427,6 +429,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: m.t, ability: m.ability, text: m.text.trim().slice(0, 600) };
     case 'dev_builds':
       return { t: 'dev_builds' };
+    case 'dev_restart':
+      return { t: 'dev_restart' };
     case 'dev_bot': {
       if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || !CLASS_IDS.includes(m.classId)) return null;
       const build = parseBuild(m.build);

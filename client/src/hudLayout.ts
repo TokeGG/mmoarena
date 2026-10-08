@@ -30,9 +30,11 @@ const TARGETS: [string, string][] = [
   ['party', 'Party'],
   ['enemies', 'Enemies'],
   ['actionbar', 'Action bar'],
+  ['trinketbar', 'Trinket button'],
   ['cast', 'Cast bar'],
   ['autoind', 'Auto-attack'],
   ['log', 'Combat log'],
+  ['killfeed', 'Kill feed'],
   ['help', 'Help text'],
 ];
 const KEY = 'arena.hud.v1';

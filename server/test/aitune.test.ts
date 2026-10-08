@@ -52,7 +52,7 @@ describe('Ask Claude in the dev panel', () => {
   });
 
   it('from the menu the answer goes into the dev session numbers', async () => {
-    const ai = new AiTune({}, fake((l) => /cooldown/.test(l), 4321));
+    const ai = new AiTune({}, fake((l) => /cooldown/i.test(l), 4321));
     const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 }, undefined, undefined, undefined, undefined, undefined, ai);
     const out: ServerMsg[] = [];
     const p = { ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 }, name: 'Toke', classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', ownerOk: true } as any;

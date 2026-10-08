@@ -90,7 +90,7 @@ export class AiTune {
     if (!def) return { ok: false, text: 'Pick a skill first.', patches: [] };
     if (!this.allow(who)) return { ok: false, text: 'Slow down a little: one request every few seconds, 30 an hour.', patches: [] };
     const info = skillInfo(abilityId);
-    const now = new Map(testing.map((p) => [`${p.file}:${p.id}:${p.path.join('.')}`, p.value]));
+    const now = new Map(testing.filter((p) => typeof p.value === 'number').map((p) => [`${p.file}:${p.id}:${p.path.join('.')}`, p.value as number]));
     const fields: OfferedField[] = info.sections.flatMap((s) =>
       s.fields.map((f) => ({ file: f.file, id: f.id, path: f.path, label: `${s.name} · ${f.label}`, value: now.get(`${f.file}:${f.id}:${f.path.join('.')}`) ?? f.value })),
     );

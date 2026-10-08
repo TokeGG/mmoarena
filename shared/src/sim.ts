@@ -63,7 +63,7 @@ export class ArenaSim {
   phase: Phase = 'prep';
   winner: TeamId | 'draw' | null = null;
   readonly prepEndsAt: number;
-  readonly matchEndsAt: number;
+  matchEndsAt: number;
   readonly units = new Map<number, Unit>();
   private events: SimEvent[] = [];
   private zones: { id: number; owner: number; team: TeamId; x: number; z: number; r: number; school: School; ability: string; amount: number; start: number; firstAt: number; nextAt: number; pulse: number; end: number; smoke?: boolean; flag?: boolean; /** A circle that keeps `aura` on those inside (Battle Banner, Rune of Power). */ buff?: { aura: string; who: 'allies' | 'self' }; held?: Set<number>; /** Floor height it lies on (on top of a walkway or the ground). */ h: number }[] = [];
@@ -127,6 +127,33 @@ export class ArenaSim {
       look: gearLook(build?.gear), cast: null, gcdEnd: 0, cooldowns: {}, chargesUsed: {}, cp: 0, auras: [], dr: {}, lockouts: {}, autoAttack: false, leap: null, target: null,
     } as Partial<Unit>);
     return u;
+  }
+
+  /**
+   * Dev tools: start the match over with the same units and builds: everyone back at their spawn at full health, cooldowns
+   * and effects cleared, and the fight live at once (no preparation). Only used in test matches, which are never recorded.
+   */
+  resetMatch(): void {
+    const slots = new Map<number, number>();
+    for (const u of this.units.values()) {
+      const i = slots.get(u.team) ?? 0;
+      slots.set(u.team, i + 1);
+      const spawns = this.arena.spawns[u.team];
+      const sp = spawns[i % spawns.length];
+      this.rebuildUnit(u.id, u.classId, u.buildRef);
+      Object.assign(u, {
+        pos: { x: sp.x, z: sp.z }, facing: this.arena.spawnFacing[u.team], level: 0, charge: null, leap: null, inputQueue: [], lastCast: null,
+        lastCombatAt: -1e9, nextSwing: 0, autoSince: 0, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, starve: 0, fearDir: { x: 0, z: 0 }, fearRetargetAt: 0, respawnAt: undefined,
+      } as Partial<Unit>);
+      u.lastInput = { seq: u.lastSeq, fwd: 0, strafe: 0, facing: this.arena.spawnFacing[u.team] };
+    }
+    this.zones = [];
+    this.recharge.clear();
+    this.pending.clear();
+    this.winner = null;
+    this.phase = 'live';
+    this.matchEndsAt = this.time + TUNING.maxMatchMs;
+    this.emit({ t: 'phase', phase: 'live', winner: null });
   }
 
   /**

@@ -1,5 +1,5 @@
 import { ABILITIES, CLASSES, CLASS_IDS, SPECS, TALENTS, applyPatches, mergePatches, skillInfo, talentsFor, tunableNumbers } from '@arena/shared';
-import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, TunableNumber, UnitBuild } from '@arena/shared';
+import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, TunableNumber, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
@@ -50,6 +50,9 @@ export class DataLayers {
   }
 }
 
+/** A saved set of test numbers and builds. */
+interface DevSetup { name: string; patches: DataPatch[]; builds: { me: boolean; classId: ClassId; build: Build }[] }
+
 interface Hooks {
   send(m: ClientMsg): void;
   /** Abilities to offer: everyone's bars in the match. */
@@ -85,6 +88,16 @@ export class DevPanel {
   /** Bots being edited: the class and build chosen for each, until applied. */
   private botDraft = new Map<number, { classId: ClassId; build: Build }>();
   private botsOpen = false;
+  /** Damage and healing meter: what each unit dealt, healed and took since the match (or the last reset), with the last ten seconds for per-second numbers. */
+  private meter = new Map<number, { dealt: number; healed: number; taken: number; log: { t: number; d: number; h: number }[] }>();
+  private meterNow = 0;
+  private meterOpen = false;
+  private meterBox: HTMLElement | null = null;
+  private meterPaintAt = 0;
+  private setupsOpen = false;
+  private setupName = '';
+  /** The window paused the match when it opened (and resumes it when it closes). */
+  private autoPaused = false;
   /** Skills, or every number of a class, its specs and its talents. */
   private mode: 'skills' | 'class' = 'skills';
 
@@ -94,6 +107,176 @@ export class DevPanel {
     document.body.append(this.root, this.button);
     makeResizable(this.root, { key: 'dev', corner: 'br', minW: 240, minH: 200, z: 32 });
     this.draggable();
+  }
+
+  /** Every event of the match, for the meter (the time is the match clock in ms). */
+  feed(events: readonly SimEvent[], time: number) {
+    this.meterNow = time;
+    for (const e of events) {
+      if (e.t === 'damage') {
+        const a = this.meterOf(e.src), b = this.meterOf(e.tgt);
+        a.dealt += e.amount;
+        a.log.push({ t: time, d: e.amount, h: 0 });
+        b.taken += e.amount;
+      } else if (e.t === 'heal') {
+        const a = this.meterOf(e.src);
+        a.healed += e.amount;
+        a.log.push({ t: time, d: 0, h: e.amount });
+      } else if (e.t === 'phase' && e.phase === 'live') this.meter.clear();
+    }
+    if (this.open && this.meterOpen && this.meterBox?.isConnected && time - this.meterPaintAt > 250) {
+      this.meterPaintAt = time;
+      this.paintMeter();
+    }
+  }
+
+  private meterOf(id: number) {
+    let m = this.meter.get(id);
+    if (!m) this.meter.set(id, (m = { dealt: 0, healed: 0, taken: 0, log: [] }));
+    return m;
+  }
+
+  private paintMeter() {
+    const box = this.meterBox;
+    if (!box) return;
+    const names = new Map(this.hooks.builds().map((b) => [b.id, b]));
+    const rows = [...this.meter.entries()].filter(([id]) => id > 0).sort((a, b) => b[1].dealt - a[1].dealt);
+    const table = el('table', 'devp-meter');
+    const head = el('tr');
+    for (const h of ['Unit', 'DPS', 'Dealt', 'HPS', 'Healed', 'Taken']) head.append(el('th', '', h));
+    table.append(head);
+    for (const [id, m] of rows) {
+      m.log = m.log.filter((x) => this.meterNow - x.t <= 10000);
+      const span = Math.max(1, Math.min(10, (this.meterNow - (m.log[0]?.t ?? this.meterNow)) / 1000));
+      const dps = m.log.reduce((n, x) => n + x.d, 0) / span;
+      const hps = m.log.reduce((n, x) => n + x.h, 0) / span;
+      const b = names.get(id);
+      const tr = el('tr');
+      tr.append(el('td', b && b.team === 0 ? 'tm0' : 'tm1', b?.name ?? `#${id}`), el('td', '', String(Math.round(dps))), el('td', '', String(Math.round(m.dealt))), el('td', '', String(Math.round(hps))), el('td', '', String(Math.round(m.healed))), el('td', '', String(Math.round(m.taken))));
+      table.append(tr);
+    }
+    if (!rows.length) {
+      const tr = el('tr');
+      tr.append(el('td', 'devp-dim', 'Nothing yet: fight something.'));
+      table.append(tr);
+    }
+    box.replaceChildren(table);
+  }
+
+  /** The meter, the match restart and saved setups (numbers and builds you want back later). */
+  private matchTools(): HTMLElement {
+    const wrap = el('div', 'devp-sec tools');
+    const row = el('div', 'devp-row');
+    if (this.inMatch) {
+      const restart = el('button', 'mm-small', '↻ Restart match');
+      restart.title = 'Everyone back at the start with the same builds and numbers, full health, fighting at once';
+      restart.addEventListener('click', () => {
+        this.meter.clear();
+        this.hooks.send({ t: 'dev_restart' });
+      });
+      const meter = el('button', `mm-small${this.meterOpen ? ' mm-go' : ''}`, '📊 Meter');
+      meter.addEventListener('click', () => {
+        this.meterOpen = !this.meterOpen;
+        this.paint();
+      });
+      row.append(restart, meter);
+    }
+    const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
+    setups.addEventListener('click', () => {
+      this.setupsOpen = !this.setupsOpen;
+      this.paint();
+    });
+    row.append(setups);
+    wrap.append(row);
+    if (this.inMatch && this.meterOpen) {
+      const box = el('div', 'devp-meterbox');
+      this.meterBox = box;
+      const reset = el('button', 'mm-small', 'Reset meter');
+      reset.addEventListener('click', () => {
+        this.meter.clear();
+        this.paintMeter();
+      });
+      wrap.append(box, reset);
+      this.paintMeter();
+    } else this.meterBox = null;
+    if (this.setupsOpen) wrap.append(this.setupsBox());
+    return wrap;
+  }
+
+  private loadSetups(): DevSetup[] {
+    try {
+      const v = JSON.parse(localStorage.getItem('arena.devsetups') ?? '[]') as unknown;
+      return Array.isArray(v) ? (v as DevSetup[]).filter((x) => x && typeof x.name === 'string' && Array.isArray(x.patches)) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveSetups(list: DevSetup[]) {
+    try {
+      localStorage.setItem('arena.devsetups', JSON.stringify(list.slice(0, 40)));
+    } catch {
+      /* not remembered */
+    }
+  }
+
+  /** Name what you have now (numbers, your build, the bots' builds) and bring it back with one click. */
+  private setupsBox(): HTMLElement {
+    const box = el('div', 'devp-setups');
+    const row = el('div', 'devp-row');
+    const name = el('input');
+    name.type = 'text';
+    name.maxLength = 40;
+    name.placeholder = 'Name this setup';
+    name.value = this.setupName;
+    name.addEventListener('input', () => (this.setupName = name.value));
+    name.addEventListener('keydown', (e) => e.stopPropagation()); // typing here never casts spells
+    const save = el('button', 'mm-small mm-go', 'Save');
+    save.addEventListener('click', () => {
+      const label = this.setupName.trim();
+      if (!label) return;
+      const patches = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
+      const you = this.hooks.youId();
+      const builds = this.inMatch
+        ? this.hooks.builds().filter((b) => b.bot || b.id === you).map((b) => ({ me: b.id === you, classId: b.classId, build: { spec: b.spec ?? SPECS[b.classId][0].id, talents: [...b.talents], gear: {} } as Build }))
+        : [];
+      const list = this.loadSetups().filter((x) => x.name !== label);
+      list.unshift({ name: label, patches, builds });
+      this.saveSetups(list);
+      this.setupName = '';
+      this.paint();
+    });
+    row.append(name, save);
+    box.append(row);
+    const list = this.loadSetups();
+    if (!list.length) box.append(el('small', 'devp-dim', 'Nothing saved yet.'));
+    for (const st of list) {
+      const r = el('div', 'devp-row');
+      r.append(el('span', 'devp-setup-name', st.name), el('small', 'devp-dim', `${st.patches.length} number${st.patches.length === 1 ? '' : 's'}${st.builds.length ? ` · ${st.builds.length} build${st.builds.length === 1 ? '' : 's'}` : ''}`));
+      const load = el('button', 'mm-small', 'Load');
+      load.addEventListener('click', () => {
+        this.edits.clear();
+        this.hooks.send({ t: this.inMatch ? 'dev_patch' : 'dev_session', patches: st.patches });
+        if (this.inMatch) {
+          // your build, then the bots' builds in the order they were saved
+          const you = this.hooks.youId();
+          const bots = this.hooks.builds().filter((b) => b.bot);
+          let i = 0;
+          for (const b of st.builds) {
+            const unit = b.me ? you : bots[i++]?.id;
+            if (unit !== undefined && unit > 0) this.hooks.send({ t: 'dev_bot', unit, classId: b.classId, build: b.build });
+          }
+        }
+      });
+      const del = el('button', 'mm-small', '✕');
+      del.addEventListener('click', () => {
+        this.saveSetups(this.loadSetups().filter((x) => x.name !== st.name));
+        this.paint();
+      });
+      r.append(load, del);
+      box.append(r);
+    }
+    return box;
   }
 
   /** Drag the window by its title bar; where you leave it is remembered. */
@@ -144,6 +327,8 @@ export class DevPanel {
     this.inMatch = on;
     if (on) this.button.classList.remove('hidden');
     if (!on) {
+      this.autoPaused = false;
+      this.meter.clear();
       this.paused = false;
       this.edits.clear();
       this.result = null;
@@ -167,7 +352,15 @@ export class DevPanel {
     this.root.classList.toggle('hidden', !on);
     if (on) {
       this.hooks.send({ t: 'dev_builds' });
+      // opening the window in your own match pauses it, so you can read and edit in peace; closing it resumes
+      if (this.inMatch && !this.paused && this.hooks.youId() > 0) {
+        this.autoPaused = true;
+        this.hooks.send({ t: 'dev_pause', on: true });
+      }
       this.paint();
+    } else if (this.autoPaused) {
+      this.autoPaused = false;
+      if (this.paused) this.hooks.send({ t: 'dev_pause', on: false });
     }
   }
 
@@ -291,7 +484,10 @@ export class DevPanel {
     if (this.inMatch) {
       const row = el('div', 'devp-row');
       const pause = el('button', `mm-small${this.paused ? ' mm-go' : ''}`, this.paused ? '▶ Resume' : '⏸ Pause');
-      pause.addEventListener('click', () => this.hooks.send({ t: 'dev_pause', on: !this.paused }));
+      pause.addEventListener('click', () => {
+        this.autoPaused = false; // your own choice from now on
+        this.hooks.send({ t: 'dev_pause', on: !this.paused });
+      });
       row.append(pause, el('small', 'devp-dim', this.layers.roomPatches.length ? `${this.layers.roomPatches.length} test number${this.layers.roomPatches.length === 1 ? '' : 's'} in this match` : 'Real numbers'));
       r.append(row);
       // the skills in this match: yours first, then everyone else's
@@ -316,6 +512,7 @@ export class DevPanel {
       ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === cls || ABILITIES[id].class === 'trinket'));
     }
     const testing = new Map((this.inMatch ? this.layers.roomPatches : this.session).map((p) => [this.key(p), p]));
+    r.append(this.matchTools());
     if (this.inMatch) r.append(this.botEditor());
     const modes = el('div', 'devp-row');
     for (const [id, label] of [['skills', 'Skills'], ['class', 'Class, specs and talents']] as const) {
@@ -363,6 +560,7 @@ export class DevPanel {
       box.append(head);
       if (sec.from.length) box.append(el('div', 'devp-from', `From: ${sec.from.join(' · ')}`));
       if (sec.does.length) box.append(el('div', 'devp-does', sec.does.join(' · ')));
+      if (sec.options) box.append(this.optionsBox(sec.id, sec.options, testing));
       const list = this.fieldList(sec.fields, testing);
       if (!sec.fields.length) list.append(el('small', 'devp-dim', 'No numbers to tune.'));
       box.append(list);
@@ -481,6 +679,45 @@ export class DevPanel {
       }
       r.append(res);
     }
+  }
+
+  /** A skill's yes/no options (global cooldown, facing, works while stunned...) as tick boxes and its target and school as lists. */
+  private optionsBox(abilityId: string, o: NonNullable<ReturnType<typeof skillInfo>['sections'][number]['options']>, testing: Map<string, DataPatch>): HTMLElement {
+    const box = el('div', 'devp-options');
+    for (const f of o.flags) {
+      const path = [f.key];
+      const k = this.key({ file: 'abilities', id: abilityId, path });
+      const changed = () => testing.has(k) || this.edits.has(k);
+      const row = el('label', `devp-opt${changed() ? ' changed' : ''}`);
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = Number(this.edits.get(k)?.value ?? f.value) === 1;
+      cb.addEventListener('change', () => {
+        this.edits.set(k, { file: 'abilities', id: abilityId, path, value: cb.checked ? 1 : 0 });
+        row.classList.add('changed');
+      });
+      row.append(cb, el('span', '', f.label));
+      box.append(row);
+    }
+    for (const c of o.choices) {
+      const path = [c.key];
+      const k = this.key({ file: 'abilities', id: abilityId, path });
+      const row = el('label', `devp-opt${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
+      const sel = el('select', 'devp-sel');
+      for (const v of c.options) {
+        const op = el('option', '', v.replace(/_/g, ' '));
+        op.value = v;
+        sel.append(op);
+      }
+      sel.value = String(this.edits.get(k)?.value ?? c.value);
+      sel.addEventListener('change', () => {
+        this.edits.set(k, { file: 'abilities', id: abilityId, path, value: sel.value });
+        row.classList.add('changed');
+      });
+      row.append(el('span', '', c.label), sel);
+      box.append(row);
+    }
+    return box;
   }
 
   /** One row per number: its name and a box to type the new value in (green once changed). */

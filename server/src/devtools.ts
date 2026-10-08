@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
+import { ABILITIES, ABILITY_CHOICES, ABILITY_FLAGS, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
 import type { ClassId, DataPatch, ProposalRow } from '@arena/shared';
 import type { Store } from './store';
 
@@ -231,11 +231,11 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
 }
 
 /** The number at a patch's spot in a data file's text (the file as the repository has it). */
-function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | undefined {
+function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | string | undefined {
   try {
     let o: unknown = targetsIn(JSON.parse(text) as unknown, file, p.id)[0];
     for (const k of p.path) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[k] : undefined;
-    return typeof o === 'number' ? o : undefined;
+    return typeof o === 'number' || typeof o === 'string' ? o : typeof o === 'boolean' ? (o ? 1 : 0) : undefined;
   } catch {
     return undefined;
   }
@@ -272,7 +272,15 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
       let o: unknown = start;
       for (let i = 0; i < p.path.length - 1; i++) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[p.path[i]] : undefined;
       const last = p.path[p.path.length - 1];
-      if (o && typeof o === 'object' && typeof (o as Record<string | number, unknown>)[last] === 'number') (o as Record<string | number, unknown>)[last] = p.value;
+      if (!o || typeof o !== 'object') continue;
+      const rec = o as Record<string | number, unknown>;
+      if (file === 'abilities' && p.path.length === 1 && Object.hasOwn(ABILITY_FLAGS, String(last))) {
+        // a yes/no option: true or false (an option the file does not have stays out when it is off)
+        if (p.value === 1) rec[last] = true;
+        else if (last === 'gcd') rec[last] = false;
+        else delete rec[last];
+      } else if (file === 'abilities' && p.path.length === 1 && Object.hasOwn(ABILITY_CHOICES, String(last))) rec[last] = p.value;
+      else if (typeof rec[last] === 'number') rec[last] = p.value;
     }
   }
   const indent = /\n( +)\S/.exec(text)?.[1].length ?? 2;

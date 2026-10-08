@@ -13,13 +13,11 @@
    "Tier V gives each class a new skill in place of one it has. Warrior replaces Heroic Leap with Intimidating Shout (fear), Dragon Roar (a cone of dragon fire) or Battle Banner (you and your allies near it deal 10% more damage and take 10% less). Mage replaces Polymorph or Counterspell, your choice, with Mirror Image, Evocation or Rune of Power. Priest replaces Desperate Prayer (Warden, Lightbearer) or Power Word: Shield (Gloomweaver) with Leap of Faith, Purifying Light (an area dispel that blocks new debuffs) or Ascend to the Heavens (fly away, untouchable). Rogue replaces Sprint with Blind or Evasion, or learns Sap, which appears on the Kidney Shot button while you are stealthed. Duelist now starts with Gouge in place of Evasion.",
    "All numbers on the new skills and trinkets are first guesses: expect them to be tuned over the next patches. Bots use every new skill and talent, and the tooltips and wiki cover them all.",
    "Target marks: in Edit HUD there is a new Target group. Choose the arrow over your target (arrow, chevron, diamond, star, crosshair or none), its colour, size and movement, the circle under the target (ring, thin, thick, glowing disc or off) and how the target's health bars are highlighted.",
-   "Debug window: the text no longer overlaps (long labels wrap), and every skill now shows chips for how it behaves: affected by the global cooldown, cast time, works while stunned, needs stealth, range, cost and more (hover a chip for what it means). Dev tools can also edit a bot's class, spec and talents in the middle of a match.",
-   "\"Save for everyone\" in the debug window is now \"Send to the admin panel\": the changes, with the old and new numbers, wait for the owner and nothing goes live until the owner acts.",
-   "Following someone now keeps a box on screen with a Stop button, and the Watch live list updates by itself while it is open.",
+   "The Watch live list now updates by itself while it is open: matches appear and disappear as they start and end.",
    "Every skill and buff now has its own icon (no two skills share one any more). Fixed wrong or empty tooltip text on Mirror Image, Plague Ready, Purified, Ascended, Purifying Light, Penance Barrier and several talents.",
-   "All the cosmetics only the founder can wear were redrawn so each one is a different shape and animation, not a recolour; a few were renamed.",
-   "Bot training starts the moment it is pressed, shows the time left, can run a batch of replays at the same time and shows when the bots are actively training. The bots play with what they learned as soon as it finishes. (The bots have not been retrained for this patch yet.)",
-   "Debug window: every number of a class (health, resource, auto-attack), each spec (bonuses, weapon swing) and each talent can be edited under \"Class, specs and talents\", and the talents, specs and buffs listed under a skill show their numbers to edit there too. In a match you can also change your own class, spec, talents and skills on the fly (\"Change my build and the bots'\") for faster testing. The debug window can be dragged by its title bar."
+   "New kill feed: who killed whom and with what, top right, fading after a few seconds. It can be moved and resized in Edit HUD and hidden under the Kill feed look option.",
+   "New match recap at the end of every match: damage, healing, damage taken, kills, deaths and biggest hit for everyone, with the most valuable player highlighted.",
+   "The trinket button is now a button of its own, apart from the action bar: move and resize it anywhere in Edit HUD."
   ]
  },
  {
@@ -117,8 +115,7 @@
    "Another spec's card counts only talents you can see picked: the class tiers (I and II) you have now. Its own tiers are not counted until you pick that spec, so a talent you have not chosen (Crippling Technique on Hamstring, Leaping Strides on Charge and Heroic Leap) no longer shows as a buff. Switching specs keeps your tier I and II picks as shown and brings back that spec's own tiers as you left them.",
    "Buff and debuff tooltips on someone else's effect show its plain values: your own talents only change the numbers of effects you put there.",
    "Bots learn from how people beat them. After every match against people the server replays it and looks for the moments a person outplayed a bot: casts kicked while a kick was ready, kicks wasted on a fake, deaths with a big defensive still unused, deaths to a burst it never answered, long casts taken in the open, time in ground effects, a melee bot kited or a caster pinned. Each becomes a lesson for that class (losses count three times as much as wins). A lesson brain is tried after every match, and new brains are bred towards the lessons, so bots adapt within tens of games.",
-   "Bots also study how people kick and fake (how far into a cast people kick, when they stop a fake) and time their own fakes before that point.",
-   "The server keeps the newest 400 matches between people and bots for offline study, solo practice included. The bot training script can now train against opponents that play like real people of each class, focused on the match-ups bots really lose, and compare its simulated win rates with real ones. The server status lists each bot class's real win rate against people, by class and difficulty."
+   "Bots also study how people kick and fake (how far into a cast people kick, when they stop a fake) and time their own fakes before that point."
   ]
  },
  {
@@ -230,12 +227,11 @@
    "A stealthed rogue's own casts, buffs and turns are no longer sent to the enemy team while it is hidden.",
    "Stealth detection is measured in 3D: a rogue on the deck right above you is no longer 'within 2 yards'.",
    "The leaderboard is cached for 10 seconds and read in one batch; each connection can only have a few account requests waiting, and none run after it closes.",
-   "Per-address limits use the address the host's proxy saw, not one the client can make up. Failed logins are also limited per account name, and wrong owner codes per account.",
+   "Per-address limits use the address the host's proxy saw, not one the client can make up. Failed logins are also limited per account name.",
    "Every change to an account (results, friends, settings, looks, icons) is written one at a time, so a friend request can no longer erase a recorded win.",
    "The bots' study of each finished match now runs on a worker thread, so long matches no longer freeze every room for up to several seconds.",
    "Replays: refused button presses are no longer recorded, so long matches stay well under the size limit. Solo practice is not stored (ranked, party and duel matches are), and if a replay is still too big you are told.",
    "Suggestions are limited per account and per network (reconnecting no longer resets the limit), and old rate-limit entries are forgotten.",
-   "Without an owner code on the server nobody can register the founder name, and owner-only looks need the owner session, not just the name.",
    "Pressing the spell you are already casting no longer restarts it; near the end of the cast it is queued to go off right after."
   ]
  },
@@ -316,7 +312,7 @@
    "Drag skills in the Skill bar order strip to rearrange your bar; each slot shows its key and the match uses your order.",
    "Hold Alt over a skill for an in-depth tooltip: how damage is built, what boosts it and diminishing returns. Rebind it in Controls.",
    "Suggestions and Watch live now require signing in. Drop a .txt file on the suggestion box for longer ideas.",
-   "Twice the cosmetics: new unlockable looks earned by matches played, plus owner-only items.",
+   "Twice the cosmetics: new unlockable looks earned by matches played.",
    "HUD editor works from the main menu with a grid, snapping and many more frame and bar looks.",
    "Sound revamp: every ability has its own cast, impact and ambient voices, plus footsteps per arena, low-health heartbeat and landings.",
    "New arena The Serpent: two interlocking walls form an S-shaped corridor. Bots navigate around walls."
@@ -621,8 +617,7 @@
   "at": "2026-10-07T14:45:11Z",
   "title": "Spell queue and spectating",
   "changes": [
-   "The queue only repeats a spell in its last 0.25 s; conditional skills are blocked.",
-   "Owner live spectating and scoreboard."
+   "The queue only repeats a spell in its last 0.25 s; conditional skills are blocked."
   ]
  }
 ]

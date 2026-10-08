@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS } from './data';
 import { auraOrigins, describeAura, describeAbility, describeMods, plainText } from './describe';
-import { tunableNumbers } from './devpatch';
+import { ABILITY_CHOICES, ABILITY_FLAGS, tunableNumbers } from './devpatch';
 import type { TunableNumber } from './devpatch';
 import type { ClassId } from './types';
 
@@ -16,6 +16,8 @@ export interface SkillSection {
   /** What it does, in tooltip words (the numbers as they are now). */
   does: string[];
   fields: TunableNumber[];
+  /** For the skill itself: its yes/no options and choices (global cooldown, facing, target...) with their values now. */
+  options?: { flags: { key: string; label: string; value: 0 | 1 }[]; choices: { key: string; label: string; options: string[]; value: string }[] };
 }
 
 /** A talent, spec or aura that changes the skill (not tunable here, shown so a dev sees everything acting on it). */
@@ -85,6 +87,23 @@ export function skillFlags(abilityId: string): SkillFlag[] {
   return out;
 }
 
+const NUMBER_LABELS: Record<string, string> = {
+  castTime: 'Cast time (ms, 0 = instant)', range: 'Range (yards)', minRange: 'Minimum range (yards)', radius: 'Area radius (yards)', cooldown: 'Cooldown (ms)', cost: 'Cost', coneDeg: 'Cone width (degrees)',
+};
+
+/** The ability's own numbers, the common ones named in plain words. */
+function skillNumbers(id: string): TunableNumber[] {
+  return tunableNumbers('abilities', id).map((f) => (f.path.length === 1 && NUMBER_LABELS[String(f.path[0])] ? { ...f, label: NUMBER_LABELS[String(f.path[0])] } : f));
+}
+
+function skillOptions(id: string): NonNullable<SkillSection['options']> {
+  const d = ABILITIES[id] as unknown as Record<string, unknown>;
+  return {
+    flags: Object.entries(ABILITY_FLAGS).map(([key, label]) => ({ key, label, value: (d[key] ? 1 : 0) as 0 | 1 })),
+    choices: Object.entries(ABILITY_CHOICES).map(([key, c]) => ({ key, label: c.label, options: c.options, value: String(d[key]) })),
+  };
+}
+
 /** Who has an ability: the specs whose bar starts with it, and the talents that swap it in. */
 function abilityOrigins(id: string): string[] {
   const out: string[] = [];
@@ -111,7 +130,7 @@ export function skillInfo(abilityId: string): SkillInfo {
   if (!def) return { flags: [], sections: [], modifiers: [] };
   const text = describeAbility(def);
   const sections: SkillSection[] = [
-    { kind: 'ability', id: abilityId, name: def.name, link: 'the skill', from: abilityOrigins(abilityId), does: [...text.stats, ...text.lines].map(plainText), fields: tunableNumbers('abilities', abilityId) },
+    { kind: 'ability', id: abilityId, name: def.name, link: 'the skill', from: abilityOrigins(abilityId), does: [...text.stats, ...text.lines].map(plainText), fields: skillNumbers(abilityId), options: skillOptions(abilityId) },
   ];
   const links = new Map<string, string[]>();
   const tie = (aura: string, how: string) => {
