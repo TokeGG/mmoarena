@@ -202,7 +202,7 @@ export class Room {
       this.ratingAtStart.set(u.id, p.account.rating);
     }
     this.notify?.(p);
-    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs, ...(this.ranked ? { ranked: true } : {}) });
+    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     this.onJoin?.(p);
     if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });

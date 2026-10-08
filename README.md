@@ -32,7 +32,6 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 | Steer / look around | Hold the right / left mouse button and drag; both buttons together run forward |
 | Zoom | Mouse wheel (all the way in is first person) |
 | Target | Left-click a character or its frame (click yourself to target yourself). Right-click an enemy to target it and start auto-attack. |
-| Free camera | G while you are dead (not in ranked) or watching: W/A/S/D fly along the view, Space / C up and down, Shift fast, Alt / Z slow, wheel sets the speed; click a unit to follow it |
 | Menu | Esc (clears your target first) |
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).

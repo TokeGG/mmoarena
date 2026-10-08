@@ -85,7 +85,6 @@
   @keyframes rise { from { transform:translate(-50%,-50%); opacity:1; } to { transform:translate(-50%,-190%); opacity:0; } }
 
   #log { position:fixed; left:12px; bottom:12px; width:360px; font-size:11px; color:var(--dim); pointer-events:none; text-shadow:0 0 3px #000; }
-  #freecam-hint { position:fixed; left:50%; bottom:112px; transform:translateX(-50%); z-index:29; padding:3px 11px; border-radius:12px; background:rgba(14,17,24,.82); border:1px solid #3a4258; color:#e9dcc0; font-size:11.5px; white-space:nowrap; max-width:96vw; overflow:hidden; text-overflow:ellipsis; pointer-events:none; text-shadow:0 1px 2px #000; }
   #help { position:fixed; right:12px; bottom:12px; font-size:11px; color:var(--dim); text-align:right; pointer-events:none; max-width:calc(50vw - 312px); }
 
   #menu { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at center, rgba(8,6,4,.55), rgba(3,3,6,.88)); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; animation:menuFade .15s ease-out; }
@@ -561,7 +560,7 @@
   #menu .tgl .sw { position:relative; width:42px; height:22px; border-radius:11px; background:#2b2830; transition:background .12s; }
   #menu .tgl .sw::after { content:''; position:absolute; left:3px; top:3px; width:16px; height:16px; border-radius:50%; background:#8b8372; transition:left .12s, background .12s; }
   #menu .tgl input:checked + .sw { background:#c9a24a; } #menu .tgl input:checked + .sw::after { left:23px; background:#2a1900; }
-  #menu .tgl #auto-toggle-val, #menu .tgl #netstats-toggle-val, #menu .tgl #fc-remember-val { color:#8b8372; font-weight:400; font-size:12px; min-width:0; }
+  #menu .tgl #auto-toggle-val, #menu .tgl #netstats-toggle-val { color:#8b8372; font-weight:400; font-size:12px; min-width:0; }
   #menu .k-head { display:flex; align-items:center; gap:14px; } #menu .k-titles { flex:1; text-align:left; } #menu .k-titles h2 { text-align:left; letter-spacing:6px; text-indent:0; }
   #menu .k-titles .m-sub { text-align:left; font-size:12px; }
   #menu .k-btn { height:40px; padding:0 18px; border:1px solid #6b5a35; border-radius:9px; background:#1d1b20; color:#e9dcc0; font:13px Georgia,serif; cursor:pointer; }
@@ -908,7 +907,6 @@
 </div>
 
 <div id="recap" class="hidden"></div>
-  <div id="freecam-hint" class="hidden"></div>
 <div id="join"></div>
 <button id="mute-btn" title="Sound on/off" aria-label="Sound on/off">🔊</button>
 
@@ -931,8 +929,6 @@
           <details class="cur-details"><summary>Cursor</summary><div id="cursor-settings"></div></details>
           <div class="srow"><span class="sl">Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
           <div class="srow"><span class="sl">Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>
-          <div class="srow"><span class="sl">Free camera speed</span><input id="fc-speed" type="range" min="0.5" max="3" step="0.1" value="1" /><span id="fc-speed-val">1.0×</span></div>
-          <div class="srow"><span class="sl">Remember free camera between matches</span><label class="tgl"><input id="fc-remember" type="checkbox" /><b class="sw"></b> <span id="fc-remember-val">Off</span></label></div>
           <div class="srow"><span class="sl">Ambience</span><input id="vol-amb" type="range" min="0" max="1" step="0.05" value="0.5" /><span id="vol-amb-val">50%</span></div>
         </div>
         <div class="m-rule" id="menu-rule"><i>✦</i></div>
