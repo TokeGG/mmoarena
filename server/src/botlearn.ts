@@ -229,7 +229,7 @@ export class BotLearner {
    * something, or a reason it could not be used.
    */
   async trainOn(replay: ReplayData, id: string): Promise<{ ok: true; lessons: number; habits: number } | { ok: false; reason: string }> {
-    if (replay.hash !== contentHash()) return { ok: false, reason: 'That replay was recorded on an older version of the game, so it cannot be played back the same.' };
+    if (replay.hash !== contentHash(replay.tickMs)) return { ok: false, reason: 'That replay was recorded on an older version of the game, so it cannot be played back the same.' };
     const opts = forcedStudy(replay);
     if (!opts) return { ok: false, reason: 'Nothing to learn: no people played in it and nobody won.' };
     let measured: Measured;

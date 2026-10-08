@@ -151,4 +151,38 @@ describe('dev map swap', () => {
     assert.deepEqual({ x: d.pos.x, z: d.pos.z }, d.home);
     for (let i = 0; i < 100; i++) sim.step();
   });
+
+  it('a paused room sends the new positions at once after a swap, then the same positions every time: nothing moves it', async () => {
+    const { lobby, owner, outO } = await world();
+    join(lobby, owner);
+    const room = owner.room;
+    for (let i = 0; i < 20; i++) lobby.tick();
+    // the player is holding a movement key and the bots were mid-fight when the dev paused
+    const me = room.sim.units.get(owner.unitId);
+    for (let i = 0; i < 8; i++) lobby.handle(owner, { t: 'input', seq: 1000 + i, fwd: 1, strafe: 0, facing: me.facing } as ClientMsg);
+    lobby.handle(owner, { t: 'dev_pause', on: true } as ClientMsg);
+    assert.ok([...room.sim.units.values()].every((u: any) => u.inputQueue.length === 0), 'queued inputs were dropped by the pause');
+    for (let i = 0; i < 7; i++) lobby.tick(); // the 5-tick cadence is somewhere in the middle
+    const to = ARENAS.find((a) => a.id !== room.arenaId)!;
+    outO.length = 0;
+    lobby.handle(owner, { t: 'dev_map', id: to.id } as ClientMsg);
+    lobby.handle(owner, { t: 'input', seq: 2000, fwd: 1, strafe: 0, facing: me.facing } as ClientMsg); // a late key press while paused
+    lobby.tick();
+    const first = outO.filter((m) => m.t === 'snapshot') as any[];
+    assert.equal(first.length, 1, 'a frame goes out on the very next tick, not up to 5 ticks later');
+    assert.equal(first[0].snap.paused, true);
+    const pos = (snap: any) => JSON.stringify(snap.units.map((u: any) => [u.id, u.x, u.z]));
+    const want = pos(first[0].snap);
+    atSpawns(room);
+    outO.length = 0;
+    for (let i = 0; i < 100; i++) lobby.tick();
+    const frames = outO.filter((m) => m.t === 'snapshot') as any[];
+    assert.ok(frames.length >= Math.floor(100 / room.ticksIn(250)));
+    for (const f of frames) {
+      assert.equal(f.snap.paused, true);
+      assert.equal(pos(f.snap), want, 'identical positions on every paused frame');
+      assert.equal(f.snap.time, first[0].snap.time, 'the server clock stands still');
+    }
+    atSpawns(room);
+  });
 });

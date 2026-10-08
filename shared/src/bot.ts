@@ -40,16 +40,16 @@ export type Difficulty = 'easy' | 'normal' | 'hard';
 
 /**
  * react: how long a bot needs to notice something (a cast, a crowd control on an ally) before it responds.
- * think: ticks between decisions (movement is still sent every tick).
+ * think: milliseconds between decisions (movement is still sent every tick).
  * interruptChance: fraction of enemy casts the bot even tries to interrupt.
  * guard: multiplies the health thresholds for defensives and cover (lower = it waits longer before saving itself).
  * tricks: multiplies its willingness to fake casts and to break line of sight.
  * lapse: chance a decision is skipped (a slower, sloppier player presses fewer buttons).
  */
 const PARAMS: Record<Difficulty, { react: number; think: number; interruptChance: number; guard: number; tricks: number; lapse: number }> = {
-  easy: { react: 1300, think: 6, interruptChance: 0.2, guard: 0.6, tricks: 0, lapse: 0.35 },
-  normal: { react: 550, think: 2, interruptChance: 0.6, guard: 0.9, tricks: 0.6, lapse: 0.08 },
-  hard: { react: 160, think: 1, interruptChance: 1, guard: 1, tricks: 1, lapse: 0 },
+  easy: { react: 1300, think: 300, interruptChance: 0.2, guard: 0.6, tricks: 0, lapse: 0.35 },
+  normal: { react: 550, think: 100, interruptChance: 0.6, guard: 0.9, tricks: 0.6, lapse: 0.08 },
+  hard: { react: 160, think: 50, interruptChance: 1, guard: 1, tricks: 1, lapse: 0 },
 };
 
 /** Abilities on a unit's bar that interrupt (Kick, Pummel, Counterspell, and whatever a talent swapped in). */
@@ -140,6 +140,12 @@ export class Bot {
     this.highGround = sim.units.get(unitId)?.classId === 'mage' && this.rng() < 0.5;
   }
 
+  /** When the next decision is due: `think` ms after this one was due (not after the tick that happened to run it), so the pace is the same at any tick length. */
+  private afterThink(): number {
+    const now = this.sim.time;
+    return (this.nextThink > now - this.sim.tickMs ? this.nextThink : now) + this.P.think;
+  }
+
   tick(): void {
     const sim = this.sim;
     const u = sim.units.get(this.unitId);
@@ -158,7 +164,7 @@ export class Bot {
 
     this.trail.push({ t: sim.time, x: u.pos.x, z: u.pos.z, walking: this.lastWalk });
     while (this.trail.length && sim.time - this.trail[0].t > 1200) this.trail.shift();
-    if (sim.time >= this.unstickUntil && this.trail.length >= 20 && this.trail.every((p) => p.walking) && sim.canMove(u) && !this.castHolds(u) &&
+    if (sim.time >= this.unstickUntil && sim.time - this.trail[0].t >= 950 && this.trail.every((p) => p.walking) && sim.canMove(u) && !this.castHolds(u) &&
         Math.hypot(u.pos.x - this.trail[0].x, u.pos.z - this.trail[0].z) < 0.4) {
       // walking into something (a pillar edge, a ramp wall, another unit): slide sideways for a moment
       this.unstickUntil = sim.time + 600;
@@ -224,7 +230,7 @@ export class Bot {
         // run for it, abandoning any cast (moving cancels it), and keep fighting with instants on the way
         this.moving = true;
         if (sim.time >= this.nextThink) {
-          this.nextThink = sim.time + this.P.think * TUNING.tickMs;
+          this.nextThink = this.afterThink();
           this.decide(u, enemies, allies, tgt);
         }
         this.send(u, { facing: angleTo(u.pos, this.waypoint(u.pos, this.cover, u.level, this.coverLv)), fwd: 1, strafe: 0, guard: true });
@@ -240,7 +246,7 @@ export class Bot {
         const away = this.blinkAngle(u, spinner.pos) ?? angleTo(spinner.pos, u.pos);
         this.moving = true;
         if (sim.time >= this.nextThink) {
-          this.nextThink = sim.time + this.P.think * TUNING.tickMs;
+          this.nextThink = this.afterThink();
           this.decide(u, enemies, allies, tgt); // instants on the way out
         }
         this.send(u, { facing: away, fwd: 1, strafe: 0, guard: true });
@@ -279,7 +285,7 @@ export class Bot {
 
     // Decide first, move second: if a cast just started, movement sees it and stands still.
     if (sim.time >= this.nextThink) {
-      this.nextThink = sim.time + this.P.think * TUNING.tickMs;
+      this.nextThink = this.afterThink();
       if (this.P.lapse === 0 || this.rng() >= this.P.lapse) this.decide(u, enemies, allies, tgt);
     }
     this.send(u, this.movement(u, enemies, allies, tgt));
@@ -649,7 +655,7 @@ export class Bot {
       const into = (this.sim.time - e.cast.start) / span;
       const def = ABILITIES[e.cast.ability];
       // a channel does its work as it goes: stop it early; a cast only lands at the end, so there is time to wait it out
-      const due = def?.channel ? into >= s.wait * 0.3 : into >= s.wait || e.cast.end - this.sim.time <= 300 + this.P.think * TUNING.tickMs;
+      const due = def?.channel ? into >= s.wait * 0.3 : into >= s.wait || e.cast.end - this.sim.time <= 300 + this.P.think;
       if (s.will && this.sim.time - s.at >= this.P.react && due && this.worthInterrupt(e)) out.push(e);
     }
     return out;

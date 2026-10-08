@@ -4,6 +4,8 @@
  *   npx tsx scripts/netstudy.ts                 # everything (about 6-10 minutes)
  *   npx tsx scripts/netstudy.ts --quick         # fewer seeds / shorter runs
  *   npx tsx scripts/netstudy.ts --only net,cpu  # sections: net, bw, cpu, timer, rules, bots
+ *   npx tsx scripts/netstudy.ts --target        # pairwise agreement ("both players see each other within 1 yard") at 20 Hz and 62.5 Hz, PASS/FAIL
+ *   npx tsx scripts/netstudy.ts --only cpu,rules,bots --ticks 50,16   # only these tick lengths
  *   npx tsx scripts/netstudy.ts --json out.json # also write the raw numbers
  *
  * How it works: the orchestrator (this process) starts one child process per tick length, because the simulation reads
@@ -103,6 +105,9 @@ export interface NetCfg {
   stage1?: boolean;
   /** How the own character is drawn between predicted steps: 'lerp' = what main.ts does (blend prevPred->pred, always up to one tick behind); 'ahead' = project the last step forward by the time since the step (what a per-frame prediction would show). */
   own?: 'lerp' | 'ahead';
+  /** Dead reckoning of OTHER players to a later time than the buffered one: they are drawn at render time + lead, where lead = min(leadCap, leadF x round trip) and anything past the newest snapshot continues along the last two snapshots' velocity. 0 / absent: off. */
+  leadF?: number;
+  leadCap?: number;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -199,7 +204,18 @@ class NetClient {
       this.iv = new S.IntervalTracker();
       this.idl = new S.InterpDelay();
       this.rtc = new S.RenderTime();
+      const T0 = sh.M.TUNING.tickMs;
+      this.nc.reset(T0);
+      this.iv.reset(T0);
+      this.idl.reset(T0);
     }
+  }
+
+  /** How far past the buffered render time other players are drawn (ms): a fraction of the measured round trip (the harness knows what ping/pong would report: 2 x one-way + mean jitter), clamped. */
+  get lead(): number {
+    const c = this.sh.cfg;
+    if (!c.leadF) return 0;
+    return Math.min(c.leadCap ?? 150, c.leadF * (2 * c.owd + c.jitter));
   }
 
   keys(W: number): Seg {
@@ -226,7 +242,7 @@ class NetClient {
   onSnapshot(W: number, snap: NSnap) {
     const cfg = this.sh.cfg;
     this.snaps.push({ at: W, snap });
-    if (this.snaps.length > 30) this.snaps.shift();
+    if (this.snaps.length > Math.max(30, Math.ceil(1500 / this.sh.M.TUNING.tickMs))) this.snaps.shift();
     this.latest = snap;
     this.latestAt = W;
     // clock estimate (variant)
@@ -283,14 +299,31 @@ class NetClient {
       if (this.sh.cfg.qpolicy === 'cap2') { const u = sim.units.get(this.id); while (u.inputQueue.length > 2) u.inputQueue.shift(); }
     });
     this.pending.push(input);
-    if (this.pending.length > 60) this.pending.shift();
+    if (this.pending.length > Math.ceil(3000 / this.sh.M.TUNING.tickMs)) this.pending.shift();
     this.applyInput(input);
   }
 
   /** main.ts:603-621 interpolate(rt), plus optional extrapolation past the newest snapshot */
-  interpolate(rt: number, id: number): { x: number; z: number } | null {
+  interpolate(rt0: number, id: number): { x: number; z: number } | null {
     const snaps = this.snaps;
     if (!snaps.length) return null;
+    const rt = rt0 + this.lead;
+    if (this.lead > 0) {
+      // dead reckoning: between snapshots as usual; past the newest, straight along the velocity of the last two (no fading, bounded by the lead)
+      const n = snaps.length;
+      const newest = snaps[n - 1].snap;
+      if (rt > newest.time && n >= 2) {
+        const prev = snaps[n - 2].snap;
+        const un = newest.units.find((u) => u.id === id);
+        const up = prev.units.find((u) => u.id === id) ?? un;
+        if (!un || !up) return null;
+        const span = newest.time - prev.time || 1;
+        const e = Math.min(rt - newest.time, 400);
+        const vx = (un.x - up.x) / span, vz = (un.z - up.z) / span;
+        if (Math.hypot(vx, vz) * 1000 > 45) return { x: un.x, z: un.z };
+        return { x: un.x + vx * e, z: un.z + vz * e };
+      }
+    }
     let i = snaps.length - 1;
     while (i > 0 && snaps[i].snap.time > rt) i--;
     const a = snaps[i].snap;
@@ -355,7 +388,7 @@ class NetClient {
     this.disp = d;
     this.frameCount++;
     if (d) {
-      this.frames.push({ W, rt, x: d.x, z: d.z, ex: 0 });
+      this.frames.push({ W, rt: rt + this.lead, x: d.x, z: d.z, ex: 0 });
       if (this.prevDisp && Math.hypot(d.x - this.prevDisp.x, d.z - this.prevDisp.z) > 0.3) this.pops++;
       this.prevDisp = d;
     }
@@ -365,7 +398,7 @@ class NetClient {
     if (W >= this.nextCastAt && d) {
       this.nextCastAt = W + 450 + this.sh.rng() * 350;
       const dClient = Math.hypot(this.vis.x - d.x, this.vis.z - d.z);
-      const vt = Math.round(rt);
+      const vt = Math.round(rt + this.lead);
       const caster = this.id, target = this.other;
       this.up.send(W, () => this.sh.server.cast(W, caster, target, vt, dClient));
     }
@@ -438,6 +471,8 @@ class NetServer {
 export interface NetResult {
   age: number[]; stale: number[]; recon: number[]; corr: number[]; corrFreq: number; pops: number; backwards: number; underrun: number;
   c1: number[]; c2: number[]; c3: number[]; castErr: number[]; wrongReject: number; wrongAccept: number; castN: number; falseOld: number;
+  /** pairwise agreement: distance between where this viewer draws the other player and where that player's own screen draws himself, at the same instant; and the viewer's drawing of the other against the server's position now */
+  pair: number[]; ownSrv: number[];
   rewindMean: number; clampedPct: number; windowClampedPct: number; qlen: number[]; starvedPct: number; droppedPerMin: number; minutes: number;
 }
 
@@ -524,7 +559,7 @@ function runNet(M: Mods, S1: any, cfg: NetCfg, seed: number, durMs: number): Net
 
   // ---- post-processing
   const warm = 3000, endW = K * T - 1500;
-  const res: NetResult = { age: [], stale: [], recon: [], corr: [], corrFreq: 0, pops: 0, backwards: 0, underrun: 0, c1: [], c2: [], c3: [], castErr: [], wrongReject: 0, wrongAccept: 0, castN: 0, falseOld: 0, rewindMean: 0, clampedPct: 0, windowClampedPct: 0, qlen: qlenSamples, starvedPct: (100 * starved) / Math.max(1, ticks), droppedPerMin: 0, minutes: (2 * durMs) / 60000 };
+  const res: NetResult = { pair: [], ownSrv: [], age: [], stale: [], recon: [], corr: [], corrFreq: 0, pops: 0, backwards: 0, underrun: 0, c1: [], c2: [], c3: [], castErr: [], wrongReject: 0, wrongAccept: 0, castN: 0, falseOld: 0, rewindMean: 0, clampedPct: 0, windowClampedPct: 0, qlen: qlenSamples, starvedPct: (100 * starved) / Math.max(1, ticks), droppedPerMin: 0, minutes: (2 * durMs) / 60000 };
   let framesN = 0;
   for (const id of [1, 2]) {
     const c = server.clients[id];
@@ -536,6 +571,19 @@ function runNet(M: Mods, S1: any, cfg: NetCfg, seed: number, durMs: number): Net
       res.age.push(fr.W - fr.rt);
       res.stale.push(Math.hypot(fr.x - now.x, fr.z - now.z));
       res.recon.push(Math.hypot(fr.x - shown.x, fr.z - shown.z));
+    }
+    const other = server.clients[c.other];
+    const at = (log: { W: number; x: number; z: number }[], W: number) => {
+      let lo = 0, hi = log.length - 1;
+      if (!log.length || W < log[0].W || W > log[hi].W) return null;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (log[m].W <= W) lo = m; else hi = m; }
+      const a = log[lo], b = log[hi], k = b.W > a.W ? (W - a.W) / (b.W - a.W) : 0;
+      return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k };
+    };
+    for (const fr of c.frames) {
+      if (fr.W < warm || fr.W > endW) continue;
+      const theirOwn = at(other.visLog, fr.W);
+      if (theirOwn) res.pair.push(Math.hypot(fr.x - theirOwn.x, fr.z - theirOwn.z));
     }
     for (const x of c.corr.slice(Math.floor(c.corr.length * 0.07))) res.corr.push(x);
     res.pops += c.pops; res.backwards += c.backwards; res.underrun += c.underrun; framesN += c.frameCount;
@@ -579,7 +627,7 @@ function pool(rs: NetResult[]): NetResult {
   const avg = (k: keyof NetResult) => mean(rs.map((r) => r[k] as number));
   const sum = (k: keyof NetResult) => rs.reduce((a, r) => a + (r[k] as number), 0);
   return {
-    age: cat('age'), stale: cat('stale'), recon: cat('recon'), corr: cat('corr'), corrFreq: avg('corrFreq'), pops: avg('pops'), backwards: avg('backwards'), underrun: avg('underrun'),
+    pair: cat('pair'), ownSrv: cat('ownSrv'), age: cat('age'), stale: cat('stale'), recon: cat('recon'), corr: cat('corr'), corrFreq: avg('corrFreq'), pops: avg('pops'), backwards: avg('backwards'), underrun: avg('underrun'),
     c1: cat('c1'), c2: cat('c2'), c3: cat('c3'), castErr: cat('castErr'), wrongReject: sum('wrongReject'), wrongAccept: sum('wrongAccept'), castN: sum('castN'), falseOld: sum('falseOld'),
     rewindMean: avg('rewindMean'), clampedPct: avg('clampedPct'), windowClampedPct: avg('windowClampedPct'), qlen: cat('qlen'), starvedPct: avg('starvedPct'), droppedPerMin: avg('droppedPerMin'), minutes: sum('minutes'),
   };
@@ -587,6 +635,7 @@ function pool(rs: NetResult[]): NetResult {
 function summarise(r: NetResult) {
   const cp = r.castN || 1;
   return {
+    pairMean: mean(r.pair), pairP95: pct(r.pair, 95), pairP99: pct(r.pair, 99), pairMax: Math.max(0, ...r.pair),
     ageMean: mean(r.age), staleMean: mean(r.stale), staleP95: pct(r.stale, 95), staleMax: Math.max(...r.stale),
     reconMean: mean(r.recon), reconP95: pct(r.recon, 95), reconMax: Math.max(...r.recon),
     corrMean: mean(r.corr), corrP95: pct(r.corr, 95), corrMax: Math.max(0, ...r.corr), corrFreq: 100 * r.corrFreq,
@@ -991,7 +1040,7 @@ function table(head: string[], rows: (string | number)[][]) {
 async function orchestrate() {
   const args = process.argv.slice(2);
   const quick = args.includes('--quick');
-  const only = (args.includes('--only') ? args[args.indexOf('--only') + 1] : 'net,bw,cpu,timer,rules,bots').split(',');
+  const only = (args.includes('--target') ? ['target'] : args.includes('--only') ? args[args.indexOf('--only') + 1].split(',') : 'net,bw,cpu,timer,rules,bots'.split(','));
   const jsonOut = args.includes('--json') ? args[args.indexOf('--json') + 1] : null;
   const seeds = quick ? 1 : 3;
   const durMs = quick ? 30000 : 60000;
@@ -1007,6 +1056,14 @@ async function orchestrate() {
     for (const [nn, owd, jitter, loss] of [['clean link', 50, 0, 0], ['1% loss', 50, 10, 1], ['30 ms jitter', 50, 30, 0]] as [string, number, number, number][]) {
       addCfg(base({ name: `S ${nn} | before`, owd, jitter, loss, qpolicy: 'cap5' }));
       addCfg(base({ name: `S ${nn} | stage 1`, owd, jitter, loss, qpolicy: 'sim', stage1: true, extrap: true, own: 'ahead' }));
+    }
+  }
+  const LEADS = [0, 0.25, 0.5, 0.75, 1, 1.25];
+  const TARGET_LINKS: [string, number, number, number][] = [['50 ms one-way, 20 ms jitter, 0 % loss', 50, 20, 0], ['50 ms one-way, 20 ms jitter, 1 % loss', 50, 20, 1]];
+  if (only.includes('target')) {
+    // pairwise agreement at 20 Hz (Stage 1) and 62.5 Hz, without and with dead reckoning of other players, on the links the brief names
+    for (const [nn, owd, jitter, loss] of TARGET_LINKS) for (const T of [50, 16]) for (const a of LEADS) {
+      addCfg(base({ name: `T ${nn} | ${T} | ${a}`, tickMs: T, snapMs: T, owd, jitter, loss, qpolicy: 'sim', stage1: true, extrap: true, own: 'ahead', leadF: a }));
     }
   }
   if (only.includes('net')) {
@@ -1043,8 +1100,9 @@ async function orchestrate() {
   }
   const tickSet = new Set<number>([...cfgsByTick.keys()]);
   const need = (s: string) => only.includes(s);
-  const roomTicks = need('bw') || need('cpu') ? [50, 1000 / 30, 1000 / 60, 1000 / 120, 1000 / 128] : [];
-  const ruleTicks = need("rules") || need("bots") ? [50, 40, 1000 / 30, 25, 20, 1000 / 60, 16, 10, 1000 / 120, 8, 1000 / 128] : [];
+  const only2 = args.includes('--ticks') ? args[args.indexOf('--ticks') + 1].split(',').map(Number) : null; // e.g. --ticks 50,16
+  const roomTicks = need('bw') || need('cpu') ? only2 ?? [50, 1000 / 30, 1000 / 60, 1000 / 120, 1000 / 128] : [];
+  const ruleTicks = need("rules") || need("bots") ? only2 ?? [50, 40, 1000 / 30, 25, 20, 1000 / 60, 16, 10, 1000 / 120, 8, 1000 / 128] : [];
 
   // net + rules + bots children can run in parallel (they measure virtual time); the cpu children run one at a time afterwards
   const jobs: (() => Promise<any>)[] = [];
@@ -1074,6 +1132,27 @@ async function orchestrate() {
         rows.filter((r) => r.cfg.name.startsWith(`B ${nn}`)).map((r) => [r.cfg.name.split(' | ')[1], f(r.s.ageMean, 0), f(r.s.staleMean), f(r.s.staleP95), f(r.s.reconMean), f(r.s.reconP95), f(r.s.reconMax), f(r.s.corrMean, 3), f(r.s.corrP95, 3), f(r.s.corrFreq, 1), f(r.s.pops, 1), f(r.s.backwards, 1), f(r.s.underrun, 1), f(r.s.c1, 0), f(r.s.c2, 0), f(r.s.c3, 0), f(r.s.castErrMean), f(r.s.castErrP95), f(r.s.wrongReject, 1), f(r.s.wrongAccept, 1), f(r.s.rewind, 0), f(r.s.clamped, 1), f(r.s.windowClamped, 1), f(r.s.dropped, 1), f(r.s.qlen, 2), f(r.s.starved, 1)])));
     }
     void get;
+    if (rows.some((r) => r.cfg.name.startsWith('T '))) {
+      log('\n## T. Pairwise agreement: where player A\'s screen draws B against where B\'s own screen draws B (same instant), two humans running at run speed in zig-zags, flicks and stop-starts. Target: p95 below 1.0 yard.\n');
+      log('"lead" = dead reckoning of other players: drawn that fraction of the round trip (clamped to 150 ms) later than the buffered time, extrapolated along the last two snapshots. "server vs view" = the drawn other player against the server\'s authoritative position at that moment.\n');
+      const tr = rows.filter((r) => r.cfg.name.startsWith('T '));
+      log(table(['link', 'server rate', 'lead (x RTT)', 'pair mean yd', 'pair p95', 'pair p99', 'pair max', 'server vs view p95', 'age ms', 'underrun %', 'pair p95 < 1.0 yd'],
+        tr.map((r) => { const [nn, T, a] = r.cfg.name.slice(2).split(' | '); return [nn, hz(Number(T)), a, f(r.s.pairMean), f(r.s.pairP95), f(r.s.pairP99), f(r.s.pairMax), f(r.s.staleP95), f(r.s.ageMean, 0), f(r.s.underrun, 1), r.s.pairP95 < 1 ? 'PASS' : 'FAIL']; })));
+      log('\n### --target verdict (smallest pairwise p95 over the lead settings, per link and server rate)\n');
+      const verdict: (string | number)[][] = [];
+      let allPass = true;
+      for (const [nn] of TARGET_LINKS) for (const T of [50, 16]) {
+        const mine = tr.filter((r) => r.cfg.name.startsWith(`T ${nn} | ${T} | `));
+        if (!mine.length) continue;
+        const none = mine.find((r) => r.cfg.name.endsWith(' | 0'))!;
+        const best = mine.reduce((a, b) => (b.s.pairP95 < a.s.pairP95 ? b : a));
+        const pass = best.s.pairP95 < 1;
+        allPass = allPass && pass;
+        verdict.push([nn, hz(T), f(none.s.pairP95), none.s.pairP95 < 1 ? 'PASS' : 'FAIL', best.cfg.name.split(' | ')[2], f(best.s.pairP95), pass ? 'PASS' : 'FAIL']);
+      }
+      log(table(['link', 'server rate', 'p95 without lead', 'result', 'best lead (x RTT)', 'p95 with it', 'result'], verdict));
+      log(`\nTARGET (pairwise p95 < 1.0 yd, best setting on every link and rate): ${allPass ? 'PASS' : 'FAIL'}`);
+    }
     if (rows.some((r) => r.cfg.name.startsWith('S '))) {
       log('\n## S. Stage 1 against the old pipeline (20 Hz sim; real client modules and the real sim catch-up)\n');
       log(table(['link / pipeline', 'age ms', 'stale mean', 'p95', 'recon p95', 'c1 ms', 'c2 ms', 'c3 ms', 'castErr p95', 'rej %', 'acc %', 'underrun %', 'rt back/min', 'pops/min', 'corr p95', 'qlen', 'drop/min'],

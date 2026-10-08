@@ -78,7 +78,7 @@ async function* source(): AsyncGenerator<ReplayData> {
   process.exit(1);
 }
 
-const hash = contentHash();
+const hashFor = (r: { tickMs?: number }) => contentHash(r.tickMs);
 let read = 0;
 let stale = 0;
 const lessons = new Map<ClassId, Lessons>();
@@ -89,7 +89,7 @@ const studies: BotStudy[] = [];
 
 for await (const replay of source()) {
   read++;
-  if (replay.hash !== hash) {
+  if (replay.hash !== hashFor(replay)) {
     stale++;
     continue;
   }

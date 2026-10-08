@@ -143,9 +143,10 @@ describe('Walled arenas (walls and route points, tested on a fixture layout)', (
 
 const WALKWAY_MAPS = ARENAS.filter((x) => x.deck);
 type St = { pos: { x: number; z: number }; level: 0 | 1 };
-/** Walk with a jump starting on tick `jumpAt` (heights from the real jump curve, as the sim does). */
-function walkL(a: ArenaDef, st: St, facing: number, ticks: number, jumpAt = -1): St & { trail: St[] } {
+/** Walk for `ticks50` steps of 50 ms with a jump starting on tick `jumpAt` (heights from the real jump curve, as the sim does). */
+function walkL(a: ArenaDef, st: St, facing: number, ticks50: number, jumpAt = -1): St & { trail: St[] } {
   const trail: St[] = [];
+  const ticks = Math.round((ticks50 * 50) / TUNING.tickMs); // callers count in 50 ms steps: the walk lasts as long at any tick length
   for (let i = 0; i < ticks; i++) {
     const air = jumpAt >= 0 && i >= jumpAt ? jumpHeight((i - jumpAt) * TUNING.tickMs) : 0;
     st = stepMovementL(st.pos, st.level, { fwd: 1, strafe: 0, facing }, TUNING.runSpeed, TUNING.tickMs / 1000, a, air);
@@ -208,7 +209,7 @@ describe('raised walkways (every map with one)', () => {
           assert.equal(held.level, 1, `${a.id}: the rail held at ${JSON.stringify(c)}`);
           const jumped = walkL(a, { pos: start, level: 1 }, face, 40, 0);
           assert.equal(jumped.level, 0, `${a.id}: jumped off at ${JSON.stringify(c)} (ended ${JSON.stringify(jumped.pos)})`);
-          assert.ok(jumped.trail.findIndex((t) => t.level === 0) < 20, 'dropped while still in the jump');
+          assert.ok(jumped.trail.findIndex((t) => t.level === 0) < (20 * 50) / TUNING.tickMs, 'dropped while still in the jump');
         }
         assert.ok(tried >= 1, `${a.id}: found an edge to jump off`);
       });
@@ -304,7 +305,7 @@ describe('above and below a walkway', () => {
       sim.step();
       const r = sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 1, ...(lv ? { lv } : {}) });
       assert.ok(r.ok, (r as { reason?: string }).reason);
-      for (let i = 0; i < 40; i++) sim.step();
+      for (let i = 0; i < 40 * (50 / sim.tickMs); i++) sim.step();
       assert.equal(w.level, want, `landed on level ${w.level}`);
       assert.ok(Math.hypot(w.pos.x, w.pos.z - 1) < 1.5, `at the spot (${JSON.stringify(w.pos)})`);
     }
@@ -324,7 +325,7 @@ describe('above and below a walkway', () => {
     m.resource = 9999;
     const r = sim.useAbility(m.id, fs!, null, { x: 0, z: 0, lv: 1 });
     assert.ok(r.ok, (r as { reason?: string }).reason);
-    for (let i = 0; i < 20 * 8; i++) sim.step();
+    for (let i = 0; i < (8000 / sim.tickMs); i++) sim.step();
     assert.ok(up.health < up.maxHealth, 'the one on the deck burns');
     assert.equal(down.health, down.maxHealth, 'the one underneath does not');
   });

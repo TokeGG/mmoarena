@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { ArenaSim, TUNING } from '../src/index';
 import type { Unit } from '../src/index';
 
-const STEP = TUNING.runSpeed * (TUNING.tickMs / 1000);
+/** The scenarios are written in 50 ms ticks (queue of 5, depth 2...); tickms.test.ts checks the same behaviour at 16 ms. */
+const STEP = TUNING.runSpeed * 0.05;
 
 function setup() {
-  const sim = new ArenaSim({ seed: 1, prepMs: 0 });
+  const sim = new ArenaSim({ tickMs: 50, seed: 1, prepMs: 0 });
   const u: Unit = sim.addUnit({ name: 'a', classId: 'mage', team: 0 });
   sim.addUnit({ name: 'b', classId: 'mage', team: 1 }).pos = { x: 40, z: 40 };
   u.pos = { x: 0, z: 0 };

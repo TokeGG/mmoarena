@@ -1,6 +1,6 @@
 # Netcode study: what limits input feel, what a higher tick rate buys and costs
 
-Status: measurements and a plan; Stage 1 (section 7) is implemented in 0.69.4, results in section 9. The sections before it describe the code as it was when measured. Line numbers are for the tree at the time of writing; `client/src/main.ts` was being edited by other work at the same time, so for it the function name is the stable reference.
+Status: measurements and a plan; Stage 1 (section 7) is implemented in 0.69.4, results in section 9; Stage 2 (the sim at any tick length, 62.5 Hz switchable by `ARENA_TICK_MS`, dead reckoning of other players) is implemented in 0.69.4 too, results in section 10. The sections before it describe the code as it was when measured. Line numbers are for the tree at the time of writing; `client/src/main.ts` was being edited by other work at the same time, so for it the function name is the stable reference.
 
 ## 0. Verdict in ten lines
 
@@ -421,3 +421,84 @@ What did not improve, or got worse: (1) **others on a lossy link are not fresher
 
 Not measured here: real browsers, real frame-time jitter, the snapshot diet (a protocol change with no effect on the numbers above; a 6-unit snapshot in an idle test match went from 2305 to 1736 bytes of JSON per tick, about 25 % less; busy fights have more state, so the share is smaller), the 1 ms server loop (its spacing was measured in section 4.5). Use the Network stats readout on real devices.
 
+
+## 10. Stage 2 results (0.69.4): tick length is a setting, and how close two screens agree
+
+### What was built
+
+- `ArenaSim` takes `tickMs` (default `TUNING.tickMs` = 50); replays record it; `contentHash(tickMs)`; the server reads `ARENA_TICK_MS` (8 to 50, default 50; `render.yaml` sets 16); `welcome.tickMs`; the client predicts, sends one input per tick and sizes its buffers from it. The migration list of section 6 was worked through: input queue (250 ms), repeat window (150 ms), catch-up depth/credit, history (600 ms) in milliseconds; bots think on a ms clock; room cadences (`% 5`, `% 10`, spectator delay, end screen) in ms; rate limit `max(120, 2000/tickMs + 60)`; loop catch-up cap in ms; `spectate.ts` clock; `rotation.ts` loop. DEVELOPING.md has the details.
+- **At 50 ms nothing changed:** digests of the event logs and end states of six full bot matches (6 players, 6 arenas) captured from the code before the change are identical after it (`SIM_REVISION` is 91 because of the separate lava pit change, not because of this one); three of them are in `shared/test/tickms.test.ts`. The 40-match bot comparison reproduces the section 4.6 row for 50 ms to the digit (84.2 s, 5467 damage). Rotations and bot brain were therefore not retrained (CLAUDE.md asks for it when abilities change; no ability, spec or talent changed, and the shipped data was tuned at the 50 ms the sim still plays at).
+- **Server load meter** (`server/src/tickmeter.ts`) in `/api/status` and the admin dashboard; a console warning at more than 70 % load for 10 s. Pause/map-swap fixes on the client (section 10.5).
+
+### 10.1 Rules at 16 ms (`scripts/netstudy.ts --only rules,bots --ticks 50,16`)
+
+| scenario | 50 ms | 16 ms |
+|---|---|---|
+| Frostbolt press to damage (ideal 1500) | 1500 | 1504 |
+| 8th Frostbolt of a chain (ideal 12000 + press delay) | 12050 | 12048 |
+| Sinister Strikes in 12 s | 12 | 12 |
+| Mind Flay ticks / last tick (ideal 6 / 3000) | 6 / 3000 | 6 / 3008 |
+| Garrote hits in 9.5 s / damage | 9 / 500 | 9 / 500 |
+| Kidney Shot stun (data 4400) | 4400 | 4400 |
+| auto attacks in 20 s | 10 | 10 |
+| mana in 10 s | 240 | 240 |
+
+Every duration is within one tick of the data; the lost Garrote tick and the late stun of the 8.33 and 16.67 ms rows are gone because the tick is an integer number of milliseconds. 40 hard-bot matches per tick length: 50 ms 17 / 10 / 13 (team 0 wins / team 1 wins / draws), 84.2 s mean length, 5467 damage; 16 ms 15 / 10 / 15, 88.7 s, 5736 damage (+5 %, inside the noise of 40 matches). Replays re-simulate identically at both. A replay is 2.4x as large at 16 ms (378 KB JSON, 81 KB gzipped for a 90 s 1v1 against 140 / 31.5).
+
+### 10.2 Tests
+
+`npx tsx --test ...` at the default 50 ms: 937 tests (all green). `npm run test:16` (the whole suite with `TUNING.tickMs` 16 in memory): all green; the 41 failures of the section 6 measurement were tests that assumed 20 ticks per second (per-tick walk distances, `i < 100` loops, `t % 20` sampling in the bot stuck checks, queue depth thresholds, the 5 s spectator delay in ticks, a Shatter timing that only worked when 4000 ms landed on a tick); they now count milliseconds or ask for 50 ms explicitly (`shared/test/catchup.test.ts`, whose scenarios are about the 50 ms queue). `shared/test/tickms.test.ts` runs the rules, the input queue and catch-up, lag-compensation history (300 ms rewind at 50, 16 and 8 ms), replays at 16 ms, rate-limit, full 2v2 bot matches at 16 ms, and the 50 ms digests.
+
+### 10.3 Pairwise agreement: do two screens show the same place?
+
+Definition (`scripts/netstudy.ts --target`): two humans run at run speed (7 yd/s: zig-zags with strafe flips every 0.5 s, mouse flicks, straight runs, stop-starts), 50 ms one-way latency (100 ms RTT), 20 ms jitter, 0 or 1 % loss each way (TCP head-of-line model of section 3), Stage 1 client (real modules), 3 seeds x 60 s. Metric: at every frame of player A, the distance between where A's screen draws B and where B's own screen draws B (B's predicted, own-ahead position) at the same instant, both directions pooled; the 95th percentile must be below 1.0 yard. "Server vs view" is the drawn other player against the server's authoritative position at that instant. "Lead" is dead reckoning of other players: they are drawn `lead` ms later than the buffered time and anything past the newest snapshot continues straight along the last two snapshots' velocity (no fade, teleports not carried on); `lead = min(150 ms, f x RTT)`, `f` swept.
+
+| link | server rate | lead f | pair mean yd | pair p95 yd | pair p99 | pair max | server vs view p95 | age ms | p95 < 1 yd |
+|---|---|---|---|---|---|---|---|---|---|
+| 0 % loss | 20 Hz | 0 (Stage 1 as it was) | 1.01 | 1.52 | 1.53 | 1.56 | 0.91 | 129 | FAIL |
+| 0 % loss | 20 Hz | 0.5 | 0.74 | 1.11 | 1.31 | 1.78 | 0.51 | 69 | FAIL |
+| 0 % loss | 20 Hz | **0.75** | 0.62 | **0.98** | 1.36 | 1.99 | 0.47 | 39 | PASS (barely) |
+| 0 % loss | 20 Hz | 1.0 | 0.50 | 1.04 | 1.47 | 2.20 | 0.57 | 9 | FAIL |
+| 0 % loss | 62.5 Hz | 0 | 0.82 | 1.24 | 1.24 | 1.25 | 0.67 | 95 | FAIL |
+| 0 % loss | 62.5 Hz | 0.5 | 0.54 | 0.82 | 1.02 | 1.44 | 0.27 | 35 | PASS |
+| 0 % loss | 62.5 Hz | **0.75** | 0.42 | **0.72** | 1.10 | 1.67 | 0.31 | 5 | PASS |
+| 0 % loss | 62.5 Hz | 1.0 | 0.30 | 0.77 | 1.21 | 1.89 | 0.44 | -25 | PASS |
+| 1 % loss | 20 Hz | 0 | 1.50 | 2.64 | 2.87 | 3.68 | 1.75 | 193 | FAIL |
+| 1 % loss | 20 Hz | 0.75 | 1.11 | 2.01 | 2.52 | 4.95 | 1.12 | 103 | FAIL |
+| 1 % loss | 20 Hz | 1.25 (best) | 0.87 | 1.62 | 2.41 | 5.34 | 0.71 | 43 | FAIL |
+| 1 % loss | 62.5 Hz | 0 | 1.73 | 2.81 | 3.39 | 3.85 | 1.75 | 228 | FAIL |
+| 1 % loss | 62.5 Hz | 0.75 | 1.35 | 2.23 | 2.83 | 3.38 | 1.13 | 138 | FAIL |
+| 1 % loss | 62.5 Hz | 1.25 (best) | 1.10 | 1.91 | 2.53 | 3.66 | 0.71 | 78 | FAIL |
+
+(All rows with all lead settings: `npx tsx scripts/netstudy.ts --target`.)
+
+Verdict, honestly:
+
+1. **Without dead reckoning the target is not met anywhere**: p95 1.52 yd at 20 Hz and 1.24 yd at 62.5 Hz on the clean 100 ms RTT link. The floor is physics: a screen shows the other player as he was one-way-up + tick wait + one-way-down + buffer ago (about 130 ms at 20 Hz, 95 ms at 62.5 Hz) and a runner covers 7 yd/s.
+2. **Dead reckoning is what gets under 1 yard**, and the best setting is 0.75 x RTT (150 ms cap): 20 Hz reaches p95 **0.98** yd (a pass by 0.02 yd, i.e. not a safe margin) and 62.5 Hz reaches **0.72** yd. Less lead leaves staleness, more lead makes direction changes (a strafe flip every half second) cost more than the staleness it removes: p95 goes back up past f = 0.75 to 1.0 at 20 Hz while the mean keeps falling; the maximum grows from 1.56 to 1.99 yd. The server-vs-view error falls from 0.91 to 0.47 yd at 20 Hz.
+3. **So sub-yard agreement on the clean link is met at 20 Hz with extrapolation, with almost no margin, and with comfortable margin at 62.5 Hz** (0.72 yd; 0.82 even at f = 0.5, 0.77 at f = 1). 62.5 Hz buys about 0.26 yd of p95 and removes the 95 % reliance on a 20 Hz velocity estimate.
+4. **On a 1 % loss link neither rate gets there** (p95 1.6 to 2.0 yd with the best lead; without it 2.6 to 2.8). A lost packet on TCP stalls everything behind it for 200 ms or more, during which no position information exists at all; extrapolation bridges only part of that. 62.5 Hz is even slightly worse than 20 Hz on this link (3x as many messages to lose, the adaptive buffer grows to 138 ms age): the section 4 finding that only the input/transport path matters under loss. Getting under 1 yard there needs a transport that does not stall (WebRTC data channels or WebTransport with unreliable position updates), which is not part of this change.
+5. **Shipped:** the client uses `Lead` (`client/src/interpDelay.ts`): 0.75 x the measured round trip, at most 150 ms, eased, off before the first ping answer and for spectators; casts report the drawn time as `vt`, so the server's lag compensation still judges against what the player saw. It applies at 50 and 16 ms alike.
+
+Caveats: the scripted motion flips direction more often than most real play (it is a worst case for dead reckoning and therefore for the p95 gain); both players are modelled symmetrically; browsers' frame jitter, server timer jitter and a real player's hand are not modelled (section 3).
+
+### 10.4 Cost at 16 ms with the final code (this machine, Xeon 2.8 GHz, process CPU time, hard bots, `--only cpu --ticks 50,16`, 120 s per cell)
+
+| tick | units | ms CPU per tick | ms CPU per second of match | JSON KB/s per client | bin+delta KB/s (not built) |
+|---|---|---|---|---|---|
+| 20 Hz | 2 | 0.99 | 19.8 | 17.5 | 3.7 |
+| 20 Hz | 4 | 1.37 | 27.3 | 32.4 | 11.8 |
+| 20 Hz | 6 | 1.86 | 37.2 | 50.6 | 20.9 |
+| 62.5 Hz | 2 | 0.46 | 28.6 | 51.0 | 3.9 |
+| 62.5 Hz | 4 | 0.95 | 59.3 | 101.6 | 15.1 |
+| 62.5 Hz | 6 | 1.24 | 77.2 | 155.3 | 23.5 |
+
+CPU per second of match grows 1.44x (1v1), 2.2x (2v2) and 2.1x (3v3 with bots) (the machine was shared, so the 20 Hz cells are noisier than the section 4.3 ones: 41 ms there for the 3v3 against 37 here); bandwidth per client is 3.0x (51 -> 155 KB/s for a 3v3, with the Stage 1 snapshot diet). Using the section 4.3 capacity method (70 % of the CPU, /1.5 for slower hosts): a 0.5 vCPU Starter holds about 12 1v1 rooms, 6 human 3v3 rooms or 2 bot 3v3 rooms at 62.5 Hz; the 0.1 vCPU free plan one 1v1-or-2v2 room (it holds a handful at 20 Hz): the owner runs one room at a time and wants to see how it copes, which is what the load meter is for (`/api/status` `tick.load`; above 70 % for 10 s the console says `server busy`).
+
+### 10.5 Pause and map swap (found while testing)
+
+The Stage 1 client was not built for a paused or teleported sim: the smoothed clock kept running against frozen server time labels (and jumped by the pause length on resume), others kept moving along their last velocity, the own character kept predicting held keys against a frozen server position, and after a map swap old buffers and velocities were applied to positions tens of yards away. Fixed: a paused snapshot freezes drawing exactly on itself (no extrapolation, no lead, `estimatedNow()` = frozen server time), nothing is predicted or sent while paused and queued inputs are dropped (client and server), a resume, a restart (`dev_state.reset`) and a map swap throw away the snapshot buffer, clock offset, delay statistics, render time, lead, prediction and camera anchor (`resetNetState` in `client/src/main.ts`; the scene already snaps its meshes in `setMap`), and the server sends the first paused frame at once after a swap. Tests: `server/test/devmap.test.ts` (immediate frame, identical positions for 100 paused ticks), `client/test/netClock.test.ts`.
+
+### 10.6 Not verified
+
+No real browser was available: the client changes (lead, pause handling, tick-length handling, admin row, network readout) are type-checked and their pure parts unit tested, but not seen on screen. The server loop at 16 ms is verified for spacing logic by tests with an injected clock, not under real load on Render's hardware; the 1 % loss rows are a model of TCP, not a measurement on a real network.

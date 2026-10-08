@@ -162,6 +162,10 @@ Every class, spec, skill, talent and effect, with its cost, cast time, cooldown,
 
 Developing or hosting the game: see [DEVELOPING.md](DEVELOPING.md).
 
+## Server update rate
+
+The game server runs the match 20 times a second by default. Set the environment variable `ARENA_TICK_MS` to a whole number of milliseconds from 8 to 50 to change it; the hosting blueprint (`render.yaml`) sets `16`, which is 62.5 updates a second: tighter fights, with two players' screens agreeing on where each stands to within a yard (95 % of the time) on a clean connection with 100 ms ping. See "Running at 62.5 Hz" in DEVELOPING.md for the cost, how to set it on Render by hand and how to go back to 50.
+
 ## Credits
 
 The characters, weapons, cape, wings and arena scenery (for example the dual sabers by Shadow Models 3D, the greatsword by denisdezmand, the Tyra Polearm by zenkuri, the Old Wizard by JuanCarlosOsanteHernandez, the Hooded Shadow Assassin by iRahulRajput and the Abyssal Sentinel by Rignu) and one recorded sound are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.

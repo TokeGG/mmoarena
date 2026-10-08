@@ -19,12 +19,20 @@ export class NetClock {
 
   constructor(
     private windowMs = 2000,
-    private slew = 0.1,
+    private slew0 = 0.1,
     /** A change of the target larger than this is a new clock (another match, a long freeze), not jitter: adopt it at once. */
     private jumpMs = 1000,
-  ) {}
+  ) {
+    this.slew = slew0;
+  }
 
-  reset(): void {
+  /** The slew and the lateness window are written for 50 ms snapshots: per snapshot they scale so they act over the same time at any tick length. */
+  private slew = 0.1;
+  private lateMax = 100;
+
+  reset(tickMs = 50): void {
+    this.slew = 1 - (1 - this.slew0) ** (tickMs / 50);
+    this.lateMax = Math.max(40, Math.ceil(5000 / tickMs));
     this.win = [];
     this.offset = Number.NaN;
     this.floor = -Infinity;
@@ -50,7 +58,7 @@ export class NetClock {
       this.late = [];
     } else this.offset += (target - this.offset) * this.slew;
     this.late.push(Math.max(0, target - off));
-    if (this.late.length > 100) this.late.shift();
+    if (this.late.length > this.lateMax) this.late.shift();
   }
 
   /** Server time now, in ms (0 before the first snapshot). Never decreases. */

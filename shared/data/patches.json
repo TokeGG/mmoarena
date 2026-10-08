@@ -17,7 +17,8 @@
    "Bots were retrained for the new rules: healer bots now rotate their heals, use Pain Suppression more readily (even on themselves when dying), and warrior bots add Dragon Roar to their attacks.",
    "Movement and combat feel smoother and more accurate online: other players are drawn closer to where they really are, your own character responds faster, and a lag spike no longer leaves your movement stuck behind for the rest of the fight.",
    "New optional Network stats readout in the Esc menu settings: your ping, jitter and connection quality in the corner of the screen.",
-   "The error text (out of range, no line of sight...) is now bigger and easier to read, and both it and the stun/control text can be moved, resized and restyled in the HUD editor (colour, size, outline, background, how long it stays)."
+   "The error text (out of range, no line of sight...) is now bigger and easier to read, and both it and the stun/control text can be moved, resized and restyled in the HUD editor (colour, size, outline, background, how long it stays).",
+   "The game server now supports a much higher update rate (62.5 instead of 20 updates a second) for tighter, more accurate fights, and other players are drawn closer to where they really are, so two screens agree on where each of you stands."
   ]
  },
  {

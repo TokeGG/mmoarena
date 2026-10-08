@@ -298,6 +298,13 @@ export class AdminPanel {
       grid.append(c);
     }
     box.append(grid);
+    if (o?.tick) {
+      // how the server loop copes (owner only): red when a tick needs over 70 % of its step or any tick was late in the last minute
+      const t = o.tick;
+      const bad = t.load > 0.7 || t.late > 0;
+      const row = el('div', `adm-state ${bad ? 'bad' : 'ok'}`, `Server tick: ${t.ms} ms (${(1000 / t.ms).toFixed(1)} Hz) · load ${Math.round(t.load * 100)} % (${t.avgMs} ms avg, ${t.maxMs} ms worst) · ${t.late} late tick${t.late === 1 ? '' : 's'} in the last minute`);
+      box.append(row);
+    }
     if (o?.maintenance) box.append(el('div', 'adm-state warn', `🛠 Maintenance mode is on: ${o.maintenance}`));
     const pending = this.proposals?.filter((r) => r.status === 'pending').length ?? 0;
     if (pending) {

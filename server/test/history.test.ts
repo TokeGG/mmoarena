@@ -4,7 +4,7 @@ import zlib from 'node:zlib';
 import { Accounts } from '../src/accounts';
 import { MemoryStore } from '../src/store';
 import { Lobby } from '../src/rooms';
-import { ReplayRunner, contentHash } from '@arena/shared';
+import { ReplayRunner, TUNING, contentHash } from '@arena/shared';
 import type { ClientMsg, ReplayData, ServerMsg } from '@arena/shared';
 
 const sock = () => {
@@ -17,9 +17,10 @@ const until = async (cond: () => boolean | Promise<boolean>) => {
 };
 
 describe('history, replays and spectating', () => {
-  it('a ranked 1v1 is recorded for both players, replays exactly, and can be watched 5 s late', async () => {
+  for (const tickMs of [50, 16]) it(`at ${tickMs} ms ticks: a ranked 1v1 is recorded for both players, replays exactly, and can be watched 5 s late`, async () => {
+    const n = (ms: number) => Math.round(ms / tickMs);
     const accounts = new Accounts(new MemoryStore());
-    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 }, accounts);
+    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0, tickMs }, accounts);
     const names = ['Ann', 'Bob'];
     const socks = names.map(() => sock());
     const players = socks.map((s) => lobby.connect(s, '7.7.7.7'));
@@ -42,7 +43,7 @@ describe('history, replays and spectating', () => {
     assert.equal(live.rows[0].size, 1);
     lobby.handle(spec, { t: 'spectate', id: live.rows[0].id });
     assert.ok(ss.sent.some((m: ServerMsg) => m.t === 'spectating'));
-    for (let i = 0; i < 99; i++) lobby.tick();
+    for (let i = 0; i < n(5000) - 1; i++) lobby.tick();
     assert.equal(ss.sent.filter((m: ServerMsg) => m.t === 'snapshot').length, 0, 'nothing before the delay');
     for (let i = 0; i < 5; i++) lobby.tick();
     const frames = ss.sent.filter((m: ServerMsg) => m.t === 'snapshot') as any[];
@@ -51,12 +52,12 @@ describe('history, replays and spectating', () => {
 
     // some play, then one team wins
     const [u0, u1] = [players[0].unitId!, players[1].unitId!];
-    for (let i = 0; i < 60; i++) {
+    for (let i = 0; i < n(3000); i++) {
       room.sim.queueInput(u0, { seq: i, fwd: 1, strafe: 0, facing: 0.5 + i / 100 });
       lobby.tick();
     }
     room.sim.useAbility(u0, 'fireball', u1);
-    for (let i = 0; i < 40; i++) lobby.tick();
+    for (let i = 0; i < n(2000); i++) lobby.tick();
     room.sim.forfeit(u1);
     for (let i = 0; i < 3; i++) lobby.tick();
     assert.equal(room.sim.phase, 'ended');
@@ -81,7 +82,8 @@ describe('history, replays and spectating', () => {
     const gz = await accounts.getReplay(rec.id);
     assert.ok(gz);
     const data = JSON.parse(zlib.gunzipSync(gz!).toString()) as ReplayData;
-    assert.equal(data.hash, contentHash());
+    assert.equal(data.hash, contentHash(tickMs));
+    assert.equal(data.tickMs, tickMs === TUNING.tickMs ? undefined : tickMs);
     const run = new ReplayRunner(data);
     run.seek(data.ticks);
     assert.equal(run.sim.winner, room.sim.winner);

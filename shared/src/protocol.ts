@@ -165,14 +165,14 @@ export const MAX_SETTINGS = 24000;
 export const NOTE_MAX = 10000;
 
 export type ServerMsg =
-  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string }
+  | { t: 'welcome'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string; /** Milliseconds per server tick (absent: TUNING.tickMs, what older servers ran at). */ tickMs?: number }
   /** Progress (matches played). Store `token` and send it back on join. */
   | { t: 'profile'; token: string; matches: number; wins: number }
   | { t: 'queued'; waiting: number; needed: number }
   /** `snap` from a player's own team feed carries slim units plus the `info` (identity) of units new or changed; see snapslim.ts. Spectator and paused frames are full. */
   | { t: 'snapshot'; snap: SlimSnapshot; events: SimEvent[]; info?: UnitInfo[] }
   /** The answer to a `ping`. */
-  | { t: 'pong'; n: number }
+  | { t: 'pong'; n: number; /** How much of a tick the server needs, 0 to 1+ (1 = all of it): the network readout says when it is busy. */ load?: number }
   /** How many of the people in the finished match are ready to play again. */
   | { t: 'rematch'; ready: number; total: number; you: boolean }
   | { t: 'suggest_ack'; ok: boolean; reason?: string }
@@ -183,13 +183,13 @@ export type ServerMsg =
   /** The replays the bots are training on right now and the ones just finished. */
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Dev tools: the match's pause state and the test numbers in it. */
-  | { t: 'dev_state'; paused: boolean; patches: DataPatch[] }
+  | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */
   | { t: 'dev_map'; map: string }
   | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
   /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
-  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
+  | { t: 'admin_overview'; /** How the server loop copes (owner only). */ tick?: { ms: number; avgMs: number; maxMs: number; load: number; late: number; worstMs: number; rooms: number }; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
   | { t: 'admin_log'; rows: AdminLogRow[] }
   | { t: 'admin_history'; name: string; rows: MatchRecord[] }
   /** Every match played on the server (the owner's match list). */

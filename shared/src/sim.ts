@@ -6,24 +6,30 @@ import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
 } from './types';
 
-const TICK = TUNING.tickMs;
 /** Height of a leap above the ground (absolute) part way through: a 5-yard arc from the floor you left to the floor you land on. */
 const leapHeight = (L: { fromH: number; toH: number }, p: number) => L.fromH + (L.toH - L.fromH) * p + Math.sin(Math.PI * p) * 5;
 /** A ground-targeted point; lv 1 = on top of a walkway (the aim hit the deck), else the ground. */
 type Ground = { x: number; z: number; lv?: 1 };
-const DT = TICK / 1000;
 /** A Counterspell pressed this long after a cast finished still locks that school out. */
 const INTERRUPT_GRACE_MS = 250;
 const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
-/** Failures a player cast may be held through for TUNING.castGraceMs. */
-const HISTORY_TICKS = 12;
-/** Input catch-up (see tickUnit): above CATCHUP_DEPTH queued inputs the surplus is consumed in the same tick, paid for by owed repeat ticks (no movement) and idle-tick credit (at most CATCHUP_MAX moving steps per tick); both capped at CATCHUP_CREDIT_MAX. */
-export const CATCHUP_DEPTH = 2;
-export const CATCHUP_MAX = 2;
-const CATCHUP_CREDIT_MAX = 5;
+/** How far back unit positions are kept for lag compensation: the longest rewind (TUNING.maxRewindMs) plus the age of the oldest view time accepted, whatever the tick length. */
+const HISTORY_MS = 600;
+/**
+ * Input queue limits, in milliseconds of input so they mean the same at any tick length (at 50 ms ticks these are the 5, 3, 2, 2 and 5 ticks they
+ * were written as). The queue holds at most INPUT_QUEUE_MS (older ones are dropped); with nothing queued the last input is repeated for
+ * INPUT_REPEAT_MS before the unit stops. Input catch-up (see tickUnit): above CATCHUP_DEPTH_MS of queued input the surplus is consumed in the
+ * same tick, paid for by owed repeat ticks (no movement) and idle-tick credit (at most CATCHUP_MAX_MS of moving steps per tick); both capped at CATCHUP_CREDIT_MS.
+ */
+export const INPUT_QUEUE_MS = 250;
+export const INPUT_REPEAT_MS = 150;
+export const CATCHUP_DEPTH_MS = 100;
+export const CATCHUP_MAX_MS = 100;
+export const CATCHUP_CREDIT_MS = 250;
 /** A melee swing reaches this far up or down (a ramp's slope), not from a walkway's top to the ground below. */
 const MELEE_FLOOR_GAP = 1.6;
+/** Failures a player cast may be held through for TUNING.castGraceMs. */
 const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
 /** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
 const GCD_REFUND = ['moved', 'cancelled', 'switched spell', 'target vanished', 'blinded by smoke'];
@@ -35,7 +41,7 @@ const UNSTOPPABLE_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear', 'root', '
 
 export const isMelee = (def: AbilityDef) => def.target === 'enemy' && def.range <= 5;
 
-export interface SimOptions { seed?: number; prepMs?: number; arena?: ArenaDef; /** Players must face what they cast on or swing at (a cone in front of them). Off by default so unit tests can place units freely. */ facing?: boolean }
+export interface SimOptions { /** Length of one step in whole milliseconds (default TUNING.tickMs). Every rule runs on sim time, so a match plays the same at any value; a replay must be run with the value it was recorded at. */ tickMs?: number; seed?: number; prepMs?: number; arena?: ArenaDef; /** Players must face what they cast on or swing at (a cone in front of them). Off by default so unit tests can place units freely. */ facing?: boolean }
 /** Every outside action on the sim, in a form a replay can feed back in. Ops: 0 input, 1 target, 2 ability, 3 auto-attack, 4 forfeit, 5 auto-attack setting, 6 stop casting. */
 export type SimCommand = [tick: number, op: 0 | 1 | 2 | 3 | 4 | 5 | 6, unit: number, ...args: (number | string | boolean | null)[]];
 export interface AddUnitOptions { name: string; classId: ClassId; team: TeamId; controller?: 'player' | 'dummy' | 'bot'; gearMult?: number; build?: Build }
@@ -54,7 +60,7 @@ export function mulberry32(seed: number) {
 
 /**
  * Headless, server-authoritative arena simulation. No rendering, no I/O, no wall-clock:
- * call step() once per tick (TUNING.tickMs). Same inputs + same seed = same outcome.
+ * call step() once per tick (`tickMs`). Same inputs + same seed = same outcome.
  */
 export class ArenaSim {
   /** Fixed for a match; only `switchArena` (dev test matches) changes it. */
@@ -76,8 +82,17 @@ export class ArenaSim {
   private facingRule = false;
   private nextId = 1;
   private rng: () => number;
+  /** Milliseconds per step, and per step in seconds. */
+  readonly tickMs: number;
+  private readonly dt: number;
+  /** The tick-count form of the input queue limits and of the lag compensation history (see INPUT_QUEUE_MS), worked out once from tickMs. */
+  readonly limits: { queue: number; repeat: number; catchDepth: number; catchMax: number; credit: number; history: number };
 
   constructor(opts: SimOptions = {}) {
+    this.tickMs = Math.max(1, Math.round(opts.tickMs ?? TUNING.tickMs));
+    this.dt = this.tickMs / 1000;
+    const n = (ms: number) => Math.max(1, Math.ceil(ms / this.tickMs - 1e-9));
+    this.limits = { queue: n(INPUT_QUEUE_MS), repeat: n(INPUT_REPEAT_MS), catchDepth: n(CATCHUP_DEPTH_MS), catchMax: n(CATCHUP_MAX_MS), credit: n(CATCHUP_CREDIT_MS), history: Math.max(12, n(HISTORY_MS)) };
     this.arena = opts.arena ?? ARENA;
     this.facingRule = opts.facing ?? false;
     this.rng = mulberry32(opts.seed ?? 1);
@@ -209,7 +224,7 @@ export class ArenaSim {
     const facing = Math.round(input.facing * 1000) / 1000;
     this.onCommand?.([this.tickNo, 0, id, input.seq, fwd, strafe, facing, input.jump === true ? 1 : 0]);
     u.inputQueue.push({ seq: input.seq, fwd, strafe, facing, jump: input.jump === true });
-    while (u.inputQueue.length > 5) u.inputQueue.shift();
+    while (u.inputQueue.length > this.limits.queue) u.inputQueue.shift();
   }
 
   setTarget(id: number, targetId: number | null): Result {
@@ -353,7 +368,7 @@ export class ArenaSim {
     // off as soon as this one finishes (a player's spell queue arriving a little early); otherwise it is ignored
     if (u.cast && u.cast.ability === def.id) {
       if (!retry && this.facingRule && u.controller === 'player' && u.cast.end - this.time <= REPEAT_HOLD_MS) {
-        this.pending.set(id, { ability: abilityId, target: targetId, ground, until: u.cast.end + TICK * 2, reason: 'already casting that' });
+        this.pending.set(id, { ability: abilityId, target: targetId, ground, until: u.cast.end + this.tickMs * 2, reason: 'already casting that' });
         return ok;
       }
       return fail('already casting that');
@@ -407,7 +422,7 @@ export class ArenaSim {
   private channelDr = new Map<string, number>();
 
   step(): void {
-    this.time += TICK;
+    this.time += this.tickMs;
     this.tickNo++;
     if (this.phase === 'prep' && this.time >= this.prepEndsAt) {
       this.phase = 'live';
@@ -427,7 +442,7 @@ export class ArenaSim {
     const pos = new Map<number, { x: number; z: number }>();
     for (const u of this.units.values()) pos.set(u.id, { x: u.pos.x, z: u.pos.z });
     this.history.push({ time: this.time, pos });
-    if (this.history.length > HISTORY_TICKS) this.history.shift();
+    if (this.history.length > this.limits.history) this.history.shift();
   }
 
   /** A unit's position at an earlier sim time (linear between recorded ticks; the oldest or current position outside the window). */
@@ -455,6 +470,8 @@ export class ArenaSim {
 
   private tickUnit(u: Unit): void {
     const cls = CLASSES[u.classId];
+    const DT = this.dt;
+    const { catchDepth, catchMax, credit } = this.limits;
     for (const a of [...u.auras]) {
       const hot = AURAS[a.id]?.hot;
       if (hot && a.nextTick !== undefined) {
@@ -497,10 +514,10 @@ export class ArenaSim {
     //  - a tick with nothing to play that left the unit standing (`catchUp` credit) lets one queued input move it, up to
     //    CATCHUP_MAX such extra steps per tick.
     const extras: MoveInput[] = [];
-    while (u.inputQueue.length > CATCHUP_DEPTH) {
+    while (u.inputQueue.length > catchDepth) {
       let move = false;
       if ((u.owed ?? 0) >= 1) u.owed = (u.owed ?? 0) - 1;
-      else if (extras.length < CATCHUP_MAX && (u.catchUp ?? 0) >= 1) {
+      else if (extras.length < catchMax && (u.catchUp ?? 0) >= 1) {
         u.catchUp = (u.catchUp ?? 0) - 1;
         move = true;
       } else break;
@@ -524,13 +541,13 @@ export class ArenaSim {
       u.lastInput = queued;
       u.lastSeq = queued.seq;
       u.starve = 0;
-    } else if (u.starve < 3) {
+    } else if (u.starve < this.limits.repeat) {
       input = u.lastInput;
       u.starve++;
-      u.owed = Math.min(CATCHUP_CREDIT_MAX, (u.owed ?? 0) + 1); // this tick moved the unit on a guess: the input that belongs to it must not move it again
+      u.owed = Math.min(credit, (u.owed ?? 0) + 1); // this tick moved the unit on a guess: the input that belongs to it must not move it again
     } else {
       input = { ...u.lastInput, fwd: 0, strafe: 0 };
-      u.catchUp = Math.min(CATCHUP_CREDIT_MAX, (u.catchUp ?? 0) + 1); // a tick with nothing played and no movement is owed back
+      u.catchUp = Math.min(credit, (u.catchUp ?? 0) + 1); // a tick with nothing played and no movement is owed back
     }
 
     // a fresh jump request only (a repeated stale input must not re-jump)
@@ -546,7 +563,7 @@ export class ArenaSim {
     const before = { x: u.pos.x, z: u.pos.z };
     if (u.leap) {
       const L = u.leap;
-      const p = Math.min(1, (this.time + DT * 1000 - L.start) / L.dur);
+      const p = Math.min(1, (this.time + this.tickMs - L.start) / L.dur);
       u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
       const yAbs = leapHeight(L, p);
       this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, Math.max(0, yAbs - heightAt(this.arena, u.pos.x, u.pos.z, u.level))); // in the air: over rails and barricades

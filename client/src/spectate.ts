@@ -24,7 +24,7 @@ export async function loadReplay(id: string): Promise<ReplayData> {
   const stream = res.body!.pipeThrough(new DecompressionStream('gzip'));
   const data = JSON.parse(await new Response(stream).text()) as ReplayData;
   if (data.v !== 1) throw new Error('Unknown replay format.');
-  if (data.hash !== contentHash()) throw new Error('This replay was recorded on an older version of the game and cannot be played back accurately any more.');
+  if (data.hash !== contentHash(data.tickMs)) throw new Error('This replay was recorded on an older version of the game and cannot be played back accurately any more.');
   return data;
 }
 
@@ -197,6 +197,8 @@ export class SpectateBar {
   private replayRow = el('div', 'sb-row');
   private paused = false;
   private total = 1;
+  /** Milliseconds per tick of the replay being shown (the clock is ticks times this). */
+  private tickMs = 50;
   readonly board = new Scoreboard();
   private scoreBtn = el('button', 'mm-small hidden', 'Scoreboard (B)');
 
@@ -243,7 +245,8 @@ export class SpectateBar {
     this.root.classList.remove('hidden');
   }
 
-  showReplay(totalTicks: number, label: string, shareUrl: string) {
+  showReplay(totalTicks: number, label: string, shareUrl: string, tickMs = 50) {
+    this.tickMs = tickMs;
     this.title.textContent = `⏪ Replay · ${label}`;
     this.total = Math.max(1, totalTicks);
     this.seek.max = String(this.total);
@@ -270,8 +273,8 @@ export class SpectateBar {
     this.follow.textContent = followName ? `following ${followName} · ${key && key !== '—' ? `${key} or click` : 'click'} to switch` : '';
     if (!this.replayRow.classList.contains('hidden')) {
       if (document.activeElement !== this.seek) this.seek.value = String(tick);
-      const s = Math.round((tick * 50) / 1000);
-      const t = Math.round((this.total * 50) / 1000);
+      const s = Math.round((tick * this.tickMs) / 1000);
+      const t = Math.round((this.total * this.tickMs) / 1000);
       const f = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
       this.time.textContent = `${f(s)} / ${f(t)}`;
     }

@@ -59,7 +59,7 @@ export function rotationDamage(classId: ClassId, build: Build, order: string[], 
   sim.step();
   sim.setTarget(u.id, d.id);
   sim.setAutoAttack(u.id, true);
-  for (let t = 0; t < seconds * 1000; t += TUNING.tickMs) {
+  for (let t = 0; t < seconds * 1000; t += sim.tickMs) {
     d.pos = { x: at, z: 0 };
     if (!u.cast && sim.time >= u.gcdEnd - 1 && !spendPayoff(sim, u, d.id)) for (const id of order) if (u.bar.includes(id) && sim.useAbility(u.id, id, d.id).ok) break;
     sim.step();

@@ -11,6 +11,7 @@
     "build": "npm -w client run build",
     "start": "npm -w server run start",
     "test": "node --import tsx --test shared/test/*.test.ts server/test/*.test.ts client/test/*.test.ts",
+    "test:16": "TICKMS=16 NODE_OPTIONS=\"--import tsx --import ./scripts/tick-preload.mjs\" node --test shared/test/*.test.ts server/test/*.test.ts client/test/*.test.ts",
     "duel": "tsx shared/scripts/duel.ts",
     "typecheck": "tsc -p shared --noEmit && tsc -p server --noEmit && tsc -p client --noEmit"
   },

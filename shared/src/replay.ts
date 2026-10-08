@@ -8,11 +8,12 @@ import type { SimEvent, Snapshot, TeamId } from './types';
  * Bump when the simulation's rules (code, not data) change in a way that alters outcomes: older replays would no longer
  * play out the same, so they are refused instead of showing something wrong. Data changes are caught by `contentHash`.
  */
-export const SIM_REVISION = 90;
+export const SIM_REVISION = 91;
 
 /** A small hash of every balance-relevant data file; a replay only plays on the data it was recorded with. */
-export function contentHash(): string {
-  const text = JSON.stringify([ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, ARENAS]);
+export function contentHash(tickMs: number = TUNING.tickMs): string {
+  // the tick length a match was played at is part of what it needs (a replay recorded at 16 ms plays on 16 ms steps whatever the server runs now)
+  const text = JSON.stringify([ABILITIES, AURAS, CLASSES, SPECS, TALENTS, tickMs === TUNING.tickMs ? TUNING : { ...TUNING, tickMs }, ARENAS]);
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) {
     h ^= text.charCodeAt(i);
@@ -27,6 +28,8 @@ export interface ReplayData {
   arena: string;
   seed: number;
   prepMs: number;
+  /** Milliseconds per tick the match was played at (absent: TUNING.tickMs, what older recordings used). `ticks` and every command's tick number count these. */
+  tickMs?: number;
   /** Units in the order they were added (so their ids are 1..n). */
   units: AddUnitOptions[];
   cmds: SimCommand[];
@@ -47,7 +50,7 @@ export class ReplayRecorder {
   finish(roster: RosterEntry[]): ReplayData {
     this.sim.onUnit = null;
     this.sim.onCommand = null;
-    return { v: 1, hash: contentHash(), ...this.meta, units: this.units, cmds: this.cmds, ticks: this.sim.tickNo, winner: this.sim.winner, roster };
+    return { v: 1, hash: contentHash(this.sim.tickMs), ...this.meta, ...(this.sim.tickMs !== TUNING.tickMs ? { tickMs: this.sim.tickMs } : {}), units: this.units, cmds: this.cmds, ticks: this.sim.tickNo, winner: this.sim.winner, roster };
   }
 }
 
@@ -58,6 +61,10 @@ export class ReplayRunner {
   constructor(readonly data: ReplayData) {
     this.reset();
   }
+  /** Milliseconds per tick of this recording. */
+  get tickMs(): number {
+    return this.data.tickMs ?? TUNING.tickMs;
+  }
   get tick(): number {
     return this.sim.tickNo;
   }
@@ -65,7 +72,7 @@ export class ReplayRunner {
     return this.sim.tickNo >= this.data.ticks;
   }
   reset(): void {
-    this.sim = new ArenaSim({ seed: this.data.seed, prepMs: this.data.prepMs, arena: arenaById(this.data.arena), facing: true });
+    this.sim = new ArenaSim({ tickMs: this.data.tickMs, seed: this.data.seed, prepMs: this.data.prepMs, arena: arenaById(this.data.arena), facing: true });
     for (const u of this.data.units) this.sim.addUnit(u);
     this.cursor = 0;
   }
