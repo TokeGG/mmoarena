@@ -1166,7 +1166,7 @@ function frame(now: number) {
     }
     const sway = lobbySpin.dragX !== null ? 0 : Math.min(1, Math.max(0, (now - lobbySpin.at - 2500) / 2000));
     const face = prev.spawnFacing[0] + Math.PI + lobbySpin.yaw + Math.sin(t * 0.6) * 0.55 * sway;
-    scene.setPhase('prep');
+    scene.setPhase('lobby'); // no start gates: their blue barrier planes read as glitches across the stadium
     // party members stand beside you with the class, weapon and skins they picked
     const me = accountUi.account?.name;
     const mates = (mainMenu.currentParty?.members ?? []).filter((m) => m.name !== me && m.classId && CLASSES[m.classId as ClassId]);

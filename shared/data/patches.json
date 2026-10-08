@@ -5,6 +5,7 @@
   "at": "2026-10-08T21:21:47Z",
   "title": "Heal spam, lava, better line of sight, new cursors, and many fixes",
   "changes": [
+   "Fixed visual glitches on the Sandstone Yard in the lobby.",
    "Flamestrike, Scorch and burning now use the same blazing flames as Fireball and Pyroblast.",
    "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh.",
    "Lava Forge's lava basins are now real lava: you can jump into one without being pushed out, but standing in it burns you (5% of your health every half second) and the rim holds you in, so you have to jump out.",
