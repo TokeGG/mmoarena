@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, Bot, DEFAULT_BRAIN, ReplayRecorder, botBuild, evolve, lessonBrain, newPopulation, studyMatch } from '../src/index';
+import { ARENAS, ArenaSim, Bot, DEFAULT_BRAIN, ReplayRecorder, botBuild, evolve, forcedStudy, lessonBrain, newPopulation, studyMatch } from '../src/index';
 import type { ClassId, Difficulty, ReplayData } from '../src/index';
 
 /** A match where the "person" is a hard bot steering a player unit: its commands are recorded as a person's. */
@@ -18,6 +18,37 @@ function match(person: ClassId, bot: ClassId, seed = 3, difficulty: Difficulty =
   }
   return rec.finish([]);
 }
+
+/** Bots against bots (an owner's bot match). */
+function botMatch(a: ClassId, b: ClassId, seed = 3): ReplayData {
+  const arena = ARENAS[1];
+  const sim = new ArenaSim({ seed, prepMs: 3000, arena });
+  const rec = new ReplayRecorder(sim, { arena: arena.id, seed, prepMs: 3000 });
+  const x = sim.addUnit({ name: 'Bot A', classId: a, team: 0, controller: 'bot', build: botBuild(a, seed) });
+  const y = sim.addUnit({ name: 'Bot B', classId: b, team: 1, controller: 'bot', build: botBuild(b, seed + 9) });
+  const drivers = [new Bot(sim, x.id, 'hard', 1), new Bot(sim, y.id, 'easy', 2)];
+  for (let ms = 0; sim.phase !== 'ended' && ms < 150000; ms += 50) {
+    for (const d of drivers) d.tick();
+    sim.step();
+    sim.drainEvents();
+  }
+  return rec.finish([]);
+}
+
+describe('training on a bot match the owner picked', () => {
+  it('the losing bot learns from the winning bot; a bot match with no winner teaches nothing', () => {
+    const r = botMatch('warrior', 'priest');
+    assert.ok(r.winner === 0 || r.winner === 1, 'the match has a winner');
+    assert.deepEqual(studyMatch(r).bots, [], 'without being picked, a bot match teaches nothing');
+    const opts = forcedStudy(r);
+    assert.deepEqual(opts, { teachers: r.winner });
+    const st = studyMatch(r, opts!);
+    assert.equal(st.bots.length, 1, 'only the loser is the student');
+    assert.equal(st.bots[0].won, false);
+    assert.equal(forcedStudy({ ...r, winner: 'draw' }), null);
+    assert.deepEqual(forcedStudy(match('warrior', 'priest')), {}, 'a match with people studies as always');
+  });
+});
 
 describe('learning how people beat the bots', () => {
   it('reads a bot loss to a person: who it fought, that it lost, and lessons within bounds', () => {

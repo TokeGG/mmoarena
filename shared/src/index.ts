@@ -14,3 +14,4 @@ export * from './humanstyle';
 export * from './rotation';
 export * from './outplay';
 export * from './devpatch';
+export * from './devinfo';

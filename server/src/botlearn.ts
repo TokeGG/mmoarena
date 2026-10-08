@@ -1,8 +1,8 @@
 import { promisify } from 'node:util';
 import { gzip as gzipCb } from 'node:zlib';
 import { Worker } from 'node:worker_threads';
-import { CLASS_IDS, freshenPopulation, lessonBrain, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, styledBrain } from '@arena/shared';
-import type { Brain, ClassId, HumanStyle, Lessons, Population, ReplayData } from '@arena/shared';
+import { CLASS_IDS, contentHash, forcedStudy, freshenPopulation, lessonBrain, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, styledBrain } from '@arena/shared';
+import type { Brain, ClassId, HumanStyle, Lessons, Population, ReplayData, StudyOptions } from '@arena/shared';
 import type { Store } from './store';
 
 const gzip = promisify(gzipCb);
@@ -12,10 +12,10 @@ type Measured = ReturnType<typeof readReplay>;
  * Turns a replay into what the bots learn from it: per-human style samples, and how the people beat the bots. The server
  * does it on a worker thread; tests may pass their own.
  */
-export type Measure = (replay: ReplayData) => Promise<Measured>;
+export type Measure = (replay: ReplayData, opts?: StudyOptions) => Promise<Measured>;
 
 /** Measure on the calling thread, but on a later turn of the event loop (the fallback when no worker can be started). */
-export const measureInline: Measure = (replay) => new Promise((resolve, reject) => setImmediate(() => { try { resolve(readReplay(replay)); } catch (e) { reject(e); } }));
+export const measureInline: Measure = (replay, opts) => new Promise((resolve, reject) => setImmediate(() => { try { resolve(readReplay(replay, opts)); } catch (e) { reject(e); } }));
 
 /** Replays of matches between people and bots kept for offline study (scripts/study-replays.ts): how many, how long. */
 export const LEARN_REPLAYS_MAX = 400;
@@ -23,7 +23,7 @@ export const LEARN_REPLAY_TTL_S = 30 * 24 * 3600;
 export const LEARN_INDEX_KEY = 'lrp:index';
 export const learnReplayKey = (id: string) => `lrp:${id}`;
 /** One entry of the study index: which match, when, which bot classes faced which people, and who won. */
-export interface LearnIndexEntry { id: string; at: number; bots: ClassId[]; humans: ClassId[]; humansWon: boolean | null }
+export interface LearnIndexEntry { id: string; at: number; bots: ClassId[]; humans: ClassId[]; humansWon: boolean | null; /** The owner chose it for training. */ forced?: boolean }
 
 /** Real results of bots against people, by bot class, the person's class and the bot's difficulty. */
 export type Ledger = Record<string, { w: number; g: number }>;
@@ -39,16 +39,16 @@ export class MeasureWorker {
   private waiting = new Map<number, { resolve: (m: Measured) => void; reject: (e: unknown) => void }>();
   private broken = false;
 
-  readonly measure: Measure = (replay) => {
+  readonly measure: Measure = (replay, opts) => {
     const w = this.ensure();
-    if (!w) return measureInline(replay);
+    if (!w) return measureInline(replay, opts);
     const id = this.nextId++;
     return new Promise<Measured>((resolve, reject) => {
       // a worker that never answers must not leak the job forever
       const timer = setTimeout(() => { if (this.waiting.delete(id)) reject(new Error('measuring timed out')); }, 120000);
       timer.unref();
       this.waiting.set(id, { resolve: (m) => { clearTimeout(timer); resolve(m); }, reject: (e) => { clearTimeout(timer); reject(e); } });
-      w.postMessage({ id, replay });
+      w.postMessage({ id, replay, opts });
     });
   };
 
@@ -206,16 +206,36 @@ export class BotLearner {
   }
 
   /**
+   * The owner chose this replay to train on (from the match list, or an uploaded file): learn from it now, and keep it
+   * for offline study. A bots-only match teaches its losers through its winners. Resolves to how many bots learned
+   * something, or a reason it could not be used.
+   */
+  async trainOn(replay: ReplayData, id: string): Promise<{ ok: true; lessons: number } | { ok: false; reason: string }> {
+    if (replay.hash !== contentHash()) return { ok: false, reason: 'That replay was recorded on an older version of the game, so it cannot be played back the same.' };
+    const opts = forcedStudy(replay);
+    if (!opts) return { ok: false, reason: 'Nothing to learn: no people played in it and nobody won.' };
+    let measured: Measured;
+    try {
+      measured = await this.measure(replay, opts);
+    } catch {
+      return { ok: false, reason: 'That replay could not be played back.' };
+    }
+    this.apply(measured);
+    this.archive(id, replay, true);
+    return { ok: true, lessons: measured.study.bots.filter((b) => Object.keys(b.lessons).length).length };
+  }
+
+  /**
    * Keep a replay of people against bots for offline study (scripts/study-replays.ts), solo practice included: those
    * are exactly the games that show how people beat bots. The newest LEARN_REPLAYS_MAX are kept, each for 30 days.
    */
-  private archive(id: string, replay: ReplayData): void {
+  private archive(id: string, replay: ReplayData, forced = false): void {
     const kind = (u: ReplayData['units'][number]) => (u.controller === 'bot' ? 'bot' : u.controller === 'player' || u.controller === undefined ? 'human' : 'other');
     const bots = replay.units.filter((u) => kind(u) === 'bot');
     const humans = replay.units.filter((u) => kind(u) === 'human');
-    if (!bots.length || !humans.length || !/^[0-9a-z]{6,24}$/i.test(id)) return;
-    const humanTeam = humans[0].team;
-    const entry: LearnIndexEntry = { id, at: Date.now(), bots: bots.map((u) => u.classId), humans: humans.map((u) => u.classId), humansWon: replay.winner === null || replay.winner === 'draw' ? null : replay.winner === humanTeam };
+    if (!bots.length || (!humans.length && !forced) || !/^[0-9a-z]{6,24}$/i.test(id)) return;
+    const humanTeam = humans[0]?.team;
+    const entry: LearnIndexEntry = { id, at: Date.now(), bots: bots.map((u) => u.classId), humans: humans.map((u) => u.classId), humansWon: replay.winner === null || replay.winner === 'draw' || humanTeam === undefined ? null : replay.winner === humanTeam, ...(forced ? { forced: true } : {}) };
     this.archiving = this.archiving.then(async () => {
       const gz = await gzip(JSON.stringify(replay));
       await this.store.set(learnReplayKey(id), gz.toString('base64'), LEARN_REPLAY_TTL_S);

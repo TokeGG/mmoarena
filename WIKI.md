@@ -110,9 +110,9 @@ Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds eve
 | V | 💥 **Ground Slam** | Replaces Charge with Shockwave, a stunning blast around you. → [Shockwave](#skill-shockwave) |
 |  | 📢 **Terrifying Roar** | Replaces Charge with Intimidating Shout, a fear that breaks on damage. → [Intimidating Shout](#skill-intimidating-shout) |
 |  | 📣 **Banshee Howl** | Replaces Charge with Piercing Howl, slowing every enemy near you. → [Piercing Howl](#skill-piercing-howl) |
-| VI | 😡 **Reckless Abandon** | Replaces Slam with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds. → [Recklessness](#skill-recklessness) |
-|  | 🗡️ **Stand Against Steel** | Replaces Slam with Die by the Sword, a long defensive. → [Die by the Sword](#skill-die-by-the-sword) |
-|  | 🧱 **Fortress Stance** | 40% less damage taken for 8 seconds. Replaces Slam. → [Fortress Stance](#skill-shield-wall) |
+| VI | 😡 **Reckless Abandon** | Replaces Enraged Regeneration with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds. → [Recklessness](#skill-recklessness) |
+|  | 🗡️ **Stand Against Steel** | Replaces Enraged Regeneration with Die by the Sword, a long defensive. → [Die by the Sword](#skill-die-by-the-sword) |
+|  | 🧱 **Fortress Stance** | 40% less damage taken for 8 seconds. Replaces Enraged Regeneration. → [Fortress Stance](#skill-shield-wall) |
 
 <a id="warrior-protection"></a>
 ### 🪓 Barbarian · Control / reach
@@ -385,7 +385,7 @@ Talent: Warbringer tier V *Banshee Howl* (replaces Charge); Rampager tier V *Ban
 - +30% damage dealt. +15% damage taken.
 - *Does not trigger the global cooldown.*
 
-Talent: Warbringer tier VI *Reckless Abandon* (replaces Execute); Rampager tier VI *Reckless Abandon* (replaces Slam); Barbarian tier VI *Reckless Abandon* (replaces Axe Throw).
+Talent: Warbringer tier VI *Reckless Abandon* (replaces Execute); Rampager tier VI *Reckless Abandon* (replaces Enraged Regeneration); Barbarian tier VI *Reckless Abandon* (replaces Axe Throw).
 
 <a id="skill-die-by-the-sword"></a>
 #### Die by the Sword
@@ -395,7 +395,7 @@ Talent: Warbringer tier VI *Reckless Abandon* (replaces Execute); Rampager tier 
 - −50% damage taken.
 - *Does not trigger the global cooldown.*
 
-Talent: Warbringer tier VI *Stand Against Steel* (replaces Execute); Rampager tier VI *Stand Against Steel* (replaces Slam); Barbarian tier VI *Stand Against Steel* (replaces Axe Throw).
+Talent: Warbringer tier VI *Stand Against Steel* (replaces Execute); Rampager tier VI *Stand Against Steel* (replaces Enraged Regeneration); Barbarian tier VI *Stand Against Steel* (replaces Axe Throw).
 
 <a id="skill-shield-wall"></a>
 #### Fortress Stance
@@ -405,7 +405,7 @@ Talent: Warbringer tier VI *Stand Against Steel* (replaces Execute); Rampager ti
 - −40% damage taken.
 - *Does not trigger the global cooldown.*
 
-Talent: Warbringer tier VI *Fortress Stance* (replaces Execute); Rampager tier VI *Fortress Stance* (replaces Slam); Barbarian tier VI *Fortress Stance* (replaces Axe Throw).
+Talent: Warbringer tier VI *Fortress Stance* (replaces Execute); Rampager tier VI *Fortress Stance* (replaces Enraged Regeneration); Barbarian tier VI *Fortress Stance* (replaces Axe Throw).
 
 <a id="mage"></a>
 ## Mage
@@ -1375,7 +1375,7 @@ Talent: Cutthroat tier IV *Hobbling Dose* (replaces Kick); Duelist tier IV *Hobb
 
 *Physical* · 30 energy · Instant · 45s cooldown · 6s smoke cloud
 
-- Drops a smoke cloud with a 6-yard radius. Enemies inside lose their target and cannot target anyone, or cast anything that needs a target, until they leave it.
+- Drops a smoke cloud with a 6-yard radius. Its edge blocks sight: enemies outside cannot see or target anyone inside, and enemies inside cannot see or target anyone outside. Inside the cloud everyone sees and fights each other as usual.
 
 Talent: Cutthroat tier V *Smoke Screen* (replaces Sprint); Duelist tier V *Smoke Screen* (replaces Sprint); Shade tier V *Smoke Screen* (replaces Sprint).
 

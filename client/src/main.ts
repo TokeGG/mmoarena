@@ -283,6 +283,8 @@ function onMessage(raw: MessageEvent) {
     case 'account':
     case 'auth_error':
     case 'logged_out':
+      if (m.t === 'logged_out') devPanel.handle({ t: 'dev_session', patches: [] }); // the server dropped the session numbers
+    // falls through
     case 'leaderboard':
     case 'owner':
     case 'admin_accounts':
@@ -292,6 +294,7 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'admin_log':
     case 'admin_history':
+    case 'admin_feed':
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
@@ -334,6 +337,7 @@ function onMessage(raw: MessageEvent) {
       adminPanel.handle(m);
       break;
     case 'dev_state':
+    case 'dev_session':
       devPanel.handle(m);
       break;
     case 'dev_result':
@@ -544,11 +548,17 @@ function interpolate(rt: number): Map<number, { x: number; z: number; y: number;
 
 // ------------------------------------------------------------------ targeting & abilities
 
-/** True while you stand in an enemy's smoke cloud: you cannot target. */
-function inEnemySmoke(): boolean {
-  const me = latest?.units.find((u) => u.id === you);
-  if (!latest || !me) return false;
-  return (latest.zones ?? []).some((z) => z.smoke && z.team !== me.team && Math.hypot(me.x - z.x, me.z - z.z) <= z.r);
+/**
+ * Smoke Bomb cuts sight at the cloud's edge (as the server rules it): an enemy inside a cloud you are not in, or outside
+ * the cloud you are in, cannot be seen or targeted. Both inside the same cloud: business as usual.
+ */
+function smokeHidden(id: number, snap = latest): boolean {
+  if (!snap || spec) return false;
+  const me = snap.units.find((u) => u.id === you);
+  const o = snap.units.find((u) => u.id === id);
+  if (!me || !o || o.team === me.team) return false;
+  const inside = (u: { x: number; z: number }, z: { x: number; z: number; r: number }) => Math.hypot(u.x - z.x, u.z - z.z) <= z.r;
+  return (snap.zones ?? []).some((z) => z.smoke && inside(me, z) !== inside(o, z));
 }
 
 function setTarget(id: number | null) {
@@ -556,8 +566,8 @@ function setTarget(id: number | null) {
     if (id !== null) setFollow(id, latest);
     return;
   }
-  if (id !== null && inEnemySmoke()) {
-    hud.error('Blinded by smoke');
+  if (id !== null && smokeHidden(id)) {
+    hud.error('Hidden by smoke');
     return;
   }
   targetId = id;
@@ -569,7 +579,7 @@ function cycleTarget(dir: 1 | -1) {
   if (!latest) return;
   if (spec) return cycleFollow(dir);
   const enemies = latest.units
-    .filter((u) => u.team !== team && u.alive)
+    .filter((u) => u.team !== team && u.alive && !smokeHidden(u.id))
     .sort((a, b) => Math.hypot(a.x - pred.x, a.z - pred.z) - Math.hypot(b.x - pred.x, b.z - pred.z));
   if (!enemies.length) return;
   const idx = enemies.findIndex((u) => u.id === targetId);
@@ -913,7 +923,7 @@ function frame(now: number) {
     vis.dist += (controls.dist - vis.dist) * (1 - Math.exp(-dt * 10));
   }
 
-  const units: RenderUnit[] = snap.units.map((u) => {
+  const units: RenderUnit[] = snap.units.filter((u) => !smokeHidden(u.id, snap)).map((u) => {
     let x = u.x;
     let z = u.z;
     let facing = u.facing;
@@ -980,7 +990,7 @@ function frame(now: number) {
   }
   scene.render(); // render first so projection uses this frame's camera
 
-  if (!spec && targetId !== null && inEnemySmoke()) setTarget(null); // smoke takes your target away
+  if (!spec && targetId !== null && smokeHidden(targetId)) setTarget(null); // the smoke's edge takes your target away
   const shown = shownBar();
   if (shown.join() !== shownKey) {
     shownKey = shown.join();
@@ -1259,7 +1269,7 @@ function sendReady(on: boolean) {
 const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data }));
 const accountUi = new AccountUi({
   onReplay: (id) => void startReplay(id),
-  openAdmin: () => adminPanel.open(),
+  openAdmin: (tab) => adminPanel.open(tab),
   send: (m) => {
     if (ws && ws.readyState === WebSocket.OPEN) send(m);
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
@@ -1306,6 +1316,7 @@ const adminPanel = new AdminPanel({
   account: () => accountUi.account,
   watch: (id) => send({ t: 'spectate', id }),
   follow: (name) => send({ t: 'follow', name }),
+  replay: (id) => void startReplay(id),
 });
 registerPopup(adminPanel.popup);
 const menuExtras = document.createElement('div');

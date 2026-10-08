@@ -313,6 +313,8 @@ export interface MatchRecord {
   winner: number | 'draw' | null;
   players: MatchPlayer[];
   replay: boolean;
+  /** Bots against bots (an owner's bot match). */
+  bots?: boolean;
 }
 
 export const MAX_HISTORY = 30;
@@ -325,6 +327,8 @@ export interface LiveMatch {
   /** Ranked ladder match, as opposed to a casual queue game, duel or bot practice. */
   ranked: boolean;
   players: { name: string; classId: string; team: number }[];
+  /** Bots against bots, started by the owner. */
+  bots?: boolean;
 }
 
 // ---------------------------------------------------------------- friends and parties

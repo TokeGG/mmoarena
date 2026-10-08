@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.68.3",
+  "date": "2026-10-08",
+  "at": "2026-10-08T00:06:27Z",
+  "title": "Smoke Bomb walls off sight, Recklessness swap",
+  "changes": [
+   "Smoke Bomb now walls off sight at its edge: anyone outside the cloud cannot see or target an enemy inside it, and anyone inside cannot see or target an enemy outside. Enemies inside the same cloud see and fight each other as usual (it no longer blinds them), and allies are never hidden.",
+   "Rogue bots drop Smoke Bomb to cut off casters shooting them from range, and bots that lose sight of you walk into the cloud to find you.",
+   "Fury: the last talent row (Reckless Abandon, Stand Against Steel, Fortress Stance) now replaces Enraged Regeneration instead of Slam, so Slam stays on the bar.",
+   "Aura tooltips also name abilities that grant them on hit (Hot Streak from Flamestrike)."
+  ]
+ },
+ {
   "version": "0.68.2",
   "date": "2026-10-07",
   "at": "2026-10-07T23:28:51Z",

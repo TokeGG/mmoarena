@@ -10,8 +10,8 @@ export const PROTOCOL_VERSION = 9;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel. */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train'];
 /** A running match in the owner's admin panel. */
 export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
 /** What a unit is playing with, shown to people watching a match. */
@@ -78,10 +78,14 @@ export type ClientMsg =
   /** Dev tools (owner or the 'dev' tag), in a match where the dev is the only person: pause it, try numbers in it. */
   | { t: 'dev_pause'; on: boolean }
   | { t: 'dev_patch'; patches: DataPatch[] }
+  /** Test numbers kept for the dev's session: put into every match they play (or watch, as the owner) until cleared. */
+  | { t: 'dev_session'; patches: DataPatch[] }
   /** Dev tools: keep these numbers for everyone (live at once, and proposed for the data files). */
   | { t: 'dev_save'; patches: DataPatch[]; note?: string }
   /** Dev tools: a note on a skill, sent to the owner. */
   | { t: 'dev_note'; ability: string; text: string }
+  /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
+  | { t: 'dev_ai'; ability: string; text: string }
   /** Dev tools: everyone's build in the dev's own match. */
   | { t: 'dev_builds' }
   /** Owner admin panel. */
@@ -136,11 +140,14 @@ export type ServerMsg =
   | { t: 'overrides'; patches: DataPatch[] }
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[] }
+  | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
   /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
-  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null }
+  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean }
   | { t: 'admin_log'; rows: AdminLogRow[] }
   | { t: 'admin_history'; name: string; rows: MatchRecord[] }
+  /** Every match played on the server (the owner's match list). */
+  | { t: 'admin_feed'; rows: MatchRecord[] }
   /** For people watching: every unit's spec, talents and ability bar. */
   | { t: 'builds'; units: UnitBuild[] }
   /** Who the owner is following into their matches (null: nobody). */
@@ -344,16 +351,18 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'dev_pause':
       return { t: 'dev_pause', on: m.on === true };
     case 'dev_patch':
+    case 'dev_session':
     case 'dev_save': {
       const patches = parsePatches(m.patches);
       if (!patches) return null;
-      if (m.t === 'dev_patch') return { t: 'dev_patch', patches };
+      if (m.t === 'dev_patch' || m.t === 'dev_session') return { t: m.t, patches };
       const note = typeof m.note === 'string' ? m.note.slice(0, 600) : undefined;
       return { t: 'dev_save', patches, ...(note ? { note } : {}) };
     }
     case 'dev_note':
+    case 'dev_ai':
       if (typeof m.ability !== 'string' || !Object.hasOwn(ABILITIES, m.ability) || typeof m.text !== 'string' || !m.text.trim()) return null;
-      return { t: 'dev_note', ability: m.ability, text: m.text.trim().slice(0, 600) };
+      return { t: m.t, ability: m.ability, text: m.text.trim().slice(0, 600) };
     case 'dev_builds':
       return { t: 'dev_builds' };
     case 'admin_overview':
@@ -390,7 +399,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.on !== undefined) out.on = m.on === true;
       // the acts on a player need a name, the ones on a match an id
       if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history'].includes(out.act) && !out.name) return null;
-      if (out.act === 'pause_match' && !out.id) return null;
+      if ((out.act === 'pause_match' || out.act === 'train') && !out.id) return null;
       return out;
     }
     case 'follow':

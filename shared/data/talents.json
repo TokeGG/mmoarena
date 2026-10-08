@@ -424,33 +424,33 @@
         {
           "id": "warrior_fury_t6a",
           "name": "Reckless Abandon",
-          "desc": "Replaces Slam with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
+          "desc": "Replaces Enraged Regeneration with Recklessness: 30% more damage dealt, 15% more taken, for 10 seconds.",
           "icon": "😡",
           "mods": {},
           "swap": {
-            "from": "slam",
+            "from": "enraged_regeneration",
             "to": "recklessness"
           }
         },
         {
           "id": "warrior_fury_t6b",
           "name": "Stand Against Steel",
-          "desc": "Replaces Slam with Die by the Sword, a long defensive.",
+          "desc": "Replaces Enraged Regeneration with Die by the Sword, a long defensive.",
           "icon": "🗡️",
           "mods": {},
           "swap": {
-            "from": "slam",
+            "from": "enraged_regeneration",
             "to": "die_by_the_sword"
           }
         },
         {
           "id": "warrior_fury_t6c",
           "name": "Fortress Stance",
-          "desc": "40% less damage taken for 8 seconds. Replaces Slam.",
+          "desc": "40% less damage taken for 8 seconds. Replaces Enraged Regeneration.",
           "icon": "🧱",
           "mods": {},
           "swap": {
-            "from": "slam",
+            "from": "enraged_regeneration",
             "to": "shield_wall"
           }
         }

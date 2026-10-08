@@ -1106,7 +1106,7 @@ describe('crowd control that breaks on damage', () => {
 });
 
 describe('smoke bomb', () => {
-  it('no targeting into or out of the cloud for enemies; the caster team is unaffected', () => {
+  it('its edge blocks sight both ways; enemies inside the same cloud see and fight each other; allies are unaffected', () => {
     const sim = live();
     const rogue = add(sim, 'rogue', 0, 0, 0);
     const ally = add(sim, 'mage', 0, 2, 0);
@@ -1117,20 +1117,23 @@ describe('smoke bomb', () => {
     advance(sim, TICK);
     sim.setTarget(foe.id, rogue.id);
     sim.setTarget(far.id, rogue.id);
-    assert.equal(foe.target, rogue.id);
+    sim.setTarget(rogue.id, far.id);
     assert.ok(sim.useAbility(rogue.id, 'choke_bomb').ok);
     advance(sim, TICK * 2);
-    assert.equal(foe.target, null, 'target taken away inside the cloud');
-    assert.equal(far.target, null, 'from outside, the rogue inside is lost from sight too');
+    assert.equal(foe.target, rogue.id, 'inside the cloud with the rogue: the target stays');
+    assert.ok(sim.useAbility(foe.id, 'mortal_strike', rogue.id).ok, 'and it can be hit inside the cloud');
+    assert.ok(sim.setTarget(rogue.id, foe.id).ok, 'the rogue sees the warrior in the cloud with it');
+    assert.equal(far.target, null, 'from outside, the rogue inside is lost from sight');
     mustFail(sim.setTarget(far.id, rogue.id), /not visible/);
-    mustFail(sim.setTarget(far.id, ally.id), /not visible/); // the rogue's partner in the cloud is hidden as well
-    mustFail(sim.setTarget(foe.id, rogue.id), /smoke/);
-    mustFail(sim.useAbility(foe.id, 'mortal_strike', rogue.id), /smoke/);
-    assert.ok(sim.setTarget(ally.id, foe.id).ok, 'the caster team is not affected');
+    mustFail(sim.setTarget(far.id, ally.id), /not visible/); // anyone inside is hidden from outside
+    mustFail(sim.setTarget(rogue.id, far.id), /not visible/); // and from inside, nobody outside can be seen
+    assert.ok(sim.setTarget(far.id, foe.id).ok, 'an ally is never hidden by smoke');
     assert.ok(sim.snapshot().zones.some((z) => z.smoke), 'the cloud is in the snapshot');
     foe.pos = { x: 20, z: 0 };
     advance(sim, TICK * 2);
-    mustFail(sim.setTarget(foe.id, rogue.id), /not visible/); // out of the cloud, but the rogue is still in it
+    assert.equal(foe.target, null, 'stepping out of the cloud loses the rogue inside');
+    mustFail(sim.setTarget(foe.id, rogue.id), /not visible/);
+    mustFail(sim.setTarget(rogue.id, foe.id), /not visible/);
     rogue.pos = { x: 12, z: 0 };
     advance(sim, TICK);
     assert.ok(sim.setTarget(foe.id, rogue.id).ok, 'once the rogue steps out it can be targeted again');

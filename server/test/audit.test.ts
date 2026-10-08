@@ -298,7 +298,7 @@ describe('0.64 accounts and limits', () => {
 });
 
 describe('0.64 replays', () => {
-  it('solo practice keeps no replay; a replay too big to keep is announced to the players', async () => {
+  it('every match keeps its replay (solo practice too, for the owner\'s match list); a replay too big to keep is announced', async () => {
     const accounts = new Accounts(new MemoryStore());
     const { us, lobby } = await world(['Ann', 'Bob'], {}, accounts);
     let saved = 0;
@@ -311,9 +311,10 @@ describe('0.64 replays', () => {
     lobby.tick();
     await until(() => (last(us[0].s, 'account')?.account.matches ?? 0) >= 1);
     await new Promise((r) => setTimeout(r, 30));
-    assert.equal(saved, 0, 'solo practice is not stored');
+    assert.equal(saved, 1, 'solo practice is stored too');
     const hist = await accounts.history('ann');
-    assert.equal(hist[0]?.replay, false, 'but the match is still in the history');
+    assert.equal(hist[0]?.replay, true, 'and the history links it');
+    assert.equal((await accounts.feed())[0]?.id, prac.id, 'and it is in the list of every match');
 
     // ranked: an oversized replay is not stored, and the players are told
     lobby.handle(us[0].p, { t: 'leave' } as ClientMsg);

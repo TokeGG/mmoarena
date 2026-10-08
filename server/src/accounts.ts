@@ -72,6 +72,8 @@ export class Limiter {
   }
 }
 
+/** Matches kept in the owner's list of every match. */
+const FEED_KEEP = 400;
 /** How long the leaderboard is served from memory before it is read again. */
 const LEADERBOARD_CACHE_MS = 10000;
 
@@ -512,6 +514,25 @@ export class Accounts {
       const list = await this.history(key);
       list.unshift(rec);
       await this.store.set(`hist:${key}`, JSON.stringify(list.slice(0, MAX_HISTORY)));
+    }
+  }
+
+  /** Every match played on the server, newest first (the owner's match list), kept as long as their replays. */
+  async addFeed(rec: MatchRecord): Promise<void> {
+    await this.exclusive(['__feed'], async () => {
+      const list = await this.feed();
+      list.unshift(rec);
+      await this.store.set('feed', JSON.stringify(list.slice(0, FEED_KEEP)));
+    });
+  }
+
+  async feed(): Promise<MatchRecord[]> {
+    try {
+      const raw = await this.store.get('feed');
+      const v = raw ? (JSON.parse(raw) as unknown) : [];
+      return Array.isArray(v) ? (v as MatchRecord[]) : [];
+    } catch {
+      return [];
     }
   }
 
