@@ -1,6 +1,6 @@
 # Netcode study: what limits input feel, what a higher tick rate buys and costs
 
-Status: measurements and a plan only. Nothing in the sim, protocol or client was changed (`scripts/netstudy.ts` and this file are the only additions). Line numbers are for the tree at the time of writing; `client/src/main.ts` was being edited by other work at the same time, so for it the function name is the stable reference.
+Status: measurements and a plan; Stage 1 (section 7) is implemented in 0.69.4, results in section 9. The sections before it describe the code as it was when measured. Line numbers are for the tree at the time of writing; `client/src/main.ts` was being edited by other work at the same time, so for it the function name is the stable reference.
 
 ## 0. Verdict in ten lines
 
@@ -394,10 +394,30 @@ Tick-coupled and must change (all verified by grep):
 ```
 npx tsx scripts/netstudy.ts                       # everything, about 10 to 20 minutes on a quiet 4-core machine
 npx tsx scripts/netstudy.ts --quick               # 1 seed, 30 s runs, 20 s CPU cells
-npx tsx scripts/netstudy.ts --only net            # sections: net, cpu (also does bandwidth), timer, rules, bots
+npx tsx scripts/netstudy.ts --only net            # sections: net, stage1 (old pipeline vs Stage 1, seconds), cpu (also does bandwidth), timer, rules, bots
 npx tsx scripts/netstudy.ts --json out.json       # raw numbers
 ```
 
-Run `cpu` and `timer` when the machine is otherwise idle. The script only imports from `shared/` and `server/`; it starts child processes of itself (one per tick length, because `TUNING.tickMs` is read once at module load) and never writes into the repository.
+Run `cpu` and `timer` when the machine is otherwise idle. The script only imports from `shared/`, `server/` and (the pure Stage 1 modules) `client/src`; it starts child processes of itself (one per tick length, because `TUNING.tickMs` is read once at module load) and never writes into the repository.
 
 To see how the existing test suite behaves at another tick length without touching any file, preload a script that sets `TUNING.tickMs` in memory (`NODE_OPTIONS="--import tsx --import preload.mjs"` with `preload.mjs` doing `(await import('<repo>/shared/src/data.ts')).TUNING.tickMs = Number(process.env.TICKMS)`).
+
+## 9. Stage 1 results (implemented in 0.69.4)
+
+Same harness (`npx tsx scripts/netstudy.ts --only stage1`, 3 seeds x 60 s, 20 Hz, 50 ms one-way, 60 fps), but the "stage 1" rows drive the client side with the **real** modules (`client/src/netClock.ts`, `interpDelay.ts`, `ownAhead.ts`) and the **real** sim catch-up; "before" is the old pipeline (the sim's catch-up credit forced to zero each tick). Links: clean (0 ms jitter, no loss), 1 % loss each way (10 ms jitter), 30 ms jitter (no loss).
+
+| link / pipeline | age of others ms | stale mean u | stale p95 u | own input to screen (c1) ms | input to server-confirmed (c2) ms | range-check error p95 u | false refusals % | false accepts % | underrun % | render time back/min | pops/min | input queue depth |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| clean / before | 150 | 0.73 | 1.05 | 47 | 170 | 0.21 | 0.0 | 0.9 | 0.0 | 0 | 0 | 1.43 |
+| clean / stage 1 | 125 | 0.62 | 0.89 | 24 | 170 | 0.54 | 1.7 | 2.6 | 0.0 | 0 | 0 | 1.43 |
+| 1 % loss / before | 155 | 0.77 | 1.12 | 47 | 364 | 1.38 | 4.6 | 6.4 | 2.8 | 8.2 | 7.7 | 4.36 |
+| 1 % loss / stage 1 | 162 | 0.79 | 1.66 | 24 | 209 | 0.79 | 1.6 | 1.6 | 2.7 | 0 | 6.2 | 1.71 |
+| 30 ms jitter / before | 163 | 0.80 | 1.23 | 45 | 195 | 0.24 | 1.9 | 0.0 | 0.0 | 119 | 6.0 | 1.51 |
+| 30 ms jitter / stage 1 | 139 | 0.68 | 0.98 | 23 | 195 | 0.64 | 5.9 | 1.0 | 0.0 | 0 | 0 | 1.51 |
+
+What improved: on a clean link others are drawn **25 ms** fresher (125 vs 150 ms; the buffer is 1.5 snapshot intervals = 75 ms instead of 100), with 30 ms of jitter 24 ms fresher; your own character reacts **23 ms** sooner (47 to 24 ms); render time never runs backwards any more (119 steps a minute at 30 ms jitter before, 0 now) and remote players stop popping at 30 ms jitter (6 to 0 a minute); on a lossy link the input queue no longer stays 4 ticks deep (4.4 to 1.7), the time until the server has acted on an input falls from 364 to 209 ms, and the range-check error and wrong verdicts drop (p95 1.38 to 0.79 u, wrong verdicts 4.6/6.4 % to 1.6/1.6 %).
+
+What did not improve, or got worse: (1) **others on a lossy link are not fresher** (162 vs 155 ms): the adaptive delay rises with the lateness it measures, which is the price of having no more freezes (underrun stays at 2.7 %, from the head-of-line stalls themselves, which extrapolation only bridges for 100 ms). (2) **Range-check error on clean links is larger** (p95 0.21 to 0.54 u, 0.24 to 0.64 at 30 ms jitter, false refusals up to 1.7 % and 5.9 %): drawing your own character ahead means the player sees himself closer to his target than the server (which judges the caster at its server position) does; this is the cost the study predicted for the 24 ms of response, and the melee/spell tolerances in the sim must stay generous. (3) The input to server-confirmed time on clean and jittery links did not change (the catch-up only matters after stalls). (4) The "dropped inputs" column of the harness now counts inputs skipped by the catch-up (the unit had already moved on a repeated input), so it is not comparable between the two pipelines. (5) At the sim level the catch-up is deliberately cautious: a client can never move more ticks than the clock has run (a repeated tick is matched by skipping one late input, an idle tick pays for one extra step), so a stall that the server covered by repeating the last input is cleared completely, while a longer one recovers only what its idle ticks pay for. The unlimited emulation of section 4 would be a speed hack for a modified client.
+
+Not measured here: real browsers, real frame-time jitter, the snapshot diet (a protocol change with no effect on the numbers above; a 6-unit snapshot in an idle test match went from 2305 to 1736 bytes of JSON per tick, about 25 % less; busy fights have more state, so the share is smaller), the 1 ms server loop (its spacing was measured in section 4.5). Use the Network stats readout on real devices.
+

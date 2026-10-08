@@ -85,7 +85,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       return;
     }
     if (url.pathname === '/api/status') {
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary() }));
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary(), tick: { rooms: lobby.roomCount(), avgMs: Math.round(lobby.tickCost.avgMs * 100) / 100, maxMs: Math.round(lobby.tickCost.maxMs * 100) / 100 } }));
       return;
     }
     // the owner's offline study of how people beat the bots (scripts/study-replays.ts --server URL --code CODE)
@@ -243,22 +243,9 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
     ws.on('error', () => lobby.disconnect(player));
   });
 
-  // Fixed-rate loop with an accumulator so a late timer fires extra ticks instead of slowing the game.
-  const TICK = TUNING.tickMs;
-  let last = performance.now();
-  let acc = 0;
-  const loop = setInterval(() => {
-    const now = performance.now();
-    acc += now - last;
-    last = now;
-    let n = 0;
-    while (acc >= TICK && n < 5) {
-      acc -= TICK;
-      n++;
-      lobby.tick();
-    }
-    if (n === 5) acc = 0; // fell badly behind: drop the backlog rather than spiral
-  }, 10);
+  // Fixed-step loop: a 1 ms timer feeds a performance.now() accumulator, so ticks start within about a millisecond of
+  // their time (a 10 ms timer quantised them). A late callback plays up to MAX_CATCHUP ticks back to back, the rest is dropped.
+  const loop = startTickLoop(() => lobby.tick(), TUNING.tickMs);
 
   // Drop dead connections (also keeps idle sockets open on hosts with proxy timeouts).
   const heartbeat = setInterval(() => {
@@ -281,7 +268,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
         port,
         close: () =>
           new Promise<void>((done) => {
-            clearInterval(loop);
+            loop.stop();
             clearInterval(heartbeat);
             void measurer.close();
             for (const ws of wss.clients) ws.terminate();
@@ -290,4 +277,25 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       });
     });
   });
+}
+
+/** Calls `tick` every `stepMs` of real time using a 1 ms timer and a monotonic accumulator; at most `maxCatchup` ticks per callback. */
+export function startTickLoop(tick: () => void, stepMs: number, maxCatchup = 3, now: () => number = () => performance.now()): { stop: () => void; step: () => number } {
+  let last = now();
+  let acc = 0;
+  const step = () => {
+    const t = now();
+    acc += t - last;
+    last = t;
+    let n = 0;
+    while (acc >= stepMs && n < maxCatchup) {
+      acc -= stepMs;
+      n++;
+      tick();
+    }
+    if (acc >= stepMs) acc = 0; // fell badly behind: drop the backlog rather than spiral
+    return n;
+  };
+  const timer = setInterval(step, 1);
+  return { stop: () => clearInterval(timer), step };
 }

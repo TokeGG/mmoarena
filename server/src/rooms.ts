@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
 import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
@@ -136,6 +136,9 @@ export class Room {
   private finalSentLate = false;
   /** Who has pressed Play again, and what the lobby needs to rebuild the match when everyone has. */
   private rematchVotes = new Set<Player>();
+  /** Per team: what identity its players were sent; and who has had their first complete frame (see snapslim.ts). */
+  private encoders = new Map<number, SlimEncoder>();
+  private slimSeen = new Set<Player>();
   onRematch: ((room: Room) => void) | null = null;
   /** Ranked only: someone left before the gates opened. The lobby cancels the match and puts the others back in the queue. */
   onAbort: ((room: Room, leaver: Player) => void) | null = null;
@@ -533,17 +536,28 @@ export class Room {
     this.sim.step();
     const events = this.sim.drainEvents();
     // everyone on a team gets the same view, so build and serialise it once per team
-    const frames = new Map<number, string>();
+    // a unit's identity (name, class, look, bar...) is not repeated every tick: it goes out with the first frame and when it changes
+    const frames = new Map<number, { slim: string; first: () => string }>();
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
       if (!me) continue;
       let frame = frames.get(me.team);
       if (frame === undefined) {
         // a stealthed enemy's casts and buffs are left out along with its position
-        frame = JSON.stringify({ t: 'snapshot', snap: this.sim.snapshot(me.team), events: this.sim.eventsFor(me.team, events) });
+        let enc = this.encoders.get(me.team);
+        if (!enc) this.encoders.set(me.team, (enc = new SlimEncoder()));
+        const { snap, info, allInfo } = enc.encode(this.sim.snapshot(me.team));
+        const ev = this.sim.eventsFor(me.team, events);
+        frame = {
+          slim: JSON.stringify({ t: 'snapshot', snap, events: ev, ...(info.length ? { info } : {}) }),
+          first: () => JSON.stringify({ t: 'snapshot', snap, events: ev, info: allInfo }),
+        };
         frames.set(me.team, frame);
       }
-      if (p.ws.readyState === 1 /* OPEN */) p.ws.send(frame);
+      if (p.ws.readyState === 1 /* OPEN */) {
+        p.ws.send(this.slimSeen.has(p) ? frame.slim : frame.first());
+        this.slimSeen.add(p);
+      }
     }
     this.tally(events);
     if (this.countsForProgress || this.spectators.size) {
@@ -1229,6 +1243,9 @@ export class Lobby {
 
   handle(p: Player, msg: ClientMsg): void {
     switch (msg.t) {
+      case 'ping':
+        send(p, { t: 'pong', n: msg.n }); // answered at once, in any state
+        break;
       case 'join': {
         if (p.room || this.inQueue(p)) return;
         if (this.maint && !p.ownerOk) return void send(p, { t: 'closed', reason: this.maint });
@@ -2066,11 +2083,21 @@ export class Lobby {
     for (const [k, t] of this.queueBans) if (t <= now) this.queueBans.delete(k);
   }
 
+  /** How long a whole server tick takes (all rooms): smoothed and the worst since start, for /api/status. */
+  tickCost = { avgMs: 0, maxMs: 0 };
+  roomCount(): number {
+    return this.rooms.size;
+  }
+
   tick(): void {
+    const t0 = performance.now();
     for (const room of this.rooms) {
       room.tick();
       if (room.closed) this.rooms.delete(room);
     }
+    const spent = performance.now() - t0;
+    this.tickCost.avgMs += (spent - this.tickCost.avgMs) * 0.02;
+    if (spent > this.tickCost.maxMs) this.tickCost.maxMs = spent;
     const now = Date.now();
     for (const [id, inv] of this.invites) {
       if (now - inv.at > INVITE_TTL_MS) {

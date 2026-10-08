@@ -5,6 +5,7 @@ import { WebSocket } from 'ws';
 import { startServer } from '../src/index';
 import type { RunningServer } from '../src/index';
 import type { ClientMsg, ServerMsg, Snapshot, UnitSnap } from '@arena/shared';
+import { SnapMerger } from '@arena/shared';
 
 class TestClient {
   ws: WebSocket;
@@ -13,13 +14,14 @@ class TestClient {
   welcome: Extract<ServerMsg, { t: 'welcome' }> | null = null;
   events: any[] = [];
   seq = 0;
+  private merger = new SnapMerger();
   constructor(url: string) {
     this.ws = new WebSocket(url);
     this.ws.on('message', (d) => {
       const m = JSON.parse(d.toString()) as ServerMsg;
       if (m.t === 'welcome') this.welcome = m;
       else if (m.t === 'snapshot') {
-        this.snap = m.snap;
+        this.snap = this.merger.merge(m.snap, m.info);
         this.events.push(...m.events);
       } else if (m.t === 'error') this.errors.push(m.reason);
     });

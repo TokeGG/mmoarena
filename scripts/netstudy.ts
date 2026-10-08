@@ -98,7 +98,9 @@ export interface NetCfg {
   loss: number;
   fps: number;
   /** Server input-queue policy: 'cap5' = what the game does now (queue of 5, one input consumed per tick); 'cap2' = keep at most 2 (drop the oldest); 'catchup' = when more than 2 are waiting, apply the extra ones in the same tick (emulated here by stepping the unit directly; NOT in the game). */
-  qpolicy?: 'cap5' | 'cap2' | 'catchup';
+  qpolicy?: 'cap5' | 'cap2' | 'catchup' | 'sim';
+  /** Stage 1 as shipped: the REAL client modules (client/src/netClock.ts, interpDelay.ts, ownAhead.ts) drive clock, delay, extrapolation and the own character. Combine with qpolicy 'sim' (the sim's own catch-up); every other qpolicy switches the sim's catch-up off to model the old rules. */
+  stage1?: boolean;
   /** How the own character is drawn between predicted steps: 'lerp' = what main.ts does (blend prevPred->pred, always up to one tick behind); 'ahead' = project the last step forward by the time since the step (what a per-frame prediction would show). */
   own?: 'lerp' | 'ahead';
 }
@@ -186,10 +188,18 @@ class NetClient {
   extrapFrames = 0;
   underrun = 0;
   disp: { x: number; z: number } | null = null;
+  nc: any; iv: any; idl: any; rtc: any;
 
   constructor(readonly sh: Shared, readonly id: number, readonly other: number, readonly up: Link, rng: () => number, readonly phase: number) {
     this.script = makeScript(rng, sh.durMs, id === 1 ? 0.3 : 2.9);
     this.nextCastAt = 4000 + rng() * 500;
+    if (sh.cfg.stage1) {
+      const S = sh.S1;
+      this.nc = new S.NetClock();
+      this.iv = new S.IntervalTracker();
+      this.idl = new S.InterpDelay();
+      this.rtc = new S.RenderTime();
+    }
   }
 
   keys(W: number): Seg {
@@ -201,11 +211,13 @@ class NetClient {
   get delayMs(): number {
     const c = this.sh.cfg;
     if (c.delay === '2snap') return 2 * c.snapMs;
+    if (c.stage1) return this.idl.delay;
     if (c.delay === 'adaptive') return this.adaptDelay;
     return c.delay;
   }
 
   estNow(W: number): number {
+    if (this.sh.cfg.stage1) return this.nc.ready ? this.nc.now(W) : 0;
     if (this.sh.cfg.clock === 'smooth' && Number.isFinite(this.offEst)) return W + this.offEst;
     return this.latest ? this.latest.time + (W - this.latestAt) : 0; // main.ts:747 estimatedNow()
   }
@@ -222,6 +234,11 @@ class NetClient {
     while (this.offSamples.length && W - this.offSamples[0].at > 2000) this.offSamples.shift();
     const target = Math.max(...this.offSamples.map((s) => s.o));
     this.offEst = Number.isFinite(this.offEst) ? this.offEst + 0.1 * (target - this.offEst) : target;
+    if (cfg.stage1) {
+      this.nc.sample(snap.time, W);
+      this.iv.add(snap.time);
+      this.idl.update(this.iv.mean, this.nc.latenessP95());
+    }
     // arrival jitter (adaptive delay)
     if (this.lastArrival) {
       const gap = W - this.lastArrival;
@@ -285,6 +302,14 @@ class NetClient {
     const newest = snaps[snaps.length - 1].snap;
     if (rt > newest.time) {
       this.underrun++;
+      if (this.sh.cfg.stage1 && snaps.length >= 2) {
+        const prev = snaps[snaps.length - 2].snap;
+        const un = newest.units.find((u) => u.id === id)!;
+        const up = prev.units.find((u) => u.id === id) ?? un;
+        const p = this.sh.S1.poseAt({ t: prev.time, x: up.x, z: up.z, y: 0, facing: 0 }, { t: newest.time, x: un.x, z: un.z, y: 0, facing: 0 }, rt);
+        this.extrapFrames++;
+        return { x: p.x, z: p.z };
+      }
       if (this.sh.cfg.extrap && snaps.length >= 2) {
         const prev = snaps[snaps.length - 2].snap;
         const un = newest.units.find((u) => u.id === id)!;
@@ -312,8 +337,9 @@ class NetClient {
     }
     const alpha = Math.min(1, Math.max(0, this.acc / DT));
     const ahead = this.sh.cfg.own === 'ahead';
-    const tx = ahead ? this.pred.x + (this.pred.x - this.prevPred.x) * alpha : this.prevPred.x + (this.pred.x - this.prevPred.x) * alpha;
-    const tz = ahead ? this.pred.z + (this.pred.z - this.prevPred.z) * alpha : this.prevPred.z + (this.pred.z - this.prevPred.z) * alpha;
+    const own1 = this.sh.cfg.stage1 ? this.sh.S1.ownAhead(this.pred, this.prevPred, this.acc, DT, this.sh.M.TUNING.runSpeed * DT * 3) : null;
+    const tx = own1 ? own1.x : ahead ? this.pred.x + (this.pred.x - this.prevPred.x) * alpha : this.prevPred.x + (this.pred.x - this.prevPred.x) * alpha;
+    const tz = own1 ? own1.z : ahead ? this.pred.z + (this.pred.z - this.prevPred.z) * alpha : this.prevPred.z + (this.pred.z - this.prevPred.z) * alpha;
     if (!this.vis.ready || Math.hypot(tx - this.vis.x, tz - this.vis.z) > 4) {
       this.vis.x = tx;
       this.vis.z = tz;
@@ -324,7 +350,7 @@ class NetClient {
       this.vis.z += (tz - this.vis.z) * k;
     }
     this.visLog.push({ W, x: this.vis.x, z: this.vis.z });
-    const rt = this.estNow(W) - this.delayMs;
+    const rt = this.sh.cfg.stage1 ? this.rtc.next(this.estNow(W), this.delayMs) : this.estNow(W) - this.delayMs;
     const d = this.interpolate(rt, this.other);
     this.disp = d;
     this.frameCount++;
@@ -346,7 +372,7 @@ class NetClient {
   }
 }
 
-interface Shared { M: Mods; cfg: NetCfg; DT: number; durMs: number; server: NetServer; rng: () => number }
+interface Shared { M: Mods; S1: any; cfg: NetCfg; DT: number; durMs: number; server: NetServer; rng: () => number }
 
 class NetServer {
   sim: any;
@@ -415,12 +441,12 @@ export interface NetResult {
   rewindMean: number; clampedPct: number; windowClampedPct: number; qlen: number[]; starvedPct: number; droppedPerMin: number; minutes: number;
 }
 
-function runNet(M: Mods, cfg: NetCfg, seed: number, durMs: number): NetResult {
+function runNet(M: Mods, S1: any, cfg: NetCfg, seed: number, durMs: number): NetResult {
   const { TUNING } = M;
   const T = TUNING.tickMs;
   const rng = mulberry(seed * 7919 + 13);
   const q = new Heap();
-  const sh: Shared = { M, cfg, DT: T / 1000, durMs, server: null as any, rng };
+  const sh: Shared = { M, S1, cfg, DT: T / 1000, durMs, server: null as any, rng };
   const server = new NetServer(sh);
   sh.server = server;
   const link = () => new Link(q, cfg.owd, cfg.jitter, cfg.loss / 100, rng);
@@ -450,6 +476,7 @@ function runNet(M: Mods, cfg: NetCfg, seed: number, durMs: number): NetResult {
           }
         }
       }
+      if (cfg.qpolicy !== 'sim') for (const id of [1, 2]) { sim.units.get(id).catchUp = 0; sim.units.get(id).owed = 0; } // the old rules: no catch-up credit, one input per tick
       sim.step();
       sim.drainEvents();
       ticks += 2;
@@ -891,13 +918,14 @@ async function childMain() {
   data.TUNING.tickMs = spec.tickMs;
   const M = await import('../shared/src/index');
   if (M.TUNING.tickMs !== spec.tickMs) throw new Error('tickMs override failed');
+  const S1 = { ...(await import('../client/src/netClock')), ...(await import('../client/src/interpDelay')), ...(await import('../client/src/ownAhead')) };
   const out: any = { tickMs: spec.tickMs };
   const sections: string[] = spec.sections;
   if (sections.includes('net')) {
     out.net = [];
     for (const cfg of spec.cfgs as NetCfg[]) {
       const rs: NetResult[] = [];
-      for (let s = 1; s <= spec.seeds; s++) rs.push(runNet(M, cfg, s, spec.durMs));
+      for (let s = 1; s <= spec.seeds; s++) rs.push(runNet(M, S1, cfg, s, spec.durMs));
       out.net.push({ cfg, sum: summarise(pool(rs)) });
     }
   }
@@ -974,6 +1002,13 @@ async function orchestrate() {
   const base = (over: Partial<NetCfg> = {}): NetCfg => ({ name: 'current', tickMs: 50, snapMs: 50, delay: 100, extrap: false, clock: 'naive', owd: 50, jitter: 10, loss: 1, fps: 60, ...over });
   const cfgsByTick = new Map<number, NetCfg[]>();
   const addCfg = (c: NetCfg) => { const l = cfgsByTick.get(c.tickMs) ?? []; l.push(c); cfgsByTick.set(c.tickMs, l); };
+  if (only.includes('stage1') || only.includes('net')) {
+    // S: the old pipeline against Stage 1 (real client modules + the sim's catch-up) on the three links the plan names
+    for (const [nn, owd, jitter, loss] of [['clean link', 50, 0, 0], ['1% loss', 50, 10, 1], ['30 ms jitter', 50, 30, 0]] as [string, number, number, number][]) {
+      addCfg(base({ name: `S ${nn} | before`, owd, jitter, loss, qpolicy: 'cap5' }));
+      addCfg(base({ name: `S ${nn} | stage 1`, owd, jitter, loss, qpolicy: 'sim', stage1: true, extrap: true, own: 'ahead' }));
+    }
+  }
   if (only.includes('net')) {
     for (const owd of [20, 50, 100]) for (const jitter of [0, 10, 30]) for (const loss of [0, 1, 3]) addCfg(base({ name: `A ${owd}/${jitter}/${loss}`, owd, jitter, loss }));
     const nets: [string, number, number, number][] = [['LAN-ish 20/0/0', 20, 0, 0], ['clean 50/10/0', 50, 10, 0], ['lossy 50/10/1', 50, 10, 1], ['bad 100/30/3', 100, 30, 3]];
@@ -1033,11 +1068,17 @@ async function orchestrate() {
     log(table(['net', 'age ms', 'stale mean', 'p95', 'max', 'recon mean', 'p95', 'corr mean', 'p95', 'max', 'corr >5cm %', 'pops/min', 'rt back/min', 'c1 ms', 'c2 ms', 'c3 ms', 'castErr p95', 'drop/min', 'qlen'],
       rows.filter((r) => r.cfg.name.startsWith('A ')).map((r) => [r.cfg.name.slice(2), f(r.s.ageMean, 0), f(r.s.staleMean), f(r.s.staleP95), f(r.s.staleMax), f(r.s.reconMean), f(r.s.reconP95), f(r.s.corrMean, 3), f(r.s.corrP95, 3), f(r.s.corrMax, 2), f(r.s.corrFreq, 1), f(r.s.pops, 1), f(r.s.backwards, 1), f(r.s.c1, 0), f(r.s.c2, 0), f(r.s.c3, 0), f(r.s.castErrP95), f(r.s.dropped, 1), f(r.s.qlen, 2)])));
     for (const nn of ['LAN-ish 20/0/0', 'clean 50/10/0', 'lossy 50/10/1', 'bad 100/30/3']) {
+      if (!rows.some((r) => r.cfg.name.startsWith(`B ${nn}`))) continue;
       log(`\n## B. Hypothetical settings at ${nn} (one-way ms / jitter ms / loss %)\n`);
       log(table(['setting', 'age ms', 'stale mean', 'p95', 'recon mean', 'p95', 'max', 'corr mean', 'p95', 'corr>5cm %', 'pops/min', 'rt back/min', 'underrun %', 'c1 ms', 'c2 ms', 'c3 ms', 'castErr mean', 'p95', 'rej %', 'acc %', 'rewind ms', 'clamp %', 'hist clamp %', 'drop/min', 'qlen', 'starve %'],
         rows.filter((r) => r.cfg.name.startsWith(`B ${nn}`)).map((r) => [r.cfg.name.split(' | ')[1], f(r.s.ageMean, 0), f(r.s.staleMean), f(r.s.staleP95), f(r.s.reconMean), f(r.s.reconP95), f(r.s.reconMax), f(r.s.corrMean, 3), f(r.s.corrP95, 3), f(r.s.corrFreq, 1), f(r.s.pops, 1), f(r.s.backwards, 1), f(r.s.underrun, 1), f(r.s.c1, 0), f(r.s.c2, 0), f(r.s.c3, 0), f(r.s.castErrMean), f(r.s.castErrP95), f(r.s.wrongReject, 1), f(r.s.wrongAccept, 1), f(r.s.rewind, 0), f(r.s.clamped, 1), f(r.s.windowClamped, 1), f(r.s.dropped, 1), f(r.s.qlen, 2), f(r.s.starved, 1)])));
     }
     void get;
+    if (rows.some((r) => r.cfg.name.startsWith('S '))) {
+      log('\n## S. Stage 1 against the old pipeline (20 Hz sim; real client modules and the real sim catch-up)\n');
+      log(table(['link / pipeline', 'age ms', 'stale mean', 'p95', 'recon p95', 'c1 ms', 'c2 ms', 'c3 ms', 'castErr p95', 'rej %', 'acc %', 'underrun %', 'rt back/min', 'pops/min', 'corr p95', 'qlen', 'drop/min'],
+        rows.filter((r) => r.cfg.name.startsWith('S ')).map((r) => [r.cfg.name.slice(2).replace(' | ', ' / '), f(r.s.ageMean, 0), f(r.s.staleMean), f(r.s.staleP95), f(r.s.reconP95), f(r.s.c1, 0), f(r.s.c2, 0), f(r.s.c3, 0), f(r.s.castErrP95), f(r.s.wrongReject, 1), f(r.s.wrongAccept, 1), f(r.s.underrun, 1), f(r.s.backwards, 1), f(r.s.pops, 1), f(r.s.corrP95, 3), f(r.s.qlen, 2), f(r.s.dropped, 1)])));
+    }
   }
 
   // ------------------------------------------------ cpu / bandwidth (serial, nothing else running)

@@ -18,6 +18,10 @@ const ok: Result = { ok: true };
 const fail = (reason: string): Result => ({ ok: false, reason });
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
 const HISTORY_TICKS = 12;
+/** Input catch-up (see tickUnit): above CATCHUP_DEPTH queued inputs the surplus is consumed in the same tick, paid for by owed repeat ticks (no movement) and idle-tick credit (at most CATCHUP_MAX moving steps per tick); both capped at CATCHUP_CREDIT_MAX. */
+export const CATCHUP_DEPTH = 2;
+export const CATCHUP_MAX = 2;
+const CATCHUP_CREDIT_MAX = 5;
 /** A melee swing reaches this far up or down (a ramp's slope), not from a walkway's top to the ground below. */
 const MELEE_FLOOR_GAP = 1.6;
 const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
@@ -144,7 +148,7 @@ export class ArenaSim {
       this.rebuildUnit(u.id, u.classId, u.buildRef);
       Object.assign(u, {
         pos: { x: sp.x, z: sp.z }, facing: this.arena.spawnFacing[u.team], level: 0, charge: null, leap: null, inputQueue: [], lastCast: null,
-        lastCombatAt: -1e9, nextSwing: 0, autoSince: 0, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, starve: 0, fearDir: { x: 0, z: 0 }, fearRetargetAt: 0, respawnAt: undefined,
+        lastCombatAt: -1e9, nextSwing: 0, autoSince: 0, jumpStart: -1e9, dodgeUntil: 0, dodgeReadyAt: 0, starve: 0, catchUp: 0, owed: 0, fearDir: { x: 0, z: 0 }, fearRetargetAt: 0, respawnAt: undefined,
       } as Partial<Unit>);
       u.lastInput = { seq: u.lastSeq, fwd: 0, strafe: 0, facing: this.arena.spawnFacing[u.team] };
     }
@@ -486,6 +490,32 @@ export class ArenaSim {
       u.resource = Math.min(u.resourceMax, u.resource + cls.resource.regenPerSec * this.modsOf(u).regen * DT);
     }
 
+    // input catch-up: a backlog (a late burst after a stall) is worked off in this same tick instead of staying for the whole
+    // match. Two kinds of tick are owed back, and neither can make a unit move more ticks than the clock has run:
+    //  - a tick that repeated the last input (`owed`) already moved the unit, so the same number of queued inputs are consumed
+    //    without moving it again (their seq is still acknowledged);
+    //  - a tick with nothing to play that left the unit standing (`catchUp` credit) lets one queued input move it, up to
+    //    CATCHUP_MAX such extra steps per tick.
+    const extras: MoveInput[] = [];
+    while (u.inputQueue.length > CATCHUP_DEPTH) {
+      let move = false;
+      if ((u.owed ?? 0) >= 1) u.owed = (u.owed ?? 0) - 1;
+      else if (extras.length < CATCHUP_MAX && (u.catchUp ?? 0) >= 1) {
+        u.catchUp = (u.catchUp ?? 0) - 1;
+        move = true;
+      } else break;
+      const x = u.inputQueue.shift()!;
+      if (move) extras.push(x);
+      u.lastInput = x;
+      u.lastSeq = x.seq;
+      if (x.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) {
+        u.jumpStart = this.time;
+        if (this.time >= u.dodgeReadyAt) {
+          u.dodgeUntil = this.time + JUMP_MS;
+          u.dodgeReadyAt = this.time + JUMP_DODGE_CD;
+        }
+      }
+    }
     // input: one queued command per tick; briefly repeat the last one if a packet is late
     let input: MoveInput;
     const queued = u.inputQueue.shift();
@@ -497,8 +527,10 @@ export class ArenaSim {
     } else if (u.starve < 3) {
       input = u.lastInput;
       u.starve++;
+      u.owed = Math.min(CATCHUP_CREDIT_MAX, (u.owed ?? 0) + 1); // this tick moved the unit on a guess: the input that belongs to it must not move it again
     } else {
       input = { ...u.lastInput, fwd: 0, strafe: 0 };
+      u.catchUp = Math.min(CATCHUP_CREDIT_MAX, (u.catchUp ?? 0) + 1); // a tick with nothing played and no movement is owed back
     }
 
     // a fresh jump request only (a repeated stale input must not re-jump)
@@ -552,6 +584,18 @@ export class ArenaSim {
       }
     }
     const feared = this.hasAura(u, ['fear']);
+    if (extras.length && !feared && !(u.cast && ABILITIES[u.cast.ability]?.channel?.hold)) {
+      // the extra steps of the catch-up (only where the unit moves freely; held, feared or channelling it is just consumed)
+      const speed = TUNING.runSpeed * this.speedMult(u);
+      if (speed > 0) {
+        for (const x of extras) {
+          if (!Number.isFinite(x.facing)) continue;
+          const r = stepMovementL(u.pos, u.level, x, speed, DT, this.arena, jumpHeight(this.time - u.jumpStart));
+          u.pos = r.pos;
+          u.level = r.level;
+        }
+      }
+    }
     if (feared && this.hasAura(u, ['root', 'stun', 'incapacitate'])) {
       // feared but also held in place: the fear cannot make you run
     } else if (feared) {

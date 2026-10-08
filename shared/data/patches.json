@@ -14,7 +14,9 @@
    "New cursors: pick from a steel gauntlet and ten more to unlock; enemies always show a red sword, allies a green cross and aimed spells a crosshair. A Cursor section in settings has size, tint, trail and click ripple.",
    "Switching maps in the lobby no longer makes your character slide away or sink through the floor: it stays on its spawn on every arena (including after picking Random), and party members always stand on free ground beside you.",
    "The Rampager's greatsword now rests on his shoulder edge-on (the cutting edge toward you) instead of lying flat.",
-   "Bots were retrained for the new rules: healer bots now rotate their heals, use Pain Suppression more readily (even on themselves when dying), and warrior bots add Dragon Roar to their attacks."
+   "Bots were retrained for the new rules: healer bots now rotate their heals, use Pain Suppression more readily (even on themselves when dying), and warrior bots add Dragon Roar to their attacks.",
+   "Movement and combat feel smoother and more accurate online: other players are drawn closer to where they really are, your own character responds faster, and a lag spike no longer leaves your movement stuck behind for the rest of the fight.",
+   "New optional Network stats readout in the Esc menu settings: your ping, jitter and connection quality in the corner of the screen."
   ]
  },
  {
