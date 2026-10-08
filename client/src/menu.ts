@@ -9,6 +9,8 @@ export interface MenuHandlers {
   /** Leave the current match (only offered while in one). */
   onLeave: () => void;
   onSensitivity: (v: number) => void;
+  /** Screen brightness (0.6..1.6, 1 = default); also called once at start-up with the saved value. */
+  onBrightness: (v: number) => void;
   /** The auto-attack setting changed (also called once at start-up with the saved value). */
   onAutoAttack: (enabled: boolean) => void;
   /** Open the HUD layout editor (only offered while in a match). */
@@ -32,6 +34,7 @@ export class Menu {
   private inMatch = false;
   private buttons = new Map<string, HTMLButtonElement>();
   private sensKey = 'arena.sens';
+  private brightKey = 'arena.brightness';
 
   constructor(private binds: Keybinds, private handlers: MenuHandlers) {
     $('menu-resume').addEventListener('click', () => this.close());
@@ -70,6 +73,26 @@ export class Menu {
     };
     sens.addEventListener('input', applySens);
     applySens();
+
+    const bright = $('brightness') as HTMLInputElement;
+    try {
+      const v = Number(localStorage.getItem(this.brightKey));
+      if (v >= 0.6 && v <= 1.6) bright.value = String(v);
+    } catch {
+      /* ignore */
+    }
+    const applyBright = () => {
+      const v = Number(bright.value);
+      handlers.onBrightness(v);
+      $('brightness-val').textContent = `${Math.round(v * 100)}%`;
+      try {
+        localStorage.setItem(this.brightKey, String(v));
+      } catch {
+        /* ignore */
+      }
+    };
+    bright.addEventListener('input', applyBright);
+    applyBright();
 
     const auto = $('auto-toggle') as HTMLInputElement;
     try {

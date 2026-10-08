@@ -1,3 +1,4 @@
+import { SHOUT_DUR, newShoutPose, shoutPose } from './shoutPose';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -8,6 +9,10 @@ import { attachWeapon, WEAPONS } from './weaponModels';
 import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
 import type { RigAsset, RigDriver } from './riggedModels';
+import { buildCape, isCapeItem, DEFAULT_CAPE_FIT } from './capeModels';
+import { buildWings, DEFAULT_WING_FIT } from './wingModels';
+import type { WingFit } from './wingModels';
+import type { CapeFit, CapeInput } from './capeModels';
 
 /**
  * Stylized heroic humanoids built from rounded primitives with ink outlines, one silhouette per class so you can read a fight at a glance:
@@ -40,7 +45,7 @@ export interface PoseInput {
  * the model while a cosmetic item is worn in that slot (a "none" selection keeps the base part). The weapon, aura, dye and
  * companion slots only add to the model, so they have no base part.
  */
-export const REPLACEABLE_SLOTS = ['head', 'shoulders', 'back'] as const;
+export const REPLACEABLE_SLOTS = ['head', 'back'] as const;
 export type ReplaceableSlot = (typeof REPLACEABLE_SLOTS)[number];
 
 export interface Character {
@@ -55,6 +60,8 @@ export interface Character {
   /** Flash red for a moment (took a hit). */
   flash(): void;
   setState(alive: boolean, stealthed: boolean): void;
+  /** Play the shout pose (lean back, chest out, then snap forward; shoutPose.ts): a shout, roar, scream or breath. */
+  shout(): void;
   /** A spell was cast (only models with a cast animation have it: clip models play their attack clip). */
   cast?(): void;
 }
@@ -88,6 +95,8 @@ class Builder {
   readonly fx: THREE.Object3D[] = [];
   /** Per-frame cosmetic animation (spinning halos, bobbing orbs). */
   readonly anim: ((t: number, move: number) => void)[] = [];
+  /** Per-frame cloth motion of worn capes (they need the wearer's speed, see capeModels.ts). */
+  readonly motion: ((p: CapeInput) => void)[] = [];
   readonly outline = makeOutlineMaterial(0.014);
   outlines = true;
   /** Built-in parts by cosmetic slot (see `part`). */
@@ -165,6 +174,11 @@ class Builder {
       }
     }
     this.bare[slot]?.();
+  }
+
+  /** A built-in part that no cosmetic replaces (it is built straight into the parent). */
+  body(parent: THREE.Object3D, fn: (g: THREE.Object3D) => void) {
+    fn(parent);
   }
 
   /** Run `fn` with outlines disabled (eyes, glow shapes, thin details). */
@@ -255,6 +269,9 @@ interface Rig {
   rigged?: { anim: RigDriver; ensureOwn(): void; deadY: number };
   /** Where weapon cosmetics are centred, in the right hand group's frame, when a real weapon model is held (default: at the grip). */
   weaponGlowAt?: THREE.Vector3;
+  /** Blends a shoulder-carried weapon between its one-handed rest and the two-handed hold (weaponModels.ts); the weapon cosmetics ride on `weaponPivot`. */
+  weaponGrip?: (k: number) => void;
+  weaponPivot?: { node: THREE.Object3D; mid: number };
 }
 
 interface RigOpts {
@@ -440,7 +457,7 @@ function warrior(b: Builder, weapon?: string): Rig {
 
   // ---- shoulders (cosmetic slot): segmented pauldrons, a layered dome with gold trim
   for (const s of [-1, 1]) {
-    b.part('shoulders', upper, (g) => {
+    b.body(upper, (g) => {
       const pd = new THREE.Group();
       pd.position.set(s * 0.5, 0.73, 0);
       pd.rotation.z = -s * 0.28;
@@ -518,6 +535,10 @@ function heldWeapon(b: Builder, r: Rig, weapon?: string): AttachedWeapon | undef
   if (held) {
     r.rigged.anim.hold = held.hold ?? null;
     r.weaponGlowAt = held.glowAt;
+    if (held.hold?.rest) {
+      r.weaponGrip = held.setGrip;
+      r.weaponPivot = { node: held.pivot, mid: held.mid };
+    }
   }
   return held;
 }
@@ -595,13 +616,13 @@ function mage(b: Builder): Rig {
   });
   b.rbox(upper, 0.64, 0.11, 0.42, b.m(0xe2c870, { metal: 0.5, rough: 0.4 }), 0, 0.1, 0, 0.05);
   b.plain(() => b.ball(upper, 0.05, b.m(trim, { glow: 1.6 }), 0, 0.1, 0.22));
-  b.part('shoulders', upper, (g) => b.lathe(g, [[0.24, -0.1], [0.4, -0.16], [0.42, -0.05], [0.2, 0.0]], b.m(deep, { rough: 0.8 }), 0, 0.7, 0, 24).scale.set(1.15, 1, 1));
+  b.body(upper, (g) => b.lathe(g, [[0.24, -0.1], [0.4, -0.16], [0.42, -0.05], [0.2, 0.0]], b.m(deep, { rough: 0.8 }), 0, 0.7, 0, 24).scale.set(1.15, 1, 1));
   for (const s of [-1, 1]) {
     // bell sleeves
     const arm = s < 0 ? r.armR : r.armL;
     b.lathe(arm, [[0.2, -0.3], [0.19, -0.18], [0.1, 0]], b.m(deep, { rough: 0.85 }), 0, -0.3, 0, 16).scale.set(1, 1, 1);
     // little crystal pauldrons
-    b.part('shoulders', upper, (g) => {
+    b.body(upper, (g) => {
       const crystal = b.cone(g, 0.07, 0.26, b.m(trim, { glow: 0.9, rough: 0.2 }), s * 0.38, 0.84, 0, 5);
       crystal.rotation.z = -s * 0.5;
     });
@@ -653,7 +674,7 @@ function priest(b: Builder): Rig {
   b.lathe(root, [[0.0, 0.0], [0.58, 0.0], [0.55, 0.12], [0.47, 0.4], [0.38, 0.7], [0.32, 0.95], [0.0, 0.95]], b.m(white, { rough: 0.85 }), 0, 0.02, 0, 32);
   b.torus(root, 0.575, 0.04, b.m(gold, { metal: 0.7, rough: 0.3 }), 0, 0.07, 0).rotation.x = Math.PI / 2;
   // gold mantle, stole with a glowing cross, belt
-  b.part('shoulders', upper, (g) => b.lathe(g, [[0.27, -0.11], [0.45, -0.17], [0.46, -0.04], [0.24, 0.0]], b.m(gold, { metal: 0.65, rough: 0.35 }), 0, 0.72, 0, 24).scale.set(1.2, 1, 1));
+  b.body(upper, (g) => b.lathe(g, [[0.27, -0.11], [0.45, -0.17], [0.46, -0.04], [0.24, 0.0]], b.m(gold, { metal: 0.65, rough: 0.35 }), 0, 0.72, 0, 24).scale.set(1.2, 1, 1));
   b.rbox(upper, 0.17, 1.0, 0.05, b.m(0xb0262a, { rough: 0.7 }), 0, 0.1, 0.22, 0.02);
   b.rbox(upper, 0.2, 0.05, 0.06, b.m(gold, { metal: 0.7, rough: 0.3 }), 0, 0.55, 0.235, 0.015);
   b.plain(() => {
@@ -736,7 +757,7 @@ function rogue(b: Builder): Rig {
   });
   // shoulder spikes and bracers
   for (const s of [-1, 1]) {
-    b.part('shoulders', upper, (g) => {
+    b.body(upper, (g) => {
       const sp = b.cone(g, 0.06, 0.26, b.m(0x4a4a58, { metal: 0.7, rough: 0.35 }), s * 0.34, 0.85, 0, 6);
       sp.rotation.z = -s * 0.7;
     });
@@ -828,10 +849,12 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     chestZ: meta.chestBackZ,
     robe: false,
     legW: 0.26,
-    pauldronX: meta.shoulderJoint[0] + 0.03,
-    pauldronY: meta.shoulderJoint[1] - O + 0.06,
     brow: helm?.brow ?? 0.99 + R * 0.2,
     helm: !!helm,
+    // the shared cape hangs from the collar, just behind the shoulder blades (capeModels.ts); each model's `cape` overrides refine it
+    cape: { ...DEFAULT_CAPE_FIT, y: meta.shoulderJoint[1] - O + 0.04, z: Math.max(0.05, meta.chestBackZ - 0.1), sx: Math.max(1, meta.torsoW / 0.45), sy: Math.max(0.7, meta.height / 2.6), sz: 0.8, ...asset.def.cape },
+    // the wings grow between the shoulder blades, behind the back plate (and behind a cape); each model's `wings` overrides refine it
+    wings: { ...DEFAULT_WING_FIT, y: meta.shoulderJoint[1] - O + 0.02, z: Math.max(0.1, meta.chestBackZ + 0.04), scale: 0.5 * Math.max(0.9, meta.height / 2.4), sx: Math.max(1, meta.torsoW / 0.6), ...asset.def.wings },
   };
   const r: Rig = { root, upper, legL: new THREE.Group(), legR: new THREE.Group(), armL, armR, head, shoulderL, shoulderR, fit };
 
@@ -864,10 +887,6 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     b.ball(head, R, skin, 0, 0.99, 0);
     eyes(b, r, 0.99, R * 0.93, 0x3a5f8f, R * 0.33, R * 0.11);
     b.ball(head, R * 1.06, b.m(0x4a3222, { rough: 0.9 }), 0, 0.99 + R * 0.1, -R * 0.18).scale.set(1, 1, 0.92);
-  };
-  if (b.parts.shoulders) b.bare.shoulders = () => {
-    const joint = b.m(0x2b2a30, { metal: 0.5, rough: 0.5 });
-    for (const sd of [-1, 1]) b.ball(sd < 0 ? shoulderR : shoulderL, 0.1 * (meta.height / 2.25), joint, sd * meta.shoulderJoint[0], meta.shoulderJoint[1] - O, 0);
   };
 
   // each unit gets its own materials the first time it needs a colour of its own
@@ -969,13 +988,13 @@ function specLook(b: Builder, r: Rig, held: AttachedWeapon, look: WeaponLook) {
 // ------------------------------------------------------------------ cosmetics
 
 /** Where each class's head, shoulders and so on sit, so worn cosmetics land on the right spot. */
-interface Fit { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number; brow?: number; /** a worn helm stays under head cosmetics */ helm?: boolean }
+interface Fit { /** where a worn cape hangs and how big it is (capeModels.ts); the default fits an upright torso */ cape?: CapeFit; /** where the wings grow and how big they are (wingModels.ts) */ wings?: WingFit; headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; brow?: number; /** a worn helm stays under head cosmetics */ helm?: boolean }
 const FIT: Record<ClassId, Fit> = {
   // headTop / headR describe the BARE head (the built-in helm, hood or hat is gone while a cosmetic is worn)
-  warrior: { headTop: 1.25, headR: 0.25, tw: 0.72, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.5, pauldronY: 0.78 },
-  mage: { headTop: 1.26, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
-  priest: { headTop: 1.27, headR: 0.25, tw: 0.58, chestZ: 0.285, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
-  rogue: { headTop: 1.28, headR: 0.25, tw: 0.54, chestZ: 0.2, robe: false, legW: 0.2, pauldronX: 0.36, pauldronY: 0.84 },
+  warrior: { wings: { ...DEFAULT_WING_FIT, y: 0.84, z: 0.42, scale: 0.56, sx: 1.12 }, cape: { ...DEFAULT_CAPE_FIT, y: 0.8, z: 0.2, sx: 1.6, sy: 0.95 }, headTop: 1.25, headR: 0.25, tw: 0.72, chestZ: 0.31, robe: false, legW: 0.26 },
+  mage: { wings: { ...DEFAULT_WING_FIT, y: 0.82, z: 0.34 }, cape: { ...DEFAULT_CAPE_FIT, y: 0.8, z: 0.15, sx: 1.3, sy: 1.1 }, headTop: 1.26, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23 },
+  priest: { wings: { ...DEFAULT_WING_FIT, y: 0.82, z: 0.36 }, cape: { ...DEFAULT_CAPE_FIT, y: 0.8, z: 0.18, sx: 1.3, sy: 1.05 }, headTop: 1.27, headR: 0.25, tw: 0.58, chestZ: 0.285, robe: true, legW: 0.23 },
+  rogue: { wings: { ...DEFAULT_WING_FIT, y: 0.82, z: 0.3, scale: 0.46 }, cape: { ...DEFAULT_CAPE_FIT, y: 0.8, z: 0.1, sx: 1.2, sy: 0.95, tilt: -0.02 }, headTop: 1.28, headR: 0.25, tw: 0.54, chestZ: 0.2, robe: false, legW: 0.2 },
 };
 const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x888888;
 const lighter = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), k).getHex();
@@ -1100,6 +1119,14 @@ function dye(b: Builder, r: Rig, color: number, style: string) {
   }
 }
 
+
+/** Lit, softly glowing material for flat ribbon parts (two sided, never dyed). */
+function ribbonMat(b: Builder, color: number, glow: number, rough = 0.6): THREE.MeshStandardMaterial {
+  const m = b.m(color, { rough, glow });
+  m.side = THREE.DoubleSide;
+  return m;
+}
+
 /**
  * Draws a unit's cosmetics on top of its class model. Every style is a different shape, so what a player picked is
  * obvious from across the arena. A slot with nothing picked draws nothing.
@@ -1143,16 +1170,6 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           tip.rotation.z = -sd * 0.25;
         }
         break;
-      case 'wings': {
-        const band = b.torus(hu, R, 0.028, metal(c), 0, brow, 0);
-        band.rotation.x = Math.PI / 2;
-        b.plain(() => b.ball(hu, 0.045, gemMat(0x66ccff), 0, brow, R + 0.01));
-        for (const sd of sides) for (let i = 0; i < 3; i++) {
-          const f = b.rbox(hu, 0.28 - i * 0.05, 0.035, 0.1, cloth(lighter(c, 0.2 + i * 0.1)), sd * (R + 0.16 - i * 0.02), brow + 0.05 + i * 0.07, -0.02, 0.015);
-          f.rotation.z = sd * (0.25 + i * 0.22);
-        }
-        break;
-      }
       case 'crown': {
         const band = b.torus(hu, R * 0.82, 0.03, metal(c), 0, top - 0.1, 0);
         band.rotation.x = Math.PI / 2;
@@ -1324,143 +1341,22 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     }
   }
 
-  // ---- shoulders
-  const sh = look.shoulders;
-  if (sh) {
-    const c = hexNum(sh.color);
-    for (const sd of [-1, 1]) {
-      const x = sd * fit.pauldronX;
-      const y = fit.pauldronY;
-      const su = (sd < 0 ? r.shoulderR : r.shoulderL) ?? upper;
-      switch (sh.style) {
-        case 'plates': {
-          const pd = b.ball(su, 0.2, metal(c), x, y, 0);
-          pd.scale.set(1.15, 0.7, 1.1);
-          b.torus(su, 0.2, 0.02, metal(lighter(c)), x, y - 0.04, 0).rotation.x = Math.PI / 2;
-          break;
-        }
-        case 'spikes': {
-          b.ball(su, 0.16, metal(c), x, y, 0).scale.set(1.2, 0.75, 1.1);
-          for (let i = 0; i < 3; i++) {
-            const sp = b.cone(su, 0.05, 0.22 - i * 0.03, metal(lighter(c, 0.3)), x + sd * (0.02 + i * 0.07), y + 0.12 - i * 0.02, (i - 1) * 0.09, 6);
-            sp.rotation.z = -sd * (0.35 + i * 0.3);
-          }
-          break;
-        }
-        case 'crystals':
-          for (let i = 0; i < 4; i++) {
-            const cr = b.add(su, new THREE.OctahedronGeometry(0.07 + (i % 2) * 0.04), b.m(c, { glow: 0.9, rough: 0.2, metal: 0.2 }), x + sd * (i * 0.04), y + 0.08 + i * 0.06, (i - 1.5) * 0.07);
-            cr.scale.set(0.7, 1.7, 0.7);
-            cr.rotation.z = -sd * 0.25 * i;
-          }
-          break;
-        case 'fluff':
-          for (let i = 0; i < 6; i++) {
-            const a = (i / 6) * Math.PI * 2;
-            b.ball(su, 0.1, cloth(i % 2 ? lighter(c, 0.25) : c), x + Math.cos(a) * 0.11, y + 0.02 + (i % 2) * 0.04, Math.sin(a) * 0.11);
-          }
-          b.ball(su, 0.13, cloth(c), x, y + 0.05, 0);
-          break;
-        case 'flames': {
-          b.ball(su, 0.09, metal(darker(c, 0.5)), x, y, 0);
-          const flames: THREE.Object3D[] = [];
-          for (let i = 0; i < 3; i++) {
-            const f = b.glow(su, new THREE.ConeGeometry(0.07 - i * 0.012, 0.3 + i * 0.05, 8), i === 1 ? lighter(c, 0.4) : c, 0.75, x + (i - 1) * 0.07 * sd, y + 0.2, 0);
-            flames.push(f);
-          }
-          b.anim.push((t) => flames.forEach((f, i) => f.scale.set(1, 0.85 + 0.3 * Math.sin(t * 9 + i * 2 + sd), 1)));
-          break;
-        }
-        case 'mantle': {
-          const m = b.rbox(su, 0.36, 0.07, 0.34, cloth(c), x, y - 0.02, 0, 0.03);
-          m.rotation.z = -sd * 0.28;
-          b.rbox(su, 0.38, 0.03, 0.36, metal(0xf0c53a), x + sd * 0.02, y - 0.05, 0, 0.012).rotation.z = -sd * 0.28;
-          break;
-        }
-        case 'orbs': {
-          b.ball(su, 0.14, metal(darker(c, 0.5)), x, y, 0).scale.set(1.2, 0.7, 1.1);
-          const o = b.glow(su, new THREE.SphereGeometry(0.06, 8, 6), c, 0.95, x, y, 0);
-          const halo = b.glow(su, new THREE.SphereGeometry(0.13, 10, 8), c, 0.25, x, y, 0);
-          b.anim.push((t) => {
-            const a = t * 2.2 * sd;
-            o.position.set(x + Math.cos(a) * 0.2, y + 0.16 + Math.sin(t * 3) * 0.03, Math.sin(a) * 0.2);
-            halo.position.copy(o.position);
-          });
-          break;
-        }
-        case 'bolts': {
-          b.ball(su, 0.16, metal(darker(c, 0.45)), x, y, 0).scale.set(1.2, 0.7, 1.1);
-          const zs: THREE.Object3D[] = [];
-          for (let i = 0; i < 3; i++) {
-            const z = b.glow(su, new THREE.BoxGeometry(0.025, 0.34, 0.025), lighter(c, 0.4), 0.95, x + sd * (0.03 + i * 0.08), y + 0.22, (i - 1) * 0.1);
-            z.rotation.z = -sd * (0.3 + i * 0.25);
-            zs.push(z);
-          }
-          b.anim.push((t) => zs.forEach((z, i) => (z.visible = Math.sin(t * 14 + i * 2.3 + sd) + Math.sin(t * 5.1 + i) > 0.2)));
-          break;
-        }
-        case 'sunplate': {
-          // a polished gold sun disc on each shoulder with a slowly turning wheel of rays
-          b.ball(su, 0.15, metal(darker(c, 0.4)), x, y - 0.02, 0).scale.set(1.15, 0.7, 1.1);
-          const disc = b.cyl(su, 0.2, 0.2, 0.05, metal(c), x + sd * 0.1, y + 0.05, 0, 28);
-          disc.rotation.z = Math.PI / 2;
-          const rim = b.torus(su, 0.2, 0.022, metal(lighter(c, 0.3)), x + sd * 0.125, y + 0.05, 0);
-          rim.rotation.y = Math.PI / 2;
-          b.plain(() => b.ball(su, 0.065, gemMat(0xfff2b0), x + sd * 0.14, y + 0.05, 0));
-          const wheel = new THREE.Group();
-          wheel.position.set(x + sd * 0.15, y + 0.05, 0);
-          su.add(wheel);
-          for (let i = 0; i < 8; i++) {
-            const a = (i / 8) * Math.PI * 2;
-            const ray = b.glow(wheel, new THREE.ConeGeometry(0.03, 0.18, 5), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, Math.cos(a) * 0.3, Math.sin(a) * 0.3);
-            ray.rotation.x = a;
-          }
-          b.anim.push((t) => (wheel.rotation.x = t * 0.8 * sd));
-          break;
-        }
-        case 'curtain': {
-          // tall ribbons of northern light rising off the shoulders, swaying and shifting colour
-          b.ball(su, 0.14, metal(darker(c, 0.55)), x, y, 0).scale.set(1.2, 0.7, 1.1);
-          const strips: THREE.Mesh[] = [];
-          for (let i = 0; i < 4; i++) {
-            strips.push(own(b.glow(su, new THREE.BoxGeometry(0.07, 0.6, 0.008).translate(0, 0.3, 0), c, 0.75, x + sd * i * 0.05, y + 0.04, (i - 1.5) * 0.08)));
-          }
-          b.anim.push((t) => strips.forEach((m, i) => {
-            m.scale.y = 0.8 + 0.3 * Math.sin(t * 2 + i * 1.3 + sd);
-            m.rotation.z = sd * (0.12 + 0.12 * Math.sin(t * 1.5 + i));
-            m.rotation.x = 0.15 * Math.sin(t * 1.9 + i * 2);
-            hue(m, 0.36 + 0.22 * (0.5 + 0.5 * Math.sin(t * 0.8 + i * 0.9 + sd)));
-          }));
-          break;
-        }
-        case 'dragon': {
-          b.ball(su, 0.2, metal(lighter(c, 0.15)), x, y, 0).scale.set(1.2, 0.8, 1.15);
-          const tips: THREE.Object3D[] = [];
-          for (let i = 0; i < 4; i++) {
-            const sp = b.cone(su, 0.06, 0.34 - i * 0.04, metal(lighter(c, 0.15)), x + sd * (0.03 + i * 0.07), y + 0.15 - i * 0.025, (i - 1.5) * 0.1, 6);
-            sp.rotation.z = -sd * (0.3 + i * 0.28);
-            {
-              // a flame licking up from the end of each spike
-              const ang = 0.3 + i * 0.28;
-              const len = 0.34 - i * 0.04;
-              const cx = x + sd * (0.03 + i * 0.07);
-              const cy = y + 0.15 - i * 0.025;
-              tips.push(b.glow(su, new THREE.ConeGeometry(0.04, 0.18, 6), 0xff7a1a, 0.8, cx + sd * Math.sin(ang) * (len / 2 + 0.05), cy + Math.cos(ang) * (len / 2 + 0.05), (i - 1.5) * 0.1));
-            }
-          }
-          b.plain(() => b.ball(su, 0.045, gemMat(0xffaa22), x, y + 0.06, 0.17));
-          b.anim.push((t) => tips.forEach((f, i) => f.scale.set(1, 0.6 + 0.8 * Math.abs(Math.sin(t * 8 + i * 1.9 + sd)), 1)));
-          break;
-        }
-      }
-    }
-  }
-
   // ---- back
   const back = look.back;
   if (back) {
     const c = hexNum(back.color);
-    switch (back.style) {
+    // where wings, ribbons and the rift grow from: the shoulder blades, just behind where a cape hangs (so every back item sits on the same spot)
+    const cf = fit.cape ?? DEFAULT_CAPE_FIT;
+    const wk = clamp(fit.tw / 0.62, 0.9, 1.25);
+    const wingRoot = new THREE.Vector3(0.09 * wk, cf.y - 0.16, -(cf.z + 0.167 * cf.sz + 0.03));
+    // every cape and cloak is the same cloth model in the item's own skin (capeModels.ts); the planks below are the stand-in until it has loaded
+    const capeRig = isCapeItem(back) ? buildCape(back, fit.cape ?? DEFAULT_CAPE_FIT, upper) : undefined;
+    if (capeRig) {
+      b.mats.push(capeRig.material);
+      b.meshes.push(capeRig.mesh);
+      b.motion.push(capeRig.update);
+    }
+    switch (capeRig ? '' : back.style) {
       case 'cloak': {
         const len = fit.robe ? 1.25 : 0.95;
         const pivot = new THREE.Group();
@@ -1475,105 +1371,33 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         });
         break;
       }
-      case 'angel':
-      case 'phoenix':
-      case 'bat': {
-        const wings: THREE.Group[] = [];
-        for (const sd of [-1, 1]) {
-          const g = new THREE.Group();
-          g.position.set(sd * 0.1, 0.6, -fit.chestZ);
-          for (let i = 0; i < 5; i++) {
-            const len = 0.95 - i * 0.12;
-            const ang = 0.35 + i * 0.28;
-            const holder = new THREE.Group();
-            holder.rotation.z = sd * ang;
-            if (back.style === 'bat') {
-              b.rbox(holder, 0.04, len, 0.03, metal(darker(c, 0.2)), sd * 0.0, len / 2, 0, 0.012);
-              if (i > 0) {
-                const mem = b.rbox(holder, 0.34, len * 0.78, 0.015, cloth(i % 2 ? c : darker(c, 0.25)), -sd * 0.17, len * 0.42, 0, 0.005);
-                mem.rotation.z = 0;
-              }
-            } else {
-              b.glow(holder, new THREE.BoxGeometry(0.14 - i * 0.012, len, 0.02), i % 2 ? lighter(c, 0.3) : c, back.style === 'phoenix' ? 0.8 : 0.9, 0, len / 2, 0);
-            }
-            g.add(holder);
-          }
-          upper.add(g);
-          wings.push(g);
-        }
-        b.anim.push((t, move) => wings.forEach((g, i) => {
-          const sd = i === 0 ? -1 : 1;
-          g.rotation.y = sd * (0.5 + Math.sin(t * (back.style === 'bat' ? 3.2 : 2.2)) * 0.12 + move * 0.25);
-        }));
-        break;
-      }
       case 'ribbons': {
-        // long glowing ribbons that stream out behind the runner
+        // long glowing ribbons that stream out behind the runner, hung from the collar
         const rs: THREE.Group[] = [];
         for (let i = 0; i < 4; i++) {
           const pivot = new THREE.Group();
-          pivot.position.set((i - 1.5) * 0.12, 0.78, -fit.chestZ + 0.02);
-          b.glow(pivot, new THREE.BoxGeometry(0.07, 1.0 + (i % 2) * 0.25, 0.012), i % 2 ? lighter(c, 0.35) : c, 0.8, 0, -0.5 - (i % 2) * 0.12, 0);
+          pivot.position.set((i - 1.5) * 0.1 * wk, cf.y - 0.06, wingRoot.z + 0.02);
+          const L = (0.95 + (i % 2) * 0.25) * wk;
+          b.plain(() => {
+            const rg = b.geoShared(`ribbon${L.toFixed(2)}|${wk.toFixed(2)}`, () => {
+              const sh = new THREE.Shape();
+              sh.moveTo(-0.035 * wk, 0);
+              sh.lineTo(0.035 * wk, 0);
+              sh.quadraticCurveTo(0.05 * wk, -L * 0.5, 0.012 * wk, -L);
+              sh.lineTo(0, -L - 0.06);
+              sh.lineTo(-0.012 * wk, -L);
+              sh.quadraticCurveTo(-0.05 * wk, -L * 0.5, -0.035 * wk, 0);
+              return new THREE.ShapeGeometry(sh, 6);
+            });
+            b.add(pivot, rg, ribbonMat(b, i % 2 ? lighter(c, 0.35) : c, 0.75), 0, 0, 0);
+          });
           upper.add(pivot);
           rs.push(pivot);
         }
         b.anim.push((t, move) => rs.forEach((g, i) => {
-          g.rotation.x = 0.25 + move * 0.9 + Math.sin(t * 2.4 + i * 0.9) * 0.1;
-          g.rotation.z = Math.sin(t * 1.7 + i * 1.3) * 0.12;
+          g.rotation.x = 0.12 + move * 0.7 + Math.sin(t * 2.4 + i * 0.9) * 0.08;
+          g.rotation.z = Math.sin(t * 1.7 + i * 1.3) * 0.1;
         }));
-        break;
-      }
-      case 'archon': {
-        // huge layered golden wings with a slow halo behind the shoulders
-        const wings: THREE.Group[] = [];
-        for (const sd of [-1, 1]) {
-          const g = new THREE.Group();
-          g.position.set(sd * 0.1, 0.62, -fit.chestZ);
-          for (let layer = 0; layer < 3; layer++) for (let i = 0; i < 6; i++) {
-            const len = 1.5 - i * 0.14 - layer * 0.18;
-            const holder = new THREE.Group();
-            holder.rotation.z = sd * (0.2 + i * 0.26 + layer * 0.04);
-            holder.rotation.x = -layer * 0.08;
-            b.glow(holder, new THREE.BoxGeometry(0.15 - layer * 0.02, len, 0.015), layer === 0 ? c : lighter(c, 0.15 * layer), 0.34 - layer * 0.07, 0, len / 2, -layer * 0.03);
-            g.add(holder);
-          }
-          upper.add(g);
-          wings.push(g);
-        }
-        const halo = b.glow(upper, new THREE.TorusGeometry(0.62, 0.025, 8, 48), c, 0.55, 0, 0.95, -fit.chestZ - 0.15);
-        b.glow(upper, new THREE.CircleGeometry(0.58, 32), c, 0.05, 0, 0.95, -fit.chestZ - 0.14);
-        b.anim.push((t, move) => {
-          halo.rotation.z = t * 0.7;
-          wings.forEach((g, i) => (g.rotation.y = (i === 0 ? -1 : 1) * (0.45 + Math.sin(t * 1.9) * 0.1 + move * 0.2)));
-        });
-        break;
-      }
-      case 'rift': {
-        // not wings but a hole in the air: a big black disc with a bright rim hung behind the back, with arcs and moons turning around it
-        const portal = new THREE.Group();
-        portal.position.set(0, 0.95, -fit.chestZ - 0.24);
-        portal.rotation.y = Math.PI; // faces the camera behind the runner
-        upper.add(portal);
-        b.plain(() => b.add(portal, new THREE.CircleGeometry(0.64, 40), b.m(0x1c1040, { rough: 0.5, glow: 0.4 }), 0, 0, 0));
-        b.glow(portal, new THREE.TorusGeometry(0.64, 0.032, 8, 56), c, 0.95, 0, 0, 0.01);
-        b.glow(portal, new THREE.CircleGeometry(0.7, 40), c, 0.1, 0, 0, -0.01);
-        const arcs = new THREE.Group();
-        portal.add(arcs);
-        for (let i = 0; i < 3; i++) {
-          const arc = b.glow(arcs, new THREE.TorusGeometry(0.2 + i * 0.12, 0.014, 6, 24, 2.2), i % 2 ? lighter(c, 0.4) : c, 0.8, 0, 0, 0.02);
-          arc.rotation.z = i * 2.1;
-        }
-        const moons: THREE.Object3D[] = [];
-        for (let i = 0; i < 3; i++) moons.push(b.glow(portal, new THREE.SphereGeometry(0.045, 8, 6), lighter(c, 0.5), 0.95, 0, 0, 0.03));
-        b.anim.push((t, move) => {
-          arcs.rotation.z = t * 0.8;
-          arcs.children.forEach((a, i) => (a.rotation.z = i * 2.1 + t * (i % 2 ? -0.6 : 0.9)));
-          moons.forEach((m, i) => {
-            const a = -t * 1.2 + (i / 3) * Math.PI * 2;
-            m.position.set(Math.cos(a) * 0.64, Math.sin(a) * 0.64, 0.03);
-          });
-          portal.rotation.x = move * 0.15;
-        });
         break;
       }
       case 'starcloak': {
@@ -1640,13 +1464,29 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     }
   }
 
+  // ---- wings: the shared feathered pair (wingModels.ts), between the shoulder blades and behind any cape
+  if (look.wings) {
+    const wingRig = buildWings(look.wings, fit.wings ?? DEFAULT_WING_FIT, upper);
+    if (wingRig) {
+      b.mats.push(...wingRig.materials);
+      b.meshes.push(...wingRig.meshes);
+      b.fx.push(...wingRig.fx);
+      b.motion.push(wingRig.update);
+    }
+  }
+
   // ---- weapon glow, around the weapon hand
   const weapon = look.weapon;
   if (weapon) {
     const c = hexNum(weapon.color);
     const aura = new THREE.Group();
-    aura.position.copy(r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05));
-    r.armR.add(aura);
+    if (r.weaponPivot) {
+      aura.position.set(0, r.weaponPivot.mid, 0); // a shoulder-carried weapon turns in the hand: the glow rides on it
+      r.weaponPivot.node.add(aura);
+    } else {
+      aura.position.copy(r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05));
+      r.armR.add(aura);
+    }
     b.glow(aura, new THREE.SphereGeometry(0.22, 16, 12), c, 0.22, 0, 0, 0);
     if (weapon.style === 'sparks') {
       const pts: THREE.Object3D[] = [];
@@ -2208,6 +2048,8 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   let lastAlive = true;
   let lastStealth = false;
   let swingT = 0;
+  let shoutT = 0;
+  const shP = newShoutPose();
   let flashT = 0;
   const SWING = 0.38;
   let swingDur = SWING;
@@ -2273,6 +2115,9 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       }
     },
     swing: doSwing,
+    shout() {
+      shoutT = SHOUT_DUR;
+    },
     flash() {
       flashT = 0.2;
     },
@@ -2286,7 +2131,11 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       if (r.rigged) {
         const swinging = swingT > 0;
         const q = swinging ? 1 - swingT / swingDur : -1;
-        r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead });
+        const shq = shoutT > 0 && !dead ? 1 - shoutT / SHOUT_DUR : -1;
+        if (shoutT > 0) shoutT = Math.max(0, shoutT - dt);
+        r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead, shout: shq });
+        r.weaponGrip?.(r.rigged.anim.grip ?? 1);
+        for (const f of b.motion) f({ dt, vf, vs, move, time, air, dead, casting });
         if (swinging) swingT = Math.max(0, swingT - dt);
         r.root.position.z = r.rigged.anim.lungeZ;
         if (flashT > 0 || flashed) {
@@ -2305,7 +2154,10 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       st.upX = damp(st.upX, lean + 0.11 * clamp(vf / 7, -0.5, 1) + breathe, 9, dt);
       st.upZ = damp(st.upZ, -clamp(vs / 7, -1, 1) * 0.13 + Math.sin(phase) * 0.045 * move + Math.sin(time * 0.8) * 0.012 * (1 - move), 10, dt);
       st.bob = damp(st.bob, Math.abs(Math.sin(phase)) * 0.06 * move + breathe * 0.5, 16, dt);
-      r.upper.rotation.x = st.upX;
+      // the shout pose is added on top of the smoothed body (it is a smooth curve itself)
+      const sh = shoutT > 0 && !dead ? shoutPose(1 - shoutT / SHOUT_DUR, shP) : null;
+      if (shoutT > 0) shoutT = Math.max(0, shoutT - dt);
+      r.upper.rotation.x = st.upX + (sh ? (sh.spine + sh.chest) * 0.6 : 0);
       r.upper.rotation.z = st.upZ;
       r.upper.position.y = HIP + st.bob;
 
@@ -2368,14 +2220,14 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       st.armRx = damp(st.armRx, tRx, armRate, dt);
       st.armLz = damp(st.armLz, tLz, 14, dt);
       st.armRz = damp(st.armRz, tRz, 14, dt);
-      r.armL.rotation.x = st.armLx;
-      r.armR.rotation.x = st.armRx;
-      r.armL.rotation.z = st.armLz;
-      r.armR.rotation.z = st.armRz;
+      r.armL.rotation.x = st.armLx + (sh ? sh.armX : 0);
+      r.armR.rotation.x = st.armRx + (sh ? sh.armX : 0);
+      r.armL.rotation.z = st.armLz + (sh ? sh.armZ : 0);
+      r.armR.rotation.z = st.armRz - (sh ? sh.armZ : 0);
       st.twist = damp(st.twist, twist, swingT > 0 ? 40 : 12, dt);
       r.upper.rotation.y = st.twist;
       st.lunge = damp(st.lunge, lunge, 30, dt);
-      r.root.position.z = st.lunge;
+      r.root.position.z = st.lunge + (sh ? sh.lunge : 0);
 
       // cape: a damped spring that lags behind acceleration and streams out at speed
       if (r.cape) {
@@ -2388,6 +2240,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         r.cape.rotation.z = -clamp(vs / 7, -1, 1) * 0.15;
       }
 
+      for (const f of b.motion) f({ dt, vf, vs, move, time, air, dead, casting });
       if (flashT > 0 || flashed) {
         flashT = Math.max(0, flashT - dt);
         setFlash(flashT > 0 ? flashT / 0.2 : 0);
@@ -2437,6 +2290,7 @@ export function createSheep(): Character {
     meshes: b.meshes,
     parts: {}, // the sheep wears nothing: cosmetics only exist on the class model, which is hidden while polymorphed
     swing() {},
+    shout() {},
     flash() {
       flashT = 0.2;
     },

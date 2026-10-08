@@ -22,7 +22,7 @@ describe('credits', () => {
     const by = (id: string) => CREDITS.find((c) => c.id === id)!;
     assert.equal(by('dual-sabers').author, 'Shadow Models 3D');
     assert.equal(by('greatsword').author, 'denisdezmand');
-    assert.equal(by('divine-fantasy-axe').author, 'Xardkorich_3D');
+    assert.equal(by('tyra-polearm').author, 'zenkuri (https://sketchfab.com/zenkuri)');
     assert.match(by('gold-knight').license, /to be confirmed/);
     assert.match(by('brute').license, /to be confirmed/);
   });

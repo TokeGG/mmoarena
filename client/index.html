@@ -815,6 +815,13 @@
 .hist-row.win{border-left-color:#4ade80}.hist-row.loss{border-left-color:#ef4444}.hist-row.draw{border-left-color:#9aa3b5}
 .hist-res{font-weight:800;font-size:13px}.hist-row.win .hist-res{color:#4ade80}.hist-row.loss .hist-res{color:#ef6a6a}.hist-sub{font-size:12px;color:#8b93a5}.hist-mid{min-width:0}.hist-mid div{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .hist-d.up{color:#4ade80}.hist-d.down{color:#ef6a6a}
+.fr-online,.hdr-badge{position:absolute;right:-5px;bottom:-5px;background:#16a34a;color:#fff;border-radius:10px;font-size:11px;padding:1px 6px;font-weight:700;line-height:1.3;pointer-events:none}.fr-online.hidden,.hdr-badge.hidden{display:none}.hdr-badge.new{background:#3b82f6;right:-5px;top:-5px;bottom:auto}.hdr-badge.live{background:#ef4444}
+.fr-requests{border:1px solid #8f73ff;border-radius:10px;padding:8px;margin:8px 0;display:grid;gap:6px;background:rgba(143,115,255,.07)}.fr-requests h3,.fr-h{margin:0}.fr-grow{flex:1}.fr-go{border-color:#22a559}
+.fr-search{width:100%;box-sizing:border-box;margin:6px 0}.fr-empty{color:#8b93a5;font-size:13px;margin:8px 0}
+.fr-group{display:block;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid #2a3040;color:#aab2c5;font:700 12px system-ui;letter-spacing:.5px;text-transform:uppercase;padding:6px 2px 3px;margin-top:4px;cursor:default}.fr-group:not(:disabled){cursor:pointer}.fr-group.party{color:#60a5fa}.fr-group.online{color:#4ade80}.fr-group.queue,.fr-group.match{color:#fbbf24}
+.fr-row.off{opacity:.6}.fr-av{width:30px;height:30px;border-radius:50%;object-fit:cover;flex:none;border:2px solid #3a4258;box-sizing:border-box}.fr-av-i{display:flex;align-items:center;justify-content:center;background:#1c2230;color:#cfd4e6;font:700 13px system-ui}.fr-av.menu{border-color:#4ade80}.fr-av.party{border-color:#60a5fa}.fr-av.queue,.fr-av.match{border-color:#fbbf24}
+.fr-row .fr-rm{margin-left:2px}.fr-row:hover{border-color:#4a5470}
+.pnew.seen-new{background:#3b82f6;color:#fff}.mm-patch.fresh{border-color:#3b82f6}.mm-missed{background:rgba(59,130,246,.12);border:1px solid #3b82f6;border-radius:8px;padding:8px 12px;margin:0 0 10px;font-size:13px;color:#cfe0ff}
 .fr-btn{position:relative}.fr-badge{position:absolute;right:-6px;top:-6px;background:#ef4444;color:#fff;border-radius:10px;font-size:11px;padding:1px 6px;font-weight:700}
 .fr-card{max-width:520px}.fr-list{display:grid;gap:6px;max-height:44vh;overflow:auto}.fr-row{display:flex;gap:8px;align-items:center;padding:6px 8px;border:1px solid #2a3040;border-radius:8px;background:#11151d;flex-wrap:wrap}
 .fr-info{flex:1;display:grid;min-width:90px}.fr-info small,.fr-row small{color:#8b93a5}.fr-row .mm-small:disabled{opacity:.4;cursor:not-allowed}
@@ -889,6 +896,7 @@
         <div class="m-settings">
           <div class="srow"><span class="sl">Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /><b class="sw"></b> <span id="auto-toggle-val">On</span></label></div>
           <div class="srow"><span class="sl">Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
+          <div class="srow"><span class="sl">Brightness</span><input id="brightness" type="range" min="0.6" max="1.6" step="0.05" value="1" /><span id="brightness-val">100%</span></div>
           <div class="srow"><span class="sl">Master volume</span><input id="vol-master" type="range" min="0" max="1" step="0.05" value="0.7" /><span id="vol-master-val">70%</span></div>
           <div class="srow"><span class="sl">Effects</span><input id="vol-sfx" type="range" min="0" max="1" step="0.05" value="1" /><span id="vol-sfx-val">100%</span></div>
           <div class="srow"><span class="sl">Ambience</span><input id="vol-amb" type="range" min="0" max="1" step="0.05" value="0.5" /><span id="vol-amb-val">50%</span></div>

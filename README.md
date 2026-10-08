@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.69.2
+# WoW-style Arena · v0.69.3
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -99,6 +99,9 @@ Pick one on the menu or leave it on Random.
 | The Overlook | A central raised plateau with ramps north and south, a shaded hall underneath and low barricades. Every duel is played here. |
 | Icebound Ring | A raised square walkway around an open courtyard with an ice spire, with ramps down towards each team. |
 | Sun Terraces | Two long raised terraces along the north and south walls with a ramp at each end, plus a centre obelisk and barricades. |
+| Cinder Crater | A basalt crater cracked with lava: obsidian spires, jagged rock walls in front of each start yard, low rock barricades and a raised ledge in two corners. |
+| Lava Forge | A grey-brick hall with a raised forging plinth in the middle (ramps north and south), four person-high basins of molten rock, brick chimneys and slabs of rim rock. |
+| Sandstone Yard | A sand-floored stadium yard with a stepped plinth in the middle (ramps east and west), stacked carved blocks, tall obelisks and low sandbag-style barricades. |
 
 **Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, the banners, Rune of Power, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground. Barricades are as tall as a person: on the ground they block walking and sight, and a jump clears them and lifts your sight line over them for a moment, long enough for an instant spell (and for them to hit you back).
 
@@ -130,7 +133,7 @@ Bots use the same commands as a player, so they obey the global cooldown, range,
 
 - **Rating:** everyone starts at 1000 and one rating covers every team size. Elo K is 48 for your first 5 ranked games, 32 up to 20, then 24; teams are compared by their average rating. Tiers: Bronze, Silver (1100), Gold (1300), Platinum (1500), Diamond (1700), Gladiator (1900).
 - **Profile:** rating, tier, peak, wins and matches, unlocks and the Matches tab (history and replays). There is a leaderboard of every account.
-- **Looks:** headwear, shoulders, back, weapon glow, ground aura, armor dye and a companion. Looks never change how you fight. More of them unlock as you play (at 5, 15, 30, 60 and 100 matches); the Look menu shows what is still locked. Titles, emblems and name colours unlock with matches, wins or peak rating and show on your nameplate.
+- **Looks:** headwear, wings, back, weapon glow, ground aura, armor dye and a companion. Looks never change how you fight. More of them unlock as you play (at 5, 15, 30, 60 and 100 matches); the Look menu shows what is still locked. Titles, emblems and name colours unlock with matches, wins or peak rating and show on your nameplate.
 - **Settings follow the account:** HUD layout and style, keybinds, sensitivity, volume, class, builds and practice options apply on any device after you sign in. Guests keep settings in the browser only.
 - Passwords are never stored (only a salted hash), and a login lasts 30 days.
 
@@ -159,4 +162,4 @@ Developing or hosting the game: see [DEVELOPING.md](DEVELOPING.md).
 
 ## Credits
 
-The warrior's weapons (dual sabers by Shadow Models 3D, greatsword by denisdezmand, Divine Fantasy Axe by Xardkorich_3D) and character models are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.
+The warrior's weapons (dual sabers by Shadow Models 3D, greatsword by denisdezmand, Tyra Polearm by zenkuri) and character models are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.

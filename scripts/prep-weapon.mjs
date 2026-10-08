@@ -18,6 +18,7 @@
 //   - "decimate": [{ "match": "<regex on the source node name>", "tris": N }]: that source mesh is simplified to N triangles with
 //     meshoptimizer, keeping its UVs and normals (the first matching rule wins); `uvWeight` (default 4) and `normalWeight` (default 1) are how much UV
 //     stretch / shading change is avoided against shape error.
+//   - "mergeByMaterial": true joins all source chunks that share a material into one mesh before decimating (no cracks between chunks).
 //   - per material: "emissiveMap": { size, quality, strength } keeps the emissive texture (a glow) as a JPEG plus the glTF
 //     emissive_strength; "noBase": true drops the base colour texture ("color": [r,g,b,a] is used instead); "additive": true marks
 //     the material in its extras (the game draws it with additive blending: flames on a black background, no alpha needed).
@@ -151,6 +152,18 @@ const simplifyPrim = (p, tris, uvWeight, nrmWeight) => {
   p.uv = new Float32Array(uv);
   p.idx = idx;
 };
+if (cfg.mergeByMaterial) { // a source cut into chunks of ~100k triangles (the necro staff): join the chunks per material first, so the simplifier sees the whole surface and leaves no cracks between them
+  const first = new Map();
+  for (let i = 0; i < prims.length;) {
+    const p = prims[i], f = first.get(p.material);
+    if (!f) { first.set(p.material, p); i++; continue; }
+    const base = f.pos.length / 3;
+    const cat = (a, b) => { const o = new a.constructor(a.length + b.length); o.set(a); o.set(b, a.length); return o; };
+    f.pos = cat(f.pos, p.pos); f.nrm = cat(f.nrm, p.nrm); f.uv = cat(f.uv, p.uv);
+    { const ni = new Uint32Array(f.idx.length + p.idx.length); ni.set(f.idx); for (let k = 0; k < p.idx.length; k++) ni[f.idx.length + k] = p.idx[k] + base; f.idx = ni; }
+    prims.splice(i, 1);
+  }
+}
 for (const p of prims) {
   const rule = (cfg.decimate ?? []).find((r) => new RegExp(r.match).test(p.node));
   if (!rule || p.idx.length / 3 <= rule.tris) continue;

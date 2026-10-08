@@ -228,6 +228,11 @@ export const PARTY_MAX = 6;
 /** Most party members on one side of a party match. */
 export const PARTY_SIDE_MAX = 3;
 
+/** What a party leader reads while the others have not pressed Ready: "Waiting for Bob, Cy (2/4) to ready up". `ready` counts the leader. */
+export function partyWaitingText(names: string[], ready: number, total: number): string {
+  return `Waiting for ${names.join(', ')} to ready up (${ready}/${total}).`;
+}
+
 /** Raid marks a team can put over heads (index + 1 is the mark number), WoW style. */
 export const MARKS = [
   { id: 'star', name: 'Star', icon: '⭐' },

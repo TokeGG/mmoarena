@@ -36,7 +36,7 @@ describe('cosmetic models', () => {
   });
 
   it('every class has a built-in part tagged for each replaceable slot (except where it has none)', () => {
-    const expected: Record<string, string[]> = { warrior: ['head', 'shoulders', 'back'], mage: ['head', 'shoulders'], priest: ['head', 'shoulders', 'back'], rogue: ['head', 'shoulders', 'back'] };
+    const expected: Record<string, string[]> = { warrior: ['head', 'back'], mage: ['head'], priest: ['head', 'back'], rogue: ['head', 'back'] };
     for (const cls of CLASS_IDS) {
       const ch = createCharacter(cls);
       assert.deepEqual(Object.keys(ch.parts).sort(), [...expected[cls]].sort(), `${cls} base parts`);
@@ -112,6 +112,27 @@ describe('rigged character models', () => {
     g.self = realSelf;
   });
 
+  it('the knight\'s forearms and hands are not fused to the hips and skirt (they tore into shards when the arms rose)', () => {
+    const ch = createCharacter('warrior', '', 'twohand');
+    let joined = 0;
+    for (const m of ch.meshes) {
+      if (!(m instanceof THREE.SkinnedMesh)) continue;
+      const g = m.geometry, si = g.attributes.skinIndex, sw = g.attributes.skinWeight, idx = g.index!;
+      const dom = (v: number) => {
+        let bi = 0, bw = -1;
+        for (let k = 0; k < 4; k++) if (sw.getComponent(v, k) > bw) { bw = sw.getComponent(v, k); bi = si.getComponent(v, k); }
+        return m.skeleton.bones[bi].name;
+      };
+      const arm = (n: string) => /^(forearm|hand)_[lr]$/.test(n);
+      const body = (n: string) => /^(hips|spine|thigh_[lr])$/.test(n);
+      for (let t = 0; t < idx.count; t += 3) {
+        const n = [0, 1, 2].map((k) => dom(idx.getX(t + k)));
+        if (n.some(arm) && n.some(body)) joined++;
+      }
+    }
+    assert.equal(joined, 0, 'no triangle joins a forearm / hand vertex to a hip or thigh vertex');
+  });
+
   const bonesOf = (ch: ReturnType<typeof createCharacter>) => {
     const out: Record<string, THREE.Bone> = {};
     ch.root.traverse((o) => o instanceof THREE.Bone && (out[o.name] = o));
@@ -122,7 +143,7 @@ describe('rigged character models', () => {
   it('the warrior wears the rigged knight, with the standard skeleton and parts', () => {
     const ch = createCharacter('warrior');
     assert.ok(skinned(ch.root).length >= 4, 'skinned parts');
-    assert.deepEqual(Object.keys(ch.parts).sort(), ['back', 'shoulders']); // the helm is not a replaceable part
+    assert.deepEqual(Object.keys(ch.parts).sort(), ['back']); // the helm is not a replaceable part
     const bones = bonesOf(ch);
     for (const n of ['root', 'hips', 'spine', 'chest', 'neck', 'head', 'shoulder_l', 'shoulder_r', 'upperarm_l', 'upperarm_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r']) assert.ok(bones[n], `bone ${n}`);
     for (const m of skinned(ch.root)) assert.ok(ch.meshes.includes(m), 'every skinned mesh is pickable');
@@ -146,7 +167,7 @@ describe('rigged character models', () => {
     assert.equal(ma.material, mb.material);
   });
 
-  it('a head cosmetic keeps the knight\'s helm (it is fitted on top); shoulders and back still replace their parts', () => {
+  it('a head cosmetic keeps the knight\'s helm (it is fitted on top); a back item still replaces its part', () => {
     const plain = createCharacter('warrior');
     assert.equal(plain.parts.head, undefined, 'the helm is body geometry, not a replaceable part');
     const helmMeshes = (ch: ReturnType<typeof createCharacter>) => skinned(ch.root).filter((m) => m.name.startsWith('part_head'));
@@ -159,7 +180,7 @@ describe('rigged character models', () => {
     }
   });
 
-  it('a cosmetic in shoulders/back removes that base part (unpickable), none keeps it', () => {
+  it('a cosmetic in the back slot removes that base part (unpickable), none keeps it', () => {
     for (const slot of REPLACEABLE_SLOTS.filter((s) => s !== 'head')) {
       const bare = createCharacter('warrior');
       assert.ok(bare.parts[slot]?.length, `${slot} part`);
@@ -244,9 +265,9 @@ describe('rigged character models', () => {
     assert.deepEqual(createSheep().parts, {});
     globalThis.location = { search: '?warriormodel=brute' } as unknown as Location;
     try {
-      const ch = createCharacter('warrior', gearLook({ head: 'void_horns', shoulders: 'dragon_pauldrons' }), 'dual');
+      const ch = createCharacter('warrior', gearLook({ head: 'void_horns', wings: 'wings_angel' }), 'dual');
       assert.ok(skinned(ch.root).length >= 2, 'body and axe remain');
-      assert.deepEqual(Object.keys(ch.parts).sort(), ['head', 'shoulders']); // no cape on the brute
+      assert.deepEqual(Object.keys(ch.parts).sort(), ['head']); // no cape on the brute
       assert.equal(ch.root.getObjectById(createCharacter('warrior', '', 'dual').parts.head[0].id), undefined);
       const tris = skinned(createCharacter('warrior').root).reduce((n, m) => n + m.geometry.index!.count / 3, 0);
       assert.ok(tris < 15000, `${tris} triangles`);
@@ -259,7 +280,7 @@ describe('rigged character models', () => {
     forgetRiggedModels();
     const ch = createCharacter('warrior');
     assert.equal(skinned(ch.root).length, 0);
-    assert.deepEqual(Object.keys(ch.parts).sort(), ['back', 'head', 'shoulders']);
+    assert.deepEqual(Object.keys(ch.parts).sort(), ['back', 'head']);
     assert.ok(modelVersion() > 0);
   });
 });

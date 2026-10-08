@@ -11,7 +11,7 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX } from '@arena/shared';
+import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import type { AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
@@ -1244,10 +1244,18 @@ export class Lobby {
       }
       case 'ready': {
         const party = p.party;
-        if (!party || party.leader === p || this.busy(p)) return;
+        if (!party || party.leader === p) return;
+        // a mark is only kept while the member sits in the menu; whatever is refused, the party is sent again so a client that
+        // toggled its button on its own can never disagree with the server (the old "ready again" bug)
+        const why = this.busy(p) ?? (p.watching ? 'Stop watching first.' : null);
+        if (msg.on && why) send(p, { t: 'notice', text: why });
+        if (why) {
+          this.sendParty(party);
+          return;
+        }
         if (msg.on) {
-          if (!this.applyIdentity(p, msg)) return;
-          party.ready.add(p);
+          if (this.applyIdentity(p, msg)) party.ready.add(p);
+          else party.ready.delete(p);
         } else party.ready.delete(p);
         this.sendParty(party);
         break;
@@ -1559,7 +1567,8 @@ export class Lobby {
     p.room?.removePlayer(p);
     p.watching?.removeSpectator(p);
     if (p.party) {
-      p.party.ready.delete(p);
+      // leaving a match or the queue starts the party's ready check over for everyone
+      p.party.ready.clear();
       this.sendParty(p.party);
     }
     this.changed(p);
@@ -1578,7 +1587,7 @@ export class Lobby {
     const rows: FriendRow[] = [];
     for (const name of p.account?.friends ?? []) {
       const q = [...this.conns].find((c) => c.account?.key === name.toLowerCase());
-      rows.push(q?.account ? { name: q.account.name, status: this.statusOf(q), rating: q.account.rating, cosmetics: q.account.cosmetics } : { name, status: 'offline' });
+      rows.push(q?.account ? { name: q.account.name, status: this.statusOf(q), rating: q.account.rating, cosmetics: q.account.cosmetics, ...(q.account.avatar ? { avatar: q.account.avatar } : {}) } : { name, status: 'offline' });
     }
     const rank: Record<FriendStatus, number> = { menu: 0, party: 0, queue: 1, match: 1, offline: 2 };
     return rows.sort((a, b) => rank[a.status] - rank[b.status] || a.name.localeCompare(b.name));
@@ -1640,7 +1649,10 @@ export class Lobby {
       }
       party.members = [];
     } else {
-      if (party.leader === p) party.leader = party.members[0];
+      if (party.leader === p) {
+        party.leader = party.members[0];
+        for (const m of party.members) send(m, { t: 'notice', text: m === party.leader ? 'You are the party leader now.' : `${party.leader.account?.name ?? party.leader.name} is the party leader now.` });
+      }
       party.ready.clear();
       this.sendParty(party);
     }
@@ -1688,15 +1700,15 @@ export class Lobby {
     if (!p.account.friends?.some((f) => f.toLowerCase() === name.toLowerCase())) return void send(p, { t: 'notice', text: 'You can only invite friends.' });
     if (!to) return void send(p, { t: 'notice', text: `${name} is offline.` });
     if (!this.idle(p)) return void send(p, { t: 'notice', text: 'Finish what you are doing first.' });
-    if (!this.idle(to)) return void send(p, { t: 'notice', text: `${to.account!.name} is busy right now.` });
+    if (!this.idle(to)) return void send(p, { t: 'notice', text: `${to.account!.name} is ${to.room || to.watching ? 'in a match' : this.inQueue(to) ? 'in the queue' : 'busy'} right now.` });
     if ([...this.invites.values()].some((i) => i.from === p && i.to === to)) return void send(p, { t: 'notice', text: 'Already invited.' });
     let party: Party | undefined;
     if (kind === 'party') {
-      if (to.party) return void send(p, { t: 'notice', text: `${to.account!.name} is already in a party.` });
+      if (to.party) return void send(p, { t: 'notice', text: to.party === p.party ? `${to.account!.name} is already in your party.` : `${to.account!.name} is already in another party.` });
       party = p.party;
       if (party && party.leader !== p) return void send(p, { t: 'notice', text: 'Only the party leader can invite.' });
       const pending = [...this.invites.values()].filter((i) => i.kind === 'party' && i.from === p).length;
-      if (party && party.members.length + pending >= PARTY_MAX) return void send(p, { t: 'notice', text: `A party holds at most ${PARTY_MAX} players.` });
+      if (party && party.members.length + pending >= PARTY_MAX) return void send(p, { t: 'notice', text: `Your party is full: a party holds at most ${PARTY_MAX} players.` });
       if (!party) {
         party = { id: crypto.randomBytes(4).toString('hex'), leader: p, members: [p], ready: new Set(), sides: new Map() };
         p.party = party;
@@ -1728,7 +1740,7 @@ export class Lobby {
       const party = inv.party;
       if (!party || party.members.length === 0 || from.party !== party) return void send(p, { t: 'notice', text: 'That party is gone.' });
       if (party.members.length >= PARTY_MAX) return void send(p, { t: 'notice', text: `That party is full (${PARTY_MAX} players).` });
-      if (p.party) return;
+      if (p.party) return void send(p, { t: 'notice', text: 'Leave your current party first.' });
       party.members.push(p);
       p.party = party;
       this.assignSide(party, p);
@@ -1869,10 +1881,11 @@ export class Lobby {
     this.rooms.add(room);
   }
 
-  /** A new party member joins whichever side has fewer players. */
+  /** The leader starts on side 0; everyone who joins plays on the leader's side until it holds PARTY_SIDE_MAX, then on the other. */
   private assignSide(party: Party, p: Player): void {
-    const on = (side: number) => [...party.sides].filter(([m, s]) => m !== p && s === side && party.members.includes(m)).length;
-    party.sides.set(p, on(0) <= on(1) ? 0 : 1);
+    const lead: 0 | 1 = party.leader === p ? 0 : party.sides.get(party.leader) ?? 0;
+    const on = party.members.filter((m) => m !== p && (party.sides.get(m) ?? 0) === lead).length;
+    party.sides.set(p, on < PARTY_SIDE_MAX ? lead : lead === 0 ? 1 : 0);
   }
 
   /**
@@ -1910,8 +1923,10 @@ export class Lobby {
 
   /** Why a leader cannot start yet, or null when every other member is ready. */
   private notReady(p: Player): string | null {
-    const waiting = this.partyMates(p).filter((m) => !p.party!.ready.has(m));
-    return waiting.length ? `Waiting for ${waiting.map((m) => m.account?.name ?? m.name).join(', ')} to press Ready.` : null;
+    const mates = this.partyMates(p);
+    // a mate who went off (a match, the queue, a duel, watching) since pressing Ready is not ready either
+    const waiting = mates.filter((m) => !p.party!.ready.has(m) || !this.idle(m));
+    return waiting.length ? partyWaitingText(waiting.map((m) => m.account?.name ?? m.name), mates.length + 1 - waiting.length, mates.length + 1) : null;
   }
 
   /**
@@ -1986,7 +2001,7 @@ export class Lobby {
     this.queue = this.queue.filter((x) => !out.includes(x) && x !== e);
     for (const m of out.flatMap((x) => x.members)) {
       if (m !== p) send(m, { t: 'notice', text: 'Your party left the queue.' });
-      if (m.party) m.party.ready.delete(m);
+      if (m.party) m.party.ready.clear();
       this.changed(m);
     }
     this.announceQueue();

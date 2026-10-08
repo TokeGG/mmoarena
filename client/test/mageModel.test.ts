@@ -26,11 +26,11 @@ const bonesOf = (ch: ReturnType<typeof createCharacter>) => {
 };
 
 describe('procedural mage (the model not loaded)', () => {
-  it('is the fallback: built-in head and shoulder parts, no cast animation', () => {
+  it('is the fallback: a built-in head part, no cast animation', () => {
     forgetRiggedModels();
     assert.equal(riggedAssetFor('mage', 'fire_staff'), undefined);
     const ch = createCharacter('mage', '', 'fire_staff');
-    assert.deepEqual(Object.keys(ch.parts).sort(), ['head', 'shoulders']);
+    assert.deepEqual(Object.keys(ch.parts).sort(), ['head']);
     assert.equal(ch.cast, undefined);
     ch.pose({ ...frame, vf: 0, vs: 0 });
   });

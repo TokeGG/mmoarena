@@ -194,7 +194,11 @@
         "penance",
         "desperate_prayer"
       ],
-      "mods": {}
+      "mods": {},
+      "weapon": {
+        "id": "holy_staff",
+        "name": "Holy Staff"
+      }
     },
     {
       "id": "holy",
@@ -212,7 +216,11 @@
         "smite",
         "desperate_prayer"
       ],
-      "mods": {}
+      "mods": {},
+      "weapon": {
+        "id": "holy_staff",
+        "name": "Holy Staff"
+      }
     },
     {
       "id": "shadow",
@@ -230,7 +238,11 @@
         "flash_heal",
         "power_word_shield"
       ],
-      "mods": {}
+      "mods": {},
+      "weapon": {
+        "id": "necro_staff",
+        "name": "Necrotic Staff"
+      }
     }
   ],
   "rogue": [
@@ -250,7 +262,11 @@
         "garrote",
         "exsanguinate"
       ],
-      "mods": {}
+      "mods": {},
+      "weapon": {
+        "id": "daggers",
+        "name": "Twin Daggers"
+      }
     },
     {
       "id": "combat",
@@ -268,7 +284,11 @@
         "sprint",
         "gouge"
       ],
-      "mods": {}
+      "mods": {},
+      "weapon": {
+        "id": "daggers",
+        "name": "Twin Daggers"
+      }
     },
     {
       "id": "subtlety",
@@ -286,7 +306,11 @@
         "backstab",
         "eviscerate"
       ],
-      "mods": {}
+      "mods": {},
+      "weapon": {
+        "id": "daggers",
+        "name": "Twin Daggers"
+      }
     }
   ]
 }

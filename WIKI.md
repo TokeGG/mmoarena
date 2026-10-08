@@ -685,6 +685,8 @@ Healer and support. Shields, heals, dispels and fears. Mana-hungry.
 
 Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a foe.
 
+- **Weapon:** Holy Staff
+
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Flash Heal](#skill-flash-heal) | 70 mana · 40 yd range · 1.5s cast |
@@ -712,6 +714,8 @@ Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a 
 
 Direct healing. Holy Nova heals your team and hurts every enemy.
 
+- **Weapon:** Holy Staff
+
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Flash Heal](#skill-flash-heal) | 70 mana · 40 yd range · 1.5s cast |
@@ -738,6 +742,8 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 ### 🌑 Gloomweaver · Damage
 
 Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Blast hit hard.
+
+- **Weapon:** Necrotic Staff
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
@@ -974,6 +980,7 @@ Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.
 
 Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate cashes in on them.
 
+- **Weapon:** Twin Daggers
 - **Auto-attack:** 50 damage every 1.8s, 3 yd reach
 
 | Key | Skill | Numbers with this spec |
@@ -1000,6 +1007,7 @@ Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate
 
 Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swings, energy and healing.
 
+- **Weapon:** Twin Daggers
 - **Auto-attack:** 50 damage every 1.8s, 3 yd reach
 
 | Key | Skill | Numbers with this spec |
@@ -1026,6 +1034,7 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 
 Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes.
 
+- **Weapon:** Twin Daggers
 - **Auto-attack:** 50 damage every 1.8s, 3 yd reach
 
 | Key | Skill | Numbers with this spec |

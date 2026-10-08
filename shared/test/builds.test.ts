@@ -78,7 +78,7 @@ describe('content data is consistent', () => {
 
 describe('cosmetics', () => {
   it('has a good number of items in every slot, each with a unique id and a valid colour', () => {
-    assert.ok(ITEMS.length >= 130, 'cosmetics were doubled');
+    assert.ok(ITEMS.length >= 110, 'cosmetics were doubled');
     assert.equal(new Set(ITEMS.map((i) => i.id)).size, ITEMS.length);
     for (const slot of COSMETICS.slots) assert.ok(itemsForSlot(slot.id).filter((i) => !i.owner).length >= 7, slot.id);
     for (const i of ITEMS) assert.match(i.color, /^#[0-9a-f]{6}$/i, i.id);
@@ -98,7 +98,7 @@ describe('cosmetics', () => {
 
   it('owner-only cosmetics: a good number, rejected and stripped for everyone but the owner', () => {
     const own = ITEMS.filter((i) => i.owner);
-    assert.ok(own.length >= 25);
+    assert.ok(own.length >= 22);
     for (const i of own) {
       const gear = { [i.slot]: i.id };
       assert.equal(validateBuild('mage', build('frost', [], gear)).ok, false, i.id);
@@ -118,8 +118,8 @@ describe('cosmetics', () => {
     const locked = ITEMS.filter((i) => i.unlock);
     assert.ok(locked.length >= 30);
     for (const slot of COSMETICS.slots) {
-      assert.ok(itemsForSlot(slot.id).filter((i) => i.unlock).length >= 4, `${slot.id} has unlockables`);
-      assert.ok(itemsForSlot(slot.id).filter((i) => !i.owner && !i.unlock).length >= 9, `${slot.id} keeps free looks`);
+      assert.ok(itemsForSlot(slot.id).filter((i) => i.unlock).length >= (slot.id === 'back' ? 2 : 4), `${slot.id} has unlockables`);
+      assert.ok(itemsForSlot(slot.id).filter((i) => !i.owner && !i.unlock).length >= (slot.id === 'wings' ? 4 : slot.id === 'back' ? 6 : 9), `${slot.id} keeps free looks`);
     }
     for (const i of locked) {
       const gear = { [i.slot]: i.id };
@@ -132,6 +132,28 @@ describe('cosmetics', () => {
     }
     const free = ITEMS.find((i) => !i.owner && !i.unlock)!;
     assert.deepEqual(cleanGear({ [free.slot]: free.id }, false, 0), { [free.slot]: free.id });
+  });
+
+  it('wings are their own slot: no shoulders, no wings on the back or head, a full tiered catalog', () => {
+    assert.deepEqual(COSMETICS.slots.map((s) => s.id), ['head', 'wings', 'back', 'weapon', 'aura', 'tint', 'orbit']);
+    assert.equal(ITEMS.filter((i) => i.slot === 'shoulders').length, 0);
+    const wings = itemsForSlot('wings');
+    assert.ok(wings.length >= 12, 'wings');
+    assert.ok(wings.every((i) => i.desc && i.desc.length > 10), 'every wing item has a tooltip line');
+    assert.ok(wings.filter((i) => !i.owner && !i.unlock).length >= 4 && wings.filter((i) => i.unlock).length >= 5 && wings.filter((i) => i.owner).length >= 3, 'free, unlockable and owner tiers');
+    for (const i of ITEMS.filter((x) => x.slot === 'back' || x.slot === 'head')) assert.ok(!/wing|angel|phoenix|archon|bat|rift/.test(i.style), `${i.id} is not a wing`);
+  });
+
+  it('old saves keep working: wings from the back slot move to wings, shoulders and unknown slots are dropped', async () => {
+    assert.deepEqual(cleanGear({ back: 'wings_angel', head: 'crown_gold' }), { wings: 'wings_angel', head: 'crown_gold' });
+    assert.deepEqual(cleanGear({ head: 'wings_bat', shoulders: 'plates_gold', back: 'cloak_azure' }), { wings: 'wings_bat', back: 'cloak_azure' });
+    assert.deepEqual(cleanGear({ shoulders: 'dragon_pauldrons', wings: 'wings_silver' }, true), {}, 'retired shoulder and circlet ids vanish');
+    assert.deepEqual(cleanGear({ wings: 'wings_frost', back: 'wings_angel' }, true), { wings: 'wings_frost' }, 'an explicit wings pick wins over a migrated one');
+    assert.deepEqual(cleanGear({ back: 'archon_wings' }), {}, 'locked for a non-owner, even after moving');
+    assert.equal(validateBuild('mage', build('frost', [], { shoulders: 'plates_gold' })).ok, false, 'the strict check refuses a retired slot');
+    // an old recording's gear still shows its wings
+    const { gearLook } = await import('../src/index');
+    assert.equal(gearLook({ back: 'wings_angel', shoulders: 'plates_gold' }), gearLook({ wings: 'wings_angel' }));
   });
 
   it('cleanGear drops anything that no longer exists', () => {

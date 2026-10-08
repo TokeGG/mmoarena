@@ -35,7 +35,7 @@ describe('lobby: builds and progress', () => {
     const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 });
     const a = fakeSocket();
     const p = lobby.connect(a);
-    lobby.handle(p, join({ build: { spec: 'fire', talents: [talentsFor('mage', 'fire')[0][0].id], gear: { head: 'crown_gold', back: 'wings_angel' } } }));
+    lobby.handle(p, join({ build: { spec: 'fire', talents: [talentsFor('mage', 'fire')[0][0].id], gear: { head: 'crown_gold', wings: 'wings_angel' } } }));
     const welcome = a.sent.find((m: ServerMsg) => m.t === 'welcome');
     assert.equal(welcome.spec, 'fire');
     assert.ok(a.sent.some((m: ServerMsg) => m.t === 'profile' && m.matches === 0));

@@ -12,7 +12,7 @@ import { registerWeaponModel, forgetWeaponModels, WEAPONS } from '../src/weaponM
 const DIR = fileURLToPath(new URL('../public/models/', import.meta.url));
 const load = (file: string) => unpackModel(new Uint8Array(readFileSync(DIR + file.replace(/\.glb$/, '.pak'))));
 const WARRIOR_WEAPONS = ['dual', 'twohand', 'polearm']; // the mage staffs are tested in mageModel.test.ts
-const WEAPON_FILES: Record<string, string> = { dual: 'weapons/saber-dual.glb', twohand: 'weapons/greatsword.glb', polearm: 'weapons/axe.glb' };
+const WEAPON_FILES: Record<string, string> = { dual: 'weapons/saber-dual.glb', twohand: 'weapons/greatsword.glb', polearm: 'weapons/polearm.glb' };
 
 describe('real weapon models', () => {
   const g = globalThis as unknown as { createImageBitmap?: unknown; self?: unknown };
@@ -62,6 +62,91 @@ describe('real weapon models', () => {
     const axe = createCharacter('warrior', '', 'polearm');
     for (const ch of [rest, axe]) for (let i = 0; i < 40; i++) ch.pose({ phase: 0, move: 0, casting: false, time: i * 0.05, dt: 0.05 });
     assert.ok(bonesOf(rest).upperarm_l.quaternion.angleTo(bonesOf(axe).upperarm_l.quaternion) > 0.5, 'off hand is on the axe');
+  });
+
+  const GRIP = new THREE.Vector3(0, -0.62, 0.05);
+  const settled = (ch: ReturnType<typeof createCharacter>, frames: number, swingAt = -1) => {
+    for (let i = 0; i < frames; i++) {
+      if (i === swingAt) ch.swing();
+      ch.pose({ phase: 0, move: 0, casting: false, time: i / 30, dt: 1 / 30 });
+    }
+    ch.root.updateMatrixWorld(true);
+  };
+  const driverOf = (ch: ReturnType<typeof createCharacter>) => (ch.root.userData as { driver: { grip: number } }).driver;
+  /** Distance of the left fist from the weapon's axis, and the fist's place along it (weapon units from the right fist). */
+  const leftFist = (ch: ReturnType<typeof createCharacter>) => {
+    const bones = bonesOf(ch);
+    const pivot = ch.root.getObjectByName('weapon:weapon')!;
+    const hand = bones.hand_l.children.find((c) => c.type === 'Group')!;
+    const fist = hand.localToWorld(GRIP.clone());
+    const p = new THREE.Vector3().setFromMatrixPosition(pivot.matrixWorld);
+    const axis = new THREE.Vector3(0, 1, 0).transformDirection(pivot.matrixWorld);
+    const rel = fist.clone().sub(p);
+    const along = rel.dot(axis);
+    return { off: rel.addScaledVector(axis, -along).length(), along, hand: fist, axis, p };
+  };
+
+  it('the greatsword rests on the shoulder one-handed, takes the second hand to swing, and lets go after a grace period', () => {
+    const ch = createCharacter('warrior', '', 'twohand');
+    settled(ch, 60);
+    assert.ok(driverOf(ch).grip < 0.01, 'one hand at idle');
+    const rest = leftFist(ch);
+    assert.ok(rest.off > 0.4, `left hand hangs free (${rest.off.toFixed(2)} from the sword)`);
+    assert.ok(rest.axis.y > 0.6 && rest.axis.z < -0.2, 'blade up and back over the shoulder');
+    assert.ok(rest.p.x < -0.2, 'on the right side');
+    // an attack: both hands within a few frames, and the left fist stays on the handle through the whole swing
+    ch.swing();
+    let worst = 0;
+    for (let i = 0; i < 12; i++) {
+      ch.pose({ phase: 0, move: 0, casting: false, time: 2 + i / 30, dt: 1 / 30 });
+      ch.root.updateMatrixWorld(true);
+      if (i >= 5) worst = Math.max(worst, leftFist(ch).off);
+    }
+    assert.ok(driverOf(ch).grip > 0.95, 'both hands on the sword right after attacking');
+    assert.ok(worst < 0.08, `left fist on the handle during the swing (${worst.toFixed(3)})`);
+    const l = leftFist(ch);
+    assert.ok(l.along > -0.45 && l.along < 0.3, `left fist along the handle (${l.along.toFixed(2)})`);
+    // still gripping inside the grace period, then back on the shoulder
+    for (let i = 0; i < 30; i++) ch.pose({ phase: 0, move: 0, casting: false, time: 3 + i / 30, dt: 1 / 30 });
+    assert.ok(driverOf(ch).grip > 0.9, 'the second hand stays on for a moment after the swing');
+    for (let i = 0; i < 90; i++) ch.pose({ phase: 0, move: 0, casting: false, time: 4 + i / 30, dt: 1 / 30 });
+    assert.ok(driverOf(ch).grip < 0.05, 'the left hand let go');
+    ch.root.updateMatrixWorld(true);
+    assert.ok(leftFist(ch).off > 0.4);
+  });
+
+  it('the greatsword blade clears the head and the helm while resting and while carried walking', () => {
+    for (const move of [0, 1]) {
+      const ch = createCharacter('warrior', '', 'twohand');
+      for (let i = 0; i < 60; i++) ch.pose({ phase: i * 0.3, move, casting: false, time: i / 30, dt: 1 / 30 });
+      ch.root.updateMatrixWorld(true);
+      const pivot = ch.root.getObjectByName('weapon:weapon')!;
+      const p = new THREE.Vector3().setFromMatrixPosition(pivot.matrixWorld);
+      const axis = new THREE.Vector3(0, 1, 0).transformDirection(pivot.matrixWorld);
+      const head = new THREE.Vector3(0, 2.0, 0.0);
+      for (let t = 0.5; t < 2.0; t += 0.1) {
+        const q = p.clone().addScaledVector(axis, t);
+        const d = Math.hypot(q.x - head.x, q.z - head.z);
+        if (Math.abs(q.y - head.y) < 0.25) assert.ok(d > 0.3, `blade ${d.toFixed(2)} from the head at y ${q.y.toFixed(2)}`);
+      }
+    }
+  });
+
+  it('the axe lies diagonally across the body with both fists on the haft', () => {
+    const ch = createCharacter('warrior', '', 'polearm');
+    settled(ch, 60);
+    const bones = bonesOf(ch);
+    const pivot = ch.root.getObjectByName('weapon:weapon')!;
+    const hand = bones.hand_l.children.find((c) => c.type === 'Group')!;
+    const fist = hand.localToWorld(GRIP.clone());
+    const p = new THREE.Vector3().setFromMatrixPosition(pivot.matrixWorld);
+    const axis = new THREE.Vector3(0, 1, 0).transformDirection(pivot.matrixWorld);
+    const rel = fist.clone().sub(p);
+    assert.ok(rel.addScaledVector(axis, -rel.dot(axis)).length() < 0.03, 'left fist on the haft line');
+    assert.ok(fist.x > p.x + 0.2 && fist.y > p.y + 0.2, 'upper hand left of and above the lower hand');
+    assert.ok(p.x < -0.15 && p.y < 1.4 && p.y > 0.8, 'lower hand on the right hip side');
+    assert.ok(axis.x > 0.5 && axis.y > 0.5 && Math.abs(axis.z) < 0.4, `haft runs across the chest (${axis.x.toFixed(2)}, ${axis.y.toFixed(2)}, ${axis.z.toFixed(2)})`);
+    assert.equal(driverOf(ch).grip, 1, 'always two-handed');
   });
 
   it('the left saber is a true mirror of the right one', () => {
@@ -142,7 +227,7 @@ describe('weapon files', () => {
   };
   it('are small and keep their credit', () => {
     const packs = readdirSync(dir).filter((f) => f.endsWith('.pak') && !f.startsWith('staff-'));
-    assert.deepEqual(packs.sort(), ['axe.pak', 'greatsword.pak', 'saber-dual.pak']);
+    assert.deepEqual(packs.sort(), ['dagger.pak', 'greatsword.pak', 'polearm.pak', 'saber-dual.pak']);
     assert.ok(packs.reduce((n, f) => n + statSync(dir + f).size, 0) < 3 * 1024 * 1024, 'under 3 MB in all');
     const files = packs.map((f) => f.replace(/\.pak$/, '.glb'));
     for (const f of files) {

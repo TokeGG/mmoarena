@@ -1,4 +1,5 @@
 import { CLASSES } from '@arena/shared';
+import { pendingProposals } from './counts';
 import type { AccountInfo, AdminLogRow, ClientMsg, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
 import { mapName } from './spectate';
@@ -32,6 +33,8 @@ interface Hooks {
   follow(name: string): void;
   /** Play a stored replay. */
   replay(id: string): void;
+  /** The number of dev proposals nobody has checked yet changed (for the badge on the admin button). */
+  onPending?(n: number): void;
 }
 
 const ago = (t: number) => {
@@ -179,6 +182,7 @@ export class AdminPanel {
         break;
       case 'proposals':
         this.proposals = m.rows;
+        this.hooks.onPending?.(pendingProposals(m.rows));
         for (const id of [...this.picked]) if (!m.rows.some((r) => r.id === id && r.status === 'pending')) this.picked.delete(id);
         break;
       case 'dev_result':
@@ -231,7 +235,8 @@ export class AdminPanel {
 
     const tabs = el('div', 'admp-tabs');
     for (const [id, label] of TABS) {
-      const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, label);
+      const waiting = id === 'tuning' ? pendingProposals(this.proposals) : 0;
+      const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.addEventListener('click', () => {
         this.tab = id;
         this.refresh();
@@ -405,7 +410,8 @@ export class AdminPanel {
       pr.addEventListener('click', () => act('pr'));
       const live = el('button', 'mm-small', 'Make live');
       live.addEventListener('click', () => act('live'));
-      const del = el('button', 'mm-small', 'Dismiss');
+      const del = el('button', 'mm-small', 'Mark checked');
+      del.title = 'Takes the ticked proposals off the list without applying them';
       del.addEventListener('click', () => act('dismiss'));
       const r1 = el('div', 'own-row');
       r1.append(all, pr, live, del);

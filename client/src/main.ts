@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, TUNING, barFor, clampToGate, compileMods, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
@@ -11,7 +11,7 @@ import type { Action } from './keybinds';
 import { Menu } from './menu';
 import { Effects } from './effects';
 import { HudLayout } from './hudLayout';
-import { MainMenu } from './mainMenu';
+import { MainMenu, patchBadgeEl } from './mainMenu';
 import { SuggestUi } from './suggestUi';
 import { buildHeaderBar } from './headerBar';
 import type { PlayRequest } from './mainMenu';
@@ -22,6 +22,7 @@ import { AccountUi } from './accountUi';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 import { SettingsSync } from './settingsSync';
 import { FriendsUi } from './friendsUi';
+import { badgeText, liveCount } from './counts';
 import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
@@ -154,7 +155,9 @@ const camFloor: { y?: number; fallV?: number } = {};
 const renderPos = new Map<number, { x: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
 effects.groundY = (x, z) => heightAt(arena, x, z, predLevel);
+effects.camera = scene.camera;
 effects.onSwing = (id, fast) => scene.swing(id, fast);
+effects.onShout = (id) => scene.shout(id);
 effects.onHit = (id) => scene.flash(id);
 
 let barSpec: string | null = null;
@@ -193,6 +196,7 @@ const menu = new Menu(binds, {
     ws?.close();
   },
   onSensitivity: (v) => (controls.sens = v),
+  onBrightness: (v) => scene.setBrightness(v),
   onAutoAttack: (enabled) => {
     autoEnabled = enabled;
     send({ t: 'autoOff', off: !enabled });
@@ -354,7 +358,10 @@ function onMessage(raw: MessageEvent) {
       void joinDuel(m.with);
       break;
     case 'live':
-      livePicker.show(m.rows);
+      setBadge(liveBadge, liveCount(m.rows));
+      // the menu asks for the count quietly every so often: the list only opens when the player asked for it or already has it open
+      if (liveWanted || livePicker.popup.isOpen()) livePicker.show(m.rows);
+      liveWanted = false;
       break;
     case 'spectating':
       startSpectate('live', m.map, m.id);
@@ -694,8 +701,11 @@ function castSlot(i: number) {
     // first press arms the spell (a ring follows the cursor); pressing it again or clicking places it. A spell still on
     // its cooldown never brings the ring up (a moment's slack for lag only)
     if (aiming === ability) confirmAim();
-    else if (groundCooldownLeft(ability) > GROUND_SLACK_MS) hud.error('That is not ready yet');
-    else setAiming(ability);
+    else {
+      const why = groundBlocked(ability);
+      if (why) hud.error(why);
+      else setAiming(ability);
+    }
     return;
   }
   setAiming(null);
@@ -752,6 +762,30 @@ function groundCooldownLeft(ability: string): number {
   return Math.max(0, (me.cooldowns[ability] ?? 0) - estimatedNow());
 }
 const GROUND_SLACK_MS = 250;
+
+/** Why a ground spell cannot be cast right now (cooldown, mana, stun, silence), or null when it is ready. The aiming ring only shows while it is ready. */
+function groundBlocked(ability: string): string | null {
+  const me = latest?.units.find((u) => u.id === you);
+  const def = ABILITIES[ability];
+  if (!me || !def || !me.alive) return null;
+  const now = estimatedNow();
+  if (groundCooldownLeft(ability) > GROUND_SLACK_MS) return 'That is not ready yet';
+  if (me.resource < def.cost) return `Not enough ${me.resourceType}`;
+  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities))) return 'You cannot act right now';
+  if (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now) return `${def.school} is locked out`;
+  return null;
+}
+
+/** Like groundBlocked, but the global cooldown and a cast in progress do not count (a placed spell is queued behind them). */
+function groundBlockedWhileAiming(ability: string): boolean {
+  const me = latest?.units.find((u) => u.id === you);
+  const def = ABILITIES[ability];
+  if (!me || !def) return false;
+  if (me.cast?.ability === ability) return true;
+  if ((me.cooldowns[ability] ?? 0) - estimatedNow() > GROUND_SLACK_MS) return true;
+  if (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > estimatedNow()) return true;
+  return me.resource < def.cost;
+}
 
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
 let aiming: string | null = null;
@@ -1066,7 +1100,8 @@ function frame(now: number) {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);
     if (aiming && (spec || !meNow?.alive || meNow.controlled)) setAiming(null); // casting something else keeps the aim: it is placed into the queue
-    const aimed = !spec && aiming ? ABILITIES[aiming] : undefined;
+    // a spell that stops being castable while aimed (its cooldown starts, mana runs out, a silence lands) hides its ring until it is ready again
+    const aimed = !spec && aiming && !groundBlockedWhileAiming(aiming) ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
     scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt)));
@@ -1302,8 +1337,25 @@ async function openLive() {
   if (!accountUi.account) return livePicker.show([]);
   if (!(await connect())) return joinMsg('Could not reach the server.');
   livePicker.show(null);
+  liveWanted = true;
   send({ t: 'live' });
 }
+
+let liveWanted = false;
+const liveBadge = Object.assign(document.createElement('span'), { className: 'hdr-badge live hidden' });
+const adminBadge = Object.assign(document.createElement('span'), { className: 'hdr-badge new hidden' });
+function setBadge(b: HTMLElement, n: number) {
+  b.textContent = badgeText(n);
+  b.classList.toggle('hidden', n <= 0);
+}
+/** While signed in at the menu: how many matches can be watched, and (owner) how many dev proposals wait. */
+const pollBadges = () => {
+  if (!accountUi.account || !mainMenu.visible || document.hidden) return;
+  send({ t: 'live' });
+  if (accountUi.account.ownerOk) send({ t: 'admin_proposals', op: 'list' });
+};
+window.setInterval(pollBadges, 20000);
+window.setTimeout(pollBadges, 4000);
 
 // ------------------------------------------------------------------ main menu
 
@@ -1479,6 +1531,10 @@ const adminPanel = new AdminPanel({
   watch: (id) => send({ t: 'spectate', id }),
   follow: (name) => send({ t: 'follow', name }),
   replay: (id) => void startReplay(id),
+  onPending: (n) => {
+    setBadge(adminBadge, n);
+    adminBadge.title = `${n} dev proposal${n === 1 ? '' : 's'} not checked yet`;
+  },
 });
 registerPopup(adminPanel.popup);
 registerPopup(adminPanel.bbPopup);
@@ -1487,11 +1543,11 @@ menuExtras.className = 'menu-extras';
 const header = buildHeaderBar([
   { icon: 'profile', label: 'Profile', onClick: () => (accountUi.account ? accountUi.openProfile() : accountUi.openAuth()) },
   { icon: 'friends', label: 'Friends and party', onClick: () => friendsUi.openOrSignIn(), badge: friendsUi.badge },
-  { icon: 'patches', label: 'Patch notes', onClick: () => mainMenu.openPatches() },
-  { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive() },
+  { icon: 'patches', label: 'Patch notes', onClick: () => mainMenu.openPatches(), badge: patchBadgeEl },
+  { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive(), badge: liveBadge },
   { icon: 'suggest', label: 'Suggestions', onClick: () => suggestUi.open() },
   { icon: 'bots', label: 'Bot battle (owner)', onClick: () => adminPanel.openBotBattle() },
-  { icon: 'admin', label: 'Admin panel', onClick: () => adminPanel.open() },
+  { icon: 'admin', label: 'Admin panel', onClick: () => adminPanel.open(), badge: adminBadge },
 ]);
 const paintHeader = () => {
   const a = accountUi.account;
