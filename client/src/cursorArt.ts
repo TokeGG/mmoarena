@@ -57,78 +57,129 @@ const r1 = (n: number) => Math.round(n * 10) / 10;
 
 // ------------------------------------------------------------------------------------------------ the gauntlet
 
-const ARROW = 'M4 3 L4 25.6 L9.3 20.7 L13.1 29 L17.4 27.1 L13.6 18.9 L20.8 18.7 Z';
+/**
+ * The steel gauntlet, drawn upright on the grid (index finger up, three curled finger plates beside it, a thumb plate, a
+ * flared cuff with a gold band and a rivet row) and then turned 20 degrees so the finger points up and to the left.
+ * `len` is how far the finger reaches above the knuckles (a short stump makes it a fist).
+ */
+const TURN = -20;
+const PIVOT: [number, number] = [14, 27];
+const LIFT = -2;
+const HAND_TRANSFORM = `translate(0 ${LIFT}) rotate(${TURN} ${PIVOT[0]} ${PIVOT[1]})`;
+const KNUCKLE_Y = 18;
+
+/** Where a point of the upright hand lands on the grid. */
+function turned(x: number, y: number): [number, number] {
+  const a = (TURN * Math.PI) / 180;
+  const dx = x - PIVOT[0];
+  const dy = y - PIVOT[1];
+  return [r1(PIVOT[0] + dx * Math.cos(a) - dy * Math.sin(a)), r1(PIVOT[1] + dx * Math.sin(a) + dy * Math.cos(a) + LIFT)];
+}
+const TIP_X = 12.2;
+const fingerTop = (len: number) => KNUCKLE_Y - len;
+/** Hotspot of the pointing gauntlet: the extreme point of the finger tip. */
+const tipHot = (len: number): [number, number] => turned(TIP_X, fingerTop(len) - 0.6);
+
+function handBody(len: number): string {
+  const plate = (x: number, y: number, w: number, h: number, rx = 2) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${rx}" fill="url(#st)" ${stk(1.5)}/>`;
+  const seam = (d: string) => `<path d="${d}" stroke="#56627a" stroke-width=".8" stroke-linecap="round" fill="none"/>`;
+  const shine = (d: string) => `<path d="${d}" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".9" fill="none"/>`;
+  const rivet = (x: number, y: number, r = 0.75) => `<circle cx="${x}" cy="${y}" r="${r}" fill="url(#gd)" stroke="${OUT}" stroke-width=".5"/>`;
+  const top = fingerTop(len);
+  const seg = len / 3;
+  const x0 = TIP_X - 3;
+  let o = '';
+  // thumb plate, back of the hand, then the three curled finger plates with their knuckle ridges
+  o += `<path d="M10 18.2 L6.2 15.6 Q3.4 15.2 3.8 18.2 L5.4 24.6 L10 26 Z" fill="url(#st)" ${stk(1.5)}/>`;
+  o += seam('M4.8 20.2 L9.6 21.4');
+  o += plate(8.6, 17.4, 19.8, 9, 2.4);
+  o += plate(15.4, 16.2, 4.3, 7.4, 2.1) + plate(19.6, 16.8, 4.3, 7.4, 2.1) + plate(23.8, 17.8, 4.3, 7.2, 2.1);
+  o += seam('M15.6 21 L19.5 21 M19.8 21.6 L23.7 21.6 M24 22.4 L28 22.4');
+  o += shine('M16.7 18 L18.3 18 M20.9 18.6 L22.5 18.6 M25.1 19.6 L26.7 19.6');
+  // the pointing finger: three plates, the tip on top so each seam shows its edge
+  o += plate(x0, top + seg * 1.9, 6, seg * 1.1 + 2.4, 1.8);
+  o += plate(x0, top + seg * 0.95, 6, seg * 1.15 + 0.8, 1.8);
+  o += `<path d="M${x0} ${r1(top + seg * 1.1)} L${x0} ${r1(top + 2.8)} Q${x0} ${r1(top)} ${x0 + 3} ${r1(top)} Q${x0 + 6} ${r1(top)} ${x0 + 6} ${r1(top + 2.8)} L${x0 + 6} ${r1(top + seg * 1.1)} Z" fill="url(#st)" ${stk(1.5)}/>`;
+  o += shine(`M${x0 + 1.5} ${r1(top + 2.8)} L${x0 + 1.5} ${r1(top + seg * 0.8)} M${x0 + 1.5} ${r1(top + seg * 1.4)} L${x0 + 1.5} ${r1(top + seg * 1.9)}`);
+  o += rivet(TIP_X, r1(top + seg * 1.0), 0.7) + rivet(TIP_X, r1(top + seg * 2.0), 0.7);
+  // flared cuff: steel flare under a gold band with a rivet row
+  o += `<path d="M7.4 25.4 L28 25.4 L29.6 30.2 L5.6 30.2 Z" fill="url(#st)" ${stk(1.5)}/>`;
+  o += `<path d="M9.4 27.8 L26.2 27.8" stroke="#56627a" stroke-width=".8" stroke-linecap="round"/>`;
+  o += `<rect x="6.8" y="24.6" width="21.8" height="3.6" rx="1.2" fill="url(#gd)" ${stk(1.4)}/>`;
+  o += `<path d="M8.4 25.5 L26.6 25.5" stroke="#fff3c0" stroke-width=".6" opacity=".85"/>`;
+  o += rivet(10.4, 26.6, 0.6) + rivet(15.4, 26.6, 0.6) + rivet(20.4, 26.6, 0.6) + rivet(25.4, 26.6, 0.6);
+  o += `<path d="M5.9 29.5 L29.3 29.5" stroke="url(#gd)" stroke-width="1.3" stroke-linecap="round"/>`;
+  return `<g transform="${HAND_TRANSFORM}">${o}</g>`;
+}
+
+const FINGER = 15.4;
+const FINGER_LINK = 12.2;
 
 function gauntletDefault(): string {
-  return (
-    `<clipPath id="ac"><path d="${ARROW}"/></clipPath>` +
-    `<path d="${ARROW}" fill="url(#st)" ${stk(2.4)}/>` +
-    `<path d="${ARROW}" fill="none" stroke="url(#gd)" stroke-width="2.3" clip-path="url(#ac)"/>` +
-    // light ridge along the leading edge and plate seams across the finger
-    `<path d="M6.4 8.5 L6.4 21.4" stroke="#fff" stroke-width="1.1" stroke-linecap="round" opacity=".85"/>` +
-    `<path d="M9.2 17.6 L16.3 17.4" stroke="#7d889c" stroke-width=".9" stroke-linecap="round"/>` +
-    // gold cuff band on the wrist and a rivet
-    `<path d="M11.4 25.6 L15.8 23.7" stroke="${OUT}" stroke-width="3.4" stroke-linecap="butt" clip-path="url(#ac)"/>` +
-    `<path d="M11.4 25.6 L15.8 23.7" stroke="url(#gd)" stroke-width="2.2" stroke-linecap="butt" clip-path="url(#ac)"/>` +
-    `<circle cx="7.4" cy="12.3" r=".9" fill="${GOLD}" stroke="${OUT}" stroke-width=".5"/>`
-  );
+  return handBody(FINGER);
 }
 
+/** Over a button or link: the finger is pressed down a little and a gold spark flies off the tip. */
 function gauntletHand(): string {
-  const plate = (d: string) => `<path d="${d}" fill="url(#st)" ${stk()}/>`;
+  const [tx, ty] = tipHot(FINGER_LINK);
+  const star = (cx: number, cy: number, r: number) => `M${cx} ${r1(cy - r)} L${r1(cx + r * 0.3)} ${r1(cy - r * 0.3)} L${r1(cx + r)} ${cy} L${r1(cx + r * 0.3)} ${r1(cy + r * 0.3)} L${cx} ${r1(cy + r)} L${r1(cx - r * 0.3)} ${r1(cy + r * 0.3)} L${r1(cx - r)} ${cy} L${r1(cx - r * 0.3)} ${r1(cy - r * 0.3)} Z`;
   return (
-    // thumb, back of the hand, three curled finger plates, then the pointing finger on top
-    plate('M4.6 15.6 Q4.2 13.6 6.2 13.8 L10.4 18.4 L10.4 23.2 L6.8 20 Z') +
-    plate('M10.2 17.6 L27.6 17.6 L27.6 24.2 Q27.6 25.6 26 25.6 L11.8 25.6 Q10.2 25.6 10.2 24.2 Z') +
-    plate('M15.4 13.4 Q15.4 11.2 17.6 11.2 Q19.8 11.2 19.8 13.4 L19.8 18.4 L15.4 18.4 Z') +
-    plate('M19.8 14 Q19.8 12 21.9 12 Q24 12 24 14 L24 18.4 L19.8 18.4 Z') +
-    plate('M24 15.4 Q24 13.6 25.9 13.6 Q27.8 13.6 27.8 15.4 L27.8 18.4 L24 18.4 Z') +
-    plate('M10.2 4.6 Q10.2 2.4 12.6 2.4 Q15 2.4 15 4.6 L15 18.6 L10.2 18.6 Z') +
-    `<path d="M10.5 9.6 L14.7 9.6 M10.5 14 L14.7 14 M15.6 15.4 L19.6 15.4 M20 15.8 L23.8 15.8" stroke="#6e7a90" stroke-width=".9" stroke-linecap="round"/>` +
-    `<path d="M11.6 4.8 L11.6 17" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".85"/>` +
-    // gold cuff
-    `<rect x="9.4" y="24.4" width="19" height="4.6" rx="1.4" fill="url(#gd)" ${stk()}/>` +
-    `<path d="M10.8 26.7 L27 26.7" stroke="#fff3c0" stroke-width=".7" opacity=".8"/>`
+    handBody(FINGER_LINK) +
+    `<path d="${star(r1(tx + 0.4), r1(ty + 0.4), 4.6)}" fill="url(#gd)" ${stk(1.2)}/>` +
+    `<circle cx="${r1(tx + 0.4)}" cy="${r1(ty + 0.4)}" r="1.3" fill="#fff"/>` +
+    `<path d="M${r1(tx + 6)} ${r1(ty - 1)} l1.2 1.2 l-1.2 1.2 l-1.2 -1.2 Z" fill="${GOLD}" ${stk(.6)}/>`
   );
 }
 
+/** A red sword held point-up-left in a gauntlet fist. */
 function swordArt(): string {
-  // a red blade, gold guard; drawn pointing down from its tip, then turned so the tip is the hotspot at the top left
   return (
-    `<g transform="translate(4.2 4.2) rotate(-45) scale(1.08)">` +
+    `<g transform="translate(3.6 3.6) rotate(-45) scale(1.08)">` +
     `<path d="M0 0 L2.5 4 L2.5 17.5 L-2.5 17.5 L-2.5 4 Z" fill="url(#rd)" ${stk()}/>` +
     `<path d="M0 3 L0 16.5" stroke="#ffd9d2" stroke-width="1" stroke-linecap="round" opacity=".85"/>` +
     `<rect x="-6.4" y="17.2" width="12.8" height="2.8" rx="1.2" fill="url(#gd)" ${stk()}/>` +
     `<rect x="-1.5" y="20" width="3" height="5.2" fill="#4a2a18" ${stk()}/>` +
-    `<circle cx="0" cy="26.4" r="2.2" fill="url(#gd)" ${stk()}/>` +
-    `</g>`
+    `</g>` +
+    `<g transform="translate(22.4 22.4) rotate(-45) scale(.56) translate(-17 -22.5)">${handBody(3.4)}</g>`
   );
+}
+
+/** Green cross badge in the free corner above the gauntlet's fist. */
+function badge(inner: string): string {
+  return `<g transform="translate(17.6 1.4) scale(.4)">${inner}</g>`;
 }
 
 function crossArt(): string {
   const d = 'M12.4 4.5 H19.6 V12.4 H27.5 V19.6 H19.6 V27.5 H12.4 V19.6 H4.5 V12.4 H12.4 Z';
   return (
-    `<path d="${d}" fill="url(#gr)" ${stk(2.2)}/>` +
-    `<path d="M14.2 6.6 H17.8 M6.6 14.2 H11" stroke="#fff" stroke-width="1.2" stroke-linecap="round" opacity=".85"/>` +
-    `<path d="M16 9.2 V22.8 M9.2 16 H22.8" stroke="#0c5a27" stroke-width=".8" stroke-linecap="round" opacity=".35"/>`
+    handBody(FINGER) +
+    badge(
+      `<path d="${d}" fill="url(#gr)" ${stk(3.4)}/>` +
+        `<path d="M14.2 6.6 H17.8 M6.6 14.2 H11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>`,
+    )
   );
 }
 
 function shieldArt(): string {
   const d = 'M16 3.6 L26.2 7.6 V16 C26.2 22 21.4 26.6 16 28.6 C10.6 26.6 5.8 22 5.8 16 V7.6 Z';
   return (
-    `<path d="${d}" fill="url(#gd)" ${stk(2.2)}/>` +
-    `<path d="M16 7 L23 9.8 V16 C23 20.4 19.8 23.8 16 25.4 C12.2 23.8 9 20.4 9 16 V9.8 Z" fill="url(#st)" stroke="${OUT}" stroke-width=".9"/>` +
-    `<path d="M16 10.4 V21 M11.4 15.4 H20.6" stroke="${GOLD}" stroke-width="2" stroke-linecap="round"/>`
+    handBody(5.6) +
+    badge(
+      `<path d="${d}" fill="url(#gd)" ${stk(3.4)}/>` +
+        `<path d="M16 7 L23 9.8 V16 C23 20.4 19.8 23.8 16 25.4 C12.2 23.8 9 20.4 9 16 V9.8 Z" fill="url(#st)" stroke="${OUT}" stroke-width="1.2"/>` +
+        `<path d="M16 10.4 V21 M11.4 15.4 H20.6" stroke="${GOLD}" stroke-width="2.6" stroke-linecap="round"/>`,
+    )
   );
 }
 
-/** Aiming a ground spell: a crosshair in the colour of the ring on the ground; with a slash when the spell cannot land there. */
+/** Aiming a ground spell: a crosshair in the colour of the ring on the ground, in gold gauntlet-style corner brackets; with a slash when the spell cannot land there. */
 function crosshairArt(blocked: boolean): string {
   const c = blocked ? AIM_BLOCKED : AIM_OK;
   const lines = 'M16 2.8 V10.4 M16 21.6 V29.2 M2.8 16 H10.4 M21.6 16 H29.2';
+  const brackets = 'M2.6 8.6 V2.6 H8.6 M23.4 2.6 H29.4 V8.6 M29.4 23.4 V29.4 H23.4 M8.6 29.4 H2.6 V23.4';
   return (
-    `<g fill="none" stroke-linecap="round">` +
+    `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
+    (blocked ? '' : `<path d="${brackets}" stroke="${OUT}" stroke-width="4"/><path d="${brackets}" stroke="url(#gd)" stroke-width="2"/>`) +
     `<g stroke="${OUT}" stroke-width="4.6"><circle cx="16" cy="16" r="7.4"/><path d="${lines}"/>${blocked ? '<path d="M10.8 10.8 L21.2 21.2"/>' : ''}</g>` +
     `<g stroke="${c}" stroke-width="2.3"><circle cx="16" cy="16" r="7.4"/><path d="${lines}"/>${blocked ? '<path d="M10.8 10.8 L21.2 21.2" stroke-width="2.6"/>' : ''}</g>` +
     `</g>` +
@@ -138,9 +189,10 @@ function crosshairArt(blocked: boolean): string {
 
 function busyArt(): string {
   return (
-    `<g opacity=".72">${gauntletDefault()}</g>` +
-    `<path d="M19.6 20.4 H29.2 L24.4 25.6 L29.2 30.8 H19.6 L24.4 25.6 Z" fill="#e9dcc0" ${stk()}/>` +
-    `<path d="M21.6 29.4 H27.2 L24.4 26.6 Z" fill="${GOLD}"/>`
+    `<filter id="gy"><feColorMatrix type="saturate" values="0.12"/></filter>` +
+    `<g opacity=".78" filter="url(#gy)">${handBody(FINGER)}</g>` +
+    `<g transform="translate(0 -16.6)"><path d="M19.6 20.4 H29.2 L24.4 25.6 L29.2 30.8 H19.6 L24.4 25.6 Z" fill="#e9dcc0" ${stk()}/>` +
+    `<path d="M21.6 29.4 H27.2 L24.4 26.6 Z" fill="${GOLD}"/></g>`
   );
 }
 
@@ -320,17 +372,17 @@ function drawFor(style: string, state: ArtState, tint: string | null): Draw {
   if (style === 'gauntlet' || !STYLE_ART[style]) {
     switch (state) {
       case 'enemy':
-        return { body: swordArt(), hot: [4.4, 4.4] };
+        return { body: swordArt(), hot: [3.6, 3.6] };
       case 'ally':
-        return { body: crossArt(), hot: [16, 16] };
+        return { body: crossArt(), hot: tipHot(FINGER) };
       case 'self':
-        return { body: shieldArt(), hot: [16, 16] };
+        return { body: shieldArt(), hot: tipHot(5.6) };
       case 'busy':
-        return { body: busyArt(), hot: [4, 3] };
+        return { body: busyArt(), hot: tipHot(FINGER) };
       case 'link':
-        return { body: gauntletHand(), hot: [12.6, 3] };
+        return { body: gauntletHand(), hot: tipHot(FINGER_LINK) };
       default:
-        return { body: gauntletDefault(), hot: [4, 3] };
+        return { body: gauntletDefault(), hot: tipHot(FINGER) };
     }
   }
   const a = STYLE_ART[style];
