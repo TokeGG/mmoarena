@@ -7,8 +7,9 @@
   "changes": [
    "Flamestrike, Scorch and burning now use the same blazing flames as Fireball and Pyroblast.",
    "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh.",
-   "Lava Forge's lava basins are now real lava: you can still jump into one, but you are no longer pushed out, and standing in it burns you (5% of your health every half second) until you climb out.",
+   "Lava Forge's lava basins are now real lava: you can jump into one without being pushed out, but standing in it burns you (5% of your health every half second) and the rim holds you in, so you have to jump out.",
    "Line of sight is more accurate: a unit whose edge shows past a pillar or wall corner can now be seen and targeted, as the picture shows, instead of reporting 'no line of sight'.",
+   "Pillars and cover on the maps now look exactly like what blocks you and your line of sight: no more flared bases, tapering spires or square obelisks that are wider or narrower than what actually stops you, so \"no line of sight\" no longer happens when you can clearly see your target (Cinder Crater, Lava Forge and Sandstone Yard most of all).",
    "The mage now stands up straight and in the middle of his own spot, and wings and cloaks sit properly on his back.",
    "The mage's cloaks now recolour the back of his robe instead of adding a second cape.",
    "New cursors: pick from a steel gauntlet and ten more to unlock; enemies always show a red sword, allies a green cross and aimed spells a crosshair. A Cursor section in settings has size, tint, trail and click ripple.",
