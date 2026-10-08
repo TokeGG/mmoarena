@@ -554,6 +554,8 @@ export class ArenaSim {
       }
       const k = TUNING.fearSpeed * TUNING.runSpeed * DT;
       this.place(u, { x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k });
+    } else if (u.cast && ABILITIES[u.cast.ability]?.channel?.hold) {
+      // locked in a channel that holds the caster (Slice and Dice): you stand where you are and keep facing your target
     } else {
       if ((this.canAct(u) || u.auras.some((a) => AURAS[a.id]?.canTurn)) && Number.isFinite(input.facing)) u.facing = input.facing;
       const speed = TUNING.runSpeed * this.speedMult(u);

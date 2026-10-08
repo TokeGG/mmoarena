@@ -1,8 +1,8 @@
-# WoW-style Arena · v0.69.0
+# WoW-style Arena · v0.69.1
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
-**Contents:** [Play now](#play-now) · [Controls](#controls) · [Modes](#modes) · [Classes and specs](#classes-and-specs) · [Arenas](#arenas) · [Rules worth knowing](#rules-worth-knowing) · [Practice bots](#practice-bots) · [Accounts, rating and looks](#accounts-rating-and-looks) · [Friends, parties and duels](#friends-parties-and-duels) · [Watching and replays](#watching-and-replays) · [Skills and talents](#skills-and-talents)
+**Contents:** [Play now](#play-now) · [Controls](#controls) · [Modes](#modes) · [Classes and specs](#classes-and-specs) · [Arenas](#arenas) · [Rules worth knowing](#rules-worth-knowing) · [Practice bots](#practice-bots) · [Accounts, rating and looks](#accounts-rating-and-looks) · [Friends, parties and duels](#friends-parties-and-duels) · [Watching and replays](#watching-and-replays) · [Skills and talents](#skills-and-talents) · [Credits](#credits)
 
 ## Play now
 
@@ -156,3 +156,7 @@ Every class, spec, skill, talent and effect, with its cost, cast time, cooldown,
 ---
 
 Developing or hosting the game: see [DEVELOPING.md](DEVELOPING.md).
+
+## Credits
+
+The warrior's weapons (dual sabers by Shadow Models 3D, greatsword by denisdezmand, Divine Fantasy Axe by Xardkorich_3D) and character models are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.

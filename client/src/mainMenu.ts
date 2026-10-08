@@ -7,6 +7,7 @@ import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { flags, loadBuild, loadSpecTalents, progress, saveBuild, saveSpecTalents } from './profile';
 import { CLASS_BLURB, tipBuildKey } from './tips';
 import { patchTime } from './patchTime';
+import { CREDITS } from './credits';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 
 /**
@@ -354,6 +355,9 @@ export class MainMenu {
     actions.append(this.partyBtn, this.readyBtn, practice, queue);
     const hint = el('div', 'mm-esc');
     hint.append('Press ', el('b', '', 'Esc'), ' for controls, HUD and sound');
+    const creditsLink = el('button', 'mm-link', 'Credits');
+    creditsLink.addEventListener('click', () => this.openCredits());
+    hint.append(' · ', creditsLink);
     // guests pick the name they play under (signed in, the account name is used and this row is hidden)
     this.nameRow.append(el('span', '', 'NAME'), this.nameInput);
     this.nameInput.addEventListener('change', () => store.set('arena.name', this.nameInput.value.trim()));
@@ -737,6 +741,40 @@ export class MainMenu {
       box.append(h, ul);
       card.append(box);
     });
+    this.openSlot = null;
+    this.root.classList.remove('look-open');
+    this.modal.className = 'mm-modal';
+    this.modal.replaceChildren(card);
+  }
+
+  // ------------------------------------------------------------------ credits
+
+  openCredits() {
+    const card = el('div', 'mm-modal-card mm-credits');
+    const head = el('div', 'mm-modal-head');
+    const close = el('button', 'mm-small', 'Close');
+    close.addEventListener('click', () => this.closeGear());
+    head.append(el('h2', '', 'Credits'), close);
+    card.append(head, el('p', 'mm-credits-intro', 'The 3D models below are the work of their authors, used under the licences shown.'));
+    const link = (text: string, href: string) => {
+      const a = el('a', '', text);
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      return a;
+    };
+    for (const c of CREDITS) {
+      const box = el('section', 'mm-credit');
+      box.append(el('h3', '', c.title));
+      const by = el('div', 'mm-credit-by');
+      by.append(c.author ? `by ${c.author}` : 'Author unknown', ' · ');
+      by.append(c.licenseUrl ? link(c.license, c.licenseUrl) : c.license);
+      if (c.url) by.append(' · ', link('Source', c.url));
+      box.append(by, el('div', 'mm-credit-use', c.use));
+      if (c.changes) box.append(el('div', 'mm-credit-note', `Changes: ${c.changes}`));
+      if (c.note) box.append(el('div', 'mm-credit-note', c.note));
+      card.append(box);
+    }
     this.openSlot = null;
     this.root.classList.remove('look-open');
     this.modal.className = 'mm-modal';

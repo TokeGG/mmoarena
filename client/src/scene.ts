@@ -184,8 +184,8 @@ export class ArenaScene {
   }
 
   /** Cosmetic reactions, called from the effects system. */
-  swing(id: number): void {
-    this.meshes.get(id)?.character.swing();
+  swing(id: number, fast = false): void {
+    this.meshes.get(id)?.character.swing(fast);
   }
   flash(id: number): void {
     const m = this.meshes.get(id);

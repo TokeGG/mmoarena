@@ -274,7 +274,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
 
   const ticks = def.channel?.ticks ?? 1;
   const every = def.channel ? M((m) => secs(castMs(m) / ticks), fmtS, false) : '';
-  const stops = def.unstoppable ? '' : def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
+  const stops = def.unstoppable ? '' : def.channel?.hold ? 'You stand still while it lasts, and being interrupted stops it.' : def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
   const dmgOf = (amount: number) => (m: Mods) => Math.round(amount * m.damageDone * (ab(m).damage ?? 1));
   const healOf = (amount: number) => (m: Mods) => Math.round(amount * m.healingDone * (ab(m).heal ?? 1));
 

@@ -417,13 +417,6 @@
       }
     }
   },
-  "slice_stun": {
-    "name": "Slice and Dice",
-    "kind": "stun",
-    "duration": 1100,
-    "harmful": true,
-    "dr": "stun"
-  },
   "deep_cuts_bleed": {
     "name": "Deep Cuts",
     "kind": "dot",
@@ -622,5 +615,12 @@
     "dispellable": true,
     "breaksOnDamage": true,
     "flee": true
+  },
+  "slice_hold": {
+    "name": "Slice and Dice",
+    "kind": "stun",
+    "duration": 1100,
+    "harmful": true,
+    "dr": "stun"
   }
 }

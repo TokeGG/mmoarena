@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.69.1",
+  "date": "2026-10-08",
+  "at": "2026-10-08T15:06:04Z",
+  "title": "Slice and Dice holds its targets, a more natural Barbarian stance",
+  "changes": [
+   "Slice and Dice is now a short-range lock-down: you stand in place and cut everything in the cone ahead in a flurry of fast strikes (16 quick hits for the same total damage), and everyone it hits is held in place for the whole channel with no gaps. You cannot move while it lasts, and being interrupted or stunned ends it.",
+   "The Barbarian stands more naturally: arms hang closer to the body and the feet are closer together, in idle, walking and fighting.",
+   "New skill visuals: Axe Throw is a real spinning axe with a trail (and Reel In a chain pulling the target in), Flamestrike is a swirling fire with embers, smoke and a pulse on every hit, Battle Banner and Not Going Anywhere plant a real waving flag, Rune of Power is a rotating rune circle with floating glyphs, and fire spells share one better flame effect. A falling-ice storm effect is ready for any frost ground spell.",
+   "Every warrior spec now uses the gold knight. Helmets, crowns, horns and other headwear you wear now sit on top of the knight's helm instead of replacing it, while shoulders and capes still replace the model's own pieces.",
+   "New weapons for the knight: Warbringer wields dual sabers, Rampager a greatsword and the Barbarian a two-handed axe, each held with both hands where it should be. See the new Credits link in the main menu for the artists.",
+   "Fixed dyes and cosmetic colours that looked almost black (Midas and Eclipse dye, several cloaks and wings) or washed out: Midas is a warm polished gold, Eclipse a deep violet with a glowing rim, and Aurora keeps its colour in shadow.",
+   "Model files are now packed so they cannot simply be downloaded and opened."
+  ]
+ },
+ {
   "version": "0.69.0",
   "date": "2026-10-08",
   "at": "2026-10-08T05:20:00Z",

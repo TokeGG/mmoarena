@@ -171,7 +171,7 @@ On the bar: [Warbringer](#warrior-arms) (key 3).
 
 *Physical* · 30 rage · 6 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun
 
-- Strikes every enemy in range 8 times, once every 0.5s (the first at once), for 50 physical damage each (400 total). Moving or being interrupted stops it.
+- Strikes every enemy in range 16 times, once every 0.3s (the first at once), for 25 physical damage each (400 total). You stand still while it lasts, and being interrupted stops it.
 - Cannot move, cast or act.
 
 On the bar: [Warbringer](#warrior-arms) (key 4).
@@ -1326,7 +1326,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |
 | <a id="effect-creeping-rot"></a>**Shadow Word: Pain** | Debuff (dot), magic | 10s | Takes 30 shadow damage every 1s (300 total). | [Shadow Word: Pain](#skill-shadow-word-death) |
 | <a id="effect-shatter"></a>**Shatter** | Debuff (mark) | 4s or 6s | Takes 5x damage from frost abilities. Lost when damaged, unless Deep Freeze is active. | [Frost Nova](#skill-frost-nova), [Deep Freeze](#skill-deep-freeze) |
-| <a id="effect-slice-stun"></a>**Slice and Dice** | Debuff (stun) | 1.1s | Cannot move, cast or act. | [Slice and Dice](#skill-slice-and-dice) |
+| <a id="effect-slice-hold"></a>**Slice and Dice** | Debuff (stun) | 1.1s | Cannot move, cast or act. | [Slice and Dice](#skill-slice-and-dice) |
 | <a id="effect-sprint"></a>**Sprint** | Buff (speed) | 8s | Movement speed increased by 70%. | [Sprint](#skill-sprint) |
 | <a id="effect-stealth"></a>**Stealth** | Buff (stealth) | until broken | Hidden from enemies farther than 2 yards. Broken by damage or attacking. | [Stealth](#skill-stealth), [Vanish](#skill-vanish) |
 | <a id="effect-trinket-shield"></a>**Warding Charm** | Buff (absorb) | 8s | Absorbs damage equal to 20% of max health. | [Warding Charm](#skill-trinket-shield) |

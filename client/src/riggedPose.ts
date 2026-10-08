@@ -43,10 +43,26 @@ export interface RigPoseOpts {
   /** Resting arm pitch and elbow bend per weapon kind. */
   armRest?: number;
   elbow?: number;
+  /** Pulls the arms in toward the body (radians): for a model whose bind pose holds the arms out (an A-pose). */
+  armIn?: number;
+  /** Brings the legs closer together at rest (radians per leg): for a model that stands with a wide stance. */
+  legIn?: number;
   /** Walk stride amplitude scale (long coats limit it). */
   stride?: number;
   /** Scale of the right arm's swing (a heavy weapon built into the model is held steadier). */
   rightSwing?: number;
+}
+
+/**
+ * How the arms carry a two-handed weapon (see weaponModels.ts): per arm the pitch (x, negative = forward), roll (z, away from the
+ * body when positive on the left arm) and elbow bend while holding it; `walk` scales how much the arms still swing with the stride,
+ * `arc` how much of a melee swing's arc they follow (both arms move together).
+ */
+export interface ArmHold {
+  r: { x: number; z: number; e: number };
+  l: { x: number; z: number; e: number };
+  walk: number;
+  arc: number;
 }
 
 export class RigAnimator {
@@ -69,6 +85,8 @@ export class RigAnimator {
   private vy = 0;
   private deadK = 0;
   readonly opts: Required<RigPoseOpts>;
+  /** Set by the model builder when a two-handed weapon is carried: both arms stay on it. */
+  hold: ArmHold | null = null;
 
   constructor(bones: Record<string, THREE.Object3D>, opts: RigPoseOpts = {}) {
     this.bones = RIG_BONES.map((n) => bones[n]);
@@ -76,7 +94,7 @@ export class RigAnimator {
     this.restQ = this.bones.map((b) => b.quaternion.clone());
     this.parentQ = this.bones.map((b) => (b.parent ? b.parent.getWorldQuaternion(new THREE.Quaternion()) : new THREE.Quaternion()));
     this.parentQInv = this.parentQ.map((q) => q.clone().invert());
-    this.opts = { armRest: opts.armRest ?? -0.12, elbow: opts.elbow ?? 0.15, stride: opts.stride ?? 0.62, rightSwing: opts.rightSwing ?? 1 };
+    this.opts = { armRest: opts.armRest ?? -0.12, elbow: opts.elbow ?? 0.15, stride: opts.stride ?? 0.62, rightSwing: opts.rightSwing ?? 1, armIn: opts.armIn ?? 0, legIn: opts.legIn ?? 0 };
     this.cur.fill(0);
   }
 
@@ -123,7 +141,7 @@ export class RigAnimator {
       this.t(`shin_${l}` as RigBoneName, 0, knee, 34);
       this.t(`foot_${l}` as RigBoneName, 0, -(thigh + knee) * 0.55, 30);
       // legs stay apart (no scissoring through each other): a touch of outward splay
-      this.t(`thigh_${l}` as RigBoneName, 2, s * (0.03 + 0.03 * walk), 20);
+      this.t(`thigh_${l}` as RigBoneName, 2, s * (0.03 + 0.03 * walk - o.legIn), 20);
     }
 
     // ---- hips and torso: bob on each step, twist against the legs, roll into strafes, lean into the run
@@ -149,11 +167,21 @@ export class RigAnimator {
     let tRx = o.armRest + stride * 0.95 * o.rightSwing - Math.sin(time * 1.3) * 0.02 * idle;
     let eL = -(o.elbow + 0.45 * move * (0.5 + 0.5 * Math.max(0, stride * 1)));
     let eR = -(o.elbow + 0.45 * move * (0.5 + 0.5 * Math.max(0, -stride * 1)));
-    let tLz = 0.06 + move * 0.04;
-    let tRz = -0.06 - move * 0.04;
+    let tLz = 0.06 + move * 0.04 - o.armIn;
+    let tRz = -0.06 - move * 0.04 + o.armIn;
     let armRate = 22;
     let twist = 0;
     let lunge = 0;
+    const hold = this.hold;
+    if (hold) {
+      // both hands on the weapon: a small bob with the stride instead of the arms swinging against each other
+      tLx = hold.l.x - Math.abs(stride) * 0.1 * hold.walk + Math.sin(time * 1.3) * 0.015 * idle;
+      tRx = hold.r.x - Math.abs(stride) * 0.1 * hold.walk + Math.sin(time * 1.3) * 0.015 * idle;
+      eL = hold.l.e;
+      eR = hold.r.e;
+      tLz = hold.l.z;
+      tRz = hold.r.z;
+    }
     // airborne: arms out and up a little
     tLx = lerp(tLx, -0.5, airborne);
     tRx = lerp(tRx, -0.5, airborne);
@@ -173,6 +201,7 @@ export class RigAnimator {
     }
     if (p.swing >= 0) {
       const q = p.swing;
+      const eR0 = eR;
       let arc: number, tw: number, el: number;
       if (q < 0.3) {
         const k = easeOut(q / 0.3);
@@ -192,7 +221,15 @@ export class RigAnimator {
         el = lerp(-0.1, eR, k);
         lunge = 0.2 * (1 - k);
       }
-      if (p.hand === 0) {
+      if (hold) {
+        // the weapon stays in both hands: they follow the arc together, around the carried pose
+        const k = hold.arc;
+        tRx = hold.r.x + (arc - o.armRest) * k;
+        tLx = hold.l.x + (arc - o.armRest) * k;
+        eR = hold.r.e + (el - eR0) * k;
+        eL = hold.l.e + (el - eR0) * k;
+        twist = tw;
+      } else if (p.hand === 0) {
         tRx = arc;
         eR = el;
         twist = tw;

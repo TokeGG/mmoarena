@@ -154,7 +154,7 @@ const camFloor: { y?: number; fallV?: number } = {};
 const renderPos = new Map<number, { x: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
 effects.groundY = (x, z) => heightAt(arena, x, z, predLevel);
-effects.onSwing = (id) => scene.swing(id);
+effects.onSwing = (id, fast) => scene.swing(id, fast);
 effects.onHit = (id) => scene.flash(id);
 
 let barSpec: string | null = null;
@@ -1042,7 +1042,7 @@ function frame(now: number) {
       facing = vis.facing;
       y = u.alive ? ownHeight(u, i?.y) : 0; // a leap's arc comes from the server, a jump is predicted here
     }
-    return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, lv: u.id === you && !spec ? predLevel : (u.lv ?? 0), facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
+    return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, lv: u.id === you && !spec ? predLevel : (u.lv ?? 0), facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast && !ABILITIES[snap.units.find((x) => x.id === u.id)!.cast!.ability]?.channel?.hold, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
 
   renderPos.clear();

@@ -1,7 +1,9 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { fetchModel } from './modelPack';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import type { ClassId } from '@arena/shared';
+import { preloadWeaponModels, weaponModelVersion } from './weaponModels';
 
 /**
  * Registry and loader for rigged (skinned) character models, written by scripts/rig-model.mjs (see DEVELOPING.md,
@@ -16,14 +18,21 @@ export interface ModelDef {
   textures?: Record<string, { map?: string; emissiveMap?: string; emissive?: number }>;
   /** Weapons are the model's own (an axe held in the fist): the spec weapons are not attached. */
   ownWeapon?: boolean;
+  /**
+   * The model's own helm stays on when a head cosmetic is worn: the cosmetic is fitted on top of it instead (crowns above the crest,
+   * horns over the helm's own). `helm` measures that helm in head-anchor units (head centre at y = 0.99): where its crest ends, its
+   * skull radius and the brow line, which is what every head cosmetic is placed against.
+   */
+  keepHead?: boolean;
+  helm?: { top: number; r: number; brow: number };
   /** Animation tuning. */
-  pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number };
+  pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number; armIn?: number; legIn?: number };
 }
 
 export const MODELS: Record<string, ModelDef> = {
-  knight: { url: '/models/warrior.glb', pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 } },
+  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 } },
   // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
-  brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3 } },
+  brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3, armIn: 0.6, legIn: 0.08 } },
 };
 
 export interface ClassModels {
@@ -35,8 +44,8 @@ export interface ClassModels {
 }
 
 export const CLASS_MODEL: Partial<Record<ClassId, ClassModels>> = {
-  // the knight (helm on) for Warbringer (dual swords) and Rampager (greatsword); the brute with its axe for the Barbarian (polearm spec)
-  warrior: { default: 'knight', byWeapon: { polearm: 'brute' }, alternatives: ['brute'] },
+  // the gold knight for every warrior spec (dual swords, greatsword, polearm); the brute with its own axe is only an optional alternative (?warriormodel=brute)
+  warrior: { default: 'knight', alternatives: ['brute'] },
 };
 
 export interface RigMeta {
@@ -62,7 +71,7 @@ const assets = new Map<string, RigAsset>();
 let version = 0;
 
 /** Changes whenever a model finishes loading. Scenes compare it to the version their characters were built with. */
-export const modelVersion = () => version;
+export const modelVersion = () => version + weaponModelVersion(); // the warrior's weapon models count too
 
 const queryModel = (cls: string): string | null => {
   try {
@@ -137,30 +146,31 @@ export function forgetRiggedModels() {
 export function preloadRiggedModels(): Promise<void> {
   const loader = new GLTFLoader();
   const tex = new THREE.TextureLoader();
+  const weapons = preloadWeaponModels(); // the weapon models (weaponModels.ts) load alongside the characters that hold them
   return Promise.all(
     Object.entries(MODELS).map(
       ([id, def]) =>
-        new Promise<void>((resolve) => {
-          loader.load(
-            def.url,
-            (g) => {
-              try {
-                const asset = finish(id, def, g);
-                applyTextureOverrides(asset, tex);
-              } catch (e) {
-                console.warn(`model ${id}:`, e);
-              }
-              resolve();
-            },
-            undefined,
-            (e) => {
-              console.warn(`model ${id} failed to load, keeping the procedural model`, e);
-              resolve();
-            },
-          );
-        }),
+        fetchModel(def.url)
+          .then(
+            (data) =>
+              new Promise<void>((resolve) => {
+                loader.parse(data, '', (g) => {
+                  try {
+                    const asset = finish(id, def, g);
+                    applyTextureOverrides(asset, tex);
+                  } catch (e) {
+                    console.warn(`model ${id}:`, e);
+                  }
+                  resolve();
+                }, (e) => {
+                  console.warn(`model ${id} could not be read, keeping the procedural model`, e);
+                  resolve();
+                });
+              }),
+          )
+          .catch((e) => console.warn(`model ${id} failed to load, keeping the procedural model`, e)),
     ),
-  ).then(() => undefined);
+  ).then(() => weapons);
 }
 
 /** Optional per-material texture files declared in the registry (an owner can drop one next to the GLB later). */

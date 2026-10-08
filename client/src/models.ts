@@ -4,6 +4,7 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { parseLook, clamp } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 import { RigAnimator } from './riggedPose';
+import { attachWeapon } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
 import type { RigAsset } from './riggedModels';
 
@@ -48,8 +49,8 @@ export interface Character {
   /** The model's built-in parts per cosmetic slot. A part worn over by a cosmetic is detached (no parent, invisible). */
   parts: Record<string, THREE.Group[]>;
   pose(p: PoseInput): void;
-  /** Play a quick melee swing. */
-  swing(): void;
+  /** Play a quick melee swing (`fast`: a short one, for a flurry of them). */
+  swing(fast?: boolean): void;
   /** Flash red for a moment (took a hit). */
   flash(): void;
   setState(alive: boolean, stealthed: boolean): void;
@@ -249,6 +250,8 @@ interface Rig {
   shoulderR?: THREE.Object3D;
   fit?: Fit;
   rigged?: { anim: RigAnimator; ensureOwn(): void; deadY: number };
+  /** Where weapon cosmetics are centred, in the right hand group's frame, when a real weapon model is held (default: at the grip). */
+  weaponGlowAt?: THREE.Vector3;
 }
 
 interface RigOpts {
@@ -500,6 +503,21 @@ function warrior(b: Builder, weapon?: string): Rig {
 
 /** The warrior's spec weapons, held in the hands (`armR` / `armL` are the hand groups of whichever model is worn). */
 function warriorWeapons(b: Builder, r: Rig, weapon?: string) {
+  // the real weapon models (weaponModels.ts) once loaded, on the rigged knight; the procedural weapons below are the fallback
+  const held = r.rigged
+    ? attachWeapon(weapon, {
+        armR: r.armR,
+        armL: r.armL,
+        addMesh: (m) => b.meshes.push(m),
+        addMaterial: (m) => b.mats.push(m),
+        glow: (parent, geo, color, opacity, x, y, z) => b.glow(parent, geo, color, opacity, x, y, z),
+      })
+    : undefined;
+  if (held) {
+    r.rigged!.anim.hold = held.hold ?? null;
+    r.weaponGlowAt = held.glowAt;
+    return;
+  }
   const goldC = 0xe2b53f;
   // weapons: dual wield (a sword in each hand), a two-handed greatsword, a polearm, or the default sword and shield
   const blade = (len: number, width: number, glow = 0x7fd0ff) => {
@@ -791,22 +809,25 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
   const armL = hand('l');
   const armR = hand('r');
   const R = meta.headR;
+  const helm = asset.def.keepHead ? asset.def.helm : undefined;
   const fit: Fit = {
-    headTop: 0.99 + R,
-    headR: R,
+    headTop: helm?.top ?? 0.99 + R,
+    headR: helm?.r ?? R,
     tw: meta.torsoW,
     chestZ: meta.chestBackZ,
     robe: false,
     legW: 0.26,
     pauldronX: meta.shoulderJoint[0] + 0.03,
     pauldronY: meta.shoulderJoint[1] - O + 0.06,
-    brow: 0.99 + R * 0.2,
+    brow: helm?.brow ?? 0.99 + R * 0.2,
+    helm: !!helm,
   };
   const r: Rig = { root, upper, legL: new THREE.Group(), legR: new THREE.Group(), armL, armR, head, shoulderL, shoulderR, fit };
 
   const bodyMeshes: THREE.SkinnedMesh[] = [];
   for (const [slot, list] of Object.entries(inst.parts)) {
-    const replaceable = (REPLACEABLE_SLOTS as readonly string[]).includes(slot);
+    // the knight keeps its helm under a head cosmetic (see ModelDef.keepHead): the helm is plain body geometry there
+    const replaceable = (REPLACEABLE_SLOTS as readonly string[]).includes(slot) && !(slot === 'head' && asset.def.keepHead);
     if (!replaceable) {
       for (const m of list) {
         root.add(m);
@@ -828,7 +849,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
 
   // what shows where a worn item took a part away: a bare face under the helm, plain joints under the pauldrons
   const skin = b.m(SKIN, { rough: 0.8 });
-  b.bare.head = () => {
+  if (!asset.def.keepHead) b.bare.head = () => {
     b.ball(head, R, skin, 0, 0.99, 0);
     eyes(b, r, 0.99, R * 0.93, 0x3a5f8f, R * 0.33, R * 0.11);
     b.ball(head, R * 1.06, b.m(0x4a3222, { rough: 0.9 }), 0, 0.99 + R * 0.1, -R * 0.18).scale.set(1, 1, 0.92);
@@ -863,7 +884,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
 // ------------------------------------------------------------------ cosmetics
 
 /** Where each class's head, shoulders and so on sit, so worn cosmetics land on the right spot. */
-interface Fit { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number; brow?: number }
+interface Fit { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number; brow?: number; /** a worn helm stays under head cosmetics */ helm?: boolean }
 const FIT: Record<ClassId, Fit> = {
   // headTop / headR describe the BARE head (the built-in helm, hood or hat is gone while a cosmetic is worn)
   warrior: { headTop: 1.25, headR: 0.25, tw: 0.72, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.5, pauldronY: 0.78 },
@@ -875,37 +896,99 @@ const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x888888;
 const lighter = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), k).getHex();
 const darker = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0x000000), k).getHex();
 
+/** Per-material dye state, driven by the shader patch below (`userData.dye`). */
+interface DyeUniforms {
+  uDye: { value: THREE.Color };
+  uRimCol: { value: THREE.Color };
+  uK: { value: number };
+  uLift: { value: number };
+  uGain: { value: number };
+  uFloor: { value: number };
+  uRim: { value: number };
+  /** 1 while alive, 0 when dead (the grey corpse look must not glow). */
+  uOn: { value: number };
+}
+
+const DYE_STYLES: Record<string, { k: number; lift: number; gain: number; floor: number; rim: number; rimCol: number; metal: number; rough: number }> = {
+  // k: how far the texture colour is pulled to the dye; lift/gain: shade = lift + gain * texture brightness (keeps the engraved detail);
+  // floor: emissive share of the dye so shadows never go black; rim: fresnel glow. The scene has no environment map, so metalness stays low.
+  dye: { k: 0.78, lift: 0.12, gain: 2.4, floor: 0.2, rim: 0, rimCol: 0xffffff, metal: 0.2, rough: 0.55 },
+  midas: { k: 0.97, lift: 0.22, gain: 2.0, floor: 0.22, rim: 0.3, rimCol: 0xffe9a0, metal: 0.4, rough: 0.28 },
+  eclipse: { k: 0.92, lift: 0.18, gain: 2.1, floor: 0.2, rim: 1.1, rimCol: 0x9a72ff, metal: 0.25, rough: 0.5 },
+  aurora: { k: 0.85, lift: 0.16, gain: 2.2, floor: 0.16, rim: 0.4, rimCol: 0xaaffe0, metal: 0.25, rough: 0.5 },
+};
+const lumOf = (c: THREE.Color) => 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;
+
+/** Make `m` dye-capable: the shader blends its (texture) colour toward the dye by brightness, adds an emissive floor and a rim. */
+function dyeShader(m: THREE.MeshStandardMaterial, u: DyeUniforms) {
+  m.userData.dye = u;
+  m.onBeforeCompile = (sh) => {
+    Object.assign(sh.uniforms, u);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>
+uniform vec3 uDye; uniform vec3 uRimCol; uniform float uK; uniform float uLift; uniform float uGain; uniform float uFloor; uniform float uRim; uniform float uOn;
+float dyeShade;`)
+      .replace('#include <map_fragment>', `#include <map_fragment>
+{
+  float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+  dyeShade = clamp(uLift + uGain * pow(l, 0.8), 0.0, 1.0);
+  diffuseColor.rgb = mix(diffuseColor.rgb, uDye * dyeShade, uK * uOn);
+}`)
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+{
+  float fr = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 2.5);
+  totalEmissiveRadiance += uOn * (uDye * uFloor * (0.4 + 0.6 * dyeShade) + uRimCol * uRim * fr * 0.45);
+}`);
+  };
+  m.customProgramCacheKey = () => 'dye';
+  m.needsUpdate = true;
+}
+
 /**
- * Armor dye: pulls every cloth and metal colour of the class model towards the dye. Skin, eye whites, dark details and glows stay.
- * Owner dyes do more than recolour: `midas` turns the armour to polished gold with glints, `eclipse` breathes between black and
- * violet, and `aurora` ripples through green, teal and violet from the feet up.
+ * Armor dye: the model's cloth and metal colours are pulled toward the dye, keeping the engraving and plate detail (the dye is
+ * scaled by the texture's brightness instead of multiplied into it, so dark armour never turns black), with an emissive floor of
+ * the dye colour so shadows stay coloured. Skin, eye whites and glows stay. Owner dyes do more: `midas` is polished warm gold
+ * with glints, `eclipse` a deep violet-indigo with a breathing rim glow, `aurora` ripples through green, teal and violet.
  */
 function dye(b: Builder, r: Rig, color: number, style: string) {
   r.rigged?.ensureOwn();
-  const target = new THREE.Color(color);
-  const dyed: { m: THREE.MeshStandardMaterial; base: THREE.Color; y: number }[] = [];
+  const st = DYE_STYLES[style] ?? DYE_STYLES.dye;
+  // pick the working colour: bright dyes are held back (white albedo blows out in the sun), the owner dyes use a richer shade than their swatch
+  const target = new THREE.Color(style === 'eclipse' ? 0x30208c : style === 'midas' ? 0xe3b32e : color);
+  if (style === 'dye') {
+    const lum = lumOf(target);
+    if (lum > 0.3) target.multiplyScalar(0.3 / lum + (1 - 0.3 / lum) * 0.35);
+    if (lum < 0.03) target.lerp(new THREE.Color(0x3a3a48), 0.55); // obsidian: a dark steel, not a hole
+  }
+  const floor = style === 'dye' ? 0.26 - 0.18 * Math.min(1, lumOf(target) / 0.35) : st.floor;
+  const ds: { m: THREE.MeshStandardMaterial; u: DyeUniforms; i: number }[] = [];
   for (const m of [...b.mats]) {
     const base = m.userData.base as THREE.Color;
     const hx = base.getHex();
     const lum = (((hx >> 16) & 255) + ((hx >> 8) & 255) + (hx & 255)) / 765;
     if (!m.userData.rigged && (hx === SKIN || m.userData.glow || lum > 0.93 || lum < 0.05)) continue;
-    base.lerp(target, style === 'midas' ? 0.88 : style === 'eclipse' ? 0.8 : 0.6);
-    m.color.copy(base);
-    if (style === 'midas') {
-      m.metalness = 0.95;
-      m.roughness = 0.22;
-    }
-    dyed.push({ m, base, y: dyed.length });
+    const u: DyeUniforms = {
+      uDye: { value: target.clone() },
+      uRimCol: { value: new THREE.Color(st.rimCol) },
+      uK: { value: st.k },
+      uLift: { value: st.lift },
+      uGain: { value: st.gain },
+      uFloor: { value: floor },
+      uRim: { value: st.rim },
+      uOn: { value: 1 },
+    };
+    m.metalness = Math.min(m.metalness, st.metal);
+    m.roughness = style === 'midas' ? st.rough : Math.min(m.roughness, st.rough + 0.15);
+    dyeShader(m, u);
+    ds.push({ m, u, i: ds.length });
   }
   if (style === 'aurora' || style === 'eclipse') {
     const col = new THREE.Color();
     b.anim.push((t) => {
-      const alive = r.root.rotation.x === 0;
-      dyed.forEach(({ m, base, y }, i) => {
-        if (style === 'aurora') col.setHSL((0.36 + 0.24 * (0.5 + 0.5 * Math.sin(t * 0.7 + i * 0.55 + y * 0.2))) % 1, 0.75, 0.5);
-        else col.setHSL(0.74 + 0.05 * Math.sin(t * 0.6 + i), 0.7, 0.04 + 0.2 * (0.5 + 0.5 * Math.sin(t * 1.1 + i * 0.4)) ** 2);
-        base.copy(col);
-        if (alive) m.color.copy(base);
+      ds.forEach(({ u, i }) => {
+        if (style === 'aurora') col.setHSL((0.36 + 0.24 * (0.5 + 0.5 * Math.sin(t * 0.7 + i * 0.55))) % 1, 0.85, 0.37);
+        else col.setHSL(0.72 + 0.04 * Math.sin(t * 0.6 + i), 0.66, 0.3 + 0.06 * Math.sin(t * 1.1 + i * 0.4));
+        u.uDye.value.copy(col);
       });
     });
   }
@@ -942,7 +1025,8 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     if (slot === 'back') r.cape = undefined;
   }
   if (look.tint) dye(b, r, hexNum(look.tint.color), look.tint.style);
-  const metal = (c: number) => b.m(c, { metal: 0.6, rough: 0.35 });
+  // no environment map in the arena: high metalness only turns the colour black, so cosmetics stay in the 0.3 range
+  const metal = (c: number) => b.m(c, { metal: 0.3, rough: 0.38 });
   const cloth = (c: number) => b.m(c, { rough: 0.9 });
   const gemMat = (c: number) => b.m(c, { glow: 1.3, rough: 0.25 });
   /** A glow shape with a material of its own, so its colour can change by itself. */
@@ -960,9 +1044,12 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     switch (head.style) {
       case 'horns':
         for (const sd of sides) {
-          const horn = b.cone(hu, 0.07, 0.38, metal(c), sd * (R * 0.9), brow + 0.12, 0, 8);
+          // two stacked segments sweeping up and out from a base point; over the knight's helm they branch off its sides, outside its own horns
+          const base = fit.helm ? { x: 0.14, y: 0.98 } : { x: R * 0.9 - 0.19 * Math.sin(0.75), y: brow + 0.12 - 0.19 * Math.cos(0.75) };
+          const tip1 = { x: base.x + 0.38 * Math.sin(0.75), y: base.y + 0.38 * Math.cos(0.75) };
+          const horn = b.cone(hu, 0.07, 0.38, metal(c), sd * (base.x + 0.19 * Math.sin(0.75)), base.y + 0.19 * Math.cos(0.75), 0, 8);
           horn.rotation.z = -sd * 0.75;
-          const tip = b.cone(hu, 0.045, 0.22, metal(lighter(c)), sd * (R * 0.9 + 0.16), brow + 0.37, 0, 8);
+          const tip = b.cone(hu, 0.045, 0.22, metal(lighter(c)), sd * (tip1.x + 0.11 * Math.sin(0.25) - 0.02), tip1.y + 0.11 * Math.cos(0.25) - 0.02, 0, 8);
           tip.rotation.z = -sd * 0.25;
         }
         break;
@@ -1000,9 +1087,9 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         }
         break;
       case 'halo': {
-        const halo = b.glow(hu, new THREE.TorusGeometry(0.3, 0.02, 8, 40), c, 0.85, 0, top + 0.12, 0);
+        const halo = b.glow(hu, new THREE.TorusGeometry(0.3, 0.02, 8, 40), c, 0.7, 0, top + 0.12, 0);
         halo.rotation.x = Math.PI / 2;
-        b.glow(hu, new THREE.TorusGeometry(0.3, 0.07, 8, 40), c, 0.18, 0, top + 0.12, 0).rotation.x = Math.PI / 2;
+        b.glow(hu, new THREE.TorusGeometry(0.3, 0.06, 8, 40), c, 0.1, 0, top + 0.12, 0).rotation.x = Math.PI / 2;
         b.anim.push((t) => (halo.position.y = top + 0.12 + Math.sin(t * 2) * 0.02));
         break;
       }
@@ -1024,6 +1111,14 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         }
         break;
       case 'helm': {
+        if (fit.helm) {
+          // over the knight's helm: a domed war cap resting on its crest, between the horns, with a ridge and a brow band
+          const dome = b.add(hu, new THREE.SphereGeometry(R * 0.95, 20, 10, 0, Math.PI * 2, 0, Math.PI * 0.55), metal(c), 0, top - 0.2, 0);
+          dome.scale.set(1, 0.9, 1.1);
+          b.rbox(hu, 0.03, 0.06, R * 1.9, metal(lighter(c, 0.2)), 0, top - 0.2 + R * 0.78, 0, 0.01);
+          b.torus(hu, R * 0.8, 0.02, metal(darker(c, 0.2)), 0, top - 0.2 + 0.015, 0).rotation.x = Math.PI / 2;
+          break;
+        }
         const dome = b.add(hu, new THREE.SphereGeometry(R * 1.1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), metal(c), 0, brow - 0.04, 0);
         dome.scale.set(1, 1.05, 1.05);
         b.rbox(hu, 0.05, 0.2, 0.05, metal(darker(c, 0.2)), 0, brow, R * 1.1, 0.01); // nose guard
@@ -1070,8 +1165,8 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         halo.material = (halo.material as THREE.MeshBasicMaterial).clone();
         halo.rotation.x = Math.PI / 2;
         b.anim.push((t) => {
-          tips.forEach((m, i) => (m.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.25 + i / 9) % 1, 1, 0.6));
-          (halo.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.25) % 1, 1, 0.65);
+          tips.forEach((m, i) => (m.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.25 + i / 9) % 1, 1, 0.5));
+          (halo.material as THREE.MeshBasicMaterial).color.setHSL((t * 0.25) % 1, 1, 0.55);
           halo.position.y = top + 0.3 + Math.sin(t * 2) * 0.025;
         });
         break;
@@ -1102,33 +1197,36 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       case 'eclipse': {
         // a black sun hanging over the head: a dark orb in a spinning gold corona with a ring of long rays
         const sun = new THREE.Group();
-        sun.position.set(0, top + 0.36, 0);
+        sun.position.set(0, top + (fit.helm ? 0.26 : 0.36), 0);
         hu.add(sun);
         b.plain(() => b.ball(sun, 0.15, b.m(0x07040d, { rough: 0.35 }), 0, 0, 0));
-        b.glow(sun, new THREE.SphereGeometry(0.25, 14, 10), c, 0.16, 0, 0, 0);
-        b.glow(sun, new THREE.TorusGeometry(0.19, 0.026, 8, 40), c, 0.95, 0, 0, 0);
+        b.glow(sun, new THREE.SphereGeometry(0.25, 14, 10), c, 0.12, 0, 0, 0);
+        b.glow(sun, new THREE.TorusGeometry(0.19, 0.026, 8, 40), c, 0.8, 0, 0, 0);
         const spokes = new THREE.Group();
         sun.add(spokes);
         for (let i = 0; i < 12; i++) {
           const a = (i / 12) * Math.PI * 2;
-          const ray = b.glow(spokes, new THREE.BoxGeometry(0.014, 0.12 + (i % 2) * 0.1, 0.014), i % 2 ? lighter(c, 0.4) : c, 0.9, Math.cos(a) * 0.34, Math.sin(a) * 0.34, 0);
+          const ray = b.glow(spokes, new THREE.BoxGeometry(0.014, 0.12 + (i % 2) * 0.1, 0.014), c, 0.8, Math.cos(a) * 0.34, Math.sin(a) * 0.34, 0);
           ray.rotation.z = a - Math.PI / 2;
         }
         b.anim.push((t) => {
           sun.rotation.y = t * 0.9;
           spokes.rotation.z = -t * 0.5;
-          sun.position.y = top + 0.36 + Math.sin(t * 1.6) * 0.03;
+          sun.position.y = top + (fit.helm ? 0.26 : 0.36) + Math.sin(t * 1.6) * 0.03;
         });
         break;
       }
       case 'voidhorns': {
         const flames: THREE.Object3D[] = [];
         for (const sd of sides) {
-          const horn = b.cone(hu, 0.09, 0.6, metal(darker(c, 0.4)), sd * (R * 0.9), brow + 0.2, 0, 8);
-          horn.rotation.z = -sd * 0.65;
-          const glowHorn = b.glow(hu, new THREE.ConeGeometry(0.13, 0.66, 8), c, 0.35, sd * (R * 0.9), brow + 0.2, 0);
-          glowHorn.rotation.z = -sd * 0.65;
-          for (let i = 0; i < 3; i++) flames.push(b.glow(hu, new THREE.ConeGeometry(0.045, 0.2 - i * 0.03, 6), lighter(c, 0.3), 0.8, sd * (R * 0.9 + 0.3 * Math.sin(0.65) + 0.04 + i * 0.03), brow + 0.2 + 0.3 * Math.cos(0.65) + 0.08 + i * 0.07, (i - 1) * 0.03));
+          const a = 0.65;
+          const base = fit.helm ? { x: 0.14, y: 0.98 } : { x: R * 0.9 - 0.3 * Math.sin(a), y: brow + 0.2 - 0.3 * Math.cos(a) };
+          const mid = { x: base.x + 0.3 * Math.sin(a), y: base.y + 0.3 * Math.cos(a) };
+          const horn = b.cone(hu, 0.09, 0.6, metal(darker(c, 0.4)), sd * mid.x, mid.y, 0, 8);
+          horn.rotation.z = -sd * a;
+          const glowHorn = b.glow(hu, new THREE.ConeGeometry(0.13, 0.66, 8), c, 0.35, sd * mid.x, mid.y, 0);
+          glowHorn.rotation.z = -sd * a;
+          for (let i = 0; i < 3; i++) flames.push(b.glow(hu, new THREE.ConeGeometry(0.045, 0.2 - i * 0.03, 6), lighter(c, 0.3), 0.8, sd * (base.x + 0.6 * Math.sin(a) + 0.04 + i * 0.03), base.y + 0.6 * Math.cos(a) + 0.08 + i * 0.07, (i - 1) * 0.03));
         }
         b.anim.push((t) => flames.forEach((f, i) => f.scale.set(1, 0.6 + 0.8 * Math.abs(Math.sin(t * 7 + i * 1.7)), 1)));
         break;
@@ -1246,7 +1344,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           break;
         }
         case 'dragon': {
-          b.ball(su, 0.2, metal(c), x, y, 0).scale.set(1.2, 0.8, 1.15);
+          b.ball(su, 0.2, metal(lighter(c, 0.15)), x, y, 0).scale.set(1.2, 0.8, 1.15);
           const tips: THREE.Object3D[] = [];
           for (let i = 0; i < 4; i++) {
             const sp = b.cone(su, 0.06, 0.34 - i * 0.04, metal(lighter(c, 0.15)), x + sd * (0.03 + i * 0.07), y + 0.15 - i * 0.025, (i - 1.5) * 0.1, 6);
@@ -1346,14 +1444,14 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
             const holder = new THREE.Group();
             holder.rotation.z = sd * (0.2 + i * 0.26 + layer * 0.04);
             holder.rotation.x = -layer * 0.08;
-            b.glow(holder, new THREE.BoxGeometry(0.15 - layer * 0.02, len, 0.015), layer === 0 ? c : lighter(c, 0.25 * layer), 0.7 - layer * 0.12, 0, len / 2, -layer * 0.03);
+            b.glow(holder, new THREE.BoxGeometry(0.15 - layer * 0.02, len, 0.015), layer === 0 ? c : lighter(c, 0.15 * layer), 0.34 - layer * 0.07, 0, len / 2, -layer * 0.03);
             g.add(holder);
           }
           upper.add(g);
           wings.push(g);
         }
-        const halo = b.glow(upper, new THREE.TorusGeometry(0.62, 0.025, 8, 48), 0xfff2b0, 0.85, 0, 0.95, -fit.chestZ - 0.15);
-        b.glow(upper, new THREE.CircleGeometry(0.58, 32), c, 0.14, 0, 0.95, -fit.chestZ - 0.14);
+        const halo = b.glow(upper, new THREE.TorusGeometry(0.62, 0.025, 8, 48), c, 0.55, 0, 0.95, -fit.chestZ - 0.15);
+        b.glow(upper, new THREE.CircleGeometry(0.58, 32), c, 0.05, 0, 0.95, -fit.chestZ - 0.14);
         b.anim.push((t, move) => {
           halo.rotation.z = t * 0.7;
           wings.forEach((g, i) => (g.rotation.y = (i === 0 ? -1 : 1) * (0.45 + Math.sin(t * 1.9) * 0.1 + move * 0.2)));
@@ -1366,7 +1464,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         portal.position.set(0, 0.95, -fit.chestZ - 0.24);
         portal.rotation.y = Math.PI; // faces the camera behind the runner
         upper.add(portal);
-        b.plain(() => b.add(portal, new THREE.CircleGeometry(0.64, 40), b.m(0x06030f, { rough: 0.5 }), 0, 0, 0));
+        b.plain(() => b.add(portal, new THREE.CircleGeometry(0.64, 40), b.m(0x1c1040, { rough: 0.5, glow: 0.4 }), 0, 0, 0));
         b.glow(portal, new THREE.TorusGeometry(0.64, 0.032, 8, 56), c, 0.95, 0, 0, 0.01);
         b.glow(portal, new THREE.CircleGeometry(0.7, 40), c, 0.1, 0, 0, -0.01);
         const arcs = new THREE.Group();
@@ -1394,7 +1492,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         const pivot = new THREE.Group();
         pivot.position.set(0, 0.72, -fit.chestZ + 0.02);
         const w = fit.tw * 1.2;
-        b.rbox(pivot, w, len, 0.045, cloth(darker(c, 0.78)), 0, -len / 2, 0, 0.02);
+        b.rbox(pivot, w, len, 0.045, b.m(darker(c, 0.72), { rough: 0.9, glow: 0.14 }), 0, -len / 2, 0, 0.02);
         b.plain(() => b.rbox(pivot, w * 1.06, 0.05, 0.06, b.m(c, { glow: 1.2 }), 0, -len + 0.025, 0, 0.02));
         upper.add(pivot);
         const stars: THREE.Object3D[] = [];
@@ -1422,7 +1520,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         const pivot = new THREE.Group();
         pivot.position.set(0, 0.72, -fit.chestZ + 0.02);
         const w = fit.tw * 1.2;
-        b.rbox(pivot, w, len, 0.045, cloth(c), 0, -len / 2, 0, 0.02);
+        b.rbox(pivot, w, len, 0.045, b.m(lighter(c, 0.14), { rough: 0.9, glow: 0.04 }), 0, -len / 2, 0, 0.02);
         b.plain(() => b.rbox(pivot, w * 1.06, 0.07, 0.06, b.m(0xff7a1a, { glow: 1.4 }), 0, -len + 0.035, 0, 0.02));
         b.plain(() => b.rbox(pivot, 0.035, len * 0.9, 0.05, b.m(0xff7a1a, { glow: 1.1 }), 0, -len / 2, 0.01, 0.01));
         upper.add(pivot);
@@ -1457,7 +1555,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
   if (weapon) {
     const c = hexNum(weapon.color);
     const aura = new THREE.Group();
-    aura.position.set(0, -0.6, 0.05);
+    aura.position.copy(r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05));
     r.armR.add(aura);
     b.glow(aura, new THREE.SphereGeometry(0.22, 16, 12), c, 0.22, 0, 0, 0);
     if (weapon.style === 'sparks') {
@@ -1656,7 +1754,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       case 'throne': {
         // a big rotating seal with a pillar of light and gold motes rising through it
         flat(b.glow(root, new THREE.TorusGeometry(1.15, 0.035, 8, 56), c, 0.9, 0, 0.045, 0));
-        flat(b.glow(root, new THREE.RingGeometry(0.25, 1.15, 48), c, 0.14, 0, 0.04, 0));
+        flat(b.glow(root, new THREE.RingGeometry(0.25, 1.15, 48), c, 0.08, 0, 0.04, 0));
         const seal = new THREE.Group();
         seal.position.y = 0.05;
         flat(b.glow(seal, new THREE.TorusGeometry(0.8, 0.018, 6, 48), lighter(c, 0.4), 0.85, 0, 0, 0));
@@ -1665,7 +1763,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           b.glow(seal, new THREE.BoxGeometry(0.16, 0.02, 0.07), 0xfff2b0, 0.95, Math.cos(a) * 0.8, 0, Math.sin(a) * 0.8).rotation.y = -a;
         }
         root.add(seal);
-        const beam = b.glow(root, new THREE.CylinderGeometry(0.55, 0.65, 3.2, 24, 1, true), c, 0.1, 0, 1.6, 0);
+        const beam = b.glow(root, new THREE.CylinderGeometry(0.55, 0.65, 3.2, 24, 1, true), c, 0.05, 0, 1.6, 0);
         const motes: THREE.Object3D[] = [];
         for (let i = 0; i < 10; i++) motes.push(b.glow(root, new THREE.SphereGeometry(0.035, 6, 5), 0xfff2b0, 0.95, 0, 0, 0));
         b.anim.push((t) => {
@@ -1720,8 +1818,8 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
           const px = Math.cos(a) * R;
           const pz = Math.sin(a) * R;
-          b.glow(root, new THREE.BoxGeometry(0.07, 1.2, 0.07), lighter(c, 0.2), 0.9, px, 0.6, pz);
-          b.glow(root, new THREE.OctahedronGeometry(0.1), lighter(c, 0.55), 0.95, px, 1.28, pz);
+          b.glow(root, new THREE.BoxGeometry(0.07, 1.2, 0.07), c, 0.8, px, 0.6, pz);
+          b.glow(root, new THREE.OctahedronGeometry(0.1), lighter(c, 0.3), 0.85, px, 1.28, pz);
           tops.push(new THREE.Vector3(px, 1.28, pz));
         }
         const arcs: THREE.Mesh[] = [];
@@ -1729,11 +1827,11 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           const p = tops[i];
           const q = tops[(i + 1) % 4];
           const len = p.distanceTo(q);
-          const arc = b.glow(root, new THREE.BoxGeometry(len, 0.03, 0.03), 0xffffff, 0.95, (p.x + q.x) / 2, 1.28, (p.z + q.z) / 2);
+          const arc = b.glow(root, new THREE.BoxGeometry(len, 0.03, 0.03), lighter(c, 0.4), 0.85, (p.x + q.x) / 2, 1.28, (p.z + q.z) / 2);
           arc.rotation.y = -Math.atan2(q.z - p.z, q.x - p.x);
           arcs.push(arc);
         }
-        const bolt = b.glow(root, new THREE.BoxGeometry(0.07, 2.8, 0.07), 0xffffff, 0.95, 0, 1.4, 0);
+        const bolt = b.glow(root, new THREE.BoxGeometry(0.07, 2.8, 0.07), lighter(c, 0.4), 0.85, 0, 1.4, 0);
         const flash = flat(b.glow(root, new THREE.RingGeometry(0.05, 0.55, 32), lighter(c, 0.5), 0.6, 0, 0.05, 0));
         b.anim.push((t) => {
           arcs.forEach((m, i) => {
@@ -2022,6 +2120,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   let swingT = 0;
   let flashT = 0;
   const SWING = 0.38;
+  let swingDur = SWING;
   let swingHand = 0;
   // smoothed joint state so nothing ever snaps
   const st = { sign: 1, upX: lean, upZ: 0, bob: 0, legL: 0, legR: 0, armLx: armRest, armRx: armRest, armLz: 0, armRz: 0, twist: 0, lunge: 0, cape: 0.08, capeV: 0, lastVf: 0 };
@@ -2033,6 +2132,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       const base = m.userData.base as THREE.Color;
       m.color.copy(base);
       if (!alive) m.color.lerp(DEAD_GRAY, 0.75);
+      if (m.userData.dye) (m.userData.dye as DyeUniforms).uOn.value = alive ? 1 : 0;
       m.emissiveIntensity = alive ? (m.userData.glow as number) : 0;
       m.transparent = stealthed;
       m.opacity = stealthed ? 0.35 : 1;
@@ -2076,8 +2176,9 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         r.root.position.y = r.rigged?.deadY ?? 0.28;
       }
     },
-    swing() {
-      swingT = SWING;
+    swing(fast = false) {
+      swingDur = fast ? 0.2 : SWING;
+      swingT = swingDur;
       if (classId === 'rogue' || (r.rigged && weapon === 'dual')) swingHand = 1 - swingHand; // twin blades strike in turn
     },
     flash() {
@@ -2090,7 +2191,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       for (const a of b.anim) a(time, move);
       if (r.rigged) {
         const swinging = swingT > 0;
-        const q = swinging ? 1 - swingT / SWING : -1;
+        const q = swinging ? 1 - swingT / swingDur : -1;
         r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead });
         if (swinging) swingT = Math.max(0, swingT - dt);
         r.root.position.z = r.rigged.anim.lungeZ;
@@ -2138,7 +2239,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       }
       if (swingT > 0) {
         // anticipation -> fast strike -> follow-through -> settle
-        const p = 1 - swingT / SWING;
+        const p = 1 - swingT / swingDur;
         let arc: number;
         let tw: number;
         if (p < 0.3) {
