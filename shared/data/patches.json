@@ -1,5 +1,23 @@
 [
  {
+  "version": "0.69.4",
+  "date": "2026-10-08",
+  "at": "2026-10-08T21:21:47Z",
+  "title": "Heal spam, lava, better line of sight, new cursors, and many fixes",
+  "changes": [
+   "Flamestrike, Scorch and burning now use the same blazing flames as Fireball and Pyroblast.",
+   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh.",
+   "Lava Forge's lava basins are now real lava: you can still jump into one, but you are no longer pushed out, and standing in it burns you (5% of your health every half second) until you climb out.",
+   "Line of sight is more accurate: a unit whose edge shows past a pillar or wall corner can now be seen and targeted, as the picture shows, instead of reporting 'no line of sight'.",
+   "The mage now stands up straight and in the middle of his own spot, and wings and cloaks sit properly on his back.",
+   "The mage's cloaks now recolour the back of his robe instead of adding a second cape.",
+   "New cursors: pick from a steel gauntlet and ten more to unlock; enemies always show a red sword, allies a green cross and aimed spells a crosshair. A Cursor section in settings has size, tint, trail and click ripple.",
+   "Switching maps in the lobby no longer makes your character slide away or sink through the floor: it stays on its spawn on every arena (including after picking Random), and party members always stand on free ground beside you.",
+   "The Rampager's greatsword now rests on his shoulder edge-on (the cutting edge toward you) instead of lying flat.",
+   "Bots were retrained for the new rules: healer bots now rotate their heals, use Pain Suppression more readily (even on themselves when dying), and warrior bots add Dragon Roar to their attacks."
+  ]
+ },
+ {
   "version": "0.69.3",
   "date": "2026-10-08",
   "at": "2026-10-08T19:03:53Z",
@@ -10,7 +28,6 @@
    "The Rampager now carries his greatsword on his shoulder and grips it with both hands only when he attacks; the Barbarian holds a long polearm across his body, and the knight's armor no longer tears when he holds two-handed weapons.",
    "Shouts, breaths and area spells now look like what they say: Dragon's Breath is a true cone of billowing flame (with embers, smoke and a glowing ground fan) that fills exactly the cone it hits, Dragon Roar breathes the same fire with sound waves, and Intimidating Shout and Psychic Scream send waves out from the caster's face and a shock ring out to their real radius. The caster throws their head back, chest out, and snaps forward as they shout. Cleave is a spinning blade round the warrior, Bladestorm and Slice and Dice keep blades whirling while they last, Reel In shows the cone it pulls from, Heroic Leap lands with a dust shockwave, and Vanish, Mirror Image, Evocation and Holy Nova have new bursts.",
    "Fireball and Pyroblast are now real blazing fireballs: a white-hot core in rolling flames with a comet tail, embers and a glow on the ground, a fire burst and shock ring where they land, and Pyroblast grows in the mage's hand while it casts. Fireball and Pyroblast also have a new recorded launch and impact sound.",
-   "Flamestrike, Scorch and burning now use the same blazing flames as Fireball and Pyroblast.",
    "All cloaks now use a new draped cloth cape that sits properly on the back, sways as you move and turn, and takes the colour of each cloak skin.",
    "The rogue is now a hooded shadow assassin who holds a curved dagger in each hand and strikes with them in turn, for every spec (Cutthroat, Duelist and Shade). Helmets, crowns and horns sit on top of the hood, capes replace the assassin's own coat, and dyes tint the whole outfit.",
    "The priest is now an armoured sentinel in white and gold with a staff that matches your spec: Warden and Lightbearer carry a gold and white holy staff, Gloomweaver a necrotic staff topped with a glowing skull. Helmets, crowns and horns sit on top of the horned helm, capes replace the sentinel's own coat, and dyes tint the whole outfit.",
@@ -19,14 +36,7 @@
    "Spells that need a spot on the ground (Flamestrike, Blizzard and the like) only show their aiming circle when you can actually cast them: it stays hidden while the spell is on cooldown, you are out of mana, or you are stunned or silenced, and says why.",
    "Ice and arcane mage staffs now sit in the wizard's hand instead of floating beside it.",
    "A big batch of new titles, icons and name colours to earn: 12 titles, 14 icons and 12 colours across matches played, wins and rating, from Regular and Victor to Grandmaster, Wolf, Scorpion, Ruby and Diamond.",
-   "New Brightness slider in the in-game settings menu (next to mouse sensitivity and volume) to make the picture darker or brighter; it is saved with your other settings.",
-   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh.",
-   "Lava Forge's lava basins are now real lava: you can still jump into one, but you are no longer pushed out, and standing in it burns you (5% of your health every half second) until you climb out.",
-   "Line of sight is more accurate: a unit whose edge shows past a pillar or wall corner can now be seen and targeted, as the picture shows, instead of reporting 'no line of sight'.",
-   "The mage now stands up straight and in the middle of his own spot, and wings and cloaks sit properly on his back.",
-   "The mage's cloaks now recolour the back of his robe instead of adding a second cape.",
-   "New cursors: pick from a steel gauntlet and ten more to unlock; enemies always show a red sword, allies a green cross and aimed spells a crosshair. A Cursor section in settings has size, tint, trail and click ripple.",
-   "Switching maps in the lobby no longer makes your character slide away or sink through the floor: it stays on its spawn on every arena (including after picking Random), and party members always stand on free ground beside you."
+   "New Brightness slider in the in-game settings menu (next to mouse sensitivity and volume) to make the picture darker or brighter; it is saved with your other settings."
   ]
  },
  {
