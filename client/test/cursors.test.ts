@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { CURSORS } from '@arena/shared';
-import { ART_STATES, ART_STYLES, CURSOR_CONTEXTS, MAX_CURSOR_PX, OVERLAY_STYLES, cursorArt, glowFor } from '../src/cursorArt';
+import { ART_STATES, ART_STYLES, CURSOR_CONTEXTS, MAX_CURSOR_PX, OVERLAY_STYLES, cursorArt, glowFor, isOverride } from '../src/cursorArt';
 import {
   DEFAULT_CURSOR_SETTINGS,
   TINT_CHOICES,
@@ -29,7 +29,7 @@ describe('cursor art', () => {
     assert.deepEqual([...OVERLAY_STYLES].sort(), ['claw', 'ember', 'frost', 'star', 'void']);
   });
   it('is well-formed SVG within 128 px with the hotspot inside, for every style, state, size and density', () => {
-    assert.equal(CURSOR_CONTEXTS.length, 7);
+    assert.deepEqual(CURSOR_CONTEXTS, ['default', 'enemy', 'ally', 'aim', 'aimBlocked']);
     for (const style of ART_STYLES) {
       for (const state of ART_STATES) {
         for (const size of [0.75, 1, 1.5, 2]) {
@@ -62,20 +62,43 @@ describe('cursor art', () => {
     assert.equal(two.w, one.w * 2);
     assert.equal(two.hx, one.hx);
   });
-  it('the gauntlet looks different in every context', () => {
-    const svgs = ART_STATES.map((s) => cursorArt('gauntlet', s).svg);
+  it('the gauntlet has its own art for normal use and over buttons; the four overrides are all different', () => {
+    const svgs = ART_STATES.map((st) => cursorArt('gauntlet', st).svg);
     assert.equal(new Set(svgs).size, ART_STATES.length);
+  });
+  it('the sword, cross and crosshair are the same for every style, tint and glow request', () => {
+    for (const st of ['enemy', 'ally', 'aim', 'aimBlocked'] as const) {
+      assert.ok(isOverride(st));
+      const ref = cursorArt('gauntlet', st);
+      for (const style of ART_STYLES) {
+        for (const glow of [null, '#69ccf0']) {
+          const a = cursorArt(style, st, { glow });
+          assert.deepEqual(a, ref, `${style}/${st}`);
+        }
+      }
+    }
+    assert.ok(!isOverride('default') && !isOverride('link'));
+  });
+  it('the crosshair is the same art in green and in red, with the same hotspot', () => {
+    const ok = cursorArt('wand', 'aim');
+    const no = cursorArt('wand', 'aimBlocked');
+    assert.equal([ok.hx, ok.hy].join(), [no.hx, no.hy].join());
+    assert.ok(ok.svg.includes('#6dff8a') && !ok.svg.includes('#ff4b3e'));
+    assert.ok(no.svg.includes('#ff4b3e') && !no.svg.includes('#6dff8a'));
+    assert.equal(ok.svg.replaceAll('#6dff8a', '#ff4b3e'), no.svg);
+  });
+  it('custom styles keep their own art over buttons', () => {
+    for (const style of ART_STYLES.filter((x) => x !== 'gauntlet')) assert.equal(cursorArt(style, 'link').svg, cursorArt(style, 'default').svg, style);
   });
   it('inline copies can have their ids prefixed so several can share a page', () => {
     const a = cursorArt('wand', 'default', { glow: '#fff', ids: 'x1-' }).svg;
     assert.ok(a.includes('id="x1-a"') && a.includes('xlink:href="#x1-a"') && !/ id="a"/.test(a));
   });
-  it('glow follows the state: red enemy, green ally, none while aiming', () => {
-    assert.equal(glowFor('wand', 'enemy', '#69ccf0'), '#ff4b3e');
-    assert.equal(glowFor('wand', 'ally', null), '#4dff7a');
-    assert.equal(glowFor('wand', 'aim', '#69ccf0'), null);
+  it('glow is the tint for the chosen style and never touches the sword, cross or crosshair', () => {
+    for (const st of ['enemy', 'ally', 'aim', 'aimBlocked'] as const) assert.equal(glowFor('wand', st, '#69ccf0'), null);
     assert.equal(glowFor('wand', 'default', '#69ccf0'), '#69ccf0');
     assert.equal(glowFor('wand', 'default', null), null);
+    assert.equal(glowFor('gauntlet', 'link', null), '#f2c14e');
   });
 });
 
@@ -95,6 +118,17 @@ describe('cursor css', () => {
     assert.ok(css.startsWith('html{cursor:url('));
     assert.ok(css.includes('html.ac-pt,html.ac-pt *{') && css.includes('html.ac-own,html.ac-own *{cursor:none !important;}'));
     assert.ok(!css.includes('\n'));
+  });
+  it('custom styles have no separate link rule; the overrides are one cursor for every style', () => {
+    const w = { ...DEFAULT_CURSOR_SETTINGS, style: 'wand' };
+    assert.ok(!cursorCss(planFor(w, 'default', false), w, null).includes('ac-pt'));
+    const strip = (c: string) => c.replace(/html\.ac-own.*$/, '');
+    for (const ctx of ['enemy', 'ally', 'aim', 'aimBlocked'] as const) {
+      const a = strip(cursorCss(planFor(w, ctx, false), w, '#69ccf0'));
+      const g = DEFAULT_CURSOR_SETTINGS;
+      const b = strip(cursorCss(planFor(g, ctx, false), g, null)).replace(/html\.ac-pt.*$/, '');
+      assert.equal(a, b, ctx);
+    }
   });
 });
 
@@ -149,11 +183,11 @@ describe('cursor settings', () => {
 });
 
 describe('cursor context', () => {
-  const sit = (o: Partial<CursorSituation> = {}): CursorSituation => ({ inMatch: true, spectating: false, aim: null, busy: false, myTeam: 0, ...o });
-  it('enemy, ally and self by team', () => {
+  const sit = (o: Partial<CursorSituation> = {}): CursorSituation => ({ inMatch: true, spectating: false, aim: null, myTeam: 0, ...o });
+  it('enemy and ally by team; yourself and the dead keep the chosen style', () => {
     assert.equal(decideContext(sit(), { team: 1, alive: true, self: false }, true), 'enemy');
     assert.equal(decideContext(sit(), { team: 0, alive: true, self: false }, true), 'ally');
-    assert.equal(decideContext(sit(), { team: 0, alive: true, self: true }, true), 'self');
+    assert.equal(decideContext(sit(), { team: 0, alive: true, self: true }, true), 'default');
     assert.equal(decideContext(sit(), null, true), 'default');
     assert.equal(decideContext(sit(), { team: 1, alive: false, self: false }, true), 'default');
   });
@@ -161,8 +195,8 @@ describe('cursor context', () => {
     assert.equal(decideContext(sit({ aim: 'aim' }), { team: 1, alive: true, self: false }, true), 'aim');
     assert.equal(decideContext(sit({ aim: 'aimBlocked' }), null, true), 'aimBlocked');
   });
-  it('dead or controlled shows busy; spectators and menus always the default', () => {
-    assert.equal(decideContext(sit({ busy: true, aim: 'aim' }), { team: 1, alive: true, self: false }, true), 'busy');
+  it('spectators and menus always the default', () => {
+    assert.equal(decideContext(sit({ spectating: true, aim: 'aim' }), null, true), 'default');
     assert.equal(decideContext(sit({ spectating: true }), { team: 1, alive: true, self: false }, true), 'default');
     assert.equal(decideContext(sit({ inMatch: false }), { team: 1, alive: true, self: false }, true), 'default');
     assert.equal(decideContext(sit(), { team: 1, alive: true, self: false }, false), 'default'); // over the HUD, not the scene
@@ -170,7 +204,7 @@ describe('cursor context', () => {
   });
   it('the raycast only runs while nothing else decides', () => {
     assert.ok(needsPick(sit()));
-    assert.ok(!needsPick(sit({ aim: 'aim' })) && !needsPick(sit({ busy: true })) && !needsPick(sit({ spectating: true })) && !needsPick(sit({ inMatch: false })));
+    assert.ok(!needsPick(sit({ aim: 'aim' })) && !needsPick(sit({ spectating: true })) && !needsPick(sit({ inMatch: false })));
   });
 });
 
@@ -179,7 +213,7 @@ describe('reduced motion and the overlay plan', () => {
     const ember = { ...DEFAULT_CURSOR_SETTINGS, style: 'ember', trail: true, ripple: true };
     const p = planFor(ember, 'default', false);
     assert.ok(p.overlay && p.trail && p.ripple);
-    assert.ok(!planFor(ember, 'aim', false).overlay);
+    for (const c of ['enemy', 'ally', 'aim', 'aimBlocked'] as const) assert.ok(!planFor(ember, c, false).overlay, c);
     const r = planFor(ember, 'default', true);
     assert.ok(!r.overlay && !r.trail && !r.ripple);
     assert.ok(!planFor(DEFAULT_CURSOR_SETTINGS, 'default', false).overlay);

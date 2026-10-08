@@ -1,7 +1,8 @@
 /**
- * The mouse cursor: a steel gauntlet that changes with what is under it (a red sword over an enemy, a green cross over an
- * ally, a crosshair while a ground spell is aimed, a "not allowed" crosshair when it cannot land) and ten more styles to
- * unlock, with a size, a tint, a click ripple and a trail. All art is drawn in code (`cursorArt.ts`).
+ * The mouse cursor: the player's chosen style (a steel gauntlet by default, ten more to unlock, with a size, a tint, a click
+ * ripple and a trail) for normal use, and three fixed overrides that look the same for everyone: a red sword over an enemy,
+ * a green cross over an ally and a crosshair while a ground spell is aimed (red when it cannot land). All art is drawn in
+ * code (`cursorArt.ts`).
  *
  * Still styles use the native CSS cursor (a data: URI SVG with a 1x/2x image-set and a keyword fallback). The animated ones
  * (Ember, Frost shard, Void eye, Dragon claw, Starfall) and the ripple / trail use one small overlay that follows the mouse,
@@ -13,10 +14,10 @@
  */
 import { CURSORS, DEFAULT_CURSOR, isUnlocked } from '@arena/shared';
 import type { Stats } from '@arena/shared';
-import { ALLY_GLOW, ENEMY_GLOW, GOLD, cursorArt, glowFor, isOverlayStyle } from './cursorArt';
+import { cursorArt, glowFor, isOverlayStyle, isOverride } from './cursorArt';
 import type { ArtState, CursorArt, CursorContext } from './cursorArt';
 
-export { CURSOR_CONTEXTS, ART_STATES, ART_STYLES, OVERLAY_STYLES, cursorArt, glowFor, isOverlayStyle } from './cursorArt';
+export { CURSOR_CONTEXTS, ART_STATES, ART_STYLES, OVERLAY_STYLES, cursorArt, glowFor, isOverlayStyle, isOverride } from './cursorArt';
 export type { ArtState, CursorArt, CursorContext } from './cursorArt';
 
 // ------------------------------------------------------------------------------------------------ settings
@@ -114,30 +115,30 @@ export interface CursorSituation {
   spectating: boolean;
   /** A ground spell is being aimed: 'aim' when it can land where the ring is, 'aimBlocked' when it cannot be cast or the ring is red. */
   aim: 'aim' | 'aimBlocked' | null;
-  /** You are dead or controlled (stunned, feared ...). */
-  busy: boolean;
   myTeam: number | null;
 }
 /** The unit under the pointer. */
 export interface CursorHover {
   team: number;
   alive: boolean;
+  /** The unit is you: the chosen style stays. */
   self: boolean;
 }
 
-/** The context for the pointer: aiming wins over what is under it, being dead or controlled over everything; off the scene it is the default. */
+/**
+ * The context for the pointer: aiming wins over what is under it; otherwise an enemy or ally under the pointer overrides the
+ * chosen style. Off the scene, for spectators and over yourself (or anyone dead) it is the default.
+ */
 export function decideContext(sit: CursorSituation, hover: CursorHover | null, overScene: boolean): CursorContext {
   if (!sit.inMatch || !overScene) return 'default';
-  if (sit.busy && !sit.spectating) return 'busy';
   if (sit.aim && !sit.spectating) return sit.aim;
-  if (sit.spectating || !hover || !hover.alive) return 'default';
-  if (hover.self) return 'self';
+  if (sit.spectating || !hover || !hover.alive || hover.self) return 'default';
   return sit.myTeam !== null && hover.team === sit.myTeam ? 'ally' : 'enemy';
 }
 
 /** The pick (a raycast) is only needed while nothing else decides the context. */
 export function needsPick(sit: CursorSituation): boolean {
-  return sit.inMatch && !sit.spectating && !sit.busy && !sit.aim;
+  return sit.inMatch && !sit.spectating && !sit.aim;
 }
 
 // ------------------------------------------------------------------------------------------------ plan and CSS
@@ -154,19 +155,18 @@ export interface CursorPlan {
 
 /** `prefers-reduced-motion`: no overlay animation, trail or ripple; every style falls back to its still art as the native cursor. */
 export function planFor(s: CursorSettings, ctx: CursorContext, reducedMotion: boolean): CursorPlan {
-  const aiming = ctx === 'aim' || ctx === 'aimBlocked';
   const frost = s.style === 'frost';
   return {
     style: s.style,
     state: ctx,
-    overlay: isOverlayStyle(s.style) && !reducedMotion && !aiming,
+    overlay: isOverlayStyle(s.style) && !reducedMotion && !isOverride(ctx),
     trail: !reducedMotion && (s.trail || frost),
     trailLen: s.trail ? s.trailLen : frost ? 10 : s.trailLen,
     ripple: !reducedMotion && s.ripple,
   };
 }
 
-const FALLBACK: Record<ArtState, string> = { default: 'auto', link: 'pointer', enemy: 'crosshair', ally: 'pointer', self: 'default', aim: 'crosshair', aimBlocked: 'not-allowed', busy: 'wait' };
+const FALLBACK: Record<ArtState, string> = { default: 'auto', link: 'pointer', enemy: 'crosshair', ally: 'pointer', aim: 'crosshair', aimBlocked: 'not-allowed' };
 export const cursorFallback = (state: ArtState): string => FALLBACK[state];
 
 const dataUri = (svg: string) => `url("data:image/svg+xml,${encodeURIComponent(svg).replace(/'/g, '%27').replace(/\(/g, '%28').replace(/\)/g, '%29')}")`;
@@ -185,17 +185,17 @@ export function cursorDeclarations(style: string, state: ArtState, opts: { size:
   return [`cursor:${dataUri(one.svg)} ${tail}`, `cursor:-webkit-image-set(${set}) ${tail}`, `cursor:image-set(${set}) ${tail}`];
 }
 
-/** The style sheet text that makes `plan` the page's cursor: the art for the state, its link variant over buttons, none while the overlay draws it. */
+/**
+ * The style sheet text that makes `plan` the page's cursor: the art for the state, the gauntlet's pressing-finger variant
+ * over buttons (other styles keep their own art there), none while the overlay draws it.
+ */
 export function cursorCss(plan: CursorPlan, s: CursorSettings, classColor: string | null): string {
   const tint = tintColor(s, classColor);
   const art = (state: ArtState) => ({ size: s.size, glow: glowFor(plan.style, state, tint) });
   const base = cursorDeclarations(plan.style, plan.state, art(plan.state)).join('');
-  const link = cursorDeclarations(plan.style, 'link', art('link'), true).join('');
-  return `html{${base}}html.ac-pt,html.ac-pt *{${link}}html.ac-own,html.ac-own *{cursor:none !important;}`;
+  const link = plan.style === 'gauntlet' ? `html.ac-pt,html.ac-pt *{${cursorDeclarations(plan.style, 'link', art('link'), true).join('')}}` : '';
+  return `html{${base}}${link}html.ac-own,html.ac-own *{cursor:none !important;}`;
 }
-
-/** The glow badge a state puts on a custom cursor (red enemy, green ally): exposed for the legend in the settings. */
-export const BADGES = { enemy: ENEMY_GLOW, ally: ALLY_GLOW, link: GOLD } as const;
 
 // ------------------------------------------------------------------------------------------------ the page (browser only)
 

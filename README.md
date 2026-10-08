@@ -36,7 +36,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
 - **Lobby:** drag on the empty middle of the menu to turn your character.
-- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor and Leave match. The default cursor is a steel gauntlet that turns into a red sword over enemies, a green cross over allies and a crosshair while you aim a ground spell (red when it cannot land); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
+- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor and Leave match. Your cursor style (a steel gauntlet by default) is used everywhere, except that every player sees the same red sword over enemies, green cross over allies and crosshair while aiming a ground spell (red when it cannot be cast); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
 - **Binding keys:** click a box and press a key, or hold Shift, Ctrl or Alt for a combo such as Shift+1. Every action has two slots, right-click clears a slot, and Esc is reserved.
 - Signed in, your keybinds, HUD, sound settings and builds follow your account to any device.
 

@@ -1640,7 +1640,7 @@ setTipBuild(mainMenu.selectedClass, mainMenu.currentBuild);
     show();
   }
 }
-// the mouse cursor (client/src/cursors.ts): a gauntlet that changes over enemies, allies and aimed ground spells, plus unlockable styles
+// the mouse cursor (client/src/cursors.ts): your chosen style, except a red sword over enemies, a green cross over allies and a crosshair while aiming
 initCursors({
   canvas,
   situation: () => {
@@ -1654,7 +1654,7 @@ initCursors({
       const sight = !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt));
       aim = groundBlockedWhileAiming(aiming) || !sight ? 'aimBlocked' : 'aim';
     }
-    return { inMatch, spectating: !!spec, aim, busy: !spec && !!me && (!me.alive || !!me.controlled), myTeam: me ? me.team : null };
+    return { inMatch, spectating: !!spec, aim, myTeam: me ? me.team : null };
   },
   pick: (x, y) => {
     const id = scene.pick(x, y, you, true);

@@ -1,4 +1,4 @@
-/** The Cursor settings panel (style, size, tint, click ripple, trail and a live preview), used in the Esc menu and the profile's Customize tab. */
+/** The Cursor settings panel (style, size, tint, click ripple, trail and a live preview of your style plus the three fixed cursors), used in the Esc menu and the profile's Customize tab. */
 import { CURSORS, unlockText } from '@arena/shared';
 import { SIZE_MAX, SIZE_MIN, TINT_CHOICES, TRAIL_MAX, TRAIL_MIN, cursorClassColor, cursorDeclarations, getCursorSettings, glowFor, isCursorOpen, onCursorChange, tintColor, updateCursorSettings } from './cursors';
 import { cursorArt } from './cursorArt';
@@ -12,7 +12,8 @@ const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 };
 
-const STATE_LABELS: [ArtState, string][] = [['default', 'Normal'], ['link', 'Buttons'], ['enemy', 'Enemy'], ['ally', 'Ally'], ['self', 'You'], ['aim', 'Aiming'], ['aimBlocked', 'Cannot cast'], ['busy', 'Stunned']];
+/** The preview: your style for normal use, then the three cursors that are the same for everyone and override it. */
+const STATE_LABELS: [ArtState, string][] = [['default', 'Yours'], ['link', 'Buttons'], ['enemy', 'Enemy'], ['ally', 'Ally'], ['aim', 'Aiming'], ['aimBlocked', 'No cast']];
 
 export function buildCursorPanel(): HTMLElement {
   const root = el('div', 'cur-panel');
@@ -61,7 +62,7 @@ export function buildCursorPanel(): HTMLElement {
   const tryBox = el('div', 'cur-try', 'Move here to try it');
   preview.append(chips, tryBox);
   root.append(preview);
-  root.append(el('div', 'cur-hint', 'Locked cursors open as you play: matches played, wins and your best rating. The gauntlet changes over enemies, allies and aimed ground spells; other styles show them as a coloured glow and still switch to the aiming crosshair.'));
+  root.append(el('div', 'cur-hint', 'Your style is used everywhere. Over an enemy it always becomes a red sword, over an ally a green cross, and while you aim a ground spell a crosshair (red when it cannot be cast): these three are the same for everyone. Locked cursors open as you play: matches played, wins and your best rating.'));
 
   const fillOptions = () => {
     style.replaceChildren();
@@ -79,7 +80,7 @@ export function buildCursorPanel(): HTMLElement {
     const s = getCursorSettings();
     const t = tintColor(s, cursorClassColor());
     chips.replaceChildren();
-    const states: ArtState[] = s.style === 'gauntlet' ? ['default', 'link', 'enemy', 'ally', 'self', 'aim', 'aimBlocked', 'busy'] : ['default', 'enemy', 'ally', 'aim', 'aimBlocked'];
+    const states: ArtState[] = s.style === 'gauntlet' ? ['default', 'link', 'enemy', 'ally', 'aim', 'aimBlocked'] : ['default', 'enemy', 'ally', 'aim', 'aimBlocked'];
     for (const st of states) {
       const chip = el('div', 'cur-chip');
       const a = cursorArt(s.style, st, { size: 1.25, glow: glowFor(s.style, st, t), ids: `cp${uid++}-` });

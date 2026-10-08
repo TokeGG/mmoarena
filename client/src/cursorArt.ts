@@ -4,12 +4,18 @@
  * element of the overlay that follows the mouse. Pure functions only (no DOM), so they are tested without a browser.
  */
 
-/** What the pointer is over / doing: the default gauntlet draws a different cursor for each. */
-export type CursorContext = 'default' | 'enemy' | 'ally' | 'self' | 'aim' | 'aimBlocked' | 'busy';
-export const CURSOR_CONTEXTS: CursorContext[] = ['default', 'enemy', 'ally', 'self', 'aim', 'aimBlocked', 'busy'];
-/** The art states: the game contexts plus `link`, the pointing hand over buttons and links. */
+/**
+ * What the pointer is over / doing. `default` is the player's chosen style; the other four are fixed overrides that look the
+ * same for everyone: a red sword over an enemy, a green cross over an ally, and one crosshair while a ground spell is aimed
+ * (green when it can land, the same crosshair in red when it cannot).
+ */
+export type CursorContext = 'default' | 'enemy' | 'ally' | 'aim' | 'aimBlocked';
+export const CURSOR_CONTEXTS: CursorContext[] = ['default', 'enemy', 'ally', 'aim', 'aimBlocked'];
+/** The art states: the game contexts plus `link`, the gauntlet's pressing finger over buttons and links. */
 export type ArtState = CursorContext | 'link';
 export const ART_STATES: ArtState[] = [...CURSOR_CONTEXTS, 'link'];
+/** The states that replace the chosen style with fixed art (and never take its tint). */
+export const isOverride = (state: ArtState): boolean => state === 'enemy' || state === 'ally' || state === 'aim' || state === 'aimBlocked';
 
 /** Largest side of a cursor image the browsers accept. */
 export const MAX_CURSOR_PX = 128;
@@ -28,7 +34,7 @@ export interface CursorArt {
 export interface ArtOptions {
   /** Size multiplier (0.75 .. 2). */
   size?: number;
-  /** Glow colour behind the art (class tint, or red / green over enemies and allies); null for none. */
+  /** Glow colour behind the chosen style's art (the tint); null for none. Never applied to the sword, cross and crosshair. */
   glow?: string | null;
   /** Image density: 2 makes a 2x variant (twice the pixels, same hotspot in CSS pixels). */
   density?: 1 | 2;
@@ -38,8 +44,6 @@ export interface ArtOptions {
 
 export const AIM_OK = '#6dff8a';
 export const AIM_BLOCKED = '#ff4b3e';
-export const ENEMY_GLOW = '#ff4b3e';
-export const ALLY_GLOW = '#4dff7a';
 export const GOLD = '#f2c14e';
 
 const OUT = '#15110d';
@@ -144,55 +148,25 @@ function swordArt(): string {
   );
 }
 
-/** Green cross badge in the free corner above the gauntlet's fist. */
-function badge(inner: string): string {
-  return `<g transform="translate(17.6 1.4) scale(.4)">${inner}</g>`;
-}
-
+/** Over an ally: a green cross with a dark outline and a white highlight, centred. */
 function crossArt(): string {
   const d = 'M12.4 4.5 H19.6 V12.4 H27.5 V19.6 H19.6 V27.5 H12.4 V19.6 H4.5 V12.4 H12.4 Z';
   return (
-    handBody(FINGER) +
-    badge(
-      `<path d="${d}" fill="url(#gr)" ${stk(3.4)}/>` +
-        `<path d="M14.2 6.6 H17.8 M6.6 14.2 H11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>`,
-    )
+    `<path d="${d}" fill="url(#gr)" ${stk(2.4)}/>` +
+    `<path d="M14.2 6.8 H17.8 M6.8 14.2 H11" stroke="#fff" stroke-width="1.8" stroke-linecap="round" opacity=".85"/>`
   );
 }
 
-function shieldArt(): string {
-  const d = 'M16 3.6 L26.2 7.6 V16 C26.2 22 21.4 26.6 16 28.6 C10.6 26.6 5.8 22 5.8 16 V7.6 Z';
-  return (
-    handBody(5.6) +
-    badge(
-      `<path d="${d}" fill="url(#gd)" ${stk(3.4)}/>` +
-        `<path d="M16 7 L23 9.8 V16 C23 20.4 19.8 23.8 16 25.4 C12.2 23.8 9 20.4 9 16 V9.8 Z" fill="url(#st)" stroke="${OUT}" stroke-width="1.2"/>` +
-        `<path d="M16 10.4 V21 M11.4 15.4 H20.6" stroke="${GOLD}" stroke-width="2.6" stroke-linecap="round"/>`,
-    )
-  );
-}
-
-/** Aiming a ground spell: a crosshair in the colour of the ring on the ground, in gold gauntlet-style corner brackets; with a slash when the spell cannot land there. */
+/** Aiming a ground spell: one crosshair for everybody, in the colour of the ring on the ground (green, or red when the spell cannot land). */
 function crosshairArt(blocked: boolean): string {
   const c = blocked ? AIM_BLOCKED : AIM_OK;
   const lines = 'M16 2.8 V10.4 M16 21.6 V29.2 M2.8 16 H10.4 M21.6 16 H29.2';
-  const brackets = 'M2.6 8.6 V2.6 H8.6 M23.4 2.6 H29.4 V8.6 M29.4 23.4 V29.4 H23.4 M8.6 29.4 H2.6 V23.4';
   return (
     `<g fill="none" stroke-linecap="round" stroke-linejoin="round">` +
-    (blocked ? '' : `<path d="${brackets}" stroke="${OUT}" stroke-width="4"/><path d="${brackets}" stroke="url(#gd)" stroke-width="2"/>`) +
-    `<g stroke="${OUT}" stroke-width="4.6"><circle cx="16" cy="16" r="7.4"/><path d="${lines}"/>${blocked ? '<path d="M10.8 10.8 L21.2 21.2"/>' : ''}</g>` +
-    `<g stroke="${c}" stroke-width="2.3"><circle cx="16" cy="16" r="7.4"/><path d="${lines}"/>${blocked ? '<path d="M10.8 10.8 L21.2 21.2" stroke-width="2.6"/>' : ''}</g>` +
+    `<g stroke="${OUT}" stroke-width="4.6"><circle cx="16" cy="16" r="7.4"/><path d="${lines}"/></g>` +
+    `<g stroke="${c}" stroke-width="2.3"><circle cx="16" cy="16" r="7.4"/><path d="${lines}"/></g>` +
     `</g>` +
-    (blocked ? '' : `<circle cx="16" cy="16" r="1.7" fill="${c}" stroke="${OUT}" stroke-width=".8"/>`)
-  );
-}
-
-function busyArt(): string {
-  return (
-    `<filter id="gy"><feColorMatrix type="saturate" values="0.12"/></filter>` +
-    `<g opacity=".78" filter="url(#gy)">${handBody(FINGER)}</g>` +
-    `<g transform="translate(0 -16.6)"><path d="M19.6 20.4 H29.2 L24.4 25.6 L29.2 30.8 H19.6 L24.4 25.6 Z" fill="#e9dcc0" ${stk()}/>` +
-    `<path d="M21.6 29.4 H27.2 L24.4 26.6 Z" fill="${GOLD}"/></g>`
+    `<circle cx="16" cy="16" r="1.7" fill="${c}" stroke="${OUT}" stroke-width=".8"/>`
   );
 }
 
@@ -367,27 +341,14 @@ function starArt(): string {
 type Draw = { body: string; hot: [number, number] };
 
 function drawFor(style: string, state: ArtState, tint: string | null): Draw {
+  // the overrides: the same art for every style
   if (state === 'aim') return { body: crosshairArt(false), hot: [16, 16] };
   if (state === 'aimBlocked') return { body: crosshairArt(true), hot: [16, 16] };
-  if (style === 'gauntlet' || !STYLE_ART[style]) {
-    switch (state) {
-      case 'enemy':
-        return { body: swordArt(), hot: [3.6, 3.6] };
-      case 'ally':
-        return { body: crossArt(), hot: tipHot(FINGER) };
-      case 'self':
-        return { body: shieldArt(), hot: tipHot(5.6) };
-      case 'busy':
-        return { body: busyArt(), hot: tipHot(FINGER) };
-      case 'link':
-        return { body: gauntletHand(), hot: tipHot(FINGER_LINK) };
-      default:
-        return { body: gauntletDefault(), hot: tipHot(FINGER) };
-    }
-  }
+  if (state === 'enemy') return { body: swordArt(), hot: [3.6, 3.6] };
+  if (state === 'ally') return { body: crossArt(), hot: [16, 16] };
+  if (style === 'gauntlet' || !STYLE_ART[style]) return state === 'link' ? { body: gauntletHand(), hot: tipHot(FINGER_LINK) } : { body: gauntletDefault(), hot: tipHot(FINGER) };
   const a = STYLE_ART[style];
-  const body = style === 'dot' ? ringArt(tint) : a.draw();
-  return { body: state === 'busy' ? `<g opacity=".6">${body}</g>` : body, hot: a.hot };
+  return { body: style === 'dot' ? ringArt(tint) : a.draw(), hot: a.hot };
 }
 
 const STYLE_ART: Record<string, { draw: () => string; hot: [number, number]; overlay?: boolean }> = {
@@ -408,11 +369,9 @@ export const OVERLAY_STYLES = Object.keys(STYLE_ART).filter((k) => STYLE_ART[k].
 export const isOverlayStyle = (style: string): boolean => OVERLAY_STYLES.includes(style);
 export const ART_STYLES = ['gauntlet', ...Object.keys(STYLE_ART)];
 
-/** The glow colour for a state: red over enemies, green over allies, gold on a link, else the tint (class colour). */
+/** The glow colour for a state: none for the sword, cross and crosshair, gold on the gauntlet's link, else the tint (class colour). */
 export function glowFor(style: string, state: ArtState, tint: string | null): string | null {
-  if (state === 'aim' || state === 'aimBlocked' || state === 'busy') return null;
-  if (state === 'enemy') return ENEMY_GLOW;
-  if (state === 'ally') return ALLY_GLOW;
+  if (isOverride(state)) return null;
   if (style === 'gauntlet' && state === 'link') return tint ?? GOLD;
   return tint;
 }
@@ -426,8 +385,8 @@ export function cursorArt(style: string, state: ArtState, o: ArtOptions = {}): C
   const d = drawFor(style, state, o.glow ?? null);
   const hx = Math.min(css - 1, Math.max(0, Math.round((d.hot[0] / GRID) * css)));
   const hy = Math.min(css - 1, Math.max(0, Math.round((d.hot[1] / GRID) * css)));
-  const glow = o.glow && state !== 'aim' && state !== 'aimBlocked' ? o.glow : null;
-  const faint = state === 'default' || state === 'busy' ? 0.85 : 1;
+  const glow = o.glow && !isOverride(state) ? o.glow : null;
+  const faint = state === 'default' ? 0.85 : 1;
   const inner = glow
     ? `<defs>${DEFS}<g id="a">${d.body}</g><filter id="gl" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur in="SourceAlpha" stdDeviation="1.9" result="b"/><feFlood flood-color="${glow}"/><feComposite in2="b" operator="in"/></filter></defs>` +
       `<use xlink:href="#a" filter="url(#gl)" opacity="${faint}"/><use xlink:href="#a"/>`
