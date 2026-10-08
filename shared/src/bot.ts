@@ -988,7 +988,7 @@ export class Bot {
     const th = (x: number) => Math.min(0.99, x * H);
     if (lowest) {
       const f = hpFrac(lowest);
-      if (f < 0.35 && lowest !== u && this.use(u, 'pain_suppression', lowest.id)) return;
+      if (f < (lowest === u ? 0.3 : Math.min(0.45, 0.35 * Math.max(1, H))) && this.use(u, 'pain_suppression', lowest.id)) return; // a priest that heals early still saves an ally on the edge, and itself when it is the one dying
       if (f < th(0.55) && this.use(u, 'holy_word', lowest.id)) return; // the instant heal first, then the casts
       // someone is beating on the low ally: stun them
       const onLow = enemies.find((e) => e.target === lowest.id && dist(e.pos, lowest.pos) <= 8 && !e.auras.some((a) => HARD_CC.includes(a.kind)));
