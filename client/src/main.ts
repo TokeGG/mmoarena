@@ -565,11 +565,11 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'stats':
       if (m.final) {
-        // the match is over: put the scoreboard up for everyone, with the result as its title
+        // the match is over: the recap card is the end screen. The scoreboard only stands in when there is no exact recap (a scrubbed replay)
         const w = latest?.winner;
         const mine = latest?.units.find((u) => u.id === you)?.team;
         spectateBar.board.update(m.rows, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat');
-        spectateBar.board.toggle(true);
+        if (!recapExact) spectateBar.board.toggle(true);
         endBoardUp = true;
         if (!spec) endChoice.show();
       } else if (spec?.kind === 'live') spectateBar.setStats(m.rows);
@@ -1001,10 +1001,10 @@ function confirmAim() {
 }
 
 controls.aimActive = () => !!aiming && !spec;
-  if (freeCam.active && !spec) return; // flying while dead: no targeting
 controls.onAimPress = () => confirmAim(); // placed on mouse DOWN, so no click-and-hold nudges the camera
 controls.onClick = (x, y) => {
   if (aiming && !spec) return void confirmAim();
+  if (freeCam.active && !spec) return; // flying while dead: no targeting
   const id = scene.pick(x, y, spec ? null : you);
   if (id !== null) setTarget(id);
   else if (!spec && targetId !== null) setTarget(null); // clicking empty space drops the target (and auto-attack with it)
@@ -1307,13 +1307,13 @@ function frame(now: number) {
   effects.setZones(snap.zones ?? [], estNow);
   effects.update(
     dt,
-  updateFreeCam(dt, snap);
     snap.units.map((s) => {
       const p = renderPos.get(s.id)!;
       return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
   scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : ownHeight(latest?.units.find((x) => x.id === you), interp.get(you)?.y)) * 0.45) + (camFloor.y = fallToward(camFloor.y, heightAt(arena, vis.x, vis.z, predLevel), dt, camFloor)));
+  updateFreeCam(dt, snap);
   {
     // aimed spells (Flamestrike, Blizzard): show where they would land
     const meNow = snap.units.find((u) => u.id === you);
