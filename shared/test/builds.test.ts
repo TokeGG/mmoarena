@@ -361,7 +361,7 @@ describe('channelled abilities', () => {
       assert.equal(mage.resource, mana - def.cost, 'paid at the start');
       assert.equal(foe.health, hp, 'no damage on the first instant');
       const hits: number[] = [];
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < Math.round(3000 / sim.tickMs); i++) {
         sim.step();
         for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_missiles') hits.push(sim.time);
       }
@@ -372,10 +372,10 @@ describe('channelled abilities', () => {
     {
       const { sim, mage, foe } = mk();
       sim.useAbility(mage.id, 'arcane_missiles', foe.id);
-      for (let i = 0; i < 10; i++) sim.step(); // 500 ms: one tick in
+      for (let i = 0; i < Math.round(500 / sim.tickMs); i++) sim.step(); // 500 ms: one tick in
       sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: mage.facing });
       let n = 0;
-      for (let i = 0; i < 60; i++) {
+      for (let i = 0; i < Math.round(3000 / sim.tickMs); i++) {
         sim.step();
         for (const e of sim.drainEvents()) if (e.t === 'damage' && e.ability === 'arcane_missiles') n++;
       }

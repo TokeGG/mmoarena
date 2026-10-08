@@ -36,7 +36,7 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
 - **Lobby:** drag on the empty middle of the menu to turn your character.
-- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor and Leave match. Your cursor style (a steel gauntlet by default) is used everywhere, except that every player sees the same red sword over enemies, green cross over allies and crosshair while aiming a ground spell (red when it cannot be cast); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
+- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor (move and resize every element, including the error text (out of range, no line of sight...) and the stun text, and restyle those two: size, colour, outline, background, how long they stay) and Leave match. Your cursor style (a steel gauntlet by default) is used everywhere, except that every player sees the same red sword over enemies, green cross over allies and crosshair while aiming a ground spell (red when it cannot be cast); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
 - **Binding keys:** click a box and press a key, or hold Shift, Ctrl or Alt for a combo such as Shift+1. Every action has two slots, right-click clears a slot, and Esc is reserved.
 - Signed in, your keybinds, HUD, sound settings and builds follow your account to any device.
 
@@ -161,6 +161,10 @@ Every class, spec, skill, talent and effect, with its cost, cast time, cooldown,
 ---
 
 Developing or hosting the game: see [DEVELOPING.md](DEVELOPING.md).
+
+## Server update rate
+
+The game server runs the match 20 times a second by default. Set the environment variable `ARENA_TICK_MS` to a whole number of milliseconds from 8 to 50 to change it; the hosting blueprint (`render.yaml`) sets `16`, which is 62.5 updates a second: tighter fights, with two players' screens agreeing on where each stands to within a yard (95 % of the time) on a clean connection with 100 ms ping. See "Running at 62.5 Hz" in DEVELOPING.md for the cost, how to set it on Render by hand and how to go back to 50.
 
 ## Credits
 

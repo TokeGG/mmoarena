@@ -10,6 +10,11 @@ export class NetStats {
   /** Snapshots recently: [received?] markers, newest last, for a rolling loss estimate. */
   private recent: boolean[] = [];
   delayMs = 0;
+  /** Milliseconds per server tick (from `welcome`) and how much of a tick the server says it needs (0 to 1+, from `pong`). */
+  tickMs = 50;
+  serverLoad = 0;
+  /** How far ahead of the buffered time other players are drawn (dead reckoning), ms. */
+  leadMs = 0;
   underruns = 0;
   frames = 0;
 
@@ -26,16 +31,16 @@ export class NetStats {
   /** A snapshot of server tick `tick` arrived at local time `at` (ms). Missing ticks in between count as lost. */
   snapshot(at: number, tick: number): void {
     this.arrivals.push(at);
-    if (this.arrivals.length > 61) this.arrivals.shift();
+    if (this.arrivals.length > Math.ceil(1000 / this.tickMs) + 1) this.arrivals.shift();
     if (Number.isFinite(this.lastTick) && tick > this.lastTick + 1) {
-      const missed = Math.min(20, tick - this.lastTick - 1);
+      const missed = Math.min(Math.ceil(1000 / this.tickMs), tick - this.lastTick - 1);
       this.gaps += missed;
       for (let i = 0; i < missed; i++) this.recent.push(false);
     }
     if (!Number.isFinite(this.lastTick) || tick > this.lastTick) this.lastTick = tick;
     this.got++;
     this.recent.push(true);
-    while (this.recent.length > 200) this.recent.shift();
+    while (this.recent.length > Math.ceil(4000 / this.tickMs)) this.recent.shift();
   }
 
   /** Mean and standard deviation of the time between snapshot arrivals (ms). */
@@ -65,10 +70,12 @@ export class NetStats {
     const sp = this.spacing();
     const r = this.rtt;
     const ping = Number.isFinite(r.rtt) ? `${Math.round(r.rtt)} ms` : '-';
+    const busy = this.serverLoad > 0.9;
     return [
+      `server ${this.tickMs} ms ticks (${(1000 / this.tickMs).toFixed(1)} Hz)${busy ? '  server busy' : ''}`,
       `ping ${ping}  jitter ${Math.round(r.jitter)} ms`,
       `loss ${this.lossPct().toFixed(1)}%  ticks ${sp.mean.toFixed(0)}±${sp.sd.toFixed(0)} ms`,
-      `view delay ${Math.round(this.delayMs)} ms  stalls ${this.frames ? ((100 * this.underruns) / this.frames).toFixed(1) : '0.0'}%`,
+      `view delay ${Math.round(this.delayMs)} ms${this.leadMs >= 1 ? ` (-${Math.round(this.leadMs)} ahead)` : ''}  stalls ${this.frames ? ((100 * this.underruns) / this.frames).toFixed(1) : '0.0'}%`,
     ];
   }
 }

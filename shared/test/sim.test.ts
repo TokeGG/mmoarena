@@ -379,11 +379,11 @@ describe('stealth', () => {
       const foe = add(sim, 'warrior', 1, 0, 4);
       foe.maxHealth = foe.health = 1e6;
       advance(sim, TICK);
-      const cast = (id: string) => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, id, foe.id).ok, id); advance(sim, 2500); return h - foe.health; };
+      const cast = (id: string, wait = 2500) => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; const h = foe.health; assert.ok(sim.useAbility(mage.id, id, foe.id).ok, id); advance(sim, wait); return h - foe.health; };
       const plain = cast('frostbolt');
       for (const a of [...foe.auras]) if (a.id !== 'shatter') sim.removeAura(foe, a, 'test'); // a lucky Fingers of Frost proc would muddy the comparison
       if (ab === 'deep_freeze') sim.applyAura(mage, foe, 'fingers_of_frost');
-      cast(ab);
+      cast(ab, 500); // instants: the 4 s Shatter must still be up when the next bolt (1.5 s) lands, whatever the tick length rounds to
       for (const a of [...foe.auras]) if (a.id === 'deep_freeze_stun') sim.removeAura(foe, a, 'test');
       if (ab === 'frost_nova') foe.auras = foe.auras.filter((x) => x.id !== 'frost_nova_root');
       if (!foe.auras.some((x) => x.id === 'shatter')) sim.applyAura(mage, foe, 'shatter');
@@ -950,7 +950,7 @@ describe('movement', () => {
     const war = add(sim, 'warrior', 0, -25, 10);
     add(sim, 'rogue', 1, 25, 10);
     const start = war.pos.x;
-    for (let i = 1; i <= 20; i++) {
+    for (let i = 1; i <= 1000 / sim.tickMs; i++) {
       sim.queueInput(war.id, { seq: i, fwd: 1, strafe: 0, facing: Math.PI / 2 });
       sim.step();
     }
@@ -987,7 +987,7 @@ describe('movement', () => {
     advance(sim, TICK);
     assert.ok(sim.useAbility(war.id, 'charge', rogue.id).ok);
     assert.ok(war.pos.x < 1, 'a charge is a run, not a teleport');
-    advance(sim, TICK);
+    advance(sim, 50);
     assert.ok(war.pos.x > 1 && war.pos.x < 3, `first step ${war.pos.x}`);
     assert.equal(sim.snapshot().units.find((u) => u.id === war.id)!.controlled, true, 'steering is off while charging');
     advance(sim, 1000);
@@ -1039,11 +1039,11 @@ describe('movement', () => {
     advance(sim, TICK);
     sim.useAbility(war.id, 'charge', rogue.id);
     sim.queueInput(war.id, { seq: 1, fwd: -1, strafe: 0, facing: Math.PI * 1.5 });
-    advance(sim, TICK * 3);
+    advance(sim, 150);
     assert.ok(war.pos.x > 3, 'running towards the target despite the input');
     const at = war.pos.x;
     sim.applyAura(rogue, war, 'cheap_shot_stun');
-    advance(sim, TICK * 2);
+    advance(sim, 100);
     assert.ok(Math.abs(war.pos.x - at) < 2, 'stunned mid-charge');
     assert.equal(war.charge, null);
     void mage;
@@ -1416,7 +1416,7 @@ describe('lag compensation', () => {
       const m = sim.addUnit({ name: 'm', classId: 'mage', team: 0, controller: 'bot' });
       const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
       m.pos = { x: 0, z: 0 };
-      for (let i = 0; i < 8; i++) { w.pos = { x: 28, z: 0 }; sim.step(); }
+      for (let i = 0; i < 400 / sim.tickMs; i++) { w.pos = { x: 28, z: 0 }; sim.step(); }
       w.pos = { x: 33, z: 0 }; // it has since stepped out of reach (frostbolt reaches 30 plus a 1.5 allowance)
       sim.step();
       return { sim, m, w };
@@ -1429,7 +1429,7 @@ describe('lag compensation', () => {
     assert.ok(!sim.useAbility(m.id, 'frostbolt', w.id, null, 0).ok);
     ({ sim, m, w } = make());
     w.pos = { x: 60, z: 0 };
-    for (let i = 0; i < 8; i++) { sim.step(); }
+    for (let i = 0; i < 400 / sim.tickMs; i++) { sim.step(); }
     assert.ok(!sim.useAbility(m.id, 'frostbolt', w.id, null, 10000).ok, 'the rewind is capped, so a very old view cannot hit a far target');
   });
 });
@@ -1444,7 +1444,7 @@ describe('movement speed', () => {
       sim.step();
       setup(sim, u);
       const from = { ...u.pos };
-      for (let i = 0; i < 20; i++) { sim.queueInput(u.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 }); sim.step(); }
+      for (let i = 0; i < 1000 / sim.tickMs; i++) { sim.queueInput(u.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 }); sim.step(); }
       return Math.hypot(u.pos.x - from.x, u.pos.z - from.z);
     };
     const plain = run(() => {});

@@ -373,7 +373,7 @@ describe('Slice and Dice and diminishing returns', () => {
       const start = sim.time;
       let heldUntil = start;
       let swung = false;
-      for (let i = 0; i < 100 && w.cast; i++) {
+      for (let i = 0; i < Math.round(5000 / sim.tickMs) && w.cast; i++) {
         sim.queueInput(w.id, { seq, fwd: 0, strafe: 0, facing: 0 });
         sim.queueInput(t.id, { seq: seq++, fwd: 0, strafe: 1, facing: Math.PI });
         if (!sim.canAct(t)) heldUntil = sim.time;

@@ -10,7 +10,7 @@ function recording(strafe: number, dist: number, seconds = 20) {
   foe.maxHealth = foe.health = 1e9;
   sim.step();
   sim.setTarget(me.id, foe.id);
-  for (let i = 0; i < seconds * 20; i++) {
+  for (let i = 0; i < Math.round((seconds * 1000) / sim.tickMs); i++) {
     const d = Math.hypot(foe.pos.x - me.pos.x, foe.pos.z - me.pos.z); // walk up to `dist` yards from the dummy, then hold there
     const facing = Math.atan2(foe.pos.x - me.pos.x, foe.pos.z - me.pos.z);
     const fwd = d > dist + 0.5 ? 1 : d < dist - 0.5 ? -1 : 0;

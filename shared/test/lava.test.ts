@@ -21,6 +21,22 @@ describe('lava pits', () => {
     assert.ok(inLava(forge, landed), 'inside, you stay and can move about');
     assert.ok(!inLava(forge, resolveCollisions(landed, forge, 0, 0)), 'without a way in, the basin is still a barricade');
   });
+  it('once in a pit you cannot walk out through the rim, you have to jump out', () => {
+    const outside = { x: pit.x0 - 1.5, z: mid.z };
+    let at = moveTo(forge, 0, outside, mid, 0.6).pos; // jumped in
+    assert.ok(inLava(forge, at));
+    for (let i = 0; i < 80; i++) at = moveTo(forge, 0, at, { x: at.x - 0.25, z: at.z }, 0).pos; // strafe to the near rim and keep going
+    assert.ok(inLava(forge, at), 'still in the pit after walking at the rim');
+    assert.ok(at.x > pit.x0, 'held inside the rim');
+    for (let i = 0; i < 80; i++) at = moveTo(forge, 0, at, { x: at.x + 0.25, z: at.z + 0.25 }, 0).pos;
+    assert.ok(inLava(forge, at), 'and at the far corner too');
+    // a jump high enough carries you over the rim
+    const out = moveTo(forge, 0, { x: pit.x0 + 0.4, z: mid.z }, { x: pit.x0 - 0.9, z: mid.z }, 1.3).pos;
+    assert.ok(!inLava(forge, out), 'at the top of a jump you clear the rim');
+    // a low hop does not
+    const hop = moveTo(forge, 0, { x: pit.x0 + 0.4, z: mid.z }, { x: pit.x0 - 0.9, z: mid.z }, 0.4).pos;
+    assert.ok(inLava(forge, hop), 'a low hop stays in');
+  });
   it('standing in lava burns every half second, and nothing burns outside', () => {
     const sim = new ArenaSim({ seed: 1, prepMs: 0, arena: forge });
     const u = sim.addUnit({ name: 'u', classId: 'warrior', team: 0, controller: 'player' });

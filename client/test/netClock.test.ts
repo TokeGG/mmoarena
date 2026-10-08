@@ -105,11 +105,19 @@ describe('RttEstimator', () => {
 });
 
 describe('adaptive interpolation delay', () => {
-  it('stays at about 1.5 intervals on a quiet link and grows with jitter, inside 60..200 ms', () => {
+  it('stays at about 1.5 intervals on a quiet link and grows with jitter, inside 24..200 ms', () => {
     assert.equal(targetDelay(50, 0), 75);
     assert.ok(targetDelay(50, 40) >= 100);
     assert.equal(targetDelay(50, 500), 200);
-    assert.equal(targetDelay(10, 0), 60);
+    assert.equal(targetDelay(10, 0), 24);
+    assert.equal(targetDelay(16, 0), 26, 'a 16 ms snapshot interval needs about 1.5 intervals');
+    assert.equal(targetDelay(16, 40), 66);
+    const d16 = new InterpDelay();
+    d16.reset(16);
+    assert.equal(d16.delay, 49, 'a new match at 16 ms starts near what it needs');
+    const d50 = new InterpDelay();
+    d50.reset(50);
+    assert.equal(d50.delay, 100);
   });
 
   it('rises quickly and falls slowly', () => {
@@ -227,5 +235,71 @@ describe('RenderTime', () => {
     assert.equal(r.next(1000, 75), 925);
     assert.equal(r.next(1016, 110), 925, 'paused, not rewound');
     assert.equal(r.next(1100, 110), 990);
+  });
+});
+
+describe('dead reckoning lead (draw others where they are about now)', () => {
+  it('lead is 0.75 of the round trip, clamped at 150 ms, eased, and off before the first ping answer', async () => {
+    const { Lead, LEAD_MAX_MS } = await import('../src/interpDelay');
+    const l = new Lead();
+    assert.equal(l.update(Number.NaN, 1 / 60), 0);
+    for (let i = 0; i < 600; i++) l.update(100, 1 / 60);
+    assert.ok(Math.abs(l.ms - 75) < 0.5, `${l.ms}`);
+    for (let i = 0; i < 600; i++) l.update(900, 1 / 60);
+    assert.ok(Math.abs(l.ms - LEAD_MAX_MS) < 0.5);
+    const before = l.ms;
+    l.update(0, 1 / 60);
+    assert.ok(before - l.ms < 6, 'it never jumps (under 6 ms a frame, 0.04 yd at run speed)');
+  });
+
+  it('linear dead reckoning carries on at full speed, plain extrapolation fades', async () => {
+    const { poseAt } = await import('../src/interpDelay');
+    const a = { t: 0, x: 0, z: 0, y: 0, facing: 0 };
+    const b = { t: 50, x: 0.35, z: 0, y: 0, facing: 0 }; // 7 u/s
+    assert.ok(Math.abs(poseAt(a, b, 150, 400, true).x - (0.35 + 0.7)) < 1e-9);
+    assert.ok(poseAt(a, b, 150).x < 0.35 + 0.7, 'the default fades');
+    assert.equal(poseAt(a, { ...b, x: 5 }, 150, 400, true).x, 5, 'a teleport is not carried on');
+  });
+});
+
+describe('pauses, restarts and map swaps leave nothing to extrapolate from', () => {
+  it('a reset clock adopts the next snapshot at once, however far the server time moved (a pause or a restart)', () => {
+    const c = new NetClock();
+    for (let i = 0; i < 40; i++) c.sample(10000 + i * 50, i * 50 + 100);
+    assert.ok(Math.abs(c.now(2100) - 12000) < 60);
+    // the sim stood still for 10 s of wall time and then went on from where it stopped
+    c.reset(16);
+    assert.equal(c.ready, false);
+    c.sample(12000, 14000);
+    assert.equal(c.now(14000), 12000, 'no leftover offset');
+    assert.equal(c.latenessP95(), 0);
+  });
+
+  it('render time may start again earlier after a reset; without one it never runs backwards', () => {
+    const r = new RenderTime();
+    assert.equal(r.next(5000, 100), 4900);
+    assert.equal(r.next(4000, 100), 4900, 'never backwards by itself');
+    r.reset();
+    assert.equal(r.next(4000, 100), 3900);
+  });
+
+  it('nothing is carried across a teleport (a map swap): the unit is where the new snapshot says, not extrapolated', async () => {
+    const { poseAt } = await import('../src/interpDelay');
+    const a = { t: 0, x: -40, z: 0, y: 0, facing: 0 };
+    const b = { t: 16, x: 40, z: 30, y: 0, facing: 0 }; // 80 yards in one tick
+    for (const linear of [false, true]) {
+      const p = poseAt(a, b, 150, 400, linear);
+      assert.equal(p.x, 40);
+      assert.equal(p.z, 30);
+      assert.equal(p.extrapolated, false);
+    }
+  });
+
+  it('a paused snapshot pair (same position, same time label) has no velocity: even a long extrapolation stands still', async () => {
+    const { poseAt } = await import('../src/interpDelay');
+    const a = { t: 1000, x: 3, z: 4, y: 0, facing: 1 };
+    const p = poseAt(a, { ...a }, 1600, 400, true);
+    assert.equal(p.x, 3);
+    assert.equal(p.z, 4);
   });
 });

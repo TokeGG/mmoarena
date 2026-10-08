@@ -9,3 +9,9 @@ services:
     buildCommand: npm install --include=dev && npm run build
     startCommand: npm start
     healthCheckPath: /healthz
+    envVars:
+      # Milliseconds per game tick: 16 = 62.5 updates a second (tighter fights, about 2x the CPU), 50 = 20 a second (the old rate).
+      # Whole number from 8 to 50; unset means 50. If the Render dashboard already has its own environment variables for this
+      # service, add ARENA_TICK_MS there by hand (a blueprint sync does not overwrite dashboard values). See README "Running at 62.5 Hz".
+      - key: ARENA_TICK_MS
+        value: "16"

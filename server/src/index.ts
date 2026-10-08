@@ -20,6 +20,8 @@ import type { Store } from './store';
 export interface ServerOptions {
   port: number;
   host?: string;
+  /** Milliseconds per tick (default: ARENA_TICK_MS, else 50). */
+  tickMs?: number;
   practicePrepMs?: number;
   queuePrepMs?: number;
   /** Directory with the built client. Defaults to ../../client/dist. */
@@ -56,8 +58,19 @@ export function clientIp(fwd: string | string[] | undefined, remote: string | un
   return hops[hops.length - 1] || remote || '';
 }
 
-/** Max inbound messages per second per socket. The client sends ~20 inputs/s plus a few actions. */
-const MAX_MSGS_PER_SEC = 120;
+/**
+ * Max inbound messages per second per socket: a client sends one input per tick plus a few actions, so the limit is twice the tick rate
+ * plus a margin (never below 120): 120 at 50 ms ticks, 185 at 16 ms.
+ */
+export const maxMsgsPerSec = (tickMs: number): number => Math.max(120, Math.ceil(2000 / tickMs) + 60);
+
+/** Milliseconds per tick from ARENA_TICK_MS: a whole number from 8 to 50 (default and fallback 50, with a warning for anything else). */
+export function parseTickMs(raw: string | undefined, fallback: number = TUNING.tickMs): { tickMs: number; warning?: string } {
+  if (raw === undefined || raw.trim() === '') return { tickMs: fallback };
+  const n = Number(raw);
+  if (Number.isInteger(n) && n >= 8 && n <= 50) return { tickMs: n };
+  return { tickMs: fallback, warning: `ARENA_TICK_MS=${raw} is not a whole number from 8 to 50, using ${fallback}` };
+}
 
 export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -69,7 +82,12 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   console.log(`accounts: ${accounts.storeKind}${accounts.storeKind === 'memory' ? ' (set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to keep accounts across restarts)' : ''}`);
   // dev tuning: numbers saved in game apply over the data files for everyone, and are proposed as pull requests
   const devTools = new DevTools(store, process.env);
-  const lobby = new Lobby({ practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env));
+  const tickEnv = parseTickMs(process.env.ARENA_TICK_MS);
+  if (tickEnv.warning) console.warn(tickEnv.warning);
+  const tickMs = opts.tickMs ?? tickEnv.tickMs;
+  const msgLimit = maxMsgsPerSec(tickMs);
+  console.log(`tick: ${tickMs} ms (${Math.round((10000 / tickMs)) / 10} Hz)${tickMs === TUNING.tickMs ? '' : ' (ARENA_TICK_MS)'}`);
+  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env));
 
   const server = http.createServer((req, res) => {
     let url: URL;
@@ -85,7 +103,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       return;
     }
     if (url.pathname === '/api/status') {
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary(), tick: { rooms: lobby.roomCount(), avgMs: Math.round(lobby.tickCost.avgMs * 100) / 100, maxMs: Math.round(lobby.tickCost.maxMs * 100) / 100 } }));
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary(), tick: lobby.tickReport() }));
       return;
     }
     // the owner's offline study of how people beat the bots (scripts/study-replays.ts --server URL --code CODE)
@@ -232,7 +250,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
         windowStart = now;
         count = 0;
       }
-      if (++count > MAX_MSGS_PER_SEC) {
+      if (++count > msgLimit) {
         ws.close(1008, 'rate limit');
         return;
       }
@@ -245,7 +263,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
 
   // Fixed-step loop: a 1 ms timer feeds a performance.now() accumulator, so ticks start within about a millisecond of
   // their time (a 10 ms timer quantised them). A late callback plays up to MAX_CATCHUP ticks back to back, the rest is dropped.
-  const loop = startTickLoop(() => lobby.tick(), TUNING.tickMs);
+  const loop = startTickLoop(() => lobby.tick(), tickMs);
 
   // Drop dead connections (also keeps idle sockets open on hosts with proxy timeouts).
   const heartbeat = setInterval(() => {
@@ -279,8 +297,8 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   });
 }
 
-/** Calls `tick` every `stepMs` of real time using a 1 ms timer and a monotonic accumulator; at most `maxCatchup` ticks per callback. */
-export function startTickLoop(tick: () => void, stepMs: number, maxCatchup = 3, now: () => number = () => performance.now()): { stop: () => void; step: () => number } {
+/** Calls `tick` every `stepMs` of real time using a 1 ms timer and a monotonic accumulator; at most `maxCatchup` ticks per callback (default 150 ms worth, at least 3). */
+export function startTickLoop(tick: () => void, stepMs: number, maxCatchup = Math.max(3, Math.ceil(150 / stepMs)), now: () => number = () => performance.now()): { stop: () => void; step: () => number } {
   let last = now();
   let acc = 0;
   const step = () => {

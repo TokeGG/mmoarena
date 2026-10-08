@@ -1,5 +1,7 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { ErrorGate, controlColor, errorDurationMs } from './hudText';
+import type { ControlKind } from './hudText';
 import { TARGET_ARROWS, hpFill, hpText, look, plateFill, plateHpText, plateShown } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
@@ -227,6 +229,7 @@ export class Hud {
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
+  private errGate = new ErrorGate();
   private logLines: string[] = [];
 
   constructor(private handlers: HudHandlers) {
@@ -418,11 +421,15 @@ export class Hud {
       const box = $('ccstate');
       box.classList.toggle('hidden', !text);
       if (text) box.textContent = text;
+      else if (box.textContent) box.textContent = ''; // empty, so the editor's sample text shows in its place
       // a pulsing screen-edge glow in the colour of what is holding you
       const vig = $('ccvig');
       const kind = !text ? '' : cc ? (cc.id === 'polymorph' ? 'sheep' : cc.kind) : 'lock';
       vig.className = kind ? `cc-${kind}` : 'hidden';
-      box.className = kind ? `cc-${kind}` : 'hidden';
+      // classes are toggled one by one: the HUD editor keeps its own (hud-sized, hud-selected) on this element
+      for (const k of ['stun', 'fear', 'sheep', 'incapacitate', 'lock']) box.classList.toggle(`cc-${k}`, k === kind);
+      box.classList.toggle('hidden', !kind);
+      box.style.color = controlColor(look.ccColor, kind as ControlKind | '', look.ccPlate !== 'none');
     }
     const myStop = me.cast ? null : stoppedCast(me.id);
     $('cast').classList.toggle('hidden', !me.cast && !myStop);
@@ -488,12 +495,25 @@ export class Hud {
     if (sub) b.append(el('small', '', sub));
   }
 
+  /** The error text ("Out of range"...). Repeats within 0.3 s are dropped (unless the option is off); it fades after the chosen time. */
   error(msg: string) {
+    if (!this.errGate.accept(msg, look.errRepeat !== 'every')) return;
     const e = $('err');
     e.textContent = msg;
+    e.classList.remove('pop');
+    if (look.errAnim === 'pop') {
+      void e.offsetWidth; // restart the animation for a new message
+      e.classList.add('pop');
+    }
     e.classList.add('show');
     clearTimeout(this.errTimer);
-    this.errTimer = window.setTimeout(() => e.classList.remove('show'), 1400);
+    this.errTimer = window.setTimeout(() => {
+      e.classList.remove('show', 'pop');
+      // once it has faded, empty it, so the editor's sample text shows in its place
+      this.errTimer = window.setTimeout(() => {
+        if (!e.classList.contains('show')) e.textContent = '';
+      }, 450);
+    }, errorDurationMs(look.errTime));
   }
 
   /** Take every nameplate and floating number off the screen (leaving a match, a disconnect, the end of watching). */

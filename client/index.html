@@ -52,8 +52,13 @@
 
   #banner { position:fixed; top:14%; left:0; right:0; text-align:center; font-size:44px; font-weight:700; text-shadow:0 2px 12px #000; pointer-events:none; }
   #banner small { display:block; font-size:16px; font-weight:400; color:var(--dim); }
-  #err { position:fixed; bottom:170px; left:0; right:0; text-align:center; color:#ff6b5e; font-weight:600; text-shadow:0 1px 4px #000; pointer-events:none; opacity:0; transition:opacity .4s; }
+  /* the error text ("Out of range"...): movable and resizable in the HUD editor; size, colour, outline and so on come from the HUD look options (--err-* set on the body) */
+  #err { position:fixed; bottom:190px; left:50%; transform:translateX(-50%); width:max-content; max-width:90vw; box-sizing:border-box; text-align:center; color:var(--err-color,#ff5b3a); font-size:var(--err-size,20px); font-weight:var(--err-weight,800); line-height:1.2; text-shadow:var(--err-shadow,none); background:var(--err-bg,transparent); padding:var(--err-pad,0); border-radius:999px; pointer-events:none; opacity:0; transition:opacity .4s; z-index:20; }
   #err.show { opacity:1; transition:none; }
+  body[data-hud-err-anim=none] #err { transition:none; }
+  #err.pop { animation:errpop .2s ease-out; }
+  @keyframes errpop { from { transform:translateX(-50%) scale(1.35); } to { transform:translateX(-50%) scale(1); } }
+  #err.hud-sized { display:flex; align-items:center; justify-content:center; }
 
   #cast { position:fixed; bottom:118px; left:50%; transform:translateX(-50%); width:300px; }
   #actionbar { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); display:flex; gap:6px; }
@@ -162,8 +167,13 @@
   .slot .key { left:3px; top:2px; padding:0 4px; border-radius:3px; background:rgba(0,0,0,.65); color:#ffe08a; font-size:10px; font-weight:700; border:1px solid rgba(201,162,74,.5); z-index:2; }
   .slot .cd { background:none; font-family:var(--serif); }
   .slot .cd span { text-shadow:0 0 4px #000, 0 0 4px #000; z-index:1; }
-  #ccstate { position:fixed; bottom:158px; left:50%; transform:translateX(-50%); padding:3px 16px; border-radius:6px; background:rgba(120,12,12,.85); border:2px solid #ff5a4a; color:#fff; font:800 18px/1.2 var(--serif, serif); letter-spacing:2px; text-shadow:0 0 6px #000; pointer-events:none; z-index:20; }
-  #ccstate { top:26%; bottom:auto; padding:8px 34px; font-size:30px; letter-spacing:4px; animation:ccpulse .9s ease-in-out infinite; }
+  /* the stun / control text ("STUNNED 2.1s"): movable and resizable in the HUD editor; look options set --cc-* on the body */
+  #ccstate { position:fixed; top:26%; left:50%; transform:translateX(-50%); padding:8px 34px; border-radius:6px; background:rgba(120,12,12,.85); border:2px solid #ff5a4a; color:#fff; font-family:var(--serif, serif); font-size:var(--cc-size,30px); font-weight:var(--cc-weight,800); line-height:1.2; letter-spacing:4px; text-shadow:var(--cc-shadow,0 0 6px #000); white-space:nowrap; pointer-events:none; z-index:20; animation:ccpulse .9s ease-in-out infinite; }
+  #ccstate.hud-sized:not(.hidden) { display:flex; align-items:center; justify-content:center; }
+  body[data-hud-cc-color]:not([data-hud-cc-color=auto]) #ccstate, body[data-hud-cc-color]:not([data-hud-cc-color=auto]) .he-prev-cc { border-color:currentColor; }
+  body[data-hud-cc-plate=none] #ccstate, body[data-hud-cc-plate=none] .he-prev-cc { background:none !important; border-color:transparent !important; }
+  body[data-hud-cc-anim=still] #ccstate { animation:none; }
+  @media (prefers-reduced-motion: reduce) { #err.pop, #ccstate { animation:none; } }
   #ccstate.cc-fear { background:rgba(90,20,120,.88); border-color:#c77dff; } #ccstate.cc-sheep, #ccstate.cc-incapacitate { background:rgba(20,80,120,.88); border-color:#6fc3ff; }
   #ccstate.cc-lock { background:rgba(120,90,10,.88); border-color:#ffd24a; }
   #ccvig { position:fixed; inset:0; pointer-events:none; z-index:19; animation:ccpulse .9s ease-in-out infinite; }
@@ -308,7 +318,7 @@
 
   #banner { font-family:var(--serif); background:linear-gradient(#fff3c4,#e0a93a 55%,#8a5a12); -webkit-background-clip:text; background-clip:text; color:transparent; -webkit-text-stroke:1px rgba(40,20,0,.6); filter:drop-shadow(0 3px 8px rgba(0,0,0,.8)); letter-spacing:2px; }
   #banner small { color:#e9dcc0; -webkit-text-fill-color:#e9dcc0; -webkit-text-stroke:0; }
-  #err { font-family:var(--serif); font-size:16px; }
+  #err { font-family:var(--serif); }
 
   #log { padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:min(380px, calc(50vw - 360px)); bottom:12px; left:60px; color:#cfc6b2; } /* clear of the sound button in the corner */
   /* small screens: the log and the help text keep clear of the action bar (about 570 px wide, centred) */
@@ -730,6 +740,10 @@
   #hud-edit-bar small { color:#8b8372; font:11px/1.25 system-ui; }
   #hud-edit-bar .he-look summary { cursor:pointer; color:#e9c872; font-size:12px; letter-spacing:1px; } #hud-edit-bar .he-lookgrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:8px 14px; margin-top:9px; }
   #hud-edit-bar .he-lookgrid label { justify-content:space-between; }
+  /* live preview of the error and stun texts in the editor, on a dark and a light floor */
+  #hud-edit-bar .he-prev { display:flex; align-items:center; justify-content:space-around; flex-wrap:wrap; gap:10px 16px; padding:14px 10px; margin-top:9px; border-radius:8px; background:linear-gradient(100deg,#15171d 0 50%,#b9a77c 50% 100%); }
+  .he-prev-err { font-family:var(--serif); line-height:1.2; color:var(--err-color,#ff5b3a); font-size:var(--err-size,20px); font-weight:var(--err-weight,800); text-shadow:var(--err-shadow,none); background:var(--err-bg,transparent); padding:var(--err-pad,0); border-radius:999px; }
+  .he-prev-cc { font-family:var(--serif, serif); line-height:1.2; padding:8px 34px; border-radius:6px; background:rgba(120,12,12,.85); border:2px solid #ff5a4a; color:#fff; font-size:var(--cc-size,30px); font-weight:var(--cc-weight,800); letter-spacing:4px; text-shadow:var(--cc-shadow,0 0 6px #000); white-space:nowrap; }
   #hud-grid { position:fixed; inset:0; z-index:120; pointer-events:none; background-image:linear-gradient(rgba(255,210,74,.10) 1px,transparent 1px),linear-gradient(90deg,rgba(255,210,74,.10) 1px,transparent 1px); background-size:var(--g,16px) var(--g,16px); }
   #hud-grid::before, #hud-grid::after { content:''; position:absolute; background:rgba(255,210,74,.35); } #hud-grid::before { left:50%; top:0; bottom:0; width:1px; } #hud-grid::after { top:50%; left:0; right:0; height:1px; }
   body.hud-edit .hud-selected { outline-color:#fff !important; box-shadow:0 0 0 2px rgba(255,210,74,.6); }
@@ -738,6 +752,12 @@
   body.hud-edit [data-hud]::after { content:attr(data-hud); position:absolute; left:0; top:-20px; padding:1px 7px; border-radius:4px; background:#ffd24a; color:#2a1900; font:700 10px var(--serif); white-space:nowrap; pointer-events:none; }
   body.hud-edit #target-frame.hidden, body.hud-edit #cast.hidden, body.hud-edit #autoind.hidden { display:flex !important; }
   body.hud-edit #target-frame, body.hud-edit #party, body.hud-edit #enemies { min-width:200px; min-height:44px; }
+  /* the error and stun texts have nothing to show most of the time: the editor shows a sample so they can be found and placed */
+  body.hud-edit #err { opacity:1 !important; min-width:140px; min-height:1.2em; }
+  body.hud-edit #err:not(.show)::before { content:'Out of range'; }
+  body.hud-edit #ccstate.hidden { display:block !important; }
+  body.hud-edit #ccstate.hidden::before { content:'Stunned 2.1s'; }
+  body.hud-edit #ccstate { animation:none; }
   body.hud-edit #cast { min-height:22px; background:rgba(255,210,74,.12); }
   body.hud-demo #hud { z-index:40; }
 

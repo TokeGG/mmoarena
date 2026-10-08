@@ -55,7 +55,7 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, ai
   if (dk) solids.push(...(level === 1 ? (clear ? [] : deckRails(arena)) : [...dk.ramps, ...deckPiers(arena)]));
   if (level === 0 && air < LOW_CLEAR) {
     for (const r of arena.lows ?? []) {
-      // a lava pit takes whoever is in a jump or already in it (they are not pushed out, they burn); walking in from outside is still blocked
+      // a lava pit takes whoever is in a jump or already in it (they are not pushed out, they burn and cannot walk out: see the end); walking in from outside is still blocked
       if (r.lava && (air > 0 || (from && from.x > r.x0 && from.x < r.x1 && from.z > r.z0 && from.z < r.z1))) continue;
       solids.push(r);
     }
@@ -79,8 +79,20 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, ai
     x = clamp(x, b.minX + R, b.maxX - R);
     z = clamp(z, b.minZ + R, b.maxZ - R);
   }
+  // in a lava pit the rim holds you in: you cannot walk out through it, only jump out (from LOW_CLEAR up you sail over it)
+  if (level === 0 && air < LOW_CLEAR && from) {
+    const pit = (arena.lows ?? []).find((r) => r.lava && from.x > r.x0 && from.x < r.x1 && from.z > r.z0 && from.z < r.z1);
+    if (pit) {
+      const m = LAVA_RIM_MARGIN;
+      x = clamp(x, pit.x0 + m, pit.x1 - m);
+      z = clamp(z, pit.z0 + m, pit.z1 - m);
+    }
+  }
   return { x, z };
 }
+
+/** How far inside a lava pit's rim your centre must stay while you are in it. */
+const LAVA_RIM_MARGIN = 0.3;
 
 /** Push a circle of radius R out of an axis-aligned box. */
 function pushOutOfBox(x: number, z: number, w: Rect, R: number): Vec2 {

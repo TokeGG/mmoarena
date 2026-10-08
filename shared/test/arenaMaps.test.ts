@@ -88,12 +88,13 @@ describe('bots on every arena', () => {
         const idle = units.map(() => 0);
         const travelled = units.map(() => 0);
         let maxIdle = 0;
-        const ticks = Math.round(240000 / TUNING.tickMs);
+        const ticks = Math.round(240000 / sim.tickMs);
+        const perSecond = Math.round(1000 / sim.tickMs);
         let t = 0;
         for (; t < ticks && sim.winner === null; t++) {
           for (const b of bots) b.tick();
           sim.step();
-          if (t % 20 === 19) {
+          if (t % perSecond === perSecond - 1) {
             units.forEach((u, i) => {
               const moved = Math.hypot(u.pos.x - last[i].x, u.pos.z - last[i].z);
               last[i] = { ...u.pos };

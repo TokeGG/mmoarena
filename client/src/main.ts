@@ -39,12 +39,21 @@ import { closeAllPopups, registerPopup } from './popups';
 import { initCursors, refreshCursor } from './cursors';
 import { buildCursorPanel } from './cursorUi';
 import { NetClock } from './netClock';
-import { IntervalTracker, InterpDelay, RenderTime, poseAt } from './interpDelay';
+import { IntervalTracker, InterpDelay, LEAD_EXTRAPOLATE_MS, Lead, RenderTime, poseAt } from './interpDelay';
 import type { Pose } from './interpDelay';
 import { NetStats, NetStatsView } from './netStats';
 import { ownAhead } from './ownAhead';
 
-const DT = TUNING.tickMs / 1000;
+/** Milliseconds per server tick: the server says so in `welcome` (a replay uses the tick length it was recorded at); prediction, the input cadence and the snapshot buffer all follow it. */
+let tickMs: number = TUNING.tickMs;
+let DT = tickMs / 1000;
+/** The match is paused (dev tools): from the last snapshot's flag (what is drawn) and from dev_state (what is sent). */
+let devPaused = false;
+function setTickMs(ms: number | undefined): void {
+  tickMs = Number.isFinite(ms) && ms! >= 4 && ms! <= 100 ? Math.round(ms!) : TUNING.tickMs;
+  DT = tickMs / 1000;
+  netStats.tickMs = tickMs;
+}
 /** Smoothed server clock, snapshot interval and the adaptive delay other players are drawn in the past by (see netClock.ts, interpDelay.ts). */
 const netClock = new NetClock();
 /** Rebuilds full units from the slim snapshots of the player's own feed (identity arrives once, then only on change). */
@@ -52,6 +61,8 @@ const merger = new SnapMerger();
 const snapInterval = new IntervalTracker();
 const interpDelay = new InterpDelay();
 const renderTime = new RenderTime();
+/** Other players are drawn this far ahead of the buffered time (dead reckoning along their last movement), so two screens agree on where each stands. */
+const lead = new Lead();
 const netStats = new NetStats();
 const netView = new NetStatsView();
 let showNetStats = false;
@@ -302,6 +313,10 @@ function onMessage(raw: MessageEvent) {
       buildsAsked = false;
       if (isDev()) devPanel.setAvailable(true);
       audio.ambience(arena.theme);
+      setTickMs(m.tickMs);
+      devPaused = false;
+      wasPausedSnap = false;
+      interpDelay.reset(tickMs);
       you = m.unitId;
       team = m.team;
       classId = m.classId;
@@ -313,9 +328,10 @@ function onMessage(raw: MessageEvent) {
       setTipBuild(classId, myBuild);
       latest = null;
       snaps.length = 0;
-      netClock.reset();
+      netClock.reset(tickMs);
+      lead.reset();
       renderTime.reset();
-      snapInterval.reset();
+      snapInterval.reset(tickMs);
       netStats.reset();
       pending = [];
       seq = 0;
@@ -404,6 +420,13 @@ function onMessage(raw: MessageEvent) {
       devPanel.handle(m);
       break;
     case 'dev_state':
+      if (!spec) {
+        devPaused = m.paused;
+        if (m.paused) pending = [];
+        if (m.reset) resetNetState();
+      }
+      devPanel.handle(m);
+      break;
     case 'dev_session':
       devPanel.handle(m);
       break;
@@ -424,6 +447,7 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'pong':
       netStats.rtt.add(performance.now() - m.n);
+      netStats.serverLoad = m.load ?? 0;
       break;
     case 'profile':
       saveProfile(m.token, m.matches, m.wins);
@@ -498,13 +522,35 @@ function onMessage(raw: MessageEvent) {
   }
 }
 
+/** Forget every position, speed and time estimate held for the world as it was (a resume after a pause, a restart, another map): the next snapshot is the new truth and nothing is carried across the gap. */
+function resetNetState(): void {
+  snaps.length = 0;
+  netClock.reset(tickMs);
+  renderTime.reset();
+  snapInterval.reset(tickMs);
+  interpDelay.reset(tickMs);
+  lead.reset();
+  netStats.reset();
+  pending = [];
+  jumpTicks = 1e6;
+  acc = 0;
+  predLevel = 0;
+  prevPred.x = pred.x;
+  prevPred.z = pred.z;
+  vis.ready = false; // the camera and the own model go straight to the next position
+}
+let wasPausedSnap = false;
+
 function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   const at = performance.now();
+  // a resume: the server clock stood still for the whole pause, so the clock, the delay and every buffered snapshot are started afresh
+  if (!spec && wasPausedSnap && !snap.paused) resetNetState();
+  wasPausedSnap = !spec && !!snap.paused;
   snaps.push({ at, snap });
-  if (snaps.length > 30) snaps.shift();
+  if (snaps.length > Math.max(30, Math.ceil(1500 / tickMs))) snaps.shift(); // at least 1.5 s of snapshots at any tick length
   latest = snap;
   latestAt = at;
-  if (!spec) {
+  if (!spec && !snap.paused) {
     netClock.sample(snap.time, at);
     snapInterval.add(snap.time);
     interpDelay.update(snapInterval.mean, netClock.latenessP95());
@@ -529,12 +575,17 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     pred.x = me.x;
     pred.z = me.z;
     predLevel = me.lv ?? 0;
+    if (snap.paused) {
+      prevPred.x = pred.x; // standing still: no speed to carry the own model on with
+      prevPred.z = pred.z;
+      pending = [];
+    }
     if (!vis.ready) {
       prevPred.x = vis.x = me.x;
       prevPred.z = vis.z = me.z;
     }
     while (pending.length && pending[0].seq <= me.lastSeq) pending.shift();
-    if (me.alive && !me.controlled) for (const i of pending) applyInput(i, me);
+    if (me.alive && !me.controlled && !snap.paused) for (const i of pending) applyInput(i, me);
   }
 
   const ctx = {
@@ -608,7 +659,7 @@ function ownHeight(u: UnitSnap | undefined, serverY?: number): number {
 
 /** Runs at exactly the server tick rate so one input is produced per server step. */
 function fixedStep() {
-  if (!latest || spec || latest.paused) return; // paused by a dev: nothing is sent, nothing is predicted
+  if (!latest || spec || latest.paused || devPaused) { pending = []; return; } // paused by a dev: nothing is sent, nothing is predicted, nothing queued
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
   const sample = controls.sample(DT);
@@ -620,9 +671,9 @@ function fixedStep() {
   const input: MoveInput = { seq: ++seq, ...sample, jump: jump || undefined };
   send({ t: 'input', ...input });
   jumpTicks = jump ? 0 : jumpTicks + 1;
-  const mine = { ...input, air: jumpHeight(jumpTicks * TUNING.tickMs) };
+  const mine = { ...input, air: jumpHeight(jumpTicks * tickMs) };
   pending.push(mine);
-  if (pending.length > 60) pending.shift();
+  if (pending.length > Math.ceil(3000 / tickMs)) pending.shift(); // 3 s of unacknowledged inputs
   if (me.alive && !me.controlled) applyInput(mine, me);
 }
 
@@ -633,7 +684,7 @@ const lerpAngle = (a: number, b: number, t: number) => {
   return a + d * t;
 };
 
-function interpolate(rt: number, extrapolate = false): Map<number, { x: number; z: number; y: number; facing: number }> {
+function interpolate(rt: number, extrapolate = false, linear = false): Map<number, { x: number; z: number; y: number; facing: number }> {
   const out = new Map<number, { x: number; z: number; y: number; facing: number }>();
   if (!snaps.length) return out;
   const n = snaps.length;
@@ -644,7 +695,7 @@ function interpolate(rt: number, extrapolate = false): Map<number, { x: number; 
     const pose = (u: UnitSnap, t: number): Pose => ({ t, x: u.x, z: u.z, y: u.y, facing: u.facing });
     for (const ub of b.units) {
       const ua = a.units.find((u) => u.id === ub.id);
-      const p = poseAt(ua ? pose(ua, a.time) : pose(ub, a.time), pose(ub, b.time), rt);
+      const p = poseAt(ua ? pose(ua, a.time) : pose(ub, a.time), pose(ub, b.time), rt, linear ? LEAD_EXTRAPOLATE_MS : undefined, linear);
       out.set(ub.id, { x: p.x, z: p.z, y: p.y, facing: p.facing });
     }
     return out;
@@ -779,7 +830,7 @@ function castSlot(i: number) {
 function viewTime(): number {
   // the world drawn in the last frame, exactly (a frame is at most a few tens of ms old); before any frame, the clock minus the delay
   if (!spec && performance.now() - drawn.at < 250) return Math.round(drawn.rt);
-  return Math.round(estimatedNow() - (spec ? 100 : interpDelay.delay));
+  return Math.round(estimatedNow() - (spec ? 100 : interpDelay.delay - lead.ms));
 }
 
 const QUEUE_SAME_MS = 250;
@@ -794,6 +845,7 @@ function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
 let queued: { ability: string; target: number | null; until: number; ground?: { x: number; z: number; lv?: 1 } } | null = null;
 function estimatedNow(): number {
   if (!latest) return 0;
+  if (!spec && latest.paused) return latest.time; // the server's clock stands still
   if (!spec && netClock.ready) return netClock.now(performance.now());
   return latest.time + (performance.now() - latestAt);
 }
@@ -1071,8 +1123,8 @@ function frame(now: number) {
     spec.clock += dt * 1000 * spec.rate;
     const evs: Parameters<Hud['event']>[0][] = [];
     let n = 0;
-    while (spec.clock >= TUNING.tickMs && !spec.runner.done) {
-      spec.clock -= TUNING.tickMs;
+    while (spec.clock >= spec.runner.tickMs && !spec.runner.done) {
+      spec.clock -= spec.runner.tickMs;
       evs.push(...spec.runner.step());
       n++;
     }
@@ -1092,12 +1144,17 @@ function frame(now: number) {
   const estNow = !spec && netClock.ready ? netClock.now(performance.now()) : snap.time + (performance.now() - latestAt) * rate;
   scene.viewLevel = predLevel;
   const drawAt = spec ? estNow - (rate > 0 ? Math.max(100 * rate, 60) : 0) : renderTime.next(estNow, interpDelay.delay);
+  // others are drawn `lead` ms later than the buffered time (dead reckoning), and casts report that time too
+  const frozen = !spec && !!snap.paused;
+  const leadMs = spec || frozen ? 0 : lead.update(netStats.rtt.rtt, dt);
+  const shownAt = frozen ? snap.time : drawAt + leadMs; // paused: the world stands exactly on the last snapshot
   if (!spec) {
-    drawn.rt = drawAt;
+    drawn.rt = shownAt;
     drawn.at = performance.now();
+    netStats.leadMs = leadMs;
     netStats.frame(drawAt > snap.time);
   }
-  const interp = interpolate(drawAt, !spec);
+  const interp = interpolate(shownAt, !spec && !frozen, leadMs > 1);
   if (spec) targetId = snap.units.find((u) => u.id === you)?.target ?? null;
 
   // our own unit: interpolate between the last two 20 Hz predictions, then ease towards that (hides corrections too)
@@ -1319,7 +1376,8 @@ function swapMatchMap(mapId: string) {
   scene.setMap(arena.id);
   audio.ambience(arena.theme);
   matchStarting = true;
-  // forget the old positions: the next snapshot says where everyone stands on the new map
+  // forget the old positions: the next snapshot says where everyone stands on the new map (no clock, buffer, speed or prediction of the old one survives)
+  if (!spec) resetNetState();
   snaps.length = 0;
   pending = [];
   targetId = null;
@@ -1361,7 +1419,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   if (kind === 'replay' && runner) {
     hud.setRoster(runner.data.roster);
     const names = runner.data.units.map((u) => u.name);
-    spectateBar.showReplay(runner.data.ticks, `${mapName(runner.data.arena)} · ${names.join(', ')}`, `${location.origin}/?replay=${id}`);
+    spectateBar.showReplay(runner.data.ticks, `${mapName(runner.data.arena)} · ${names.join(', ')}`, `${location.origin}/?replay=${id}`, runner.tickMs);
     onSnapshot(runner.snapshot(), []);
     // the recording has every unit's build: show it like a live watch does
     buildsPanel.set(runner.data.units.map((o, i) => ({ id: i + 1, name: o.name, classId: o.classId, team: o.team, spec: o.build?.spec ?? null, talents: o.build?.talents ?? [], bar: barFor(o.classId, o.build, CLASSES[o.classId].bar) })));

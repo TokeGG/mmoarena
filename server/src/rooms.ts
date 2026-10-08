@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
 import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
@@ -13,6 +13,7 @@ import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
 import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import type { AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
+import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
 import type { AiTune } from './aitune';
@@ -22,8 +23,8 @@ import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerM
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
 /** Spectators see ranked matches this far behind, so watching cannot help the players. */
-const SPECTATE_DELAY_TICKS = 20 * 5;
-const TICKS_AFTER_END = 20 * 300; // the end screen is a ready check: the room stays open until everyone is ready or leaves (or sits idle this long)
+const SPECTATE_DELAY_MS = 5000;
+const MS_AFTER_END = 300 * 1000; // the end screen is a ready check: the room stays open until everyone is ready or leaves (or sits idle this long)
 /** A match must have been live this long to count towards gear unlocks (stops instant-win farming). */
 const MIN_COUNTED_MATCH_MS = 20000;
 
@@ -168,13 +169,18 @@ export class Room {
   private deltas = new Map<number, { rating: number; delta: number }>();
 
   /** `countsForProgress`: whether finishing this match earns gear-tier progress (not true for dummy practice). */
-  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, public arenaId: string = ARENAS[0].id) {
+  constructor(prepMs: number, private countsForProgress = true, private minCountedMs = MIN_COUNTED_MATCH_MS, private ranked = false, private accounts?: Accounts, public arenaId: string = ARENAS[0].id, readonly tickMs: number = TUNING.tickMs) {
     this.seed = Math.floor(Math.random() * 2 ** 31);
     this.prepMsUsed = prepMs;
-    this.sim = new ArenaSim({ prepMs, seed: this.seed, arena: arenaById(arenaId), facing: true });
+    this.sim = new ArenaSim({ tickMs, prepMs, seed: this.seed, arena: arenaById(arenaId), facing: true });
     // matches that count are recorded so they can be replayed; dummy practice is not worth storing
     // every match is recorded (the owner can watch any of them again, and train bots on it)
     if (accounts) this.recorder = new ReplayRecorder(this.sim, { arena: arenaId, seed: this.seed, prepMs });
+  }
+
+  /** How many ticks of this room last `ms` milliseconds (at least one). */
+  ticksIn(ms: number): number {
+    return Math.max(1, Math.round(ms / this.tickMs));
   }
 
   get isRanked(): boolean {
@@ -192,7 +198,7 @@ export class Room {
       this.ratingAtStart.set(u.id, p.account.rating);
     }
     this.notify?.(p);
-    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId });
+    send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     this.onJoin?.(p);
     if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
@@ -291,6 +297,12 @@ export class Room {
     this.finalSent = false;
     this.finalSentLate = false;
     this.paused = false;
+    this.clearInputs();
+  }
+
+  /** Drop every queued movement input (a pause or a restart). */
+  clearInputs(): void {
+    for (const u of this.sim.units.values()) u.inputQueue.length = 0;
   }
 
   /** Dev tools: the same match on another map: units, builds, bots, dummies and live numbers stay, everyone is back at the new spawns. */
@@ -304,6 +316,8 @@ export class Room {
     this.finalSent = false;
     this.finalSentLate = false;
     this.delayed = [];
+    this.clearInputs();
+    this.pausedTicks = 0; // a paused room sends its next frame at once, so every screen learns the new positions now
   }
 
   /** Dev tools: a bot gets another class and build in the middle of the match (which then counts for nothing). */
@@ -519,7 +533,7 @@ export class Room {
   private tickNow(): void {
     if (this.paused) {
       // nothing moves; the players get a paused frame now and then so their screen says so
-      if (this.pausedTicks++ % 5 === 0) {
+      if (this.pausedTicks++ % this.ticksIn(250) === 0) {
         for (const p of this.players.values()) {
           const me = this.sim.units.get(p.unitId!);
           if (me && p.ws.readyState === 1) p.ws.send(JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(me.team), paused: true }, events: [] }));
@@ -570,11 +584,11 @@ export class Room {
         const live = [...this.spectators].filter((w) => w.ownerOk || this.botsOnly);
         if (live.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap, events });
-          const stats = this.sim.tickNo % 10 === 0 ? JSON.stringify({ t: 'stats', rows: this.statRows() }) : null;
+          const stats = this.sim.tickNo % this.ticksIn(500) === 0 ? JSON.stringify({ t: 'stats', rows: this.statRows() }) : null;
           for (const w of live) if (w.ws.readyState === 1) { w.ws.send(frame); if (stats) w.ws.send(stats); }
         }
       }
-      if (this.delayed.length > SPECTATE_DELAY_TICKS) {
+      if (this.delayed.length > this.ticksIn(SPECTATE_DELAY_MS)) {
         const f = this.delayed.shift()!;
         const late = [...this.spectators].filter((w) => !w.ownerOk && !this.botsOnly);
         if (late.length) {
@@ -603,7 +617,7 @@ export class Room {
         void this.saveRecord(replay).catch(() => {});
       }
       this.reportBots();
-      if (++this.endedTicks >= TICKS_AFTER_END) this.close('match over');
+      if (++this.endedTicks >= this.ticksIn(MS_AFTER_END)) this.close('match over');
     }
   }
 
@@ -743,6 +757,8 @@ export interface LobbyConfig {
   queuePrepMs: number;
   /** Live time a match needs before it counts towards gear unlocks. Defaults to 20 s. */
   minCountedMatchMs?: number;
+  /** Milliseconds per tick for every room (default TUNING.tickMs; the server reads ARENA_TICK_MS). */
+  tickMs?: number;
 }
 
 export class Lobby {
@@ -755,6 +771,8 @@ export class Lobby {
   }
 
   constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune) {
+    this.tickMs = Math.max(1, Math.round(cfg.tickMs ?? TUNING.tickMs));
+    this.meter = new TickMeter(this.tickMs);
     // the saved state, unless the owner already changed it while it loaded
     void this.adminLog?.maintenance().then((m) => {
       if (!this.maintSet) this.maint = m;
@@ -773,11 +791,16 @@ export class Lobby {
   private maintSet = false;
   private readonly startedAt = Date.now();
 
+  /** What /api/status and the admin overview show about the loop. */
+  tickReport() {
+    return { ...this.meter.report(), rooms: this.rooms.size };
+  }
+
   private overviewMsg(): ServerMsg {
     return {
       t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
       uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
-      pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, autoTrain: this.autoTrain, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
+      tick: this.tickReport(), pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, autoTrain: this.autoTrain, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
     };
   }
 
@@ -1244,7 +1267,7 @@ export class Lobby {
   handle(p: Player, msg: ClientMsg): void {
     switch (msg.t) {
       case 'ping':
-        send(p, { t: 'pong', n: msg.n }); // answered at once, in any state
+        send(p, { t: 'pong', n: msg.n, load: this.meter.report().load }); // answered at once, in any state
         break;
       case 'join': {
         if (p.room || this.inQueue(p)) return;
@@ -1331,6 +1354,7 @@ export class Lobby {
         if (msg.t === 'dev_pause') {
           room.devTest = true; // from now on this match counts for nothing (progress, rating, replays, bot learning)
           room.paused = msg.on;
+          room.clearInputs(); // whatever was queued before the pause must not move anyone after it
           const by = p.account?.name ?? p.name;
           for (const q of [...room.players.values(), ...room.spectators]) {
             send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
@@ -1356,7 +1380,7 @@ export class Lobby {
         room.devRestart();
         const by = p.account?.name ?? p.name;
         for (const q of [...room.players.values(), ...room.spectators]) {
-          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, reset: true });
           if (q !== p) send(q, { t: 'notice', text: `${by} restarted the match (it no longer counts).` });
         }
         send(p, { t: 'dev_result', ok: true, text: 'The match started over with the same builds.' });
@@ -1819,7 +1843,7 @@ export class Lobby {
   // ------------------------------------------------------------------ rooms and the queue
 
   private makeRoom(prepMs: number, counts: boolean, ranked: boolean, map: string): Room {
-    const room = new Room(prepMs, counts, this.cfg.minCountedMatchMs, ranked, this.accounts, map);
+    const room = new Room(prepMs, counts, this.cfg.minCountedMatchMs, ranked, this.accounts, map, this.tickMs);
     room.notify = (q) => {
       this.changed(q);
       this.pullFollowers(q);
@@ -2075,8 +2099,6 @@ export class Lobby {
     }
   }
 
-  private tickCount = 0;
-
   /** Forget expired rate-limit and ban entries so the maps never grow without bound. */
   private sweep(now: number): void {
     for (const [k, t] of this.lastSuggest) if (now - t >= SUGGEST_GAP_MS) this.lastSuggest.delete(k);
@@ -2085,6 +2107,10 @@ export class Lobby {
 
   /** How long a whole server tick takes (all rooms): smoothed and the worst since start, for /api/status. */
   tickCost = { avgMs: 0, maxMs: 0 };
+  /** Milliseconds per tick of every room this server runs. */
+  readonly tickMs: number;
+  readonly meter: TickMeter;
+  private lastSweep = Date.now();
   roomCount(): number {
     return this.rooms.size;
   }
@@ -2096,6 +2122,10 @@ export class Lobby {
       if (room.closed) this.rooms.delete(room);
     }
     const spent = performance.now() - t0;
+    if (this.meter.record(t0, spent)) {
+      const r = this.meter.report();
+      console.warn(`server busy: ticks take ${r.avgMs} ms of a ${this.tickMs} ms step (load ${Math.round(r.load * 100)} %, ${r.late} late ticks in the last minute). Raise the Render plan or set ARENA_TICK_MS=50.`);
+    }
     this.tickCost.avgMs += (spent - this.tickCost.avgMs) * 0.02;
     if (spent > this.tickCost.maxMs) this.tickCost.maxMs = spent;
     const now = Date.now();
@@ -2106,7 +2136,7 @@ export class Lobby {
         this.dissolveIfAlone(inv.from);
       }
     }
-    if (this.tickCount++ % 1200 === 0) this.sweep(now); // once a minute
+    if (now - this.lastSweep >= 60000) { this.lastSweep = now; this.sweep(now); } // once a minute
     for (const q of this.conns) {
       if (q.duelWith !== undefined && now - (q.duelAt ?? 0) > DUEL_WAIT_MS) {
         q.duelWith = undefined;
