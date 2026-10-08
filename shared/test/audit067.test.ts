@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ABILITIES, ArenaSim, AURAS, Bot, CLASS_IDS, SPECS, TUNING, arenaById, botBuild, brainFor, clampBrain, compileMods, freshenPopulation, isRotationAbility,
-  newPopulation, rotationDamage, rotationFor, talentsFor, withAuraMods,
+  newPopulation, rotationDamage, rotationFor, talentsFor, validateBuild, withAuraMods,
 } from '../src/index';
 import type { Brain, ClassId, SimEvent, TeamId, Unit } from '../src/index';
 import { navRoute } from '../src/nav';
@@ -98,15 +98,21 @@ describe('0.67 balance', () => {
 });
 
 describe('0.67 bots: builds, brains and rotations', () => {
-  it('bots take talents, so tier IV-VI swaps show up on bot bars', () => {
+  it('bots take talents, so the trinket and the class skills show up on bot bars', () => {
     const swapped = new Set<string>();
+    const trinkets = new Set<string>();
+    let chosen = 0;
     for (const cls of CLASS_IDS) for (let s = 0; s < 60; s++) {
       const b = botBuild(cls, s);
-      assert.equal(b.talents.length, 6);
+      assert.equal(b.talents.length, 5);
+      assert.ok(validateBuild(cls, b, false, 99).ok, `${cls} seed ${s}`);
       const tiers = talentsFor(cls, b.spec);
-      b.talents.forEach((id, i) => { const t = tiers[i].find((x) => x.id === id); if (t?.swap) swapped.add(t.swap.to); });
+      b.talents.forEach((id, i) => { const t = tiers[i].find((x) => x.id === id); if (t?.swap) swapped.add(t.swap.to); if (t?.trinket) trinkets.add(t.trinket); });
+      if (b.replace) chosen++;
     }
-    assert.ok(swapped.size >= 30, `many different swaps in play (${swapped.size})`);
+    assert.ok(swapped.size >= 12, `many different class skills in play (${swapped.size})`);
+    assert.equal(trinkets.size, 3);
+    assert.ok(chosen > 0, 'mage bots choose what their skill replaces');
   });
 
   it('a stored brain from an older version is completed from the trained baseline, not left with holes', () => {
@@ -146,6 +152,7 @@ describe('0.67 bots: builds, brains and rotations', () => {
         const cls = CLASS_IDS[(m * 7 + i * 3 + team) % 4];
         const u = sim.addUnit({ name: cls, classId: cls, team, controller: 'bot', build: botBuild(cls, seed++) });
         for (const a of u.bar) onBar.add(a);
+        if (u.trinket) onBar.add(u.trinket);
         bots.push(new Bot(sim, u.id, 'hard', seed * 13));
       }
       while (sim.phase !== 'ended' && sim.time < 120000) {

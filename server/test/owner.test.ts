@@ -175,7 +175,7 @@ describe('owner bot match', () => {
     assert.equal(builds!.units.length, 4);
     const fury = builds!.units.find((u) => u.classId === 'warrior')!;
     assert.equal(fury.spec, 'fury');
-    assert.equal(fury.talents.length, 6, 'its talent picks, tier by tier');
+    assert.equal(fury.talents.length, 5, 'its talent picks, tier by tier');
     assert.ok(fury.bar.includes('bloodthirst'), 'and its bar');
     lobby.handle(owner, { t: 'leave' } as ClientMsg);
     assert.equal(owner.watching, undefined);

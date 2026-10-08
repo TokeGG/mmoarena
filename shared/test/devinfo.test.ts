@@ -23,8 +23,8 @@ describe('dev panel skill info', () => {
     const names = b.modifiers.map((m) => m.name);
     assert.equal(new Set(names).size, names.length);
     assert.ok(b.modifiers.some((m) => m.where.includes(',')), 'the same talent in several specs is one line');
-    const reck = skillInfo('recklessness');
-    assert.ok(reck.sections[0].from.some((f) => f.includes('Reckless Abandon')), 'a talent that swaps it in is a source');
+    const leap = skillInfo('leap_of_faith');
+    assert.ok(leap.sections[0].from.length > 0, 'a talent that swaps it in is a source');
   });
 
   it('the flat tunables list keeps the ability first, then its auras', () => {

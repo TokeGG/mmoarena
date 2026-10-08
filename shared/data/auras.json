@@ -332,7 +332,11 @@
       "regen": 4,
       "damageTaken": 0.85
     },
-    "dispellable": true
+    "dispellable": true,
+    "hot": {
+      "pct": 2,
+      "interval": 1000
+    }
   },
   "arcane_slow": {
     "name": "Arcane Explosion",
@@ -456,5 +460,166 @@
     "duration": 1500,
     "harmful": true,
     "slowPct": 30
+  },
+  "trinket_shield": {
+    "name": "Warding Charm",
+    "kind": "absorb",
+    "duration": 8000,
+    "harmful": false,
+    "absorbPct": 0.2
+  },
+  "gouge": {
+    "name": "Gouge",
+    "kind": "incapacitate",
+    "duration": 4000,
+    "harmful": true,
+    "dr": "incapacitate",
+    "breaksOnDamage": true
+  },
+  "sap": {
+    "name": "Sap",
+    "kind": "incapacitate",
+    "duration": 8000,
+    "harmful": true,
+    "dr": "incapacitate",
+    "breaksOnDamage": true
+  },
+  "banner_buff": {
+    "name": "Battle Banner",
+    "kind": "buff",
+    "duration": 1500,
+    "harmful": false,
+    "mods": {
+      "damageDone": 1.1,
+      "damageTaken": 0.9
+    }
+  },
+  "mirror_image": {
+    "name": "Mirror Image",
+    "kind": "buff",
+    "duration": 8000,
+    "harmful": false,
+    "decoys": 0.5,
+    "note": "Images stand in for you: half the hits meant for you strike an image instead and do nothing."
+  },
+  "rune_of_power": {
+    "name": "Rune of Power",
+    "kind": "buff",
+    "duration": 1500,
+    "harmful": false,
+    "mods": {
+      "damageDone": 1.15,
+      "castTime": 0.85
+    }
+  },
+  "purified": {
+    "name": "Purified",
+    "kind": "buff",
+    "duration": 4000,
+    "harmful": false,
+    "blocksDebuffs": true,
+    "note": "Harmful effects cannot take hold."
+  },
+  "ascended": {
+    "name": "Ascended",
+    "kind": "buff",
+    "duration": 4000,
+    "harmful": false,
+    "mods": {
+      "moveSpeed": 1.6
+    },
+    "noCast": true,
+    "untargetable": true,
+    "invulnerable": true,
+    "note": "You fly away: nothing can target or hurt you, and you cannot act."
+  },
+  "intercept_guard": {
+    "name": "Intercepted",
+    "kind": "buff",
+    "duration": 4000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.8
+    }
+  },
+  "charge_root": {
+    "name": "Pinned",
+    "kind": "root",
+    "duration": 2000,
+    "harmful": true,
+    "dr": "root"
+  },
+  "frostbolt_root": {
+    "name": "Frozen in Place",
+    "kind": "root",
+    "duration": 4000,
+    "harmful": true,
+    "dr": "root",
+    "dispellable": true
+  },
+  "burn": {
+    "name": "Burn",
+    "kind": "dot",
+    "duration": 4000,
+    "harmful": true,
+    "dispellable": true,
+    "dot": {
+      "amount": 25,
+      "interval": 1000,
+      "school": "fire",
+      "ability": "fireball"
+    }
+  },
+  "plague_ready": {
+    "name": "Plague Ready",
+    "kind": "buff",
+    "duration": 10000,
+    "harmful": false,
+    "resetsCooldown": "plague_bloom",
+    "freeCooldownFor": "plague_bloom",
+    "note": "Devouring Plague is ready, and casting it does not start its cooldown."
+  },
+  "mind_slow": {
+    "name": "Mind Blasted",
+    "kind": "slow",
+    "duration": 4000,
+    "harmful": true,
+    "slowPct": 30,
+    "dispellable": true
+  },
+  "renew": {
+    "name": "Renew",
+    "kind": "buff",
+    "duration": 5000,
+    "harmful": false,
+    "dispellable": true,
+    "hot": {
+      "pct": 1,
+      "interval": 1000
+    }
+  },
+  "penance_barrier": {
+    "name": "Penance Barrier",
+    "kind": "absorb",
+    "duration": 8000,
+    "harmful": false
+  },
+  "psychic_stun": {
+    "name": "Psychic Stun",
+    "kind": "stun",
+    "duration": 3000,
+    "harmful": true,
+    "dr": "stun",
+    "dispellable": true
+  },
+  "psychic_flee": {
+    "name": "Psychic Flight",
+    "kind": "fear",
+    "duration": 6000,
+    "harmful": true,
+    "dr": "fear",
+    "dispellable": true,
+    "breaksOnDamage": true,
+    "flee": true
   }
 }

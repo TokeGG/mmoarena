@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
-import { hpFill, hpText } from './hudLook';
+import { hpFill, hpText, plateFill, plateHpText, plateShown } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
@@ -221,7 +221,7 @@ export class Hud {
   private target = new UnitFrame($('target-frame'), true);
   private partyFrames = new Map<number, UnitFrame>();
   private enemyFrames = new Map<number, UnitFrame>();
-  private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
+  private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string; badge: HTMLElement }[] = [];
   private castBar = new Bar('#f1c40f');
   private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string; mark: HTMLElement; arrow: HTMLElement; mk: number }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
@@ -276,12 +276,14 @@ export class Hud {
     if (!visible) this.clearLabels();
   }
 
-  setBar(classId: ClassId, abilities: string[]) {
+  /** `trinket`: the last ability is the tier IV trinket, drawn apart from the bar. */
+  setBar(classId: ClassId, abilities: string[], trinket = false) {
     const bar = $('actionbar');
     bar.replaceChildren();
     this.slots = abilities.map((ability, i) => {
-      const root = el('div', 'slot');
-      const key = el('span', 'key', String(i + 1));
+      const isTrinket = trinket && i === abilities.length - 1;
+      const root = el('div', isTrinket ? 'slot trinket' : 'slot');
+      const key = el('span', 'key', isTrinket ? 'F' : String(i + 1));
       const def = ABILITIES[ability];
       root.style.background = SCHOOL_GRADIENT[def.school];
       root.dataset.tip = `ability:${ability}`;
@@ -290,7 +292,8 @@ export class Hud {
       const nm = el('span', 'nm', def.name);
       const cd = el('div', 'cd');
       cd.append(el('span'));
-      root.append(ico, nm, cd, key);
+      const badge = el('span', 'charges hidden');
+      root.append(ico, nm, cd, key, badge);
       root.addEventListener('mousedown', (e) => {
         e.stopPropagation();
         if (e.button !== 0) return;
@@ -336,7 +339,7 @@ export class Hud {
         window.addEventListener('mouseup', up, true);
       });
       bar.append(root);
-      return { root, cd, key, ability };
+      return { root, cd, key, ability, badge };
     });
   }
 
@@ -350,8 +353,9 @@ export class Hud {
   /** Action bar key captions, one per slot, e.g. from the player's keybinds. */
   setKeyLabels(labels: string[]) {
     this.slots.forEach((s, i) => {
-      s.key.textContent = labels[i] ?? '';
-      s.root.dataset.tipSub = (labels[i] ? `Hotkey: ${labels[i]}  ·  ` : '') + 'Drag to move';
+      const label = s.root.classList.contains('trinket') ? labels[8] : labels[i];
+      s.key.textContent = label ?? '';
+      s.root.dataset.tipSub = (label ? `Hotkey: ${label}` : '') + (s.root.classList.contains('trinket') ? '' : `${label ? '  ·  ' : ''}Drag to move`);
     });
   }
 
@@ -379,6 +383,9 @@ export class Hud {
       const cd = Math.max(me.cooldowns[s.ability] ? me.cooldowns[s.ability] - now : 0, def.gcd ? gcdLeft : 0);
       const total = me.cooldowns[s.ability] && me.cooldowns[s.ability] - now >= gcdLeft ? def.cooldown || gcdTotal : gcdTotal;
       const frac = Math.min(1, cd / total);
+      const stored = me.charges?.[s.ability];
+      s.badge.classList.toggle('hidden', stored === undefined);
+      if (stored !== undefined) s.badge.textContent = String(stored);
       s.cd.classList.toggle('hidden', cd <= 50);
       s.cd.style.background = `conic-gradient(rgba(0,0,0,.72) ${frac * 360}deg, rgba(0,0,0,.08) 0)`;
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
@@ -500,7 +507,7 @@ export class Hud {
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; target?: boolean; mark?: number }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; target?: boolean; mark?: number; classId?: ClassId }[],
     now: number,
   ) {
     const seen = new Set<number>();
@@ -509,7 +516,7 @@ export class Hud {
       let p = this.plates.get(u.id);
       if (!p) {
         const root = el('div', 'plate');
-        const name = el('div');
+        const name = el('div', 'pname');
         const bar = new Bar(HP_ALLY, true);
         const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
         cast.root.classList.add('pcast', 'hidden');
@@ -526,7 +533,7 @@ export class Hud {
         p = { root, name, title, bar, cast, icon, av: '', debuffs, dkey: '', mark, arrow, mk: 0 };
         this.plates.set(u.id, p);
       }
-      p.root.classList.toggle('hidden', !u.visible || !u.alive);
+      p.root.classList.toggle('hidden', !u.visible || !u.alive || !plateShown(u.enemy));
       p.root.style.left = `${u.x}px`;
       p.root.style.top = `${u.y}px`;
       const who = this.roster.get(u.id);
@@ -553,8 +560,8 @@ export class Hud {
       p.root.classList.toggle('targeted', !!u.target);
       p.title.textContent = who?.title ? `«${who.title}»` : '';
       p.title.classList.toggle('hidden', !who?.title);
-      p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);
-      p.bar.set(u.health, u.maxHealth, '', u.absorb ?? 0);
+      p.bar.setColor(plateFill(u.enemy, u.maxHealth > 0 ? u.health / u.maxHealth : 0, u.classId ? CLASSES[u.classId].color : u.enemy ? HP_ENEMY : HP_ALLY));
+      p.bar.set(u.health, u.maxHealth, plateHpText(u.health, u.maxHealth), u.absorb ?? 0);
       // harmful effects on the unit (stuns, roots, slows, DoTs), each with its time left; rebuilt only when the set or a second changes
       const bad = (u.auras ?? []).filter((a) => AURAS[a.id]?.harmful).slice(0, 6);
       const dkey = bad.map((a) => `${a.id}:${a.expiresAt > 0 ? Math.ceil((a.expiresAt - now) / 1000) : ''}`).join();

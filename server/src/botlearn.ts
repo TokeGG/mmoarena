@@ -210,7 +210,7 @@ export class BotLearner {
    * for offline study. A bots-only match teaches its losers through its winners. Resolves to how many bots learned
    * something, or a reason it could not be used.
    */
-  async trainOn(replay: ReplayData, id: string): Promise<{ ok: true; lessons: number } | { ok: false; reason: string }> {
+  async trainOn(replay: ReplayData, id: string): Promise<{ ok: true; lessons: number; habits: number } | { ok: false; reason: string }> {
     if (replay.hash !== contentHash()) return { ok: false, reason: 'That replay was recorded on an older version of the game, so it cannot be played back the same.' };
     const opts = forcedStudy(replay);
     if (!opts) return { ok: false, reason: 'Nothing to learn: no people played in it and nobody won.' };
@@ -222,7 +222,9 @@ export class BotLearner {
     }
     this.apply(measured);
     this.archive(id, replay, true);
-    return { ok: true, lessons: measured.study.bots.filter((b) => Object.keys(b.lessons).length).length };
+    const lessons = measured.study.bots.filter((b) => Object.keys(b.lessons).length).length;
+    const habits = measured.humans.filter((h) => Object.keys(h.sample).length).length + measured.study.players.filter((p) => Object.keys(p.sample).length).length;
+    return { ok: true, lessons, habits };
   }
 
   /**
@@ -233,7 +235,7 @@ export class BotLearner {
     const kind = (u: ReplayData['units'][number]) => (u.controller === 'bot' ? 'bot' : u.controller === 'player' || u.controller === undefined ? 'human' : 'other');
     const bots = replay.units.filter((u) => kind(u) === 'bot');
     const humans = replay.units.filter((u) => kind(u) === 'human');
-    if (!bots.length || (!humans.length && !forced) || !/^[0-9a-z]{6,24}$/i.test(id)) return;
+    if ((!bots.length && !forced) || (!humans.length && !forced) || !/^[0-9a-z]{6,24}$/i.test(id)) return;
     const humanTeam = humans[0]?.team;
     const entry: LearnIndexEntry = { id, at: Date.now(), bots: bots.map((u) => u.classId), humans: humans.map((u) => u.classId), humansWon: replay.winner === null || replay.winner === 'draw' || humanTeam === undefined ? null : replay.winner === humanTeam, ...(forced ? { forced: true } : {}) };
     this.archiving = this.archiving.then(async () => {

@@ -15,15 +15,25 @@ import type { Brain } from './botbrain';
 
 /**
  * A bot's loadout: one of the class's specs (so bots field every weapon spec and bar that exists in the data) and a talent
- * in most tiers, picked from the seed, so the skill swaps of tiers IV to VI get played by bots too.
+ * in most tiers, picked from the seed, so the trinket (tier IV) and the skill swaps (tier V) get played by bots too.
  */
 export function botBuild(classId: ClassId, seed: number, withTalents = true, specId?: string): Build {
   const specs = SPECS[classId];
   const spec = specId && specs.some((s) => s.id === specId) ? specId : specs[Math.abs(seed) % specs.length].id;
   if (!withTalents) return { spec, talents: [], gear: {} };
   const rng = mulberry32(seed * 7919 + 17);
-  const talents = talentsFor(classId, spec).map((tier) => (rng() < 0.85 && tier.length ? tier[Math.floor(rng() * tier.length)].id : ''));
-  return { spec, talents, gear: {} };
+  const tiers = talentsFor(classId, spec);
+  const talents = tiers.map((tier) => (rng() < 0.85 && tier.length ? tier[Math.floor(rng() * tier.length)].id : ''));
+  // a swap talent that can replace more than one skill: the bot picks which one to give up
+  const replace: Record<string, string> = {};
+  talents.forEach((id, i) => {
+    const sw = tiers[i]?.find((t) => t.id === id)?.swap;
+    if (sw?.alt?.length) {
+      const opts = [sw.from, ...sw.alt];
+      replace[id] = opts[Math.floor(rng() * opts.length)];
+    }
+  });
+  return { spec, talents, gear: {}, ...(Object.keys(replace).length ? { replace } : {}) };
 }
 
 export type Difficulty = 'easy' | 'normal' | 'hard';
@@ -96,6 +106,10 @@ export class Bot {
   private unstickSign = 1;
   /** Running round to a target's back is only worth a short try: a target that keeps turning just makes both spin. */
   private backUntil = 0;
+  /** When the bot last had its melee target in sight (a moment out of sight at a pillar edge keeps it circling). */
+  private meleeSightAt = -1e9;
+  /** Running round to the target's back right now (a try runs to its end). */
+  private backTry = false;
   private backReadyAt = 0;
 
   readonly brain: Brain;
@@ -664,6 +678,8 @@ export class Bot {
     // do not break crowd control that breaks on damage (a feared or blinded lone enemy is left alone until it wakes)
     if (tgt && this.isPolymorphed(tgt) && enemies.length === 1) tgt = undefined;
     this.kickRisk = (u.classId === 'mage' || u.classId === 'priest') && this.brain.jukeChance > 0 && this.kickThreat(u, enemies);
+    // the trinket's cleanse frees it from a stun, fear or sheep (it works while locked down), whatever its health
+    if (u.trinket === 'trinket_cleanse' && enemies.length && u.auras.some((a) => AURAS[a.id]?.harmful && ['stun', 'fear', 'incapacitate'].includes(a.kind)) && this.noticed(`cleanse:${u.auras.map((a) => a.id).join()}`) && this.use(u, 'trinket_cleanse')) return;
     if (this.survive(u, enemies, allies, tgt)) return;
     switch (u.classId) {
       case 'warrior':
@@ -702,6 +718,10 @@ export class Bot {
     const attacker = melee[0] ?? byDist.find((e) => e.target === u.id || dist(u.pos, e.pos) <= 12);
     const disabled = (e: Unit) => e.auras.some((a) => HARD_CC.includes(a.kind));
     const stuck = u.auras.some((a) => HARD_CC.includes(a.kind) && a.kind !== 'root') || u.auras.some((a) => a.kind === 'root');
+    // the trinket: a shield when it is being hit, a heal when low
+    if (u.trinket === 'trinket_heal' && (emergency || f < B.panicHp * 1.4) && this.use(u, 'trinket_heal')) return true;
+    if (u.trinket === 'trinket_shield' && hurting && attacker && this.use(u, 'trinket_shield')) return true;
+    if (u.trinket === 'trinket_cleanse' && stuck && enemies.length && this.use(u, 'trinket_cleanse')) return true;
     switch (u.classId) {
       case 'warrior': {
         if (emergency && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return true;
@@ -716,6 +736,7 @@ export class Bot {
         if (emergency && this.use(u, 'evasion')) return true;
         if (attacker && !disabled(attacker) && dist(u.pos, attacker.pos) <= 9) {
           if (hurting && this.use(u, 'blind', attacker.id)) return true;
+          if (hurting && dist(u.pos, attacker.pos) <= 3 && this.use(u, 'gouge', attacker.id)) return true; // an incapacitate to get away
           if (u.cp >= 2 && hurting && this.use(u, 'kidney_shot', attacker.id)) return true;
         }
         // the smoke's edge blocks sight both ways: dropped at its feet it cuts off whoever shoots it from range (melee next
@@ -731,6 +752,8 @@ export class Bot {
           if (!u.auras.some((a) => a.kind === 'absorb') && (emergency || loss > B.dangerAt * 0.5 || (hurting && enemies.length)) && this.use(u, 'ice_barrier')) return true;
         }
         if (u.cast && !emergency) return false;
+        // images: the enemy loses its target and half its hits are wasted
+        if ((emergency || (hurting && melee.length)) && this.use(u, 'mirror_image')) return true;
         if (loss > B.dangerAt * 0.5 && this.use(u, 'evocation')) return true; // 15% less damage taken (and the mana) while it is being burst
         const close = byDist.filter((e) => dist(u.pos, e.pos) <= 9);
         if (close.length && hurting) {
@@ -755,6 +778,8 @@ export class Bot {
       }
       case 'priest': {
         const shielded = u.auras.some((a) => a.kind === 'absorb');
+        // fly away from melee on it or a lock-down: nothing can touch it for a few seconds
+        if (emergency && (melee.length || u.auras.some((a) => LOCKED_DOWN.includes(a.kind))) && this.use(u, 'ascend')) return true;
         if (emergency && this.use(u, 'desperate_prayer')) return true;
         if (u.cast && !emergency) return false;
         if (!shielded && (emergency || loss > B.dangerAt * 0.5) && this.use(u, 'power_word_shield', u.id)) return true;
@@ -780,6 +805,9 @@ export class Bot {
     const slowed = tgt.auras.some((a) => a.kind === 'slow');
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
+    // the banner goes down once the fight is near, at its own feet (its circle buffs the team standing in it)
+    if (d <= 20 && this.use(u, 'battle_banner', undefined, { x: u.pos.x, z: u.pos.z, ...(u.level === 1 ? { lv: 1 as const } : {}) })) return;
+    if (d <= 10 && this.use(u, 'dragon_roar')) return; // a cone ahead: the bot already faces its target
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
     // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach): a warrior never walks in
     if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !hasLOS(u.pos, tgt.pos, this.sim.arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
@@ -809,6 +837,8 @@ export class Bot {
     if (this.sim.isStealthed(u)) {
       if (d > 12) this.use(u, 'sprint');
       if (d > 8 && this.use(u, 'shadowstep', tgt.id)) return;
+      // against two or more: sap this one out of the fight first (the bot then turns on the other)
+      if (enemies.length >= 2 && this.use(u, 'sap', tgt.id)) return;
       this.useFirst(u, ['cheap_shot', 'garrote'], tgt.id);
       return;
     }
@@ -856,6 +886,8 @@ export class Bot {
     if (poly && this.use(u, 'polymorph', poly.id)) return;
     // out of mana and nobody on top of us: Evocation
     if (u.resource < u.resourceMax * 0.55 && !meleeNear.length && this.use(u, 'evocation')) return;
+    // a rune under our feet while we cast at range
+    if (tgt && !meleeNear.length && dist(u.pos, tgt.pos) <= 32 && !u.auras.some((a) => a.id === 'rune_of_power') && this.use(u, 'rune_of_power')) return;
 
     if (!tgt) return;
     // ground storms where the target cannot walk out in time: held in place, slowed, or standing still for the cast
@@ -913,6 +945,16 @@ export class Bot {
     // Smite is filler: drop it when something urgent shows up.
     if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(u.id);
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
+    // Purifying Light for a crowd of the team under something nasty (a stun, fear, root or damage over time on someone near)
+    {
+      const afflicted = [u, ...allies].filter((a) => dist(u.pos, a.pos) <= 11 && a.auras.some((x) => AURAS[x.id]?.harmful && AURAS[x.id]?.dispellable && ['stun', 'fear', 'incapacitate', 'root', 'dot'].includes(x.kind) && this.noticed(`pure:${a.id}:${x.id}:${x.expiresAt}`)));
+      if (afflicted.length && this.use(u, 'purifying_light')) return;
+    }
+    // Leap of Faith: a hurt ally out of reach is pulled in to be healed
+    {
+      const lost = allies.find((a) => a !== u && a.alive && hpFrac(a) < 0.65 && dist(u.pos, a.pos) > 18 && dist(u.pos, a.pos) <= 40 && hasLOS(u.pos, a.pos, sim.arena, u.level, a.level));
+      if (lost && this.use(u, 'leap_of_faith', lost.id)) return;
+    }
     if (this.tryInterrupt(u, enemies)) return; // Silence, if a talent put it on the bar
     // an enemy healing (itself or a partner): break the cast with a fear or a stun, unless our side needs healing first
     const mending = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.effects.some((x) => x.type === 'heal' || x.type === 'healMax' || x.type === 'healMissing') && !e.auras.some((a) => HARD_CC.includes(a.kind)));
@@ -1096,17 +1138,27 @@ export class Bot {
         const back = { x: tgt.pos.x - Math.sin(tgt.facing) * 2, z: tgt.pos.z - Math.cos(tgt.facing) * 2 };
         const helpless = tgt.auras.some((a) => HARD_CC.includes(a.kind));
         const turned = Math.abs(angleDiff(tgt.facing, angleTo(tgt.pos, u.pos))) > 1.6; // the target is not looking at us
-        if (sim.time >= this.backReadyAt && (helpless || turned) && d < 12) {
-          if (this.backUntil < sim.time) this.backUntil = sim.time + 1500; // one short try, then fight from the front
-          if (sim.time < this.backUntil && dist(u.pos, back) > 1.2) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
-          if (sim.time >= this.backUntil) this.backReadyAt = sim.time + 5000;
+        // one short try (then fight from the front for a while). Once started it runs to the end: the target turning back
+        // and forth as both circle must not start and stop it every tick, which would whip the bot round on the spot
+        if (!this.backTry && sim.time >= this.backReadyAt && (helpless || turned) && d < 12) {
+          this.backTry = true;
+          this.backUntil = sim.time + 1500;
+        }
+        if (this.backTry) {
+          if (sim.time < this.backUntil && dist(u.pos, back) > 1.2 && d < 12) return { facing: angleTo(u.pos, this.waypoint(u.pos, back, u.level, u.level)), fwd: 1, strafe: 0 };
+          this.backTry = false; // made it, ran out of time, or the target got away: the next try waits a while
+          this.backReadyAt = sim.time + 5000;
         }
         if (d <= 2.9) return { facing: toT, fwd: 0, strafe: 0 };
       }
       // out of reach includes a pillar in the way and a target on another floor (standing under someone on the deck is not melee range):
       // the route goes round the pillar or up the ramp
       const floorGap = Math.abs(heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));
-      if (d > reach || floorGap > 1.6 || !hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level)) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
+      // circling right at a pillar's edge, sight comes and goes every few steps: only a target out of sight for a moment
+      // sends it round the pillar (flipping between the two every tick spins the bot on the spot)
+      if (hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level)) this.meleeSightAt = sim.time;
+      const blind = sim.time - this.meleeSightAt > 400;
+      if (d > reach || floorGap > 1.6 || blind) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
       // in melee range: circle the target like a player does (strafing round it, stepping in when it drifts out, now and
       // then a hop), never a standing target. The step in keeps the circle tight enough to stay in reach.
       const circle = 0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility); // faster than this, the orbit itself spins the bot round

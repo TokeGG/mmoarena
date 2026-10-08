@@ -8,7 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   ABILITIES, AURAS, CLASSES, CLASS_BLURB, CLASS_IDS, SPECS, TUNING, autoFor, compileMods, describeAbility, describeAura, describeMods, describeTalent,
-  markedParts, newMods, talentsFor,
+  markedParts, newMods, talentsFor, TRINKET_TIER,
 } from '../shared/src/index';
 import type { AbilityDef, ClassId, SpecDef, TalentDef } from '../shared/src/index';
 
@@ -123,6 +123,21 @@ function classSection(c: ClassId): string[] {
   return out;
 }
 
+/** The tier IV trinket skills: one extra button beside the bar, the same three for every class. */
+function trinketSection(): string[] {
+  const out = ['<a id="trinkets"></a>', '## Trinkets', '', 'Tier IV of every class gives an extra button beside the action bar (bind it to any key in the key settings). It costs no mana, rage or energy and shares the global cooldown.', ''];
+  const first = CLASS_IDS[0];
+  for (const t of talentsFor(first, SPECS[first][0].id)[TRINKET_TIER] ?? []) {
+    if (!t.trinket) continue;
+    const d = describeAbility(ABILITIES[t.trinket]);
+    out.push(`<a id="${skillAnchor(t.trinket)}"></a>`, `#### ${ABILITIES[t.trinket].name}`, '', `*${cap(ABILITIES[t.trinket].school)}* · ${d.stats.join(' · ')}`, '');
+    for (const l of [...d.lines, ...d.added]) out.push(`- ${l}`);
+    for (const l of d.notes) out.push(`- *${l}*`);
+    out.push('', `Talent: tier IV *${t.name}*.`, '');
+  }
+  return out;
+}
+
 function effectsSection(): string[] {
   // who applies each effect: skills, talents (extra effects on a skill) and spec passives
   const sources = new Map<string, { links: string[]; ms: Set<number>; res?: string }>();
@@ -132,7 +147,7 @@ function effectsSection(): string[] {
     if (ms > 0) s.ms.add(ms);
     sources.set(id, s);
   };
-  for (const a of Object.values(ABILITIES)) for (const e of a.effects) if (e.type === 'aura' && AURAS[e.aura]) note(e.aura, skillLink(a.id), e.duration ?? AURAS[e.aura].duration, CLASSES[a.class].resource.type);
+  for (const a of Object.values(ABILITIES).filter((x) => !x.retired)) for (const e of a.effects) if (e.type === 'aura' && AURAS[e.aura]) note(e.aura, skillLink(a.id), e.duration ?? AURAS[e.aura].duration, a.class === 'trinket' ? 'mana' : CLASSES[a.class].resource.type);
   for (const c of CLASS_IDS) for (const s of SPECS[c]) {
     if (s.passive === 'cauterize') note('cauterized', `${s.name} passive (Cauterize)`, AURAS.cauterized.duration, CLASSES[c].resource.type);
     for (const t of talentsFor(c, s.id).flat()) for (const [ab, m] of Object.entries(t.mods.ability ?? {})) {
@@ -179,10 +194,11 @@ export function wikiMarkdown(): string {
     'Everything here comes straight from the game data, so it matches the in-game tooltips. Numbers are base values; each spec lists what it changes, and in game you can hover any skill to see your own numbers (hold **Alt** for how they are worked out). Back to the [player guide](README.md).',
     '',
     ...toc,
-    '- [Effects reference](#effects) · [Rules every class shares](#rules)',
+    '- [Trinkets](#trinkets) · [Effects reference](#effects) · [Rules every class shares](#rules)',
     '',
     ...rulesSection(),
     ...CLASS_IDS.flatMap(classSection),
+    ...trinketSection(),
     ...effectsSection(),
   ];
   return `${lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd()}\n`;

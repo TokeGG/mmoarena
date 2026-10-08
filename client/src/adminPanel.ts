@@ -2,6 +2,7 @@ import { CLASSES } from '@arena/shared';
 import type { AccountInfo, AdminLogRow, ClientMsg, MatchRecord, ServerMsg } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
 import { mapName } from './spectate';
+import { makeResizable } from './resizable';
 import type { Popup } from './popups';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -62,7 +63,11 @@ export class AdminPanel {
   private op: OwnerPanel;
   readonly popup: Popup = { isOpen: () => !!this.root, close: () => this.close(), el: () => this.root };
 
+  /** The window itself, kept between redraws so its size (grab the corner) sticks. */
+  private card = el('div', 'admp-card');
+
   constructor(private hooks: Hooks) {
+    makeResizable(this.card, { key: 'admin', corner: 'br', minW: 480, minH: 320, z: 61 });
     this.op = new OwnerPanel({ send: hooks.send, token: hooks.token, rerender: () => this.paint(), watch: (id) => { this.close(); hooks.watch(id); }, follow: (n) => hooks.follow(n) });
   }
 
@@ -127,7 +132,8 @@ export class AdminPanel {
     const r = this.root;
     if (!r) return;
     const a = this.hooks.account();
-    const card = el('div', 'admp-card');
+    const card = this.card;
+    card.replaceChildren();
     const head = el('div', 'admp-head');
     const o = this.op.overview;
     head.append(el('h2', '', '🛡 Admin'), el('span', 'admp-status', o ? `${o.online} online · ${o.rooms.length} match${o.rooms.length === 1 ? '' : 'es'} · v${o.version ?? '?'}${o.maintenance ? ' · 🛠 maintenance' : ''}` : ''));
@@ -297,7 +303,15 @@ export class AdminPanel {
     up.append(file);
     top.append(up);
     box.append(top);
-    box.append(el('p', 'mm-modal-foot', 'Every match played here, bot matches included (replays are kept for 30 days). "Train bots" makes the bots learn from it now, even a bot match (its losers learn from its winners), and keeps it for offline study.'));
+    box.append(el('p', 'mm-modal-foot', 'Every match played here, bot matches included (replays are kept for 30 days). "Train bots" makes the bots learn from it now and keeps it for offline study: from a match against bots they learn how people beat them; from a player match or a bot match, the losing classes learn from the winners (and people\u2019s habits are studied).'));
+    // the owner's switch: train on every finished match without picking each one
+    const auto = el('label', 'he-tgl admp-auto');
+    const cb = el('input');
+    cb.type = 'checkbox';
+    cb.checked = !!this.op.overview?.autoTrain;
+    cb.addEventListener('change', () => this.hooks.send({ t: 'admin_act', act: 'autotrain', on: cb.checked }));
+    auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
+    box.append(auto);
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));

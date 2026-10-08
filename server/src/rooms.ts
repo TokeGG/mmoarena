@@ -195,6 +195,11 @@ export class Room {
     if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
   }
 
+  /** The owner's "train on every match" switch, read when the match ends. */
+  autoTrain?: () => boolean;
+  /** The bots already studied this match the usual way (people against bots, counted). */
+  private studied = false;
+
   /** A player joined (the lobby brings in a dev's session numbers). */
   onJoin?: (p: Player) => void;
 
@@ -540,11 +545,27 @@ export class Room {
       // matches that earn nothing (bots only, dummies, test numbers, too short) still go in the owner's match list
       if (!this.recordSaved && !this.recordQueued) {
         this.recordQueued = true;
-        void this.saveRecord(this.recorder?.finish(this.roster()) ?? null).catch(() => {});
+        const replay = this.recorder?.finish(this.roster()) ?? null;
+        this.study(replay, false); // only with the owner's "train on every match" switch on
+        void this.saveRecord(replay).catch(() => {});
       }
       this.reportBots();
       if (++this.endedTicks >= TICKS_AFTER_END) this.close('match over');
     }
+  }
+
+  /**
+   * Once per match, the bots study its replay. `counted`: a match that earns progress (people played it out), which the
+   * bots always study the usual way. With the owner's "train on every match" switch on, every match is trained on as if
+   * the owner picked it: player-only matches teach the losers' classes through the winners, bots-only matches too.
+   */
+  private study(replay: ReturnType<ReplayRecorder['finish']> | null, counted: boolean): void {
+    if (!replay || !this.learner || this.studied || this.devTest) return;
+    const forced = !!this.autoTrain?.() && this.sim.time - this.sim.prepEndsAt >= 20000;
+    if (!counted && !forced) return;
+    this.studied = true;
+    if (forced) void this.learner.trainOn(replay, this.id).catch(() => undefined);
+    else void this.learner.learnFrom(replay, this.id);
   }
 
   /** Once per match: tell the bot learner how each bot's brain did against the humans it faced. */
@@ -580,7 +601,7 @@ export class Room {
     if (!this.countsForProgress || this.devTest || this.sim.time - this.sim.prepEndsAt < this.minCountedMs) return;
     const draw = this.sim.winner === 'draw';
     const replay = this.recorder?.finish(this.roster()) ?? null;
-    if (replay && this.learner) void this.learner.learnFrom(replay, this.id); // the bots study how the people played and how they beat the bots (on a worker thread); kept for offline study too
+    this.study(replay, true); // the bots study how the people played and how they beat the bots (on a worker thread); kept for offline study too
     const jobs: Promise<void>[] = [];
     for (const p of this.players.values()) {
       const me = this.sim.units.get(p.unitId!);
@@ -685,7 +706,14 @@ export class Lobby {
     void this.adminLog?.maintenance().then((m) => {
       if (!this.maintSet) this.maint = m;
     });
+    void this.adminLog?.autoTrain().then((on) => {
+      if (!this.autoTrainSet) this.autoTrain = on;
+    });
   }
+
+  /** The owner's switch: the bots train on every finished match (player matches and bot matches too). */
+  private autoTrain = false;
+  private autoTrainSet = false;
 
   /** Maintenance mode: while set, nobody but the owner starts a match; the text says why. */
   private maint: string | null = null;
@@ -696,7 +724,7 @@ export class Lobby {
     return {
       t: 'admin_overview', online: this.conns.size, queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
       uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
-      pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
+      pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, autoTrain: this.autoTrain, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
     };
   }
 
@@ -746,6 +774,14 @@ export class Lobby {
         const detail = msg.act === 'ban' || msg.act === 'mute' ? `${msg.minutes ? `${msg.minutes} min` : 'permanent'}${msg.reason ? `: ${msg.reason}` : ''}` : msg.act === 'set_rating' ? String(msg.value) : msg.act === 'note' ? msg.text : undefined;
         log(msg.act.replace('_', ' '), r.account.name, detail);
         send(p, { t: 'admin_result', ok: true, name: r.account.name, row: acc.adminRow(r.account, this.onlineKeys().has(r.account.key)) });
+        break;
+      }
+      case 'autotrain': {
+        this.autoTrain = !!msg.on;
+        this.autoTrainSet = true;
+        log(this.autoTrain ? 'train on every match: on' : 'train on every match: off');
+        await this.adminLog?.setAutoTrain(this.autoTrain);
+        send(p, this.overviewMsg());
         break;
       }
       case 'maintenance': {
@@ -810,7 +846,8 @@ export class Lobby {
     }
     const r = await this.learner.trainOn(replay, id);
     void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? `${r.lessons} bot${r.lessons === 1 ? '' : 's'} learned` : r.reason);
-    return r.ok ? { ok: true, text: `Trained on it: ${r.lessons} bot${r.lessons === 1 ? '' : 's'} took lessons from it, and it is kept for offline study.` } : { ok: false, text: r.reason };
+    const habits = r.ok && r.habits ? `, and ${r.habits} player${r.habits === 1 ? '\u2019s' : 's\u2019'} habits were studied` : '';
+    return r.ok ? { ok: true, text: `Trained on it: ${r.lessons} bot class${r.lessons === 1 ? '' : 'es'} took lessons from it${habits}. It is kept for offline study.` } : { ok: false, text: r.reason };
   }
 
   /**
@@ -1602,6 +1639,7 @@ export class Lobby {
     };
     room.learner = this.learner;
     room.onJoin = (q) => this.bringSession(room, q);
+    room.autoTrain = () => this.autoTrain;
     room.onRematch = (old) => this.rematch(old);
     room.onAbort = (r, leaver) => this.abortRanked(r, leaver);
     room.onRequeue = (r, q) => this.requeueAfterRanked(r, q);

@@ -8,12 +8,14 @@ export interface LookOption {
   id: string;
   label: string;
   choices: [value: string, label: string][];
+  /** The heading it sits under in the editor. */
+  group?: string;
 }
 
 export const LOOK_OPTIONS: LookOption[] = [
   { id: 'bar', label: 'Bar style', choices: [['smooth', 'Smooth'], ['segmented', 'Segmented'], ['striped', 'Striped'], ['flat', 'Flat'], ['chunky', 'Chunky']] },
   { id: 'hpText', label: 'Health text', choices: [['value', 'Value'], ['percent', 'Percent'], ['both', 'Value and percent'], ['none', 'Hidden']] },
-  { id: 'hpColor', label: 'Health colour', choices: [['team', 'Green and red'], ['class', 'Class colour'], ['health', 'By health left']] },
+  { id: 'hpColor', label: 'Health colour', choices: [['team', 'Ally / enemy colours'], ['class', 'Class colour'], ['health', 'By health left']] },
   { id: 'portrait', label: 'Portrait', choices: [['left', 'Left'], ['right', 'Right'], ['off', 'Hidden']] },
   { id: 'slots', label: 'Ability slots', choices: [['rounded', 'Rounded'], ['square', 'Square'], ['circle', 'Circle']] },
   { id: 'slotSize', label: 'Slot size', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] },
@@ -22,11 +24,32 @@ export const LOOK_OPTIONS: LookOption[] = [
   { id: 'cast', label: 'Cast bar', choices: [['classic', 'Classic'], ['slim', 'Slim'], ['large', 'Large']] },
   { id: 'log', label: 'Combat log', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'help', label: 'Help text', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
+  // health bars on your frames, the target's, party and enemies
+  { id: 'barHeight', label: 'Health bar height', group: 'Health bars', choices: [['thin', 'Thin'], ['normal', 'Normal'], ['thick', 'Thick'], ['huge', 'Huge']] },
+  { id: 'allyColor', label: 'Ally health colour', group: 'Health bars', choices: [['green', 'Green'], ['blue', 'Blue'], ['teal', 'Teal'], ['gold', 'Gold']] },
+  { id: 'enemyColor', label: 'Enemy health colour', group: 'Health bars', choices: [['red', 'Red'], ['orange', 'Orange'], ['purple', 'Purple'], ['pink', 'Pink']] },
+  { id: 'hpFont', label: 'Health text size', group: 'Health bars', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] },
+  // nameplates over heads in the world
+  { id: 'plates', label: 'Show nameplates', group: 'Nameplates', choices: [['all', 'Everyone'], ['enemies', 'Enemies only'], ['allies', 'Allies only'], ['off', 'Off']] },
+  { id: 'plateWidth', label: 'Nameplate width', group: 'Nameplates', choices: [['narrow', 'Narrow'], ['normal', 'Normal'], ['wide', 'Wide'], ['xwide', 'Extra wide']] },
+  { id: 'plateBar', label: 'Nameplate bar height', group: 'Nameplates', choices: [['thin', 'Thin'], ['normal', 'Normal'], ['thick', 'Thick'], ['huge', 'Huge']] },
+  { id: 'plateHp', label: 'Nameplate health text', group: 'Nameplates', choices: [['none', 'Hidden'], ['percent', 'Percent'], ['value', 'Value']] },
+  { id: 'plateColor', label: 'Nameplate colour', group: 'Nameplates', choices: [['team', 'Ally / enemy colours'], ['class', 'Class colour'], ['health', 'By health left']] },
+  { id: 'plateName', label: 'Names on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
+  { id: 'plateText', label: 'Nameplate text size', group: 'Nameplates', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] },
+  { id: 'plateCast', label: 'Cast bars on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
+  { id: 'plateDebuffs', label: 'Debuffs on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
 ];
 
 const DEFAULTS: Record<string, string> = {
   bar: 'smooth', hpText: 'value', hpColor: 'team', portrait: 'left', slots: 'rounded', slotSize: 'md', keys: 'show', names: 'show', cast: 'classic', log: 'show', help: 'show',
+  barHeight: 'normal', allyColor: 'green', enemyColor: 'red', hpFont: 'md',
+  plates: 'all', plateWidth: 'normal', plateBar: 'normal', plateHp: 'none', plateColor: 'team', plateName: 'show', plateText: 'md', plateCast: 'show', plateDebuffs: 'show',
 };
+
+/** Fill gradients for the ally and enemy health colours. */
+const ALLY: Record<string, string> = { green: 'linear-gradient(#58d37a,#2a8745)', blue: 'linear-gradient(#5aa8ff,#2860b8)', teal: 'linear-gradient(#4fd8c8,#1f8a80)', gold: 'linear-gradient(#ffd25a,#b8861f)' };
+const ENEMY: Record<string, string> = { red: 'linear-gradient(#e0523f,#8e271b)', orange: 'linear-gradient(#ff9a3c,#b85a14)', purple: 'linear-gradient(#b67bff,#6a32b8)', pink: 'linear-gradient(#ff6fb4,#b02a6c)' };
 const KEY = 'arena.hud.look.v1';
 
 export const look: Record<string, string> = { ...DEFAULTS };
@@ -80,12 +103,34 @@ export function hpText(health: number, max: number, absorb = 0): string {
   }
 }
 
-/** The fill colour of a health bar, following the Health colour option. */
-export function hpFill(enemy: boolean, frac: number, classColor: string): string {
-  if (look.hpColor === 'class') return `linear-gradient(${classColor}, ${classColor}aa)`;
-  if (look.hpColor === 'health') {
+/** A health fill for a colour mode: team colours (the ally / enemy picks), class colour, or green-to-red by health left. */
+function fillFor(mode: string, enemy: boolean, frac: number, classColor: string): string {
+  if (mode === 'class') return `linear-gradient(${classColor}, ${classColor}aa)`;
+  if (mode === 'health') {
     const hue = Math.round(Math.max(0, Math.min(1, frac)) * 120);
     return `linear-gradient(hsl(${hue} 70% 52%), hsl(${hue} 70% 32%))`;
   }
-  return enemy ? 'linear-gradient(#e0523f,#8e271b)' : 'linear-gradient(#58d37a,#2a8745)';
+  return enemy ? ENEMY[look.enemyColor] ?? ENEMY.red : ALLY[look.allyColor] ?? ALLY.green;
+}
+
+/** The fill colour of a health bar, following the Health colour option. */
+export function hpFill(enemy: boolean, frac: number, classColor: string): string {
+  return fillFor(look.hpColor, enemy, frac, classColor);
+}
+
+/** The fill colour of a nameplate's health bar, following the Nameplate colour option. */
+export function plateFill(enemy: boolean, frac: number, classColor: string): string {
+  return fillFor(look.plateColor, enemy, frac, classColor);
+}
+
+/** The text on a nameplate's health bar. */
+export function plateHpText(health: number, max: number): string {
+  if (look.plateHp === 'percent') return max > 0 ? `${Math.round((health / max) * 100)}%` : '0%';
+  if (look.plateHp === 'value') return `${health}`;
+  return '';
+}
+
+/** Whether to draw a nameplate over a unit. */
+export function plateShown(enemy: boolean): boolean {
+  return look.plates === 'all' || (look.plates === 'enemies' && enemy) || (look.plates === 'allies' && !enemy);
 }

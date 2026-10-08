@@ -38,7 +38,8 @@
     "type": "charge",
     "stopDistance": 2,
     "speed": 34,
-    "hit": 50
+    "hit": 50,
+    "only": "enemy"
    },
    {
     "type": "gain",
@@ -46,7 +47,8 @@
    },
    {
     "type": "aura",
-    "aura": "charge_stun"
+    "aura": "charge_stun",
+    "only": "enemy"
    }
   ]
  },
@@ -492,7 +494,8 @@
     "type": "aura",
     "aura": "recklessness"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "intimidating_shout",
@@ -596,7 +599,8 @@
     "type": "aura",
     "aura": "concussion_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "shield_wall",
@@ -614,7 +618,8 @@
     "type": "aura",
     "aura": "shield_wall"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "ice_barrier",
@@ -993,7 +998,8 @@
     "type": "aura",
     "aura": "shockwave_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1012,7 +1018,8 @@
     "type": "aura",
     "aura": "howl_slow"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1030,7 +1037,8 @@
     "type": "aura",
     "aura": "die_by_the_sword"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 1500,
@@ -1075,7 +1083,8 @@
     "type": "heal",
     "amount": 300
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1093,7 +1102,8 @@
     "type": "aura",
     "aura": "power_infusion"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1107,6 +1117,13 @@
   "target": "enemy",
   "cost": 30,
   "effects": [
+   {
+    "type": "strip",
+    "kinds": [
+     "dot",
+     "fear"
+    ]
+   },
    {
     "type": "aura",
     "aura": "blind"
@@ -1153,7 +1170,8 @@
     "type": "aura",
     "aura": "crippling_slow"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "ice_lance",
@@ -1197,7 +1215,8 @@
     "amount": 38,
     "delay": 600
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "scorch",
@@ -1268,7 +1287,8 @@
     "lockout": 5000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "id": "hammer_toss",
@@ -1286,7 +1306,8 @@
     "type": "aura",
     "aura": "hammer_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "harpoon_throw",
@@ -1305,7 +1326,8 @@
     "lockout": 3000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "id": "judgment_hammer",
@@ -1323,7 +1345,8 @@
     "type": "aura",
     "aura": "judgment_stun"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "hush",
@@ -1342,7 +1365,8 @@
     "lockout": 4000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "id": "plague_bloom",
@@ -1384,7 +1408,8 @@
     "radius": 6,
     "duration": 6000
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "knife_snipe",
@@ -1403,7 +1428,8 @@
     "lockout": 3000
    }
   ],
-  "requiresTargetCasting": true
+  "requiresTargetCasting": true,
+  "retired": true
  },
  {
   "castTime": 0,
@@ -1542,7 +1568,8 @@
     "type": "damage",
     "amount": 90
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "holy_nova",
@@ -1789,6 +1816,256 @@
     "type": "flag",
     "radius": 5,
     "duration": 8000
+   }
+  ]
+ },
+ {
+  "class": "trinket",
+  "school": "holy",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "ignoresControl": true,
+  "ignoresLockout": true,
+  "allowWhileRooted": true,
+  "id": "trinket_cleanse",
+  "name": "Cleansing Charm",
+  "effects": [
+   {
+    "type": "cleanse"
+   }
+  ]
+ },
+ {
+  "class": "trinket",
+  "school": "holy",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "ignoresControl": true,
+  "ignoresLockout": true,
+  "allowWhileRooted": true,
+  "id": "trinket_shield",
+  "name": "Warding Charm",
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "trinket_shield"
+   }
+  ]
+ },
+ {
+  "class": "trinket",
+  "school": "holy",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": false,
+  "cost": 0,
+  "ignoresControl": true,
+  "ignoresLockout": true,
+  "allowWhileRooted": true,
+  "id": "trinket_heal",
+  "name": "Healing Charm",
+  "effects": [
+   {
+    "type": "healMax",
+    "pct": 0.25
+   }
+  ]
+ },
+ {
+  "id": "gouge",
+  "name": "Gouge",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 20000,
+  "gcd": true,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "gouge"
+   }
+  ]
+ },
+ {
+  "id": "sap",
+  "name": "Sap",
+  "class": "rogue",
+  "school": "physical",
+  "target": "enemy",
+  "range": 3,
+  "castTime": 0,
+  "cooldown": 0,
+  "gcd": true,
+  "cost": 35,
+  "requiresStealth": true,
+  "effects": [
+   {
+    "type": "aura",
+    "aura": "sap"
+   }
+  ]
+ },
+ {
+  "id": "dragon_roar",
+  "name": "Dragon Roar",
+  "class": "warrior",
+  "school": "fire",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 12,
+  "coneDeg": 100,
+  "castTime": 0,
+  "cooldown": 30000,
+  "gcd": true,
+  "cost": 25,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 230
+   }
+  ]
+ },
+ {
+  "id": "battle_banner",
+  "name": "Battle Banner",
+  "class": "warrior",
+  "school": "physical",
+  "target": "ground",
+  "range": 20,
+  "castTime": 0,
+  "cooldown": 60000,
+  "gcd": true,
+  "cost": 20,
+  "effects": [
+   {
+    "type": "zoneBuff",
+    "radius": 8,
+    "duration": 12000,
+    "aura": "banner_buff",
+    "who": "allies"
+   }
+  ]
+ },
+ {
+  "id": "mirror_image",
+  "name": "Mirror Image",
+  "class": "mage",
+  "school": "arcane",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "dropTargets"
+   },
+   {
+    "type": "aura",
+    "aura": "mirror_image"
+   }
+  ]
+ },
+ {
+  "id": "rune_of_power",
+  "name": "Rune of Power",
+  "class": "mage",
+  "school": "arcane",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 45000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "zoneBuff",
+    "radius": 8,
+    "duration": 12000,
+    "aura": "rune_of_power",
+    "who": "self"
+   }
+  ]
+ },
+ {
+  "id": "leap_of_faith",
+  "name": "Leap of Faith",
+  "class": "priest",
+  "school": "holy",
+  "target": "ally",
+  "range": 40,
+  "castTime": 0,
+  "cooldown": 45000,
+  "gcd": true,
+  "cost": 30,
+  "effects": [
+   {
+    "type": "pull",
+    "stopDistance": 2,
+    "ally": true
+   }
+  ]
+ },
+ {
+  "id": "purifying_light",
+  "name": "Purifying Light",
+  "class": "priest",
+  "school": "holy",
+  "target": "aoe_all",
+  "range": 0,
+  "radius": 12,
+  "castTime": 0,
+  "cooldown": 50000,
+  "gcd": true,
+  "cost": 60,
+  "effects": [
+   {
+    "type": "dispel",
+    "all": true,
+    "only": "ally"
+   },
+   {
+    "type": "aura",
+    "aura": "purified",
+    "only": "ally"
+   }
+  ]
+ },
+ {
+  "id": "ascend",
+  "name": "Ascend to the Heavens",
+  "class": "priest",
+  "school": "holy",
+  "target": "self",
+  "range": 0,
+  "castTime": 0,
+  "cooldown": 90000,
+  "gcd": false,
+  "cost": 0,
+  "effects": [
+   {
+    "type": "dropTargets"
+   },
+   {
+    "type": "freeMove"
+   },
+   {
+    "type": "aura",
+    "aura": "ascended"
    }
   ]
  }

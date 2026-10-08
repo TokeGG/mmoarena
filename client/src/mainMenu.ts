@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, specPassives, switchTalents, talentsFor, PARTY_MAX,
+  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -46,7 +46,8 @@ export interface MainMenuHooks {
   extras?: HTMLElement;
 }
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+const TIER_TITLE = ['Class', 'Class', 'Spec', 'Trinket: an extra button beside the bar', 'Class skill: replaces one of your skills'];
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -518,7 +519,7 @@ export class MainMenu {
     else pas.append(el('div', 'sp-passive dim', 'None: everything this spec does is on its bar.'));
     pop.append(head, el('div', 'sp-desc', spec.desc), pas, sub, list);
     // another spec's card counts only what you can see picked: its own tiers wait until you choose it
-    if (spec.id !== this.build.spec) pop.append(el('div', 'sp-note', 'Numbers count only the talents picked now that this spec shares (tiers I–II). Pick the spec to choose its own.'));
+    if (spec.id !== this.build.spec) pop.append(el('div', 'sp-note', 'Numbers count only the talents picked now that this spec shares (tiers I–II and IV). Pick the spec to choose its own.'));
     if (!pop.isConnected) {
       document.body.append(pop);
       pop.addEventListener('mouseenter', () => window.clearTimeout(this.popHide));
@@ -554,16 +555,36 @@ export class MainMenu {
     this.talents.replaceChildren(
       ...talentsFor(this.classId, this.build.spec).map((tier, i) => {
         const row = el('div', 'mm-tier');
-        row.append(el('span', 'tier-label', ROMAN[i]));
+        const lab = el('span', 'tier-label', ROMAN[i]);
+        lab.title = TIER_TITLE[i] ?? '';
+        row.append(lab);
         for (const t of tier) {
           const b = el('button', `mm-talent${this.build.talents[i] === t.id ? ' sel' : ''}`);
           b.append(el('span', 'tn', t.name));
           tip(b, `talent:${this.classId}:${t.id}`);
           b.addEventListener('click', () => {
             this.build.talents[i] = this.build.talents[i] === t.id ? '' : t.id;
+            if (this.build.replace) delete this.build.replace[t.id];
             this.commit();
           });
           row.append(b);
+        }
+        // a pick that can replace more than one skill lets you choose which
+        const picked = tier.find((t) => t.id === this.build.talents[i]);
+        if (picked?.swap?.alt?.length) {
+          const choice = el('div', 'mm-replace');
+          choice.append(el('span', 'mr-l', 'Replaces'));
+          for (const from of [picked.swap.from, ...picked.swap.alt]) {
+            const rb = el('button', `mm-small${replacedBy(picked, this.build) === from ? ' mm-go' : ''}`, ABILITIES[from]?.name ?? from);
+            rb.addEventListener('click', () => {
+              this.build.replace = { ...(this.build.replace ?? {}), [picked.id]: from };
+              this.commit();
+            });
+            choice.append(rb);
+          }
+          const wrap = el('div', 'mm-tierwrap');
+          wrap.append(row, choice);
+          return wrap;
         }
         return row;
       }),

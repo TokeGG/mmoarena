@@ -2,6 +2,7 @@ import type { ClassId, School } from '@arena/shared';
 
 /** Emoji stand-ins for ability and aura art. Swap for real icon sprites later; only this file changes. */
 export const ABILITY_ICON: Record<string, string> = {
+  trinket_cleanse: '🧼', trinket_shield: '🔰', trinket_heal: '🧪', gouge: '👁️', sap: '🪵', dragon_roar: '🦖', battle_banner: '🏴', mirror_image: '👥', rune_of_power: '🔯', leap_of_faith: '🤝', purifying_light: '🕊️', ascend: '☁️',
   mortal_strike: '⚔️', charge: '🐗', pummel: '👊', hamstring: '🩸',
   frostbolt: '❄️', fireball: '🔥', polymorph: '🐑', counterspell: '🚫', frost_nova: '🧊', blink: '✨',
   flash_heal: '💚', power_word_shield: '🛡️', smite: '☀️', dispel_magic: '🪄', psychic_scream: '😱',

@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.68.4
+# WoW-style Arena · v0.69.0
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -76,11 +76,12 @@ Every class has three specs, each with its own eight-skill action bar (and, for 
 | [Duelist](WIKI.md#rogue-combat) | Rogue | Sustained melee | Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swings, energy and healing. |
 | [Shade](WIKI.md#rogue-subtlety) | Rogue | Control / mobility | Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes. |
 
-**Talents:** six tiers, one pick per tier, remembered for each spec.
+**Talents:** five tiers, one pick per tier, remembered for each spec.
 
-- **Tiers I and II** are the same for every spec of a class (they tune the skills all three share, or your health, speed, damage or regeneration).
-- **Tier III** strengthens your spec's own skills.
-- **Tiers IV, V and VI** each swap one skill on your bar for a different one (the talent says which it replaces), so you can take all three.
+- **Tiers I and II** are the same for every spec of a class. Tier I changes one of the class's own skills (Mage: how Blink works; Warrior: Charge; Priest: Psychic Scream; Rogue: its stealth kit). Tier II is a flat boost: speed, health or damage.
+- **Tier III** is your spec's own: stronger skills and a chance to trigger an extra effect.
+- **Tier IV, the trinket,** adds an extra button beside the action bar (default key **F**, rebindable under Controls): **Cleanse** (remove every harmful effect), **Shield** (an absorb) or **Heal**. It is the same for every class and costs nothing but its cooldown.
+- **Tier V** gives your class a new skill that replaces one you have (the mage chooses which: Polymorph or Counterspell).
 
 **Tooltips** show the numbers for your build: hover any skill, buff, talent or look. Numbers your spec or talents change are green, with the base value struck through, and the spec card on the menu flags the skills your talents change. Hold **Alt** for how each number is worked out.
 

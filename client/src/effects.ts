@@ -1135,7 +1135,7 @@ export class Effects {
       }
       seen.add(z.id);
       let m = this.zoneMeshes.get(z.id);
-      const color = SCHOOL_COLOR[z.school] ?? 0xff6a20;
+      const color = z.buff ? (z.buff === 'allies' ? 0xffd34a : 0xb48cff) : SCHOOL_COLOR[z.school] ?? 0xff6a20;
       if (!m) {
         const mk = (geo: THREE.BufferGeometry) => {
           const mat = new THREE.MeshBasicMaterial({ color: z.flag ? 0xffd34a : color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
@@ -1156,6 +1156,13 @@ export class Effects {
           this.ring(z.x, z.z, 0xffffff, 0.3, z.r * 0.7, 0.4, 0.09, 0.8);
           this.burst(z.x, 0.8, z.z, color, 34, 7, 0.6, 0.7);
         }
+      }
+      if (z.buff) {
+        // a steady circle that breathes slowly, fading in the last second
+        const fade = Math.min(1, Math.max(0, (z.end - now) / 1000));
+        (m.ring.material as THREE.MeshBasicMaterial).opacity = (0.75 + 0.15 * Math.sin(now / 300)) * fade;
+        (m.disc.material as THREE.MeshBasicMaterial).opacity = (0.22 + 0.06 * Math.sin(now / 450)) * fade;
+        continue;
       }
       const armed = now >= z.firstAt;
       const sincePulse = armed ? ((now - z.firstAt) % z.pulse) / z.pulse : 0;

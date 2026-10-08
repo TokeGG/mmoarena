@@ -2,6 +2,7 @@ import { ABILITIES, CLASSES, CLASS_IDS, applyPatches, mergePatches, skillInfo } 
 import type { ClassId, ClientMsg, DataPatch, ServerMsg, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
+import { makeResizable } from './resizable';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -84,6 +85,7 @@ export class DevPanel {
     this.button.title = 'Dev tools (F2)';
     this.button.addEventListener('click', () => this.toggle());
     document.body.append(this.root, this.button);
+    makeResizable(this.root, { key: 'dev', corner: 'br', minW: 240, minH: 200, z: 32 });
   }
 
   get open(): boolean {
