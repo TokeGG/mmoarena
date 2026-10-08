@@ -155,7 +155,11 @@ describe('dev tools', () => {
     assert.equal(o.rooms.length, 1);
     assert.equal(o.rooms[0].kind, 'practice');
     lobby.handle(owner, { t: 'admin_announce', text: 'Server restart in 5 minutes' } as ClientMsg);
-    assert.ok(outB.some((m) => m.t === 'notice' && m.text.includes('Server restart')));
+    const ann = last(outB, 'announce');
+    assert.ok(ann && ann.text === 'Server restart in 5 minutes' && ann.by === 'Toke', 'everyone online gets the banner');
+    const late: ServerMsg[] = [];
+    lobby.connect({ readyState: 1, send: (s: string) => late.push(JSON.parse(s)), on() {}, close() {}, OPEN: 1 } as any, '9.9.9.9');
+    assert.ok(late.some((m) => m.t === 'announce'), 'and so does someone coming online just after');
     const room = bobP.room;
     lobby.handle(owner, { t: 'admin_end', id: room.id } as ClientMsg);
     assert.equal(room.closed, true);

@@ -175,6 +175,8 @@ export type ServerMsg =
   | { t: 'duel_go'; with: string }
   /** A short message to show the player. */
   | { t: 'notice'; text: string }
+  /** The owner's announcement: a big banner for everyone online (and anyone joining in the next few minutes). */
+  | { t: 'announce'; text: string; by: string; at: number }
   | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }

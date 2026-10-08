@@ -8,6 +8,7 @@
     "start": "tsx src/main.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.132.0",
     "@arena/shared": "file:../shared",
     "tsx": "^4.19.0",
     "ws": "^8.18.0"

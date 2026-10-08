@@ -239,6 +239,14 @@ export class DevPanel {
     askBox.maxLength = 600;
     askBox.value = this.ask;
     askBox.addEventListener('input', () => (this.ask = askBox.value));
+    // Enter sends (Shift+Enter for a new line)
+    askBox.addEventListener('keydown', (e) => {
+      e.stopPropagation(); // typing here never casts spells
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        askGo.click();
+      }
+    });
     const askGo = el('button', 'mm-small mm-go', this.asking ? 'Claude is thinking…' : '🤖 Ask Claude');
     askGo.disabled = this.asking;
     askGo.addEventListener('click', () => {
