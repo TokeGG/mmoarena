@@ -65,12 +65,15 @@ const median = (xs: number[]) => {
 const isHuman = (o: ReplayData['units'][number]) => o.controller === 'player' || o.controller === undefined;
 
 /** Play a match back and say what each bot should learn from it, and how its people kick and fake. */
-/** `teachers`: for a match with no people in it (bots against bots), the team whose bots play the part of the people. */
+/**
+ * `teachers`: for a match with no bots on one side (bots against bots, or people against people), the winning team plays
+ * the part of the people and the losers are studied as if they were that class's bots.
+ */
 export interface StudyOptions { teachers?: TeamId }
 
 export function studyMatch(data: ReplayData, opts: StudyOptions = {}): MatchStudy {
   const kindOf = (u: ReplayData['units'][number]): 'human' | 'bot' | 'other' =>
-    opts.teachers !== undefined && u.controller === 'bot' ? (u.team === opts.teachers ? 'human' : 'bot') : isHuman(u) ? 'human' : u.controller === 'bot' ? 'bot' : 'other';
+    opts.teachers !== undefined && (u.controller === 'bot' || isHuman(u)) ? (u.team === opts.teachers ? 'human' : 'bot') : isHuman(u) ? 'human' : u.controller === 'bot' ? 'bot' : 'other';
   const kinds = new Map<number, 'human' | 'bot' | 'other'>(data.units.map((u, i) => [i + 1, kindOf(u)]));
   const bots = [...kinds].filter(([, k]) => k === 'bot').map(([id]) => id);
   const humans = [...kinds].filter(([, k]) => k === 'human').map(([id]) => id);
@@ -282,16 +285,22 @@ export function lessonBrain(base: Brain, lessons: Lessons, pull = 0.8, full = 15
 
 /** Everything the bot learner takes from one replay: how its people played, and how they beat the bots. */
 export function readReplay(data: ReplayData, opts: StudyOptions = {}): { humans: ReturnType<typeof measureHumans>; study: MatchStudy } {
-  // the winners of a bots-only match teach the losers how they were beaten; their own habits are not people's habits
-  return { humans: opts.teachers !== undefined ? [] : measureHumans(data), study: studyMatch(data, opts) };
+  // the winners teach the losers how they were beaten; people's habits are measured whenever people played (a bot's are not people's)
+  const people = data.units.some((u) => isHuman(u));
+  const study = studyMatch(data, opts);
+  if (!people) study.players = []; // in a bots-only match the "teachers" are bots: their kick timing is not people's
+  return { humans: people ? measureHumans(data) : [], study };
 }
 
 /**
- * How to learn from a replay someone chose to train on: as usual when people played in it; when only bots did, the
- * winning team teaches the losing one. Null when there is nothing to learn (no people, and no winner).
+ * How to learn from a replay someone chose to train on. People against bots: as usual. Only bots, or only people: the
+ * winning team teaches the losing one (a people-only match with no winner still teaches people's habits). Null when there
+ * is nothing to learn (only bots, and no winner).
  */
 export function forcedStudy(data: ReplayData): StudyOptions | null {
   const people = data.units.some((u) => isHuman(u));
-  if (people) return {};
-  return data.winner === 0 || data.winner === 1 ? { teachers: data.winner } : null;
+  const bots = data.units.some((u) => u.controller === 'bot');
+  if (people && bots) return {};
+  if (data.winner === 0 || data.winner === 1) return { teachers: data.winner };
+  return people ? {} : null;
 }

@@ -11,12 +11,17 @@ interface Slot {
   dx: number;
   dy: number;
   s: number;
+  /** Width and height set by dragging the element's corner (before its scale), or none for its natural size. */
+  w?: number;
+  h?: number;
 }
 /** What is saved (and synced to other devices): the offset as a fraction of the screen, so a layout made on a big screen still fits a small one. */
 interface Saved {
   fx: number;
   fy: number;
   s: number;
+  w?: number;
+  h?: number;
 }
 
 const TARGETS: [string, string][] = [
@@ -78,6 +83,9 @@ export class HudLayout {
   private data: Record<string, Slot> = {};
   private bar: HTMLElement;
   private drag: { id: string; px: number; py: number; dx: number; dy: number } | null = null;
+  /** Dragging an element's corner grip: its size when the drag began. */
+  private sizing: { id: string; px: number; py: number; w: number; h: number } | null = null;
+  private grips = new Map<string, HTMLElement>();
   private style = 'classic';
   private styleSel!: HTMLSelectElement;
   private styleDesc!: HTMLElement;
@@ -97,7 +105,8 @@ export class HudLayout {
         const r = raw[id];
         if (!r || !Number.isFinite(r.s)) continue;
         const sc = clamp(r.s!, 0.6, 1.6);
-        if (Number.isFinite(r.fx) && Number.isFinite(r.fy)) this.saved[id] = { fx: clamp(r.fx!, -1, 1), fy: clamp(r.fy!, -1, 1), s: sc };
+        const size = { ...(Number.isFinite(r.w) ? { w: clamp(r.w!, 40, 2000) } : {}), ...(Number.isFinite(r.h) ? { h: clamp(r.h!, 16, 1400) } : {}) };
+        if (Number.isFinite(r.fx) && Number.isFinite(r.fy)) this.saved[id] = { fx: clamp(r.fx!, -1, 1), fy: clamp(r.fy!, -1, 1), s: sc, ...size };
         else if (Number.isFinite(r.dx) && Number.isFinite(r.dy)) this.saved[id] = { fx: r.dx! / window.innerWidth, fy: r.dy! / window.innerHeight, s: sc }; // an older pixel layout
       }
       this.fromSaved();
@@ -143,7 +152,10 @@ export class HudLayout {
       e.addEventListener('wheel', (ev) => this.wheel(ev, id), { passive: false });
     }
     window.addEventListener('pointermove', (ev) => this.move(ev));
-    window.addEventListener('pointerup', () => (this.drag = null));
+    window.addEventListener('pointerup', () => {
+      this.drag = null;
+      this.sizing = null;
+    });
     window.addEventListener('resize', () => {
       if (!this.editing) this.fromSaved();
       this.fitAll();
@@ -155,6 +167,7 @@ export class HudLayout {
   start() {
     this.editing = true;
     document.body.classList.add('hud-edit');
+    for (const [id] of TARGETS) this.addGrip(id);
     this.bar.classList.remove('hidden');
     this.selected = null;
     this.paintSelection();
@@ -168,6 +181,8 @@ export class HudLayout {
     this.editing = false;
     this.drag = null;
     document.body.classList.remove('hud-edit');
+    for (const g of this.grips.values()) g.remove();
+    this.grips.clear();
     this.bar.classList.add('hidden');
     this.gridEl.classList.add('hidden');
     window.removeEventListener('keydown', this.keyHandler);
@@ -230,7 +245,7 @@ export class HudLayout {
     };
     const panel = mk('div', 'he-panel');
     const head = mk('div', 'he-head');
-    head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Scroll to resize. Arrow keys nudge the last one you moved.'));
+    head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Drag the corner to change width and height (double-click it for the natural size). Scroll to scale. Arrow keys nudge the last one you moved.'));
     const done = mk('button', 'primary', 'Done');
     done.addEventListener('click', () => this.stop());
     const reset = mk('button', '', 'Reset all');
@@ -279,9 +294,14 @@ export class HudLayout {
     // look options
     const details = document.createElement('details');
     details.className = 'he-look';
-    details.append(mk('summary', '', 'Frames, bars and slots'));
+    details.append(mk('summary', '', 'Frames, health bars, nameplates and slots'));
     const grid = mk('div', 'he-lookgrid');
+    let group = '';
     for (const o of LOOK_OPTIONS) {
+      if ((o.group ?? '') !== group) {
+        group = o.group ?? '';
+        grid.append(mk('h4', 'he-group', group));
+      }
       const l = mk('label', '', `${o.label} `);
       const sel = document.createElement('select');
       for (const [v, t] of o.choices) sel.append(new Option(t, v));
@@ -368,6 +388,44 @@ export class HudLayout {
     const s = this.data[id];
     e.style.translate = s ? `${s.dx}px ${s.dy}px` : '';
     e.style.scale = s && s.s !== 1 ? String(s.s) : '';
+    e.style.width = s?.w ? `${s.w}px` : '';
+    e.style.height = s?.h ? `${s.h}px` : '';
+    e.classList.toggle('hud-sized', !!(s?.w || s?.h));
+  }
+
+  /** The corner grip shown on an element while editing: drag it to change the element's width and height. */
+  private addGrip(id: string) {
+    const e = document.getElementById(id);
+    if (!e || this.grips.has(id)) return;
+    const g = document.createElement('div');
+    g.className = 'hud-grip';
+    g.title = 'Drag to change the width and height · double-click for the natural size';
+    g.addEventListener('pointerdown', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      const s = this.slot(id);
+      const r = e.getBoundingClientRect();
+      this.selected = id;
+      this.paintSelection();
+      this.sizing = { id, px: ev.clientX, py: ev.clientY, w: r.width / s.s, h: r.height / s.s };
+    });
+    g.addEventListener('dblclick', (ev) => {
+      ev.stopPropagation();
+      const s = this.slot(id);
+      delete s.w;
+      delete s.h;
+      this.apply(id);
+      this.fit(id);
+      this.save();
+    });
+    e.append(g);
+    this.grips.set(id, g);
+    // elements that redraw their insides (the action bar, party and enemy frames) get the grip back
+    const mo = new MutationObserver(() => {
+      if (!this.grips.has(id)) return mo.disconnect();
+      if (g.parentElement !== e) e.append(g);
+    });
+    mo.observe(e, { childList: true });
   }
 
   /** Keep an element fully on screen by nudging its offset. Skips elements that are not currently laid out. */
@@ -397,7 +455,7 @@ export class HudLayout {
   /** Pixel offsets for this window size from the saved fractions. */
   private fromSaved() {
     this.data = {};
-    for (const [id, f] of Object.entries(this.saved)) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s };
+    for (const [id, f] of Object.entries(this.saved)) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s, ...(f.w ? { w: f.w } : {}), ...(f.h ? { h: f.h } : {}) };
     for (const [id] of TARGETS) this.apply(id);
   }
 
@@ -420,6 +478,15 @@ export class HudLayout {
   }
 
   private move(ev: PointerEvent) {
+    const z = this.sizing;
+    if (z) {
+      const s = this.slot(z.id);
+      const g = this.grid.snap && !ev.altKey ? this.grid.size / 2 : 1;
+      s.w = Math.round(clamp(z.w + (ev.clientX - z.px) / s.s, 40, window.innerWidth) / g) * g;
+      s.h = Math.round(clamp(z.h + (ev.clientY - z.py) / s.s, 16, window.innerHeight) / g) * g;
+      this.apply(z.id);
+      return;
+    }
     const d = this.drag;
     if (!d) return;
     const s = this.slot(d.id);
@@ -440,7 +507,7 @@ export class HudLayout {
   }
 
   private save() {
-    this.saved = Object.fromEntries(Object.entries(this.data).map(([id, d]) => [id, { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s }]));
+    this.saved = Object.fromEntries(Object.entries(this.data).map(([id, d]) => [id, { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s, ...(d.w ? { w: Math.round(d.w) } : {}), ...(d.h ? { h: Math.round(d.h) } : {}) }]));
     try {
       localStorage.setItem(KEY, JSON.stringify(this.saved));
     } catch {

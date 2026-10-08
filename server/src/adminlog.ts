@@ -33,6 +33,20 @@ export class AdminLog {
     else await this.store.del('maintenance');
   }
 
+  /** Whether the bots train on every finished match, player matches included (kept over restarts). */
+  async autoTrain(): Promise<boolean> {
+    try {
+      return (await this.store.get('autotrain')) === '1';
+    } catch {
+      return false;
+    }
+  }
+
+  async setAutoTrain(on: boolean): Promise<void> {
+    if (on) await this.store.set('autotrain', '1');
+    else await this.store.del('autotrain');
+  }
+
   add(by: string, action: string, target?: string, detail?: string): Promise<void> {
     const run = this.chain.then(async () => {
       const rows = await this.list();

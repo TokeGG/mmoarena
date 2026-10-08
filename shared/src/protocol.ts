@@ -10,8 +10,8 @@ export const PROTOCOL_VERSION = 9;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel. */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'autotrain';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'autotrain'];
 /** A running match in the owner's admin panel. */
 export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
 /** What a unit is playing with, shown to people watching a match. */
@@ -147,7 +147,7 @@ export type ServerMsg =
   | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
   /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
-  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean }
+  | { t: 'admin_overview'; online: number; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
   | { t: 'admin_log'; rows: AdminLogRow[] }
   | { t: 'admin_history'; name: string; rows: MatchRecord[] }
   /** Every match played on the server (the owner's match list). */

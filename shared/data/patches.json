@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.68.5",
+  "date": "2026-10-08",
+  "at": "2026-10-08T01:31:06Z",
+  "title": "Resize your HUD, nameplate and health bar options, smarter bots",
+  "changes": [
+   "Edit HUD: every element now has a corner grip. Drag it to change the width and height (double-click it for the natural size); frames stretch their health bars, the action bar wraps into rows, the combat log and cast bar take the new size. Scroll still scales, and sizes are saved with your layout.",
+   "New Health bars options in Edit HUD: bar height (thin to huge), ally and enemy health colours, and health text size.",
+   "New Nameplates options in Edit HUD: show them for everyone, enemies only, allies only or nobody; width; bar height; health text (percent or value); colour by team, class or health left; names on or off; text size; cast bars and debuffs on or off.",
+   "Windows like the spectator builds panel can be resized by dragging their corner.",
+   "Bots retrained, and they now also learn from matches between players: the losing classes learn from how the winners beat them."
+  ]
+ },
+ {
   "version": "0.68.4",
   "date": "2026-10-08",
   "at": "2026-10-08T00:37:44Z",

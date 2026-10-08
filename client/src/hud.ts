@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
-import { hpFill, hpText } from './hudLook';
+import { hpFill, hpText, plateFill, plateHpText, plateShown } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
@@ -500,7 +500,7 @@ export class Hud {
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; target?: boolean; mark?: number }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; target?: boolean; mark?: number; classId?: ClassId }[],
     now: number,
   ) {
     const seen = new Set<number>();
@@ -509,7 +509,7 @@ export class Hud {
       let p = this.plates.get(u.id);
       if (!p) {
         const root = el('div', 'plate');
-        const name = el('div');
+        const name = el('div', 'pname');
         const bar = new Bar(HP_ALLY, true);
         const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
         cast.root.classList.add('pcast', 'hidden');
@@ -526,7 +526,7 @@ export class Hud {
         p = { root, name, title, bar, cast, icon, av: '', debuffs, dkey: '', mark, arrow, mk: 0 };
         this.plates.set(u.id, p);
       }
-      p.root.classList.toggle('hidden', !u.visible || !u.alive);
+      p.root.classList.toggle('hidden', !u.visible || !u.alive || !plateShown(u.enemy));
       p.root.style.left = `${u.x}px`;
       p.root.style.top = `${u.y}px`;
       const who = this.roster.get(u.id);
@@ -553,8 +553,8 @@ export class Hud {
       p.root.classList.toggle('targeted', !!u.target);
       p.title.textContent = who?.title ? `«${who.title}»` : '';
       p.title.classList.toggle('hidden', !who?.title);
-      p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);
-      p.bar.set(u.health, u.maxHealth, '', u.absorb ?? 0);
+      p.bar.setColor(plateFill(u.enemy, u.maxHealth > 0 ? u.health / u.maxHealth : 0, u.classId ? CLASSES[u.classId].color : u.enemy ? HP_ENEMY : HP_ALLY));
+      p.bar.set(u.health, u.maxHealth, plateHpText(u.health, u.maxHealth), u.absorb ?? 0);
       // harmful effects on the unit (stuns, roots, slows, DoTs), each with its time left; rebuilt only when the set or a second changes
       const bad = (u.auras ?? []).filter((a) => AURAS[a.id]?.harmful).slice(0, 6);
       const dkey = bad.map((a) => `${a.id}:${a.expiresAt > 0 ? Math.ceil((a.expiresAt - now) / 1000) : ''}`).join();

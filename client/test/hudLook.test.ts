@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 const store = new Map<string, string>();
 (globalThis as any).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
-const { LOOK_OPTIONS, hpFill, hpText, look, resetLook, setLook } = await import('../src/hudLook');
+const { LOOK_OPTIONS, hpFill, hpText, look, plateFill, plateHpText, plateShown, resetLook, setLook } = await import('../src/hudLook');
 const { Keybinds } = await import('../src/keybinds');
 
 describe('HUD look options', () => {
@@ -56,5 +56,37 @@ describe('detailed tooltips key', () => {
     k.set('detail', 0, 'ControlLeft');
     assert.equal(k.isHeld('detail', new Set(['ControlLeft'])), true);
     assert.equal(k.isHeld('detail', new Set(['AltLeft'])), false);
+  });
+});
+
+describe('nameplate and health bar options', () => {
+  it('nameplates for everyone, enemies only, allies only, or none', () => {
+    resetLook();
+    assert.ok(plateShown(true) && plateShown(false));
+    setLook('plates', 'enemies');
+    assert.ok(plateShown(true) && !plateShown(false));
+    setLook('plates', 'allies');
+    assert.ok(!plateShown(true) && plateShown(false));
+    setLook('plates', 'off');
+    assert.ok(!plateShown(true) && !plateShown(false));
+    resetLook();
+  });
+
+  it('health colours follow the ally and enemy picks; nameplates have their own colour mode and text', () => {
+    resetLook();
+    setLook('enemyColor', 'purple');
+    setLook('allyColor', 'blue');
+    assert.match(hpFill(true, 1, '#fff'), /#b67bff/);
+    assert.match(hpFill(false, 1, '#fff'), /#5aa8ff/);
+    setLook('plateColor', 'class');
+    assert.match(plateFill(true, 1, '#123456'), /#123456/);
+    setLook('plateColor', 'health');
+    assert.match(plateFill(true, 0, '#fff'), /hsl\(0 /);
+    setLook('plateHp', 'percent');
+    assert.equal(plateHpText(250, 1000), '25%');
+    setLook('plateHp', 'value');
+    assert.equal(plateHpText(250, 1000), '250');
+    resetLook();
+    assert.equal(plateHpText(250, 1000), '', 'hidden by default');
   });
 });

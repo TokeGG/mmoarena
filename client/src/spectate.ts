@@ -1,4 +1,5 @@
 import type { Popup } from './popups';
+import { makeResizable } from './resizable';
 import { ABILITIES, ARENAS, CLASSES, contentHash, specOf, talentsFor } from '@arena/shared';
 import type { LiveMatch, ReplayData, StatRow, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
@@ -64,6 +65,7 @@ export class BuildsPanel {
   }
   constructor() {
     document.body.append(this.root);
+    makeResizable(this.root, { key: 'builds', corner: 'bl', minW: 180, minH: 140, z: 30 });
   }
   get visible(): boolean {
     return !this.root.classList.contains('hidden');

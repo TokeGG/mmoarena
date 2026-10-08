@@ -210,6 +210,38 @@
   .markpick { position:fixed; z-index:9500; display:flex; gap:4px; padding:6px; background:#151515ee; border:1px solid #ffffff33; border-radius:10px; box-shadow:0 6px 20px #000a; }
   .markpick-b { width:34px; height:34px; font-size:20px; background:#ffffff10; border:1px solid transparent; border-radius:8px; cursor:pointer; }
   .markpick-b:hover { background:#ffffff26; } .markpick-b.sel { border-color:#ffd24a; background:#ffd24a22; } .markpick-b.clear { color:#ccc; font-size:16px; }
+  .rs-grip { position:fixed; width:16px; height:16px; cursor:nwse-resize; touch-action:none; background:linear-gradient(135deg, transparent 0 45%, #c9a24a 45% 55%, transparent 55% 65%, #c9a24a 65% 75%, transparent 75%); opacity:.75; border-radius:0 0 6px 0; }
+  .rs-grip.bl { cursor:nesw-resize; transform:scaleX(-1); }
+  .rs-grip:hover { opacity:1; }
+  body.rs-dragging { cursor:nwse-resize; user-select:none; }
+  .hud-grip { position:absolute; right:0; bottom:0; width:16px; height:16px; cursor:nwse-resize; background:linear-gradient(135deg, transparent 0 40%, #ffd24a 40% 55%, transparent 55% 65%, #ffd24a 65% 80%, transparent 80%); border-radius:3px; z-index:5; touch-action:none; }
+  body.hud-edit [data-hud] > .hud-grip { pointer-events:auto !important; cursor:nwse-resize; }
+  /* HUD elements sized by hand: their insides stretch to the new box */
+  .hud-sized { box-sizing:border-box; overflow:hidden; }
+  .frame.hud-sized, .hud-sized .frame { align-items:stretch; }
+  .frame.hud-sized .fbody, .hud-sized .frame .fbody { flex:1; display:flex; flex-direction:column; min-width:0; }
+  .frame.hud-sized .fbody > .bar:not(.thin), .hud-sized .frame .fbody > .bar:not(.thin) { flex:1 1 auto; height:auto; min-height:10px; }
+  .hud-sized .bar .blabel { display:flex; align-items:center; justify-content:center; line-height:1; }
+  #party.hud-sized .frame, #enemies.hud-sized .frame { width:100% !important; flex:1 1 0; min-height:0; }
+  #actionbar.hud-sized { flex-wrap:wrap; justify-content:center; align-content:center; }
+  #cast.hud-sized .bar { height:100% !important; margin:0; }
+  #log.hud-sized { max-width:none; }
+  /* health bars (Edit HUD > Health bars) */
+  body[data-hud-bar-height=thin] .frame .bar:not(.thin) { height:9px; } body[data-hud-bar-height=thin] .frame .bar:not(.thin) .blabel { font-size:8px; line-height:9px; }
+  body[data-hud-bar-height=thick] .frame .bar:not(.thin) { height:22px; } body[data-hud-bar-height=thick] .frame .bar:not(.thin) .blabel { line-height:22px; }
+  body[data-hud-bar-height=huge] .frame .bar:not(.thin) { height:32px; } body[data-hud-bar-height=huge] .frame .bar:not(.thin) .blabel { line-height:32px; font-size:14px; }
+  body[data-hud-hp-font=sm] .frame .bar .blabel { font-size:9px; } body[data-hud-hp-font=lg] .frame .bar .blabel { font-size:14px; }
+  /* nameplates (Edit HUD > Nameplates) */
+  body[data-hud-plate-width=narrow] .plate { width:64px; } body[data-hud-plate-width=wide] .plate { width:130px; } body[data-hud-plate-width=xwide] .plate { width:170px; }
+  .plate > .bar.thin .blabel { font-size:9px; line-height:6px; font-weight:700; }
+  body[data-hud-plate-bar=thin] .plate > .bar.thin { height:4px; } body[data-hud-plate-bar=thin] .plate > .bar.thin .blabel { display:none; }
+  body[data-hud-plate-bar=thick] .plate > .bar.thin { height:11px; } body[data-hud-plate-bar=thick] .plate > .bar.thin .blabel { line-height:11px; }
+  body[data-hud-plate-bar=huge] .plate > .bar.thin { height:16px; } body[data-hud-plate-bar=huge] .plate > .bar.thin .blabel { line-height:16px; font-size:11px; }
+  body[data-hud-plate-name=hide] .plate .pname, body[data-hud-plate-name=hide] .plate .ptitle { display:none !important; }
+  body[data-hud-plate-text=sm] .plate { font-size:9px; } body[data-hud-plate-text=lg] .plate { font-size:14px; }
+  body[data-hud-plate-cast=hide] .plate .pcast { display:none !important; }
+  body[data-hud-plate-debuffs=hide] .plate .pdebuffs { display:none !important; }
+  .he-group { grid-column:1/-1; margin:8px 0 2px; font-size:12px; color:#ffd24a; border-bottom:1px solid #ffffff22; }
   .devp-title { font-weight:700; color:#ffd24a; margin:4px 0; }
   .devp-fields { display:grid; gap:3px; }
   .devp-field { display:flex; justify-content:space-between; align-items:center; gap:6px; }
