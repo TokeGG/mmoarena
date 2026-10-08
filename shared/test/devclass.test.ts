@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ArenaSim, CLASSES, SPECS, TALENTS, applyPatches, currentValue, tunableNumbers, validPatch, skillInfo } from '../src/index';
+import { ABILITIES, ArenaSim, CLASSES, SPECS, TALENTS, applyPatches, currentValue, tunableNumbers, validPatch, skillInfo } from '../src/index';
 
 describe('dev tuning of classes, specs and talents', () => {
   it('a class, a spec and a talent number can be patched, in every copy of the talent, and put back', () => {
@@ -48,5 +48,44 @@ describe('dev tuning of classes, specs and talents', () => {
     const withFields = info.modifiers.filter((m) => m.fields.length);
     assert.ok(withFields.length > 0);
     assert.ok(withFields.every((m) => m.fields.every((f) => f.file === 'talents' || f.file === 'specs' || f.file === 'auras')));
+  });
+
+  it('a skill\'s yes/no options and choices can be patched and put back', () => {
+    const was = { gcd: ABILITIES.kick.gcd, um: ABILITIES.kick.unmissable, target: ABILITIES.kick.target };
+    const undo = applyPatches([
+      { file: 'abilities', id: 'kick', path: ['gcd'], value: 1 },
+      { file: 'abilities', id: 'kick', path: ['unmissable'], value: 1 },
+      { file: 'abilities', id: 'kick', path: ['target'], value: 'any' },
+    ]);
+    assert.equal(ABILITIES.kick.gcd, true);
+    assert.equal(ABILITIES.kick.unmissable, true);
+    assert.equal(ABILITIES.kick.target, 'any');
+    undo();
+    assert.equal(ABILITIES.kick.gcd, was.gcd);
+    assert.equal(ABILITIES.kick.unmissable, was.um);
+    assert.ok(!('unmissable' in ABILITIES.kick) || was.um !== undefined, 'an option that was absent is absent again');
+    assert.equal(ABILITIES.kick.target, was.target);
+    assert.ok(!validPatch({ file: 'abilities', id: 'kick', path: ['target'], value: 'nonsense' }));
+    assert.ok(!validPatch({ file: 'abilities', id: 'kick', path: ['gcd'], value: 5 }));
+    const opts = skillInfo('kick').sections[0].options!;
+    assert.ok(opts.flags.some((f) => f.key === 'gcd') && opts.choices.some((c) => c.key === 'target'));
+  });
+
+  it('resetMatch puts everyone back at the start, alive and live at once', () => {
+    const sim = new ArenaSim({ seed: 1, prepMs: 0 });
+    const a = sim.addUnit({ name: 'a', classId: 'warrior', team: 0 });
+    const b = sim.addUnit({ name: 'b', classId: 'mage', team: 1 });
+    const spawn = { ...a.pos };
+    for (let i = 0; i < 20; i++) sim.step();
+    a.pos = { x: 5, z: 5 };
+    a.health = 10;
+    b.alive = false;
+    b.health = 0;
+    sim.resetMatch();
+    assert.deepEqual(a.pos, spawn);
+    assert.equal(a.health, a.maxHealth);
+    assert.ok(b.alive && b.health === b.maxHealth);
+    assert.equal(sim.phase, 'live');
+    assert.equal(sim.winner, null);
   });
 });

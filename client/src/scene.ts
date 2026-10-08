@@ -90,13 +90,33 @@ export class ArenaScene {
     const resize = () => {
       this.renderer.setSize(window.innerWidth, window.innerHeight, false);
       this.camera.aspect = window.innerWidth / window.innerHeight;
-      this.camera.updateProjectionMatrix();
+      this.applyShift(true);
       this.composer?.setPixelRatio(this.renderer.getPixelRatio());
       this.composer?.setSize(window.innerWidth, window.innerHeight);
     };
     this.composer = this.buildComposer();
     window.addEventListener('resize', resize);
     resize();
+  }
+
+  private shift = { x: 0, y: 0 };
+  /** Slides the whole picture by a fraction of the screen (x right, y down), e.g. to keep the menu model clear of a docked window. */
+  setViewShift(x: number, y: number) {
+    this.shift.x += (x - this.shift.x) * 0.2;
+    this.shift.y += (y - this.shift.y) * 0.2;
+    if (Math.abs(this.shift.x - x) < 0.0005) this.shift.x = x;
+    if (Math.abs(this.shift.y - y) < 0.0005) this.shift.y = y;
+    this.applyShift(false);
+  }
+  private applied = { x: 0, y: 0 };
+  private applyShift(force: boolean) {
+    const { x, y } = this.shift;
+    if (!force && x === this.applied.x && y === this.applied.y) return;
+    this.applied = { x, y };
+    const w = window.innerWidth, h = window.innerHeight;
+    if (x === 0 && y === 0) this.camera.clearViewOffset();
+    else this.camera.setViewOffset(w, h, -x * w, -y * h, w, h);
+    this.camera.updateProjectionMatrix();
   }
 
   /** Bloom makes torches, runes and spell glows bloom; the grade adds a warm punch and a soft vignette. */

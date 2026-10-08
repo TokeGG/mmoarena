@@ -28,6 +28,9 @@ import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spe
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel } from './adminPanel';
 import { AnnounceBanner } from './announce';
+import { KillFeed } from './killfeed';
+import { Recap } from './recap';
+import { RecapCard } from './recapCard';
 import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
 
@@ -109,6 +112,19 @@ const endChoice = (() => {
   };
 })();
 let latest: Snapshot | null = null;
+const killFeed = new KillFeed();
+const recap = new Recap();
+const recapCard = new RecapCard();
+let recapPhase = '';
+/** False once a replay was scrubbed: its counts no longer cover the whole match. */
+let recapExact = true;
+/** The recap card for the end of the match, titled like the scoreboard. */
+function showRecap(snap: Snapshot) {
+  if (!recapExact) return;
+  const w = snap.winner;
+  const mine = snap.units.find((u) => u.id === you)?.team;
+  recapCard.show(recap, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat', spec ? null : team);
+}
 let latestAt = 0;
 let lastCount = -1;
 let wasAir = false;
@@ -386,8 +402,9 @@ function onMessage(raw: MessageEvent) {
         send({ t: 'dev_builds' });
       }
       // a new round has started: the end scoreboard belongs to the end screen only
-      if (endBoardUp && m.snap.phase === 'prep') {
+      if (endBoardUp && m.snap.phase !== 'ended') {
         endBoardUp = false;
+        resetRecap();
         spectateBar.board.toggle(false);
         endChoice.hide();
       }
@@ -423,6 +440,7 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'closed':
       matchStarting = false;
+      resetRecap();
       devPanel.setAvailable(false);
       if (!spec) buildsPanel.clear();
       endBoardUp = false;
@@ -446,6 +464,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   if (snaps.length > 30) snaps.shift();
   latest = snap;
   latestAt = at;
+  devPanel.feed(events as never, snap.time);
   if (spec && (!snap.units.some((u) => u.id === you) || you === 0)) {
     const first = snap.units.find((u) => u.team === 0) ?? snap.units[0];
     if (first) setFollow(first.id, snap);
@@ -481,7 +500,24 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
       return s.visible ? s : null;
     },
   };
+  // the recap and kill feed start afresh with every round (the prep phase) and the card comes up when it ends
+  if (snap.phase !== recapPhase) {
+    if (snap.phase === 'prep') {
+      recap.reset();
+      killFeed.clear();
+      recapCard.hide();
+      recapExact = true;
+    }
+    // joined mid-match (live spectating): the counts miss the start
+    else if (recapPhase === '') recapExact = false;
+    recapPhase = snap.phase;
+  }
+  recap.setUnits(snap.units);
+  const unitOf = (id: number) => snap.units.find((u) => u.id === id);
   for (const ev of events) {
+    recap.add(ev);
+    killFeed.event(ev, unitOf, spec ? null : team);
+    if (ev.t === 'phase' && ev.phase === 'ended') showRecap(snap);
     // a teleport behind someone turns you round: the camera comes with you
     if (ev.t === 'turn' && ev.unit === you && !spec) controls.yaw = controls.facing = ev.facing;
     hud.event(ev, ctx);
@@ -760,6 +796,7 @@ let modalAtEsc = false;
 
 /** Turning your own model in the lobby: drag anywhere on the menu's empty middle. */
 const lobbySpin = { yaw: 0, at: -1e9, dragX: null as number | null };
+const lobbyZoom = { d: 6.5, fy: 0, last: 0 };
 {
   const join = document.getElementById('join')!;
   join.addEventListener('pointerdown', (e) => {
@@ -855,13 +892,17 @@ function frame(now: number) {
   if (!latest && spec) {
     // waiting for the first frame of a live match (it arrives 5 s late)
     vis.yaw = controls.yaw;
+    scene.setViewShift(0, 0);
     scene.setPhase('prep');
     scene.update([], 0, null);
     scene.setCamera(0, 0, controls.yaw, 0.6, 30);
     scene.render();
     return;
   }
-  if (latest || spec) lobbyTags.hide();
+  if (latest || spec) {
+    lobbyTags.hide();
+    scene.setViewShift(0, 0);
+  }
   if (!latest) {
     // Menu backdrop: the chosen class idles in the arena and sways gently towards the camera.
     const t = now / 1000;
@@ -871,6 +912,24 @@ function frame(now: number) {
     const prev = ARENAS.find((a) => a.id === (previewMap === 'random' ? arena.id : previewMap)) ?? ARENAS[0];
     const spot = prev.spawns[0][0];
     // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
+    // the Look window's buttons: turn steps ease in, auto-rotate keeps turning (and holds the idle sway off)
+    const lv = mainMenu.lookView;
+    const lookOpen = mainMenu.lookOpen;
+    if (lv.zoom !== lobbyZoom.last) {
+      lobbyZoom.last = lv.zoom;
+      if (lv.zoom === 1) lv.turn = ((Math.PI - lobbySpin.yaw) % (2 * Math.PI) + 3 * Math.PI) % (2 * Math.PI) - Math.PI; // head close-up: show the front
+    }
+    if (lv.turn !== 0) {
+      const step = lv.turn * Math.min(1, dt * 8);
+      lobbySpin.yaw += step;
+      lv.turn -= step;
+      if (Math.abs(lv.turn) < 0.002) lv.turn = 0;
+      lobbySpin.at = now;
+    }
+    if (lookOpen && lv.auto && lobbySpin.dragX === null) {
+      lobbySpin.yaw += dt * 0.9;
+      lobbySpin.at = now;
+    }
     const sway = lobbySpin.dragX !== null ? 0 : Math.min(1, Math.max(0, (now - lobbySpin.at - 2500) / 2000));
     const face = prev.spawnFacing[0] + Math.PI + lobbySpin.yaw + Math.sin(t * 0.6) * 0.55 * sway;
     scene.setPhase('prep');
@@ -886,7 +945,13 @@ function frame(now: number) {
       menuUnits.push({ id: -2 - i, classId: m.classId as ClassId, look: m.look ?? '', weapon: weaponFor(m.classId as ClassId, m.spec), team: 0, x: spot.x + right.x * o, z: spot.z + right.z * o, y: 0, facing: f0 + Math.PI + Math.sin(t * 0.6 + i + 1) * 0.55, alive: true, stealthed: false, casting: false, sheep: false });
     });
     scene.update(menuUnits, 0, null);
-    scene.setCamera(spot.x, spot.z, f0 + Math.sin(t * 0.6) * 0.1, 0.12, mates.length ? 9.5 : 6.5);
+    // Look window open: slide the picture so the model sits in the free half, and zoom to head / weapon on request
+    const zoomTo = lookOpen ? [{ d: mates.length ? 9.5 : 6.5, fy: 0 }, { d: window.innerWidth <= 760 ? 3.8 : 2.7, fy: -0.1 }, { d: window.innerWidth <= 760 ? 4.6 : 3.4, fy: -0.85 }][lv.zoom] : { d: mates.length ? 9.5 : 6.5, fy: 0 };
+    lobbyZoom.d += (zoomTo.d - lobbyZoom.d) * Math.min(1, dt * 7);
+    lobbyZoom.fy += (zoomTo.fy - lobbyZoom.fy) * Math.min(1, dt * 7);
+    const narrow = window.innerWidth <= 760;
+    scene.setViewShift(lookOpen ? (narrow ? 0 : -Math.min(260, window.innerWidth * 0.3) / window.innerWidth) : 0, lookOpen && narrow ? -0.24 : 0);
+    scene.setCamera(spot.x, spot.z, f0 + Math.sin(t * 0.6) * 0.1, 0.12, lobbyZoom.d, lobbyZoom.fy);
     // everyone in the party: their model's name tag with a check once ready (the leader is always ready)
     const party = mainMenu.currentParty;
     if (party && me) {
@@ -1098,6 +1163,10 @@ const spectateBar = new SpectateBar({
     if (!spec?.runner) return;
     spec.runner.seek(tick);
     snaps.length = 0;
+    recap.reset();
+    killFeed.clear();
+    recapCard.hide();
+    recapExact = tick <= 0;
     onSnapshot(spec.runner.snapshot(), []);
   },
 });
@@ -1185,7 +1254,16 @@ function cycleFollow(dir: 1 | -1) {
   if (next) setFollow(next.id, latest);
 }
 
+function resetRecap() {
+  recap.reset();
+  killFeed.clear();
+  recapCard.hide();
+  recapPhase = '';
+  recapExact = true;
+}
+
 function endSpectateState() {
+  resetRecap();
   if (!spec) return;
   spec = null;
   spectateBar.hide();

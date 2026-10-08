@@ -123,6 +123,12 @@ export class MainMenu {
   private partyBtn = el('button', 'mm-btn hidden', 'Party match');
   private isReady = false;
   private openSlot: string | null = null;
+  /** The Look window's model controls, read by the lobby frame loop in main.ts: `turn` is radians still to rotate, `zoom` 0 body / 1 head / 2 weapon. */
+  readonly lookView = { turn: 0, auto: false, zoom: 0 };
+  /** True while the docked Look window is open (the menu panels hide and the model moves to the free side). */
+  get lookOpen(): boolean {
+    return this.openSlot !== null;
+  }
 
   constructor(root: HTMLElement, private hooks: MainMenuHooks) {
     this.root = root;
@@ -670,16 +676,46 @@ export class MainMenu {
       });
       grid.append(b);
     }
-    pane.append(grid, el('div', 'lk-foot', 'The character behind this window updates as you pick.'));
+    pane.append(grid, el('div', 'lk-foot', 'Your character beside this window updates as you pick. Drag it to turn.'));
     body.append(list, pane);
     card.append(head, body);
-    this.modal.replaceChildren(card);
-    this.modal.classList.remove('hidden');
+    this.modal.replaceChildren(card, this.lookControls());
+    this.modal.className = 'mm-modal lk-dock';
+    this.root.classList.add('look-open');
+  }
+
+  /** Turn / auto-rotate / zoom buttons floating over the free side, next to the model. */
+  private lookControls(): HTMLElement {
+    const v = this.lookView;
+    const bar = el('div', 'lk-view');
+    const btn = (label: string, title: string, on: () => void, active = false) => {
+      const b = el('button', `lk-vb${active ? ' on' : ''}`, label);
+      b.title = title;
+      b.addEventListener('click', () => {
+        on();
+        for (const x of bar.querySelectorAll<HTMLElement>('[data-z]')) x.classList.toggle('on', Number(x.dataset.z) === v.zoom);
+        auto.classList.toggle('on', v.auto);
+      });
+      bar.append(b);
+      return b;
+    };
+    btn('↶', 'Turn left', () => { v.turn -= Math.PI / 4; });
+    btn('↷', 'Turn right', () => { v.turn += Math.PI / 4; });
+    const auto = btn('⟳ Spin', 'Auto-rotate', () => { v.auto = !v.auto; }, v.auto);
+    bar.append(el('span', 'lk-sep'));
+    ['Body', 'Head', 'Weapon'].forEach((name, i) => {
+      const b = btn(name, `Zoom: ${name.toLowerCase()}`, () => { v.zoom = i; }, v.zoom === i);
+      b.dataset.z = String(i);
+    });
+    return bar;
   }
 
   private closeGear() {
     this.openSlot = null;
-    this.modal.classList.add('hidden');
+    this.lookView.auto = false;
+    this.lookView.zoom = 0;
+    this.root.classList.remove('look-open');
+    this.modal.className = 'mm-modal hidden';
   }
 
   // ------------------------------------------------------------------ patch notes
@@ -701,8 +737,10 @@ export class MainMenu {
       box.append(h, ul);
       card.append(box);
     });
+    this.openSlot = null;
+    this.root.classList.remove('look-open');
+    this.modal.className = 'mm-modal';
     this.modal.replaceChildren(card);
-    this.modal.classList.remove('hidden');
   }
 
   // ------------------------------------------------------------------ play

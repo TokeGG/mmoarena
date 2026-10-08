@@ -22,3 +22,13 @@ describe('patch notes', () => {
     }
   });
 });
+
+describe('patch notes are for players', () => {
+  it('never mention the owner, admin or debug tools, or anything only they can use', () => {
+    const bad = /\b(owner|owners|founder|founders|admin|admins|debug|dev tools?|devs?|F2)\b|pull request|bot battle/i;
+    for (const p of PATCHES) {
+      assert.ok(p.changes.length > 0, `${p.version} has changes`);
+      for (const c of [p.title, ...p.changes]) assert.doesNotMatch(c, bad, `${p.version}: ${c.slice(0, 80)}`);
+    }
+  });
+});
