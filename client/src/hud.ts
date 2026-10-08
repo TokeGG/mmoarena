@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, TUNING, autoFor } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { hpFill, hpText } from './hudLook';
 import { applyName, avatarImg } from './nameStyle';
@@ -223,7 +223,7 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string }>();
+  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string; mark: HTMLElement; arrow: HTMLElement; mk: number }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
@@ -500,7 +500,7 @@ export class Hud {
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; target?: boolean; mark?: number }[],
     now: number,
   ) {
     const seen = new Set<number>();
@@ -516,9 +516,14 @@ export class Hud {
         const title = el('div', 'ptitle');
         const icon = el('div', 'picon');
         const debuffs = el('div', 'pdebuffs');
-        root.append(icon, name, title, bar.root, cast.root, debuffs);
+        // over the head: your team's raid mark, and a bobbing arrow on your target
+        const top = el('div', 'ptop');
+        const mark = el('div', 'pmark hidden');
+        const arrow = el('div', 'parrow hidden', '▼');
+        top.append(mark, arrow);
+        root.append(top, icon, name, title, bar.root, cast.root, debuffs);
         $('labels').append(root);
-        p = { root, name, title, bar, cast, icon, av: '', debuffs, dkey: '' };
+        p = { root, name, title, bar, cast, icon, av: '', debuffs, dkey: '', mark, arrow, mk: 0 };
         this.plates.set(u.id, p);
       }
       p.root.classList.toggle('hidden', !u.visible || !u.alive);
@@ -534,6 +539,18 @@ export class Hud {
         const img = avatarImg(av, 'pav');
         if (img) p.icon.append(img);
       }
+      const mk = u.mark ?? 0;
+      if (p.mk !== mk) {
+        p.mk = mk;
+        const def = MARKS[mk - 1];
+        p.mark.textContent = def?.icon ?? '';
+        p.mark.title = def?.name ?? '';
+        p.mark.dataset.mark = def?.id ?? '';
+        p.mark.classList.toggle('hidden', !def);
+      }
+      p.arrow.classList.toggle('hidden', !u.target);
+      p.arrow.classList.toggle('enemy', u.enemy);
+      p.root.classList.toggle('targeted', !!u.target);
       p.title.textContent = who?.title ? `«${who.title}»` : '';
       p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(u.enemy ? HP_ENEMY : HP_ALLY);

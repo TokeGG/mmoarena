@@ -32,7 +32,9 @@ export class AnnounceBanner {
     text.textContent = m.text;
     root.append(close, head, text);
     document.body.append(root);
-    requestAnimationFrame(() => root.classList.add('in'));
+    // fade in without waiting for an animation frame (a busy match, or a background tab, can hold those back)
+    void root.offsetWidth;
+    root.classList.add('in');
     this.root = root;
     // long enough to read: 15 s, plus a little per word
     const words = m.text.split(/\s+/).length;

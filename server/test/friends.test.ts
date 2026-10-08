@@ -157,6 +157,41 @@ describe('party play', () => {
     return w;
   }
 
+  it('six friends make one party and play an in-house 3v3 with no bots; a side holds at most three', async () => {
+    const names = ['Ann', 'Bob', 'Cy_', 'Dee', 'Eve', 'Fay'];
+    const { lobby, us } = await party(names);
+    assert.equal(last(us[0].s, 'party')!.party!.members.length, 6);
+    const sides = () => last(us[0].s, 'party')!.party!.members.map((m) => m.side);
+    assert.deepEqual([...sides()].sort(), [0, 0, 0, 1, 1, 1], 'new members fill the emptier side');
+    // a full side refuses one more
+    const onA = us.find((u) => last(us[0].s, 'party')!.party!.members.find((m) => m.name === u.name)!.side === 0)!;
+    lobby.handle(onA.p, { t: 'party_side', side: 1 });
+    assert.match((last(onA.s, 'notice') as any).text, /already has 3/);
+    for (const u of us.slice(1)) lobby.handle(u.p, { t: 'ready', on: true, name: 'x', classId: 'warrior' });
+    lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'party', size: 3 });
+    const room = us[0].p.room!;
+    assert.ok(room && us.every((u) => u.p.room === room), 'all six in one match');
+    assert.equal(room.sim.units.size, 6, 'three against three, no bots');
+    assert.ok([...room.sim.units.values()].every((u) => u.controller === 'player'));
+  });
+
+  it('a seventh player cannot join a full party', async () => {
+    const names = ['Ann', 'Bob', 'Cy_', 'Dee', 'Eve', 'Fay', 'Gus'];
+    const w = await world(names);
+    for (let i = 1; i < 6; i++) {
+      await w.friend(0, i);
+      w.lobby.handle(w.us[0].p, { t: 'invite', kind: 'party', name: names[i] });
+      await until(() => !!last(w.us[i].s, 'invite'));
+      w.lobby.handle(w.us[i].p, { t: 'invite_reply', id: last(w.us[i].s, 'invite')!.id, accept: true });
+    }
+    await until(() => last(w.us[0].s, 'party')?.party?.members.length === 6);
+    await w.friend(0, 6);
+    w.lobby.handle(w.us[0].p, { t: 'invite', kind: 'party', name: 'Gus' });
+    assert.match((last(w.us[0].s, 'notice') as any).text, /at most 6/);
+    assert.equal(last(w.us[6].s, 'invite'), undefined, 'no invite goes out');
+    assert.equal(last(w.us[0].s, 'party')!.party!.members.length, 6);
+  });
+
   it('a ready party practises together against bots, friends replacing ally bots', async () => {
     const { lobby, us } = await party(['Ann', 'Bob']);
     lobby.handle(us[0].p, { t: 'join', name: 'x', classId: 'mage', mode: 'practice', size: 2 });

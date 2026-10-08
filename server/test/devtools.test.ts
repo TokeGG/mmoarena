@@ -131,6 +131,17 @@ describe('dev tools', () => {
       const a = JSON.parse(pushed).find((x: any) => x.id === 'fireball');
       assert.equal(a.cooldown, 7000);
       assert.equal(pushed.replace('"cooldown": 7000', `"cooldown": ${before}`), abilitiesText.replace(/("id": "fireball"[\s\S]*?"cooldown": )\d+/, `$1${before}`));
+      // the owner can open another pull request with every live change from the admin panel
+      const { owner, outO } = await (async () => ({ owner: (lobby as any).conns && [...(lobby as any).conns].find((q: any) => q.name === 'Toke'), outO: [] as ServerMsg[] }))();
+      owner.ws.send = (x: string) => outO.push(JSON.parse(x));
+      lobby.handle(owner, { t: 'overrides_pr' } as ClientMsg);
+      await new Promise((r) => setTimeout(r, 20));
+      assert.equal(calls.filter((c) => c.url.endsWith('/pulls')).length, 1, 'not without the owner code');
+      owner.ownerOk = true;
+      lobby.handle(owner, parseClientMsg(JSON.stringify({ t: 'overrides_pr', note: 'all live numbers' }))!);
+      await new Promise((r) => setTimeout(r, 30));
+      assert.equal(calls.filter((c) => c.url.endsWith('/pulls')).length, 2);
+      assert.ok(last(outO, 'dev_result')?.url?.endsWith('/pull/99'));
       // a restart loads the overrides again
       await dev.clear();
       assert.equal(ABILITIES.fireball.cooldown, before, 'clearing puts the file number back');

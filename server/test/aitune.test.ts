@@ -51,6 +51,21 @@ describe('Ask Claude in the dev panel', () => {
     assert.equal((await ai.suggest('b', 'fireball', 'x', [])).ok, false);
   });
 
+  it('from the menu the answer goes into the dev session numbers', async () => {
+    const ai = new AiTune({}, fake((l) => /cooldown/.test(l), 4321));
+    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 }, undefined, undefined, undefined, undefined, undefined, ai);
+    const out: ServerMsg[] = [];
+    const p = { ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 }, name: 'Toke', classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', ownerOk: true } as any;
+    (lobby as any).conns.add(p);
+    lobby.handle(p, { t: 'dev_ai', ability: 'fireball', text: 'shorter cooldown' } as ClientMsg);
+    for (let i = 0; i < 50 && !out.some((m) => m.t === 'dev_result'); i++) await new Promise((r) => setTimeout(r, 10));
+    assert.equal((out.find((m) => m.t === 'dev_result') as any).ok, true);
+    assert.equal(p.devSession[0].value, 4321);
+    assert.deepEqual((out.find((m) => m.t === 'dev_session') as any).patches, p.devSession);
+    lobby.handle(p, { t: 'join', name: 'Toke', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    assert.equal(p.room.devPatches[0].value, 4321, 'and the next match starts with it');
+  });
+
   it('the lobby tries the answer in the dev’s match at once', async () => {
     const ai = new AiTune({}, fake((l) => /damage · amount/.test(l), 555));
     const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0 }, undefined, undefined, undefined, undefined, undefined, ai);

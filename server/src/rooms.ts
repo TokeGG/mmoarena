@@ -11,7 +11,7 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES } from '@arena/shared';
+import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX } from '@arena/shared';
 import type { AdminRoom, DataPatch, ReplayData, UnitBuild } from '@arena/shared';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
@@ -349,6 +349,9 @@ export class Room {
       case 'autoOff':
         this.sim.setAutoDisabled(id, msg.off);
         break;
+      case 'mark':
+        this.mark(p, msg.unit, msg.mark);
+        break;
       case 'rematch':
         if (this.sim.phase !== 'ended') break;
         if (msg.on && this.ranked && this.players.size < this.startedHumans && this.onRequeue) {
@@ -435,6 +438,25 @@ export class Room {
     this.players.clear();
     this.close('match cancelled');
     return were;
+  }
+
+  /** Raid marks per team: unit id -> mark (1-8). Each mark sits on one unit at a time, each unit wears one mark. */
+  private marks = new Map<TeamId, Map<number, number>>();
+
+  /** A player marks a unit for their team (0 clears it); the team sees it over the unit's head. */
+  mark(p: Player, unitId: number, mark: number): void {
+    const me = p.unitId !== undefined ? this.sim.units.get(p.unitId) : undefined;
+    if (!me || !this.sim.units.has(unitId)) return;
+    const team = this.marks.get(me.team) ?? new Map<number, number>();
+    this.marks.set(me.team, team);
+    const had = team.get(unitId);
+    team.delete(unitId); // 0, or the same mark again, takes it off
+    if (mark > 0 && had !== mark) {
+      for (const [u, m] of team) if (m === mark) team.delete(u); // the mark moves from whoever wore it
+      team.set(unitId, mark);
+    }
+    const msg: ServerMsg = { t: 'marks', marks: [...team] };
+    for (const q of this.players.values()) if (q.unitId !== undefined && this.sim.units.get(q.unitId)?.team === me.team) send(q, msg);
   }
 
   /** Dev tools: the test numbers in this match, whether it is paused, and whether either ever happened (then it counts for nothing). */
@@ -1106,6 +1128,8 @@ export class Lobby {
       case 'party_side': {
         const party = p.party;
         if (!party || p.room || this.inQueue(p)) return;
+        const there = party.members.filter((m) => m !== p && (party.sides.get(m) ?? 0) === msg.side).length;
+        if (there >= PARTY_SIDE_MAX) return void send(p, { t: 'notice', text: `Team ${msg.side + 1} already has ${PARTY_SIDE_MAX} players.` });
         party.sides.set(p, msg.side);
         this.sendParty(party);
         break;
@@ -1187,14 +1211,19 @@ export class Lobby {
         break;
       }
       case 'dev_ai': {
-        const room = this.devRoom(p);
-        if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match (not ranked) first: Claude\u2019s numbers are tried in it.' });
+        if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         if (!this.ai) return void send(p, { t: 'dev_result', ok: false, text: 'Ask Claude is off on this server.' });
+        // in a match the answer is tried in it; from the menu it goes into the dev's session numbers
+        const room = this.devRoom(p);
         const by = p.account?.name ?? p.name;
-        void this.ai.suggest(p.account?.key ?? p.ip, msg.ability, msg.text, room.devPatches).then((r) => {
-          if (r.ok && !room.closed) this.setRoomPatches(room, p, mergePatches(room.devPatches, r.patches));
+        void this.ai.suggest(p.account?.key ?? p.ip, msg.ability, msg.text, room ? room.devPatches : p.devSession ?? []).then((r) => {
+          if (r.ok && room && !room.closed) this.setRoomPatches(room, p, mergePatches(room.devPatches, r.patches));
+          else if (r.ok && !room) {
+            p.devSession = mergePatches(p.devSession ?? [], r.patches);
+            send(p, { t: 'dev_session', patches: p.devSession });
+          }
           void this.adminLog?.add(by, 'ask Claude', ABILITIES[msg.ability]?.name ?? msg.ability, `${msg.text} → ${r.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', ') || 'no change'}`);
-          send(p, { t: 'dev_result', ok: r.ok, text: r.ok ? `🤖 ${r.text} (trying it in this match now; "Keep for my session" or "Save for everyone" to keep it)` : `🤖 ${r.text}` });
+          send(p, { t: 'dev_result', ok: r.ok, text: !r.ok ? `🤖 ${r.text}` : room ? `🤖 ${r.text} (trying it in this match now; "Keep for my session" or "Save for everyone" to keep it)` : `🤖 ${r.text} (kept for your session: every match you start uses it)` });
         });
         break;
       }
@@ -1233,6 +1262,20 @@ export class Lobby {
           void this.adminLog?.add(p.account?.name ?? p.name, 'end match', room.id, room.adminRow().players.map((x) => x.name).join(', '));
         }
         send(p, this.overviewMsg());
+        break;
+      }
+      case 'overrides_pr': {
+        if (!p.ownerOk || !this.dev) return;
+        const dev = this.dev;
+        const by = p.account?.name ?? p.name;
+        if (!dev.overrides.length) return void send(p, { t: 'dev_result', ok: false, text: 'There are no live number changes to propose.' });
+        void dev.openPullRequest(dev.overrides, by, msg.note).then(
+          (url) => {
+            void this.adminLog?.add(by, 'pull request for live numbers', undefined, url);
+            send(p, { t: 'dev_result', ok: true, text: `Pull request opened with ${dev.overrides.length} number${dev.overrides.length === 1 ? '' : 's'}.`, url });
+          },
+          (e: Error) => send(p, { t: 'dev_result', ok: false, text: e.message }),
+        );
         break;
       }
       case 'overrides_clear': {
@@ -1485,7 +1528,7 @@ export class Lobby {
       party = p.party;
       if (party && party.leader !== p) return void send(p, { t: 'notice', text: 'Only the party leader can invite.' });
       const pending = [...this.invites.values()].filter((i) => i.kind === 'party' && i.from === p).length;
-      if (party && party.members.length + pending >= 3) return void send(p, { t: 'notice', text: 'A party holds at most three players.' });
+      if (party && party.members.length + pending >= PARTY_MAX) return void send(p, { t: 'notice', text: `A party holds at most ${PARTY_MAX} players.` });
       if (!party) {
         party = { id: crypto.randomBytes(4).toString('hex'), leader: p, members: [p], ready: new Set(), sides: new Map() };
         p.party = party;
@@ -1516,7 +1559,7 @@ export class Lobby {
     if (inv.kind === 'party') {
       const party = inv.party;
       if (!party || party.members.length === 0 || from.party !== party) return void send(p, { t: 'notice', text: 'That party is gone.' });
-      if (party.members.length >= 3) return void send(p, { t: 'notice', text: 'That party is full.' });
+      if (party.members.length >= PARTY_MAX) return void send(p, { t: 'notice', text: `That party is full (${PARTY_MAX} players).` });
       if (p.party) return;
       party.members.push(p);
       p.party = party;

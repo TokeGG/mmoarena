@@ -7,7 +7,8 @@
 export type Action =
   | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
   | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8'
-  | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail';
+  | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail'
+  | 'markSkull' | 'markCross' | 'markSquare' | 'markMoon' | 'markTriangle' | 'markDiamond' | 'markCircle' | 'markStar' | 'markClear';
 
 export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'forward', label: 'Move forward', group: 'Movement' },
@@ -28,8 +29,20 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'nextTarget', label: 'Next enemy', group: 'Targeting' },
   { id: 'prevTarget', label: 'Previous enemy', group: 'Targeting' },
   { id: 'autoAttack', label: 'Toggle auto-attack', group: 'Targeting' },
+  { id: 'markSkull', label: '💀 Mark target: Skull', group: 'Marks' },
+  { id: 'markCross', label: '❌ Mark target: Cross', group: 'Marks' },
+  { id: 'markSquare', label: '🟦 Mark target: Square', group: 'Marks' },
+  { id: 'markMoon', label: '🌙 Mark target: Moon', group: 'Marks' },
+  { id: 'markTriangle', label: '🔺 Mark target: Triangle', group: 'Marks' },
+  { id: 'markDiamond', label: '💎 Mark target: Diamond', group: 'Marks' },
+  { id: 'markCircle', label: '🟠 Mark target: Circle', group: 'Marks' },
+  { id: 'markStar', label: '⭐ Mark target: Star', group: 'Marks' },
+  { id: 'markClear', label: 'Clear the target\u2019s mark', group: 'Marks' },
   { id: 'detail', label: 'Detailed tooltips (hold while hovering)', group: 'Interface' },
 ];
+
+/** Mark actions and the mark number each puts on the target (MARKS index + 1; 0 clears). */
+export const MARK_ACTIONS: Partial<Record<Action, number>> = { markStar: 1, markCircle: 2, markDiamond: 3, markTriangle: 4, markMoon: 5, markSquare: 6, markCross: 7, markSkull: 8, markClear: 0 };
 
 export const SLOT_ACTIONS: Action[] = ['slot1', 'slot2', 'slot3', 'slot4', 'slot5', 'slot6', 'slot7', 'slot8'];
 
@@ -56,6 +69,15 @@ const DEFAULTS: Record<Action, [string, string]> = {
   prevTarget: ['', ''],
   autoAttack: ['KeyR', ''],
   detail: ['AltLeft', 'AltRight'],
+  markSkull: ['Alt+Digit1', ''],
+  markCross: ['Alt+Digit2', ''],
+  markSquare: ['Alt+Digit3', ''],
+  markMoon: ['Alt+Digit4', ''],
+  markTriangle: ['Alt+Digit5', ''],
+  markDiamond: ['Alt+Digit6', ''],
+  markCircle: ['Alt+Digit7', ''],
+  markStar: ['Alt+Digit8', ''],
+  markClear: ['Alt+Digit0', ''],
 };
 
 const STORE = 'arena.keybinds.v1';

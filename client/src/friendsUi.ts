@@ -1,5 +1,5 @@
 import type { Popup } from './popups';
-import { NAME_RE, resolveCosmetics } from '@arena/shared';
+import { NAME_RE, resolveCosmetics, PARTY_MAX } from '@arena/shared';
 import type { ClientMsg, FriendRow, FriendStatus, PartyInfo, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
@@ -110,7 +110,7 @@ export class FriendsUi {
     const p = this.party;
     this.partyChip.classList.toggle('hidden', !p);
     if (!p) return;
-    this.partyChip.textContent = `👥 Party ${p.members.length}/3 · ${p.members.map((x) => (x.name === p.leader ? '👑' : '') + x.name).join(', ')}`;
+    this.partyChip.textContent = `👥 Party ${p.members.length}/${PARTY_MAX} · ${p.members.map((x) => (x.name === p.leader ? '👑' : '') + x.name).join(', ')}`;
     this.partyChip.title = 'Open your party';
   }
 
@@ -255,7 +255,7 @@ export class FriendsUi {
 
   private partyBox(p: PartyInfo): HTMLElement {
     const box = el('div', 'fr-party');
-    box.append(el('h3', '', `Your party (${p.members.length}/3)`));
+    box.append(el('h3', '', `Your party (${p.members.length}/${PARTY_MAX})`));
     for (const mem of p.members) {
       const row = el('div', 'fr-row');
       row.append(el('span', `fr-dot ${mem.ready ? 'menu' : 'party'}`), el('b', '', `${mem.name === p.leader ? '👑 ' : ''}${mem.name}`), el('small', '', mem.ready ? 'ready' : ''));

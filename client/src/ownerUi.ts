@@ -59,7 +59,7 @@ export class OwnerPanel {
         this.hooks.rerender();
         break;
       case 'dev_result':
-        this.say(m.text, !m.ok);
+        this.say(m.text, !m.ok, m.url ?? '');
         break;
       case 'admin_history':
         this.histories.set(m.name, m.rows);
@@ -81,14 +81,27 @@ export class OwnerPanel {
     if (a.ownerOk) this.hooks.send({ t: 'admin_list' });
   }
 
-  private say(text: string, bad: boolean) {
+  private say(text: string, bad: boolean, url = '') {
+    this.noticeUrl = url;
     this.notice = text;
     this.noticeBad = bad;
     this.hooks.rerender();
   }
 
+  /** A link that came with the last result (a pull request). */
+  private noticeUrl = '';
+
   private noticeEl(): HTMLElement | null {
-    return this.notice ? el('div', this.noticeBad ? 'auth-err' : 'own-ok', this.notice) : null;
+    if (!this.notice) return null;
+    const box = el('div', this.noticeBad ? 'auth-err' : 'own-ok', this.notice);
+    if (this.noticeUrl) {
+      const a = el('a', '', ' Open the pull request');
+      a.href = this.noticeUrl;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      box.append(a);
+    }
+    return box;
   }
 
   // ------------------------------------------------------------------ owner tab
@@ -204,7 +217,20 @@ export class OwnerPanel {
     }
     const clear = el('button', 'mm-small', 'Clear all (back to the data files)');
     clear.addEventListener('click', () => window.confirm('Put every saved number back to the data files, for everyone?') && this.hooks.send({ t: 'overrides_clear' }));
-    wrap.append(list, clear);
+    // propose every live change for the data files on GitHub (the numbers stay live meanwhile)
+    const note = el('input');
+    note.type = 'text';
+    note.maxLength = 600;
+    note.placeholder = 'Note for the pull request (optional)';
+    const pr = el('button', 'mm-small mm-go', '⤴ Open a pull request with these');
+    pr.addEventListener('click', () => {
+      pr.disabled = true;
+      pr.textContent = 'Opening…';
+      this.hooks.send({ t: 'overrides_pr', ...(note.value.trim() ? { note: note.value.trim() } : {}) });
+    });
+    const row = el('div', 'own-row');
+    row.append(note, pr);
+    wrap.append(list, row, clear);
     return wrap;
   }
 
