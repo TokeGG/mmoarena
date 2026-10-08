@@ -3,6 +3,9 @@ import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeom
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { parseLook, clamp } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
+import { RigAnimator } from './riggedPose';
+import { instantiate, riggedAssetFor } from './riggedModels';
+import type { RigAsset } from './riggedModels';
 
 /**
  * Stylized heroic humanoids built from rounded primitives with ink outlines, one silhouette per class so you can read a fight at a glance:
@@ -26,6 +29,8 @@ export interface PoseInput {
   /** Signed speed along the facing direction (negative = backpedalling) and sideways (positive = towards the character's left). */
   vf?: number;
   vs?: number;
+  /** Height above the ground (jumps), for the airborne pose of rigged models. */
+  air?: number;
 }
 
 /**
@@ -238,6 +243,12 @@ interface Rig {
   armR: THREE.Group;
   /** Optional cloth that trails when moving. Pivots at the shoulders. */
   cape?: THREE.Group;
+  /** Skinned models: cosmetic anchors that follow the bones (same coordinates as `upper`), the fit measured on that model, and the animator. */
+  head?: THREE.Object3D;
+  shoulderL?: THREE.Object3D;
+  shoulderR?: THREE.Object3D;
+  fit?: Fit;
+  rigged?: { anim: RigAnimator; ensureOwn(): void; deadY: number };
 }
 
 interface RigOpts {
@@ -299,10 +310,11 @@ function rig(b: Builder, o: RigOpts): Rig {
 }
 
 function eyes(b: Builder, r: Rig, y = 1.0, z = 0.19, color = 0x1a1a22, x = 0.075, size = 0.032) {
+  const p = r.head ?? r.upper;
   b.plain(() => {
     for (const s of [-x, x]) {
-      b.ball(r.upper, size * 1.5, b.m(0xffffff, { rough: 0.4 }), s, y, z - 0.012);
-      b.ball(r.upper, size, b.m(color), s, y, z + 0.004);
+      b.ball(p, size * 1.5, b.m(0xffffff, { rough: 0.4 }), s, y, z - 0.012);
+      b.ball(p, size, b.m(color), s, y, z + 0.004);
     }
   });
 }
@@ -482,6 +494,13 @@ function warrior(b: Builder, weapon?: string): Rig {
       h2.rotation.z = -s * 0.25;
     }
   });
+  warriorWeapons(b, r, weapon);
+  return r;
+}
+
+/** The warrior's spec weapons, held in the hands (`armR` / `armL` are the hand groups of whichever model is worn). */
+function warriorWeapons(b: Builder, r: Rig, weapon?: string) {
+  const goldC = 0xe2b53f;
   // weapons: dual wield (a sword in each hand), a two-handed greatsword, a polearm, or the default sword and shield
   const blade = (len: number, width: number, glow = 0x7fd0ff) => {
     const g = new THREE.Group();
@@ -534,7 +553,6 @@ function warrior(b: Builder, weapon?: string): Rig {
     b.plain(() => b.box(shield, 0.04, 0.5, 0.03, b.m(0xffe08a, { glow: 0.8 }), 0, -0.02, 0.085));
     r.armL.add(shield);
   }
-  return r;
 }
 
 function mage(b: Builder): Rig {
@@ -735,10 +753,118 @@ function rogue(b: Builder): Rig {
 }
 
 
+// ------------------------------------------------------------------ rigged (skinned) models
+
+/**
+ * Build a Rig from a skinned GLB (scripts/rig-model.mjs). The unit gets its own skeleton; geometry, texture and material are
+ * shared with every other unit until the unit needs a colour of its own (hit flash, death, stealth, dye). Cosmetic anchors
+ * ride on the bones and use the same coordinates as the procedural models' `upper` group: its origin is placed so the head
+ * centre lands at y = 0.99, as on every procedural model.
+ */
+function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: string): Rig {
+  const inst = instantiate(asset);
+  const { root, bones, rest, attach } = inst;
+  const meta = asset.meta;
+  const O = meta.headCenter[1] - 0.99;
+  // a group that sits at a character-space point at rest (axes aligned with the character, whatever the bone's own axes are) and then rides the bone
+  const place = (g: THREE.Group, bone: string, at: THREE.Vector3) => {
+    const m = new THREE.Matrix4().copy(bones[bone].matrixWorld).invert().multiply(new THREE.Matrix4().makeTranslation(at.x, at.y, at.z));
+    m.decompose(g.position, g.quaternion, g.scale);
+    bones[bone].add(g);
+    return g;
+  };
+  const anchor = (bone: string, name: string) => {
+    const g = new THREE.Group();
+    g.name = name;
+    return place(g, bone, new THREE.Vector3(0, O, 0));
+  };
+  const upper = anchor('chest', 'upper');
+  const head = anchor('head', 'head-anchor');
+  const shoulderL = anchor('shoulder_l', 'shoulder-anchor-l');
+  const shoulderR = anchor('shoulder_r', 'shoulder-anchor-r');
+  // hand groups behave like the procedural arm groups: the old weapon offset (0, -0.62, 0.05) lands on the grip point
+  const hand = (side: 'l' | 'r') => {
+    const a = attach[`attach_hand_${side}`];
+    const at = a ? a.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3().setFromMatrixPosition(bones[`hand_${side}`].matrixWorld);
+    return place(new THREE.Group(), `hand_${side}`, at.add(new THREE.Vector3(0, 0.62, -0.05)));
+  };
+  const armL = hand('l');
+  const armR = hand('r');
+  const R = meta.headR;
+  const fit: Fit = {
+    headTop: 0.99 + R,
+    headR: R,
+    tw: meta.torsoW,
+    chestZ: meta.chestBackZ,
+    robe: false,
+    legW: 0.26,
+    pauldronX: meta.shoulderJoint[0] + 0.03,
+    pauldronY: meta.shoulderJoint[1] - O + 0.06,
+    brow: 0.99 + R * 0.2,
+  };
+  const r: Rig = { root, upper, legL: new THREE.Group(), legR: new THREE.Group(), armL, armR, head, shoulderL, shoulderR, fit };
+
+  const bodyMeshes: THREE.SkinnedMesh[] = [];
+  for (const [slot, list] of Object.entries(inst.parts)) {
+    const replaceable = (REPLACEABLE_SLOTS as readonly string[]).includes(slot);
+    if (!replaceable) {
+      for (const m of list) {
+        root.add(m);
+        bodyMeshes.push(m);
+        b.meshes.push(m);
+      }
+      continue;
+    }
+    const group = new THREE.Group();
+    group.name = `part:${slot}`;
+    root.add(group);
+    for (const m of list) {
+      group.add(m);
+      bodyMeshes.push(m);
+      b.meshes.push(m);
+    }
+    (b.parts[slot] ??= []).push({ group, meshes: [...list], fx: [], anim: [] });
+  }
+
+  // what shows where a worn item took a part away: a bare face under the helm, plain joints under the pauldrons
+  const skin = b.m(SKIN, { rough: 0.8 });
+  b.bare.head = () => {
+    b.ball(head, R, skin, 0, 0.99, 0);
+    eyes(b, r, 0.99, R * 0.93, 0x3a5f8f, R * 0.33, R * 0.11);
+    b.ball(head, R * 1.06, b.m(0x4a3222, { rough: 0.9 }), 0, 0.99 + R * 0.1, -R * 0.18).scale.set(1, 1, 0.92);
+  };
+  b.bare.shoulders = () => {
+    const joint = b.m(0x2b2a30, { metal: 0.5, rough: 0.5 });
+    for (const sd of [-1, 1]) b.ball(sd < 0 ? shoulderR : shoulderL, 0.1 * (meta.height / 2.25), joint, sd * meta.shoulderJoint[0], meta.shoulderJoint[1] - O, 0);
+  };
+
+  // each unit gets its own materials the first time it needs a colour of its own
+  let owned = false;
+  const ensureOwn = () => {
+    if (owned) return;
+    owned = true;
+    for (const m of bodyMeshes) {
+      const clone = (mat: THREE.Material) => {
+        const c = mat.clone() as THREE.MeshStandardMaterial;
+        c.userData.base = c.color.clone();
+        c.userData.glow = c.emissiveMap ? 1 : 0;
+        c.userData.rigged = true;
+        b.mats.push(c);
+        return c;
+      };
+      m.material = Array.isArray(m.material) ? m.material.map(clone) : clone(m.material);
+    }
+  };
+  r.rigged = { anim: new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3 };
+  if (classId === 'warrior' && !asset.def.ownWeapon) warriorWeapons(b, r, weapon);
+  return r;
+}
+
 // ------------------------------------------------------------------ cosmetics
 
 /** Where each class's head, shoulders and so on sit, so worn cosmetics land on the right spot. */
-const FIT: Record<ClassId, { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number }> = {
+interface Fit { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number; brow?: number }
+const FIT: Record<ClassId, Fit> = {
   // headTop / headR describe the BARE head (the built-in helm, hood or hat is gone while a cosmetic is worn)
   warrior: { headTop: 1.25, headR: 0.25, tw: 0.72, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.5, pauldronY: 0.78 },
   mage: { headTop: 1.26, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
@@ -755,13 +881,14 @@ const darker = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(
  * violet, and `aurora` ripples through green, teal and violet from the feet up.
  */
 function dye(b: Builder, r: Rig, color: number, style: string) {
+  r.rigged?.ensureOwn();
   const target = new THREE.Color(color);
   const dyed: { m: THREE.MeshStandardMaterial; base: THREE.Color; y: number }[] = [];
   for (const m of [...b.mats]) {
     const base = m.userData.base as THREE.Color;
     const hx = base.getHex();
     const lum = (((hx >> 16) & 255) + ((hx >> 8) & 255) + (hx & 255)) / 765;
-    if (hx === SKIN || m.userData.glow || lum > 0.93 || lum < 0.05) continue;
+    if (!m.userData.rigged && (hx === SKIN || m.userData.glow || lum > 0.93 || lum < 0.05)) continue;
     base.lerp(target, style === 'midas' ? 0.88 : style === 'eclipse' ? 0.8 : 0.6);
     m.color.copy(base);
     if (style === 'midas') {
@@ -805,8 +932,9 @@ function dye(b: Builder, r: Rig, color: number, style: string) {
  * obvious from across the arena. A slot with nothing picked draws nothing.
  */
 function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string, CosmeticItem>) {
-  const fit = FIT[classId];
+  const fit = r.fit ?? FIT[classId];
   const { upper } = r;
+  const hu = r.head ?? upper; // head items ride on the head bone of a skinned model
   // a cosmetic in a slot REPLACES the model's built-in part for it (helm/hood/hat, pauldrons, cape/wings) rather than stacking on it
   for (const slot of REPLACEABLE_SLOTS) {
     if (!look[slot]) continue;
@@ -827,88 +955,88 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     const c = hexNum(head.color);
     const R = fit.headR;
     const top = fit.headTop;
-    const brow = 1.02;
+    const brow = fit.brow ?? 1.02;
     const sides = [-1, 1];
     switch (head.style) {
       case 'horns':
         for (const sd of sides) {
-          const horn = b.cone(upper, 0.07, 0.38, metal(c), sd * (R * 0.9), brow + 0.12, 0, 8);
+          const horn = b.cone(hu, 0.07, 0.38, metal(c), sd * (R * 0.9), brow + 0.12, 0, 8);
           horn.rotation.z = -sd * 0.75;
-          const tip = b.cone(upper, 0.045, 0.22, metal(lighter(c)), sd * (R * 0.9 + 0.16), brow + 0.37, 0, 8);
+          const tip = b.cone(hu, 0.045, 0.22, metal(lighter(c)), sd * (R * 0.9 + 0.16), brow + 0.37, 0, 8);
           tip.rotation.z = -sd * 0.25;
         }
         break;
       case 'wings': {
-        const band = b.torus(upper, R, 0.028, metal(c), 0, brow, 0);
+        const band = b.torus(hu, R, 0.028, metal(c), 0, brow, 0);
         band.rotation.x = Math.PI / 2;
-        b.plain(() => b.ball(upper, 0.045, gemMat(0x66ccff), 0, brow, R + 0.01));
+        b.plain(() => b.ball(hu, 0.045, gemMat(0x66ccff), 0, brow, R + 0.01));
         for (const sd of sides) for (let i = 0; i < 3; i++) {
-          const f = b.rbox(upper, 0.28 - i * 0.05, 0.035, 0.1, cloth(lighter(c, 0.2 + i * 0.1)), sd * (R + 0.16 - i * 0.02), brow + 0.05 + i * 0.07, -0.02, 0.015);
+          const f = b.rbox(hu, 0.28 - i * 0.05, 0.035, 0.1, cloth(lighter(c, 0.2 + i * 0.1)), sd * (R + 0.16 - i * 0.02), brow + 0.05 + i * 0.07, -0.02, 0.015);
           f.rotation.z = sd * (0.25 + i * 0.22);
         }
         break;
       }
       case 'crown': {
-        const band = b.torus(upper, R * 0.82, 0.03, metal(c), 0, top - 0.1, 0);
+        const band = b.torus(hu, R * 0.82, 0.03, metal(c), 0, top - 0.1, 0);
         band.rotation.x = Math.PI / 2;
         for (let i = 0; i < 7; i++) {
           const a = (i / 7) * Math.PI * 2;
-          b.cone(upper, 0.032, 0.15 + (i % 2) * 0.05, metal(c), Math.cos(a) * R * 0.82, top - 0.02, Math.sin(a) * R * 0.82, 6);
+          b.cone(hu, 0.032, 0.15 + (i % 2) * 0.05, metal(c), Math.cos(a) * R * 0.82, top - 0.02, Math.sin(a) * R * 0.82, 6);
         }
-        b.plain(() => b.ball(upper, 0.045, gemMat(0xff4466), 0, top - 0.1, R * 0.82 + 0.02));
+        b.plain(() => b.ball(hu, 0.045, gemMat(0xff4466), 0, top - 0.1, R * 0.82 + 0.02));
         break;
       }
       case 'hat': {
-        b.cyl(upper, R * 1.65, R * 1.65, 0.035, cloth(darker(c, 0.2)), 0, top - 0.12, 0, 28);
-        b.cone(upper, R * 1.0, 0.55, cloth(c), 0, top + 0.17, 0, 20).rotation.z = 0.12;
-        const band = b.torus(upper, R * 1.0, 0.025, metal(0xf0c53a), 0, top - 0.08, 0);
+        b.cyl(hu, R * 1.65, R * 1.65, 0.035, cloth(darker(c, 0.2)), 0, top - 0.12, 0, 28);
+        b.cone(hu, R * 1.0, 0.55, cloth(c), 0, top + 0.17, 0, 20).rotation.z = 0.12;
+        const band = b.torus(hu, R * 1.0, 0.025, metal(0xf0c53a), 0, top - 0.08, 0);
         band.rotation.x = Math.PI / 2;
         break;
       }
       case 'crest':
         for (let i = 0; i < 8; i++) {
           const h = 0.1 + 0.12 * Math.sin((i / 7) * Math.PI);
-          b.rbox(upper, 0.045, h, 0.07, cloth(c), 0, top - 0.04 + h / 2 - 0.04, -0.2 + i * 0.058, 0.015);
+          b.rbox(hu, 0.045, h, 0.07, cloth(c), 0, top - 0.04 + h / 2 - 0.04, -0.2 + i * 0.058, 0.015);
         }
         break;
       case 'halo': {
-        const halo = b.glow(upper, new THREE.TorusGeometry(0.3, 0.02, 8, 40), c, 0.85, 0, top + 0.12, 0);
+        const halo = b.glow(hu, new THREE.TorusGeometry(0.3, 0.02, 8, 40), c, 0.85, 0, top + 0.12, 0);
         halo.rotation.x = Math.PI / 2;
-        b.glow(upper, new THREE.TorusGeometry(0.3, 0.07, 8, 40), c, 0.18, 0, top + 0.12, 0).rotation.x = Math.PI / 2;
+        b.glow(hu, new THREE.TorusGeometry(0.3, 0.07, 8, 40), c, 0.18, 0, top + 0.12, 0).rotation.x = Math.PI / 2;
         b.anim.push((t) => (halo.position.y = top + 0.12 + Math.sin(t * 2) * 0.02));
         break;
       }
       case 'antlers':
         for (const sd of sides) {
-          const main = b.cone(upper, 0.035, 0.5, cloth(c), sd * (R * 0.7), top + 0.02, 0, 6);
+          const main = b.cone(hu, 0.035, 0.5, cloth(c), sd * (R * 0.7), top + 0.02, 0, 6);
           main.rotation.z = -sd * 0.3;
           for (const [h, len] of [[0.0, 0.26], [0.14, 0.2]] as const) {
-            const tine = b.cone(upper, 0.025, len, cloth(lighter(c, 0.2)), sd * (R * 0.7 + 0.08 + h * 0.5), top + 0.1 + h, 0, 6);
+            const tine = b.cone(hu, 0.025, len, cloth(lighter(c, 0.2)), sd * (R * 0.7 + 0.08 + h * 0.5), top + 0.1 + h, 0, 6);
             tine.rotation.z = -sd * 1.0;
           }
         }
         break;
       case 'ears':
         for (const sd of sides) {
-          const ear = b.cone(upper, 0.075, 0.2, cloth(c), sd * R * 0.62, top - 0.02, 0, 4);
+          const ear = b.cone(hu, 0.075, 0.2, cloth(c), sd * R * 0.62, top - 0.02, 0, 4);
           ear.rotation.z = -sd * 0.25;
-          b.cone(upper, 0.04, 0.12, cloth(0xe89ab0), sd * R * 0.62, top - 0.04, 0.03, 4).rotation.z = -sd * 0.25;
+          b.cone(hu, 0.04, 0.12, cloth(0xe89ab0), sd * R * 0.62, top - 0.04, 0.03, 4).rotation.z = -sd * 0.25;
         }
         break;
       case 'helm': {
-        const dome = b.add(upper, new THREE.SphereGeometry(R * 1.1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), metal(c), 0, brow - 0.04, 0);
+        const dome = b.add(hu, new THREE.SphereGeometry(R * 1.1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.62), metal(c), 0, brow - 0.04, 0);
         dome.scale.set(1, 1.05, 1.05);
-        b.rbox(upper, 0.05, 0.2, 0.05, metal(darker(c, 0.2)), 0, brow, R * 1.1, 0.01); // nose guard
-        b.rbox(upper, 0.03, 0.1, R * 2.1, metal(lighter(c, 0.2)), 0, brow + R * 1.08, 0, 0.01); // ridge
+        b.rbox(hu, 0.05, 0.2, 0.05, metal(darker(c, 0.2)), 0, brow, R * 1.1, 0.01); // nose guard
+        b.rbox(hu, 0.03, 0.1, R * 2.1, metal(lighter(c, 0.2)), 0, brow + R * 1.08, 0, 0.01); // ridge
         break;
       }
       case 'flamecrown': {
-        const band = b.torus(upper, R * 0.85, 0.03, metal(darker(c, 0.3)), 0, top - 0.06, 0);
+        const band = b.torus(hu, R * 0.85, 0.03, metal(darker(c, 0.3)), 0, top - 0.06, 0);
         band.rotation.x = Math.PI / 2;
         const fl: THREE.Object3D[] = [];
         for (let i = 0; i < 9; i++) {
           const a = (i / 9) * Math.PI * 2;
-          fl.push(b.glow(upper, new THREE.ConeGeometry(0.06, 0.3 + (i % 3) * 0.08, 7), i % 2 ? lighter(c, 0.4) : c, 0.8, Math.cos(a) * R * 0.85, top + 0.1, Math.sin(a) * R * 0.85));
+          fl.push(b.glow(hu, new THREE.ConeGeometry(0.06, 0.3 + (i % 3) * 0.08, 7), i % 2 ? lighter(c, 0.4) : c, 0.8, Math.cos(a) * R * 0.85, top + 0.1, Math.sin(a) * R * 0.85));
         }
         b.anim.push((t) => fl.forEach((f, i) => f.scale.set(1, 0.7 + 0.7 * Math.abs(Math.sin(t * 8 + i * 1.6)), 1)));
         break;
@@ -916,7 +1044,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       case 'shards': {
         const ss: THREE.Object3D[] = [];
         for (let i = 0; i < 5; i++) {
-          const m = b.glow(upper, new THREE.OctahedronGeometry(0.06), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, 0, 0);
+          const m = b.glow(hu, new THREE.OctahedronGeometry(0.06), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, 0, 0);
           m.scale.set(0.6, 1.6, 0.6);
           ss.push(m);
         }
@@ -929,16 +1057,16 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       }
       case 'prism': {
         // a crown whose spikes slowly cycle through every colour, with a bright halo of the same shifting hue
-        const band = b.torus(upper, R * 0.85, 0.035, metal(0xffffff), 0, top - 0.08, 0);
+        const band = b.torus(hu, R * 0.85, 0.035, metal(0xffffff), 0, top - 0.08, 0);
         band.rotation.x = Math.PI / 2;
         const tips: THREE.Mesh[] = [];
         for (let i = 0; i < 9; i++) {
           const a = (i / 9) * Math.PI * 2;
-          const m = b.glow(upper, new THREE.ConeGeometry(0.045, 0.28 + (i % 2) * 0.1, 6), c, 0.9, Math.cos(a) * R * 0.85, top + 0.06, Math.sin(a) * R * 0.85);
+          const m = b.glow(hu, new THREE.ConeGeometry(0.045, 0.28 + (i % 2) * 0.1, 6), c, 0.9, Math.cos(a) * R * 0.85, top + 0.06, Math.sin(a) * R * 0.85);
           m.material = (m.material as THREE.MeshBasicMaterial).clone();
           tips.push(m);
         }
-        const halo = b.glow(upper, new THREE.TorusGeometry(0.4, 0.02, 8, 48), c, 0.85, 0, top + 0.3, 0);
+        const halo = b.glow(hu, new THREE.TorusGeometry(0.4, 0.02, 8, 48), c, 0.85, 0, top + 0.3, 0);
         halo.material = (halo.material as THREE.MeshBasicMaterial).clone();
         halo.rotation.x = Math.PI / 2;
         b.anim.push((t) => {
@@ -950,18 +1078,18 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       }
       case 'founder': {
         // a tall gold crown, a big ruby, a tilted spinning halo and sparks circling it
-        const band = b.torus(upper, R * 0.85, 0.04, metal(c), 0, top - 0.08, 0);
+        const band = b.torus(hu, R * 0.85, 0.04, metal(c), 0, top - 0.08, 0);
         band.rotation.x = Math.PI / 2;
         for (let i = 0; i < 8; i++) {
           const a = (i / 8) * Math.PI * 2;
-          b.cone(upper, 0.04, 0.26 + (i % 2) * 0.12, metal(i % 2 ? 0xfff2b0 : c), Math.cos(a) * R * 0.85, top + 0.05, Math.sin(a) * R * 0.85, 6);
-          b.plain(() => b.ball(upper, 0.025, gemMat(0xff3355), Math.cos(a) * R * 0.85, top + 0.2 + (i % 2) * 0.12, Math.sin(a) * R * 0.85));
+          b.cone(hu, 0.04, 0.26 + (i % 2) * 0.12, metal(i % 2 ? 0xfff2b0 : c), Math.cos(a) * R * 0.85, top + 0.05, Math.sin(a) * R * 0.85, 6);
+          b.plain(() => b.ball(hu, 0.025, gemMat(0xff3355), Math.cos(a) * R * 0.85, top + 0.2 + (i % 2) * 0.12, Math.sin(a) * R * 0.85));
         }
-        b.plain(() => b.ball(upper, 0.07, gemMat(0xff2244), 0, top - 0.08, R * 0.85 + 0.03));
-        const halo = b.glow(upper, new THREE.TorusGeometry(0.46, 0.022, 8, 48), c, 0.9, 0, top + 0.32, 0);
+        b.plain(() => b.ball(hu, 0.07, gemMat(0xff2244), 0, top - 0.08, R * 0.85 + 0.03));
+        const halo = b.glow(hu, new THREE.TorusGeometry(0.46, 0.022, 8, 48), c, 0.9, 0, top + 0.32, 0);
         halo.rotation.x = Math.PI / 2 - 0.25;
         const sparks: THREE.Object3D[] = [];
-        for (let i = 0; i < 6; i++) sparks.push(b.glow(upper, new THREE.SphereGeometry(0.03, 6, 5), 0xfff2b0, 0.95, 0, 0, 0));
+        for (let i = 0; i < 6; i++) sparks.push(b.glow(hu, new THREE.SphereGeometry(0.03, 6, 5), 0xfff2b0, 0.95, 0, 0, 0));
         b.anim.push((t) => {
           halo.rotation.z = t * 1.1;
           sparks.forEach((m, i) => {
@@ -975,7 +1103,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         // a black sun hanging over the head: a dark orb in a spinning gold corona with a ring of long rays
         const sun = new THREE.Group();
         sun.position.set(0, top + 0.36, 0);
-        upper.add(sun);
+        hu.add(sun);
         b.plain(() => b.ball(sun, 0.15, b.m(0x07040d, { rough: 0.35 }), 0, 0, 0));
         b.glow(sun, new THREE.SphereGeometry(0.25, 14, 10), c, 0.16, 0, 0, 0);
         b.glow(sun, new THREE.TorusGeometry(0.19, 0.026, 8, 40), c, 0.95, 0, 0, 0);
@@ -996,11 +1124,11 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       case 'voidhorns': {
         const flames: THREE.Object3D[] = [];
         for (const sd of sides) {
-          const horn = b.cone(upper, 0.09, 0.6, metal(darker(c, 0.4)), sd * (R * 0.9), brow + 0.2, 0, 8);
+          const horn = b.cone(hu, 0.09, 0.6, metal(darker(c, 0.4)), sd * (R * 0.9), brow + 0.2, 0, 8);
           horn.rotation.z = -sd * 0.65;
-          const glowHorn = b.glow(upper, new THREE.ConeGeometry(0.13, 0.66, 8), c, 0.35, sd * (R * 0.9), brow + 0.2, 0);
+          const glowHorn = b.glow(hu, new THREE.ConeGeometry(0.13, 0.66, 8), c, 0.35, sd * (R * 0.9), brow + 0.2, 0);
           glowHorn.rotation.z = -sd * 0.65;
-          for (let i = 0; i < 3; i++) flames.push(b.glow(upper, new THREE.ConeGeometry(0.045, 0.2 - i * 0.03, 6), lighter(c, 0.3), 0.8, sd * (R * 0.9 + 0.3 * Math.sin(0.65) + 0.04 + i * 0.03), brow + 0.2 + 0.3 * Math.cos(0.65) + 0.08 + i * 0.07, (i - 1) * 0.03));
+          for (let i = 0; i < 3; i++) flames.push(b.glow(hu, new THREE.ConeGeometry(0.045, 0.2 - i * 0.03, 6), lighter(c, 0.3), 0.8, sd * (R * 0.9 + 0.3 * Math.sin(0.65) + 0.04 + i * 0.03), brow + 0.2 + 0.3 * Math.cos(0.65) + 0.08 + i * 0.07, (i - 1) * 0.03));
         }
         b.anim.push((t) => flames.forEach((f, i) => f.scale.set(1, 0.6 + 0.8 * Math.abs(Math.sin(t * 7 + i * 1.7)), 1)));
         break;
@@ -1015,24 +1143,25 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     for (const sd of [-1, 1]) {
       const x = sd * fit.pauldronX;
       const y = fit.pauldronY;
+      const su = (sd < 0 ? r.shoulderR : r.shoulderL) ?? upper;
       switch (sh.style) {
         case 'plates': {
-          const pd = b.ball(upper, 0.2, metal(c), x, y, 0);
+          const pd = b.ball(su, 0.2, metal(c), x, y, 0);
           pd.scale.set(1.15, 0.7, 1.1);
-          b.torus(upper, 0.2, 0.02, metal(lighter(c)), x, y - 0.04, 0).rotation.x = Math.PI / 2;
+          b.torus(su, 0.2, 0.02, metal(lighter(c)), x, y - 0.04, 0).rotation.x = Math.PI / 2;
           break;
         }
         case 'spikes': {
-          b.ball(upper, 0.16, metal(c), x, y, 0).scale.set(1.2, 0.75, 1.1);
+          b.ball(su, 0.16, metal(c), x, y, 0).scale.set(1.2, 0.75, 1.1);
           for (let i = 0; i < 3; i++) {
-            const sp = b.cone(upper, 0.05, 0.22 - i * 0.03, metal(lighter(c, 0.3)), x + sd * (0.02 + i * 0.07), y + 0.12 - i * 0.02, (i - 1) * 0.09, 6);
+            const sp = b.cone(su, 0.05, 0.22 - i * 0.03, metal(lighter(c, 0.3)), x + sd * (0.02 + i * 0.07), y + 0.12 - i * 0.02, (i - 1) * 0.09, 6);
             sp.rotation.z = -sd * (0.35 + i * 0.3);
           }
           break;
         }
         case 'crystals':
           for (let i = 0; i < 4; i++) {
-            const cr = b.add(upper, new THREE.OctahedronGeometry(0.07 + (i % 2) * 0.04), b.m(c, { glow: 0.9, rough: 0.2, metal: 0.2 }), x + sd * (i * 0.04), y + 0.08 + i * 0.06, (i - 1.5) * 0.07);
+            const cr = b.add(su, new THREE.OctahedronGeometry(0.07 + (i % 2) * 0.04), b.m(c, { glow: 0.9, rough: 0.2, metal: 0.2 }), x + sd * (i * 0.04), y + 0.08 + i * 0.06, (i - 1.5) * 0.07);
             cr.scale.set(0.7, 1.7, 0.7);
             cr.rotation.z = -sd * 0.25 * i;
           }
@@ -1040,30 +1169,30 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         case 'fluff':
           for (let i = 0; i < 6; i++) {
             const a = (i / 6) * Math.PI * 2;
-            b.ball(upper, 0.1, cloth(i % 2 ? lighter(c, 0.25) : c), x + Math.cos(a) * 0.11, y + 0.02 + (i % 2) * 0.04, Math.sin(a) * 0.11);
+            b.ball(su, 0.1, cloth(i % 2 ? lighter(c, 0.25) : c), x + Math.cos(a) * 0.11, y + 0.02 + (i % 2) * 0.04, Math.sin(a) * 0.11);
           }
-          b.ball(upper, 0.13, cloth(c), x, y + 0.05, 0);
+          b.ball(su, 0.13, cloth(c), x, y + 0.05, 0);
           break;
         case 'flames': {
-          b.ball(upper, 0.09, metal(darker(c, 0.5)), x, y, 0);
+          b.ball(su, 0.09, metal(darker(c, 0.5)), x, y, 0);
           const flames: THREE.Object3D[] = [];
           for (let i = 0; i < 3; i++) {
-            const f = b.glow(upper, new THREE.ConeGeometry(0.07 - i * 0.012, 0.3 + i * 0.05, 8), i === 1 ? lighter(c, 0.4) : c, 0.75, x + (i - 1) * 0.07 * sd, y + 0.2, 0);
+            const f = b.glow(su, new THREE.ConeGeometry(0.07 - i * 0.012, 0.3 + i * 0.05, 8), i === 1 ? lighter(c, 0.4) : c, 0.75, x + (i - 1) * 0.07 * sd, y + 0.2, 0);
             flames.push(f);
           }
           b.anim.push((t) => flames.forEach((f, i) => f.scale.set(1, 0.85 + 0.3 * Math.sin(t * 9 + i * 2 + sd), 1)));
           break;
         }
         case 'mantle': {
-          const m = b.rbox(upper, 0.36, 0.07, 0.34, cloth(c), x, y - 0.02, 0, 0.03);
+          const m = b.rbox(su, 0.36, 0.07, 0.34, cloth(c), x, y - 0.02, 0, 0.03);
           m.rotation.z = -sd * 0.28;
-          b.rbox(upper, 0.38, 0.03, 0.36, metal(0xf0c53a), x + sd * 0.02, y - 0.05, 0, 0.012).rotation.z = -sd * 0.28;
+          b.rbox(su, 0.38, 0.03, 0.36, metal(0xf0c53a), x + sd * 0.02, y - 0.05, 0, 0.012).rotation.z = -sd * 0.28;
           break;
         }
         case 'orbs': {
-          b.ball(upper, 0.14, metal(darker(c, 0.5)), x, y, 0).scale.set(1.2, 0.7, 1.1);
-          const o = b.glow(upper, new THREE.SphereGeometry(0.06, 8, 6), c, 0.95, x, y, 0);
-          const halo = b.glow(upper, new THREE.SphereGeometry(0.13, 10, 8), c, 0.25, x, y, 0);
+          b.ball(su, 0.14, metal(darker(c, 0.5)), x, y, 0).scale.set(1.2, 0.7, 1.1);
+          const o = b.glow(su, new THREE.SphereGeometry(0.06, 8, 6), c, 0.95, x, y, 0);
+          const halo = b.glow(su, new THREE.SphereGeometry(0.13, 10, 8), c, 0.25, x, y, 0);
           b.anim.push((t) => {
             const a = t * 2.2 * sd;
             o.position.set(x + Math.cos(a) * 0.2, y + 0.16 + Math.sin(t * 3) * 0.03, Math.sin(a) * 0.2);
@@ -1072,10 +1201,10 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           break;
         }
         case 'bolts': {
-          b.ball(upper, 0.16, metal(darker(c, 0.45)), x, y, 0).scale.set(1.2, 0.7, 1.1);
+          b.ball(su, 0.16, metal(darker(c, 0.45)), x, y, 0).scale.set(1.2, 0.7, 1.1);
           const zs: THREE.Object3D[] = [];
           for (let i = 0; i < 3; i++) {
-            const z = b.glow(upper, new THREE.BoxGeometry(0.025, 0.34, 0.025), lighter(c, 0.4), 0.95, x + sd * (0.03 + i * 0.08), y + 0.22, (i - 1) * 0.1);
+            const z = b.glow(su, new THREE.BoxGeometry(0.025, 0.34, 0.025), lighter(c, 0.4), 0.95, x + sd * (0.03 + i * 0.08), y + 0.22, (i - 1) * 0.1);
             z.rotation.z = -sd * (0.3 + i * 0.25);
             zs.push(z);
           }
@@ -1084,15 +1213,15 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         }
         case 'sunplate': {
           // a polished gold sun disc on each shoulder with a slowly turning wheel of rays
-          b.ball(upper, 0.15, metal(darker(c, 0.4)), x, y - 0.02, 0).scale.set(1.15, 0.7, 1.1);
-          const disc = b.cyl(upper, 0.2, 0.2, 0.05, metal(c), x + sd * 0.1, y + 0.05, 0, 28);
+          b.ball(su, 0.15, metal(darker(c, 0.4)), x, y - 0.02, 0).scale.set(1.15, 0.7, 1.1);
+          const disc = b.cyl(su, 0.2, 0.2, 0.05, metal(c), x + sd * 0.1, y + 0.05, 0, 28);
           disc.rotation.z = Math.PI / 2;
-          const rim = b.torus(upper, 0.2, 0.022, metal(lighter(c, 0.3)), x + sd * 0.125, y + 0.05, 0);
+          const rim = b.torus(su, 0.2, 0.022, metal(lighter(c, 0.3)), x + sd * 0.125, y + 0.05, 0);
           rim.rotation.y = Math.PI / 2;
-          b.plain(() => b.ball(upper, 0.065, gemMat(0xfff2b0), x + sd * 0.14, y + 0.05, 0));
+          b.plain(() => b.ball(su, 0.065, gemMat(0xfff2b0), x + sd * 0.14, y + 0.05, 0));
           const wheel = new THREE.Group();
           wheel.position.set(x + sd * 0.15, y + 0.05, 0);
-          upper.add(wheel);
+          su.add(wheel);
           for (let i = 0; i < 8; i++) {
             const a = (i / 8) * Math.PI * 2;
             const ray = b.glow(wheel, new THREE.ConeGeometry(0.03, 0.18, 5), i % 2 ? lighter(c, 0.4) : c, 0.9, 0, Math.cos(a) * 0.3, Math.sin(a) * 0.3);
@@ -1103,10 +1232,10 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
         }
         case 'curtain': {
           // tall ribbons of northern light rising off the shoulders, swaying and shifting colour
-          b.ball(upper, 0.14, metal(darker(c, 0.55)), x, y, 0).scale.set(1.2, 0.7, 1.1);
+          b.ball(su, 0.14, metal(darker(c, 0.55)), x, y, 0).scale.set(1.2, 0.7, 1.1);
           const strips: THREE.Mesh[] = [];
           for (let i = 0; i < 4; i++) {
-            strips.push(own(b.glow(upper, new THREE.BoxGeometry(0.07, 0.6, 0.008).translate(0, 0.3, 0), c, 0.75, x + sd * i * 0.05, y + 0.04, (i - 1.5) * 0.08)));
+            strips.push(own(b.glow(su, new THREE.BoxGeometry(0.07, 0.6, 0.008).translate(0, 0.3, 0), c, 0.75, x + sd * i * 0.05, y + 0.04, (i - 1.5) * 0.08)));
           }
           b.anim.push((t) => strips.forEach((m, i) => {
             m.scale.y = 0.8 + 0.3 * Math.sin(t * 2 + i * 1.3 + sd);
@@ -1117,10 +1246,10 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           break;
         }
         case 'dragon': {
-          b.ball(upper, 0.2, metal(c), x, y, 0).scale.set(1.2, 0.8, 1.15);
+          b.ball(su, 0.2, metal(c), x, y, 0).scale.set(1.2, 0.8, 1.15);
           const tips: THREE.Object3D[] = [];
           for (let i = 0; i < 4; i++) {
-            const sp = b.cone(upper, 0.06, 0.34 - i * 0.04, metal(lighter(c, 0.15)), x + sd * (0.03 + i * 0.07), y + 0.15 - i * 0.025, (i - 1.5) * 0.1, 6);
+            const sp = b.cone(su, 0.06, 0.34 - i * 0.04, metal(lighter(c, 0.15)), x + sd * (0.03 + i * 0.07), y + 0.15 - i * 0.025, (i - 1.5) * 0.1, 6);
             sp.rotation.z = -sd * (0.3 + i * 0.28);
             {
               // a flame licking up from the end of each spike
@@ -1128,10 +1257,10 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
               const len = 0.34 - i * 0.04;
               const cx = x + sd * (0.03 + i * 0.07);
               const cy = y + 0.15 - i * 0.025;
-              tips.push(b.glow(upper, new THREE.ConeGeometry(0.04, 0.18, 6), 0xff7a1a, 0.8, cx + sd * Math.sin(ang) * (len / 2 + 0.05), cy + Math.cos(ang) * (len / 2 + 0.05), (i - 1.5) * 0.1));
+              tips.push(b.glow(su, new THREE.ConeGeometry(0.04, 0.18, 6), 0xff7a1a, 0.8, cx + sd * Math.sin(ang) * (len / 2 + 0.05), cy + Math.cos(ang) * (len / 2 + 0.05), (i - 1.5) * 0.1));
             }
           }
-          b.plain(() => b.ball(upper, 0.045, gemMat(0xffaa22), x, y + 0.06, 0.17));
+          b.plain(() => b.ball(su, 0.045, gemMat(0xffaa22), x, y + 0.06, 0.17));
           b.anim.push((t) => tips.forEach((f, i) => f.scale.set(1, 0.6 + 0.8 * Math.abs(Math.sin(t * 8 + i * 1.9 + sd)), 1)));
           break;
         }
@@ -1883,7 +2012,8 @@ const RESTING_ARMS: Record<ClassId, number> = { warrior: -0.15, mage: -0.2, prie
 
 export function createCharacter(classId: ClassId, look?: string, weapon?: string): Character {
   const b = new Builder();
-  const r = BUILDERS[classId](b, weapon);
+  const asset = riggedAssetFor(classId, weapon);
+  const r = asset ? riggedRig(b, asset, classId, weapon) : BUILDERS[classId](b, weapon);
   if (look) wearCosmetics(b, r, classId, parseLook(look));
   const lean = LEAN[classId];
   const armRest = RESTING_ARMS[classId];
@@ -1896,7 +2026,9 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   // smoothed joint state so nothing ever snaps
   const st = { sign: 1, upX: lean, upZ: 0, bob: 0, legL: 0, legR: 0, armLx: armRest, armRx: armRest, armLz: 0, armRz: 0, twist: 0, lunge: 0, cape: 0.08, capeV: 0, lastVf: 0 };
 
+  let dead = false;
   const applyState = (alive: boolean, stealthed: boolean) => {
+    r.rigged?.ensureOwn();
     for (const m of b.mats) {
       const base = m.userData.base as THREE.Color;
       m.color.copy(base);
@@ -1912,6 +2044,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   let flashed = false;
   const setFlash = (v: number) => {
     flashed = v > 0;
+    if (v > 0) r.rigged?.ensureOwn();
     for (const m of b.mats) {
       if (v > 0) {
         m.emissive.set(0xff2a1a);
@@ -1934,26 +2067,39 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         applyState(alive, stealthed);
       }
       // lie flat on the ground when dead
+      dead = !alive;
       if (alive) {
         r.root.rotation.x = 0;
         r.root.position.y = 0;
       } else {
         r.root.rotation.x = -Math.PI / 2;
-        r.root.position.y = 0.28;
+        r.root.position.y = r.rigged?.deadY ?? 0.28;
       }
     },
     swing() {
       swingT = SWING;
-      if (classId === 'rogue') swingHand = 1 - swingHand; // twin daggers strike in turn
+      if (classId === 'rogue' || (r.rigged && weapon === 'dual')) swingHand = 1 - swingHand; // twin blades strike in turn
     },
     flash() {
       flashT = 0.2;
     },
-    pose({ phase, move, casting, time, dt: rawDt, vf: vfIn, vs: vsIn }) {
+    pose({ phase, move, casting, time, dt: rawDt, vf: vfIn, vs: vsIn, air }) {
       const dt = clamp(rawDt, 0.001, 0.1);
       const vf = vfIn ?? move * 7;
       const vs = vsIn ?? 0;
       for (const a of b.anim) a(time, move);
+      if (r.rigged) {
+        const swinging = swingT > 0;
+        const q = swinging ? 1 - swingT / SWING : -1;
+        r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead });
+        if (swinging) swingT = Math.max(0, swingT - dt);
+        r.root.position.z = r.rigged.anim.lungeZ;
+        if (flashT > 0 || flashed) {
+          flashT = Math.max(0, flashT - dt);
+          setFlash(flashT > 0 ? flashT / 0.2 : 0);
+        }
+        return;
+      }
 
       // gait: reverses when backpedalling, eased so direction changes do not snap
       st.sign = damp(st.sign, vf < -0.6 ? -1 : 1, 14, dt);

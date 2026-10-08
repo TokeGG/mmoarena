@@ -19,7 +19,8 @@
    "New match recap at the end of every match: damage, healing, damage taken, kills, deaths and biggest hit for everyone, with the most valuable player highlighted.",
    "The trinket button is now a button of its own, apart from the action bar: move and resize it anywhere in Edit HUD.",
    "The Look window no longer covers your character: it docks to the side, so you see each cosmetic on your character as you try it. Turn left and right, spin, and zoom to the head or weapon.",
-   "The warrior has a new model: cleaner armour plates, smaller segmented pauldrons, a refined helm and a proper cape. Helmets, shoulders and capes you wear now replace the character's own helm, pauldrons and cape instead of stacking on top of them, on every class."
+   "The warrior is now a detailed, fully animated gold-armoured knight with a horned helm. It walks, runs, strafes, casts, swings, jumps and falls, holds your spec's weapons, and the helmets, shoulders and capes you wear replace its own head, shoulder and coat pieces instead of stacking on top. Other classes keep their current look for now.",
+   "The warrior has new, fully animated 3D models. Warbringer and Rampager are a detailed gold-armoured knight with a horned helm, and the Barbarian is a spiked brute with a glowing-rune axe. They walk, run, strafe, cast, swing, jump and fall; the knight holds your spec's weapons; and the helmets, shoulders and capes you wear replace the model's own head, shoulder and coat pieces instead of stacking on top. Other classes keep their current look for now."
   ]
  },
  {
