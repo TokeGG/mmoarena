@@ -1949,6 +1949,12 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (!p) break;
         this.onHit(ev.tgt);
+        if (ev.ability === 'lava') {
+          // standing in a lava pit: flames lick up the body and embers fly, every burn tick
+          this.fireFlash(p.x, 0.4, p.z, 0.7, 0.3);
+          this.emberShower(p.x, 0.2, p.z, 0.8, 6, { heat: 0.3, rise: 1.4 });
+          break;
+        }
         {
           // a tick of a damage-over-time aura flares the aura on the target instead of replaying the spell's hit
           const tickAura = ev.ability ? isDotTick(ev.ability, this.unitAuras.get(ev.tgt) ?? [], this.clock - (this.lastCast.get(`${ev.src}:${ev.ability}`) ?? -99)) : null;

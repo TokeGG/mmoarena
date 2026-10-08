@@ -1,6 +1,6 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, stealthSwapsFor, trinketFor, withAuraMods } from './build';
-import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
+import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, inLava, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
@@ -563,7 +563,14 @@ export class ArenaSim {
     }
     // come down from a jump on top of a barricade (and stopped there): step off it, never stand inside it
     if (u.level === 0 && this.arena.lows?.length && jumpHeight(this.time - u.jumpStart) < LOW_CLEAR && this.arena.lows.some((r) => u.pos.x > r.x0 - 0.3 && u.pos.x < r.x1 + 0.3 && u.pos.z > r.z0 - 0.3 && u.pos.z < r.z1 + 0.3)) {
-      u.pos = resolveCollisions(u.pos, this.arena, 0, jumpHeight(this.time - u.jumpStart));
+      u.pos = resolveCollisions(u.pos, this.arena, 0, jumpHeight(this.time - u.jumpStart), before);
+    }
+    // lava pits: whoever stands in one (jumped in, nobody walks in) burns every half second until they climb out
+    if (u.alive && u.level === 0 && this.arena.lows?.some((r) => r.lava) && jumpHeight(this.time - u.jumpStart) < 0.3 && inLava(this.arena, u.pos)) {
+      if ((u.lavaAt ?? 0) <= this.time) {
+        u.lavaAt = this.time + TUNING.lavaIntervalMs;
+        this.dealDamage(null, u, u.maxHealth * TUNING.lavaPct, 'fire', 'lava', true);
+      }
     }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
     if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');

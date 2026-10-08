@@ -327,7 +327,7 @@ export interface ArenaDef {
    */
   deck?: { height: number; flats: Rect[]; ramps: (Rect & { rise: '+x' | '-x' | '+z' | '-z' })[]; piers?: Rect[] };
   /** Low barricades, as tall as a person: they block walking and sight on the ground; a jump clears them and sees over them. */
-  lows?: Rect[];
+  lows?: (Rect & { /** A pit of lava: a jump can land in it (nobody is pushed out) and standing in it burns. */ lava?: boolean })[];
   /** Solid straight walls (axis-aligned boxes). They block movement, Blink and line of sight on every level. */
   walls?: { x0: number; x1: number; z0: number; z1: number }[];
   /** Walkable waypoints bots steer between when walls hide the target (the walkable links are worked out from the walls). */
@@ -350,6 +350,9 @@ export interface Tuning {
   /** Cauterize (Pyromancy): health left after a killing blow, as a fraction of max, and how long until it can save you again. */
   cauterizeHealth: number;
   cauterizeCooldownMs: number;
+  /** Lava pits: how often standing in one burns you, and how much (fraction of max health) each time. */
+  lavaIntervalMs: number;
+  lavaPct: number;
   /** Online play: a cast that fails only on range or facing is retried for this long, so a target that stepped out of reach in transit still gets hit. */
   castGraceMs: number;
   /** Furthest back, in ms, that a cast's range and facing check may look at where its target was (lag compensation). */
@@ -437,6 +440,8 @@ export interface Unit {
   charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
   lastCombatAt: number;
+  /** When standing in lava burns this unit next. */
+  lavaAt?: number;
   /** The last heal this unit cast, how many times in a row (0 = first), when, and the strength it had (see Sim.healSpam). */
   lastHeal?: { ability: string; stacks: number; at: number; mult: number };
   inputQueue: MoveInput[];

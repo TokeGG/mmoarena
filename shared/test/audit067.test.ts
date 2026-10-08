@@ -312,7 +312,8 @@ describe('0.67 bots: line of sight and movement', () => {
 
   it('easy bots are clearly weaker than hard ones', () => {
     let hard = 0;
-    for (let s = 1; s <= 6; s++) {
+    const N = 24; // a mirror match is close to a coin flip per game, so it takes a good number of games to see that hard is clearly ahead
+    for (let s = 1; s <= N; s++) {
       const sim = new ArenaSim({ seed: s, prepMs: 1000 });
       // (a mage mirror: two rogues who both stay stealthed can miss each other entirely, which says nothing about skill)
       const a = sim.addUnit({ name: 'h', classId: 'mage', team: 0, controller: 'bot', build: botBuild('mage', s, false) });
@@ -321,7 +322,7 @@ describe('0.67 bots: line of sight and movement', () => {
       while (sim.phase !== 'ended' && sim.time < 150000) { for (const x of bots) x.tick(); sim.step(); sim.drainEvents(); }
       if (sim.winner === 0) hard++;
     }
-    assert.ok(hard >= 5, `hard beat easy ${hard} of 6`);
+    assert.ok(hard >= 16, `hard beat easy ${hard} of ${N}`);
   });
 });
 
