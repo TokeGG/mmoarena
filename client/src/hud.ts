@@ -437,11 +437,6 @@ export class Hud {
     }
 
     this.updateBanner(snap, now, me.team);
-    // Dampening: shown once it starts, with how much weaker healing is
-    const dp = $('damp');
-    const damp = snap.phase === 'live' ? snap.damp ?? 0 : 0;
-    dp.classList.toggle('hidden', damp <= 0);
-    if (damp > 0) dp.textContent = `Dampening ${Math.round(damp * 100)}%`;
   }
 
   setRoster(players: RosterEntry[]) {
@@ -505,7 +500,6 @@ export class Hud {
   clearLabels() {
     this.nameplates([], 0);
     $('labels').replaceChildren();
-    $('damp').classList.add('hidden');
   }
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */

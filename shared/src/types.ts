@@ -358,10 +358,10 @@ export interface Tuning {
   fearSpeed: number;
   prepMs: number;
   maxMatchMs: number;
-  /** Dampening: when it starts (ms into the fight), how much weaker healing gets each second, and its cap. */
-  dampenStartMs: number;
-  dampenPerSec: number;
-  dampenMax: number;
+  /** Heal spam: each repeat of the same heal in a row is this much weaker (0.15 = 15%), down to this fraction of full, and the pause (ms) after which the count starts again. */
+  healSpamStep: number;
+  healSpamFloor: number;
+  healSpamWindowMs: number;
   damageVariance: number;
   stealthDetect: number;
   outOfCombatMs: number;
@@ -437,6 +437,8 @@ export interface Unit {
   charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
   lastCombatAt: number;
+  /** The last heal this unit cast, how many times in a row (0 = first), when, and the strength it had (see Sim.healSpam). */
+  lastHeal?: { ability: string; stacks: number; at: number; mult: number };
   inputQueue: MoveInput[];
   /** Sim time (ms) the current/last jump began. */
   jumpStart: number;
@@ -541,8 +543,6 @@ export interface Snapshot {
   units: UnitSnap[];
   /** Ground effects currently on the floor. */
   zones: ZoneSnap[];
-  /** Dampening: how much weaker healing and shields are right now (0.35 = 35% weaker). Absent until it starts. */
-  damp?: number;
   /** A dev paused this match (dev tools, against bots only): nothing moves until it resumes. */
   paused?: true;
 }

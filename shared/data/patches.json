@@ -18,7 +18,8 @@
    "Spells that need a spot on the ground (Flamestrike, Blizzard and the like) only show their aiming circle when you can actually cast them: it stays hidden while the spell is on cooldown, you are out of mana, or you are stunned or silenced, and says why.",
    "Ice and arcane mage staffs now sit in the wizard's hand instead of floating beside it.",
    "A big batch of new titles, icons and name colours to earn: 12 titles, 15 icons and 12 colours across matches played, wins and rating, from Regular and Victor to Grandmaster, Wolf, Scorpion, Ruby and Diamond.",
-   "New Brightness slider in the in-game settings menu (next to mouse sensitivity and volume) to make the picture darker or brighter; it is saved with your other settings."
+   "New Brightness slider in the in-game settings menu (next to mouse sensitivity and volume) to make the picture darker or brighter; it is saved with your other settings.",
+   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh."
   ]
  },
  {
