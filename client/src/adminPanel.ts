@@ -1,6 +1,6 @@
 import { CLASSES } from '@arena/shared';
 import { pendingProposals } from './counts';
-import type { AccountInfo, AdminLogRow, ClientMsg, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
+import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
 import { mapName } from './spectate';
 import { makeResizable } from './resizable';
@@ -323,10 +323,32 @@ export class AdminPanel {
       const li = el('li');
       li.append(el('small', '', `${new Date(row.at).toLocaleString()} (${ago(row.at)})`), el('span', '', ` ${row.by}: ${row.action}${row.target ? ` · ${row.target}` : ''}${row.detail ? ` · ${row.detail}` : ''}`));
       ul.append(li);
+    if (o?.players) box.append(this.onlineNow(o.players));
     }
     if (!rows.length) ul.append(el('li', '', 'Nothing logged yet.'));
     return ul;
   }
+  /** Everyone connected right now, guests included: name, address, country, what they are doing, how long. The address links to a city lookup that opens from your own browser. */
+  private onlineNow(list: AdminOnline[]): HTMLElement {
+    const box = el('div');
+    box.append(el('h3', '', `Online now (${list.length})`));
+    const ul = el('ul', 'admp-log');
+    for (const q of list) {
+      const li = el('li');
+      const ip = el('a', '', q.ip || '?') as HTMLAnchorElement;
+      if (q.ip && q.where !== 'local network') {
+        ip.href = `https://ipwho.is/${encodeURIComponent(q.ip)}`;
+        ip.target = '_blank';
+        ip.rel = 'noopener noreferrer';
+      }
+      li.append(el('b', '', `${q.name}${q.guest ? ' (guest)' : ''}`), el('span', '', ' · '), ip, el('span', '', ` · ${q.where || 'location unknown'} · ${q.status} · ${dur(q.sinceMs)}`));
+      ul.append(li);
+    }
+    if (!list.length) ul.append(el('li', '', 'Nobody is connected.'));
+    box.append(ul);
+    return box;
+  }
+
 
   /** The suggestion box and skill notes, newest first, with delete. */
   private moderation(): HTMLElement {

@@ -23,6 +23,13 @@ export class Controls {
   enabled = true;
   /** Mouse look sensitivity multiplier. */
   sens = 1;
+  /** How far the mouse can pitch the view; the free camera widens it to look straight up and down. */
+  pitchMin = -0.15;
+  pitchMax = 1.35;
+  /** The free camera is flying: A/D no longer turn, nothing is steered. */
+  freeCam = false;
+  /** The wheel flies faster or slower instead of zooming when this returns true. */
+  onWheel: (deltaY: number) => boolean = () => false;
   private downX = 0;
   private downY = 0;
   private dragged = false;
@@ -135,14 +142,14 @@ export class Controls {
       this.travel += Math.abs(e.movementX) + Math.abs(e.movementY);
       if (this.travel > 4) this.dragged = true;
       this.yaw -= e.movementX * 0.005 * this.sens;
-      this.pitch = clamp(this.pitch + e.movementY * 0.005 * this.sens, -0.15, 1.35);
+      this.pitch = clamp(this.pitch + e.movementY * 0.005 * this.sens, this.pitchMin, this.pitchMax);
     });
     canvas.addEventListener(
       'wheel',
       (e) => {
         e.preventDefault();
         if (!this.enabled) return;
-        this.dist = zoomStep(this.dist, e.deltaY);
+        if (!this.onWheel(e.deltaY)) this.dist = zoomStep(this.dist, e.deltaY);
       },
       { passive: false },
     );
@@ -156,6 +163,16 @@ export class Controls {
   /** Where the cursor is, for aimed spells. While steering with the right button the cursor is locked, so aim at screen centre. */
   cursor(): { x: number; y: number } {
     return document.pointerLockElement ? { x: window.innerWidth / 2, y: window.innerHeight / 2 } : { x: this.mx, y: this.my };
+  }
+
+  /** True while a bound action's key is down (the free camera flies with the movement keys). */
+  held(action: Action): boolean {
+    return this.binds.isHeld(action, this.keys);
+  }
+
+  /** True while this key code is down. */
+  heldCode(code: string): boolean {
+    return this.keys.has(code);
   }
 
   private down(action: Action): number {
@@ -174,6 +191,7 @@ export class Controls {
   sample(dtSec: number): { fwd: number; strafe: number; facing: number; jump: boolean } {
     const jump = this.jumpQueued;
     this.jumpQueued = false;
+    if (this.freeCam) return { fwd: 0, strafe: 0, facing: this.facing, jump: false }; // the keys fly the camera
     let fwd = this.down('forward') - this.down('back');
     if (this.lmb && this.rmb) fwd = 1; // both mouse buttons held runs forward, like WoW
     const turn = this.down('turnLeft') - this.down('turnRight');

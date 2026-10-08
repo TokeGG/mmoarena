@@ -344,6 +344,18 @@ export class ArenaScene {
   }
 
   /**
+   * Free camera: the eye is exactly at (x, y, z) looking along `yaw` / `pitch` (pitch is the angle looking down). No orbit,
+   * no pillar pull-in; every model is shown, including the followed unit's.
+   */
+  setFreeCamera(x: number, y: number, z: number, yaw: number, pitch: number): void {
+    const h = Math.cos(pitch);
+    this.camera.position.set(x, y, z);
+    this.camera.lookAt(x + Math.sin(yaw) * h * 10, y - Math.sin(pitch) * 10, z + Math.cos(yaw) * h * 10);
+    const me = this.meshes.get(this.followId);
+    if (me) me.group.visible = true;
+  }
+
+  /**
    * Where the pointer touches the floor, or null when it points at the sky. From above a walkway's deck the ray stops on
    * the deck or ramp it hits (lv 1); from under it (or on open ground) it is the ground.
    */
