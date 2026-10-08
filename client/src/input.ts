@@ -34,6 +34,8 @@ export class Controls {
   private my = 0;
 
   private swallowUp = false;
+  /** Both buttons were down in this gesture (steering): releasing one is never a click. */
+  private multi = false;
   onClick: (x: number, y: number) => void = () => {};
   /** True while a ground spell waits for a click; the left press then places it instead of steering the camera. */
   aimActive: () => boolean = () => false;
@@ -88,6 +90,7 @@ export class Controls {
           this.swallowUp = true;
           return;
         }
+        this.multi = other;
         if (!other) {
           this.downX = e.clientX;
           this.downY = e.clientY;
@@ -112,13 +115,13 @@ export class Controls {
       if (e.button === 0) {
         const wasDown = this.lmb;
         this.lmb = false;
-        if (wasDown && this.enabled && !this.dragged && !this.rmb && this.quick()) this.onClick(e.clientX, e.clientY);
+        if (wasDown && this.enabled && !this.dragged && !this.rmb && !this.multi && this.quick()) this.onClick(e.clientX, e.clientY);
       }
       if (e.button === 2) {
         const wasDown = this.rmb;
         this.rmb = false;
         if (document.pointerLockElement) document.exitPointerLock();
-        if (wasDown && this.enabled && !this.dragged && !this.lmb && this.quick()) this.onRightClick(this.downX, this.downY);
+        if (wasDown && this.enabled && !this.dragged && !this.lmb && !this.multi && this.quick()) this.onRightClick(this.downX, this.downY);
       }
       sync(e);
     });

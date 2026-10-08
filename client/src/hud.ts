@@ -235,7 +235,8 @@ export class Hud {
     $('self-frame').classList.add('clickable');
     $('self-frame').addEventListener('mousedown', (e) => {
       e.stopPropagation();
-      if (this.youId !== null) this.handlers.onTarget(this.youId);
+      // only a plain left click targets; a right button (camera) pressed over the frame must not
+      if (e.button === 0 && e.buttons === 1 && this.youId !== null) this.handlers.onTarget(this.youId);
     });
   }
 
@@ -460,6 +461,7 @@ export class Hud {
         const root = el('div', 'frame clickable');
         root.addEventListener('mousedown', (e) => {
           e.stopPropagation();
+          if (e.button !== 0 || e.buttons !== 1) return; // the camera buttons never target
           this.handlers.onTarget(u.id);
         });
         f = new UnitFrame(root, false);
