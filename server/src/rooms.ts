@@ -1069,6 +1069,7 @@ export class Lobby {
 
   connect(ws: WebSocket, ip = '', country?: string): Player {
     const out = this.connectNow(ws, ip);
+    out.country = country;
     // numbers a dev saved for everyone: the client applies them over its own copy of the data
     if (this.dev?.overrides.length) send(out, { t: 'overrides', patches: this.dev.overrides });
     // a recent announcement greets people who come online just after it
@@ -1134,7 +1135,6 @@ export class Lobby {
         }
         case 'logout':
           // signing out mid-match would dodge the result: finish (or leave, which counts as a loss) first
-    out.country = country;
           if ((p.room && p.room.sim.phase !== 'ended') || this.inQueue(p) || p.duelWith !== undefined) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
           if (p.token) await acc.logout(p.token);
           this.leaveParty(p);
