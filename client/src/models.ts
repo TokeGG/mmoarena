@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { parseLook, clamp } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 
@@ -27,10 +28,20 @@ export interface PoseInput {
   vs?: number;
 }
 
+/**
+ * Cosmetic slots that have a built-in counterpart on the class model. A base part tagged with one of these is removed from
+ * the model while a cosmetic item is worn in that slot (a "none" selection keeps the base part). The weapon, aura, dye and
+ * companion slots only add to the model, so they have no base part.
+ */
+export const REPLACEABLE_SLOTS = ['head', 'shoulders', 'back'] as const;
+export type ReplaceableSlot = (typeof REPLACEABLE_SLOTS)[number];
+
 export interface Character {
   root: THREE.Group;
   /** Every mesh, for picking. */
   meshes: THREE.Mesh[];
+  /** The model's built-in parts per cosmetic slot. A part worn over by a cosmetic is detached (no parent, invisible). */
+  parts: Record<string, THREE.Group[]>;
   pose(p: PoseInput): void;
   /** Play a quick melee swing. */
   swing(): void;
@@ -70,6 +81,11 @@ class Builder {
   readonly anim: ((t: number, move: number) => void)[] = [];
   readonly outline = makeOutlineMaterial(0.014);
   outlines = true;
+  /** Built-in parts by cosmetic slot (see `part`). */
+  readonly parts: Record<string, { group: THREE.Group; meshes: THREE.Mesh[]; fx: THREE.Object3D[]; anim: ((t: number, move: number) => void)[] }[]> = {};
+  /** What to draw in place of a slot's base part once a cosmetic replaces it (e.g. the bare face under a helm). */
+  readonly bare: Record<string, () => void> = {};
+  private geos = new Map<string, THREE.BufferGeometry>();
   private cache = new Map<string, THREE.MeshStandardMaterial>();
   private glowCache = new Map<number, THREE.MeshBasicMaterial>();
 
@@ -100,6 +116,46 @@ class Builder {
       this.glowCache.set(color * 1000 + Math.round(opacity * 100), mat);
     }
     return mat;
+  }
+
+  /** One geometry per distinct shape, shared by every mesh that uses it (mirrored limbs, repeated plates). */
+  geoShared(key: string, make: () => THREE.BufferGeometry): THREE.BufferGeometry {
+    let g = this.geos.get(key);
+    if (!g) {
+      g = make();
+      this.geos.set(key, g);
+    }
+    return g;
+  }
+
+  /**
+   * Build a built-in part of the model that belongs to a cosmetic slot. Everything `fn` builds goes into one group (the
+   * group sits at the parent's origin, so positions inside it are the parent's own) and is remembered, so `dropPart` can
+   * take the whole part away again: meshes, glows and animations alike.
+   */
+  part(slot: string, parent: THREE.Object3D, fn: (g: THREE.Group) => void): THREE.Group {
+    const group = new THREE.Group();
+    group.name = `part:${slot}`;
+    parent.add(group);
+    const m0 = this.meshes.length;
+    const f0 = this.fx.length;
+    const a0 = this.anim.length;
+    fn(group);
+    (this.parts[slot] ??= []).push({ group, meshes: this.meshes.slice(m0), fx: this.fx.slice(f0), anim: this.anim.slice(a0) });
+    return group;
+  }
+
+  /** A cosmetic takes over `slot`: detach the base parts so the two never show together (and never get picked or animated). */
+  dropPart(slot: string) {
+    for (const p of this.parts[slot] ?? []) {
+      p.group.removeFromParent();
+      p.group.visible = false;
+      const gone = new Set<unknown>([...p.meshes, ...p.fx, ...p.anim]);
+      for (const list of [this.meshes, this.fx, this.anim] as unknown[][]) {
+        for (let i = list.length - 1; i >= 0; i--) if (gone.has(list[i])) list.splice(i, 1);
+      }
+    }
+    this.bare[slot]?.();
   }
 
   /** Run `fn` with outlines disabled (eyes, glow shapes, thin details). */
@@ -146,26 +202,26 @@ class Builder {
   }
 
   box(p: THREE.Object3D, w: number, h: number, d: number, mat: THREE.Material, x = 0, y = 0, z = 0) {
-    return this.add(p, new THREE.BoxGeometry(w, h, d), mat, x, y, z);
+    return this.add(p, this.geoShared(`b${w}|${h}|${d}`, () => new THREE.BoxGeometry(w, h, d)), mat, x, y, z);
   }
   /** Bevelled box: the workhorse for the stylized look. */
   rbox(p: THREE.Object3D, w: number, h: number, d: number, mat: THREE.Material, x = 0, y = 0, z = 0, r = 0.05) {
-    return this.add(p, new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001)), mat, x, y, z);
+    return this.add(p, this.geoShared(`r${w}|${h}|${d}|${r}`, () => new RoundedBoxGeometry(w, h, d, 3, Math.min(r, w / 2 - 0.001, h / 2 - 0.001, d / 2 - 0.001))), mat, x, y, z);
   }
   ball(p: THREE.Object3D, r: number, mat: THREE.Material, x = 0, y = 0, z = 0) {
-    return this.add(p, new THREE.SphereGeometry(r, 18, 14), mat, x, y, z);
+    return this.add(p, this.geoShared(`s${r}`, () => new THREE.SphereGeometry(r, 18, 14)), mat, x, y, z);
   }
   cyl(p: THREE.Object3D, rt: number, rb: number, h: number, mat: THREE.Material, x = 0, y = 0, z = 0, seg = 16) {
-    return this.add(p, new THREE.CylinderGeometry(rt, rb, h, seg), mat, x, y, z);
+    return this.add(p, this.geoShared(`c${rt}|${rb}|${h}|${seg}`, () => new THREE.CylinderGeometry(rt, rb, h, seg)), mat, x, y, z);
   }
   cone(p: THREE.Object3D, r: number, h: number, mat: THREE.Material, x = 0, y = 0, z = 0, seg = 16) {
-    return this.add(p, new THREE.ConeGeometry(r, h, seg), mat, x, y, z);
+    return this.add(p, this.geoShared(`n${r}|${h}|${seg}`, () => new THREE.ConeGeometry(r, h, seg)), mat, x, y, z);
   }
   caps(p: THREE.Object3D, r: number, len: number, mat: THREE.Material, x = 0, y = 0, z = 0) {
-    return this.add(p, new THREE.CapsuleGeometry(r, len, 6, 14), mat, x, y, z);
+    return this.add(p, this.geoShared(`p${r}|${len}`, () => new THREE.CapsuleGeometry(r, len, 6, 14)), mat, x, y, z);
   }
   torus(p: THREE.Object3D, r: number, tube: number, mat: THREE.Material, x = 0, y = 0, z = 0) {
-    return this.add(p, new THREE.TorusGeometry(r, tube, 10, 28), mat, x, y, z);
+    return this.add(p, this.geoShared(`t${r}|${tube}`, () => new THREE.TorusGeometry(r, tube, 10, 28)), mat, x, y, z);
   }
   /** Surface of revolution from [radius, y] points (robes, bells, vases). Order points so the OUTER side runs upward, or the faces point inward. */
   lathe(p: THREE.Object3D, pts: [number, number][], mat: THREE.Material, x = 0, y = 0, z = 0, seg = 28) {
@@ -251,60 +307,187 @@ function eyes(b: Builder, r: Rig, y = 1.0, z = 0.19, color = 0x1a1a22, x = 0.075
   });
 }
 
-function addCape(b: Builder, r: Rig, color: number, trim: number, w: number, len: number) {
+function addCape(b: Builder, r: Rig, parent: THREE.Object3D, color: number, trim: number, w: number, len: number) {
   const pivot = new THREE.Group();
   pivot.position.set(0, 0.7, -0.22);
   // a slightly flared, rounded cloth rather than a flat plank
   b.rbox(pivot, w, len, 0.05, b.m(color, { rough: 0.95 }), 0, -len / 2, 0, 0.02);
   b.rbox(pivot, w * 1.12, 0.08, 0.07, b.m(trim, { metal: 0.6, rough: 0.35 }), 0, -len + 0.04, 0, 0.03);
   b.rbox(pivot, w * 0.9, 0.12, 0.09, b.m(trim, { metal: 0.6, rough: 0.35 }), 0, -0.02, 0, 0.04);
-  r.upper.add(pivot);
+  parent.add(pivot);
   r.cape = pivot;
 }
 
+/** A flat piece of cloth: a trapezoid (narrow at the top, wider at the hem, with a notch cut into it) with smooth normals. */
+function clothGeo(top: number, bottom: number, len: number, notch: number, depth: number): THREE.BufferGeometry {
+  const sh = new THREE.Shape();
+  sh.moveTo(-top / 2, 0);
+  sh.lineTo(top / 2, 0);
+  sh.lineTo(bottom / 2, -len);
+  sh.lineTo(0, -len + notch);
+  sh.lineTo(-bottom / 2, -len);
+  sh.closePath();
+  let g: THREE.BufferGeometry = new THREE.ExtrudeGeometry(sh, { depth, bevelEnabled: false });
+  g.translate(0, 0, -depth / 2);
+  g.deleteAttribute('normal');
+  g.deleteAttribute('uv');
+  g = mergeVertices(g);
+  g.computeVertexNormals();
+  return g;
+}
+
 function warrior(b: Builder, weapon?: string): Rig {
-  const steel = 0x9aa3b4;
-  const dark = 0x4a5160;
-  const gold = 0xe0b040;
-  const r = rig(b, { torso: steel, torsoW: 0.78, torsoD: 0.46, sleeve: steel, pants: dark, boots: 0x3a2f27, glove: 0x5a4636, legW: 0.26, armW: 0.2, metal: 0.65, headR: 0.2 });
-  const { upper } = r;
-  addCape(b, r, 0x9a2a22, gold, 0.66, 1.2);
-  // breastplate with a glowing sigil, tabard and belt
-  b.rbox(upper, 0.36, 0.64, 0.05, b.m(0x1f4f9e, { rough: 0.8 }), 0, 0.27, 0.25, 0.02);
-  b.rbox(upper, 0.84, 0.1, 0.5, b.m(0x3a2c20, { rough: 0.6 }), 0, 0.12, 0, 0.04);
-  b.rbox(upper, 0.14, 0.14, 0.07, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 0.12, 0.27, 0.03);
-  b.plain(() => b.ball(upper, 0.05, b.m(0xffd46a, { glow: 1.4 }), 0, 0.55, 0.255));
-  // huge layered pauldrons with gold trim
+  // palette: bright steel plate over dark mail, navy cloth, crimson cape, gold trim
+  const steel = b.m(0xb4bccb, { metal: 0.7, rough: 0.32 });
+  const steelDk = b.m(0x6b7588, { metal: 0.7, rough: 0.4 });
+  const mail = b.m(0x4d576b, { metal: 0.5, rough: 0.55 });
+  const navy = b.m(0x25437d, { rough: 0.75 });
+  const crimson = b.m(0x9b2c2c, { rough: 0.9 });
+  const gold = b.m(0xe2b53f, { metal: 0.85, rough: 0.28 });
+  const leather = b.m(0x4b3425, { rough: 0.65 });
+  const goldC = 0xe2b53f;
+
+  const root = new THREE.Group();
+  const upper = new THREE.Group();
+  upper.position.y = HIP;
+  root.add(upper);
+
+  // ---- legs: cuisse, knee cop, greave, cuffed boot
+  const mkLeg = (side: number) => {
+    const g = new THREE.Group();
+    g.position.set(side * 0.16, HIP, 0);
+    b.rbox(g, 0.23, 0.42, 0.26, mail, 0, -0.22, 0, 0.08);
+    b.rbox(g, 0.245, 0.24, 0.27, steelDk, 0, -0.2, 0.01, 0.07); // thigh plate
+    const knee = b.ball(g, 0.085, gold, 0, -0.43, 0.1);
+    knee.scale.set(1, 0.9, 0.7);
+    b.rbox(g, 0.225, 0.32, 0.25, steel, 0, -0.58, 0.005, 0.07); // greave
+    b.rbox(g, 0.1, 0.28, 0.04, steelDk, 0, -0.58, 0.14, 0.015); // shin ridge
+    b.torus(g, 0.12, 0.022, gold, 0, -0.72, 0.0).rotation.x = Math.PI / 2; // boot cuff
+    b.rbox(g, 0.25, 0.15, 0.27, leather, 0, -0.77, 0.0, 0.06);
+    b.rbox(g, 0.24, 0.1, 0.2, leather, 0, -0.79, 0.19, 0.05); // toe
+    root.add(g);
+    return g;
+  };
+  const legL = mkLeg(1);
+  const legR = mkLeg(-1);
+
+  // ---- waist: mail skirt, belt with buckle and pouch, layered tassets and a short tabard
+  b.rbox(upper, 0.6, 0.24, 0.38, mail, 0, 0.06, 0, 0.09);
+  b.rbox(upper, 0.64, 0.085, 0.4, leather, 0, 0.16, 0, 0.035);
+  b.rbox(upper, 0.12, 0.11, 0.05, gold, 0, 0.16, 0.2, 0.03);
+  b.rbox(upper, 0.1, 0.13, 0.08, leather, 0.3, 0.07, 0.06, 0.03);
+  b.rbox(upper, 0.24, 0.3, 0.04, navy, 0, -0.03, 0.215, 0.015); // tabard
+  b.rbox(upper, 0.24, 0.035, 0.05, gold, 0, -0.16, 0.215, 0.012);
   for (const s of [-1, 1]) {
-    const p = b.ball(upper, 0.3, b.m(steel, { metal: 0.7, rough: 0.35 }), s * 0.5, 0.74, 0);
-    p.scale.set(1.0, 0.62, 1.05);
-    const p2 = b.ball(upper, 0.24, b.m(dark, { metal: 0.7, rough: 0.4 }), s * 0.53, 0.64, 0);
-    p2.scale.set(1.0, 0.55, 1.05);
-    const trim = b.torus(upper, 0.27, 0.025, b.m(gold, { metal: 0.8, rough: 0.3 }), s * 0.5, 0.67, 0);
-    trim.rotation.x = Math.PI / 2;
-    trim.scale.set(1, 1.05, 1.0);
-    const spike = b.cone(upper, 0.055, 0.22, b.m(steel, { metal: 0.8, rough: 0.3 }), s * 0.58, 0.9, 0, 8);
-    spike.rotation.z = -s * 0.35;
+    for (let i = 0; i < 2; i++) {
+      const t = b.rbox(upper, 0.17 - i * 0.015, 0.14, 0.05, i ? steelDk : steel, s * 0.255, 0.02 - i * 0.1, 0.14 + i * 0.02, 0.025);
+      t.rotation.set(0.12 + i * 0.05, s * 0.35, -s * 0.06);
+    }
   }
-  // gauntlets
-  for (const arm of [r.armL, r.armR]) b.rbox(arm, 0.24, 0.2, 0.24, b.m(dark, { metal: 0.7, rough: 0.4 }), 0, -0.5, 0, 0.06);
-  // great helm: dome, face plate with a glowing visor slit, crest and horns
-  b.ball(upper, 0.255, b.m(steel, { metal: 0.75, rough: 0.3 }), 0, 1.01, 0);
-  b.rbox(upper, 0.34, 0.2, 0.14, b.m(dark, { metal: 0.7, rough: 0.35 }), 0, 0.94, 0.17, 0.06);
-  b.plain(() => b.box(upper, 0.3, 0.045, 0.05, b.m(0xffb347, { glow: 1.6 }), 0, 0.99, 0.245));
-  b.rbox(upper, 0.05, 0.1, 0.4, b.m(0xb02a22, { rough: 0.9 }), 0, 1.28, -0.02, 0.02);
+  b.rbox(upper, 0.17, 0.12, 0.05, steel, 0, 0.03, 0.2, 0.025).rotation.x = 0.1;
+
+  // ---- torso: banded abdomen, domed breastplate, backplate, gorget
+  b.rbox(upper, 0.5, 0.2, 0.34, steelDk, 0, 0.33, 0, 0.08);
+  b.rbox(upper, 0.56, 0.07, 0.38, steel, 0, 0.27, 0.0, 0.03);
+  b.rbox(upper, 0.52, 0.07, 0.36, steel, 0, 0.37, 0.0, 0.03);
+  b.rbox(upper, 0.72, 0.34, 0.42, steel, 0, 0.58, 0, 0.13); // chest
+  const bp = b.rbox(upper, 0.58, 0.3, 0.1, steel, 0, 0.56, 0.17, 0.06); // raised breastplate
+  bp.rotation.x = -0.05;
+  b.rbox(upper, 0.04, 0.3, 0.12, gold, 0, 0.56, 0.2, 0.015); // central ridge
+  b.rbox(upper, 0.6, 0.035, 0.12, gold, 0, 0.42, 0.18, 0.012); // lower trim
+  b.plain(() => b.ball(upper, 0.045, b.m(0xffd46a, { glow: 1.4 }), 0, 0.58, 0.245));
+  b.rbox(upper, 0.62, 0.5, 0.08, steelDk, 0, 0.5, -0.2, 0.05); // backplate
+  b.rbox(upper, 0.08, 0.46, 0.1, gold, 0, 0.5, -0.215, 0.02);
+  b.cyl(upper, 0.075, 0.085, 0.12, b.m(SKIN), 0, 0.8, 0, 10);
+  b.cyl(upper, 0.14, 0.17, 0.09, steel, 0, 0.77, 0, 14); // gorget
+  b.torus(upper, 0.155, 0.017, gold, 0, 0.815, 0).rotation.x = Math.PI / 2;
+
+  // ---- arms: shoulder joint, mail upper arm, elbow cop, vambrace, gauntlet
+  const mkArm = (side: number) => {
+    const g = new THREE.Group();
+    g.position.set(side * 0.49, 0.68, 0);
+    b.ball(g, 0.1, mail, 0, 0, 0);
+    b.caps(g, 0.075, 0.17, mail, 0, -0.2, 0);
+    b.ball(g, 0.085, gold, 0, -0.34, -0.015).scale.set(1, 0.8, 1);
+    b.cyl(g, 0.098, 0.083, 0.24, steel, 0, -0.45, 0, 12); // vambrace
+    b.torus(g, 0.093, 0.017, gold, 0, -0.35, 0).rotation.x = Math.PI / 2;
+    b.rbox(g, 0.16, 0.1, 0.17, steelDk, 0, -0.56, 0, 0.04); // gauntlet cuff
+    b.ball(g, 0.085, leather, 0, -0.62, 0); // fist
+    upper.add(g);
+    return g;
+  };
+  const armL = mkArm(1);
+  const armR = mkArm(-1);
+  const r: Rig = { root, upper, legL, legR, armL, armR };
+
+  // ---- shoulders (cosmetic slot): segmented pauldrons, a layered dome with gold trim
   for (const s of [-1, 1]) {
-    const h = b.cone(upper, 0.07, 0.4, b.m(0xf1ead6, { rough: 0.5 }), s * 0.3, 1.2, 0, 10);
-    h.rotation.z = -s * 0.95;
-    const tip = b.cone(upper, 0.04, 0.2, b.m(0xf1ead6, { rough: 0.5 }), s * 0.5, 1.34, 0, 10);
-    tip.rotation.z = -s * 0.2;
+    b.part('shoulders', upper, (g) => {
+      const pd = new THREE.Group();
+      pd.position.set(s * 0.5, 0.73, 0);
+      pd.rotation.z = -s * 0.28;
+      g.add(pd);
+      const dome = b.ball(pd, 0.17, steel, 0, 0.03, 0);
+      dome.scale.set(1.12, 0.62, 1.1);
+      for (let i = 0; i < 3; i++) {
+        const l = b.rbox(pd, 0.3 + i * 0.045, 0.07, 0.31 + i * 0.03, i === 1 ? steelDk : steel, s * i * 0.02, -0.035 - i * 0.065, 0, 0.03);
+        l.rotation.z = 0;
+      }
+      b.torus(pd, 0.2, 0.014, gold, 0, -0.005, 0).rotation.x = Math.PI / 2;
+      b.cone(pd, 0.03, 0.09, gold, 0, 0.13, 0, 6);
+    });
   }
+
+  // ---- back (cosmetic slot): a short cape hung from gold clasps
+  b.part('back', upper, (g) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(0, 0.74, -0.27);
+    g.add(pivot);
+    const len = 0.96;
+    b.add(pivot, b.geoShared('cape', () => clothGeo(0.46, 0.64, len, 0.12, 0.035)), crimson);
+    b.rbox(pivot, 0.5, 0.07, 0.06, gold, 0, -0.02, 0, 0.025); // collar
+    b.rbox(pivot, 0.66, 0.045, 0.05, gold, 0, -len + 0.03, 0, 0.018); // hem trim
+    for (const s of [-1, 1]) b.ball(pivot, 0.04, gold, s * 0.27, 0.0, 0.02);
+    r.cape = pivot;
+  });
+
+  // ---- head: bare face under a great helm; with a cosmetic worn the face and hair show instead
+  b.ball(upper, 0.2, b.m(SKIN, { rough: 0.8 }), 0, 0.99, 0);
+  b.bare.head = () => {
+    eyes(b, r, 0.99, 0.19, 0x3a5f8f, 0.07, 0.022);
+    b.ball(upper, 0.212, b.m(0x4a3222, { rough: 0.9 }), 0, 1.01, -0.035).scale.set(1, 1, 0.92);
+  };
+  b.part('head', upper, (g) => {
+    const skull = b.ball(g, 0.24, steel, 0, 1.0, 0);
+    skull.scale.set(1, 1.04, 1.05);
+    b.rbox(g, 0.31, 0.24, 0.1, steelDk, 0, 0.94, 0.17, 0.05); // face plate
+    b.rbox(g, 0.46, 0.2, 0.2, steelDk, 0, 0.94, -0.02, 0.07).scale.set(1, 1, 1); // cheek and neck guard
+    b.torus(g, 0.236, 0.02, gold, 0, 1.06, 0).rotation.x = Math.PI / 2; // brow band
+    b.plain(() => {
+      b.box(g, 0.25, 0.035, 0.04, b.m(0xffb347, { glow: 1.6 }), 0, 0.99, 0.228);
+      b.box(g, 0.035, 0.12, 0.04, b.m(0xffb347, { glow: 1.6 }), 0, 0.93, 0.228);
+    });
+    // crest: a low arc of crimson plates, front to back
+    for (let i = 0; i < 6; i++) {
+      const k = i / 5;
+      const seg = b.rbox(g, 0.05, 0.075 + 0.05 * Math.sin(k * Math.PI), 0.075, crimson, 0, 1.25 + 0.05 * Math.sin(k * Math.PI) - k * 0.07, 0.12 - k * 0.3, 0.02);
+      seg.rotation.x = 0.35 - k * 0.7;
+    }
+    // horns: swept back and up, ivory with gold sockets
+    for (const s of [-1, 1]) {
+      b.cyl(g, 0.065, 0.075, 0.05, gold, s * 0.215, 1.07, 0, 10).rotation.z = Math.PI / 2 - s * 0.35;
+      const h1 = b.cone(g, 0.055, 0.22, b.m(0xf1ead6, { rough: 0.5 }), s * 0.27, 1.16, 0, 10);
+      h1.rotation.z = -s * 0.8;
+      const h2 = b.cone(g, 0.034, 0.2, b.m(0xf1ead6, { rough: 0.5 }), s * 0.36, 1.3, 0, 10);
+      h2.rotation.z = -s * 0.25;
+    }
+  });
   // weapons: dual wield (a sword in each hand), a two-handed greatsword, a polearm, or the default sword and shield
   const blade = (len: number, width: number, glow = 0x7fd0ff) => {
     const g = new THREE.Group();
     b.cyl(g, 0.035, 0.035, 0.22, b.m(0x4a2f1b), 0, 0, 0, 8);
-    b.ball(g, 0.055, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, -0.13, 0);
-    b.rbox(g, 0.34 * (width / 0.1) ** 0.5, 0.055, 0.09, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 0.12, 0, 0.02);
+    b.ball(g, 0.055, b.m(goldC, { metal: 0.8, rough: 0.3 }), 0, -0.13, 0);
+    b.rbox(g, 0.34 * (width / 0.1) ** 0.5, 0.055, 0.09, b.m(goldC, { metal: 0.8, rough: 0.3 }), 0, 0.12, 0, 0.02);
     b.rbox(g, width, len, 0.03, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 0.15 + len / 2, 0, 0.012);
     b.cone(g, width / 2, 0.14, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 0.15 + len + 0.07, 0, 4).scale.z = 0.3;
     b.plain(() => b.box(g, 0.022, len * 0.76, 0.036, b.m(glow, { glow: 1.5 }), 0, 0.14 + len / 2, 0));
@@ -328,7 +511,7 @@ function warrior(b: Builder, weapon?: string): Rig {
     pole.position.set(0, -0.62, 0.05);
     pole.rotation.x = Math.PI / 2.15;
     b.cyl(pole, 0.032, 0.032, 2.5, b.m(0x5a3b22, { rough: 0.8 }), 0, 0.45, 0, 8);
-    b.cyl(pole, 0.045, 0.045, 0.12, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 1.62, 0, 8);
+    b.cyl(pole, 0.045, 0.045, 0.12, b.m(goldC, { metal: 0.8, rough: 0.3 }), 0, 1.62, 0, 8);
     b.cone(pole, 0.055, 0.34, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0, 1.84, 0, 4).scale.z = 0.4;
     b.rbox(pole, 0.34, 0.36, 0.03, b.m(0xdfe5ee, { metal: 0.9, rough: 0.2 }), 0.17, 1.52, 0, 0.02);
     b.rbox(pole, 0.2, 0.2, 0.03, b.m(0xc9d1de, { metal: 0.9, rough: 0.25 }), -0.1, 1.5, 0, 0.02);
@@ -346,8 +529,8 @@ function warrior(b: Builder, weapon?: string): Rig {
     shield.position.set(0.24, -0.3, 0.06);
     shield.rotation.y = Math.PI / 2;
     b.rbox(shield, 0.62, 0.86, 0.08, b.m(0x1f4f9e, { rough: 0.55, metal: 0.3 }), 0, 0, 0, 0.05);
-    b.rbox(shield, 0.68, 0.92, 0.05, b.m(gold, { metal: 0.8, rough: 0.35 }), 0, 0, -0.035, 0.05);
-    b.ball(shield, 0.12, b.m(gold, { metal: 0.85, rough: 0.3 }), 0, 0.05, 0.05).scale.z = 0.5;
+    b.rbox(shield, 0.68, 0.92, 0.05, b.m(goldC, { metal: 0.8, rough: 0.35 }), 0, 0, -0.035, 0.05);
+    b.ball(shield, 0.12, b.m(goldC, { metal: 0.85, rough: 0.3 }), 0, 0.05, 0.05).scale.z = 0.5;
     b.plain(() => b.box(shield, 0.04, 0.5, 0.03, b.m(0xffe08a, { glow: 0.8 }), 0, -0.02, 0.085));
     r.armL.add(shield);
   }
@@ -368,24 +551,28 @@ function mage(b: Builder): Rig {
   });
   b.rbox(upper, 0.64, 0.11, 0.42, b.m(0xe2c870, { metal: 0.5, rough: 0.4 }), 0, 0.1, 0, 0.05);
   b.plain(() => b.ball(upper, 0.05, b.m(trim, { glow: 1.6 }), 0, 0.1, 0.22));
-  b.lathe(upper, [[0.24, -0.1], [0.4, -0.16], [0.42, -0.05], [0.2, 0.0]], b.m(deep, { rough: 0.8 }), 0, 0.7, 0, 24).scale.set(1.15, 1, 1);
+  b.part('shoulders', upper, (g) => b.lathe(g, [[0.24, -0.1], [0.4, -0.16], [0.42, -0.05], [0.2, 0.0]], b.m(deep, { rough: 0.8 }), 0, 0.7, 0, 24).scale.set(1.15, 1, 1));
   for (const s of [-1, 1]) {
     // bell sleeves
     const arm = s < 0 ? r.armR : r.armL;
     b.lathe(arm, [[0.2, -0.3], [0.19, -0.18], [0.1, 0]], b.m(deep, { rough: 0.85 }), 0, -0.3, 0, 16).scale.set(1, 1, 1);
     // little crystal pauldrons
-    const crystal = b.cone(upper, 0.07, 0.26, b.m(trim, { glow: 0.9, rough: 0.2 }), s * 0.38, 0.84, 0, 5);
-    crystal.rotation.z = -s * 0.5;
+    b.part('shoulders', upper, (g) => {
+      const crystal = b.cone(g, 0.07, 0.26, b.m(trim, { glow: 0.9, rough: 0.2 }), s * 0.38, 0.84, 0, 5);
+      crystal.rotation.z = -s * 0.5;
+    });
   }
   // wide-brim hat, bent tip with a star, glowing band
-  b.cyl(upper, 0.5, 0.5, 0.045, b.m(0x1b3a78, { rough: 0.85 }), 0, 1.13, 0, 28);
-  const hatMid = b.cone(upper, 0.31, 0.5, b.m(0x1f4590, { rough: 0.85 }), 0, 1.4, -0.02, 20);
-  hatMid.rotation.x = -0.08;
-  const hatTip = b.cone(upper, 0.15, 0.5, b.m(0x1f4590, { rough: 0.85 }), 0, 1.78, -0.16, 16);
-  hatTip.rotation.x = -0.65;
-  const band = b.torus(upper, 0.31, 0.04, b.m(0xe2c870, { metal: 0.6, rough: 0.35 }), 0, 1.17, 0);
-  band.rotation.x = Math.PI / 2;
-  b.plain(() => b.ball(upper, 0.055, b.m(trim, { glow: 1.8 }), 0, 1.19, 0.31));
+  b.part('head', upper, (g) => {
+    b.cyl(g, 0.5, 0.5, 0.045, b.m(0x1b3a78, { rough: 0.85 }), 0, 1.13, 0, 28);
+    const hatMid = b.cone(g, 0.31, 0.5, b.m(0x1f4590, { rough: 0.85 }), 0, 1.4, -0.02, 20);
+    hatMid.rotation.x = -0.08;
+    const hatTip = b.cone(g, 0.15, 0.5, b.m(0x1f4590, { rough: 0.85 }), 0, 1.78, -0.16, 16);
+    hatTip.rotation.x = -0.65;
+    const band = b.torus(g, 0.31, 0.04, b.m(0xe2c870, { metal: 0.6, rough: 0.35 }), 0, 1.17, 0);
+    band.rotation.x = Math.PI / 2;
+    b.plain(() => b.ball(g, 0.055, b.m(trim, { glow: 1.8 }), 0, 1.19, 0.31));
+  });
   // face: eyes, long silver hair and beard
   eyes(b, r, 1.0, 0.195, 0x3fb0ff);
   const hair = b.ball(upper, 0.235, b.m(0xe8e8f0, { rough: 0.9 }), 0, 0.97, -0.07);
@@ -422,7 +609,7 @@ function priest(b: Builder): Rig {
   b.lathe(root, [[0.0, 0.0], [0.58, 0.0], [0.55, 0.12], [0.47, 0.4], [0.38, 0.7], [0.32, 0.95], [0.0, 0.95]], b.m(white, { rough: 0.85 }), 0, 0.02, 0, 32);
   b.torus(root, 0.575, 0.04, b.m(gold, { metal: 0.7, rough: 0.3 }), 0, 0.07, 0).rotation.x = Math.PI / 2;
   // gold mantle, stole with a glowing cross, belt
-  b.lathe(upper, [[0.27, -0.11], [0.45, -0.17], [0.46, -0.04], [0.24, 0.0]], b.m(gold, { metal: 0.65, rough: 0.35 }), 0, 0.72, 0, 24).scale.set(1.2, 1, 1);
+  b.part('shoulders', upper, (g) => b.lathe(g, [[0.27, -0.11], [0.45, -0.17], [0.46, -0.04], [0.24, 0.0]], b.m(gold, { metal: 0.65, rough: 0.35 }), 0, 0.72, 0, 24).scale.set(1.2, 1, 1));
   b.rbox(upper, 0.17, 1.0, 0.05, b.m(0xb0262a, { rough: 0.7 }), 0, 0.1, 0.22, 0.02);
   b.rbox(upper, 0.2, 0.05, 0.06, b.m(gold, { metal: 0.7, rough: 0.3 }), 0, 0.55, 0.235, 0.015);
   b.plain(() => {
@@ -431,30 +618,34 @@ function priest(b: Builder): Rig {
   });
   b.rbox(upper, 0.64, 0.1, 0.42, b.m(gold, { metal: 0.65, rough: 0.35 }), 0, 0.1, 0, 0.05);
   // radiant halo (spins slowly) and glowing wings of light
-  const halo = new THREE.Group();
-  halo.position.set(0, 1.42, -0.02);
-  b.plain(() => {
-    const ring = b.torus(halo, 0.25, 0.028, b.m(0xfff0a0, { glow: 1.8 }), 0, 0, 0);
-    ring.rotation.x = Math.PI / 2;
-    const ring2 = b.glow(halo, new THREE.TorusGeometry(0.25, 0.09, 8, 28), 0xffe9a0, 0.28);
-    ring2.rotation.x = Math.PI / 2;
+  b.part('head', upper, (g) => {
+    const halo = new THREE.Group();
+    halo.position.set(0, 1.42, -0.02);
+    b.plain(() => {
+      const ring = b.torus(halo, 0.25, 0.028, b.m(0xfff0a0, { glow: 1.8 }), 0, 0, 0);
+      ring.rotation.x = Math.PI / 2;
+      const ring2 = b.glow(halo, new THREE.TorusGeometry(0.25, 0.09, 8, 28), 0xffe9a0, 0.28);
+      ring2.rotation.x = Math.PI / 2;
+    });
+    g.add(halo);
+    b.anim.push((t) => (halo.position.y = 1.42 + Math.sin(t * 2) * 0.02));
   });
-  upper.add(halo);
-  b.anim.push((t) => (halo.position.y = 1.42 + Math.sin(t * 2) * 0.02));
-  const wings = new THREE.Group();
-  wings.position.set(0, 0.55, -0.26);
-  upper.add(wings);
-  for (const s of [-1, 1]) {
-    const w = new THREE.Group();
-    wings.add(w);
-    for (let i = 0; i < 4; i++) {
-      const f = b.glow(w, new THREE.PlaneGeometry(0.18, 0.62 - i * 0.07), i % 2 ? 0xffe9a0 : 0xfff6d0, 0.32);
-      f.geometry.translate(0, 0.28, 0);
-      f.position.set(s * (0.1 + i * 0.09), 0.1 - i * 0.04, 0);
-      f.rotation.z = -s * (0.5 + i * 0.28);
+  b.part('back', upper, (g) => {
+    const wings = new THREE.Group();
+    wings.position.set(0, 0.55, -0.26);
+    g.add(wings);
+    for (const s of [-1, 1]) {
+      const w = new THREE.Group();
+      wings.add(w);
+      for (let i = 0; i < 4; i++) {
+        const f = b.glow(w, new THREE.PlaneGeometry(0.18, 0.62 - i * 0.07), i % 2 ? 0xffe9a0 : 0xfff6d0, 0.32);
+        f.geometry.translate(0, 0.28, 0);
+        f.position.set(s * (0.1 + i * 0.09), 0.1 - i * 0.04, 0);
+        f.rotation.z = -s * (0.5 + i * 0.28);
+      }
+      b.anim.push((t) => (w.rotation.y = s * (0.35 + Math.sin(t * 2.2) * 0.07)));
     }
-    b.anim.push((t) => (w.rotation.y = s * (0.35 + Math.sin(t * 2.2) * 0.07)));
-  }
+  });
   eyes(b, r, 1.0, 0.195, 0x2f8f5a);
   const hair = b.ball(upper, 0.235, b.m(0xe6cf86, { rough: 0.85 }), 0, 0.99, -0.06);
   hair.scale.set(1.0, 1.0, 0.92);
@@ -490,7 +681,7 @@ function rogue(b: Builder): Rig {
   const r = rig(b, { torso: leather, torsoW: 0.54, torsoD: 0.32, sleeve: 0x25252f, pants: dark, boots: 0x15151c, glove: 0x15151c, legW: 0.2, armW: 0.14, metal: 0.2, headR: 0.21 });
   const { upper } = r;
   upper.rotation.x = 0.14; // permanent forward lean, set again in pose()
-  addCape(b, r, 0x16161d, 0x6a5a30, 0.54, 1.0);
+  b.part('back', upper, (g) => addCape(b, r, g, 0x16161d, 0x6a5a30, 0.54, 1.0));
   // belt, buckle and crossed bandolier with tiny vials
   b.rbox(upper, 0.6, 0.1, 0.36, b.m(0x3a2f27, { rough: 0.6 }), 0, 0.1, 0, 0.04);
   b.rbox(upper, 0.1, 0.1, 0.05, b.m(gold, { metal: 0.8, rough: 0.3 }), 0, 0.1, 0.19, 0.02);
@@ -501,20 +692,29 @@ function rogue(b: Builder): Rig {
   });
   // shoulder spikes and bracers
   for (const s of [-1, 1]) {
-    const sp = b.cone(upper, 0.06, 0.26, b.m(0x4a4a58, { metal: 0.7, rough: 0.35 }), s * 0.34, 0.85, 0, 6);
-    sp.rotation.z = -s * 0.7;
+    b.part('shoulders', upper, (g) => {
+      const sp = b.cone(g, 0.06, 0.26, b.m(0x4a4a58, { metal: 0.7, rough: 0.35 }), s * 0.34, 0.85, 0, 6);
+      sp.rotation.z = -s * 0.7;
+    });
   }
   for (const arm of [r.armL, r.armR]) b.rbox(arm, 0.19, 0.18, 0.19, b.m(0x3a2f27, { rough: 0.6 }), 0, -0.46, 0, 0.05);
   // deep hood with a shadowed face, scarf and glowing eyes
-  const hood = b.ball(upper, 0.25, b.m(leather, { rough: 0.9 }), 0, 0.99, -0.03);
-  hood.scale.set(1.0, 1.06, 1.08);
-  const peak = b.cone(upper, 0.2, 0.34, b.m(leather, { rough: 0.9 }), 0, 1.04, -0.22, 12);
-  peak.rotation.x = -1.95;
-  b.rbox(upper, 0.31, 0.2, 0.14, b.m(0x0c0c12, { rough: 1 }), 0, 0.96, 0.15, 0.06);
-  b.rbox(upper, 0.34, 0.12, 0.3, b.m(0x7a1f2a, { rough: 0.9 }), 0, 0.84, 0.03, 0.05);
-  b.plain(() => {
-    for (const x of [-0.075, 0.075]) b.box(upper, 0.07, 0.025, 0.03, b.m(gold, { glow: 2.0 }), x, 0.99, 0.225).rotation.z = x < 0 ? -0.2 : 0.2;
+  b.part('head', upper, (g) => {
+    const hood = b.ball(g, 0.25, b.m(leather, { rough: 0.9 }), 0, 0.99, -0.03);
+    hood.scale.set(1.0, 1.06, 1.08);
+    const peak = b.cone(g, 0.2, 0.34, b.m(leather, { rough: 0.9 }), 0, 1.04, -0.22, 12);
+    peak.rotation.x = -1.95;
+    b.rbox(g, 0.31, 0.2, 0.14, b.m(0x0c0c12, { rough: 1 }), 0, 0.96, 0.15, 0.06);
+    b.rbox(g, 0.34, 0.12, 0.3, b.m(0x7a1f2a, { rough: 0.9 }), 0, 0.84, 0.03, 0.05);
+    b.plain(() => {
+      for (const x of [-0.075, 0.075]) b.box(g, 0.07, 0.025, 0.03, b.m(gold, { glow: 2.0 }), x, 0.99, 0.225).rotation.z = x < 0 ? -0.2 : 0.2;
+    });
   });
+  // with the hood replaced the head is bare: give it a face and short dark hair
+  b.bare.head = () => {
+    eyes(b, r, 0.99, 0.185, 0x6a4a2a);
+    b.ball(upper, 0.215, b.m(0x2a1f1a, { rough: 0.9 }), 0, 1.0, -0.035).scale.set(1, 1, 0.92);
+  };
   // twin curved daggers with venom-green edges
   for (const [arm, s] of [[r.armR, -1], [r.armL, 1]] as const) {
     const d = new THREE.Group();
@@ -539,10 +739,11 @@ function rogue(b: Builder): Rig {
 
 /** Where each class's head, shoulders and so on sit, so worn cosmetics land on the right spot. */
 const FIT: Record<ClassId, { headTop: number; headR: number; tw: number; chestZ: number; robe: boolean; legW: number; pauldronX: number; pauldronY: number }> = {
-  warrior: { headTop: 1.58, headR: 0.285, tw: 0.78, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.52, pauldronY: 0.98 },
-  mage: { headTop: 2.12, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
-  priest: { headTop: 1.72, headR: 0.25, tw: 0.58, chestZ: 0.285, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
-  rogue: { headTop: 1.44, headR: 0.275, tw: 0.54, chestZ: 0.2, robe: false, legW: 0.2, pauldronX: 0.36, pauldronY: 0.84 },
+  // headTop / headR describe the BARE head (the built-in helm, hood or hat is gone while a cosmetic is worn)
+  warrior: { headTop: 1.25, headR: 0.25, tw: 0.72, chestZ: 0.31, robe: false, legW: 0.26, pauldronX: 0.5, pauldronY: 0.78 },
+  mage: { headTop: 1.26, headR: 0.25, tw: 0.58, chestZ: 0.235, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
+  priest: { headTop: 1.27, headR: 0.25, tw: 0.58, chestZ: 0.285, robe: true, legW: 0.23, pauldronX: 0.4, pauldronY: 0.84 },
+  rogue: { headTop: 1.28, headR: 0.25, tw: 0.54, chestZ: 0.2, robe: false, legW: 0.2, pauldronX: 0.36, pauldronY: 0.84 },
 };
 const hexNum = (c: string) => parseInt(c.replace('#', ''), 16) || 0x888888;
 const lighter = (c: number, k = 0.45) => new THREE.Color(c).lerp(new THREE.Color(0xffffff), k).getHex();
@@ -606,6 +807,12 @@ function dye(b: Builder, r: Rig, color: number, style: string) {
 function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string, CosmeticItem>) {
   const fit = FIT[classId];
   const { upper } = r;
+  // a cosmetic in a slot REPLACES the model's built-in part for it (helm/hood/hat, pauldrons, cape/wings) rather than stacking on it
+  for (const slot of REPLACEABLE_SLOTS) {
+    if (!look[slot]) continue;
+    b.dropPart(slot);
+    if (slot === 'back') r.cape = undefined;
+  }
   if (look.tint) dye(b, r, hexNum(look.tint.color), look.tint.style);
   const metal = (c: number) => b.m(c, { metal: 0.6, rough: 0.35 });
   const cloth = (c: number) => b.m(c, { rough: 0.9 });
@@ -620,14 +827,14 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     const c = hexNum(head.color);
     const R = fit.headR;
     const top = fit.headTop;
-    const brow = 1.03;
+    const brow = 1.02;
     const sides = [-1, 1];
     switch (head.style) {
       case 'horns':
         for (const sd of sides) {
           const horn = b.cone(upper, 0.07, 0.38, metal(c), sd * (R * 0.9), brow + 0.12, 0, 8);
           horn.rotation.z = -sd * 0.75;
-          const tip = b.cone(upper, 0.045, 0.22, metal(lighter(c)), sd * (R * 0.9 + 0.3), brow + 0.34, 0, 8);
+          const tip = b.cone(upper, 0.045, 0.22, metal(lighter(c)), sd * (R * 0.9 + 0.16), brow + 0.37, 0, 8);
           tip.rotation.z = -sd * 0.25;
         }
         break;
@@ -793,7 +1000,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           horn.rotation.z = -sd * 0.65;
           const glowHorn = b.glow(upper, new THREE.ConeGeometry(0.13, 0.66, 8), c, 0.35, sd * (R * 0.9), brow + 0.2, 0);
           glowHorn.rotation.z = -sd * 0.65;
-          for (let i = 0; i < 3; i++) flames.push(b.glow(upper, new THREE.ConeGeometry(0.05, 0.22, 6), lighter(c, 0.3), 0.8, sd * (R * 0.9 + 0.38 + i * 0.03), brow + 0.45 + i * 0.06, (i - 1) * 0.04));
+          for (let i = 0; i < 3; i++) flames.push(b.glow(upper, new THREE.ConeGeometry(0.045, 0.2 - i * 0.03, 6), lighter(c, 0.3), 0.8, sd * (R * 0.9 + 0.3 * Math.sin(0.65) + 0.04 + i * 0.03), brow + 0.2 + 0.3 * Math.cos(0.65) + 0.08 + i * 0.07, (i - 1) * 0.03));
         }
         b.anim.push((t) => flames.forEach((f, i) => f.scale.set(1, 0.6 + 0.8 * Math.abs(Math.sin(t * 7 + i * 1.7)), 1)));
         break;
@@ -915,7 +1122,14 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
           for (let i = 0; i < 4; i++) {
             const sp = b.cone(upper, 0.06, 0.34 - i * 0.04, metal(lighter(c, 0.15)), x + sd * (0.03 + i * 0.07), y + 0.15 - i * 0.025, (i - 1.5) * 0.1, 6);
             sp.rotation.z = -sd * (0.3 + i * 0.28);
-            tips.push(b.glow(upper, new THREE.ConeGeometry(0.045, 0.2, 6), 0xff7a1a, 0.8, x + sd * (0.1 + i * 0.1), y + 0.3 - i * 0.04, (i - 1.5) * 0.1));
+            {
+              // a flame licking up from the end of each spike
+              const ang = 0.3 + i * 0.28;
+              const len = 0.34 - i * 0.04;
+              const cx = x + sd * (0.03 + i * 0.07);
+              const cy = y + 0.15 - i * 0.025;
+              tips.push(b.glow(upper, new THREE.ConeGeometry(0.04, 0.18, 6), 0xff7a1a, 0.8, cx + sd * Math.sin(ang) * (len / 2 + 0.05), cy + Math.cos(ang) * (len / 2 + 0.05), (i - 1.5) * 0.1));
+            }
           }
           b.plain(() => b.ball(upper, 0.045, gemMat(0xffaa22), x, y + 0.06, 0.17));
           b.anim.push((t) => tips.forEach((f, i) => f.scale.set(1, 0.6 + 0.8 * Math.abs(Math.sin(t * 8 + i * 1.9 + sd)), 1)));
@@ -1712,6 +1926,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   return {
     root: r.root,
     meshes: b.meshes,
+    parts: Object.fromEntries(Object.entries(b.parts).map(([slot, ps]) => [slot, ps.map((p) => p.group)])),
     setState(alive, stealthed) {
       if (alive !== lastAlive || stealthed !== lastStealth) {
         lastAlive = alive;
@@ -1879,6 +2094,7 @@ export function createSheep(): Character {
   return {
     root,
     meshes: b.meshes,
+    parts: {}, // the sheep wears nothing: cosmetics only exist on the class model, which is hidden while polymorphed
     swing() {},
     flash() {
       flashT = 0.2;
