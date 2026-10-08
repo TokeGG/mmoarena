@@ -187,6 +187,23 @@ describe('shared wing model', () => {
     }
   });
 
+  it('on the wizard the wings grow out of the middle of the upper back and are scaled to his body', () => {
+    for (const id of ['wings_bat', 'archon_wings', 'wings_void', 'wings_solar']) {
+      const ch = createCharacter('mage', gearLook({ wings: id, back: 'starfall_cloak' }), 'fire_staff');
+      run(ch, 1);
+      ch.root.updateMatrixWorld(true);
+      const wp = (n: string) => bone(ch, n).getWorldPosition(new THREE.Vector3());
+      const root = wingGroup(ch)!.getWorldPosition(new THREE.Vector3());
+      const hips = wp('Bip01_Pelvis_02'), neck = wp('Bip01_Neck_055'), chest = wp('Bip01_Spine1_05');
+      const shoulders = Math.abs(wp('Bip01_L_UpperArm_029').x - wp('Bip01_R_UpperArm_07').x);
+      assert.ok(Math.abs(root.x - hips.x) < 0.05, `${id}: between the shoulder blades (${(root.x - hips.x).toFixed(2)})`);
+      assert.ok(root.y > chest.y && root.y < neck.y, `${id}: upper back (${root.y.toFixed(2)})`);
+      assert.ok(chest.z - root.z < 0.4, `${id}: close to the back (${(chest.z - root.z).toFixed(2)})`);
+      const box = new THREE.Box3().setFromObject(wingGroup(ch)!);
+      assert.ok(box.max.x - box.min.x < 1.6 && shoulders > 0.3, `${id}: ${(box.max.x - box.min.x).toFixed(2)} wide for shoulders of ${shoulders.toFixed(2)}`);
+    }
+  });
+
   it('a wing item does not take the back part away, and the default fit is sane', () => {
     const winged = createCharacter('warrior', gearLook({ wings: 'wings_angel' }), 'dual');
     assert.ok(winged.parts.back.length > 0);

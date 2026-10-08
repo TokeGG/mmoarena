@@ -827,7 +827,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
   };
   const upper = anchor('chest', 'upper');
   // head items are centred on the model's own head (a stooping model's head is not over the middle of its body)
-  const head = anchor('head', 'head-anchor', meta.headCenter[0], meta.headCenter[2]);
+  const head = anchor('head', 'head-anchor', meta.headCenter[0] - ((root.userData.centerX as number) ?? 0), meta.headCenter[2]);
   const shoulderL = anchor('shoulder_l', 'shoulder-anchor-l');
   const shoulderR = anchor('shoulder_r', 'shoulder-anchor-r');
   // hand groups behave like the procedural arm groups: the old weapon offset (0, -0.62, 0.05) lands on the grip point

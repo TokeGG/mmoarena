@@ -41,6 +41,12 @@ export interface ClipOpts {
   lower?: string;
   /** How much of the shout pose (shoutPose.ts) the clip skeleton takes (default 0.9). */
   shoutGain?: number;
+  /**
+   * A standing correction for a model whose own clips are stooped or leaning (radians about the character's left axis, positive tips the
+   * top forward), turned onto the spine, chest, neck and head after the mixer every frame. It fades out while the body topples and a
+   * little in a cast (the cast clip already throws the body about), so the animations still read.
+   */
+  posture?: { spine?: number; chest?: number; neck?: number; head?: number; run?: number };
 }
 
 const clamp = (x: number, a: number, b: number) => (x < a ? a : x > b ? b : x);
@@ -113,6 +119,7 @@ export class ClipAnimator {
       idle: 'idle', walk: 'walk', run: 'run', attack: 'attack', death: 'death',
       walkSpeed: 2.6, runSpeed: 4.7, windup: 0.4, deathHold: 1.0, blend: 0.2, shoutGain: 0.9,
       lower: 'Pelvis|Thigh|Calf|Foot|Toe|Bip01_01$',
+      posture: {},
       ...opts,
     };
     this.mixer = new THREE.AnimationMixer(body);
@@ -246,8 +253,15 @@ export class ClipAnimator {
     this.body.position.y = f * 0.2;
     this.body.position.z = -f * 0.9;
     this.mixer.update(dt);
-    if (p.shout !== undefined && p.shout >= 0 && !dead && this.bones) this.overlayShout(p.shout);
-    else {
+    const po = this.o.posture;
+    const posture = !!this.bones && !!(po.spine || po.chest || po.neck || po.head);
+    // the correction belongs to standing and walking; a run leans forward on purpose (`run` is the share kept), a cast and the fall take it away
+    const pg = posture ? (1 - this.w[3]) * (1 - 0.45 * this.atkW) * (1 - (1 - (po.run ?? 1)) * this.w[2]) : 0;
+    if (!dead && this.bones && p.shout !== undefined && p.shout >= 0) this.overlayShout(p.shout, pg);
+    else if (pg > 0.001) {
+      this.lungeZ = 0;
+      this.overlayShout(-1, pg);
+    } else {
       this.lungeZ = 0;
       if (this.rebased.size) this.releaseOverlay();
     }
@@ -289,10 +303,16 @@ export class ClipAnimator {
   }
 
   /** The shout pose (shoutPose.ts) on the spine, head and arms. Applies after the mixer: the clips own the bones every frame, so nothing accumulates. */
-  private overlayShout(q: number) {
-    const sh = shoutPose(q, this.sh);
-    const g = this.o.shoutGain;
+  private overlayShout(q: number, pg = 0) {
+    const sh = shoutPose(Math.max(q, 0), this.sh);
+    const g = q < 0 ? 0 : this.o.shoutGain;
     for (const k of ['spine', 'chest', 'neck', 'head', 'armX', 'armZ', 'elbow'] as const) sh[k] *= g;
+    if (q < 0) sh.lunge = 0;
+    const po = this.o.posture;
+    sh.spine += (po.spine ?? 0) * pg;
+    sh.chest += (po.chest ?? 0) * pg;
+    sh.neck += (po.neck ?? 0) * pg;
+    sh.head += (po.head ?? 0) * pg;
     this.body.updateMatrixWorld(true);
     this.turn('spine', sh.spine, 0, 0);
     this.turn('chest', sh.chest, 0, 0);

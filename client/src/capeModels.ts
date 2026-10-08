@@ -419,6 +419,8 @@ function paintSkin(skin: CapeSkin, a: CapeAsset): { map: THREE.CanvasTexture; em
         g.fillRect(px, isl.top[x] * S - 1, S / MASK + 0.6, skin.collarW * S + 1);
       }
     }
+    // the side edges are a hint, not a cord: half strength and out of the glow map (seen edge-on a bright line reads as a rope)
+    g.fillStyle = css(col, k * (g === ctx ? 0.5 : 0));
     for (let y = 0; y < MASK; y++) {
       const py = (y / MASK) * S;
       if (isl.left[y] >= 0 && y / MASK > 0.12) {

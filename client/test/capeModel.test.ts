@@ -150,6 +150,22 @@ describe('cape cosmetics', () => {
     assert.equal(createCharacter('mage', '', 'fire_staff').parts.back, undefined);
   });
 
+  it('on the wizard the cape hangs from under the hood at the shoulder blades, centred on the body, not floating behind it', () => {
+    const ch = createCharacter('mage', gearLook({ back: 'starfall_cloak' }), 'fire_staff');
+    run(ch, 1);
+    ch.root.updateMatrixWorld(true);
+    const wp = (n: string) => bone(ch, n).getWorldPosition(new THREE.Vector3());
+    const cape = ch.root.getObjectByName('cape:starfall_cloak')!.getWorldPosition(new THREE.Vector3());
+    const hips = wp('Bip01_Pelvis_02'), neck = wp('Bip01_Neck_055'), chest = wp('Bip01_Spine1_05');
+    assert.ok(Math.abs(cape.x - hips.x) < 0.05, `centred (${cape.x.toFixed(2)} vs ${hips.x.toFixed(2)})`);
+    assert.ok(cape.y < neck.y && cape.y > chest.y, `root between the chest and the neck (${cape.y.toFixed(2)})`);
+    assert.ok(cape.z < chest.z && cape.z > chest.z - 0.3, `on the back, not far behind it (${(chest.z - cape.z).toFixed(2)} behind the chest)`);
+    // the hem ends a little above the robe's hem, and no part of the cloth strays wide of the body
+    const box = new THREE.Box3().setFromObject(capeMeshes(ch)[0]);
+    assert.ok(box.min.y > 0.05 && box.min.y < 0.9, `hem at ${box.min.y.toFixed(2)}`);
+    assert.ok(box.max.x - box.min.x < 1.4, `${(box.max.x - box.min.x).toFixed(2)} wide`);
+  });
+
   it('the cape is parented under the torso (so it follows the body) and units own their material and skeleton', () => {
     const a = createCharacter('mage', gearLook({ back: 'cloak_violet' }), 'fire_staff');
     const b = createCharacter('mage', gearLook({ back: 'cloak_violet' }), 'fire_staff');

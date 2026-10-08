@@ -51,7 +51,11 @@ export interface ModelDef {
 export const MODELS: Record<string, ModelDef> = {
   knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 }, cape: { tilt: -0.08, sy: 0.95 } },
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
-  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0 }, dye: ['robe'], cape: { tilt: -0.08, sy: 1.12 } },
+  wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0, posture: { chest: 0.2, neck: 0.22, head: 0.08, run: 0.5 } }, dye: ['robe'],
+    // the robe's back runs from the hood down to a train: the cloth hangs from under the hood, clear of the train, as wide as the shoulders
+    cape: { tilt: -0.12, sx: 1.3, sy: 1.1, sz: 1.0, z: 0.12 },
+    // the pair grows out of the upper back, smaller than the default so the span is about 1.7 times the shoulders
+    wings: { scale: 0.4, z: 0.22, y: 0.58, sx: 1 } },
   // the rogue's hooded assassin (rigged by scripts/rig-model.mjs from an unrigged mesh): the hood is part of the head and stays under head cosmetics
   assassin: { url: '/models/rogue.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.6, armIn: 0.3 }, cape: { tilt: -0.08, sy: 0.95 } },
   // the priest's Abyssal Sentinel (rigged by scripts/rig-model.mjs from an unrigged mesh): the horned helm is part of the head and stays under head cosmetics
@@ -312,6 +316,15 @@ function instantiateClips(asset: RigAsset): RigInstance {
   const anim = new ClipAnimator(body, asset.clips!, asset.def.clips);
   anim.bones = bones;
   root.updateMatrixWorld(true);
+  // a model that stands beside its origin (the wizard's hips are 0.17 to the left of it) is moved onto it: the unit turns, aims and wears
+  // its cosmetics about the middle of its body, not about a point next to it
+  const hips = bones.hips;
+  const cx = hips ? new THREE.Vector3().setFromMatrixPosition(hips.matrixWorld).x : 0;
+  if (Math.abs(cx) > 0.02) {
+    body.position.x = -cx;
+    root.updateMatrixWorld(true);
+  }
+  root.userData.centerX = Math.abs(cx) > 0.02 ? cx : 0;
   const rest: Record<string, THREE.Vector3> = {};
   for (const [n, b] of Object.entries(bones)) rest[n] = new THREE.Vector3().setFromMatrixPosition(b.matrixWorld);
   return { root, bones, parts, rest, attach: {}, anim };
