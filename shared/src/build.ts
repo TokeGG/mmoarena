@@ -31,6 +31,15 @@ export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
       if (m.charges !== undefined) cur.charges = (cur.charges ?? 0) + m.charges;
       if (m.after) cur.after = [...(cur.after ?? []), ...m.after];
       if (m.free) cur.free = true;
+      if (m.castDuring) cur.castDuring = true;
+      if (m.allyOk) cur.allyOk = true;
+      if (m.before) cur.before = [...(cur.before ?? []), ...m.before];
+      if (m.landing) cur.landing = [...(cur.landing ?? []), ...m.landing];
+      if (m.gain !== undefined) cur.gain = (cur.gain ?? 1) * m.gain;
+      if (m.ticks !== undefined) cur.ticks = m.ticks;
+      if (m.swapAura) cur.swapAura = { ...(cur.swapAura ?? {}), ...m.swapAura };
+      if (m.shieldPct !== undefined) cur.shieldPct = (cur.shieldPct ?? 0) + m.shieldPct;
+      if (m.echo !== undefined) cur.echo = (cur.echo ?? 0) + m.echo;
     }
   }
   if (add.auraDuration) for (const [id, v] of Object.entries(add.auraDuration)) into.auraDuration[id] = (into.auraDuration[id] ?? 1) * v;
@@ -63,7 +72,7 @@ export function cleanGear(gear: Record<string, string> | undefined, isOwner = fa
 
 export const specOf = (classId: ClassId, specId: string) => SPECS[classId]?.find((s) => s.id === specId);
 export const defaultSpec = (classId: ClassId) => SPECS[classId][0];
-/** The six talent tiers of one spec (talents differ per spec). */
+/** The five talent tiers of one spec (talents differ per spec). */
 export const talentsFor = (classId: ClassId, specId: string | undefined): TalentDef[][] => TALENTS[classId]?.[specId ?? ''] ?? [];
 
 /**
@@ -93,7 +102,10 @@ export function sharedTier(classId: ClassId, tier: number): boolean {
   return ids.every((x) => x === ids[0]);
 }
 
-export const emptyBuild =(classId: ClassId): Build => ({ spec: defaultSpec(classId).id, talents: [], gear: {} });
+export const emptyBuild = (classId: ClassId): Build => ({ spec: defaultSpec(classId).id, talents: [], gear: {} });
+
+/** The tier whose pick is the trinket: an extra button next to the action bar. */
+export const TRINKET_TIER = 3;
 
 export type BuildCheck = { ok: true } | { ok: false; reason: string };
 
@@ -105,6 +117,10 @@ export function validateBuild(classId: ClassId, b: Build, isOwner = false, match
   for (let i = 0; i < b.talents.length; i++) {
     if (b.talents[i] === '') continue;
     if (!tiers[i].some((t) => t.id === b.talents[i])) return { ok: false, reason: 'invalid talent' };
+  }
+  for (const [talent, from] of Object.entries(b.replace ?? {})) {
+    const t = tiers.flat().find((x) => x.id === talent);
+    if (!t?.swap || ![t.swap.from, ...(t.swap.alt ?? [])].includes(from) || !b.talents.includes(talent)) return { ok: false, reason: 'invalid replacement' };
   }
   for (const [slot, id] of Object.entries(b.gear)) {
     const item = itemById(id);
@@ -135,7 +151,13 @@ export function compileMods(classId: ClassId, b: Build | undefined): Mods {
   return m;
 }
 
-/** The talent swaps picked in this build, in tier order. */
+/** The skill a swap talent gives up in this build: the player's choice when the talent offers one, else its `from`. */
+export function replacedBy(t: TalentDef, b: Build): string {
+  const pick = b.replace?.[t.id];
+  return t.swap && pick && (pick === t.swap.from || t.swap.alt?.includes(pick)) ? pick : t.swap?.from ?? '';
+}
+
+/** The talent swaps picked in this build, in tier order (stealth-only swaps are not here: see `stealthSwapsFor`). */
 export function swapsFor(classId: ClassId, b: Build | undefined): { talent: TalentDef; from: string; to: string }[] {
   const spec = b ? specOf(classId, b.spec) : undefined;
   if (!b || !spec) return [];
@@ -143,9 +165,31 @@ export function swapsFor(classId: ClassId, b: Build | undefined): { talent: Tale
   const tiers = talentsFor(classId, b.spec);
   b.talents.forEach((id, i) => {
     const t = tiers[i]?.find((x) => x.id === id);
-    if (t?.swap && spec.bar.includes(t.swap.from)) out.push({ talent: t, from: t.swap.from, to: t.swap.to });
+    if (!t?.swap || t.swap.stealth) return;
+    const from = replacedBy(t, b);
+    if (spec.bar.includes(from)) out.push({ talent: t, from, to: t.swap.to });
   });
   return out;
+}
+
+/** Bar slots that turn into another ability while stealthed, from talents (Sap on Kidney Shot). */
+export function stealthSwapsFor(classId: ClassId, b: Build | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  const spec = b ? specOf(classId, b.spec) : undefined;
+  if (!b || !spec) return out;
+  const tiers = talentsFor(classId, b.spec);
+  b.talents.forEach((id, i) => {
+    const t = tiers[i]?.find((x) => x.id === id);
+    if (t?.swap?.stealth && spec.bar.includes(t.swap.from)) out[t.swap.from] = t.swap.to;
+  });
+  return out;
+}
+
+/** The trinket a build carries (the tier 4 pick), or undefined. */
+export function trinketFor(classId: ClassId, b: Build | undefined): string | undefined {
+  if (!b) return undefined;
+  const id = b.talents[TRINKET_TIER];
+  return id ? talentsFor(classId, b.spec)[TRINKET_TIER]?.find((t) => t.id === id)?.trinket : undefined;
 }
 
 export function barFor(classId: ClassId, b: Build | undefined, fallback: string[]): string[] {

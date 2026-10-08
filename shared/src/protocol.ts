@@ -223,18 +223,22 @@ export function parsePatches(raw: unknown): DataPatch[] | null {
   return out;
 }
 
-/** Keep only a well-formed build: strings of sane length, at most 8 talent entries (there are 6 tiers) and one id per gear slot. */
+/** Keep only a well-formed build: strings of sane length, the 5 talent tiers (an older client's sixth entry is dropped), the skills chosen to give up for swap talents and one id per gear slot. */
 export function parseBuild(raw: unknown): Build | undefined {
   if (!raw || typeof raw !== 'object') return undefined;
   const r = raw as Record<string, unknown>;
   const id = (v: unknown) => (typeof v === 'string' && /^[\w.]{1,40}$/.test(v) ? v : '');
   if (!id(r.spec)) return undefined;
-  const talents = Array.isArray(r.talents) ? r.talents.slice(0, 8).map(id) : [];
+  const talents = Array.isArray(r.talents) ? r.talents.slice(0, 5).map(id) : [];
   const gear: Record<string, string> = {};
   if (r.gear && typeof r.gear === 'object') {
     for (const [slot, v] of Object.entries(r.gear as Record<string, unknown>).slice(0, 8)) if (/^\w{1,12}$/.test(slot) && id(v)) gear[slot] = id(v);
   }
-  return { spec: id(r.spec), talents, gear };
+  const replace: Record<string, string> = {};
+  if (r.replace && typeof r.replace === 'object') {
+    for (const [t, v] of Object.entries(r.replace as Record<string, unknown>).slice(0, 5)) if (id(t) && id(v)) replace[t] = id(v);
+  }
+  return { spec: id(r.spec), talents, gear, ...(Object.keys(replace).length ? { replace } : {}) };
 }
 
 const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);

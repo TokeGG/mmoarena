@@ -228,7 +228,7 @@ const LASTING: Record<AuraKind, string> = {
  */
 export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classResource?: string, opts: DescribeOptions = {}): AbilityText {
   const am = mods.ability[def.id] ?? {};
-  const res = classResource ?? CLASSES[def.class].resource.type;
+  const res = classResource ?? (def.class === 'trinket' ? 'mana' : CLASSES[def.class].resource.type);
   const o: DescribeOptions = { ...opts, res };
   /** A number worked out with these modifiers, marked against the unmodified data when asked. */
   const M = (f: (m: Mods) => number, fmt: (n: number) => string = String, higherIsBetter = true) => marked(opts.mark, f(mods), f(NEUTRAL_MODS), fmt, higherIsBetter);

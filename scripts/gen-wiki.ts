@@ -132,7 +132,7 @@ function effectsSection(): string[] {
     if (ms > 0) s.ms.add(ms);
     sources.set(id, s);
   };
-  for (const a of Object.values(ABILITIES)) for (const e of a.effects) if (e.type === 'aura' && AURAS[e.aura]) note(e.aura, skillLink(a.id), e.duration ?? AURAS[e.aura].duration, CLASSES[a.class].resource.type);
+  for (const a of Object.values(ABILITIES)) for (const e of a.effects) if (e.type === 'aura' && AURAS[e.aura]) note(e.aura, skillLink(a.id), e.duration ?? AURAS[e.aura].duration, a.class === 'trinket' ? 'mana' : CLASSES[a.class].resource.type);
   for (const c of CLASS_IDS) for (const s of SPECS[c]) {
     if (s.passive === 'cauterize') note('cauterized', `${s.name} passive (Cauterize)`, AURAS.cauterized.duration, CLASSES[c].resource.type);
     for (const t of talentsFor(c, s.id).flat()) for (const [ab, m] of Object.entries(t.mods.ability ?? {})) {

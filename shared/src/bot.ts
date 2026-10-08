@@ -15,15 +15,25 @@ import type { Brain } from './botbrain';
 
 /**
  * A bot's loadout: one of the class's specs (so bots field every weapon spec and bar that exists in the data) and a talent
- * in most tiers, picked from the seed, so the skill swaps of tiers IV to VI get played by bots too.
+ * in most tiers, picked from the seed, so the trinket (tier IV) and the skill swaps (tier V) get played by bots too.
  */
 export function botBuild(classId: ClassId, seed: number, withTalents = true, specId?: string): Build {
   const specs = SPECS[classId];
   const spec = specId && specs.some((s) => s.id === specId) ? specId : specs[Math.abs(seed) % specs.length].id;
   if (!withTalents) return { spec, talents: [], gear: {} };
   const rng = mulberry32(seed * 7919 + 17);
-  const talents = talentsFor(classId, spec).map((tier) => (rng() < 0.85 && tier.length ? tier[Math.floor(rng() * tier.length)].id : ''));
-  return { spec, talents, gear: {} };
+  const tiers = talentsFor(classId, spec);
+  const talents = tiers.map((tier) => (rng() < 0.85 && tier.length ? tier[Math.floor(rng() * tier.length)].id : ''));
+  // a swap talent that can replace more than one skill: the bot picks which one to give up
+  const replace: Record<string, string> = {};
+  talents.forEach((id, i) => {
+    const sw = tiers[i]?.find((t) => t.id === id)?.swap;
+    if (sw?.alt?.length) {
+      const opts = [sw.from, ...sw.alt];
+      replace[id] = opts[Math.floor(rng() * opts.length)];
+    }
+  });
+  return { spec, talents, gear: {}, ...(Object.keys(replace).length ? { replace } : {}) };
 }
 
 export type Difficulty = 'easy' | 'normal' | 'hard';

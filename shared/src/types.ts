@@ -28,6 +28,24 @@ export interface AbilityMod {
   shadowProc?: number;
   /** Works without its usual target requirement (Deep Freeze for specs that cannot apply Fingers of Frost or Shatter). */
   free?: boolean;
+  /** Can be used in the middle of another cast without stopping it (Blink). */
+  castDuring?: boolean;
+  /** An ability aimed at enemies may also be aimed at allies and yourself (Charge becomes Intercept on a friend). */
+  allyOk?: boolean;
+  /** Effects that go off first, before the ability's own (a Frost Nova where Blink starts). */
+  before?: Effect[];
+  /** Effects that go off when a charge arrives. */
+  landing?: Effect[];
+  /** Multiplies the resource this ability gains (Cleave earning more rage). */
+  gain?: number;
+  /** A channel's tick count (replaces the base count). */
+  ticks?: number;
+  /** Swaps one aura the ability applies for another (Psychic Scream stuns or sends enemies running instead). */
+  swapAura?: Record<string, string>;
+  /** Share of the healing this ability does that also arrives as a barrier on the target (Penance). */
+  shieldPct?: number;
+  /** Share of a heal that is also sent to the other side of the pair: an ally if you healed yourself, you if you healed an ally (Greater Heal). */
+  echo?: number;
 }
 
 /** Fully resolved modifiers a unit carries. Multipliers default to 1. */
@@ -67,8 +85,24 @@ export interface WeaponDef { id: 'dual' | 'twohand' | 'polearm'; name: string }
 export interface AutoDef { interval: number; damage: number; range: number }
 export interface SpecDef { id: string; name: string; role: string; desc: string; icon: string; bar: string[]; mods: ModsInput; /** A built-in effect with no button (Cauterize). */ passive?: 'cauterize'; weapon?: WeaponDef; /** Replaces the class auto-attack (dual wield swings fast, two-handers slowly, polearms reach further). */ auto?: AutoDef }
 /** A talent that trades one of the spec's bar abilities (`from`) for another (`to`). */
-export interface BarSwap { to: string; from: string }
-export interface TalentDef { id: string; name: string; desc: string; icon: string; mods: ModsInput; swap?: BarSwap }
+export interface BarSwap {
+  to: string;
+  from: string;
+  /** Other abilities the player may choose to replace instead of `from` (Mage tier 5: Counterspell or Polymorph). */
+  alt?: string[];
+  /** `to` does not take a button: it shows in `from`'s place only while you are stealthed (Sap on the Kidney Shot button). */
+  stealth?: boolean;
+}
+export interface TalentDef {
+  id: string;
+  name: string;
+  desc: string;
+  icon: string;
+  mods: ModsInput;
+  swap?: BarSwap;
+  /** The ability this talent gives as the trinket: an extra button next to the bar (tier 4). */
+  trinket?: string;
+}
 export interface CosmeticItem {
   id: string;
   slot: string;
@@ -85,7 +119,14 @@ export interface CosmeticItem {
 export interface CosmeticsDef { slots: { id: string; name: string; icon: string }[]; items: CosmeticItem[] }
 /** A player's chosen build. Sent on join and validated by the server. */
 /** `gear` holds the cosmetic picked for each slot (slot id -> item id). Looks only. */
-export interface Build { spec: string; talents: string[]; gear: Record<string, string> }
+export interface Build {
+  spec: string;
+  /** The talent picked in each tier ('' for none). */
+  talents: string[];
+  gear: Record<string, string>;
+  /** For a swap talent that can replace more than one skill: the skill the player chose to give up (talent id -> ability id). */
+  replace?: Record<string, string>;
+}
 
 // ---------- data definitions (loaded from /shared/data/*.json) ----------
 
@@ -103,6 +144,20 @@ export interface AuraDef {
   vulnerable?: { school: School; mult: number };
   /** A line of text for the tooltip of an effect that has no stats of its own. */
   note?: string;
+  /** A fear that runs away from whoever put it on, as far as it can, instead of anywhere (Psychic Scream's flee form). */
+  flee?: boolean;
+  /** Each hit that could land on the holder has this chance (0-1) to strike an image instead and do nothing (Mirror Image). */
+  decoys?: number;
+  /** Enemies cannot see or target the holder while it lasts (Ascend to the Heavens). */
+  untargetable?: boolean;
+  /** Takes no damage or harmful effects while it lasts. */
+  invulnerable?: boolean;
+  /** Harmful effects put on the holder do not take hold while it lasts (Purifying Light). */
+  blocksDebuffs?: boolean;
+  /** Putting this on resets the cooldown of this ability. */
+  resetsCooldown?: string;
+  /** The next use of this ability costs no cooldown, and uses this aura up. */
+  freeCooldownFor?: string;
   /** Only one target at a time per caster: applying it again removes it from the previous target. */
   unique?: boolean;
   /** Damage over time that counts as a bleed (Exsanguinate feeds on these). */
@@ -141,11 +196,11 @@ export type Effect =
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   /** Heals a fraction of the target's missing health. */
   | { type: 'healMissing'; pct: number }
-  | { type: 'aura'; aura: string; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
+  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }
-  | { type: 'dispel' }
+  | { type: 'dispel'; /** Takes every dispellable harmful effect off, not just one; with `only` it works on allies or enemies. */ all?: boolean; only?: 'ally' | 'enemy' }
   /** `behind`: land on the far side of the target (its back) rather than on the line you came in on. */
   | { type: 'dashToTarget'; stopDistance: number; behind?: boolean }
   /** Heals a fraction of the target's maximum health. */
@@ -153,11 +208,11 @@ export type Effect =
   /** A jump to the chosen ground spot (Heroic Leap). */
   | { type: 'leap'; /** Damage to enemies around the landing spot. */ damage?: number; radius?: number }
   /** Drags the target in front of the caster, `stopDistance` yards away (Reel In). */
-  | { type: 'pull'; stopDistance: number }
+  | { type: 'pull'; stopDistance: number; /** Drags an ally (Leap of Faith) instead of an enemy. */ ally?: boolean }
   /** Plants a banner at the chosen ground spot: enemies inside cannot leave the circle while it stands. */
   | { type: 'flag'; radius: number; duration: number }
   /** A real run: the caster sprints at `speed` yards/s towards the target (uncontrollable) until `stopDistance` away. */
-  | { type: 'charge'; stopDistance: number; speed: number; /** Damage dealt on landing, when the target's stun ends. */ hit?: number }
+  | { type: 'charge'; stopDistance: number; speed: number; /** Damage dealt on landing, when the target's stun ends. */ hit?: number; only?: 'ally' | 'enemy' }
   | { type: 'blink'; distance: number }
   | { type: 'gain'; amount: number }
   /** A ground effect left at the target's position: `amount` damage to enemies inside `radius` every `pulse` ms for `duration` ms. Airborne units dodge a pulse. `initial` is a one-off hit to everything inside the moment the cast lands (not dodgeable). */
@@ -169,12 +224,23 @@ export type Effect =
   /** Frees you from every root and slow (Dispersion). */
   | { type: 'freeMove' }
   /** Drops combat: out of combat at once, and enemies lose their target on the caster. */
-  | { type: 'dropCombat' };
+  | { type: 'dropCombat' }
+  /** With this chance (0-1), the effects inside all happen together (one roll for the whole group). */
+  | { type: 'proc'; p: number; effects: Effect[] }
+  /** Everything another ability does, free: its area is worked out round the caster (a Frost Nova) or, for one target, on this target. */
+  | { type: 'cast'; ability: string }
+  /** Removes auras of these kinds from the target (Blind takes off damage over time and fears). */
+  | { type: 'strip'; kinds: AuraKind[] }
+  /** Enemies lose their target on the caster, and casts at it stop (Mirror Image, Ascend to the Heavens). */
+  | { type: 'dropTargets' }
+  /** A circle on the ground that gives `aura` to those inside for as long as it stands: `allies` for the caster's team, `self` for the caster alone (Battle Banner, Rune of Power). */
+  | { type: 'zoneBuff'; radius: number; duration: number; aura: string; who: 'allies' | 'self' };
 
 export interface AbilityDef {
   id: string;
   name: string;
-  class: ClassId;
+  /** 'trinket' for the tier 4 abilities every class can pick. */
+  class: ClassId | 'trinket';
   school: School;
   target: TargetType;
   range: number;
@@ -334,6 +400,10 @@ export interface Unit {
   spec: string | null;
   /** The talent picked in each tier ('' for none), for showing a build to people watching. */
   talents: string[];
+  /** The trinket (tier 4 pick): an extra button next to the bar. */
+  trinket?: string;
+  /** Slots that turn into another ability while this unit is stealthed, from talents (Sap on Kidney Shot): slot ability -> ability. */
+  stealthSwaps?: Record<string, string>;
   /** Cosmetic gear summary (see gearLook). */
   look: string;
   mods: Mods;
@@ -403,6 +473,8 @@ export type SimEvent =
   | { t: 'phase'; phase: Phase; winner: TeamId | 'draw' | null };
 
 export interface UnitSnap {
+  /** Charges ready on abilities that store several uses (the number on the button). Only present when there are any. */
+  charges?: Record<string, number>;
   /** Schools you are locked out of (interrupted), with when each lockout ends. Only present while one is active. */
   lockouts?: Partial<Record<School, number>>;
   id: number;
@@ -485,4 +557,6 @@ export interface ZoneSnap {
   end: number;
   /** Floor height when the zone lies on top of a walkway (absent on the ground). */
   y?: number;
+  /** A circle that buffs those inside (Battle Banner: the caster's team; Rune of Power: the caster). */
+  buff?: 'allies' | 'self';
 }
