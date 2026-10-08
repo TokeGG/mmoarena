@@ -14,12 +14,20 @@
 //   - one material per source material, base colour map only (JPEG, resized), metallic/roughness as plain factors: the game has
 //     no environment map, so metal maps would render black. Normal / ORM / extra maps are dropped on purpose.
 //   - the credit (title, author, licence, source URL) is kept in asset.extras so it travels with the file.
+// OPTIONAL preset fields for heavy sources (the mage staffs):
+//   - "decimate": [{ "match": "<regex on the source node name>", "tris": N }]: that source mesh is simplified to N triangles with
+//     meshoptimizer, keeping its UVs and normals (the first matching rule wins); `uvWeight` (default 4) and `normalWeight` (default 1) are how much UV
+//     stretch / shading change is avoided against shape error.
+//   - per material: "emissiveMap": { size, quality, strength } keeps the emissive texture (a glow) as a JPEG plus the glTF
+//     emissive_strength; "noBase": true drops the base colour texture ("color": [r,g,b,a] is used instead); "additive": true marks
+//     the material in its extras (the game draws it with additive blending: flames on a black background, no alpha needed).
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readGlbFile, readAccessor, GlbWriter } from './lib/glb.mjs';
 import { decodeJpeg, encodeJpeg } from './lib/mesh.mjs';
 import { decodePng, resize } from './lib/png.mjs';
+import { MeshoptSimplifier } from 'meshoptimizer/simplifier';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const presets = JSON.parse(readFileSync(join(here, 'models/weapons.json'), 'utf8'));
@@ -93,6 +101,63 @@ const walk = (ni, parent) => {
   for (const c of n.children || []) walk(c, m);
 };
 for (const r of json.scenes?.[json.scene ?? 0]?.nodes ?? json.scene?.[0]?.nodes ?? []) walk(r, ident());
+// ---- 1b. optional decimation of heavy source meshes (UVs and normals kept, so the original textures still fit)
+await MeshoptSimplifier.ready;
+const weldPrim = (p) => {
+  // identical position + normal + uv -> one vertex (exports often repeat vertices per triangle, which blocks every collapse)
+  const map = new Map();
+  const remap = new Uint32Array(p.pos.length / 3);
+  const pos = [], nrm = [], uv = [];
+  const q = (v) => Math.round(v * 1e4);
+  for (let i = 0; i < remap.length; i++) {
+    const key = `${q(p.pos[i * 3])},${q(p.pos[i * 3 + 1])},${q(p.pos[i * 3 + 2])}|${q(p.nrm[i * 3] * 20)},${q(p.nrm[i * 3 + 1] * 20)},${q(p.nrm[i * 3 + 2] * 20)}|${q(p.uv[i * 2] * 100)},${q(p.uv[i * 2 + 1] * 100)}`;
+    let id = map.get(key);
+    if (id === undefined) {
+      id = pos.length / 3;
+      map.set(key, id);
+      pos.push(p.pos[i * 3], p.pos[i * 3 + 1], p.pos[i * 3 + 2]);
+      nrm.push(p.nrm[i * 3], p.nrm[i * 3 + 1], p.nrm[i * 3 + 2]);
+      uv.push(p.uv[i * 2], p.uv[i * 2 + 1]);
+    }
+    remap[i] = id;
+  }
+  p.pos = new Float32Array(pos);
+  p.nrm = new Float32Array(nrm);
+  p.uv = new Float32Array(uv);
+  p.idx = p.idx.map((i) => remap[i]);
+};
+const simplifyPrim = (p, tris, uvWeight, nrmWeight) => {
+  weldPrim(p);
+  const n = p.pos.length / 3;
+  const attrs = new Float32Array(n * 5);
+  for (let i = 0; i < n; i++) attrs.set([p.nrm[i * 3], p.nrm[i * 3 + 1], p.nrm[i * 3 + 2], p.uv[i * 2], p.uv[i * 2 + 1]], i * 5);
+  const [ind] = MeshoptSimplifier.simplifyWithAttributes(new Uint32Array(p.idx), p.pos, 3, attrs, 5, [nrmWeight, nrmWeight, nrmWeight, uvWeight, uvWeight], null, tris * 3, 1, cfg.simplifyFlags ?? []);
+  const map = new Int32Array(n).fill(-1);
+  const pos = [], nrm = [], uv = [], idx = new Uint32Array(ind.length);
+  for (let i = 0; i < ind.length; i++) {
+    let m = map[ind[i]];
+    if (m < 0) {
+      m = pos.length / 3;
+      map[ind[i]] = m;
+      const v = ind[i];
+      pos.push(p.pos[v * 3], p.pos[v * 3 + 1], p.pos[v * 3 + 2]);
+      nrm.push(p.nrm[v * 3], p.nrm[v * 3 + 1], p.nrm[v * 3 + 2]);
+      uv.push(p.uv[v * 2], p.uv[v * 2 + 1]);
+    }
+    idx[i] = m;
+  }
+  p.pos = new Float32Array(pos);
+  p.nrm = new Float32Array(nrm);
+  p.uv = new Float32Array(uv);
+  p.idx = idx;
+};
+for (const p of prims) {
+  const rule = (cfg.decimate ?? []).find((r) => new RegExp(r.match).test(p.node));
+  if (!rule || p.idx.length / 3 <= rule.tris) continue;
+  const was = p.idx.length / 3;
+  simplifyPrim(p, rule.tris, cfg.uvWeight ?? 4, cfg.normalWeight ?? 1);
+  console.log(`  decimated ${p.node}: ${was} -> ${p.idx.length / 3} tris`);
+}
 const bounds = (list, basis) => {
   const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
   for (const p of list) for (let i = 0; i < p.pos.length; i += 3) {
@@ -128,9 +193,9 @@ const imageBytes = (i) => {
   const bv = json.bufferViews[im.bufferView];
   return g.bin.subarray(bv.byteOffset || 0, (bv.byteOffset || 0) + bv.byteLength);
 };
-const texImage = (texIndex, size, brighten = 1) => {
+const texImage = (texIndex, size, brighten = 1, quality = cfg.jpegQuality ?? 82) => {
   const src = json.textures[texIndex].source;
-  const key = `${src}@${size}x${brighten}`;
+  const key = `${src}@${size}x${brighten}q${quality}`;
   if (!imageCache.has(key)) {
     const bytes = imageBytes(src);
     const img = json.images[src].mimeType === 'image/png' ? decodePng(bytes) : decodeJpeg(bytes);
@@ -139,7 +204,7 @@ const texImage = (texIndex, size, brighten = 1) => {
     const small = resize(img, Math.max(1, Math.round(img.width * k)), Math.max(1, Math.round(img.height * k)));
     // the source art is very dark for a scene lit without an environment map: an optional gain (gamma-ish, keeps blacks black)
     if (brighten !== 1) for (let i = 0; i < small.data.length; i += 4) for (let c = 0; c < 3; c++) small.data[i + c] = Math.min(255, small.data[i + c] * brighten);
-    const jpg = encodeJpeg(small.data, small.width, small.height, cfg.jpegQuality ?? 82);
+    const jpg = encodeJpeg(small.data, small.width, small.height, quality);
     console.log(`  texture ${src}: ${img.width}x${img.height} ${(bytes.length / 1024).toFixed(0)} KB -> ${small.width}x${small.height} ${(jpg.length / 1024).toFixed(0)} KB`);
     imageCache.set(key, { index: null, bytes: jpg });
   }
@@ -164,16 +229,27 @@ const outMaterial = (srcIndex) => {
   const mc = cfg.materials?.[srcIndex] ?? cfg.materials?.default ?? {};
   const m = { name: src.name || `material${srcIndex}`, doubleSided: true, pbrMetallicRoughness: { metallicFactor: mc.metallic ?? 0.3, roughnessFactor: mc.roughness ?? 0.5 } };
   const bt = src.pbrMetallicRoughness?.baseColorTexture;
-  if (bt) {
-    const im = texImage(bt.index, mc.size ?? cfg.textureSize ?? 1024, mc.brighten ?? cfg.brighten ?? 1);
+  const addTexture = (im, name) => {
     if (im.index === null) {
       im.index = outJson.images.length;
-      outJson.images.push({ bufferView: w.addBytes(im.bytes), mimeType: 'image/jpeg', name: `base${im.index}` });
+      outJson.images.push({ bufferView: w.addBytes(im.bytes), mimeType: 'image/jpeg', name: `${name}${im.index}` });
     }
     outJson.textures.push({ sampler: 0, source: im.index });
-    m.pbrMetallicRoughness.baseColorTexture = { index: outJson.textures.length - 1 };
-  } else if (src.pbrMetallicRoughness?.baseColorFactor) m.pbrMetallicRoughness.baseColorFactor = src.pbrMetallicRoughness.baseColorFactor;
-  if (mc.emissive) m.emissiveFactor = mc.emissive;
+    return { index: outJson.textures.length - 1 };
+  };
+  if (bt && !mc.noBase) {
+    m.pbrMetallicRoughness.baseColorTexture = addTexture(texImage(bt.index, mc.size ?? cfg.textureSize ?? 1024, mc.brighten ?? cfg.brighten ?? 1), 'base');
+  } else if (mc.color) m.pbrMetallicRoughness.baseColorFactor = mc.color;
+  else if (src.pbrMetallicRoughness?.baseColorFactor) m.pbrMetallicRoughness.baseColorFactor = src.pbrMetallicRoughness.baseColorFactor;
+  if (mc.emissiveMap && src.emissiveTexture) {
+    m.emissiveTexture = addTexture(texImage(src.emissiveTexture.index, mc.emissiveMap.size ?? 512, 1, mc.emissiveMap.quality ?? 80), 'glow');
+    m.emissiveFactor = [1, 1, 1];
+    if (mc.emissiveMap.strength) {
+      m.extensions = { KHR_materials_emissive_strength: { emissiveStrength: mc.emissiveMap.strength } };
+      outJson.extensionsUsed = ['KHR_materials_emissive_strength'];
+    }
+  } else if (Array.isArray(mc.emissive)) m.emissiveFactor = mc.emissive;
+  if (mc.additive) m.extras = { additive: true };
   outJson.materials.push(m);
   matMap.set(srcIndex, outJson.materials.length - 1);
   return outJson.materials.length - 1;

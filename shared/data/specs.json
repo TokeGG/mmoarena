@@ -108,6 +108,10 @@
       "id": "frost",
       "name": "Cryomancy",
       "role": "Control / kiting",
+      "weapon": {
+        "id": "ice_staff",
+        "name": "Ice staff"
+      },
       "desc": "Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance into a huge hit; Deep Freeze locks it in.",
       "icon": "\u2744\ufe0f",
       "bar": [
@@ -131,6 +135,10 @@
       "id": "fire",
       "name": "Pyromancy",
       "role": "Burst damage",
+      "weapon": {
+        "id": "fire_staff",
+        "name": "Fire staff"
+      },
       "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Cauterize saves you from one killing blow.",
       "icon": "\ud83d\udd25",
       "bar": [
@@ -150,6 +158,10 @@
       "id": "arcane",
       "name": "Starweaving",
       "role": "Sustain / utility",
+      "weapon": {
+        "id": "arcane_staff",
+        "name": "Arcane staff"
+      },
       "desc": "A damage cooldown, and Arcane Missiles and Barrage that hit hard; Explosion slows what is close.",
       "icon": "\ud83d\udd2e",
       "bar": [

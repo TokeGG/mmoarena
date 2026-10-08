@@ -102,5 +102,165 @@
       "license": "Sketchfab Standard licence (https://sketchfab.com/licenses): NOT a Creative Commons licence, redistribution to be confirmed by the owner",
       "source": "https://sketchfab.com/3d-models/divine-fantasy-axe-188fe88f2dab4513b76f2a47eeb1daba"
     }
+  },
+  "staff-fire": {
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "face": [
+      0,
+      0,
+      1
+    ],
+    "textureSize": 1024,
+    "out": "staff-fire.glb",
+    "length": 2.3,
+    "grip": 0.5,
+    "parts": [
+      {
+        "name": "staff"
+      }
+    ],
+    "jpegQuality": 80,
+    "decimate": [
+      {
+        "match": "^Staff_LowPoly",
+        "tris": 3200
+      },
+      {
+        "match": "^polySurface",
+        "tris": 80
+      }
+    ],
+    "materials": {
+      "0": {
+        "size": 1024,
+        "metallic": 0.1,
+        "roughness": 0.6,
+        "brighten": 1.25,
+        "emissiveMap": {
+          "size": 512,
+          "quality": 78,
+          "strength": 2.2
+        }
+      },
+      "1": {
+        "size": 256,
+        "metallic": 0,
+        "roughness": 1,
+        "brighten": 1.0,
+        "additive": true
+      }
+    },
+    "credit": {
+      "title": "Stylised Fire Staff",
+      "author": "Bl4ckGh0st (https://sketchfab.com/Bl4ckGh0st)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/stylised-fire-staff-fbd37dc983474820a2ad3c4e6872e6d5"
+    },
+    "note": "Wood staff decimated 38.9k -> 3.2k triangles, the 34 flame cards 200 -> 80 each; flames are drawn additively (black background).",
+    "simplifyFlags": [
+      "Permissive"
+    ]
+  },
+  "staff-ice": {
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "face": [
+      0,
+      0,
+      1
+    ],
+    "textureSize": 1024,
+    "out": "staff-ice.glb",
+    "length": 2.1,
+    "grip": 0.5,
+    "parts": [
+      {
+        "name": "staff"
+      }
+    ],
+    "decimate": [
+      {
+        "match": ".",
+        "tris": 5500
+      }
+    ],
+    "materials": {
+      "default": {
+        "size": 1024,
+        "metallic": 0.1,
+        "roughness": 0.5,
+        "brighten": 1.2
+      }
+    },
+    "credit": {
+      "title": "Stylized Magical Ice Staff - Game Ready",
+      "author": "Nexus Assets (https://sketchfab.com/LootForge)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/stylized-magical-ice-staff-game-ready-d98a534be7ef4b1e8de76182e355ce0b"
+    },
+    "note": "Decimated 19.9k -> 5.5k triangles; normal and metal-rough maps dropped.",
+    "uvWeight": 1,
+    "normalWeight": 0.3,
+    "simplifyFlags": [
+      "Permissive"
+    ],
+    "jpegQuality": 72
+  },
+  "staff-arcane": {
+    "up": [
+      0,
+      1,
+      0
+    ],
+    "face": [
+      0,
+      0,
+      1
+    ],
+    "textureSize": 1024,
+    "out": "staff-arcane.glb",
+    "length": 2.3,
+    "grip": 0.5,
+    "parts": [
+      {
+        "name": "staff"
+      }
+    ],
+    "decimate": [
+      {
+        "match": ".",
+        "tris": 4800
+      }
+    ],
+    "materials": {
+      "default": {
+        "size": 1024,
+        "metallic": 0.1,
+        "roughness": 0.5,
+        "brighten": 1.2,
+        "emissiveMap": {
+          "size": 512,
+          "quality": 78,
+          "strength": 1.6
+        }
+      }
+    },
+    "credit": {
+      "title": "Arcane staff of Resonance - WOW inspired weapon",
+      "author": "Johan Pindeville (https://sketchfab.com/johanpindeville)",
+      "license": "CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)",
+      "source": "https://sketchfab.com/3d-models/arcane-staff-of-resonance-wow-inspired-weapon-b2a8d6386cbd47939acadb94f637872a"
+    },
+    "note": "Decimated 6.2k -> 4.8k triangles.",
+    "simplifyFlags": [
+      "Permissive"
+    ]
   }
 }

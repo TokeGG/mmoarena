@@ -43,6 +43,17 @@ export interface WeaponDef {
   glow?: { color: number; from: number; to: number; r: number; opacity?: number };
   /** Arm pose while held (two-handers): the animator keeps both arms on the weapon and swings them together. */
   hold?: ArmHold;
+  /** What the wielder looks like with it (the mage specs): robe tint and the magic that hangs around the weapon's head (models.ts applies them). */
+  look?: WeaponLook;
+}
+
+/** Per-spec look of the unit that holds a weapon. The robe is pulled toward `color` (see the dye shader in models.ts); `glyph` makes the robe's red trim glow in that colour. */
+export interface WeaponLook {
+  robe: { color: number; k?: number; floor?: number; rim?: number; rimColor?: number; glyph: number; glyphK: number };
+  /** 'embers' rise off the head, 'frost' motes drift around it, 'stars' orbit it. `color` / `color2` are the mote colours. */
+  fx: 'embers' | 'frost' | 'stars';
+  color: number;
+  color2: number;
 }
 
 const H = Math.PI / 2;
@@ -70,6 +81,26 @@ export const WEAPONS: Record<string, WeaponDef> = {
     right: { part: 'weapon', rot: [1.252, -0.123, -0.172] },
     mid: 1.3,
     hold: { r: { x: -0.134, z: 0.361, e: -0.728 }, l: { x: -1.019, z: -0.899, e: -0.034 }, walk: 0.3, arc: 0.6 },
+  },
+  // The mage staffs (Old Wizard, models.ts / riggedClips.ts). `rot` stands the staff up the way the wizard's own staff was held in
+  // his idle clip (prep-character.mjs measures it: leaning 9 degrees forward); the grip is at the staff's middle, the head `mid` above it.
+  fire_staff: {
+    url: '/models/weapons/staff-fire.glb',
+    right: { part: 'staff', rot: [0.159, 0, 0.034] },
+    mid: 1.0,
+    look: { robe: { color: 0xb8401a, k: 0.82, floor: 0.1, rim: 0.35, rimColor: 0xff9a4a, glyph: 0xff8a2a, glyphK: 1.7 }, fx: 'embers', color: 0xe8661c, color2: 0xf0a040 },
+  },
+  ice_staff: {
+    url: '/models/weapons/staff-ice.glb',
+    right: { part: 'staff', rot: [0.159, 0, 0.034], pos: [-0.22, 0, 0.08], out: 0.06 },
+    mid: 0.9,
+    look: { robe: { color: 0x5f9ccc, k: 0.82, floor: 0.14, rim: 0.7, rimColor: 0xe2f8ff, glyph: 0xa8f0ff, glyphK: 1.5 }, fx: 'frost', color: 0x9fdcf0, color2: 0xdff6ff },
+  },
+  arcane_staff: {
+    url: '/models/weapons/staff-arcane.glb',
+    right: { part: 'staff', rot: [0.159, 0, 0.034], pos: [-0.12, 0, 0.05], out: 0.04 },
+    mid: 1.0,
+    look: { robe: { color: 0x5a3cb0, k: 0.84, floor: 0.12, rim: 0.55, rimColor: 0xd8c4ff, glyph: 0xdcc8ff, glyphK: 1.6 }, fx: 'stars', color: 0xb08cf0, color2: 0xece0ff },
   },
 };
 
@@ -148,6 +179,8 @@ export interface WeaponHost {
   addMesh(m: THREE.Mesh): void;
   /** Materials the unit tints (hit flash, stealth, death). */
   addMaterial(m: THREE.MeshStandardMaterial): void;
+  /** Register a non-pickable shape that hides with the unit (additive flames). */
+  addFx(o: THREE.Object3D): void;
   /** Additive glow shapes (hidden while dead or stealthed). */
   glow(parent: THREE.Object3D, geo: THREE.BufferGeometry, color: number, opacity: number, x: number, y: number, z: number): THREE.Mesh;
 }
@@ -173,9 +206,17 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
     if (!c) {
       c = (m as THREE.MeshStandardMaterial).clone();
       c.userData.base = c.color.clone();
-      c.userData.glow = 0;
+      // a material with a glow map (the fire staff's embers) keeps it lit; additive materials (flames on black) never take tints
+      c.userData.glow = c.emissiveMap ? c.emissiveIntensity : 0;
       mats.set(m, c);
-      host.addMaterial(c);
+      if (c.userData.additive) {
+        c.blending = THREE.AdditiveBlending;
+        c.transparent = true;
+        c.depthWrite = false;
+        c.fog = false;
+        c.emissive.set(0x000000);
+        c.color.multiplyScalar(1.4);
+      } else host.addMaterial(c);
     }
     return c;
   };
@@ -193,7 +234,11 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
     part.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;
       o.material = Array.isArray(o.material) ? o.material.map(own) : own(o.material);
-      host.addMesh(o);
+      if ((o.material as THREE.Material).userData.additive) {
+        o.castShadow = false;
+        o.renderOrder = 2;
+        host.addFx(o);
+      } else host.addMesh(o);
     });
     pivot.add(part);
     arm.add(pivot);

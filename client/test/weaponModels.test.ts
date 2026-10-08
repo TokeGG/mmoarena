@@ -11,6 +11,7 @@ import { registerWeaponModel, forgetWeaponModels, WEAPONS } from '../src/weaponM
 
 const DIR = fileURLToPath(new URL('../public/models/', import.meta.url));
 const load = (file: string) => unpackModel(new Uint8Array(readFileSync(DIR + file.replace(/\.glb$/, '.pak'))));
+const WARRIOR_WEAPONS = ['dual', 'twohand', 'polearm']; // the mage staffs are tested in mageModel.test.ts
 const WEAPON_FILES: Record<string, string> = { dual: 'weapons/saber-dual.glb', twohand: 'weapons/greatsword.glb', polearm: 'weapons/axe.glb' };
 
 describe('real weapon models', () => {
@@ -45,7 +46,7 @@ describe('real weapon models', () => {
   };
 
   it('every warrior spec holds its own model: sabers in both hands, the others in the right hand with both arms on it', () => {
-    for (const weapon of Object.keys(WEAPONS)) {
+    for (const weapon of WARRIOR_WEAPONS) {
       const ch = createCharacter('warrior', '', weapon);
       const bones = bonesOf(ch);
       const meshes = held(ch);
@@ -90,7 +91,7 @@ describe('real weapon models', () => {
 
   it('weapon cosmetics follow the real weapon and the unit still animates (swings, flash, death)', () => {
     for (const item of COSMETICS.items.filter((i) => i.slot === 'weapon')) {
-      for (const weapon of Object.keys(WEAPONS)) {
+      for (const weapon of WARRIOR_WEAPONS) {
         const ch = createCharacter('warrior', gearLook({ weapon: item.id }), weapon);
         ch.swing();
         for (let i = 0; i < 12; i++) ch.pose({ phase: i, move: i % 2, casting: false, time: i * 0.1, dt: 0.05 });
@@ -103,7 +104,7 @@ describe('real weapon models', () => {
 
   it('weapons stay a sensible size next to the 2.25 tall knight and survive a swing', () => {
     const lengths: Record<string, [number, number]> = { dual: [0.9, 1.6], twohand: [2.0, 2.8], polearm: [2.0, 2.8] };
-    for (const weapon of Object.keys(WEAPONS)) {
+    for (const weapon of WARRIOR_WEAPONS) {
       const ch = createCharacter('warrior', '', weapon);
       ch.root.updateMatrixWorld(true);
       const box = new THREE.Box3();
@@ -120,7 +121,7 @@ describe('real weapon models', () => {
 
   it('falls back to the procedural weapons while the models are not loaded, and the version changes when they load', async () => {
     forgetWeaponModels();
-    for (const weapon of Object.keys(WEAPONS)) {
+    for (const weapon of WARRIOR_WEAPONS) {
       const ch = createCharacter('warrior', '', weapon);
       assert.ok(held(ch).length > 0, `${weapon} procedural stand-in`);
       for (const m of held(ch)) assert.ok(!(m.material as THREE.MeshStandardMaterial).map, 'plain procedural material');
@@ -140,7 +141,7 @@ describe('weapon files', () => {
     return JSON.parse(b.subarray(20, 20 + len).toString('utf8'));
   };
   it('are small and keep their credit', () => {
-    const packs = readdirSync(dir).filter((f) => f.endsWith('.pak'));
+    const packs = readdirSync(dir).filter((f) => f.endsWith('.pak') && !f.startsWith('staff-'));
     assert.deepEqual(packs.sort(), ['axe.pak', 'greatsword.pak', 'saber-dual.pak']);
     assert.ok(packs.reduce((n, f) => n + statSync(dir + f).size, 0) < 3 * 1024 * 1024, 'under 3 MB in all');
     const files = packs.map((f) => f.replace(/\.pak$/, '.glb'));

@@ -14,6 +14,19 @@ Changes made to the originals: re-oriented and rescaled for the game, textures r
 
 The Divine Fantasy Axe is under Sketchfab's Standard licence, not a Creative Commons licence: the owner is to confirm that the model may be redistributed with the game.
 
+## Mage (character and staffs)
+
+Credited exactly as each file's own glTF metadata (`asset.extras`) names it.
+
+| Model | Author | Licence | Used for |
+| --- | --- | --- | --- |
+| [Terror Engine - Old Wizard](https://sketchfab.com/3d-models/terror-engine-old-wizard-0561d94ddd46405aaea85043dbebbdaa) | JuanCarlosOsanteHernandez | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The body of every Mage spec (rigged and animated by its author: idle, walk, run, attack and death clips) |
+| [Stylised Fire Staff](https://sketchfab.com/3d-models/stylised-fire-staff-fbd37dc983474820a2ad3c4e6872e6d5) | Bl4ckGh0st | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The Pyromancy staff (fire spec) |
+| [Stylized Magical Ice Staff - Game Ready](https://sketchfab.com/3d-models/stylized-magical-ice-staff-game-ready-d98a534be7ef4b1e8de76182e355ce0b) | Nexus Assets | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The Cryomancy staff (frost spec) |
+| [Arcane staff of Resonance - WOW inspired weapon](https://sketchfab.com/3d-models/arcane-staff-of-resonance-wow-inspired-weapon-b2a8d6386cbd47939acadb94f637872a) | Johan Pindeville | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | The Starweaving staff (arcane spec) |
+
+Changes made to the originals: the wizard's own staff was removed, textures reduced (1024 px or less, normal and metal/roughness maps dropped), the staffs decimated (fire 38.9k to 3.2k wood triangles plus reduced flame cards, ice 19.9k to 5.5k, arcane 6.2k to 4.8k), everything rescaled and re-oriented for the game (`scripts/prep-character.mjs`, `scripts/prep-weapon.mjs`; the game-ready files carry their credit in the glTF `asset.extras`). The original downloads are not part of this repository.
+
 ## Characters (Warrior)
 
 | Model | Author | Licence | Used for |
