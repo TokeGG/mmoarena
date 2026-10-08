@@ -4,6 +4,8 @@
  * Saved in localStorage next to the layout.
  */
 
+import { textVars } from './hudText';
+
 export interface LookOption {
   id: string;
   label: string;
@@ -47,6 +49,21 @@ export const LOOK_OPTIONS: LookOption[] = [
   { id: 'targetAnim', label: 'Target mark movement', group: 'Target', choices: [['bob', 'Bobbing'], ['pulse', 'Pulsing'], ['still', 'Still']] },
   { id: 'targetRing', label: 'Circle under the target', group: 'Target', choices: [['normal', 'Ring'], ['thin', 'Thin ring'], ['thick', 'Thick ring'], ['disc', 'Glowing disc'], ['off', 'Off']] },
   { id: 'targetBars', label: 'Target health bar highlight', group: 'Target', choices: [['glow', 'Glow'], ['bright', 'Bright outline'], ['off', 'Off']] },
+  // the error text ("Out of range"...) and the stun / control text ("STUNNED 2.1s"); both also move and resize in the editor
+  { id: 'errSize', label: 'Size', group: 'Error text', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'Huge']] },
+  { id: 'errColor', label: 'Colour', group: 'Error text', choices: [['auto', 'Auto (red)'], ['red', 'Red'], ['orange', 'Orange'], ['yellow', 'Yellow'], ['white', 'White'], ['cyan', 'Cyan'], ['magenta', 'Magenta']] },
+  { id: 'errBold', label: 'Weight', group: 'Error text', choices: [['bold', 'Bold'], ['normal', 'Normal']] },
+  { id: 'errOutline', label: 'Outline and shadow', group: 'Error text', choices: [['off', 'None'], ['soft', 'Soft shadow'], ['strong', 'Strong outline']] },
+  { id: 'errPlate', label: 'Background', group: 'Error text', choices: [['none', 'None'], ['pill', 'Dark pill']] },
+  { id: 'errTime', label: 'Stays visible', group: 'Error text', choices: [['0.8', '0.8 s'], ['1.2', '1.2 s'], ['1.8', '1.8 s'], ['2.4', '2.4 s'], ['3', '3 s']] },
+  { id: 'errAnim', label: 'Appears with', group: 'Error text', choices: [['pop', 'A quick pop'], ['fade', 'Fade only'], ['none', 'Nothing']] },
+  { id: 'errRepeat', label: 'Same error again', group: 'Error text', choices: [['hold', 'Ignored for 0.3 s'], ['every', 'Shown every time']] },
+  { id: 'ccSize', label: 'Size', group: 'Stun text', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'Huge']] },
+  { id: 'ccColor', label: 'Colour', group: 'Stun text', choices: [['auto', 'Auto (by what holds you)'], ['red', 'Red'], ['orange', 'Orange'], ['yellow', 'Yellow'], ['white', 'White'], ['cyan', 'Cyan'], ['magenta', 'Magenta']] },
+  { id: 'ccBold', label: 'Weight', group: 'Stun text', choices: [['bold', 'Bold'], ['normal', 'Normal']] },
+  { id: 'ccOutline', label: 'Outline and shadow', group: 'Stun text', choices: [['off', 'None'], ['soft', 'Soft shadow'], ['strong', 'Strong outline']] },
+  { id: 'ccPlate', label: 'Background', group: 'Stun text', choices: [['pill', 'Coloured plate'], ['none', 'None']] },
+  { id: 'ccAnim', label: 'Movement', group: 'Stun text', choices: [['pulse', 'Pulsing'], ['still', 'Still']] },
 ];
 
 const DEFAULTS: Record<string, string> = {
@@ -54,6 +71,8 @@ const DEFAULTS: Record<string, string> = {
   barHeight: 'normal', allyColor: 'green', enemyColor: 'red', hpFont: 'md',
   targetArrow: 'arrow', targetColor: 'auto', targetSize: 'md', targetAnim: 'bob', targetRing: 'normal', targetBars: 'glow',
   killfeed: 'show',
+  errSize: 'lg', errColor: 'auto', errBold: 'bold', errOutline: 'strong', errPlate: 'none', errTime: '1.8', errAnim: 'pop', errRepeat: 'hold',
+  ccSize: 'lg', ccColor: 'auto', ccBold: 'bold', ccOutline: 'soft', ccPlate: 'pill', ccAnim: 'pulse',
   plates: 'all', plateWidth: 'normal', plateBar: 'normal', plateHp: 'none', plateColor: 'team', plateName: 'show', plateText: 'md', plateCast: 'show', plateDebuffs: 'show',
 };
 
@@ -72,6 +91,7 @@ export function applyLook() {
   if (typeof document === 'undefined') return;
   for (const o of LOOK_OPTIONS) document.body.dataset[`hud${o.id.charAt(0).toUpperCase()}${o.id.slice(1)}`] = look[o.id];
   document.body.style.setProperty('--tgt-color', TARGET_COLORS[look.targetColor] ?? '');
+  for (const [k, v] of Object.entries(textVars(look))) document.body.style.setProperty(k, v);
 }
 
 export function loadLook() {

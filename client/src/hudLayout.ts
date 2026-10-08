@@ -1,4 +1,5 @@
 import { clamp } from '@arena/shared';
+import { controlColor } from './hudText';
 import { LOOK_OPTIONS, loadLook, look, resetLook, setLook } from './hudLook';
 
 /**
@@ -36,6 +37,8 @@ const TARGETS: [string, string][] = [
   ['log', 'Combat log'],
   ['killfeed', 'Kill feed'],
   ['help', 'Help text'],
+  ['err', 'Error text'],
+  ['ccstate', 'Stun text'],
 ];
 const KEY = 'arena.hud.v1';
 const STYLE_KEY = 'arena.hud.style.v1';
@@ -79,6 +82,26 @@ const GRID_KEY = 'arena.hud.grid.v1';
 const GRID_SIZES = [8, 16, 24, 32, 48];
 
 
+/** The saved layout from what localStorage (or the account) holds: only known elements, scale / size / position clamped, anything malformed dropped. */
+export function parseLayout(rawIn: unknown, ids: string[], width: number, height: number): Record<string, Saved> {
+  const out: Record<string, Saved> = {};
+  if (!rawIn || typeof rawIn !== 'object' || Array.isArray(rawIn)) return out;
+  const raw = rawIn as Record<string, Partial<Slot & Saved> | null>;
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
+  for (const id of ids) {
+    const r = raw[id];
+    if (!r || typeof r !== 'object' || !num(r.s)) continue;
+    const sc = clamp(r.s, 0.6, 1.6);
+    const size = { ...(num(r.w) ? { w: clamp(r.w, 40, 2000) } : {}), ...(num(r.h) ? { h: clamp(r.h, 16, 1400) } : {}) };
+    if (num(r.fx) && num(r.fy)) out[id] = { fx: clamp(r.fx, -1, 1), fy: clamp(r.fy, -1, 1), s: sc, ...size };
+    else if (num(r.dx) && num(r.dy)) out[id] = { fx: r.dx / width, fy: r.dy / height, s: sc }; // an older pixel layout
+  }
+  return out;
+}
+
+/** The ids of the movable elements, in the editor's order. */
+export const HUD_ELEMENTS = TARGETS.map(([id]) => id);
+
 export class HudLayout {
   editing = false;
   onChange: (editing: boolean) => void = () => {};
@@ -102,15 +125,7 @@ export class HudLayout {
 
   constructor() {
     try {
-      const raw = JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Partial<Slot & Saved>>;
-      for (const [id] of TARGETS) {
-        const r = raw[id];
-        if (!r || !Number.isFinite(r.s)) continue;
-        const sc = clamp(r.s!, 0.6, 1.6);
-        const size = { ...(Number.isFinite(r.w) ? { w: clamp(r.w!, 40, 2000) } : {}), ...(Number.isFinite(r.h) ? { h: clamp(r.h!, 16, 1400) } : {}) };
-        if (Number.isFinite(r.fx) && Number.isFinite(r.fy)) this.saved[id] = { fx: clamp(r.fx!, -1, 1), fy: clamp(r.fy!, -1, 1), s: sc, ...size };
-        else if (Number.isFinite(r.dx) && Number.isFinite(r.dy)) this.saved[id] = { fx: r.dx! / window.innerWidth, fy: r.dy! / window.innerHeight, s: sc }; // an older pixel layout
-      }
+      this.saved = parseLayout(JSON.parse(localStorage.getItem(KEY) ?? '{}'), TARGETS.map(([id]) => id), window.innerWidth, window.innerHeight);
       this.fromSaved();
     } catch {
       /* ignore */
@@ -294,33 +309,58 @@ export class HudLayout {
     row2.append(toggle('Show grid', () => this.grid.show, (v) => (this.grid.show = v)), toggle('Snap to grid and centre', () => this.grid.snap, (v) => (this.grid.snap = v)), sizeLabel, mk('small', '', 'Hold Alt while dragging to ignore snapping.'));
 
     // look options
-    const details = document.createElement('details');
-    details.className = 'he-look';
-    details.append(mk('summary', '', 'Frames, health bars, nameplates and slots'));
-    const grid = mk('div', 'he-lookgrid');
-    let group = '';
-    for (const o of LOOK_OPTIONS) {
-      if ((o.group ?? '') !== group) {
-        group = o.group ?? '';
-        grid.append(mk('h4', 'he-group', group));
+    const TEXT_GROUPS = ['Error text', 'Stun text'];
+    const lookGrid = (summary: string, pick: (o: (typeof LOOK_OPTIONS)[number]) => boolean, open = false) => {
+      const details = document.createElement('details');
+      details.className = 'he-look';
+      details.open = open;
+      details.append(mk('summary', '', summary));
+      const grid = mk('div', 'he-lookgrid');
+      let group = '';
+      for (const o of LOOK_OPTIONS.filter(pick)) {
+        if ((o.group ?? '') !== group) {
+          group = o.group ?? '';
+          grid.append(mk('h4', 'he-group', group));
+        }
+        const l = mk('label', '', `${o.label} `);
+        const sel = document.createElement('select');
+        for (const [v, t] of o.choices) sel.append(new Option(t, v));
+        sel.value = look[o.id];
+        sel.addEventListener('change', () => {
+          setLook(o.id, sel.value);
+          this.paintPreview();
+        });
+        this.lookSelects.set(o.id, sel);
+        l.append(sel);
+        grid.append(l);
       }
-      const l = mk('label', '', `${o.label} `);
-      const sel = document.createElement('select');
-      for (const [v, t] of o.choices) sel.append(new Option(t, v));
-      sel.value = look[o.id];
-      sel.addEventListener('change', () => setLook(o.id, sel.value));
-      this.lookSelects.set(o.id, sel);
-      l.append(sel);
-      grid.append(l);
-    }
-    details.append(grid);
+      details.append(grid);
+      return details;
+    };
+    const details = lookGrid('Frames, health bars, nameplates and slots', (o) => !TEXT_GROUPS.includes(o.group ?? ''));
+    const textDetails = lookGrid('Error text and stun text (drag them in the editor too)', (o) => TEXT_GROUPS.includes(o.group ?? ''));
+    // live preview of both texts on a dark and a light floor, drawn by the same variables as the real ones
+    const prev = mk('div', 'he-prev');
+    this.prevErr = mk('span', 'he-prev-err', 'Out of range');
+    this.prevCc = mk('span', 'he-prev-cc cc-stun', 'STUNNED 2.1s');
+    prev.append(this.prevErr, this.prevCc);
+    textDetails.append(prev);
+    this.paintPreview();
 
-    panel.append(head, row1, row2, details);
+    panel.append(head, row1, row2, details, textDetails);
     return panel;
   }
 
   private syncLookSelects() {
     for (const [id, sel] of this.lookSelects) sel.value = look[id];
+    this.paintPreview();
+  }
+
+  private prevErr!: HTMLElement;
+  private prevCc!: HTMLElement;
+  /** The preview's stun text takes its colour the way the real one does. */
+  private paintPreview() {
+    this.prevCc.style.color = controlColor(look.ccColor, 'stun', look.ccPlate !== 'none');
   }
 
   private saveGrid() {
