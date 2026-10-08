@@ -1,0 +1,176 @@
+import { describe, it, before, after } from 'node:test';
+import { readFileSync, statSync, readdirSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import assert from 'node:assert/strict';
+import * as THREE from 'three';
+import { COSMETICS, gearLook } from '@arena/shared';
+import { createCharacter } from '../src/models';
+import { packModel, unpackModel } from '../src/modelPack';
+import { registerRiggedModel, forgetRiggedModels, modelVersion } from '../src/riggedModels';
+import { registerWeaponModel, forgetWeaponModels, WEAPONS } from '../src/weaponModels';
+
+const DIR = fileURLToPath(new URL('../public/models/', import.meta.url));
+const load = (file: string) => unpackModel(new Uint8Array(readFileSync(DIR + file.replace(/\.glb$/, '.pak'))));
+const WEAPON_FILES: Record<string, string> = { dual: 'weapons/saber-dual.glb', twohand: 'weapons/greatsword.glb', polearm: 'weapons/axe.glb' };
+
+describe('real weapon models', () => {
+  const g = globalThis as unknown as { createImageBitmap?: unknown; self?: unknown };
+  const realBitmap = g.createImageBitmap;
+  const realSelf = g.self;
+  before(async () => {
+    g.self = globalThis;
+    g.createImageBitmap = async () => ({ width: 1, height: 1, close() {} });
+    await registerRiggedModel('knight', load('warrior.glb'));
+    for (const [id, file] of Object.entries(WEAPON_FILES)) await registerWeaponModel(id, load(file));
+  });
+  after(() => {
+    forgetWeaponModels();
+    forgetRiggedModels();
+    g.createImageBitmap = realBitmap;
+    g.self = realSelf;
+  });
+
+  const bonesOf = (ch: ReturnType<typeof createCharacter>) => {
+    const out: Record<string, THREE.Bone> = {};
+    ch.root.traverse((o) => o instanceof THREE.Bone && (out[o.name] = o));
+    return out;
+  };
+  const held = (ch: ReturnType<typeof createCharacter>) => ch.meshes.filter((m) => !(m instanceof THREE.SkinnedMesh));
+  const handOf = (o: THREE.Object3D, bones: Record<string, THREE.Bone>) => {
+    for (let p = o.parent; p; p = p.parent) {
+      if (p === bones.hand_r) return 'r';
+      if (p === bones.hand_l) return 'l';
+    }
+    return null;
+  };
+
+  it('every warrior spec holds its own model: sabers in both hands, the others in the right hand with both arms on it', () => {
+    for (const weapon of Object.keys(WEAPONS)) {
+      const ch = createCharacter('warrior', '', weapon);
+      const bones = bonesOf(ch);
+      const meshes = held(ch);
+      assert.ok(meshes.length > 0, `${weapon} is attached`);
+      const hands = new Set(meshes.map((m) => handOf(m, bones)));
+      assert.ok(!hands.has(null), `${weapon} follows a hand bone`);
+      assert.deepEqual([...hands].sort(), weapon === 'dual' ? ['l', 'r'] : ['r'], `${weapon} hands`);
+      // nothing of the procedural weapon is left: every held mesh carries a texture from the GLB
+      for (const m of meshes) assert.ok((m.material as THREE.MeshStandardMaterial).map, `${weapon} uses the GLB material`);
+    }
+    // two-handers: the off arm is raised onto the weapon, unlike with the sabers
+    const rest = createCharacter('warrior', '', 'dual');
+    const axe = createCharacter('warrior', '', 'polearm');
+    for (const ch of [rest, axe]) for (let i = 0; i < 40; i++) ch.pose({ phase: 0, move: 0, casting: false, time: i * 0.05, dt: 0.05 });
+    assert.ok(bonesOf(rest).upperarm_l.quaternion.angleTo(bonesOf(axe).upperarm_l.quaternion) > 0.5, 'off hand is on the axe');
+  });
+
+  it('the left saber is a true mirror of the right one', () => {
+    const ch = createCharacter('warrior', '', 'dual');
+    ch.root.updateMatrixWorld(true);
+    const bones = bonesOf(ch);
+    const dets = { l: [] as number[], r: [] as number[] };
+    for (const m of held(ch)) dets[handOf(m, bones) as 'l' | 'r'].push(m.matrixWorld.determinant());
+    assert.ok(dets.r.every((d) => d > 0) && dets.l.every((d) => d < 0), 'mirrored in the off hand only');
+  });
+
+  it('units share geometry and textures but own their materials (hit flash, stealth and death tint per unit)', () => {
+    const a = createCharacter('warrior', '', 'twohand');
+    const b = createCharacter('warrior', '', 'twohand');
+    const [ma, mb] = [held(a)[0], held(b)[0]];
+    assert.equal(ma.geometry, mb.geometry);
+    const [xa, xb] = [ma.material as THREE.MeshStandardMaterial, mb.material as THREE.MeshStandardMaterial];
+    assert.notEqual(xa, xb);
+    assert.equal(xa.map, xb.map);
+    const before = xa.color.getHex();
+    a.setState(false, false);
+    assert.notEqual(xa.color.getHex(), before, 'a dead unit\'s weapon greys out');
+    assert.equal(xb.color.getHex(), before, 'the other unit is untouched');
+    a.setState(true, true);
+    assert.ok(xa.transparent, 'stealth fades the weapon');
+  });
+
+  it('weapon cosmetics follow the real weapon and the unit still animates (swings, flash, death)', () => {
+    for (const item of COSMETICS.items.filter((i) => i.slot === 'weapon')) {
+      for (const weapon of Object.keys(WEAPONS)) {
+        const ch = createCharacter('warrior', gearLook({ weapon: item.id }), weapon);
+        ch.swing();
+        for (let i = 0; i < 12; i++) ch.pose({ phase: i, move: i % 2, casting: false, time: i * 0.1, dt: 0.05 });
+        ch.flash();
+        ch.setState(false, false);
+        ch.pose({ phase: 0, move: 0, casting: false, time: 3, dt: 0.05 });
+      }
+    }
+  });
+
+  it('weapons stay a sensible size next to the 2.25 tall knight and survive a swing', () => {
+    const lengths: Record<string, [number, number]> = { dual: [0.9, 1.6], twohand: [2.0, 2.8], polearm: [2.0, 2.8] };
+    for (const weapon of Object.keys(WEAPONS)) {
+      const ch = createCharacter('warrior', '', weapon);
+      ch.root.updateMatrixWorld(true);
+      const box = new THREE.Box3();
+      for (const m of held(ch).filter((m) => handOf(m, bonesOf(ch)) === 'r')) {
+        m.geometry.computeBoundingBox();
+        box.union(m.geometry.boundingBox!);
+      }
+      const len = box.max.y - box.min.y;
+      assert.ok(len > lengths[weapon][0] && len < lengths[weapon][1], `${weapon} length ${len.toFixed(2)}`);
+      ch.swing();
+      for (let i = 0; i < 10; i++) ch.pose({ phase: 0, move: 0, casting: false, time: i * 0.05, dt: 0.05 });
+    }
+  });
+
+  it('falls back to the procedural weapons while the models are not loaded, and the version changes when they load', async () => {
+    forgetWeaponModels();
+    for (const weapon of Object.keys(WEAPONS)) {
+      const ch = createCharacter('warrior', '', weapon);
+      assert.ok(held(ch).length > 0, `${weapon} procedural stand-in`);
+      for (const m of held(ch)) assert.ok(!(m.material as THREE.MeshStandardMaterial).map, 'plain procedural material');
+    }
+    const v = modelVersion();
+    await registerWeaponModel('dual', load(WEAPON_FILES.dual));
+    assert.notEqual(modelVersion(), v, 'scenes rebuild when a weapon model arrives');
+    for (const [id, file] of Object.entries(WEAPON_FILES)) if (id !== 'dual') await registerWeaponModel(id, load(file));
+  });
+});
+
+describe('weapon files', () => {
+  const dir = DIR + 'weapons/';
+  const parse = (file: string) => {
+    const b = Buffer.from(unpackModel(new Uint8Array(readFileSync(dir + file.replace(/\.glb$/, '.pak')))));
+    const len = b.readUInt32LE(12);
+    return JSON.parse(b.subarray(20, 20 + len).toString('utf8'));
+  };
+  it('are small and keep their credit', () => {
+    const packs = readdirSync(dir).filter((f) => f.endsWith('.pak'));
+    assert.deepEqual(packs.sort(), ['axe.pak', 'greatsword.pak', 'saber-dual.pak']);
+    assert.ok(packs.reduce((n, f) => n + statSync(dir + f).size, 0) < 3 * 1024 * 1024, 'under 3 MB in all');
+    const files = packs.map((f) => f.replace(/\.pak$/, '.glb'));
+    for (const f of files) {
+      const j = parse(f);
+      const x = j.asset.extras;
+      assert.ok(x?.title && x.author && x.license && x.source?.startsWith('https://sketchfab.com/'), `${f} credit`);
+      for (const im of j.images) assert.equal(im.mimeType, 'image/jpeg');
+    }
+  });
+});
+
+describe('model files are not served in the clear', () => {
+  it('no plain .glb is left in the served folder, and every pack unscrambles to a glTF binary', () => {
+    const walk = (d: string): string[] => readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(d + e.name + '/') : [d + e.name]));
+    const all = walk(DIR);
+    assert.deepEqual(all.filter((f) => f.endsWith('.glb')), [], 'plain models would be downloadable');
+    const packs = all.filter((f) => f.endsWith('.pak'));
+    assert.ok(packs.length >= 5);
+    for (const f of packs) {
+      const raw = readFileSync(f);
+      assert.notEqual(raw.subarray(0, 4).toString('latin1'), 'glTF', 'the pack must not look like a glb');
+      assert.equal(Buffer.from(unpackModel(new Uint8Array(raw))).subarray(0, 4).toString('latin1'), 'glTF', f);
+    }
+  });
+  it('a damaged or foreign file is refused', () => {
+    assert.throws(() => unpackModel(new Uint8Array([1, 2, 3])));
+    const pak = packModel(new Uint8Array([0x67, 0x6c, 0x54, 0x46, 1, 2, 3, 4]));
+    pak[pak.length - 1] ^= 1;
+    assert.throws(() => unpackModel(pak), /damaged/);
+    assert.deepEqual([...new Uint8Array(unpackModel(packModel(new Uint8Array([9, 8, 7]))))], [9, 8, 7]);
+  });
+});

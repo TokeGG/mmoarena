@@ -293,7 +293,7 @@ export interface AbilityDef {
   /** Cannot be interrupted, and while it lasts the caster shrugs off stuns, fears, incapacitates, roots, slows and pulls (Bladestorm). */
   unstoppable?: boolean;
   /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
-  channel?: { ticks: number; /** The first tick fires the moment the channel starts instead of one interval in (Slice and Dice). */ immediate?: boolean; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
+  channel?: { ticks: number; /** The first tick fires the moment the channel starts instead of one interval in (Slice and Dice). */ immediate?: boolean; /** The caster stands in place while it lasts (movement is ignored, not cancelling it): Slice and Dice holds you and your targets still. */ hold?: boolean; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
 }
 
 export interface ClassDef {

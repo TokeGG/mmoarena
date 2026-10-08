@@ -25,7 +25,7 @@ export const ABILITY_ICON: Record<string, string> = {
 export const AURA_ICON: Record<string, string> = {
   polymorph: '🐑', frost_nova_root: '🧊', frostbolt_slow: '❄️', frostbolt_root: '🌨️', hamstring_slow: '🥾', charge_stun: '🐗', charge_root: '⚓',
   cheap_shot_stun: '💫', kidney_shot: '🥊', psychic_scream: '😱', psychic_stun: '🤯', psychic_flee: '🏃', pw_shield: '🛡️', stealth: '👤', sprint: '💨',
-  recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '✂️', slice_stun: '🌀', intimidating_shout: '📢', concussion_stun: '🪨',
+  recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '✂️', slice_hold: '🌀', intimidating_shout: '📢', concussion_stun: '🪨',
   ice_barrier: '🥶', arcane_power: '⚡', pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🤺',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', power_infusion: '🙌', blind: '😵', crippling_slow: '🦂', rogue_slow: '🕸️',
   blink_speed: '👟', blink_haste: '🚀', arcane_slow: '💠', garrote_bleed: '🪢', mutilate_bleed: '🥩', shatter: '💎', fingers_of_frost: '🖐️',

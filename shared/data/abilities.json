@@ -1676,17 +1676,18 @@
   "gcd": true,
   "cost": 30,
   "channel": {
-   "ticks": 8,
-   "immediate": true
+   "ticks": 16,
+   "immediate": true,
+   "hold": true
   },
   "effects": [
    {
     "type": "damage",
-    "amount": 50
+    "amount": 25
    },
    {
     "type": "aura",
-    "aura": "slice_stun"
+    "aura": "slice_hold"
    }
   ]
  },

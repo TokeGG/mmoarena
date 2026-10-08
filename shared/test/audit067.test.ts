@@ -42,9 +42,9 @@ describe('0.67 balance', () => {
     assert.equal(foe.auras.find((a) => a.id === 'garrote_bleed')!.dotMult, 3);
   });
 
-  it('Charge\'s stun has its own diminishing returns; Slice and Dice\'s stun is in the stun group', () => {
+  it('Charge\'s stun has its own diminishing returns; Slice and Dice\'s hold is in the stun group', () => {
     assert.equal(AURAS.charge_stun.dr, 'charge');
-    assert.equal(AURAS.slice_stun.dr, 'stun');
+    assert.equal(AURAS.slice_hold.dr, 'stun');
     const sim = new ArenaSim({ seed: 2, prepMs: 0 });
     const w = unit(sim, 'warrior', 0, 0, 0, 'player');
     const t = unit(sim, 'mage', 1, 2, 0, 'dummy');

@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { ABILITIES, AURAS } from '@arena/shared';
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
+import { clothShade, clothWave, endFade, unfurlProgress } from './flagCloth';
 
 /**
  * Spell and combat visuals, driven entirely by sim events plus the aura list on each unit.
@@ -40,8 +41,9 @@ const BUFF_COLOR: Record<string, number> = {
 const CHEST = 1.2;
 const HEAD = 2.1;
 const PROJECTILE_SPEED = 38;
+const AXE_FLIGHT = 0.25;
 
-type TexName = 'glow' | 'star' | 'plus' | 'smoke' | 'spark';
+type TexName = 'glow' | 'star' | 'plus' | 'smoke' | 'spark' | 'flame';
 
 function makeTexture(draw: (g: CanvasRenderingContext2D, s: number) => void): THREE.Texture {
   const s = 64;
@@ -71,6 +73,23 @@ function buildTextures(): Record<TexName, THREE.Texture> {
     glow: makeTexture((g, s) => radial(g, s, [[0, 'rgba(255,255,255,1)'], [0.25, 'rgba(255,255,255,.6)'], [1, 'rgba(255,255,255,0)']])),
     smoke: makeTexture((g, s) => radial(g, s, [[0, 'rgba(255,255,255,.55)'], [0.6, 'rgba(255,255,255,.2)'], [1, 'rgba(255,255,255,0)']])),
     spark: makeTexture((g, s) => radial(g, s, [[0, 'rgba(255,255,255,1)'], [0.12, 'rgba(255,255,255,1)'], [0.4, 'rgba(255,255,255,.15)'], [1, 'rgba(255,255,255,0)']])),
+    flame: makeTexture((g, s) => {
+      // teardrop of fire: bright base, soft pointed tip
+      g.save();
+      g.beginPath();
+      g.moveTo(s * 0.5, s * 0.02);
+      g.bezierCurveTo(s * 0.86, s * 0.38, s * 0.98, s * 0.62, s * 0.5, s * 0.98);
+      g.bezierCurveTo(s * 0.02, s * 0.62, s * 0.14, s * 0.38, s * 0.5, s * 0.02);
+      g.closePath();
+      g.clip();
+      const grad = g.createRadialGradient(s * 0.5, s * 0.72, 0, s * 0.5, s * 0.72, s * 0.62);
+      grad.addColorStop(0, 'rgba(255,255,255,1)');
+      grad.addColorStop(0.45, 'rgba(255,255,255,.7)');
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, s, s);
+      g.restore();
+    }),
     star: makeTexture((g, s) => {
       radial(g, s, [[0, 'rgba(255,255,255,.5)'], [1, 'rgba(255,255,255,0)']]);
       const pts: [number, number][] = [];
@@ -104,10 +123,22 @@ interface Fx {
   dispose(): void;
 }
 
+interface ZoneVfx {
+  last: number;
+  update(z: ZoneSnap, now: number, dt: number): void;
+  dispose(): void;
+}
+
 interface Attachment {
   group: THREE.Group;
   update(dt: number, t: number, u: EffectUnit, moving: boolean): void;
 }
+
+const _o = new THREE.Object3D();
+const _v = new THREE.Vector3();
+const _q = new THREE.Quaternion();
+const _x = new THREE.Vector3(1, 0, 0);
+const _y = new THREE.Vector3(0, 1, 0);
 
 const rnd = (a = -1, b = 1) => a + Math.random() * (b - a);
 
@@ -131,7 +162,7 @@ export class Effects {
   private iceGeo = new THREE.ConeGeometry(0.13, 1, 5);
 
   /** Fired for melee abilities so the model can play its swing. */
-  onSwing: (unit: number) => void = () => {};
+  onSwing: (unit: number, fast?: boolean) => void = () => {};
   /** Fired when a unit takes a hit so the model can flash. */
   onHit: (unit: number) => void = () => {};
 
@@ -230,8 +261,8 @@ export class Effects {
   }
 
   /** Vertical column of light on a spot. */
-  private column(x: number, z: number, color: number, life = 0.7, radius = 0.55, height = 6) {
-    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.55, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+  private column(x: number, z: number, color: number, life = 0.7, radius = 0.55, height = 6, op = 0.55) {
+    const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
     const mesh = new THREE.Mesh(this.beamGeo, mat);
     mesh.position.set(x, height / 2, z);
     this.scene.add(mesh);
@@ -242,7 +273,7 @@ export class Effects {
         const k = Math.min(1, t / life);
         const r = radius * (1 - k * 0.7);
         mesh.scale.set(r, height, r);
-        mat.opacity = 0.55 * (1 - k);
+        mat.opacity = op * (1 - k);
         return k >= 1;
       },
       dispose: () => {
@@ -378,7 +409,7 @@ export class Effects {
         while (trail > 0.016) {
           trail -= 0.016;
           if (kind === 'fire') {
-            this.particle(q.x + rnd(-0.1, 0.1), q.y + rnd(-0.1, 0.1), q.z + rnd(-0.1, 0.1), { color: Math.random() < 0.5 ? 0xff5a1a : 0xffb23a, vy: rnd(0, 0.8), s0: 0.5 * size, life: 0.35, drag: 2 });
+            this.flame(q.x, q.y - 0.1, q.z, 0.55 * size);
             if (Math.random() < 0.3) this.particle(q.x, q.y, q.z, { tex: 'smoke', color: 0x332a26, add: false, s0: 0.3, s1: 0.9, life: 0.6, a: 0.5, vy: 0.6 });
           } else if (kind === 'frost') {
             this.particle(q.x + rnd(-0.12, 0.12), q.y + rnd(-0.12, 0.12), q.z + rnd(-0.12, 0.12), { tex: Math.random() < 0.3 ? 'star' : 'spark', color: Math.random() < 0.5 ? 0xbfeaff : 0x5cb8ff, vy: rnd(-0.4, 0.4), s0: 0.32 * size, life: 0.45, drag: 2 });
@@ -397,6 +428,160 @@ export class Effects {
       },
     });
     return flight;
+  }
+
+  // ------------------------------------------------------------ axe and chain
+
+  private axeGeos: { blade: THREE.BufferGeometry; haft: THREE.BufferGeometry; cap: THREE.BufferGeometry } | null = null;
+  private axeMats = {
+    steel: new THREE.MeshStandardMaterial({ color: 0xd3dae6, metalness: 0.7, roughness: 0.3, emissive: 0x3a4252, side: THREE.DoubleSide }),
+    wood: new THREE.MeshLambertMaterial({ color: 0x7a4a26, emissive: 0x2a180a }),
+  };
+  private linkGeo = new THREE.TorusGeometry(0.13, 0.04, 5, 10);
+  private linkMat = new THREE.MeshStandardMaterial({ color: 0xaab3c4, metalness: 0.7, roughness: 0.35, emissive: 0x30384a });
+  private hookGeo = new THREE.ConeGeometry(0.1, 0.34, 5);
+
+  /** A small two-bladed throwing axe (about 1.1 yd long) built from shared geometry. */
+  private makeAxe(): THREE.Group {
+    if (!this.axeGeos) {
+      const sh = new THREE.Shape();
+      sh.moveTo(0, 0.07);
+      sh.quadraticCurveTo(0.2, 0.1, 0.3, 0.28);
+      sh.quadraticCurveTo(0.42, 0.1, 0.38, 0);
+      sh.quadraticCurveTo(0.42, -0.1, 0.3, -0.28);
+      sh.quadraticCurveTo(0.2, -0.1, 0, -0.07);
+      sh.closePath();
+      const blade = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: false, curveSegments: 5 });
+      blade.translate(0, 0, -0.025);
+      this.axeGeos = {
+        blade,
+        haft: new THREE.CylinderGeometry(0.035, 0.045, 1.1, 6),
+        cap: new THREE.SphereGeometry(0.06, 6, 5),
+      };
+    }
+    const g = new THREE.Group();
+    const haft = new THREE.Mesh(this.axeGeos.haft, this.axeMats.wood);
+    g.add(haft);
+    // blades extend along local Z (the spin plane is YZ)
+    for (const side of [1, -1]) {
+      const b = new THREE.Mesh(this.axeGeos.blade, this.axeMats.steel);
+      b.rotation.y = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+      b.position.y = 0.38;
+      g.add(b);
+    }
+    const cap = new THREE.Mesh(this.axeGeos.cap, this.axeMats.steel);
+    cap.position.y = 0.38;
+    cap.scale.set(1, 1.6, 1);
+    const pom = new THREE.Mesh(this.axeGeos.cap, this.axeMats.steel);
+    pom.position.y = -0.56;
+    g.add(cap, pom);
+    return g;
+  }
+
+  /** Axe Throw: the axe leaves the hand, spins end over end along an arc and bites into the target. */
+  private axeThrow(srcId: number, tgtId: number) {
+    const s = this.pos(srcId);
+    const t0 = this.pos(tgtId);
+    if (!s || !t0) return;
+    const axe = this.makeAxe();
+    const holder = new THREE.Group(); // yaw towards the target; the axe spins about the holder's X axis
+    holder.add(axe);
+    axe.scale.setScalar(1.9);
+    this.scene.add(holder);
+    const sx = s.x + Math.sin(s.facing) * 0.6 + Math.cos(s.facing) * 0.35;
+    const sz = s.z + Math.cos(s.facing) * 0.6 - Math.sin(s.facing) * 0.35;
+    const sy = 1.6;
+    let t = 0;
+    let trail = 0;
+    let tx = t0.x, tz = t0.z;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const tp = this.pos(tgtId);
+        if (tp) {
+          tx = tp.x;
+          tz = tp.z;
+        }
+        const k = Math.min(1, t / AXE_FLIGHT);
+        const px = sx + (tx - sx) * k;
+        const pz = sz + (tz - sz) * k;
+        const py = sy + (CHEST - sy) * k + Math.sin(Math.PI * k) * 0.9;
+        holder.position.set(px, py, pz);
+        holder.rotation.y = Math.atan2(tx - sx, tz - sz); // local Z points at the target
+        axe.rotation.set(-k * Math.PI * 5 - 0.6, 0, 0);
+        trail += dt;
+        while (trail > 0.012) {
+          trail -= 0.012;
+          this.particle(px + rnd(-0.05, 0.05), py + rnd(-0.25, 0.25), pz + rnd(-0.05, 0.05), { color: 0xdfe6f2, s0: 0.2, life: 0.22, drag: 2, vy: rnd(-0.3, 0.3) });
+          this.particle(px, py, pz, { tex: 'glow', color: 0x9aa6bd, s0: 0.5, s1: 0.05, life: 0.18, a: 0.5 });
+        }
+        if (k >= 1) {
+          this.onHit(tgtId);
+          this.burst(px, CHEST, pz, 0xfff0c0, 14, 6, 0.26, 0.4, 5);
+          this.burst(px, CHEST, pz, 0xdfe6f2, 8, 4, 0.22, 0.35, 3);
+          this.particle(px, CHEST, pz, { tex: 'star', color: 0xffffff, s0: 0.3, s1: 2.2, life: 0.18 });
+          this.ring(px, pz, 0xdfe6f2, 0.3, 1.6, 0.25, 0.1, 0.8);
+          return true;
+        }
+        return false;
+      },
+      dispose: () => this.scene.remove(holder),
+    });
+  }
+
+  /** Reel In: a chain of links shoots to the target, hooks on and drags it back towards the warrior. */
+  private chain(srcId: number, tgtId: number) {
+    const MAX = 22;
+    const mesh = new THREE.InstancedMesh(this.linkGeo, this.linkMat, MAX);
+    mesh.frustumCulled = false;
+    const hook = new THREE.Mesh(this.hookGeo, this.linkMat);
+    this.scene.add(mesh, hook);
+    let t = 0;
+    const life = 0.55;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const a = this.pos(srcId);
+        const b = this.pos(tgtId);
+        if (!a || !b) return true;
+        const ax = a.x + Math.sin(a.facing) * 0.4, az = a.z + Math.cos(a.facing) * 0.4;
+        const reach = Math.min(1, t / 0.1);
+        const dx = b.x - ax, dz = b.z - az;
+        const dy = CHEST - 1.3;
+        const len = Math.hypot(dx, dy, dz) * reach;
+        const n = Math.max(1, Math.min(MAX, Math.round(len / 0.24)));
+        _v.set(dx, dy, dz).normalize();
+        _q.setFromUnitVectors(_x, _v);
+        const tension = Math.max(0, 1 - Math.max(0, t - 0.1) / 0.3); // slack tightens as it pulls
+        for (let i = 0; i < MAX; i++) {
+          if (i >= n) {
+            _o.scale.setScalar(0.0001);
+            _o.updateMatrix();
+            mesh.setMatrixAt(i, _o.matrix);
+            continue;
+          }
+          const f = (i + 0.5) / n;
+          const dist = f * len;
+          const sag = Math.sin(Math.PI * f) * 0.35 * tension;
+          _o.position.set(ax + _v.x * dist, 1.3 + _v.y * dist - sag, az + _v.z * dist);
+          _o.quaternion.copy(_q);
+          _o.rotateX(i % 2 ? Math.PI / 2 : 0);
+          _o.scale.set(1.35, 1, 1);
+          _o.updateMatrix();
+          mesh.setMatrixAt(i, _o.matrix);
+        }
+        mesh.instanceMatrix.needsUpdate = true;
+        hook.position.set(ax + _v.x * len, 1.3 + _v.y * len, az + _v.z * len);
+        hook.quaternion.setFromUnitVectors(_y, _v);
+        hook.rotateX(Math.PI); // barb points at the target
+        if (t < 0.15 && Math.random() < 0.8) this.particle(b.x, CHEST, b.z, { color: 0xdfe6f2, vx: rnd(-2, 2), vz: rnd(-2, 2), vy: rnd(0, 2), s0: 0.2, life: 0.25, drag: 2 });
+        return t >= life;
+      },
+      dispose: () => {
+        this.scene.remove(mesh, hook);
+        mesh.dispose();
+      },
+    });
   }
 
   // ------------------------------------------------------------ casting
@@ -534,7 +719,15 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (!p) break;
         this.onHit(ev.tgt);
-        if (ev.ability === null && ev.src !== 0) {
+        if (ev.ability === 'slice_and_dice') {
+          // a flurry: a short swing of the warrior's on every tick and a slash across the held target from a new angle each time
+          const a = this.pos(ev.src);
+          this.onSwing(ev.src, true);
+          if (a) {
+            const ang = (this.clock * 9 + ev.tgt) % (Math.PI * 2);
+            this.slash(p.x - Math.sin(ang) * 1.1, p.z - Math.cos(ang) * 1.1, p.x + Math.sin(ang) * 1.1, p.z + Math.cos(ang) * 1.1, 0xe9eef7, 0.6, CHEST + Math.sin(ang * 2) * 0.4);
+          }
+        } else if (ev.ability === null && ev.src !== 0) {
           // auto-attack: swing the attacker's weapon and draw a quick steel slash so every swing is visible
           const a = this.pos(ev.src);
           if (a) {
@@ -543,6 +736,7 @@ export class Effects {
             this.later(0.05, () => this.ring(p.x, p.z, 0xffffff, 0.18, 1.2, 0.18));
           }
         }
+        if (ev.ability === 'reel_in') this.chain(ev.src, ev.tgt);
         const color = SCHOOL_COLOR[ev.school] ?? 0xffffff;
         const key = ev.ability ? `${ev.src}:${ev.ability}` : '';
         const delay = key ? this.flights.get(key) ?? 0 : 0;
@@ -556,6 +750,7 @@ export class Effects {
             return;
           }
           this.burst(q.x, CHEST, q.z, color, Math.round(8 * big), 4 * big, 0.3, 0.5);
+          if (ev.school === 'fire') for (let i = 0, n = 2 + Math.round(big * 2); i < n; i++) this.flame(q.x + rnd(-0.4, 0.4), CHEST - 0.5 + rnd(0, 0.6), q.z + rnd(-0.4, 0.4), big * rnd(0.9, 1.4));
           if (ev.ability === 'fireball') {
             this.ring(q.x, q.z, 0xff7a2a, 0.3, 2.4, 0.35);
             this.puff(q.x, CHEST, q.z, 0x3a2f2a, 4, 1.3);
@@ -663,12 +858,15 @@ export class Effects {
         melee(0xc0202a, 1.2);
         break;
       case 'axe_throw':
-      case 'reel_in':
         if (t) {
           this.onSwing(unit);
-          this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, ability === 'axe_throw' ? 0xd7dbe4 : 0x9aa3b8, 0.25, 0.08);
-          this.burst(t.x, CHEST, t.z, 0xd7dbe4, 8, 4, 0.25, 0.35);
+          this.flights.set(`${unit}:axe_throw`, AXE_FLIGHT);
+          this.axeThrow(unit, target);
         }
+        break;
+      case 'reel_in':
+        this.onSwing(unit);
+        this.ring(s.x, s.z, 0x9aa3b8, 0.4, def.radius ?? 10, 0.35, 0.08, 0.7);
         break;
       case 'slice_and_dice':
       case 'bladestorm':
@@ -1079,8 +1277,6 @@ export class Effects {
 
   // ------------------------------------------------------------ per frame
 
-  private zoneMeshes = new Map<number, { disc: THREE.Mesh; ring: THREE.Mesh }>();
-
   /** Ground zones (Flamestrike etc.): warning ring that fills until the first beat, then a pulsing fire disc. */
   private smokeMeshes = new Map<number, { group: THREE.Group; disc: THREE.Mesh; blobs: { mesh: THREE.Mesh; x: number; z: number; r: number; ph: number }[] }>();
   private smokeGeo = new THREE.SphereGeometry(1, 12, 10);
@@ -1125,6 +1321,721 @@ export class Effects {
     }
   }
 
+  // ------------------------------------------------------------ ground zones
+
+  private zoneVfx = new Map<number, ZoneVfx>();
+  /** Two crossed upright quads (base at y = 0): a flame tongue that reads from any angle. */
+  private tongueGeo = (() => {
+    const g = new THREE.BufferGeometry();
+    const p = [-0.5, 0, 0, 0.5, 0, 0, 0.5, 1, 0, -0.5, 1, 0, 0, 0, -0.5, 0, 0, 0.5, 0, 1, 0.5, 0, 1, -0.5];
+    const uv = [0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1];
+    g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex([0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7]);
+    return g;
+  })();
+  private runeTex: THREE.Texture | null = null;
+  private glyphTex: THREE.Texture[] = [];
+
+  /** Shared white-on-clear circle of runes; tinted by the material colour. */
+  private getRuneTex(): THREE.Texture {
+    if (this.runeTex) return this.runeTex;
+    const s = 256;
+    const c = document.createElement('canvas');
+    c.width = c.height = s;
+    const g = c.getContext('2d')!;
+    g.translate(s / 2, s / 2);
+    g.strokeStyle = '#fff';
+    g.lineCap = 'round';
+    const circle = (r: number, w: number) => {
+      g.lineWidth = w;
+      g.beginPath();
+      g.arc(0, 0, r * s, 0, Math.PI * 2);
+      g.stroke();
+    };
+    circle(0.485, 3);
+    circle(0.435, 2);
+    circle(0.3, 2);
+    // two interlocked triangles
+    g.lineWidth = 2;
+    for (const off of [0, Math.PI]) {
+      g.beginPath();
+      for (let i = 0; i <= 3; i++) {
+        const a = off + (i / 3) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(a) * 0.3 * s;
+        const y = Math.sin(a) * 0.3 * s;
+        i ? g.lineTo(x, y) : g.moveTo(x, y);
+      }
+      g.stroke();
+    }
+    // runic strokes in the band between the two outer circles
+    for (let i = 0; i < 28; i++) {
+      const a = (i / 28) * Math.PI * 2;
+      const k = (i * 7919) % 5;
+      g.save();
+      g.rotate(a);
+      g.lineWidth = 2.5;
+      g.beginPath();
+      g.moveTo(0.44 * s, 0);
+      g.lineTo(0.48 * s, 0);
+      g.moveTo(0.455 * s, 0);
+      g.lineTo(0.455 * s + (k % 2 ? 6 : -6), k < 3 ? -7 : 7);
+      g.stroke();
+      g.restore();
+    }
+    // tick marks on the inner circle
+    for (let i = 0; i < 12; i++) {
+      g.save();
+      g.rotate((i / 12) * Math.PI * 2);
+      g.beginPath();
+      g.moveTo(0.3 * s, 0);
+      g.lineTo(0.43 * s, 0);
+      g.lineWidth = 1.2;
+      g.stroke();
+      g.restore();
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    this.runeTex = t;
+    return t;
+  }
+
+  /** A few small runic glyphs (floating around Rune of Power). */
+  private getGlyph(i: number): THREE.Texture {
+    if (this.glyphTex.length) return this.glyphTex[i % this.glyphTex.length];
+    const shapes: [number, number, number, number][][] = [
+      [[0.5, 0.1, 0.5, 0.9], [0.5, 0.3, 0.8, 0.5], [0.5, 0.55, 0.8, 0.75]],
+      [[0.3, 0.1, 0.3, 0.9], [0.3, 0.15, 0.75, 0.4], [0.75, 0.4, 0.3, 0.65]],
+      [[0.5, 0.1, 0.2, 0.9], [0.5, 0.1, 0.8, 0.9], [0.3, 0.6, 0.7, 0.6]],
+      [[0.25, 0.15, 0.75, 0.85], [0.75, 0.15, 0.25, 0.85], [0.5, 0.05, 0.5, 0.95]],
+      [[0.5, 0.1, 0.8, 0.5], [0.8, 0.5, 0.5, 0.9], [0.5, 0.9, 0.2, 0.5], [0.2, 0.5, 0.5, 0.1]],
+    ];
+    for (const lines of shapes) {
+      this.glyphTex.push(makeTexture((g, s) => {
+        g.strokeStyle = '#fff';
+        g.lineWidth = 5;
+        g.lineCap = 'round';
+        g.shadowColor = '#fff';
+        g.shadowBlur = 8;
+        g.beginPath();
+        for (const [a, b, c, d] of lines) {
+          g.moveTo(a * s, b * s);
+          g.lineTo(c * s, d * s);
+        }
+        g.stroke();
+      }));
+    }
+    return this.glyphTex[i % this.glyphTex.length];
+  }
+
+  /** Reusable flame: a flickering tongue with a hotter core that rises and dies. Colour is the outer flame. */
+  flame(x: number, y: number, z: number, scale = 1, color = 0xff5a14) {
+    const j = 0.12 * scale;
+    this.particle(x + rnd(-j, j), y, z + rnd(-j, j), { tex: 'flame', color, vy: rnd(0.9, 1.8) * scale, vx: rnd(-0.25, 0.25), vz: rnd(-0.25, 0.25), s0: 0.95 * scale, s1: 0.25 * scale, life: rnd(0.35, 0.55), drag: 0.8, a: 0.9 });
+    this.particle(x + rnd(-j, j) * 0.5, y, z + rnd(-j, j) * 0.5, { tex: 'flame', color: 0xffd45a, vy: rnd(0.8, 1.5) * scale, s0: 0.5 * scale, s1: 0.1 * scale, life: rnd(0.25, 0.4), drag: 0.8, a: 1 });
+  }
+
+  private flatMat(color: number, opacity: number, tex?: THREE.Texture) {
+    return new THREE.MeshBasicMaterial({ color, map: tex ?? null, transparent: true, opacity, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+  }
+
+  private flat(group: THREE.Object3D, geo: THREE.BufferGeometry, mat: THREE.Material, y: number, r: number) {
+    const m = new THREE.Mesh(geo, mat);
+    m.rotation.x = -Math.PI / 2;
+    m.position.y = y;
+    m.scale.set(r, r, 1);
+    group.add(m);
+    return m;
+  }
+
+  private makeZoneVfx(z: ZoneSnap, now: number): ZoneVfx {
+    if (z.flag) return this.bannerZone(z, now, 'flag');
+    if (z.buff === 'allies') return this.bannerZone(z, now, 'battle');
+    if (z.buff === 'self') return this.runeZone(z, now);
+    if (z.school === 'frost') return this.iceZone(z, now);
+    if (z.school === 'fire') return this.fireZone(z, now);
+    return this.plainZone(z, now);
+  }
+
+  private hasOpening(z: ZoneSnap) {
+    const zone = ABILITIES[z.ability]?.effects.find((e) => e.type === 'zone');
+    return !!(zone && zone.type === 'zone' && zone.initial);
+  }
+
+  /** Any other damaging zone: the old coloured disc and ring, with the opening blast. */
+  private plainZone(z: ZoneSnap, now: number): ZoneVfx {
+    const color = SCHOOL_COLOR[z.school] ?? 0xff6a20;
+    const group = new THREE.Group();
+    group.position.set(z.x, (z.y ?? 0) + 0.06, z.z);
+    const dm = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
+    const rm = dm.clone();
+    this.flat(group, this.discGeo, dm, 0, z.r);
+    this.flat(group, this.ringGeo, rm, 0, z.r);
+    this.scene.add(group);
+    if (this.hasOpening(z)) {
+      this.column(z.x, z.z, color, 0.7, z.r * 0.5, 9);
+      this.ring(z.x, z.z, color, 0.5, z.r, 0.55, 0.08, 1);
+      this.ring(z.x, z.z, 0xffffff, 0.3, z.r * 0.7, 0.4, 0.09, 0.8);
+      this.burst(z.x, 0.8, z.z, color, 34, 7, 0.6, 0.7);
+    }
+    return {
+      last: now,
+      update: (zz, t) => {
+        const armed = t >= zz.firstAt;
+        const sincePulse = armed ? ((t - zz.firstAt) % zz.pulse) / zz.pulse : 0;
+        rm.opacity = armed ? 0.9 : 0.5 + 0.4 * Math.sin(t / 90);
+        dm.opacity = armed ? 0.55 - 0.4 * sincePulse : 0.12 + 0.18 * Math.min(1, (t - zz.start) / Math.max(1, zz.firstAt - zz.start));
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        dm.dispose();
+        rm.dispose();
+      },
+    };
+  }
+
+  /** Flamestrike: gathering runic ring, then a swirl of flame tongues, embers, smoke and a flare on every pulse. */
+  private fireZone(z: ZoneSnap, now: number): ZoneVfx {
+    const r = z.r;
+    const y0 = z.y ?? 0;
+    const group = new THREE.Group();
+    group.position.set(z.x, y0, z.z);
+    const glowM = this.flatMat(0xff4a10, 0.3);
+    const ringM = this.flatMat(0xff6a1a, 0.9);
+    const runeM = this.flatMat(0xffa23a, 0, this.getRuneTex());
+    const outerM = new THREE.MeshBasicMaterial({ map: this.tex.flame, color: 0xff3a0a, transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const innerM = outerM.clone();
+    innerM.color.set(0xffc23a);
+    innerM.opacity = 0.75;
+    this.flat(group, this.discGeo, glowM, 0.05, r);
+    this.flat(group, this.ringGeo, ringM, 0.07, r);
+    const rune = this.flat(group, this.discGeo, runeM, 0.08, r * 1.02);
+    interface Tongue { o: THREE.Mesh; i: THREE.Mesh; a: number; rad: number; ph: number; dir: number; h: number }
+    const tongues: Tongue[] = [];
+    const mk = (n: number, rad: number, dir: number, h: number) => {
+      for (let k = 0; k < n; k++) {
+        const o = new THREE.Mesh(this.tongueGeo, outerM);
+        const i = new THREE.Mesh(this.tongueGeo, innerM);
+        group.add(o, i);
+        tongues.push({ o, i, a: (k / n) * Math.PI * 2, rad, ph: Math.random() * 6.28, dir, h });
+      }
+    };
+    mk(12, r * 0.86, 1, 1.0);
+    mk(6, r * 0.45, -1, 0.8);
+    this.scene.add(group);
+    if (this.hasOpening(z)) {
+      this.column(z.x, z.z, 0xff7a2a, 0.7, r * 0.45, 9, 0.4);
+      this.column(z.x, z.z, 0xffd27a, 0.5, r * 0.2, 10, 0.5);
+      this.ring(z.x, z.z, 0xff7a2a, 0.5, r * 1.1, 0.55, 0.08, 1);
+      this.ring(z.x, z.z, 0xffffff, 0.3, r * 0.7, 0.4, 0.09, 0.8);
+      this.burst(z.x, 0.8, z.z, 0xff9a3a, 34, 7, 0.6, 0.7);
+      for (let k = 0; k < 10; k++) this.flame(z.x + rnd(-r, r) * 0.7, y0 + 0.1, z.z + rnd(-r, r) * 0.7, rnd(1.4, 2.2));
+    }
+    let lastPulse = now >= z.firstAt ? Math.floor((now - z.firstAt) / z.pulse) : -1;
+    let flare = 0;
+    let accE = 0, accS = 0, accF = 0, accG = 0;
+    const cRed = new THREE.Color(0xff2a08), cOra = new THREE.Color(0xff8a1a), cYel = new THREE.Color(0xffc23a), cHot = new THREE.Color(0xfff0b0);
+    const disc = () => {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r * 0.92;
+      return [Math.cos(a) * d, Math.sin(a) * d] as const;
+    };
+    return {
+      last: now,
+      update: (zz, t, dt) => {
+        const age = Math.max(0, (t - zz.start) / 1000);
+        const left = Math.max(0, zz.end - t);
+        const armed = t >= zz.firstAt;
+        const prog = armed ? 1 : Math.min(1, (t - zz.start) / Math.max(1, zz.firstAt - zz.start));
+        const fade = Math.min(1, left / 600) * Math.min(1, age / 0.15 + 0.2);
+        const idx = armed ? Math.floor((t - zz.firstAt) / zz.pulse) : -1;
+        if (idx > lastPulse) {
+          lastPulse = idx;
+          flare = 1;
+          this.ring(zz.x, zz.z, 0xffa23a, r * 0.4, r, 0.4, 0.09, 0.9);
+          this.column(zz.x, zz.z, 0xff8a2a, 0.35, r * 0.2, 4, 0.3);
+          for (let k = 0; k < 8; k++) this.flame(zz.x + rnd(-r, r) * 0.7, y0 + 0.1, zz.z + rnd(-r, r) * 0.7, rnd(1.2, 1.9));
+          this.burst(zz.x, 0.5, zz.z, 0xffb040, 14, 5, 0.4, 0.6);
+        }
+        flare = Math.max(0, flare - dt * 2.8);
+        const gather = armed ? 1 : 0.1 + 0.3 * prog;
+        // ground: glow, ring and the runic sigil (bright while gathering, a scorched mark once burning)
+        glowM.opacity = (armed ? 0.32 + 0.1 * Math.sin(t / 110) + flare * 0.35 : 0.06 + 0.2 * prog) * fade;
+        ringM.opacity = (armed ? 0.65 + flare * 0.3 : 0.45 + 0.4 * Math.sin(t / 90) * 0.5 + 0.2) * fade;
+        runeM.opacity = (armed ? 0.22 : 0.3 + 0.5 * prog) * fade;
+        rune.rotation.z = age * (armed ? 0.5 : 1.6);
+        // flame tongues swirling round the circle
+        const sw = age * 1.3;
+        const fk = 0.5 + 0.5 * Math.sin(t / 55);
+        outerM.color.copy(cRed).lerp(cOra, fk);
+        innerM.color.copy(cYel).lerp(cHot, 0.5 - 0.5 * Math.sin(t / 70));
+        outerM.opacity = 0.5 * fade;
+        innerM.opacity = 0.6 * fade;
+        for (const f of tongues) {
+          const a = f.a + sw * f.dir;
+          const flick = 0.65 + 0.35 * Math.sin(age * 11 + f.ph) + 0.15 * Math.sin(age * 23 + f.ph * 2);
+          const h = f.h * (1.05 + flare * 0.9) * gather * (0.7 + flick * 0.5) * fade;
+          const w = (0.9 + 0.3 * flick) * (0.7 + 0.3 * gather);
+          const px = Math.cos(a) * f.rad, pz = Math.sin(a) * f.rad;
+          const tx = -Math.sin(a) * f.dir, tz = Math.cos(a) * f.dir;
+          const lean = 0.3 + 0.12 * flick;
+          f.o.position.set(px, 0.05, pz);
+          f.o.rotation.set(lean * tz, 0, -lean * tx);
+          f.o.scale.set(w * 1.5, h * 2.5, w * 1.5);
+          f.i.position.set(px, 0.05, pz);
+          f.i.rotation.set(lean * tz * 0.8, 0, -lean * tx * 0.8);
+          f.i.scale.set(w * 0.85, h * 1.6, w * 0.85);
+        }
+        // embers, flames and smoke
+        accE += dt * (armed ? r * 5 : r * 1.2) * fade;
+        while (accE > 1) {
+          accE--;
+          const [dx, dz] = disc();
+          this.particle(zz.x + dx, y0 + 0.2, zz.z + dz, { color: Math.random() < 0.5 ? 0xff9a3a : 0xffd27a, vy: rnd(1.5, 3.8), vx: rnd(-0.6, 0.6) - dz * 0.25, vz: rnd(-0.6, 0.6) + dx * 0.25, s0: rnd(0.14, 0.26), life: rnd(0.9, 1.6), drag: 0.3 });
+        }
+        if (armed) {
+          accF += dt * r * 2.2 * fade;
+          while (accF > 1) {
+            accF--;
+            const [dx, dz] = disc();
+            this.flame(zz.x + dx, y0 + 0.1, zz.z + dz, rnd(0.9, 1.5));
+          }
+          accS += dt * 3 * fade;
+          while (accS > 1) {
+            accS--;
+            const [dx, dz] = disc();
+            this.particle(zz.x + dx, y0 + 1.5, zz.z + dz, { tex: 'smoke', color: 0x2a2320, add: false, vy: rnd(1, 1.8), vx: rnd(-0.4, 0.4), s0: 0.9, s1: 2.4, life: rnd(1.2, 1.8), a: 0.45, drag: 0.4 });
+          }
+        } else {
+          // gathering: sparks drawn in from the rim
+          accG += dt * r * 4 * prog;
+          while (accG > 1) {
+            accG--;
+            const a = Math.random() * Math.PI * 2;
+            this.particle(zz.x + Math.cos(a) * r, y0 + 0.2, zz.z + Math.sin(a) * r, { color: 0xffa23a, vx: -Math.cos(a) * r * 1.3, vz: -Math.sin(a) * r * 1.3, vy: rnd(0.3, 1.2), s0: 0.22, life: 0.7 });
+          }
+        }
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        for (const m of [glowM, ringM, runeM, outerM, innerM]) m.dispose();
+      },
+    };
+  }
+
+  /** Blizzard-style storm of falling icicles and snow inside a circle for `duration` seconds. */
+  iceStorm(x: number, z: number, radius: number, duration: number, y = 0) {
+    const core = this.iceCore(x, y, z, radius);
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        core.update(t, Math.max(0, duration - t) * 1000, dt);
+        return t >= duration;
+      },
+      dispose: () => core.dispose(),
+    });
+  }
+
+  private iceZone(z: ZoneSnap, now: number): ZoneVfx {
+    const core = this.iceCore(z.x, z.y ?? 0, z.z, z.r);
+    return {
+      last: now,
+      update: (zz, t, dt) => core.update(Math.max(0, (t - zz.start) / 1000), Math.max(0, zz.end - t), dt),
+      dispose: () => core.dispose(),
+    };
+  }
+
+  private iceCore(x: number, y0: number, z: number, r: number) {
+    const group = new THREE.Group();
+    group.position.set(x, y0, z);
+    const glowM = this.flatMat(0xa8dcff, 0.25);
+    const ringM = this.flatMat(0x8fd0ff, 0.5);
+    const runeM = this.flatMat(0xbfe8ff, 0.35, this.getRuneTex());
+    const iceM = new THREE.MeshBasicMaterial({ color: 0xbfe6ff, transparent: true, opacity: 0.9 });
+    const iceM2 = new THREE.MeshBasicMaterial({ color: 0xf2fbff, transparent: true, opacity: 0.9 });
+    this.flat(group, this.discGeo, glowM, 0.05, r);
+    this.flat(group, this.ringGeo, ringM, 0.07, r);
+    const rune = this.flat(group, this.discGeo, runeM, 0.08, r);
+    const n = Math.min(34, Math.round(8 + r * 3));
+    const shards: THREE.Mesh[] = [];
+    const sx = new Float32Array(n), sz = new Float32Array(n), sy = new Float32Array(n), sv = new Float32Array(n), sl = new Float32Array(n), ss = new Float32Array(n);
+    const place = (i: number, high: number) => {
+      const a = Math.random() * Math.PI * 2;
+      const d = Math.sqrt(Math.random()) * r * 0.97;
+      sx[i] = Math.cos(a) * d;
+      sz[i] = Math.sin(a) * d;
+      sy[i] = high + Math.random() * 7;
+      sv[i] = rnd(20, 28);
+      sl[i] = rnd(0.9, 1.7);
+      ss[i] = rnd(-5, 5);
+    };
+    for (let i = 0; i < n; i++) {
+      const m = new THREE.Mesh(this.iceGeo, i % 3 ? iceM : iceM2);
+      m.rotation.order = 'YXZ';
+      m.rotation.x = Math.PI + rnd(-0.18, 0.18);
+      m.rotation.z = rnd(-0.18, 0.18);
+      m.visible = false;
+      group.add(m);
+      shards.push(m);
+      place(i, 12);
+    }
+    this.scene.add(group);
+    this.ring(x, z, 0xbfe8ff, 0.4 * r, r, 0.5, 0.08, 0.9);
+    this.burst(x, 0.5, z, 0xdff4ff, 14, 4, 0.3, 0.6, 3);
+    let accS = 0, accM = 0;
+    return {
+      update: (age: number, leftMs: number, dt: number) => {
+        const fade = Math.min(1, leftMs / 700) * Math.min(1, age / 0.25);
+        const ending = leftMs < 600;
+        glowM.opacity = (0.2 + 0.06 * Math.sin(age * 3)) * fade;
+        ringM.opacity = 0.5 * fade;
+        runeM.opacity = 0.35 * fade;
+        rune.rotation.z = -age * 0.5;
+        iceM.opacity = iceM2.opacity = 0.92;
+        for (let i = 0; i < n; i++) {
+          const m = shards[i];
+          if (age < i * 0.025 || (ending && sy[i] > 11)) {
+            m.visible = false;
+            continue;
+          }
+          m.visible = true;
+          sy[i] -= sv[i] * dt;
+          if (sy[i] <= 0.1) {
+            const wx = x + sx[i], wz = z + sz[i];
+            this.burst(wx, 0.3, wz, 0xdff4ff, 4, 3, 0.22, 0.4, 5);
+            this.particle(wx, 0.25, wz, { tex: 'glow', color: 0xbfe6ff, s0: 1.1, s1: 0.2, life: 0.22, a: 0.8 });
+            if (Math.random() < 0.3) this.particle(wx, 0.3, wz, { tex: 'star', color: 0xffffff, s0: 0.5, s1: 0, life: 0.35, vy: 1.5, grav: 4 });
+            place(i, ending ? 99 : 12);
+            m.visible = !ending;
+            continue;
+          }
+          m.position.set(sx[i], sy[i], sz[i]);
+          m.rotation.y += ss[i] * dt;
+          m.scale.set(1.7, sl[i], 1.7);
+        }
+        accS += dt * (14 + r * 4) * fade;
+        while (accS > 1) {
+          accS--;
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * r;
+          this.particle(x + Math.cos(a) * d, y0 + rnd(8, 12), z + Math.sin(a) * d, { tex: Math.random() < 0.25 ? 'star' : 'spark', color: 0xeaf6ff, vy: -rnd(4, 7), vx: rnd(-0.5, 0.5), s0: rnd(0.12, 0.24), s1: 0.08, life: 1.9, drag: 0 });
+        }
+        accM += dt * (r * 0.8) * fade;
+        while (accM > 1) {
+          accM--;
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * r * 0.95;
+          this.particle(x + Math.cos(a) * d, y0 + 0.3, z + Math.sin(a) * d, { tex: 'smoke', color: 0xcfeaff, add: false, vx: rnd(-0.7, 0.7), vz: rnd(-0.7, 0.7), vy: rnd(0.1, 0.4), s0: 1.2, s1: 2.8, life: rnd(1.6, 2.2), a: 0.28, drag: 0.3 });
+        }
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        for (const m of [glowM, ringM, runeM, iceM, iceM2]) m.dispose();
+      },
+    };
+  }
+
+  /** Battle Banner / Not Going Anywhere: a planted pole with a waving cloth. */
+  private bannerZone(z: ZoneSnap, now: number, kind: 'battle' | 'flag'): ZoneVfx {
+    const battle = kind === 'battle';
+    const glow = battle ? 0xffd34a : 0x7fb0ff;
+    const POLE = 3.2;
+    const W = battle ? 2.1 : 2.2;
+    const H = battle ? 1.5 : 1.6;
+    const taper = battle ? 0.0 : 0.5;
+    const group = new THREE.Group();
+    group.position.set(z.x, z.y ?? 0, z.z);
+    const glowM = this.flatMat(glow, 0.2);
+    const ringM = this.flatMat(glow, 0.8);
+    this.flat(group, this.discGeo, glowM, 0.05, z.r);
+    this.flat(group, this.ringGeo, ringM, 0.07, z.r);
+    let wall: THREE.Mesh | null = null;
+    let wallM: THREE.MeshBasicMaterial | null = null;
+    if (!battle) {
+      // the banner holds enemies in: a faint curtain along the rim
+      wallM = new THREE.MeshBasicMaterial({ color: glow, transparent: true, opacity: 0.1, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+      wall = new THREE.Mesh(this.beamGeo, wallM);
+      wall.scale.set(z.r, 1.6, z.r);
+      wall.position.y = 0.8;
+      group.add(wall);
+    }
+    const lit = (color: number) => new THREE.MeshLambertMaterial({ color, emissive: 0x201810 });
+    const woodM = lit(0x7a5230);
+    const metalM = lit(battle ? 0xe8c25a : 0xaab4c8);
+    const earthM = lit(0x5a4630);
+    const spikeM = lit(0x6c7280);
+    // pole, finial and crossbar
+    const pole = new THREE.Group();
+    pole.position.y = 7;
+    group.add(pole);
+    const shaft = new THREE.Mesh(this.poleGeo, woodM);
+    shaft.scale.set(1, POLE, 1);
+    shaft.position.y = POLE / 2;
+    const finial = new THREE.Mesh(this.finialGeo, metalM);
+    finial.position.y = POLE + 0.08;
+    const bar = new THREE.Mesh(this.poleGeo, woodM);
+    bar.rotation.z = Math.PI / 2;
+    bar.scale.set(0.7, W * 0.95, 0.7);
+    bar.position.set(W * 0.48, POLE - 0.1, 0);
+    pole.add(shaft, finial, bar);
+    // cloth: subdivided plane displaced by a travelling wave every frame
+    const SU = 14, SV = 6;
+    const geo = new THREE.PlaneGeometry(1, 1, SU, SV);
+    const cnt = geo.attributes.position.count;
+    const uv = new Float32Array(cnt * 2);
+    for (let k = 0; k < cnt; k++) {
+      uv[k * 2] = geo.attributes.uv.getX(k);
+      uv[k * 2 + 1] = 1 - geo.attributes.uv.getY(k);
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(cnt * 3).fill(1), 3));
+    const tex = this.bannerTexture(battle);
+    const clothM = new THREE.MeshBasicMaterial({ map: tex, vertexColors: true, side: THREE.DoubleSide, transparent: true });
+    const cloth = new THREE.Mesh(geo, clothM);
+    cloth.frustumCulled = false;
+    pole.add(cloth);
+    // base: mound of earth and iron spikes
+    const mound = new THREE.Mesh(this.moundGeo, earthM);
+    mound.position.y = 0.05;
+    mound.scale.setScalar(0.001);
+    group.add(mound);
+    const spikes: THREE.Mesh[] = [];
+    for (let k = 0; k < 6; k++) {
+      const a = (k / 6) * Math.PI * 2 + 0.3;
+      const sp = new THREE.Mesh(this.spikeGeo, spikeM);
+      sp.position.set(Math.cos(a) * 0.5, 0.2, Math.sin(a) * 0.5);
+      sp.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5);
+      sp.scale.setScalar(0.001);
+      group.add(sp);
+      spikes.push(sp);
+    }
+    group.rotation.y = (z.id * 2.399) % (Math.PI * 2);
+    // keep the ground circle upright in world terms: it is round so rotation is harmless
+    this.scene.add(group);
+    let landed = false;
+    let accM = 0;
+    const phase = Math.random() * 6;
+    const col = geo.attributes.color as THREE.BufferAttribute;
+    const pos = geo.attributes.position as THREE.BufferAttribute;
+    return {
+      last: now,
+      update: (zz, t, dt) => {
+        const age = Math.max(0, (t - zz.start) / 1000);
+        const fade = endFade(zz.end - t);
+        const drop = 0.22;
+        const k = Math.min(1, age / drop);
+        const sink = (1 - fade) * (1 - fade);
+        pole.position.y = 7 * (1 - k * k) - sink * (POLE + 0.6);
+        if (!landed && age >= drop) {
+          landed = true;
+          this.ring(zz.x, zz.z, 0xb89a6a, 0.3, 3.2, 0.5, 0.08, 0.9);
+          this.ring(zz.x, zz.z, glow, 0.3, 2.2, 0.4, 0.09, 0.9);
+          for (let q = 0; q < 8; q++) {
+            const a = Math.random() * Math.PI * 2;
+            this.particle(zz.x + Math.cos(a) * 0.4, (zz.y ?? 0) + 0.2, zz.z + Math.sin(a) * 0.4, { tex: 'smoke', color: 0xa38d6a, add: false, vx: Math.cos(a) * 2.2, vz: Math.sin(a) * 2.2, vy: rnd(0.4, 1), s0: 0.6, s1: 1.7, life: rnd(0.6, 0.9), a: 0.6, drag: 2 });
+          }
+          this.burst(zz.x, (zz.y ?? 0) + 0.3, zz.z, glow, 14, 4, 0.3, 0.5, 6);
+        }
+        const since = age - drop;
+        const land = Math.min(1, Math.max(0, since / 0.25));
+        const shake = since > 0 && since < 0.5 ? 0.1 * Math.exp(-since * 7) * Math.sin(since * 45) : 0;
+        pole.rotation.z = shake;
+        mound.scale.setScalar(Math.max(0.001, land) * (battle ? 1 : 1.1));
+        for (const sp of spikes) sp.scale.setScalar(Math.max(0.001, land) * 1);
+        // cloth
+        const un = unfurlProgress(age) * fade;
+        cloth.visible = un > 0.01;
+        clothM.opacity = Math.min(1, fade * 1.4);
+        const ts = t / 1000 + phase;
+        const top = POLE - 0.12;
+        const w = W * un;
+        for (let iy = 0, v0 = 0; iy <= SV; iy++) {
+          const v = iy / SV;
+          for (let ix = 0; ix <= SU; ix++, v0++) {
+            const u = ix / SU;
+            const hh = H * (1 - taper * u);
+            const wv = clothWave(u, v, ts) * un;
+            pos.setXYZ(v0, 0.05 + u * w, top - v * hh, wv);
+            const s = clothShade(u, v, ts);
+            col.setXYZ(v0, s, s, s);
+          }
+        }
+        pos.needsUpdate = true;
+        col.needsUpdate = true;
+        // ground circle and rising motes
+        const rise = Math.min(1, age / 0.5);
+        glowM.opacity = (0.16 + 0.05 * Math.sin(t / 450)) * fade * rise;
+        ringM.opacity = (0.7 + 0.15 * Math.sin(t / 300)) * fade * rise;
+        if (wallM) wallM.opacity = (0.09 + 0.04 * Math.sin(t / 260)) * fade * rise;
+        if (wall) wall.rotation.y = age * 0.3;
+        accM += dt * zz.r * 2.2 * fade * rise;
+        while (accM > 1) {
+          accM--;
+          const a = Math.random() * Math.PI * 2;
+          const d = zz.r * rnd(0.9, 1.0);
+          this.particle(zz.x + Math.cos(a) * d, (zz.y ?? 0) + 0.1, zz.z + Math.sin(a) * d, { color: glow, vy: rnd(1.1, 2.4), s0: rnd(0.16, 0.26), life: 0.9, drag: 0.3 });
+        }
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        geo.dispose();
+        tex.dispose();
+        for (const m of [glowM, ringM, clothM, woodM, metalM, earthM, spikeM]) m.dispose();
+        wallM?.dispose();
+      },
+    };
+  }
+
+  private poleGeo = new THREE.CylinderGeometry(0.05, 0.065, 1, 6);
+  private finialGeo = new THREE.SphereGeometry(0.11, 8, 6);
+  private moundGeo = new THREE.ConeGeometry(0.7, 0.35, 10).translate(0, 0.17, 0);
+  private spikeGeo = new THREE.ConeGeometry(0.06, 0.6, 5).translate(0, 0.3, 0);
+
+  private bannerTexture(battle: boolean): THREE.Texture {
+    const w = 160, h = 112;
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d')!;
+    const star = (cx: number, cy: number, ro: number, ri: number, col: string) => {
+      g.fillStyle = col;
+      g.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const a = (i / 10) * Math.PI * 2 - Math.PI / 2;
+        const rr = i % 2 ? ri : ro;
+        i ? g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : g.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
+      }
+      g.closePath();
+      g.fill();
+    };
+    if (battle) {
+      const grad = g.createLinearGradient(0, 0, 0, h);
+      grad.addColorStop(0, '#c4202a');
+      grad.addColorStop(1, '#7c0f1a');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, w, h);
+      g.fillStyle = '#ffd34a';
+      g.fillRect(0, 0, w, 9);
+      g.fillRect(0, h - 9, w, 9);
+      g.fillRect(0, 0, 7, h);
+      g.strokeStyle = '#ffd34a';
+      g.lineWidth = 3;
+      g.strokeRect(14, 16, w - 26, h - 32);
+      g.lineWidth = 6;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(52, 82); g.lineTo(108, 30);
+      g.moveTo(108, 82); g.lineTo(52, 30);
+      g.stroke();
+      star(80, 56, 20, 8, '#ffe98a');
+      g.strokeStyle = '#ffd34a';
+      g.lineWidth = 2;
+      g.beginPath();
+      g.arc(80, 56, 27, 0, Math.PI * 2);
+      g.stroke();
+    } else {
+      const grad = g.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0, '#2c64c0');
+      grad.addColorStop(1, '#183a80');
+      g.fillStyle = grad;
+      g.fillRect(0, 0, w, h);
+      g.fillStyle = '#cfd8e8';
+      g.fillRect(0, 0, 7, h);
+      g.strokeStyle = '#9fb3d6';
+      g.lineWidth = 8;
+      for (let i = 0; i < 4; i++) {
+        g.beginPath();
+        g.moveTo(24, 6 + i * 30);
+        g.lineTo(w * 0.55, 36 + i * 30);
+        g.lineTo(w * 0.9, 6 + i * 30);
+        g.stroke();
+      }
+      // shackle ring barred shut
+      g.strokeStyle = '#f2f6ff';
+      g.lineWidth = 7;
+      g.beginPath();
+      g.arc(70, 56, 24, 0, Math.PI * 2);
+      g.stroke();
+      g.beginPath();
+      g.moveTo(40, 56); g.lineTo(100, 56);
+      g.stroke();
+      g.fillStyle = '#f2f6ff';
+      g.fillRect(64, 36, 12, 40);
+    }
+    const t = new THREE.CanvasTexture(c);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+
+  /** Rune of Power: a rotating arcane circle with glyphs drifting above it. */
+  private runeZone(z: ZoneSnap, now: number): ZoneVfx {
+    const r = z.r;
+    const y0 = z.y ?? 0;
+    const group = new THREE.Group();
+    group.position.set(z.x, y0, z.z);
+    const tex = this.getRuneTex();
+    const outerM = this.flatMat(0xa070ff, 0.6, tex);
+    const innerM = this.flatMat(0xc8a0ff, 0.45, tex);
+    const glowM = this.flatMat(0x8a4dff, 0.2);
+    const ringM = this.flatMat(0x9a6dff, 0.8);
+    this.flat(group, this.discGeo, glowM, 0.05, r);
+    const outer = this.flat(group, this.discGeo, outerM, 0.07, r);
+    const inner = this.flat(group, this.discGeo, innerM, 0.08, r * 0.62);
+    this.flat(group, this.ringGeo, ringM, 0.09, r);
+    const glyphs: { s: THREE.Sprite; a: number; rad: number; h: number; sp: number }[] = [];
+    for (let k = 0; k < 6; k++) {
+      const s = this.sprite('glow', 0xd9b8ff);
+      (s.material as THREE.SpriteMaterial).map = this.getGlyph(k);
+      s.material.needsUpdate = true;
+      glyphs.push({ s, a: (k / 6) * Math.PI * 2, rad: r * (0.35 + 0.15 * (k % 2)), h: 1.2 + 0.2 * k, sp: k % 2 ? 0.5 : -0.4 });
+    }
+    this.scene.add(group);
+    this.ring(z.x, z.z, 0xa070ff, 0.5, r, 0.5, 0.1, 0.6);
+    this.burst(z.x, y0 + 0.5, z.z, 0xc58bff, 18, 4, 0.35, 0.6, 0);
+    let accM = 0;
+    return {
+      last: now,
+      update: (zz, t, dt) => {
+        const age = Math.max(0, (t - zz.start) / 1000);
+        const fade = endFade(zz.end - t);
+        const grow = 0.25 + 0.75 * (1 - Math.pow(1 - Math.min(1, age / 0.4), 2));
+        outer.scale.set(r * grow, r * grow, 1);
+        inner.scale.set(r * 0.62 * grow, r * 0.62 * grow, 1);
+        outer.rotation.z = age * 0.35;
+        inner.rotation.z = -age * 0.7;
+        outerM.opacity = (0.4 + 0.08 * Math.sin(t / 300)) * fade;
+        innerM.opacity = (0.35 + 0.1 * Math.sin(t / 240 + 1)) * fade;
+        glowM.opacity = (0.14 + 0.04 * Math.sin(t / 450)) * fade;
+        ringM.opacity = (0.4 + 0.1 * Math.sin(t / 300)) * fade;
+        for (const g of glyphs) {
+          const a = g.a + age * g.sp;
+          const bob = Math.sin(age * 1.8 + g.a * 3) * 0.25;
+          g.s.position.set(zz.x + Math.cos(a) * g.rad * grow, y0 + g.h + bob, zz.z + Math.sin(a) * g.rad * grow);
+          const sc = (0.75 + 0.1 * Math.sin(age * 3 + g.a)) * fade;
+          g.s.scale.set(sc, sc, 1);
+          (g.s.material as THREE.SpriteMaterial).opacity = 0.9 * fade;
+        }
+        accM += dt * r * 1.6 * fade;
+        while (accM > 1) {
+          accM--;
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * r * 0.95;
+          this.particle(zz.x + Math.cos(a) * d, y0 + 0.1, zz.z + Math.sin(a) * d, { color: Math.random() < 0.5 ? 0xb48cff : 0xe0c8ff, vy: rnd(0.8, 1.8), s0: rnd(0.15, 0.25), life: 1.1, drag: 0.3 });
+        }
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        for (const m of [outerM, innerM, glowM, ringM]) m.dispose();
+        for (const g of glyphs) {
+          this.scene.remove(g.s);
+          g.s.visible = false;
+          (g.s.material as THREE.SpriteMaterial).opacity = 1;
+          this.pool.push(g.s);
+        }
+      },
+    };
+  }
+
   setZones(zones: ZoneSnap[], now: number) {
     const seen = new Set<number>();
     const seenSmoke = new Set<number>();
@@ -1134,40 +2045,14 @@ export class Effects {
         continue;
       }
       seen.add(z.id);
-      let m = this.zoneMeshes.get(z.id);
-      const color = z.buff ? (z.buff === 'allies' ? 0xffd34a : 0xb48cff) : SCHOOL_COLOR[z.school] ?? 0xff6a20;
-      if (!m) {
-        const mk = (geo: THREE.BufferGeometry) => {
-          const mat = new THREE.MeshBasicMaterial({ color: z.flag ? 0xffd34a : color, transparent: true, opacity: 0.4, depthWrite: false, side: THREE.DoubleSide });
-          const mesh = new THREE.Mesh(geo, mat);
-          mesh.rotation.x = -Math.PI / 2;
-          mesh.position.set(z.x, 0.06 + (z.y ?? 0), z.z);
-          mesh.scale.set(z.r, z.r, 1);
-          this.scene.add(mesh);
-          return mesh;
-        };
-        m = { disc: mk(this.discGeo), ring: mk(this.ringGeo) };
-        this.zoneMeshes.set(z.id, m);
-        // a zone with an opening hit (Flamestrike) lands with a blast: column, shockwave and sparks
-        const zone = ABILITIES[z.ability]?.effects.find((e) => e.type === 'zone');
-        if (zone && zone.type === 'zone' && zone.initial) {
-          this.column(z.x, z.z, color, 0.7, z.r * 0.5, 9);
-          this.ring(z.x, z.z, color, 0.5, z.r, 0.55, 0.08, 1);
-          this.ring(z.x, z.z, 0xffffff, 0.3, z.r * 0.7, 0.4, 0.09, 0.8);
-          this.burst(z.x, 0.8, z.z, color, 34, 7, 0.6, 0.7);
-        }
+      let v = this.zoneVfx.get(z.id);
+      if (!v) {
+        v = this.makeZoneVfx(z, now);
+        this.zoneVfx.set(z.id, v);
       }
-      if (z.buff) {
-        // a steady circle that breathes slowly, fading in the last second
-        const fade = Math.min(1, Math.max(0, (z.end - now) / 1000));
-        (m.ring.material as THREE.MeshBasicMaterial).opacity = (0.75 + 0.15 * Math.sin(now / 300)) * fade;
-        (m.disc.material as THREE.MeshBasicMaterial).opacity = (0.22 + 0.06 * Math.sin(now / 450)) * fade;
-        continue;
-      }
-      const armed = now >= z.firstAt;
-      const sincePulse = armed ? ((now - z.firstAt) % z.pulse) / z.pulse : 0;
-      (m.ring.material as THREE.MeshBasicMaterial).opacity = armed ? 0.9 : 0.5 + 0.4 * Math.sin(now / 90);
-      (m.disc.material as THREE.MeshBasicMaterial).opacity = armed ? 0.55 - 0.4 * sincePulse : 0.12 + 0.18 * Math.min(1, (now - z.start) / Math.max(1, z.firstAt - z.start));
+      const dt = Math.min(0.1, Math.max(0, (now - v.last) / 1000));
+      v.last = now;
+      v.update(z, now, dt);
     }
     for (const [id, m] of this.smokeMeshes) {
       if (seenSmoke.has(id)) continue;
@@ -1175,13 +2060,10 @@ export class Effects {
       for (const c of m.group.children) (c as THREE.Mesh).material && ((c as THREE.Mesh).material as THREE.Material).dispose();
       this.smokeMeshes.delete(id);
     }
-    for (const [id, m] of this.zoneMeshes) {
+    for (const [id, v] of this.zoneVfx) {
       if (seen.has(id)) continue;
-      for (const mesh of [m.disc, m.ring]) {
-        this.scene.remove(mesh);
-        (mesh.material as THREE.Material).dispose();
-      }
-      this.zoneMeshes.delete(id);
+      v.dispose();
+      this.zoneVfx.delete(id);
     }
   }
 

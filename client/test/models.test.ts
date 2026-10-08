@@ -5,6 +5,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { CLASS_IDS, COSMETICS, SLOT_IDS, gearLook, itemsForSlot } from '@arena/shared';
 import { createCharacter, createSheep, REPLACEABLE_SLOTS } from '../src/models';
+import { unpackModel } from '../src/modelPack';
 import { registerRiggedModel, forgetRiggedModels, modelVersion } from '../src/riggedModels';
 
 /** Every mesh below `o` (the tree itself, not the picking list). */
@@ -91,10 +92,8 @@ describe('cosmetic models', () => {
 // ------------------------------------------------------------------ rigged (skinned) models
 
 const MODEL_DIR = fileURLToPath(new URL('../public/models/', import.meta.url));
-const loadGlb = (file: string) => {
-  const b = readFileSync(MODEL_DIR + file);
-  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer;
-};
+/** The models are served scrambled (.pak): read and unscramble like the game does. */
+const loadGlb = (file: string) => unpackModel(new Uint8Array(readFileSync(MODEL_DIR + file.replace(/\.glb$/, '.pak'))));
 
 describe('rigged character models', () => {
   const g = globalThis as unknown as { createImageBitmap?: unknown; self?: unknown };
@@ -123,7 +122,7 @@ describe('rigged character models', () => {
   it('the warrior wears the rigged knight, with the standard skeleton and parts', () => {
     const ch = createCharacter('warrior');
     assert.ok(skinned(ch.root).length >= 4, 'skinned parts');
-    assert.deepEqual(Object.keys(ch.parts).sort(), ['back', 'head', 'shoulders']);
+    assert.deepEqual(Object.keys(ch.parts).sort(), ['back', 'shoulders']); // the helm is not a replaceable part
     const bones = bonesOf(ch);
     for (const n of ['root', 'hips', 'spine', 'chest', 'neck', 'head', 'shoulder_l', 'shoulder_r', 'upperarm_l', 'upperarm_r', 'forearm_l', 'forearm_r', 'hand_l', 'hand_r', 'thigh_l', 'thigh_r', 'shin_l', 'shin_r', 'foot_l', 'foot_r']) assert.ok(bones[n], `bone ${n}`);
     for (const m of skinned(ch.root)) assert.ok(ch.meshes.includes(m), 'every skinned mesh is pickable');
@@ -147,8 +146,21 @@ describe('rigged character models', () => {
     assert.equal(ma.material, mb.material);
   });
 
-  it('a cosmetic in head/shoulders/back removes that base part (unpickable), none keeps it', () => {
-    for (const slot of REPLACEABLE_SLOTS) {
+  it('a head cosmetic keeps the knight\'s helm (it is fitted on top); shoulders and back still replace their parts', () => {
+    const plain = createCharacter('warrior');
+    assert.equal(plain.parts.head, undefined, 'the helm is body geometry, not a replaceable part');
+    const helmMeshes = (ch: ReturnType<typeof createCharacter>) => skinned(ch.root).filter((m) => m.name.startsWith('part_head'));
+    assert.ok(helmMeshes(plain).length > 0);
+    for (const item of itemsForSlot('head')) {
+      const ch = createCharacter('warrior', gearLook({ head: item.id }));
+      const helm = helmMeshes(ch);
+      assert.equal(helm.length, helmMeshes(plain).length, `${item.id} keeps the helm`);
+      for (const m of helm) assert.ok(ch.meshes.includes(m) && m.visible, 'helm stays pickable and visible');
+    }
+  });
+
+  it('a cosmetic in shoulders/back removes that base part (unpickable), none keeps it', () => {
+    for (const slot of REPLACEABLE_SLOTS.filter((s) => s !== 'head')) {
       const bare = createCharacter('warrior');
       assert.ok(bare.parts[slot]?.length, `${slot} part`);
       for (const part of bare.parts[slot]) {
@@ -162,7 +174,7 @@ describe('rigged character models', () => {
           assert.equal(ch.root.getObjectById(part.id), undefined, `${item.id} replaces the ${slot}`);
           for (const m of skinned(part)) assert.ok(!ch.meshes.includes(m), 'removed meshes are not pickable');
         }
-        for (const other of REPLACEABLE_SLOTS.filter((s) => s !== slot)) for (const part of ch.parts[other]) assert.ok(ch.root.getObjectById(part.id), `${other} stays`);
+        for (const other of REPLACEABLE_SLOTS.filter((s) => s !== slot && s !== 'head')) for (const part of ch.parts[other]) assert.ok(ch.root.getObjectById(part.id), `${other} stays`);
       }
     }
   });
@@ -207,8 +219,8 @@ describe('rigged character models', () => {
     assert.ok(Math.abs(ch.root.rotation.x + Math.PI / 2) < 1e-6, 'lies down when dead');
   });
 
-  it('spec weapons attach to the hand bones (the brute keeps its own axe)', () => {
-    for (const weapon of ['dual', 'twohand', undefined]) {
+  it('spec weapons attach to the hand bones (procedural stand-ins here: the weapon models are not loaded in this file; see weaponModels.test.ts)', () => {
+    for (const weapon of ['dual', 'twohand', 'polearm', undefined]) {
       const ch = createCharacter('warrior', '', weapon);
       const bones = bonesOf(ch);
       const inHand = (o: THREE.Object3D) => {
@@ -218,9 +230,14 @@ describe('rigged character models', () => {
       const weaponMeshes = ch.meshes.filter((m) => !(m instanceof THREE.SkinnedMesh));
       assert.ok(weaponMeshes.length > 0 && weaponMeshes.every(inHand), `${weapon ?? 'default'} weapon is held`);
     }
-    // the Barbarian (polearm) is the brute, which carries its own axe in the mesh: nothing extra is attached
-    const brute = createCharacter('warrior', '', 'polearm');
-    assert.equal(brute.meshes.filter((m) => !(m instanceof THREE.SkinnedMesh)).length, 0);
+    // the brute alternative carries its own axe in the mesh: nothing extra is attached
+    globalThis.location = { search: '?warriormodel=brute' } as unknown as Location;
+    try {
+      const brute = createCharacter('warrior', '', 'polearm');
+      assert.equal(brute.meshes.filter((m) => !(m instanceof THREE.SkinnedMesh)).length, 0);
+    } finally {
+      delete (globalThis as { location?: unknown }).location;
+    }
   });
 
   it('the polymorph sheep still swaps in and the brute alternative builds the same way', () => {

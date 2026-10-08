@@ -721,12 +721,12 @@ describe('warrior rework', () => {
     assert.equal(heal(f, 500), 300, '40% less healing on the wounded');
     assert.equal(heal(priest, 500), 500, 'others heal normally');
   });
-  it('Slice and Dice is a 30 s cooldown that cuts for 50 every half second', () => {
+  it('Slice and Dice is a 30 s cooldown that cuts for 25 every quarter second', () => {
     assert.equal(ABILITIES.slice_and_dice.cooldown, 30000);
-    assert.equal(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount, 50);
-    assert.equal(ABILITIES.slice_and_dice.castTime / ABILITIES.slice_and_dice.channel!.ticks, 500);
+    assert.equal(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount, 25);
+    assert.equal(ABILITIES.slice_and_dice.castTime / ABILITIES.slice_and_dice.channel!.ticks, 250);
   });
-  it('Slice and Dice lands a 50 cut every 0.5 s, the same 400 in all as before', () => {
+  it('Slice and Dice lands a 25 cut every 0.25 s, the same 400 in all as before', () => {
     const { sim, w, f } = war('arms', 3);
     w.facing = Math.atan2(0, 1); w.lastInput = { ...w.lastInput, facing: w.facing };
     f.pos = { x: 0, z: 3 };
@@ -737,8 +737,8 @@ describe('warrior rework', () => {
       const evs = advance(sim, TICK);
       for (const e of evs) if (e.t === 'damage' && e.src === w.id && e.tgt === f.id && e.ability === 'slice_and_dice') hits.push(sim.time - start);
     }
-    assert.equal(hits.length, 8, `hits at ${hits.join(',')}`);
-    for (let i = 1; i < hits.length; i++) assert.ok(Math.abs(hits[i] - hits[i - 1] - 500) <= TICK, `gap ${hits[i] - hits[i - 1]}`);
+    assert.equal(hits.length, 16, `hits at ${hits.join(',')}`);
+    for (let i = 1; i < hits.length; i++) assert.ok(Math.abs(hits[i] - hits[i - 1] - 250) <= TICK, `gap ${hits[i] - hits[i - 1]}`);
   });
   it('Slice and Dice stuns and cuts everything in the cone over 4 seconds, and nothing behind', () => {
     const { sim, w, f } = war('arms', 3);
@@ -748,12 +748,28 @@ describe('warrior rework', () => {
     const hp = f.health, hb = behind.health;
     assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
     advance(sim, TICK * 2);
-    assert.ok(f.auras.some((a) => a.id === 'slice_stun'), 'stunned straight away');
+    assert.ok(f.auras.some((a) => a.id === 'slice_hold'), 'held straight away');
     assert.ok(f.health < hp, 'first cut lands straight away');
     advance(sim, 1000);
     advance(sim, 4000);
     assert.ok(hp - f.health > 200, `dealt ${hp - f.health}`);
     assert.equal(behind.health, hb, 'untouched behind');
+  });
+  it('Slice and Dice holds you and your targets in place for the whole channel, with no gaps', () => {
+    const { sim, w, f } = war('arms', 3);
+    f.pos = { x: 0, z: 3 };
+    w.facing = 0;
+    assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
+    const spot = { ...w.pos }, foe = { ...f.pos };
+    for (let i = 0; i < 4000 / TICK - 4; i++) {
+      sim.queueInput(w.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 });
+      sim.queueInput(f.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 });
+      advance(sim, TICK);
+      assert.ok(w.cast, `still channelling at ${sim.time}`);
+      assert.ok(f.auras.some((a) => a.id === 'slice_hold'), `target held at ${sim.time}`);
+    }
+    assert.deepEqual(w.pos, spot, 'the warrior never moved');
+    assert.deepEqual(f.pos, foe, 'the target never moved');
   });
   it('Bladestorm hits everything near you and can move while it spins', () => {
     const { sim, w, f } = war('fury', 3);
