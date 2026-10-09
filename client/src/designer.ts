@@ -83,7 +83,19 @@ export class Designer {
     for (const e of thread) log.append(e.who === 'dev' ? el('div', 'devp-msg dev', e.text) : this.answerCard(e.turn!, send, propose));
     if (this.waiting.has(id)) log.append(el('div', 'devp-msg claude', 'Claude is thinking…'));
     box.append(log);
-    queueMicrotask(() => (log.scrollTop = log.scrollHeight));
+    // show the newest message: the box is not in the page yet (or laid out) when it is built, so keep scrolling down as it settles
+    const toEnd = () => { log.scrollTop = log.scrollHeight; };
+    queueMicrotask(toEnd);
+    requestAnimationFrame(() => requestAnimationFrame(toEnd));
+    window.setTimeout(toEnd, 150);
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => {
+        if (!log.isConnected) return ro.disconnect();
+        toEnd();
+      });
+      ro.observe(log);
+      window.setTimeout(() => ro.disconnect(), 1500);
+    }
 
     const input = el('textarea', 'devp-note devp-ask');
     input.placeholder = thread.some((e) => e.turn?.kind === 'questions') ? 'Answer Claude’s questions…' : 'e.g. "make the slow shorter but stronger" or "it should also leave a fire patch"';
