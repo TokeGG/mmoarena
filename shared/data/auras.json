@@ -310,9 +310,9 @@
   "singed": {
     "name": "Singed",
     "kind": "mark",
-    "duration": 10000,
+    "duration": 20000,
     "harmful": true,
-    "maxStacks": 2,
+    "maxStacks": 4,
     "stackProc": "hot_streak",
     "note": "Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant"
   },

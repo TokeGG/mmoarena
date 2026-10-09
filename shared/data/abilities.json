@@ -1704,7 +1704,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 22
+    "amount": 100
    }
   ],
   "unstoppable": true

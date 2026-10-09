@@ -23,7 +23,7 @@
       },
       "auto": {
         "interval": 1400,
-        "damage": 60,
+        "damage": 45,
         "range": 3
       }
     },
@@ -95,7 +95,7 @@
       },
       "auto": {
         "interval": 2400,
-        "damage": 45,
+        "damage": 80,
         "range": 5
       }
     }
