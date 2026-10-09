@@ -197,7 +197,7 @@ export function plainPath(file: PatchFile, id: string, path: readonly (string | 
     const k = String(path[1]);
     if (path.length === 2 && SCALAR_INFO[k]) return SCALAR_INFO[k];
     if (k === 'auraDuration' && path.length === 3) return { label: `${auraName(String(path[2]))} lasts`, hint: 'Multiplies how long this buff or debuff lasts. 1.5 is 50% longer.', unit: 'x' };
-    if (k === 'auraExtend' && path.length === 3) return { label: `${auraName(String(path[2]))} lasts longer by`, hint: 'Milliseconds added to its duration.', unit: 'ms' };
+    if (k === 'auraExtend' && path.length === 3) return { label: `${auraName(String(path[2]))} lasts longer by`, hint: 'Seconds added to its duration.', unit: 'ms' };
     if (k === 'ability' && typeof path[2] === 'string') {
       const skill = abilityName(path[2]);
       if (path.length === 4 && last === 'heal' && ABILITIES[path[2]]?.effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.kind === 'absorb') && !ABILITIES[path[2]]?.effects.some((e) => e.type === 'heal')) return { label: `${skill}: shield strength`, hint: 'Multiplies the damage it absorbs. 1.5 is 50% stronger.', unit: 'x' };
@@ -224,7 +224,7 @@ export function plainPath(file: PatchFile, id: string, path: readonly (string | 
   if (file === 'classes' && path.length === 1 && last === 'maxHealth') return { label: 'Health', hint: 'Base maximum health before gear and talents.', unit: 'hp' };
   if (path[0] === 'auto') {
     const m: Record<string, Plain> = {
-      interval: { label: 'Auto-attack swing time', hint: 'Milliseconds between swings.', unit: 'ms' },
+      interval: { label: 'Auto-attack swing time', hint: 'Seconds between swings.', unit: 'ms' },
       damage: { label: 'Auto-attack damage', hint: 'Damage of one swing.', unit: 'plain' },
       range: { label: 'Auto-attack reach', hint: 'How far away it can hit, in yards.', unit: 'yd' },
     };
@@ -314,7 +314,7 @@ export function valueHint(unit: FieldUnit, v: number | string): string {
   }
 }
 
-export const UNIT_NAME: Record<FieldUnit, string> = { ms: 'milliseconds', x: 'multiplier', yd: 'yards', chance: 'share (1 = 100%)', percent: 'percent', count: 'count', hp: 'health', deg: 'degrees', plain: '' };
+export const UNIT_NAME: Record<FieldUnit, string> = { ms: 'seconds (typed as 1.2; saved in milliseconds)', x: 'multiplier', yd: 'yards', chance: 'share (1 = 100%)', percent: 'percent', count: 'count', hp: 'health', deg: 'degrees', plain: '' };
 
 // ------------------------------------------------------------------ building fields
 
