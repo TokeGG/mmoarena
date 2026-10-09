@@ -359,7 +359,7 @@ export class Room {
     return {
       id: this.id, map: this.arenaId, size: this.size, kind, elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
       players: this.realUnits().map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player' })),
-      watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable,
+      watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable, ...(this.sim.noCooldowns ? { noCooldowns: true } : {}),
     };
   }
 
@@ -786,7 +786,7 @@ export interface LobbyConfig {
 /** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
-const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub' };
+const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', cooldowns_reset: 'Resetting cooldowns', cooldowns_off: 'Switching cooldowns off', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub' };
 
 export class Lobby {
   private rooms = new Set<Room>();
@@ -968,6 +968,21 @@ export class Lobby {
           if (q !== p) send(q, { t: 'notice', text: room.paused ? 'The owner paused the match (it no longer counts).' : 'The owner resumed the match.' });
         }
         log(msg.on ? 'pause match' : 'resume match', room.id);
+        send(p, this.overviewMsg());
+        break;
+      }
+      case 'cooldowns_reset':
+      case 'cooldowns_off': {
+        const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed);
+        if (!room) return;
+        room.devTest = true; // a match with changed cooldowns no longer counts
+        if (msg.act === 'cooldowns_reset') room.sim.resetCooldowns();
+        else room.sim.noCooldowns = !!msg.on;
+        if (msg.act === 'cooldowns_off' && msg.on) room.sim.resetCooldowns();
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'notice', text: msg.act === 'cooldowns_reset' ? 'The owner reset every cooldown (the match no longer counts).' : msg.on ? 'The owner switched cooldowns off (the match no longer counts).' : 'The owner switched cooldowns back on.' });
+        }
+        log(msg.act === 'cooldowns_reset' ? 'reset cooldowns' : msg.on ? 'cooldowns off' : 'cooldowns on', room.id);
         send(p, this.overviewMsg());
         break;
       }
