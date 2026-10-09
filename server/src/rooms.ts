@@ -1710,6 +1710,7 @@ export class Lobby {
             const text = await dev.redeploy();
             void this.adminLog?.add(by, 'redeploy on Render');
             send(p, { t: 'dev_result', ok: true, text });
+            for (const q of this.conns) if (q !== p) send(q, { t: 'notice', text: 'A new update is being deployed. The game restarts in a minute or two; a Refresh button appears when it is ready.' });
           } catch (e) {
             send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
           }

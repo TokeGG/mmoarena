@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.16",
+  "date": "2026-10-09",
+  "at": "2026-10-09T19:00:00Z",
+  "title": "Update notice",
+  "changes": [
+   "When a new version of the game goes live, a banner now says so with a Refresh button, so you know when to reload."
+  ]
+ },
+ {
   "version": "0.69.15",
   "date": "2026-10-09",
   "at": "2026-10-09T18:30:00Z",
