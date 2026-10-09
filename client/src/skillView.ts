@@ -1,6 +1,9 @@
-import { ABILITIES, CLASSES, SPECS, TALENTS, skillInfo, tunableNumbers } from '@arena/shared';
-import type { ClassId, DataPatch, TunableNumber } from '@arena/shared';
+import { ABILITIES, UNIT_NAME, fieldOf, skillInfo, skillSlots, valueHint } from '@arena/shared';
+import type { DataPatch, DevField, FieldGroup } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
+import { EditSet, patchKey, showValue } from './devEdits';
+
+export { patchKey };
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -8,8 +11,6 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text
   if (text) e.textContent = text;
   return e;
 }
-
-export const patchKey = (p: Pick<DataPatch, 'file' | 'id' | 'path'>) => `${p.file}:${p.id}:${p.path.join('.')}`;
 
 /** The row of skill icons to pick from (hover shows the skill's tooltip). */
 export function skillPicker(ids: string[], pick: string, onPick: (id: string) => void): HTMLElement {
@@ -23,21 +24,142 @@ export function skillPicker(ids: string[], pick: string, onPick: (id: string) =>
   return picker;
 }
 
-type Options = NonNullable<ReturnType<typeof skillInfo>['sections'][number]['options']>;
+const STEP: Record<string, string> = { x: '0.05', chance: '0.01', ms: '50', yd: '0.5', percent: '1', count: '1', hp: '10', deg: '5', plain: 'any' };
 
 /**
- * The skill info view and number editor shared by the debug panel and the admin panel's Tuning tab: a skill's rules,
- * its numbers, the buffs and debuffs tied to it, the talents/specs that change it, and a box per number to edit.
- * `edits` holds what was typed (key -> patch); `testing` is what is being tried or proposed already (shown as changed).
+ * The number editor shared by the debug panel and the admin panel's Tuning tab: one row per value (what it is in plain words,
+ * a box to type the new value, what it means in familiar terms, the file's value once changed and a reset), groups that
+ * fold, and the skill view (its rules, its numbers, the buffs and debuffs tied to it, the talents and specs that change it).
+ * What was typed lives in `set` (see EditSet); `testing` is what is being tried or proposed already (shown as changed).
  */
 export class SkillEditor {
-  readonly edits = new Map<string, DataPatch>();
+  readonly set = new EditSet();
   readonly key = patchKey;
+  /** What is in effect already (the match's test numbers, the session's, or the proposals). */
+  testing: () => Map<string, DataPatch> = () => new Map();
+  /** In the Tuning tab numbers already proposed are not put back from here (a proposal is handled in its own list). */
+  canRevert = true;
+  /** Called after any change (the host updates its counters). */
+  onEdit: () => void = () => undefined;
+  /** Rows that do not match this text are hidden (lowercase; empty shows all). */
+  filter = '';
+  /** Which groups are folded open, kept by the host across redraws. */
+  open = new Map<string, boolean>();
 
-  /** Chips, sections (with options and numbers) and "also changed by" for one skill. */
-  skillBody(abilityId: string, testing: Map<string, DataPatch>): HTMLElement {
+  get edits(): Map<string, DataPatch> {
+    return this.set.edits;
+  }
+
+  private matches(f: DevField): boolean {
+    return !this.filter || `${f.label} ${f.hint ?? ''} ${f.path.join(' ')}`.toLowerCase().includes(this.filter);
+  }
+
+  /** One value: its name, a box (tick box, list) for it, its meaning, the file's value once changed, and a reset. */
+  fieldRow(f: DevField): HTMLElement {
+    const testing = this.testing();
+    const row = el('div', 'devp-field');
+    const name = el('span', 'devp-flabel', f.label);
+    const tip = [f.hint, f.unit !== 'plain' && f.kind === 'number' ? `Unit: ${UNIT_NAME[f.unit]}` : '', `File value: ${showValue(f, f.base)}`, f.added ? 'The data file does not have this yet: changing it adds it.' : ''].filter(Boolean);
+    row.title = tip.join('\n');
+    const meaning = el('small', 'devp-fhint');
+    const was = el('small', 'devp-fbase');
+    const undo = el('button', 'devp-undo', '↺');
+    undo.title = 'Put back the value in the data file';
+    undo.type = 'button';
+    const shown = () => this.set.shown(f, testing);
+    const sync = () => {
+      const changed = this.set.changed(f, testing);
+      row.classList.toggle('changed', changed);
+      row.classList.toggle('pending', this.set.pending(f));
+      undo.hidden = !changed;
+      was.textContent = changed ? `file: ${showValue(f, f.base)}` : '';
+      meaning.textContent = f.kind === 'number' ? valueHint(f.unit, Number(shown())) : '';
+    };
+    let control: HTMLElement;
+    let reread: () => void;
+    if (f.kind === 'switch') {
+      const cb = el('input');
+      cb.type = 'checkbox';
+      reread = () => (cb.checked = Number(shown()) === 1);
+      cb.addEventListener('change', () => {
+        this.set.set(f, cb.checked ? 1 : 0, testing, this.canRevert);
+        sync();
+        this.onEdit();
+      });
+      control = cb;
+    } else if (f.kind === 'choice') {
+      const sel = el('select', 'devp-sel');
+      for (const v of f.options ?? []) {
+        const o = el('option', '', v.replace(/_/g, ' '));
+        o.value = v;
+        sel.append(o);
+      }
+      reread = () => (sel.value = String(shown()));
+      sel.addEventListener('change', () => {
+        this.set.set(f, sel.value, testing, this.canRevert);
+        sync();
+        this.onEdit();
+      });
+      control = sel;
+    } else {
+      const input = el('input');
+      input.type = 'number';
+      input.step = STEP[f.unit] ?? 'any';
+      reread = () => (input.value = String(Math.round(Number(shown()) * 10000) / 10000));
+      input.addEventListener('input', () => {
+        if (input.value.trim() === '') return;
+        const v = Number(input.value);
+        if (!Number.isFinite(v) || Math.abs(v) > 1_000_000) return;
+        this.set.set(f, v, testing, this.canRevert);
+        sync();
+        this.onEdit();
+      });
+      control = input;
+    }
+    control.addEventListener('keydown', (e) => e.stopPropagation()); // typing here never casts spells
+    undo.addEventListener('click', () => {
+      this.set.set(f, f.base, testing, this.canRevert);
+      reread();
+      sync();
+      this.onEdit();
+    });
+    reread();
+    sync();
+    if (f.kind === 'switch') row.classList.add('switch');
+    row.append(name, control, meaning, was, undo);
+    return row;
+  }
+
+  /** Rows for some fields (those matching the search). */
+  fieldList(fields: DevField[]): HTMLElement {
+    const list = el('div', 'devp-fields');
+    for (const f of fields.filter((x) => this.matches(x))) list.append(this.fieldRow(f));
+    return list;
+  }
+
+  /** A fold-out group of rows with its name, a note, how many are changed, and a reset for the group. */
+  group(g: FieldGroup, scope: string): HTMLElement | null {
+    const fields = g.fields.filter((f) => this.matches(f));
+    if (!fields.length) return null;
+    const key = `${scope}:${g.id}`;
+    const box = el('details', 'devp-sec');
+    const testing = this.testing();
+    const changed = fields.filter((f) => this.set.changed(f, testing)).length;
+    // a group with a changed value is never folded away
+    box.open = this.filter ? true : this.open.get(key) ?? (changed > 0 || (g.open ?? true));
+    box.addEventListener('toggle', () => {
+      if (!this.filter) this.open.set(key, box.open);
+    });
+    const sum = el('summary', 'devp-sec-head');
+    sum.append(el('b', '', g.title), el('small', 'devp-dim', ` ${g.sub ? `${g.sub} · ` : ''}${fields.length} value${fields.length === 1 ? '' : 's'}`));
+    if (changed) sum.append(el('span', 'devp-badge', `${changed} changed`));
+    box.append(sum, this.fieldList(fields));
+    return box;
+  }
+
+  /** The chips, sections (with options and numbers) and "also changed by" for one skill. */
+  skillBody(abilityId: string): HTMLElement {
     const r = el('div');
-    r.append(el('div', 'devp-title', ABILITIES[abilityId].name));
     const info = skillInfo(abilityId);
     // how the skill behaves, as chips (hover for what each means)
     const chips = el('div', 'devp-chips');
@@ -54,10 +176,29 @@ export class SkillEditor {
       box.append(head);
       if (sec.from.length) box.append(el('div', 'devp-from', `From: ${sec.from.join(' · ')}`));
       if (sec.does.length) box.append(el('div', 'devp-does', sec.does.join(' · ')));
-      if (sec.options) box.append(this.optionsBox(sec.id, sec.options, testing));
-      const list = this.fieldList(sec.fields, testing);
-      if (!sec.fields.length) list.append(el('small', 'devp-dim', 'No numbers to tune.'));
+      const fields: DevField[] = [];
+      if (sec.options) {
+        for (const c of sec.options.choices) {
+          const f = fieldOf({ file: 'abilities', id: sec.id, path: [c.key], label: c.label, value: 0 });
+          fields.push(f);
+        }
+        for (const o of sec.options.flags) fields.push(fieldOf({ file: 'abilities', id: sec.id, path: [o.key], label: o.label, value: o.value }));
+      }
+      const nums = sec.fields.map((t) => fieldOf(t));
+      if (fields.length) {
+        const opts = el('details', 'devp-sec devp-optbox');
+        const key = `skill-options:${sec.kind}:${sec.id}`;
+        opts.open = this.filter ? true : this.open.get(key) ?? true;
+        opts.addEventListener('toggle', () => {
+          if (!this.filter) this.open.set(key, opts.open);
+        });
+        opts.append(el('summary', 'devp-sec-head', 'Options (target, school and switches)'), this.fieldList(fields));
+        if (opts.querySelector('.devp-field')) box.append(opts);
+      }
+      const list = this.fieldList(nums);
+      if (!nums.length) list.append(el('small', 'devp-dim', 'No numbers to tune.'));
       box.append(list);
+      if (this.filter && !box.querySelector('.devp-field') && sec.kind !== 'ability') continue;
       r.append(box);
     }
     if (info.modifiers.length) {
@@ -66,112 +207,22 @@ export class SkillEditor {
       const ul = el('ul', 'devp-mods');
       for (const m of info.modifiers) {
         const li = el('li');
-        li.append(el('b', '', m.name), el('small', 'devp-dim', ` (${m.where})`), el('div', '', m.text));
-        if (m.fields.length) li.append(this.fieldList(m.fields, testing));
+        li.append(el('b', '', m.name), el('small', 'devp-dim', ` (${m.where})`), el('div', 'devp-does', m.text));
+        const have = skillSlots(m.source.file, m.source.id, abilityId);
+        const existing = new Set(m.fields.map((t) => patchKey(t)));
+        const fields = [...m.fields.map((t) => fieldOf(t)), ...have.filter((f) => !f.added && !existing.has(patchKey(f)))];
+        if (fields.length) li.append(this.fieldList(fields));
+        const spare = have.filter((f) => f.added);
+        if (spare.length) {
+          const more = el('details', 'devp-sec');
+          more.append(el('summary', 'devp-dim', `Add a change to ${ABILITIES[abilityId].name} from ${m.name}`), this.fieldList(spare));
+          li.append(more);
+        }
         ul.append(li);
       }
       box.append(ul);
       r.append(box);
     }
     return r;
-  }
-
-  /** A skill's yes/no options (global cooldown, facing, works while stunned...) as tick boxes and its target and school as lists. */
-  optionsBox(abilityId: string, o: Options, testing: Map<string, DataPatch>): HTMLElement {
-    const box = el('div', 'devp-options');
-    for (const f of o.flags) {
-      const path = [f.key];
-      const k = this.key({ file: 'abilities', id: abilityId, path });
-      const changed = () => testing.has(k) || this.edits.has(k);
-      const row = el('label', `devp-opt${changed() ? ' changed' : ''}`);
-      const cb = el('input');
-      cb.type = 'checkbox';
-      cb.checked = Number(this.edits.get(k)?.value ?? testing.get(k)?.value ?? f.value) === 1;
-      cb.addEventListener('change', () => {
-        this.edits.set(k, { file: 'abilities', id: abilityId, path, value: cb.checked ? 1 : 0 });
-        row.classList.add('changed');
-      });
-      row.append(cb, el('span', '', f.label));
-      box.append(row);
-    }
-    for (const c of o.choices) {
-      const path = [c.key];
-      const k = this.key({ file: 'abilities', id: abilityId, path });
-      const row = el('label', `devp-opt${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
-      const sel = el('select', 'devp-sel');
-      for (const v of c.options) {
-        const op = el('option', '', v.replace(/_/g, ' '));
-        op.value = v;
-        sel.append(op);
-      }
-      sel.value = String(this.edits.get(k)?.value ?? testing.get(k)?.value ?? c.value);
-      sel.addEventListener('change', () => {
-        this.edits.set(k, { file: 'abilities', id: abilityId, path, value: sel.value });
-        row.classList.add('changed');
-      });
-      row.append(el('span', '', c.label), sel);
-      box.append(row);
-    }
-    return box;
-  }
-
-  /** One row per number: its name and a box to type the new value in (green once changed). */
-  fieldList(fields: TunableNumber[], testing: Map<string, DataPatch>): HTMLElement {
-    const list = el('div', 'devp-fields');
-    for (const t of fields) {
-      const k = this.key(t);
-      const f = el('label', `devp-field${testing.has(k) || this.edits.has(k) ? ' changed' : ''}`);
-      const input = el('input');
-      input.type = 'number';
-      input.step = 'any';
-      input.value = String(this.edits.get(k)?.value ?? testing.get(k)?.value ?? t.value);
-      input.addEventListener('change', () => {
-        const v = Number(input.value);
-        if (!Number.isFinite(v)) return;
-        this.edits.set(k, { file: t.file, id: t.id, path: t.path, value: v });
-        f.classList.add('changed');
-      });
-      f.append(el('span', '', t.label), input);
-      list.append(f);
-    }
-    return list;
-  }
-
-  /** Every number of a class (health, resource, auto-attack), of each of its specs (bonuses, weapon swing) and of every talent. */
-  classSections(cls: ClassId, testing: Map<string, DataPatch>): HTMLElement {
-    const wrap = el('div');
-    const clean = (fields: TunableNumber[], strip: string[]) => fields.map((f) => ({ ...f, label: f.path.filter((k) => !strip.includes(String(k))).join(' · ') }));
-    const section = (title: string, sub: string, fields: TunableNumber[], open = false) => {
-      const box = el('details', 'devp-sec');
-      box.open = open;
-      const sum = el('summary', 'devp-sec-head');
-      sum.append(el('b', '', title), el('small', 'devp-dim', ` ${sub} · ${fields.length} numbers`));
-      box.append(sum, fields.length ? this.fieldList(fields, testing) : el('small', 'devp-dim', 'No numbers to tune.'));
-      return box;
-    };
-    wrap.append(section(`${CLASSES[cls].name}`, 'class: health, resource, auto-attack', clean(tunableNumbers('classes', cls), []), true));
-    for (const sp of SPECS[cls]) {
-      wrap.append(section(sp.name, 'spec: bonuses and weapon', clean(tunableNumbers('specs', sp.id), ['mods']), true));
-    }
-    // talents: the shared tiers once, the spec tiers under their spec
-    const seen = new Set<string>();
-    TALENTS[cls][SPECS[cls][0].id].forEach((tier, ti) => {
-      for (const t of tier) {
-        const id = t.id;
-        if (seen.has(id)) continue;
-        seen.add(id);
-        wrap.append(section(`${['I', 'II', 'III', 'IV', 'V'][ti]} · ${t.name}`, 'talent', clean(tunableNumbers('talents', id), ['mods', 'ability'])));
-      }
-    });
-    for (const sp of SPECS[cls]) {
-      (TALENTS[cls][sp.id] ?? []).forEach((tier, ti) => {
-        for (const t of tier) {
-          if (seen.has(t.id)) continue;
-          seen.add(t.id);
-          wrap.append(section(`${sp.name} · ${['I', 'II', 'III', 'IV', 'V'][ti]} · ${t.name}`, 'talent', clean(tunableNumbers('talents', t.id), ['mods', 'ability'])));
-        }
-      });
-    }
-    return wrap;
   }
 }

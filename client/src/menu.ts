@@ -42,6 +42,11 @@ export class Menu {
 
   constructor(private binds: Keybinds, private handlers: MenuHandlers) {
     $('menu-resume').addEventListener('click', () => this.close());
+    // from the main menu (not in a match) there is no Resume and no Esc on a phone: Done, and a tap outside the card, close it
+    $('menu-done').addEventListener('click', () => this.close());
+    this.root.addEventListener('click', (e) => {
+      if (e.target === this.root && !this.inMatch) this.close();
+    });
     $('menu-controls').addEventListener('click', () => this.showKeys());
     $('menu-hud').addEventListener('click', () => {
       this.close();
@@ -194,6 +199,7 @@ export class Menu {
     this.inMatch = inMatch;
     this.root.classList.remove('hidden');
     $('menu-resume').classList.toggle('hidden', !inMatch);
+    $('menu-done').classList.toggle('hidden', inMatch);
     $('menu-leave').classList.toggle('hidden', !inMatch);
     $('menu-sub').classList.toggle('hidden', !inMatch);
     $('menu-rule').classList.toggle('hidden', !inMatch);

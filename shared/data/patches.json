@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.13",
+  "date": "2026-10-09",
+  "at": "2026-10-09T15:01:20Z",
+  "title": "Settings menu fix on phones",
+  "changes": [
+   "The Settings menu opened from the main menu now has a Done button and closes when you tap outside it, so you can leave it on a phone."
+  ]
+ },
+ {
   "version": "0.69.12",
   "date": "2026-10-09",
   "at": "2026-10-09T14:56:28Z",

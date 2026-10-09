@@ -140,6 +140,8 @@ describe('committing the learned bots', () => {
     const dev = new DevTools(new MemoryStore(), { GITHUB_TOKEN: 'tok' }, mkHttp(calls));
     const data = await learner.exportLive();
     data.matches = 42;
+    // bigger than anything the repo's own players.json already holds, so this side wins the merge whatever the file has by now
+    data.players.mage.vsPeople.warrior = { games: 987654, botWins: 321 };
     const r = await dev.commitLearnedBots(data, 'Toke');
     assert.equal(commits(calls).length, 1);
     assert.equal(calls.filter((c) => c.url.endsWith('/git/trees')).length, 1);
@@ -160,7 +162,7 @@ describe('committing the learned bots', () => {
     assert.deepEqual(brains.mage, data.brains.mage);
     assert.deepEqual(brains.warrior, JSON.parse(fs.readFileSync(new URL('../../shared/data/botbrain.json', import.meta.url), 'utf8')).warrior, 'other classes stay as they are');
     const players = JSON.parse(files.find((f) => f.path === 'shared/data/players.json')!.content);
-    assert.equal(players.mage.vsPeople.warrior.games, 6);
+    assert.equal(players.mage.vsPeople.warrior.games, 987654);
     assert.ok(hasHumanData(players, 'mage'));
     assert.equal(dev.commits[0].version, r.version, 'it shows with the other commits');
   });

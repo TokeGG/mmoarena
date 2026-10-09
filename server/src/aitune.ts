@@ -1,5 +1,5 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ABILITIES, CLASSES, SPECS, TALENTS, currentValue, mergePatches, skillInfo, tunableNumbers, validPatch } from '@arena/shared';
+import { ABILITIES, CLASSES, SPECS, TALENTS, currentValue, entryFor, mergePatches, skillInfo, validPatch } from '@arena/shared';
 import type { ChatTurn, ClassId, DataPatch } from '@arena/shared';
 
 export interface AiTuneEnv {
@@ -135,21 +135,24 @@ export function skillFields(abilityId: string): OfferedField[] {
   return out;
 }
 
-/** Everything Claude may change for a class: its own numbers, its specs' and its talents'. */
+/** Everything Claude may change for a class: its own numbers, its specs' passives (stat bonuses, switches, auto-attack, Cauterize) and its talents' effects. */
 export function classFields(classId: ClassId): OfferedField[] {
   const out: OfferedField[] = [];
   const seen = new Set<string>();
-  const add = (file: DataPatch['file'], id: string, name: string) => {
-    for (const f of tunableNumbers(file, id)) {
-      if (seen.has(key(f)) || out.length >= MAX_FIELDS) continue;
-      seen.add(key(f));
-      out.push({ file, id, path: f.path, label: `${name} · ${f.label}`, value: f.value, kind: 'number' });
+  const add = (page: 'classes' | 'specs' | 'talents', id: string, name: string, withNew: boolean) => {
+    const entry = entryFor(page, id);
+    for (const g of entry?.groups ?? []) {
+      for (const f of g.fields) {
+        if ((f.added && !withNew) || seen.has(key(f)) || out.length >= MAX_FIELDS) continue;
+        seen.add(key(f));
+        out.push({ file: f.file, id: f.id, path: f.path, label: `${name} · ${f.label}`, value: f.value, kind: f.kind === 'switch' ? 'flag' : f.kind, ...(f.options ? { options: f.options } : {}) });
+      }
     }
   };
-  add('classes', classId, CLASSES[classId].name);
+  add('classes', classId, CLASSES[classId].name, false);
   for (const s of SPECS[classId]) {
-    add('specs', s.id, `${s.name} (spec)`);
-    for (const tier of TALENTS[classId]?.[s.id] ?? []) for (const t of tier) add('talents', t.id, `${t.name} (talent)`);
+    add('specs', s.id, `${s.name} (spec)`, true);
+    for (const tier of TALENTS[classId]?.[s.id] ?? []) for (const t of tier) add('talents', t.id, `${t.name} (talent)`, false);
   }
   return out;
 }
