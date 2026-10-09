@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ArenaSim, JUMP_DODGE_CD, JUMP_MS, SPECS, TUNING } from '../src/index';
+import { ABILITIES, ArenaSim, JUMP_DODGE_CD, JUMP_MS, SPECS, TUNING } from '../src/index';
 import type { Build, ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -29,7 +29,7 @@ function setup() {
   assert.deepEqual(sim.setTarget(mage.id, victim.id), { ok: true });
   const r = sim.useAbility(mage.id, 'flamestrike', victim.id);
   assert.deepEqual(r, { ok: true }, JSON.stringify(r));
-  advance(sim, 3000 + TICK);
+  advance(sim, ABILITIES.flamestrike.castTime + TICK);
   const zone = sim.snapshot().zones[0];
   assert.ok(zone, 'zone placed');
   return { sim, mage, victim, zone };
@@ -51,28 +51,30 @@ describe('ground zones', () => {
     assert.ok(victim.health < after1, 'next pulse hurt');
   });
 
-  it('Flamestrike hits for 420 the moment the cast lands, then 70 per pulse', () => {
+  it('Flamestrike hits for its listed opening damage the moment the cast lands, then its listed damage per pulse', () => {
     const sim = new ArenaSim({ seed: 5, prepMs: 0 });
     const mage = add(sim, 'mage', 0, -6, 0, fire);
     const victim = add(sim, 'warrior', 1, 6, 0);
-    const outside = add(sim, 'rogue', 1, 6, 9); // 9 yd from the zone centre, outside its 5 yd radius
+    const outside = add(sim, 'rogue', 1, 6, 9); // 9 yd from the zone centre, outside its radius
     advance(sim, TICK);
     mage.resource = mage.resourceMax;
     assert.deepEqual(sim.setTarget(mage.id, victim.id), { ok: true });
     assert.deepEqual(sim.useAbility(mage.id, 'flamestrike', victim.id), { ok: true });
+    const fs = ABILITIES.flamestrike;
+    const zoneFx = fs.effects.find((e) => e.type === 'zone') as { initial: number; amount: number; delay: number };
     const v = TUNING.damageVariance;
     const spec = SPECS.mage.find((x) => x.id === 'fire')?.mods?.damageDone ?? 1; // the Pyromancy passive scales every hit
     const hits = (ev: SimEvent[], who: Unit) => ev.filter((e) => e.t === 'damage' && e.ability === 'flamestrike' && e.tgt === who.id) as Extract<SimEvent, { t: 'damage' }>[];
 
-    const landed = advance(sim, 3000 + 2 * TICK); // the cast finishes; the first pulse is still 0.8 s away
+    const landed = advance(sim, fs.castTime + 2 * TICK); // the cast finishes; the first pulse is still its delay away
     const opening = hits(landed, victim);
     assert.equal(opening.length, 1, 'one opening hit');
-    assert.ok(opening[0].amount >= 420 * spec * (1 - v) - 1 && opening[0].amount <= 420 * spec * (1 + v) + 1, `opening hit ${opening[0].amount}`);
+    assert.ok(opening[0].amount >= zoneFx.initial * spec * (1 - v) - 1 && opening[0].amount <= zoneFx.initial * spec * (1 + v) + 1, `opening hit ${opening[0].amount}`);
     assert.equal(hits(landed, outside).length, 0, 'nothing for someone outside the area');
 
-    const next = hits(advance(sim, 800 + 2 * TICK), victim); // standing in it: the first pulse
+    const next = hits(advance(sim, zoneFx.delay + 2 * TICK), victim); // standing in it: the first pulse
     assert.equal(next.length, 1, 'one pulse');
-    assert.ok(next[0].amount >= 70 * spec * (1 - v) - 1 && next[0].amount <= 70 * spec * (1 + v) + 1, `pulse ${next[0].amount}`);
+    assert.ok(next[0].amount >= zoneFx.amount * spec * (1 - v) - 1 && next[0].amount <= zoneFx.amount * spec * (1 + v) + 1, `pulse ${next[0].amount}`);
   });
 
   it('does not hurt allies or enemies standing outside, and expires', () => {
