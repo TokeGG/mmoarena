@@ -1,6 +1,6 @@
 {
   "name": "@arena/client",
-  "version": "0.69.20",
+  "version": "0.69.21",
   "private": true,
   "license": "SEE LICENSE IN LICENSE",
   "type": "module",

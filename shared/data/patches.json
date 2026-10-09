@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.21",
+  "date": "2026-10-09",
+  "at": "2026-10-09T23:00:00Z",
+  "title": "No more flash of old models",
+  "changes": [
+   "After a refresh the old placeholder characters no longer show for a few seconds: characters appear once their real models have loaded."
+  ]
+ },
+ {
   "version": "0.69.20",
   "date": "2026-10-09",
   "at": "2026-10-09T22:00:00Z",

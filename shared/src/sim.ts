@@ -768,6 +768,45 @@ export class ArenaSim {
     if (!u.cast) for (const d of plan) if (this.tryUse(u.id, d.id, tgt.id, null, false, 0).ok) break;
   }
 
+  /**
+   * Dev tools: one quick reset on every unit of a test match. Only used in dev test rooms, which are never recorded.
+   * `health` and `resources` fill them (the dead stay dead), `auras` clears every buff and debuff with the diminishing returns
+   * and school lockouts, `positions` puts everyone back at their spawn, `revive` brings the dead back at their spawn at full health.
+   */
+  devReset(what: 'health' | 'resources' | 'auras' | 'positions' | 'revive'): void {
+    const slots = new Map<number, number>();
+    for (const u of this.units.values()) {
+      const i = slots.get(u.team) ?? 0;
+      slots.set(u.team, i + 1);
+      const spawns = this.arena.spawns[u.team];
+      const sp = spawns[i % spawns.length];
+      const home = (x: Unit) => {
+        this.endCharge(x, false);
+        Object.assign(x, { pos: { x: sp.x, z: sp.z }, facing: this.arena.spawnFacing[x.team], level: 0, charge: null, leap: null, inputQueue: [], jumpStart: -1e9, fearDir: { x: 0, z: 0 }, fearRetargetAt: 0 } as Partial<Unit>);
+        x.lastInput = { seq: x.lastSeq, fwd: 0, strafe: 0, facing: this.arena.spawnFacing[x.team] };
+      };
+      if (what === 'revive') {
+        if (u.alive) continue;
+        u.alive = true;
+        u.health = u.maxHealth;
+        u.resource = u.resourceMax;
+        u.auras = [];
+        u.cast = null;
+        home(u);
+        this.emit({ t: 'respawn', unit: u.id });
+        continue;
+      }
+      if (!u.alive) continue;
+      if (what === 'health') u.health = u.maxHealth;
+      else if (what === 'resources') u.resource = u.resourceMax;
+      else if (what === 'auras') {
+        u.auras = [];
+        u.dr = {};
+        u.lockouts = {};
+      } else if (what === 'positions') home(u);
+    }
+  }
+
   /** Dev test: every unit's cooldowns, charges and recharge timers are cleared at once. */
   resetCooldowns(): void {
     for (const u of this.units.values()) {

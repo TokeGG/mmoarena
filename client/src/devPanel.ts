@@ -210,6 +210,34 @@ export class DevPanel {
     return row;
   }
 
+  /** Cooldowns are switched off in this match (the server says so in dev_state). */
+  private noCooldowns = false;
+
+  /** Quick resets of everyone in the match: cooldowns, health, resources, buffs and debuffs, spawns, the dead. */
+  private resetTools(): HTMLElement {
+    const box = el('div', 'devp-sec');
+    box.append(el('b', '', 'Resets (everyone in the match)'));
+    const row = el('div', 'devp-row devp-resets');
+    const reset = (label: string, what: 'cooldowns' | 'health' | 'resources' | 'auras' | 'positions' | 'revive', tip: string) => {
+      const b = el('button', 'mm-small', label);
+      b.title = `${tip} The match stops counting.`;
+      b.addEventListener('click', () => this.hooks.send({ t: 'dev_reset', what }));
+      row.append(b);
+    };
+    reset('⟲ Cooldowns', 'cooldowns', 'Clears every cooldown, charge and recharge at once.');
+    const off = el('button', `mm-small${this.noCooldowns ? ' mm-go' : ''}`, this.noCooldowns ? 'Cooldowns: off' : 'Cooldowns: on');
+    off.title = 'Switch cooldowns off so no skill starts one (the global cooldown stays). The match stops counting.';
+    off.addEventListener('click', () => this.hooks.send({ t: 'dev_cooldowns', off: !this.noCooldowns }));
+    row.append(off);
+    reset('♥ Full health', 'health', 'Everyone alive back to full health.');
+    reset('◆ Full resources', 'resources', 'Mana, energy and rage full for everyone alive.');
+    reset('✦ Clear buffs & debuffs', 'auras', 'Removes every buff and debuff, diminishing returns and school lockouts.');
+    reset('⌂ Back to spawns', 'positions', 'Puts everyone back at their spawn without touching health or cooldowns.');
+    reset('✚ Revive the dead', 'revive', 'Brings every dead unit back at its spawn at full health.');
+    box.append(row);
+    return box;
+  }
+
   /** Owner only: kill, kick or ban someone in the match being played or watched. */
   private unitTools(): HTMLElement {
     const box = el('div', 'devp-sec');
@@ -257,7 +285,7 @@ export class DevPanel {
         this.paint();
       });
       row.append(restart, meter);
-      wrap.append(this.mapPicker());
+      wrap.append(this.mapPicker(), this.resetTools());
       if (this.hooks.isOwner()) wrap.append(this.unitTools());
     }
     const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
@@ -407,6 +435,7 @@ export class DevPanel {
     if (on) this.button.classList.remove('hidden');
     if (!on) {
       this.autoPaused = false;
+      this.noCooldowns = false;
       this.meter.clear();
       this.paused = false;
       this.edits.clear();
@@ -522,6 +551,7 @@ export class DevPanel {
       this.meter.clear();
     } else if (m.t === 'dev_state') {
       this.paused = m.paused;
+      this.noCooldowns = !!m.noCooldowns;
       // what was typed stays when only the pause changed; new numbers in the match replace it
       const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
       this.layers.setRoom(m.patches);
