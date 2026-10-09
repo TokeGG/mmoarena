@@ -1,6 +1,6 @@
 import { ABILITIES } from '@arena/shared';
 import type { SimEvent, TeamId } from '@arena/shared';
-import { ABILITY_ICON } from './icons';
+import { iconEl } from './iconArt';
 
 const MAX = 5;
 const LIFE_MS = 6000;
@@ -52,7 +52,7 @@ export class KillFeed {
       if (id) {
         const ic = document.createElement('span');
         ic.className = 'kf-icon';
-        ic.textContent = ABILITY_ICON[id] ?? '';
+        ic.append(iconEl('ability', id));
         ic.title = def?.name ?? id;
         row.append(ic);
       }

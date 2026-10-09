@@ -7,6 +7,8 @@ import talentsJson from '../data/talents.json' with { type: 'json' };
 import cosmeticsJson from '../data/cosmetics.json' with { type: 'json' };
 import tuningJson from '../data/tuning.json' with { type: 'json' };
 import fxJson from '../data/fx.json' with { type: 'json' };
+import iconsJson from '../data/icons.json' with { type: 'json' };
+import iconlibJson from '../data/iconlib.json' with { type: 'json' };
 import patchesJson from '../data/patches.json' with { type: 'json' };
 import type { AbilityDef, ArenaDef, AuraDef, ClassDef, ClassId, CosmeticsDef, SpecDef, TalentDef, Tuning } from './types';
 
@@ -34,6 +36,14 @@ export const arenaById = (id: string | undefined): ArenaDef => ARENAS.find((a) =
 export const TUNING = tuningJson as unknown as Tuning;
 /** Animation timings (shared/data/fx.json): visual only, not part of the simulation or its content hash. */
 export const FX = fxJson as unknown as Record<string, Record<string, number>>;
+
+/** Which icon each skill and buff wears (shared/data/icons.json): visual only, not part of the simulation or its content hash. */
+export interface IconTable { abilities: Record<string, string>; auras: Record<string, string> }
+export const ICONS = iconsJson as unknown as IconTable;
+export interface IconPack { id: string; name: string; count: number; license: string; /** The files are not in the repository (the licence forbids sharing them): the server hands them out. */ private?: boolean }
+export interface IconDef { id: string; pack: string; name: string; file: string; tags: string[] }
+/** The icon library's manifest (shared/data/iconlib.json): the packs, and every icon's id, file and tags. */
+export const ICONLIB = iconlibJson as unknown as { packs: IconPack[]; icons: IconDef[] };
 
 export const SPECS = specsJson as unknown as Record<ClassId, SpecDef[]>;
 /** Per class: talent tiers, each a list of choices (pick at most one per tier). */

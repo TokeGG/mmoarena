@@ -3,7 +3,8 @@ import {
   ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
-import { ABILITY_ICON, CLASS_ICON } from './icons';
+import { CLASS_ICON } from './icons';
+import { iconEl } from './iconArt';
 import { partyReadiness } from './partyState';
 import { LAST_SEEN_KEY, markSeen, missedText, compareVersions, unseenPatchCount } from './patchSeen';
 
@@ -521,7 +522,8 @@ export class MainMenu {
     order.forEach((a, i) => {
       const slot = el('div', 'sp-slot');
       slot.draggable = true;
-      const tile = el('span', 'sp-tile', ABILITY_ICON[a] ?? '✦');
+      const tile = el('span', 'sp-tile');
+      tile.append(iconEl('ability', a, '', true));
       slot.append(el('span', 'be-key', this.hooks.slotKey?.(i + 1) ?? String(i + 1)), tile, el('span', 'sp-name', ABILITIES[a]?.name ?? a));
       tip(slot, `ability:${a}`, { tipBuild: buildKey });
       if (!spec.bar.includes(a)) {

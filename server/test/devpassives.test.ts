@@ -194,6 +194,43 @@ describe('committing passives through the dev tools', () => {
     assert.ok(tree(calls).some((f) => f.path === 'shared/src/replay.ts'));
   });
 
+  it('icons are patched into icons.json in place, a buff gets an entry of its own, and unknown ids never get that far', () => {
+    const text = read('icons');
+    const out = patchJsonText(text, 'icons', [
+      { file: 'icons', id: 'fireball', path: ['ability'], value: 'frostmage/frost-mage-5' },
+      { file: 'icons', id: 'frost_nova_root', path: ['aura'], value: 'icons151/icon-9' },
+    ]);
+    const j = JSON.parse(out) as Json;
+    assert.equal(j.abilities.fireball, 'frostmage/frost-mage-5');
+    assert.equal(j.auras.frost_nova_root, 'icons151/icon-9');
+    assert.equal(j.abilities.frostbolt, JSON.parse(text).abilities.frostbolt, 'the rest of the file is as it was');
+    assert.equal(out.split('\n').filter((l) => !text.split('\n').includes(l)).length, 3, 'the two values and the comma after the line the new entry follows');
+    assert.equal(label({ file: 'icons', id: 'fireball', path: ['ability'], value: 'x' }), 'Fireball · Icon');
+    const msg = (patch: Json) => parseClientMsg(JSON.stringify({ t: 'dev_patch', patches: [patch] }));
+    assert.ok(msg({ file: 'icons', id: 'fireball', path: ['ability'], value: 'steadykeel-framed/fire-0' }), 'ids of 24 characters fit');
+    assert.equal(msg({ file: 'icons', id: 'fireball', path: ['ability'], value: 'nowhere/none' }), null, 'an icon the library lacks');
+    assert.equal(msg({ file: 'icons', id: 'nothing', path: ['ability'], value: 'icons151/icon-9' }), null, 'a skill that does not exist');
+    assert.equal(msg({ file: 'icons', id: 'fireball', path: ['aura'], value: 'icons151/icon-9' }), null, 'fireball is not a buff');
+  });
+
+  it('an icon-only commit writes icons.json with a plain note, bumps the version but leaves SIM_REVISION (and replays) alone', async () => {
+    const calls: Call[] = [];
+    const dev = new DevTools(new MemoryStore(), { GITHUB_TOKEN: 'tok' }, mkHttp(calls));
+    const r = await dev.commitToBase([
+      { file: 'icons', id: 'fireball', path: ['ability'], value: 'firemage/fire-mage-9' },
+      { file: 'icons', id: 'polymorph', path: ['aura'], value: 'icons151/icon-9' },
+    ], 'Dee');
+    assert.equal(r.applied, 2, r.skipped.join('; '));
+    const files = tree(calls);
+    assert.deepEqual(files.map((f) => f.path).sort(), ['README.md', 'client/package.json', 'package.json', 'shared/data/icons.json', 'shared/data/patches.json']);
+    const icons = JSON.parse(files.find((f) => f.path === 'shared/data/icons.json')!.content) as Json;
+    assert.equal(icons.abilities.fireball, 'firemage/fire-mage-9');
+    assert.equal(icons.auras.polymorph, 'icons151/icon-9');
+    const notes = (JSON.parse(files.find((f) => f.path === 'shared/data/patches.json')!.content) as { changes: string[] }[])[0].changes;
+    assert.ok(notes.includes('Fireball has a new icon.'), notes.join(' | '));
+    assert.ok(notes.includes('The Polymorph debuff has a new icon.'), notes.join(' | '));
+  });
+
   it('a change that does nothing, or no longer fits the files, is left out and said so', async () => {
     const calls: Call[] = [];
     const dev = new DevTools(new MemoryStore(), { GITHUB_TOKEN: 'tok' }, mkHttp(calls));

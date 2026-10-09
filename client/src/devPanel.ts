@@ -1,12 +1,13 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
 import type { Build, DevCommitRow, DevPageId, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
-import { ABILITY_ICON } from './icons';
+import { refreshIcons } from './iconArt';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
 import { cycleArena } from './mapCycle';
 import { DevWorkspace } from './devPages';
 import { tours } from './tour';
 import { designer } from './designer';
+import { noteBox } from './botNoteUi';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -51,6 +52,7 @@ export class DataLayers {
       a();
     };
     invalidateTip(); // open tooltips redraw with the new numbers
+    refreshIcons(); // and every icon on the screen with the new pictures
   }
 }
 
@@ -73,6 +75,8 @@ interface Hooks {
   menuClass(): ClassId;
   /** Whether the signed-in account is the owner. */
   isOwner(): boolean;
+  /** The id of the match being played or watched when it has bots (a note for the bots can be written for it), else null. */
+  noteMatch?(): string | null;
 }
 
 /**
@@ -105,6 +109,7 @@ export class DevPanel {
   private meter = new Map<number, { dealt: number; healed: number; taken: number; log: { t: number; d: number; h: number }[] }>();
   private meterNow = 0;
   private meterOpen = false;
+  private noteOpen = false;
   private meterBox: HTMLElement | null = null;
   private meterPaintAt = 0;
   private setupsOpen = false;
@@ -210,6 +215,34 @@ export class DevPanel {
     return row;
   }
 
+  /** Cooldowns are switched off in this match (the server says so in dev_state). */
+  private noCooldowns = false;
+
+  /** Quick resets of everyone in the match: cooldowns, health, resources, buffs and debuffs, spawns, the dead. */
+  private resetTools(): HTMLElement {
+    const box = el('div', 'devp-sec');
+    box.append(el('b', '', 'Resets (everyone in the match)'));
+    const row = el('div', 'devp-row devp-resets');
+    const reset = (label: string, what: 'cooldowns' | 'health' | 'resources' | 'auras' | 'positions' | 'revive', tip: string) => {
+      const b = el('button', 'mm-small', label);
+      b.title = `${tip} The match stops counting.`;
+      b.addEventListener('click', () => this.hooks.send({ t: 'dev_reset', what }));
+      row.append(b);
+    };
+    reset('⟲ Cooldowns', 'cooldowns', 'Clears every cooldown, charge and recharge at once.');
+    const off = el('button', `mm-small${this.noCooldowns ? ' mm-go' : ''}`, this.noCooldowns ? 'Cooldowns: off' : 'Cooldowns: on');
+    off.title = 'Switch cooldowns off so no skill starts one (the global cooldown stays). The match stops counting.';
+    off.addEventListener('click', () => this.hooks.send({ t: 'dev_cooldowns', off: !this.noCooldowns }));
+    row.append(off);
+    reset('♥ Full health', 'health', 'Everyone alive back to full health.');
+    reset('◆ Full resources', 'resources', 'Mana, energy and rage full for everyone alive.');
+    reset('✦ Clear buffs & debuffs', 'auras', 'Removes every buff and debuff, diminishing returns and school lockouts.');
+    reset('⌂ Back to spawns', 'positions', 'Puts everyone back at their spawn without touching health or cooldowns.');
+    reset('✚ Revive the dead', 'revive', 'Brings every dead unit back at its spawn at full health.');
+    box.append(row);
+    return box;
+  }
+
   /** Owner only: kill, kick or ban someone in the match being played or watched. */
   private unitTools(): HTMLElement {
     const box = el('div', 'devp-sec');
@@ -257,7 +290,18 @@ export class DevPanel {
         this.paint();
       });
       row.append(restart, meter);
-      wrap.append(this.mapPicker());
+      wrap.append(this.mapPicker(), this.resetTools());
+      const noteId = this.hooks.noteMatch?.();
+      if (noteId) {
+        const note = el('button', `mm-small${this.noteOpen ? ' mm-go' : ''}`, '📝 Note for the bots');
+        note.title = 'Write what the bots did wrong in this match, in plain words. It goes to the bot brain with the match, stamped with the time in the fight.';
+        note.addEventListener('click', () => {
+          this.noteOpen = !this.noteOpen;
+          this.paint();
+        });
+        row.append(note);
+        if (this.noteOpen) wrap.append(noteBox(noteId, this.hooks.send, { liveNote: true }));
+      }
       if (this.hooks.isOwner()) wrap.append(this.unitTools());
     }
     const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
@@ -407,6 +451,7 @@ export class DevPanel {
     if (on) this.button.classList.remove('hidden');
     if (!on) {
       this.autoPaused = false;
+      this.noCooldowns = false;
       this.meter.clear();
       this.paused = false;
       this.edits.clear();
@@ -522,6 +567,7 @@ export class DevPanel {
       this.meter.clear();
     } else if (m.t === 'dev_state') {
       this.paused = m.paused;
+      this.noCooldowns = !!m.noCooldowns;
       // what was typed stays when only the pause changed; new numbers in the match replace it
       const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
       this.layers.setRoom(m.patches);

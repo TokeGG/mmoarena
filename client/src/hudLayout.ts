@@ -1,5 +1,7 @@
-import { clamp } from '@arena/shared';
+import { HUD_IDS, HUD_TEXT_BOX, HUD_TEXT_MAX, HUD_TEXT_MIN, clamp, layerLayout, parseHudLayout } from '@arena/shared';
+import type { HudLayoutMap } from '@arena/shared';
 import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
+import { sameLayout, sourceOf, tagText, viewLayout, whereText, type EditMode } from './hudLayers';
 import { loadLook } from './hudLook';
 import { nameplateEditorOpen, openNameplateEditor } from './nameplateEditor';
 
@@ -20,39 +22,90 @@ interface Slot {
   t?: number;
 }
 /** What is saved (and synced to other devices): the offset as a fraction of the screen, so a layout made on a big screen still fits a small one. */
-interface Saved {
-  fx: number;
-  fy: number;
-  s: number;
-  w?: number;
-  h?: number;
-  t?: number;
-}
+type Saved = HudLayoutMap[string];
 
 /** Boxes of text: their text grows with the box (dragging the corner) and with the scroll wheel. Value: the text size in px at 1x. */
-const TEXT_BOX: Record<string, number> = { log: 11, killfeed: 12, netstats: 11 };
-const TEXT_MIN = 0.6;
-const TEXT_MAX = 3;
+const TEXT_BOX = HUD_TEXT_BOX;
+const TEXT_MIN = HUD_TEXT_MIN;
+const TEXT_MAX = HUD_TEXT_MAX;
 
-const TARGETS: [string, string][] = [
-  ['self-frame', 'Your frame'],
-  ['target-frame', 'Target'],
-  ['party', 'Party'],
-  ['enemies', 'Enemies'],
-  ['actionbar', 'Action bar'],
-  ['trinketbar', 'Trinket button'],
-  ['cast', 'Cast bar'],
-  ['autoind', 'Auto-attack'],
-  ['log', 'Combat log'],
-  ['killfeed', 'Kill feed'],
-  ['recap', 'Match recap'],
-  ['help', 'Help text'],
-  ['err', 'Error text'],
-  ['ccstate', 'Stun text'],
-  ['netstats', 'Network stats'],
-  ['mute-btn', 'Sound button'],
-  ['devbtn', 'Dev button'],
+/** The spectator bar breaks into three strips on phones and tablets (index.html: `.spec-bar { display:contents }`). */
+const COMPACT_Q = '(max-width:900px), (pointer:coarse)';
+const compact = (): boolean => {
+  try {
+    return window.matchMedia(COMPACT_Q).matches;
+  } catch {
+    return false;
+  }
+};
+
+interface Target {
+  id: string;
+  label: string;
+  /** Where to find it when the id is not an element id. */
+  sel?: string;
+  /** Only movable on some screens. */
+  active?: () => boolean;
+  /** Shown as a stand-in while editing (the real one only exists for a moment, so it is hidden meanwhile). */
+  ghost?: () => HTMLElement;
+}
+
+const mkGhost = (cls: string, html: string): HTMLElement => {
+  const g = document.createElement('div');
+  g.className = `${cls} hud-ghost`;
+  g.innerHTML = html;
+  return g;
+};
+
+const TARGET_DEFS: Target[] = [
+  { id: 'self-frame', label: 'Your frame' },
+  { id: 'target-frame', label: 'Target' },
+  { id: 'party', label: 'Party' },
+  { id: 'enemies', label: 'Enemies' },
+  { id: 'actionbar', label: 'Action bar' },
+  { id: 'trinketbar', label: 'Trinket button' },
+  { id: 'cast', label: 'Cast bar' },
+  { id: 'autoind', label: 'Auto-attack' },
+  { id: 'log', label: 'Combat log' },
+  { id: 'killfeed', label: 'Kill feed' },
+  { id: 'recap', label: 'Match recap' },
+  { id: 'help', label: 'Help text' },
+  { id: 'err', label: 'Error text' },
+  { id: 'ccstate', label: 'Stun text' },
+  { id: 'netstats', label: 'Network stats' },
+  { id: 'mute-btn', label: 'Sound button' },
+  { id: 'devbtn', label: 'Dev button' },
+  { id: 'banner', label: 'Match banner' },
+  { id: 'damp', label: 'Dampening' },
+  { id: 'endchoice', label: 'Ready / Leave' },
+  { id: 'announce', label: 'Announcement', sel: '.announce', ghost: () => mkGhost('announce in', '<button class="announce-x">✕</button><div class="announce-head">📣 Announcement from the owner<small>12:00</small></div><div class="announce-text">Announcements from the owner show up here.</div>') },
+  { id: 'update-notice', label: 'Update notice', sel: '.update-notice', ghost: () => mkGhost('update-notice', '<div><b>New update available</b>The game was updated. Refresh to keep playing.</div><button class="big">Refresh now</button><button class="update-x">Later</button>') },
+  { id: 'spec-bar', label: 'Spectator bar', sel: '.spec-bar', active: () => !compact() },
+  { id: 'spec-top', label: 'Spectator buttons', sel: '.spec-bar .sb-top', active: compact },
+  { id: 'spec-nav', label: 'Follow arrows', sel: '.spec-bar .sb-nav', active: compact },
+  { id: 'spec-replay', label: 'Replay controls', sel: '.spec-bar .sb-replay', active: compact },
+  { id: 'scoreboard', label: 'Scoreboard', sel: '.scoreboard' },
+  { id: 'builds', label: 'Builds panel', sel: '.builds' },
+  { id: 'follow-box', label: 'Follow chip', sel: '.follow-box' },
+  { id: 'takeover-chip', label: 'Play-as chip', sel: '.takeover-chip' },
+  { id: 'fr-toasts', label: 'Notices', sel: '.fr-toasts' },
+  { id: 'fr-invites', label: 'Invites', sel: '.fr-invites' },
 ];
+const TARGETS: [string, string][] = TARGET_DEFS.map((t) => [t.id, t.label]);
+const DEF_OF = new Map(TARGET_DEFS.map((t) => [t.id, t]));
+const isActive = (id: string): boolean => DEF_OF.get(id)?.active?.() ?? true;
+const ACTIVE_IDS = (): string[] => TARGET_DEFS.filter((t) => isActive(t.id)).map((t) => t.id);
+const elsOf = (id: string): HTMLElement[] => {
+  const d = DEF_OF.get(id);
+  return Array.from(document.querySelectorAll<HTMLElement>(d?.sel ?? `#${id}`));
+};
+/** The one to measure: the stand-in while editing, else the first one that is laid out, else any. */
+const mainEl = (id: string): HTMLElement | null => {
+  const all = elsOf(id);
+  return all.find((e) => e.classList.contains('hud-ghost')) ?? all.find((e) => e.getBoundingClientRect().width > 0) ?? all[0] ?? null;
+};
+/** The owner's default is also kept here so the first paint already has it (not an `arena.` key: it must not sync with the account). */
+const DEFAULT_CACHE = 'arenaHudDefault';
 const KEY = 'arena.hud.v1';
 const STYLE_KEY = 'arena.hud.style.v1';
 
@@ -97,23 +150,13 @@ const GRID_SIZES = [8, 16, 24, 32, 48];
 
 /** The saved layout from what localStorage (or the account) holds: only known elements, scale / size / position clamped, anything malformed dropped. */
 export function parseLayout(rawIn: unknown, ids: string[], width: number, height: number): Record<string, Saved> {
-  const out: Record<string, Saved> = {};
-  if (!rawIn || typeof rawIn !== 'object' || Array.isArray(rawIn)) return out;
-  const raw = rawIn as Record<string, Partial<Slot & Saved> | null>;
-  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
-  for (const id of ids) {
-    const r = raw[id];
-    if (!r || typeof r !== 'object' || !num(r.s)) continue;
-    const sc = clamp(r.s, 0.6, 1.6);
-    const size = { ...(num(r.w) ? { w: clamp(r.w, 40, 2000) } : {}), ...(num(r.h) ? { h: clamp(r.h, 16, 1400) } : {}), ...(num(r.t) && id in TEXT_BOX ? { t: clamp(r.t, TEXT_MIN, TEXT_MAX) } : {}) };
-    if (num(r.fx) && num(r.fy)) out[id] = { fx: clamp(r.fx, -1, 1), fy: clamp(r.fy, -1, 1), s: sc, ...size };
-    else if (num(r.dx) && num(r.dy)) out[id] = { fx: r.dx / width, fy: r.dy / height, s: sc }; // an older pixel layout
-  }
-  return out;
+  return parseHudLayout(rawIn, ids, width, height);
 }
 
 /** The ids of the movable elements, in the editor's order. */
 export const HUD_ELEMENTS = TARGETS.map(([id]) => id);
+
+export { sameLayout };
 
 export class HudLayout {
   /** Open / close state (see hudEditState.ts); `editing` is read all over main.ts. */
@@ -123,6 +166,9 @@ export class HudLayout {
   }
   /** The editor opened or closed; on closing, `restoreMenu` says it was opened over the main menu and that menu should come back. */
   onChange: (editing: boolean, restoreMenu?: boolean) => void = () => {};
+  /** Set by main.ts: whether the signed-in account is the owner (the owner's part of the editor), and how a layout is sent to the server (null removes the default). */
+  isOwner: () => boolean = () => false;
+  publish: (layout: HudLayoutMap | null) => void = () => {};
   private data: Record<string, Slot> = {};
   private bar: HTMLElement;
   private drag: { id: string; px: number; py: number; dx: number; dy: number } | null = null;
@@ -137,17 +183,38 @@ export class HudLayout {
   private gridEl!: HTMLElement;
   private selected: string | null = null;
 
-  /** The saved layout as screen fractions; pixel offsets are worked out from it for the current window size. */
+  /** Layers, from the bottom: the built-in spots (no entry), the owner's default for everyone, then what this player moved themselves. */
   private saved: Record<string, Saved> = {};
+  private def: HudLayoutMap = {};
+  private defMeta: { at: number; by: string } | null = null;
+  /** The owner's "everyone" mode edits this copy of the default; it only reaches the server when published. */
+  private mode: EditMode = 'me';
+  private draft: HudLayoutMap = {};
+  private publishing = false;
+  /** Elements moved in the layer being edited (they are kept when saving even if they are not in it yet). */
+  private touched = new Set<string>();
+  private ghosts = new Map<string, HTMLElement>();
+  private selBox!: HTMLElement;
+  private ownerBox!: HTMLElement;
+  private noteEl!: HTMLElement;
+  private resetAllBtn!: HTMLButtonElement;
 
   constructor() {
     try {
-      this.saved = parseLayout(JSON.parse(localStorage.getItem(KEY) ?? '{}'), TARGETS.map(([id]) => id), window.innerWidth, window.innerHeight);
-      this.fromSaved();
+      this.saved = parseLayout(JSON.parse(localStorage.getItem(KEY) ?? '{}'), HUD_ELEMENTS, window.innerWidth, window.innerHeight);
     } catch {
       /* ignore */
     }
-
+    try {
+      const c = JSON.parse(localStorage.getItem(DEFAULT_CACHE) ?? 'null') as { layout?: unknown; at?: unknown; by?: unknown } | null;
+      const l = c ? parseHudLayout(c.layout, HUD_IDS, 0, 0) : {};
+      if (Object.keys(l).length) {
+        this.def = l;
+        this.defMeta = { at: typeof c?.at === 'number' ? c.at : 0, by: typeof c?.by === 'string' ? c.by : '' };
+      }
+    } catch {
+      /* ignore */
+    }
     try {
       const st = localStorage.getItem(STYLE_KEY);
       if (st && PRESETS.some((p) => p.id === st)) this.style = st;
@@ -178,19 +245,26 @@ export class HudLayout {
     document.body.append(this.bar);
     this.paintGrid();
 
-    for (const [id, label] of TARGETS) {
-      const e = document.getElementById(id);
-      if (!e) continue;
-      e.dataset.hud = label;
-      e.addEventListener('pointerdown', (ev) => this.down(ev, id));
-      e.addEventListener('wheel', (ev) => this.wheel(ev, id), { passive: false });
-      // a button (sound, dev tools) dragged in the editor must not also be clicked
-      e.addEventListener('click', (ev) => {
-        if (!this.editing) return;
-        ev.preventDefault();
-        ev.stopImmediatePropagation();
-      }, true);
-    }
+    // elements are found by their id or selector, even when they are made later (an announcement, a notice): one listener for all of them
+    const hit = (ev: Event): string | null => {
+      const t = ev.target as HTMLElement | null;
+      if (!this.editing || !t?.closest || t.closest('.hud-grip')) return null;
+      return t.closest<HTMLElement>('[data-hud-id]')?.dataset.hudId ?? null;
+    };
+    document.addEventListener('pointerdown', (ev) => {
+      const id = hit(ev);
+      if (id) this.down(ev, id);
+    }, true);
+    document.addEventListener('wheel', (ev) => {
+      const id = hit(ev);
+      if (id) this.wheel(ev, id);
+    }, { passive: false, capture: true });
+    // a button (sound, dev tools) dragged in the editor must not also be clicked
+    document.addEventListener('click', (ev) => {
+      if (!hit(ev)) return;
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+    }, true);
     window.addEventListener('pointermove', (ev) => this.move(ev));
     window.addEventListener('pointerup', () => {
       this.drag = null;
@@ -200,18 +274,51 @@ export class HudLayout {
       if (!this.editing) this.fromSaved();
       this.fitAll();
     });
-    for (const [id] of TARGETS) this.apply(id);
+    this.fromSaved();
+    new MutationObserver(() => this.adopt()).observe(document.body, { childList: true });
     requestAnimationFrame(() => this.fitAll());
+  }
+
+  /** Mark and place every movable element that exists now (the ones made later arrive through the observer). */
+  private adopt() {
+    for (const t of TARGET_DEFS) {
+      for (const e of elsOf(t.id)) {
+        if (e.dataset.hudId === t.id) continue;
+        e.dataset.hudId = t.id;
+        e.dataset.hud = t.label;
+        this.applyOne(e, t.id);
+      }
+    }
+  }
+
+  /** The text shown on an element's tag while editing: its name, and a diamond while it follows the owner's default. */
+  private paintLabels() {
+    for (const t of TARGET_DEFS) {
+      const text = tagText(t.label, this.mode, this.source(t.id));
+      for (const e of elsOf(t.id)) e.dataset.hud = text;
+    }
   }
 
   start(fromMenu = false) {
     this.st = openEditor(this.st, fromMenu);
+    this.mode = 'me';
+    this.draft = {};
+    this.touched.clear();
     document.body.classList.add('hud-edit');
-    for (const [id] of TARGETS) this.addGrip(id);
+    document.body.classList.remove('hud-edit-all');
+    // elements that only exist for a moment get a stand-in to move
+    for (const t of TARGET_DEFS) {
+      if (!t.ghost || this.ghosts.has(t.id)) continue;
+      const g = t.ghost();
+      document.body.append(g);
+      this.ghosts.set(t.id, g);
+    }
+    this.adopt();
+    this.fromSaved();
+    for (const id of ACTIVE_IDS()) this.addGrip(id);
     this.bar.classList.remove('hidden');
     this.selected = null;
-    this.paintSelection();
-    this.paintGrid();
+    this.paintAll();
     window.addEventListener('keydown', this.keyHandler);
     window.addEventListener('keydown', this.escHandler, true);
     this.onChange(true);
@@ -226,9 +333,12 @@ export class HudLayout {
     this.sizing = null;
     this.selected = null;
     for (const c of EDIT_BODY_CLASSES) document.body.classList.remove(c);
-    for (const [tid] of TARGETS) document.getElementById(tid)?.classList.remove('hud-selected');
+    document.body.classList.remove('hud-edit-all');
+    for (const t of TARGET_DEFS) for (const e of elsOf(t.id)) e.classList.remove('hud-selected');
     for (const g of this.grips.values()) g.remove();
     this.grips.clear();
+    for (const g of this.ghosts.values()) g.remove();
+    this.ghosts.clear();
     this.bar.classList.add('hidden');
     this.gridEl.classList.add('hidden');
     window.removeEventListener('keydown', this.keyHandler);
@@ -237,7 +347,14 @@ export class HudLayout {
     if (a instanceof HTMLElement && this.bar.contains(a)) a.blur(); // a drop-down left focused would otherwise keep swallowing keys
     if (!was) return;
     try {
-      this.save();
+      // the owner's unpublished changes to the default are dropped; the player's own layout is saved
+      if (this.mode === 'all') {
+        this.mode = 'me';
+        this.draft = {};
+        this.touched.clear();
+        this.fromSaved();
+      } else this.save();
+      this.paintLabels();
     } finally {
       this.onChange(false, closed.restoreMenu);
     }
@@ -255,6 +372,43 @@ export class HudLayout {
     this.stop();
   };
 
+  /** The owner's default layout changed (or arrived when connecting): everything the player has not moved follows it. Null: there is none. */
+  setDefault(layout: HudLayoutMap | null, at = 0, by = '') {
+    const parsed = layout ? parseHudLayout(layout, HUD_IDS, 0, 0) : {};
+    const has = Object.keys(parsed).length > 0;
+    const pristine = this.mode === 'all' && sameLayout(this.draft, this.def);
+    if (this.editing) this.save(); // keep what is being moved
+    this.def = has ? parsed : {};
+    this.defMeta = has ? { at, by } : null;
+    try {
+      if (has) localStorage.setItem(DEFAULT_CACHE, JSON.stringify({ layout: parsed, at, by }));
+      else localStorage.removeItem(DEFAULT_CACHE);
+    } catch {
+      /* ignore */
+    }
+    if (this.mode === 'all' && (this.publishing || pristine)) {
+      this.draft = { ...this.def };
+      this.touched.clear();
+    }
+    this.publishing = false;
+    this.fromSaved();
+    this.paintAll();
+    this.refit();
+  }
+
+  /** The default as the client holds it (for the status line and for tests). */
+  defaultInfo(): { layout: HudLayoutMap; at: number; by: string } | null {
+    return this.defMeta ? { layout: this.def, at: this.defMeta.at, by: this.defMeta.by } : null;
+  }
+
+  /** Is this element's place its own (moved by the player in the layer being edited)? */
+  private source(id: string) {
+    return sourceOf(this.mode, id, { saved: this.saved, def: this.def, draft: this.draft, touched: this.touched });
+  }
+  private own(id: string): boolean {
+    return this.source(id) === 'own';
+  }
+
   /** Switch skin and move every element to the preset's spots. Works while editing (elements are measured as laid out). */
   setStyle(id: string) {
     const p = PRESETS.find((x) => x.id === id);
@@ -268,33 +422,56 @@ export class HudLayout {
     } catch {
       /* ignore */
     }
-    this.data = {};
-    for (const [tid] of TARGETS) this.apply(tid);
+    this.clearLayer();
+    this.fromSaved();
+    if (!Object.keys(p.place).length) {
+      this.persist();
+      this.paintAll();
+      return;
+    }
     // scale first, then measure the natural position and offset the centre onto the target spot
     const W = window.innerWidth;
     const H = window.innerHeight;
     requestAnimationFrame(() => {
       for (const [tid, [fx, fy, sc]] of Object.entries(p.place)) {
-        const e = document.getElementById(tid);
-        if (!e) continue;
-        const slot = this.slot(tid);
-        slot.s = sc;
-        slot.dx = 0;
-        slot.dy = 0;
+        const e = mainEl(tid);
+        if (!e || !isActive(tid)) continue;
+        const slot: Slot = { dx: 0, dy: 0, s: sc };
+        this.data[tid] = slot;
         this.apply(tid);
         const r = e.getBoundingClientRect();
         if (r.width === 0) continue;
         slot.dx = fx * W - (r.left + r.width / 2);
         slot.dy = fy * H - (r.top + r.height / 2);
+        this.touched.add(tid);
         this.apply(tid);
         this.fit(tid);
       }
       this.save();
+      this.paintAll();
     });
   }
 
+  /** Everything back to the default: the owner's if there is one (the built-in spots otherwise). In "everyone" mode: the draft back to the built-in spots. */
   reset() {
     this.setStyle('classic');
+  }
+
+  /** Put one element back to the default (the owner's, or the built-in spot). */
+  resetOne(id: string) {
+    delete (this.mode === 'all' ? this.draft : this.saved)[id];
+    this.touched.delete(id);
+    this.persist();
+    this.fromSaved();
+    if (isActive(id)) this.fit(id);
+    this.paintAll();
+  }
+
+  /** Forget every move in the layer being edited. */
+  private clearLayer() {
+    if (this.mode === 'all') this.draft = {};
+    else this.saved = {};
+    this.touched.clear();
   }
 
   // ------------------------------------------------------------------ editor panel
@@ -312,9 +489,9 @@ export class HudLayout {
     const done = mk('button', 'primary', 'Done (Esc)');
     done.title = 'Save and leave the editor (Esc)';
     done.addEventListener('click', () => this.stop());
-    const reset = mk('button', '', 'Reset all');
-    reset.addEventListener('click', () => this.reset());
-    head.append(reset, done);
+    this.resetAllBtn = mk('button', '', 'Reset all');
+    this.resetAllBtn.addEventListener('click', () => this.reset());
+    head.append(this.resetAllBtn, done);
 
     // presets
     const row1 = mk('div', 'he-row');
@@ -355,6 +532,11 @@ export class HudLayout {
     sizeLabel.append(sizeSel);
     row2.append(toggle('Show grid', () => this.grid.show, (v) => (this.grid.show = v)), toggle('Snap to grid and centre', () => this.grid.snap, (v) => (this.grid.snap = v)), sizeLabel, mk('small', '', 'Hold Alt while dragging to ignore snapping.'));
 
+    // the selected element: where its place comes from, and a way back to the default
+    this.selBox = mk('div', 'he-row he-sel');
+    this.noteEl = mk('div', 'he-moved');
+    this.ownerBox = mk('div', 'he-owner hidden');
+
     // the look options (bars, nameplates, target marks, text styles) live in the Look window now
     const moved = mk('div', 'he-moved', 'Health bar, nameplate, target mark and text looks moved to Look (main menu). This editor is for where things sit and how big they are.');
 
@@ -364,8 +546,106 @@ export class HudLayout {
     plateBtn.title = 'Size, place and style the nameplates: separate looks for you, allies and enemies';
     plateBtn.addEventListener('click', () => openNameplateEditor());
     plateRow.append(plateBtn);
-    panel.append(head, row1, row2, plateRow, moved);
+    panel.append(head, row1, row2, this.selBox, this.noteEl, this.ownerBox, plateRow, moved);
     return panel;
+  }
+
+  /** Refresh everything the panel shows about layers: the selected element, the owner's section, the tags. */
+  private paintAll() {
+    this.paintSelection();
+    this.paintOwner();
+    this.paintLabels();
+  }
+
+  private paintSelInfo() {
+    const mk = (tag: string, text: string) => {
+      const e = document.createElement(tag);
+      e.textContent = text;
+      return e;
+    };
+    const id = this.selected;
+    const all = this.mode === 'all';
+    this.resetAllBtn.textContent = all ? 'Reset draft' : 'Reset all to default';
+    this.resetAllBtn.title = all ? 'Put every element of the default layout back to its built-in spot (not published until you press the save button)' : this.defMeta ? 'Put every element back to the default layout the owner set' : 'Put every element back to its built-in spot';
+    this.selBox.replaceChildren();
+    if (!id) {
+      this.selBox.append(mk('small', Object.keys(this.def).length ? 'Click an element to select it. A ◆ on a tag means it follows the owner\'s default layout.' : 'Click an element to select it.'));
+      return;
+    }
+    const label = DEF_OF.get(id)?.label ?? id;
+    const own = this.own(id);
+    const where = whereText(this.mode, this.source(id));
+    const reset = mk('button', all ? 'Reset to built-in' : 'Reset to default') as HTMLButtonElement;
+    reset.disabled = !own;
+    reset.title = all ? 'Put this element back to its built-in spot in the default layout' : 'Put this element back to the default (it follows the owner\'s layout again)';
+    reset.addEventListener('click', () => this.resetOne(id));
+    const b = mk('b', label);
+    this.selBox.append(b, mk('small', ` ${where}`), reset);
+  }
+
+  /** The owner's part of the editor: who the changes are for, and saving / removing the default for everyone. Only the owner sees it. */
+  private paintOwner() {
+    const owner = this.isOwner();
+    this.noteEl.textContent = !owner && this.defMeta ? 'The owner set a default layout. Elements you have not moved yourself follow it (marked ◆); Reset to default puts one back.' : '';
+    this.ownerBox.classList.toggle('hidden', !owner);
+    this.ownerBox.replaceChildren();
+    if (!owner) return;
+    const mk = <K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = '') => {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text) e.textContent = text;
+      return e;
+    };
+    const title = mk('div', 'he-owner-h', 'Owner: default layout for everyone');
+    const modes = mk('div', 'he-row');
+    modes.append(mk('span', '', 'Editing:'));
+    for (const [m, text, tip] of [['me', 'Just me', 'Changes are your own layout'], ['all', 'Everyone', 'Changes edit the default layout (you see it live); it only reaches players when you save it below']] as const) {
+      const b = mk('button', `he-mode${this.mode === m ? ' on' : ''}`, text);
+      b.title = tip;
+      b.addEventListener('click', () => this.setMode(m));
+      modes.append(b);
+    }
+    const dirty = this.mode === 'all' && !sameLayout(this.draft, this.def);
+    const save = mk('button', 'primary', 'Save this layout as the default for everyone');
+    save.title = this.mode === 'all' ? 'Publish the default layout you are editing' : 'Publish what you see now (your layout over the current default) as the default for everyone';
+    save.addEventListener('click', () => this.publishCurrent());
+    const remove = mk('button', '', 'Remove the default');
+    remove.disabled = !this.defMeta;
+    remove.title = 'Everyone goes back to the built-in layout, apart from what they moved themselves';
+    remove.addEventListener('click', () => {
+      this.publishing = true;
+      this.publish(null);
+    });
+    const acts = mk('div', 'he-row');
+    acts.append(save, remove);
+    const when = this.defMeta?.at ? new Date(this.defMeta.at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '';
+    const n = Object.keys(this.def).length;
+    const status = mk('small', 'he-owner-st', this.defMeta ? `Default saved${when ? ` ${when}` : ''}${this.defMeta.by ? ` by ${this.defMeta.by}` : ''}: ${n} element${n === 1 ? '' : 's'}.${dirty ? ' You have unsaved changes to it.' : ''}` : `No default saved: everyone gets the built-in layout.${dirty ? ' You have unsaved changes.' : ''}`);
+    const hint = mk('small', '', 'Players keep anything they moved themselves; everything else follows the default, also when you change it later. Nobody is told.');
+    this.ownerBox.append(title, modes, acts, status, hint);
+  }
+
+  /** Owner: who the edits are for. "Everyone" works on a copy of the default that you see live and publish when it is right. */
+  setMode(m: EditMode) {
+    if (m === this.mode || !this.editing) return;
+    if (m === 'all' && !this.isOwner()) return;
+    this.save();
+    this.touched.clear();
+    this.mode = m;
+    if (m === 'all') this.draft = { ...this.def };
+    document.body.classList.toggle('hud-edit-all', m === 'all');
+    this.fromSaved();
+    this.fitAll();
+    this.paintAll();
+  }
+
+  /** Owner: send the layout on screen (the draft, or in "just me" mode your layout over the default) to the server as the default. */
+  private publishCurrent() {
+    if (!this.isOwner()) return;
+    this.save();
+    const layer = this.mode === 'all' ? this.draft : layerLayout(this.saved, this.def);
+    this.publishing = true;
+    this.publish(Object.keys(layer).length ? layer : null);
   }
 
   private saveGrid() {
@@ -382,12 +662,13 @@ export class HudLayout {
   }
 
   private paintSelection() {
-    for (const [tid] of TARGETS) document.getElementById(tid)?.classList.toggle('hud-selected', tid === this.selected);
+    for (const t of TARGET_DEFS) for (const e of elsOf(t.id)) e.classList.toggle('hud-selected', t.id === this.selected);
+    this.paintSelInfo();
   }
 
   /** Pull the element to the nearest grid line (its left or right edge) and to the screen centre when close. */
   private snap(id: string) {
-    const e = document.getElementById(id);
+    const e = mainEl(id);
     const s = this.data[id];
     if (!e || !s) return;
     const r = e.getBoundingClientRect();
@@ -419,10 +700,12 @@ export class HudLayout {
     ev.preventDefault();
     ev.stopPropagation();
     const s = this.slot(this.selected);
+    this.touched.add(this.selected);
     s.dx += v[0];
     s.dy += v[1];
     this.apply(this.selected);
     this.fit(this.selected);
+    this.paintAll();
   };
 
   private slot(id: string): Slot {
@@ -430,9 +713,11 @@ export class HudLayout {
   }
 
   private apply(id: string) {
-    const e = document.getElementById(id);
-    if (!e) return;
-    const s = this.data[id];
+    for (const e of elsOf(id)) this.applyOne(e, id);
+  }
+
+  private applyOne(e: HTMLElement, id: string) {
+    const s = isActive(id) ? this.data[id] : undefined;
     e.style.translate = s ? `${s.dx}px ${s.dy}px` : '';
     e.style.scale = s && s.s !== 1 ? String(s.s) : '';
     e.style.width = s?.w ? `${s.w}px` : '';
@@ -448,7 +733,7 @@ export class HudLayout {
 
   /** The corner grip shown on an element while editing: drag it to change the element's width and height. */
   private addGrip(id: string) {
-    const e = document.getElementById(id);
+    const e = mainEl(id);
     if (!e || this.grips.has(id)) return;
     const g = document.createElement('div');
     g.className = 'hud-grip';
@@ -459,6 +744,7 @@ export class HudLayout {
       const s = this.slot(id);
       const r = e.getBoundingClientRect();
       this.selected = id;
+      this.touched.add(id);
       this.paintSelection();
       this.sizing = { id, px: ev.clientX, py: ev.clientY, w: r.width / s.s, h: r.height / s.s, w0: s.w ? s.w / (s.t || 1) : r.width / s.s };
     });
@@ -468,9 +754,11 @@ export class HudLayout {
       delete s.w;
       delete s.h;
       delete s.t;
+      this.touched.add(id);
       this.apply(id);
       this.fit(id);
       this.save();
+      this.paintAll();
     });
     e.append(g);
     this.grips.set(id, g);
@@ -484,9 +772,9 @@ export class HudLayout {
 
   /** Keep an element fully on screen by nudging its offset. Skips elements that are not currently laid out. */
   private fit(id: string) {
-    const e = document.getElementById(id);
+    const e = mainEl(id);
     const s = this.data[id];
-    if (!e || !s) return;
+    if (!e || !s || !isActive(id)) return;
     const r = e.getBoundingClientRect();
     if (r.width === 0 || r.height === 0) return;
     let nx = 0;
@@ -503,13 +791,18 @@ export class HudLayout {
   }
 
   private fitAll() {
-    for (const [id] of TARGETS) this.fit(id);
+    for (const id of ACTIVE_IDS()) this.fit(id);
   }
 
-  /** Pixel offsets for this window size from the saved fractions. */
+  /** The layout in force for what is being edited: the owner's draft in "everyone" mode, else the player's over the default. */
+  private view(): HudLayoutMap {
+    return viewLayout(this.mode, { saved: this.saved, def: this.def, draft: this.draft });
+  }
+
+  /** Pixel offsets for this window size from the layers' fractions. */
   private fromSaved() {
     this.data = {};
-    for (const [id, f] of Object.entries(this.saved)) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s, ...(f.w ? { w: f.w } : {}), ...(f.h ? { h: f.h } : {}), ...(f.t ? { t: f.t } : {}) };
+    for (const [id, f] of Object.entries(this.view())) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s, ...(f.w ? { w: f.w } : {}), ...(f.h ? { h: f.h } : {}), ...(f.t ? { t: f.t } : {}) };
     for (const [id] of TARGETS) this.apply(id);
   }
 
@@ -527,7 +820,9 @@ export class HudLayout {
     ev.stopPropagation();
     const s = this.slot(id);
     this.selected = id;
+    this.touched.add(id);
     this.paintSelection();
+    this.paintLabels();
     this.drag = { id, px: ev.clientX, py: ev.clientY, dx: s.dx, dy: s.dy };
   }
 
@@ -556,11 +851,13 @@ export class HudLayout {
     if (!this.editing) return;
     ev.preventDefault();
     const s = this.slot(id);
+    this.touched.add(id);
     if (id in TEXT_BOX) {
       s.t = clamp(Math.round(((s.t ?? 1) - Math.sign(ev.deltaY) * 0.1) * 100) / 100, TEXT_MIN, TEXT_MAX); // text boxes: the wheel sizes the text
       this.apply(id);
       this.fit(id);
       this.save();
+      this.paintAll();
       return;
     }
     s.s = clamp(Math.round((s.s - Math.sign(ev.deltaY) * 0.05) * 100) / 100, 0.6, 1.6);
@@ -568,8 +865,27 @@ export class HudLayout {
     this.fit(id);
   }
 
+  /** The working offsets as saved fractions, for the elements the layer being edited owns (or that were just moved). */
+  private pack(layer: HudLayoutMap): HudLayoutMap {
+    const out: HudLayoutMap = {};
+    for (const [id, d] of Object.entries(this.data)) {
+      if (!(id in layer) && !this.touched.has(id)) continue;
+      out[id] = { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s, ...(d.w ? { w: Math.round(d.w) } : {}), ...(d.h ? { h: Math.round(d.h) } : {}), ...(d.t ? { t: d.t } : {}) };
+    }
+    return out;
+  }
+
+  /** Keep what was moved. "Just me": the player's own layer, in this browser (and the account). "Everyone": the owner's draft, which only the save button publishes. */
   private save() {
-    this.saved = Object.fromEntries(Object.entries(this.data).map(([id, d]) => [id, { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s, ...(d.w ? { w: Math.round(d.w) } : {}), ...(d.h ? { h: Math.round(d.h) } : {}), ...(d.t ? { t: d.t } : {}) }]));
+    if (this.mode === 'all') this.draft = this.pack(this.draft);
+    else {
+      this.saved = this.pack(this.saved);
+      this.persist();
+    }
+  }
+
+  private persist() {
+    if (this.mode === 'all') return;
     try {
       localStorage.setItem(KEY, JSON.stringify(this.saved));
     } catch {

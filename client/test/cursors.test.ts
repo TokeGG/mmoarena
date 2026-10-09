@@ -215,7 +215,9 @@ describe('reduced motion and the overlay plan', () => {
     assert.ok(p.overlay && p.trail && p.ripple);
     for (const c of ['enemy', 'ally', 'aim', 'aimBlocked'] as const) assert.ok(!planFor(ember, c, false).overlay, c);
     const r = planFor(ember, 'default', true);
-    assert.ok(!r.overlay && !r.trail && !r.ripple);
+    assert.ok(!r.overlay && r.trail && r.ripple, 'switches the player turned on still work with reduced motion');
+    const off = planFor({ ...DEFAULT_CURSOR_SETTINGS, style: 'ember' }, 'default', true);
+    assert.ok(!off.trail && !off.ripple);
     assert.ok(!planFor(DEFAULT_CURSOR_SETTINGS, 'default', false).overlay);
     assert.ok(!planFor({ ...DEFAULT_CURSOR_SETTINGS, style: 'wand' }, 'default', false).overlay);
   });

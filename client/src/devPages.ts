@@ -1,6 +1,8 @@
 import { ABILITIES, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
 import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavGroup } from '@arena/shared';
-import { ABILITY_ICON } from './icons';
+import { iconEl, setIconPreview } from './iconArt';
+import { IconEditor } from './iconEditor';
+import { previewOf } from './iconEditLogic';
 import { SkillEditor, el } from './skillView';
 import { patchKey } from './devEdits';
 import type { ChatScope } from './designer';
@@ -26,7 +28,7 @@ export interface WorkspaceHost {
 
 /** The files each page edits (for its reset and its change counter). */
 export const PAGE_FILES: Record<DevPageId, DataPatch['file'][]> = {
-  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], animations: ['fx'], options: ['tuning'],
+  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], animations: ['fx'], icons: ['icons'], options: ['tuning'],
 };
 
 const CAULDRON = new Set(['cauterizeHealth', 'cauterizeCooldownMs']);
@@ -39,6 +41,7 @@ export function pageOwns(page: DevPageId, p: DataPatch): boolean {
 }
 /** The id of a change's entry in a page's navigation. */
 export function navIdOf(page: DevPageId, p: DataPatch): string {
+  if (page === 'icons') return `${p.path[0] === 'aura' ? 'u' : 'a'}:${p.id}`; // an icon's entry is its skill or buff
   if (page === 'animations') return String(p.path[0]); // an animation's entry is its effect (dragonsBreath, charge, ...)
   if (page !== 'passives') return p.id;
   if (p.file === 'tuning') return `s:${CLASS_IDS.flatMap((c) => SPECS[c]).find((x) => x.passive === 'cauterize')?.id ?? ''}`;
@@ -57,14 +60,16 @@ export class DevWorkspace {
   readonly editor = new SkillEditor();
   page: DevPageId = 'skills';
   private sel: Partial<Record<DevPageId, string>> = {};
-  private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', passives: '', auras: '', animations: '', options: '' };
+  private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', passives: '', auras: '', animations: '', icons: '', options: '' };
   private navOpen = new Map<string, boolean>();
   private adding = new Map<string, { kind: 'ability' | 'aura'; id: string }>();
   private classCtx: ClassId | null = null;
+  private iconEd: IconEditor;
   private navBox: HTMLElement | null = null;
   private detailBox: HTMLElement | null = null;
 
   constructor(private host: WorkspaceHost) {
+    this.iconEd = new IconEditor({ set: this.editor.set, testing: () => host.testing(), canRevert: host.canRevert, onEdit: () => this.editor.onEdit() });
     this.editor.testing = () => host.testing();
     this.editor.canRevert = host.canRevert;
     this.editor.onEdit = () => {
@@ -78,6 +83,7 @@ export class DevWorkspace {
 
   /** A value changed: the counters on the tabs and the dots in the list follow without drawing the page again. */
   refreshMarks(): void {
+    setIconPreview(previewOf(this.set));
     const rows = this.set.rows(this.host.inEffect());
     for (const [id, b] of this.tabBtns) {
       b.querySelector('.devp-badge')?.remove();
@@ -127,9 +133,10 @@ export class DevWorkspace {
 
   private navGroups(): NavGroup[] {
     const groups = navFor(this.page);
-    if (this.page === 'skills') {
+    if (this.page === 'skills' || this.page === 'icons') {
       const first = (this.host.matchSkills?.() ?? []).filter((id) => ABILITIES[id]);
-      if (first.length) groups.unshift({ title: 'In this match', entries: first.map((id) => ({ id, name: ABILITIES[id].name, sub: ABILITIES[id].school })) });
+      const pre = this.page === 'icons' ? 'a:' : '';
+      if (first.length) groups.unshift({ title: 'In this match', entries: first.map((id) => ({ id: pre + id, name: ABILITIES[id].name, sub: ABILITIES[id].school })) });
     }
     return groups;
   }
@@ -151,9 +158,9 @@ export class DevWorkspace {
       for (const c of g.groups ?? []) flat(c, top);
     };
     for (const g of groups) flat(g, g.title);
-    if (this.page === 'skills') {
+    if (this.page === 'skills' || this.page === 'icons') {
       const m = (this.host.matchSkills?.() ?? []).find((id) => ABILITIES[id]);
-      if (m) return m;
+      if (m) return this.page === 'icons' ? `a:${m}` : m;
     }
     const own = all.find((e) => e.sub?.startsWith(`${CLASSES[cls].name}|`));
     if (this.page === 'classes') return cls;
@@ -175,7 +182,7 @@ export class DevWorkspace {
   private noteClass(): void {
     const id = this.sel[this.page];
     if (!id) return;
-    const c = this.page === 'classes' ? (id as ClassId) : this.page === 'specs' ? classOfSpec(id) : this.page === 'talents' ? classOfTalent(id) : this.page === 'passives' ? (id.startsWith('s:') ? classOfSpec(id.slice(2)) : classOfTalent(id.slice(2))) : this.page === 'skills' ? (ABILITIES[id]?.class as ClassId) : null;
+    const c = this.page === 'classes' ? (id as ClassId) : this.page === 'specs' ? classOfSpec(id) : this.page === 'talents' ? classOfTalent(id) : this.page === 'passives' ? (id.startsWith('s:') ? classOfSpec(id.slice(2)) : classOfTalent(id.slice(2))) : this.page === 'skills' ? (ABILITIES[id]?.class as ClassId) : this.page === 'icons' ? (id.startsWith('a:') ? (ABILITIES[id.slice(2)]?.class as ClassId) : null) : null;
     if (c && CLASSES[c]) this.classCtx = c;
   }
 
@@ -184,6 +191,7 @@ export class DevWorkspace {
   /** The tabs, the search box and the page. */
   render(): HTMLElement {
     const root = el('div', 'devp-ws');
+    setIconPreview(previewOf(this.set));
     const rows = this.set.rows(this.host.inEffect());
     const tabs = el('div', 'devp-tabs');
     tabs.dataset.tour = 'dev-pages'; // the guided tours point at these (tourData.ts)
@@ -263,8 +271,12 @@ export class DevWorkspace {
     const sel = this.sel[this.page];
     const entryBtn = (e: NavEntry): HTMLElement => {
       const b = el('button', `devp-navitem${e.id === sel ? ' sel' : ''}`);
-      const icon = this.page === 'skills' ? ABILITY_ICON[e.id] ?? '✦' : e.icon ?? '';
-      if (icon) b.append(el('span', 'devp-navicon', icon));
+      if (this.page === 'skills' || this.page === 'icons') {
+        const sk = e.id.startsWith('u:') ? iconEl('aura', e.id.slice(2), '', true) : iconEl('ability', this.page === 'icons' ? e.id.slice(2) : e.id, '', true);
+        const ic = el('span', 'devp-navicon');
+        ic.append(sk);
+        b.append(ic);
+      } else if (e.icon) b.append(el('span', 'devp-navicon', e.icon));
       b.append(el('span', 'devp-navname', e.name));
       if (e.sub) b.append(el('small', 'devp-dim', e.sub));
       if (this.page === 'skills') b.dataset.tip = `ability:${e.id}`;
@@ -335,6 +347,7 @@ export class DevWorkspace {
     }
     const entry = entryFor(this.page, id);
     if (!entry) return void box.append(el('small', 'devp-dim', 'Nothing to show.'));
+    if (this.page === 'icons') return this.iconEd.draw(box, id);
     box.append(this.head(entry.name, entry.sub, id));
     if (entry.lines.length) {
       const does = el('div', 'devp-does');
@@ -413,7 +426,7 @@ export class DevWorkspace {
   private resetEntry(id: string): void {
     const pairs = this.entryPairs(id);
     const hit = (p: Pick<DataPatch, 'file' | 'id'>) => pairs.some((x) => x.file === p.file && x.id === p.id);
-    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p)) && (this.page !== 'animations' || p.path[0] === id);
+    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p)) && (this.page !== 'animations' || p.path[0] === id) && (this.page !== 'icons' || p.path[0] === (id.startsWith('u:') ? 'aura' : 'ability'));
     for (const [k, p] of [...this.set.edits]) if (mine(p)) this.set.edits.delete(k);
     if (this.host.canRevert) for (const p of this.host.inEffect()) if (mine(p)) this.set.reverted.add(patchKey(p));
   }

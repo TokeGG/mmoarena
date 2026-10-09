@@ -39,6 +39,8 @@ import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
 import { Recap } from './recap';
+import { botTests } from './botTestState';
+import { handleNoteAck, noteBox } from './botNoteUi';
 import { RecapCard } from './recapCard';
 import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
@@ -123,6 +125,7 @@ let endBoardUp = false;
 /** The end screen is a ready check: everyone presses Play again (or leaves) and the next match starts when all are ready. */
 const endChoice = (() => {
   const box = document.createElement('div');
+  box.id = 'endchoice'; // a HUD element (hudLayout.ts)
   box.style.cssText = 'position:fixed;left:50%;bottom:9%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:10px;z-index:60;';
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:14px;';
@@ -168,7 +171,7 @@ function showRecap(snap: Snapshot) {
   if (!recapExact) return;
   const w = snap.winner;
   const mine = snap.units.find((u) => u.id === you)?.team;
-  recapCard.show(recap, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat', spec ? null : team);
+  recapCard.show(recap, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat', spec ? null : team, botTests.match && botTests.bots > 0 && isDev() ? noteBox(botTests.match, send) : null);
 }
 let latestAt = 0;
 let lastCount = -1;
@@ -253,6 +256,9 @@ const menu = new Menu(binds, {
   onHelp: () => helpWindow.open(),
 });
 const hudLayout = new HudLayout();
+// the owner's part of the editor: who is the owner, and sending the layout to the server as the default for everyone
+hudLayout.isOwner = () => !!accountUi.account?.ownerOk;
+hudLayout.publish = (layout) => void send({ t: 'admin_hud_default', layout });
 // the HUD editor opened from the main menu (over a pretend fight) is tracked by the editor itself (hudEditState.ts)
 hudLayout.onChange = (editing, restoreMenu) => {
   controls.enabled = !editing;
@@ -308,6 +314,7 @@ function onMessage(raw: MessageEvent) {
   switch (m.t) {
     case 'welcome':
     case 'controlling':
+      botTests.clear();
       clearMenuLayers();
       if (m.t === 'controlling') {
         // owner only: the watched match turns into a normal match for the unit just taken over (no delay, no spectator bar)
@@ -393,6 +400,7 @@ function onMessage(raw: MessageEvent) {
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
+    case 'botnames':
     case 'admin_log':
     case 'admin_history':
     case 'admin_feed':
@@ -424,6 +432,9 @@ function onMessage(raw: MessageEvent) {
     case 'marks':
       teamMarks = new Map(m.marks);
       break;
+    case 'hud_default':
+      hudLayout.setDefault(m.layout, m.at, m.by);
+      break;
     case 'announce':
       announceBanner.show(m, () => audio.ui('select'));
       break;
@@ -437,7 +448,18 @@ function onMessage(raw: MessageEvent) {
       liveWanted = false;
       break;
     case 'spectating':
+      botTests.clear();
       startSpectate('live', m.map, m.id);
+      break;
+    case 'bot_tests':
+      // owner and devs only (the server sends nobody else this): which bots wear the learning-test marker
+      botTests.handle(m);
+      if (lastBuilds.length && (spec || isDev())) buildsPanel.set(lastBuilds);
+      devPanel.refresh();
+      break;
+    case 'bot_note_ack':
+      handleNoteAck(m);
+      adminPanel.handle(m);
       break;
     case 'builds':
       lastBuilds = m.units;
@@ -547,6 +569,7 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      botTests.clear();
       controlling = false;
       takeoverUi.setControlling(null);
       matchStarting = false;
@@ -1392,7 +1415,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, spectating: () => !!spec, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, spectating: () => !!spec, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass, noteMatch: () => (botTests.match && botTests.bots > 0 ? botTests.match : null) }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
@@ -1428,16 +1451,22 @@ let following: string | null = null;
 const followBox = (() => {
   const box = document.createElement('div');
   box.className = 'follow-box hidden';
-  const text = document.createElement('span');
+  const lbl = document.createElement('span');
+  lbl.className = 'fb-lbl';
+  lbl.textContent = '👁 Following';
+  const nameEl = document.createElement('b');
+  nameEl.className = 'fb-name';
   const stop = document.createElement('button');
-  stop.textContent = 'Stop following';
+  stop.textContent = 'Stop';
+  stop.title = 'Stop following';
   stop.addEventListener('click', () => send({ t: 'follow', name: null }));
-  box.append(text, stop);
+  box.append(lbl, nameEl, stop);
   document.body.append(box);
   return {
     set(name: string | null) {
       box.classList.toggle('hidden', !name);
-      text.textContent = name ? `👁 Following ${name}: you join every match they play` : '';
+      nameEl.textContent = name ?? '';
+      box.title = name ? `Following ${name}: you join every match they play. Press Stop to go back to normal.` : '';
     },
   };
 })();
@@ -1546,6 +1575,7 @@ function resetRecap() {
 }
 
 function endSpectateState() {
+  botTests.clear();
   resetRecap();
   if (!spec) return;
   spec = null;

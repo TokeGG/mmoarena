@@ -1,5 +1,42 @@
 [
  {
+  "version": "0.69.24",
+  "date": "2026-10-10",
+  "at": "2026-10-10T01:10:00Z",
+  "title": "Cursor trail and click ripple fixed",
+  "changes": [
+   "The cursor Trail and click Ripple options now work for everyone, including when the computer is set to reduce motion."
+  ]
+ },
+ {
+  "version": "0.69.23",
+  "date": "2026-10-10",
+  "at": "2026-10-10T00:20:00Z",
+  "title": "Move every part of the HUD",
+  "changes": [
+   "Edit HUD now moves nearly everything on screen: the match banner, announcements, the scoreboard and spectator bar, the builds panel, notices, invites and more.",
+   "The spectating follow box is now a small chip in the corner so it no longer covers the builds panel."
+  ]
+ },
+ {
+  "version": "0.69.22",
+  "date": "2026-10-09",
+  "at": "2026-10-09T23:40:00Z",
+  "title": "New skill icons",
+  "changes": [
+   "Every skill and most buffs and debuffs now have new artwork instead of emoji, on the action bar, buff rows, kill feed and spec panels."
+  ]
+ },
+ {
+  "version": "0.69.21",
+  "date": "2026-10-09",
+  "at": "2026-10-09T23:00:00Z",
+  "title": "No more flash of old models",
+  "changes": [
+   "After a refresh the old placeholder characters no longer show for a few seconds: characters appear once their real models have loaded."
+  ]
+ },
+ {
   "version": "0.69.20",
   "date": "2026-10-09",
   "at": "2026-10-09T22:00:00Z",

@@ -1,0 +1,3398 @@
+{
+ "packs": [
+  {
+   "id": "barbarian",
+   "name": "Barbarian set",
+   "count": 40,
+   "license": "Free pack supplied by the owner (licence not stated in the download: check the source page before keeping it)"
+  },
+  {
+   "id": "firemage",
+   "name": "Fire mage set",
+   "count": 40,
+   "license": "Free pack supplied by the owner (licence not stated in the download: check the source page before keeping it)"
+  },
+  {
+   "id": "frostmage",
+   "name": "Frost mage set",
+   "count": 25,
+   "license": "Free pack supplied by the owner (licence not stated in the download: check the source page before keeping it)"
+  },
+  {
+   "id": "steadykeel-framed",
+   "name": "Spell and skill icons (framed)",
+   "count": 46,
+   "license": "steadykeel (Graham Tizzard) on itch.io: use in your own games is allowed; the files may not be resold, shared on their own or used to train AI. Kept out of the public repository: the server serves them from its store.",
+   "private": true
+  },
+  {
+   "id": "steadykeel-transparent",
+   "name": "Spell and skill icons (clear)",
+   "count": 46,
+   "license": "steadykeel (Graham Tizzard) on itch.io: use in your own games is allowed; the files may not be resold, shared on their own or used to train AI. Kept out of the public repository: the server serves them from its store.",
+   "private": true
+  },
+  {
+   "id": "icons151",
+   "name": "Icon set (151)",
+   "count": 151,
+   "license": "Supplied by the owner (no licence file in the download)"
+  },
+  {
+   "id": "spellset",
+   "name": "Spell set (2011)",
+   "count": 53,
+   "license": "Supplied by the owner (no licence file in the download)"
+  }
+ ],
+ "icons": [
+  {
+   "id": "barbarian/barbarian-1",
+   "pack": "barbarian",
+   "name": "Barbarian 1",
+   "file": "/icons/barbarian/barbarian-1.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-2",
+   "pack": "barbarian",
+   "name": "Barbarian 2",
+   "file": "/icons/barbarian/barbarian-2.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-3",
+   "pack": "barbarian",
+   "name": "Barbarian 3",
+   "file": "/icons/barbarian/barbarian-3.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-4",
+   "pack": "barbarian",
+   "name": "Barbarian 4",
+   "file": "/icons/barbarian/barbarian-4.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-5",
+   "pack": "barbarian",
+   "name": "Barbarian 5",
+   "file": "/icons/barbarian/barbarian-5.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-6",
+   "pack": "barbarian",
+   "name": "Barbarian 6",
+   "file": "/icons/barbarian/barbarian-6.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-7",
+   "pack": "barbarian",
+   "name": "Barbarian 7",
+   "file": "/icons/barbarian/barbarian-7.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-8",
+   "pack": "barbarian",
+   "name": "Barbarian 8",
+   "file": "/icons/barbarian/barbarian-8.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-9",
+   "pack": "barbarian",
+   "name": "Barbarian 9",
+   "file": "/icons/barbarian/barbarian-9.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-10",
+   "pack": "barbarian",
+   "name": "Barbarian 10",
+   "file": "/icons/barbarian/barbarian-10.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-11",
+   "pack": "barbarian",
+   "name": "Barbarian 11",
+   "file": "/icons/barbarian/barbarian-11.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-12",
+   "pack": "barbarian",
+   "name": "Barbarian 12",
+   "file": "/icons/barbarian/barbarian-12.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-13",
+   "pack": "barbarian",
+   "name": "Barbarian 13",
+   "file": "/icons/barbarian/barbarian-13.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-14",
+   "pack": "barbarian",
+   "name": "Barbarian 14",
+   "file": "/icons/barbarian/barbarian-14.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-15",
+   "pack": "barbarian",
+   "name": "Barbarian 15",
+   "file": "/icons/barbarian/barbarian-15.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-16",
+   "pack": "barbarian",
+   "name": "Barbarian 16",
+   "file": "/icons/barbarian/barbarian-16.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-17",
+   "pack": "barbarian",
+   "name": "Barbarian 17",
+   "file": "/icons/barbarian/barbarian-17.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-18",
+   "pack": "barbarian",
+   "name": "Barbarian 18",
+   "file": "/icons/barbarian/barbarian-18.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-19",
+   "pack": "barbarian",
+   "name": "Barbarian 19",
+   "file": "/icons/barbarian/barbarian-19.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-20",
+   "pack": "barbarian",
+   "name": "Barbarian 20",
+   "file": "/icons/barbarian/barbarian-20.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-21",
+   "pack": "barbarian",
+   "name": "Barbarian 21",
+   "file": "/icons/barbarian/barbarian-21.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-22",
+   "pack": "barbarian",
+   "name": "Barbarian 22",
+   "file": "/icons/barbarian/barbarian-22.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-23",
+   "pack": "barbarian",
+   "name": "Barbarian 23",
+   "file": "/icons/barbarian/barbarian-23.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-24",
+   "pack": "barbarian",
+   "name": "Barbarian 24",
+   "file": "/icons/barbarian/barbarian-24.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-25",
+   "pack": "barbarian",
+   "name": "Barbarian 25",
+   "file": "/icons/barbarian/barbarian-25.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-26",
+   "pack": "barbarian",
+   "name": "Barbarian 26",
+   "file": "/icons/barbarian/barbarian-26.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-27",
+   "pack": "barbarian",
+   "name": "Barbarian 27",
+   "file": "/icons/barbarian/barbarian-27.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-28",
+   "pack": "barbarian",
+   "name": "Barbarian 28",
+   "file": "/icons/barbarian/barbarian-28.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-29",
+   "pack": "barbarian",
+   "name": "Barbarian 29",
+   "file": "/icons/barbarian/barbarian-29.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-30",
+   "pack": "barbarian",
+   "name": "Barbarian 30",
+   "file": "/icons/barbarian/barbarian-30.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-31",
+   "pack": "barbarian",
+   "name": "Barbarian 31",
+   "file": "/icons/barbarian/barbarian-31.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-32",
+   "pack": "barbarian",
+   "name": "Barbarian 32",
+   "file": "/icons/barbarian/barbarian-32.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-33",
+   "pack": "barbarian",
+   "name": "Barbarian 33",
+   "file": "/icons/barbarian/barbarian-33.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-34",
+   "pack": "barbarian",
+   "name": "Barbarian 34",
+   "file": "/icons/barbarian/barbarian-34.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-35",
+   "pack": "barbarian",
+   "name": "Barbarian 35",
+   "file": "/icons/barbarian/barbarian-35.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-36",
+   "pack": "barbarian",
+   "name": "Barbarian 36",
+   "file": "/icons/barbarian/barbarian-36.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-37",
+   "pack": "barbarian",
+   "name": "Barbarian 37",
+   "file": "/icons/barbarian/barbarian-37.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-38",
+   "pack": "barbarian",
+   "name": "Barbarian 38",
+   "file": "/icons/barbarian/barbarian-38.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-39",
+   "pack": "barbarian",
+   "name": "Barbarian 39",
+   "file": "/icons/barbarian/barbarian-39.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "barbarian/barbarian-40",
+   "pack": "barbarian",
+   "name": "Barbarian 40",
+   "file": "/icons/barbarian/barbarian-40.webp",
+   "tags": [
+    "warrior"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-1",
+   "pack": "firemage",
+   "name": "Fire mage 1",
+   "file": "/icons/firemage/fire-mage-1.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-2",
+   "pack": "firemage",
+   "name": "Fire mage 2",
+   "file": "/icons/firemage/fire-mage-2.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-3",
+   "pack": "firemage",
+   "name": "Fire mage 3",
+   "file": "/icons/firemage/fire-mage-3.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-4",
+   "pack": "firemage",
+   "name": "Fire mage 4",
+   "file": "/icons/firemage/fire-mage-4.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-5",
+   "pack": "firemage",
+   "name": "Fire mage 5",
+   "file": "/icons/firemage/fire-mage-5.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-6",
+   "pack": "firemage",
+   "name": "Fire mage 6",
+   "file": "/icons/firemage/fire-mage-6.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-7",
+   "pack": "firemage",
+   "name": "Fire mage 7",
+   "file": "/icons/firemage/fire-mage-7.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-8",
+   "pack": "firemage",
+   "name": "Fire mage 8",
+   "file": "/icons/firemage/fire-mage-8.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-9",
+   "pack": "firemage",
+   "name": "Fire mage 9",
+   "file": "/icons/firemage/fire-mage-9.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-10",
+   "pack": "firemage",
+   "name": "Fire mage 10",
+   "file": "/icons/firemage/fire-mage-10.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-11",
+   "pack": "firemage",
+   "name": "Fire mage 11",
+   "file": "/icons/firemage/fire-mage-11.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-12",
+   "pack": "firemage",
+   "name": "Fire mage 12",
+   "file": "/icons/firemage/fire-mage-12.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-13",
+   "pack": "firemage",
+   "name": "Fire mage 13",
+   "file": "/icons/firemage/fire-mage-13.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-14",
+   "pack": "firemage",
+   "name": "Fire mage 14",
+   "file": "/icons/firemage/fire-mage-14.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-15",
+   "pack": "firemage",
+   "name": "Fire mage 15",
+   "file": "/icons/firemage/fire-mage-15.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-16",
+   "pack": "firemage",
+   "name": "Fire mage 16",
+   "file": "/icons/firemage/fire-mage-16.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-17",
+   "pack": "firemage",
+   "name": "Fire mage 17",
+   "file": "/icons/firemage/fire-mage-17.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-18",
+   "pack": "firemage",
+   "name": "Fire mage 18",
+   "file": "/icons/firemage/fire-mage-18.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-19",
+   "pack": "firemage",
+   "name": "Fire mage 19",
+   "file": "/icons/firemage/fire-mage-19.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-20",
+   "pack": "firemage",
+   "name": "Fire mage 20",
+   "file": "/icons/firemage/fire-mage-20.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-21",
+   "pack": "firemage",
+   "name": "Fire mage 21",
+   "file": "/icons/firemage/fire-mage-21.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-22",
+   "pack": "firemage",
+   "name": "Fire mage 22",
+   "file": "/icons/firemage/fire-mage-22.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-23",
+   "pack": "firemage",
+   "name": "Fire mage 23",
+   "file": "/icons/firemage/fire-mage-23.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-24",
+   "pack": "firemage",
+   "name": "Fire mage 24",
+   "file": "/icons/firemage/fire-mage-24.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-25",
+   "pack": "firemage",
+   "name": "Fire mage 25",
+   "file": "/icons/firemage/fire-mage-25.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-26",
+   "pack": "firemage",
+   "name": "Fire mage 26",
+   "file": "/icons/firemage/fire-mage-26.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-27",
+   "pack": "firemage",
+   "name": "Fire mage 27",
+   "file": "/icons/firemage/fire-mage-27.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-28",
+   "pack": "firemage",
+   "name": "Fire mage 28",
+   "file": "/icons/firemage/fire-mage-28.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-29",
+   "pack": "firemage",
+   "name": "Fire mage 29",
+   "file": "/icons/firemage/fire-mage-29.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-30",
+   "pack": "firemage",
+   "name": "Fire mage 30",
+   "file": "/icons/firemage/fire-mage-30.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-31",
+   "pack": "firemage",
+   "name": "Fire mage 31",
+   "file": "/icons/firemage/fire-mage-31.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-32",
+   "pack": "firemage",
+   "name": "Fire mage 32",
+   "file": "/icons/firemage/fire-mage-32.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-33",
+   "pack": "firemage",
+   "name": "Fire mage 33",
+   "file": "/icons/firemage/fire-mage-33.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-34",
+   "pack": "firemage",
+   "name": "Fire mage 34",
+   "file": "/icons/firemage/fire-mage-34.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-35",
+   "pack": "firemage",
+   "name": "Fire mage 35",
+   "file": "/icons/firemage/fire-mage-35.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-36",
+   "pack": "firemage",
+   "name": "Fire mage 36",
+   "file": "/icons/firemage/fire-mage-36.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-37",
+   "pack": "firemage",
+   "name": "Fire mage 37",
+   "file": "/icons/firemage/fire-mage-37.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-38",
+   "pack": "firemage",
+   "name": "Fire mage 38",
+   "file": "/icons/firemage/fire-mage-38.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-39",
+   "pack": "firemage",
+   "name": "Fire mage 39",
+   "file": "/icons/firemage/fire-mage-39.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "firemage/fire-mage-40",
+   "pack": "firemage",
+   "name": "Fire mage 40",
+   "file": "/icons/firemage/fire-mage-40.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-1",
+   "pack": "frostmage",
+   "name": "Frost mage 1",
+   "file": "/icons/frostmage/frost-mage-1.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-2",
+   "pack": "frostmage",
+   "name": "Frost mage 2",
+   "file": "/icons/frostmage/frost-mage-2.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-3",
+   "pack": "frostmage",
+   "name": "Frost mage 3",
+   "file": "/icons/frostmage/frost-mage-3.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-4",
+   "pack": "frostmage",
+   "name": "Frost mage 4",
+   "file": "/icons/frostmage/frost-mage-4.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-5",
+   "pack": "frostmage",
+   "name": "Frost mage 5",
+   "file": "/icons/frostmage/frost-mage-5.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-6",
+   "pack": "frostmage",
+   "name": "Frost mage 6",
+   "file": "/icons/frostmage/frost-mage-6.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-7",
+   "pack": "frostmage",
+   "name": "Frost mage 7",
+   "file": "/icons/frostmage/frost-mage-7.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-8",
+   "pack": "frostmage",
+   "name": "Frost mage 8",
+   "file": "/icons/frostmage/frost-mage-8.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-9",
+   "pack": "frostmage",
+   "name": "Frost mage 9",
+   "file": "/icons/frostmage/frost-mage-9.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-10",
+   "pack": "frostmage",
+   "name": "Frost mage 10",
+   "file": "/icons/frostmage/frost-mage-10.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-11",
+   "pack": "frostmage",
+   "name": "Frost mage 11",
+   "file": "/icons/frostmage/frost-mage-11.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-12",
+   "pack": "frostmage",
+   "name": "Frost mage 12",
+   "file": "/icons/frostmage/frost-mage-12.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-13",
+   "pack": "frostmage",
+   "name": "Frost mage 13",
+   "file": "/icons/frostmage/frost-mage-13.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-14",
+   "pack": "frostmage",
+   "name": "Frost mage 14",
+   "file": "/icons/frostmage/frost-mage-14.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-15",
+   "pack": "frostmage",
+   "name": "Frost mage 15",
+   "file": "/icons/frostmage/frost-mage-15.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-16",
+   "pack": "frostmage",
+   "name": "Frost mage 16",
+   "file": "/icons/frostmage/frost-mage-16.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-17",
+   "pack": "frostmage",
+   "name": "Frost mage 17",
+   "file": "/icons/frostmage/frost-mage-17.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-18",
+   "pack": "frostmage",
+   "name": "Frost mage 18",
+   "file": "/icons/frostmage/frost-mage-18.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-19",
+   "pack": "frostmage",
+   "name": "Frost mage 19",
+   "file": "/icons/frostmage/frost-mage-19.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-20",
+   "pack": "frostmage",
+   "name": "Frost mage 20",
+   "file": "/icons/frostmage/frost-mage-20.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-21",
+   "pack": "frostmage",
+   "name": "Frost mage 21",
+   "file": "/icons/frostmage/frost-mage-21.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-22",
+   "pack": "frostmage",
+   "name": "Frost mage 22",
+   "file": "/icons/frostmage/frost-mage-22.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-23",
+   "pack": "frostmage",
+   "name": "Frost mage 23",
+   "file": "/icons/frostmage/frost-mage-23.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-24",
+   "pack": "frostmage",
+   "name": "Frost mage 24",
+   "file": "/icons/frostmage/frost-mage-24.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "frostmage/frost-mage-25",
+   "pack": "frostmage",
+   "name": "Frost mage 25",
+   "file": "/icons/frostmage/frost-mage-25.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/arcane-0",
+   "pack": "steadykeel-framed",
+   "name": "arcane 0",
+   "file": "/icons/steadykeel-framed/arcane-0.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/arcane-1",
+   "pack": "steadykeel-framed",
+   "name": "arcane 1",
+   "file": "/icons/steadykeel-framed/arcane-1.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/arcane-2",
+   "pack": "steadykeel-framed",
+   "name": "arcane 2",
+   "file": "/icons/steadykeel-framed/arcane-2.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/arcane-3",
+   "pack": "steadykeel-framed",
+   "name": "arcane 3",
+   "file": "/icons/steadykeel-framed/arcane-3.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/arcane-4",
+   "pack": "steadykeel-framed",
+   "name": "arcane 4",
+   "file": "/icons/steadykeel-framed/arcane-4.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/buffs-debuffs-0",
+   "pack": "steadykeel-framed",
+   "name": "buffs debuffs 0",
+   "file": "/icons/steadykeel-framed/buffs-debuffs-0.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/buffs-debuffs-1",
+   "pack": "steadykeel-framed",
+   "name": "buffs debuffs 1",
+   "file": "/icons/steadykeel-framed/buffs-debuffs-1.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/buffs-debuffs-2",
+   "pack": "steadykeel-framed",
+   "name": "buffs debuffs 2",
+   "file": "/icons/steadykeel-framed/buffs-debuffs-2.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/buffs-debuffs-3",
+   "pack": "steadykeel-framed",
+   "name": "buffs debuffs 3",
+   "file": "/icons/steadykeel-framed/buffs-debuffs-3.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/buffs-debuffs-4",
+   "pack": "steadykeel-framed",
+   "name": "buffs debuffs 4",
+   "file": "/icons/steadykeel-framed/buffs-debuffs-4.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/buffs-debuffs-5",
+   "pack": "steadykeel-framed",
+   "name": "buffs debuffs 5",
+   "file": "/icons/steadykeel-framed/buffs-debuffs-5.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/fire-0",
+   "pack": "steadykeel-framed",
+   "name": "fire 0",
+   "file": "/icons/steadykeel-framed/fire-0.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/fire-1",
+   "pack": "steadykeel-framed",
+   "name": "fire 1",
+   "file": "/icons/steadykeel-framed/fire-1.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/fire-2",
+   "pack": "steadykeel-framed",
+   "name": "fire 2",
+   "file": "/icons/steadykeel-framed/fire-2.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/fire-3",
+   "pack": "steadykeel-framed",
+   "name": "fire 3",
+   "file": "/icons/steadykeel-framed/fire-3.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/fire-4",
+   "pack": "steadykeel-framed",
+   "name": "fire 4",
+   "file": "/icons/steadykeel-framed/fire-4.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/fire-5",
+   "pack": "steadykeel-framed",
+   "name": "fire 5",
+   "file": "/icons/steadykeel-framed/fire-5.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/holy-0",
+   "pack": "steadykeel-framed",
+   "name": "holy 0",
+   "file": "/icons/steadykeel-framed/holy-0.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/holy-1",
+   "pack": "steadykeel-framed",
+   "name": "holy 1",
+   "file": "/icons/steadykeel-framed/holy-1.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/holy-2",
+   "pack": "steadykeel-framed",
+   "name": "holy 2",
+   "file": "/icons/steadykeel-framed/holy-2.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/holy-3",
+   "pack": "steadykeel-framed",
+   "name": "holy 3",
+   "file": "/icons/steadykeel-framed/holy-3.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/holy-4",
+   "pack": "steadykeel-framed",
+   "name": "holy 4",
+   "file": "/icons/steadykeel-framed/holy-4.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/holy-5",
+   "pack": "steadykeel-framed",
+   "name": "holy 5",
+   "file": "/icons/steadykeel-framed/holy-5.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/ice-0",
+   "pack": "steadykeel-framed",
+   "name": "ice 0",
+   "file": "/icons/steadykeel-framed/ice-0.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/ice-1",
+   "pack": "steadykeel-framed",
+   "name": "ice 1",
+   "file": "/icons/steadykeel-framed/ice-1.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/ice-2",
+   "pack": "steadykeel-framed",
+   "name": "ice 2",
+   "file": "/icons/steadykeel-framed/ice-2.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/ice-3",
+   "pack": "steadykeel-framed",
+   "name": "ice 3",
+   "file": "/icons/steadykeel-framed/ice-3.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/ice-4",
+   "pack": "steadykeel-framed",
+   "name": "ice 4",
+   "file": "/icons/steadykeel-framed/ice-4.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/ice-5",
+   "pack": "steadykeel-framed",
+   "name": "ice 5",
+   "file": "/icons/steadykeel-framed/ice-5.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/lightning-0",
+   "pack": "steadykeel-framed",
+   "name": "lightning 0",
+   "file": "/icons/steadykeel-framed/lightning-0.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/lightning-1",
+   "pack": "steadykeel-framed",
+   "name": "lightning 1",
+   "file": "/icons/steadykeel-framed/lightning-1.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/lightning-3",
+   "pack": "steadykeel-framed",
+   "name": "lightning 3",
+   "file": "/icons/steadykeel-framed/lightning-3.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/lightning-4",
+   "pack": "steadykeel-framed",
+   "name": "lightning 4",
+   "file": "/icons/steadykeel-framed/lightning-4.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/lightning-5",
+   "pack": "steadykeel-framed",
+   "name": "lightning 5",
+   "file": "/icons/steadykeel-framed/lightning-5.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/nature-0",
+   "pack": "steadykeel-framed",
+   "name": "nature 0",
+   "file": "/icons/steadykeel-framed/nature-0.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/nature-1",
+   "pack": "steadykeel-framed",
+   "name": "nature 1",
+   "file": "/icons/steadykeel-framed/nature-1.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/nature-2",
+   "pack": "steadykeel-framed",
+   "name": "nature 2",
+   "file": "/icons/steadykeel-framed/nature-2.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/nature-3",
+   "pack": "steadykeel-framed",
+   "name": "nature 3",
+   "file": "/icons/steadykeel-framed/nature-3.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/nature-4",
+   "pack": "steadykeel-framed",
+   "name": "nature 4",
+   "file": "/icons/steadykeel-framed/nature-4.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/nature-5",
+   "pack": "steadykeel-framed",
+   "name": "nature 5",
+   "file": "/icons/steadykeel-framed/nature-5.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/shadow-0",
+   "pack": "steadykeel-framed",
+   "name": "shadow 0",
+   "file": "/icons/steadykeel-framed/shadow-0.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/shadow-1",
+   "pack": "steadykeel-framed",
+   "name": "shadow 1",
+   "file": "/icons/steadykeel-framed/shadow-1.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/shadow-2",
+   "pack": "steadykeel-framed",
+   "name": "shadow 2",
+   "file": "/icons/steadykeel-framed/shadow-2.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/shadow-3",
+   "pack": "steadykeel-framed",
+   "name": "shadow 3",
+   "file": "/icons/steadykeel-framed/shadow-3.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/shadow-4",
+   "pack": "steadykeel-framed",
+   "name": "shadow 4",
+   "file": "/icons/steadykeel-framed/shadow-4.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-framed/shadow-5",
+   "pack": "steadykeel-framed",
+   "name": "shadow 5",
+   "file": "/icons/steadykeel-framed/shadow-5.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/arcane-0",
+   "pack": "steadykeel-transparent",
+   "name": "arcane 0",
+   "file": "/icons/steadykeel-transparent/arcane-0.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/arcane-1",
+   "pack": "steadykeel-transparent",
+   "name": "arcane 1",
+   "file": "/icons/steadykeel-transparent/arcane-1.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/arcane-2",
+   "pack": "steadykeel-transparent",
+   "name": "arcane 2",
+   "file": "/icons/steadykeel-transparent/arcane-2.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/arcane-3",
+   "pack": "steadykeel-transparent",
+   "name": "arcane 3",
+   "file": "/icons/steadykeel-transparent/arcane-3.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/arcane-4",
+   "pack": "steadykeel-transparent",
+   "name": "arcane 4",
+   "file": "/icons/steadykeel-transparent/arcane-4.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/buffs-debuffs-0",
+   "pack": "steadykeel-transparent",
+   "name": "buffs debuffs 0",
+   "file": "/icons/steadykeel-transparent/buffs-debuffs-0.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/buffs-debuffs-1",
+   "pack": "steadykeel-transparent",
+   "name": "buffs debuffs 1",
+   "file": "/icons/steadykeel-transparent/buffs-debuffs-1.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/buffs-debuffs-2",
+   "pack": "steadykeel-transparent",
+   "name": "buffs debuffs 2",
+   "file": "/icons/steadykeel-transparent/buffs-debuffs-2.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/buffs-debuffs-3",
+   "pack": "steadykeel-transparent",
+   "name": "buffs debuffs 3",
+   "file": "/icons/steadykeel-transparent/buffs-debuffs-3.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/buffs-debuffs-4",
+   "pack": "steadykeel-transparent",
+   "name": "buffs debuffs 4",
+   "file": "/icons/steadykeel-transparent/buffs-debuffs-4.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/buffs-debuffs-5",
+   "pack": "steadykeel-transparent",
+   "name": "buffs debuffs 5",
+   "file": "/icons/steadykeel-transparent/buffs-debuffs-5.webp",
+   "tags": [
+    "buffs_debuffs"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/fire-0",
+   "pack": "steadykeel-transparent",
+   "name": "fire 0",
+   "file": "/icons/steadykeel-transparent/fire-0.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/fire-1",
+   "pack": "steadykeel-transparent",
+   "name": "fire 1",
+   "file": "/icons/steadykeel-transparent/fire-1.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/fire-2",
+   "pack": "steadykeel-transparent",
+   "name": "fire 2",
+   "file": "/icons/steadykeel-transparent/fire-2.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/fire-3",
+   "pack": "steadykeel-transparent",
+   "name": "fire 3",
+   "file": "/icons/steadykeel-transparent/fire-3.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/fire-4",
+   "pack": "steadykeel-transparent",
+   "name": "fire 4",
+   "file": "/icons/steadykeel-transparent/fire-4.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/fire-5",
+   "pack": "steadykeel-transparent",
+   "name": "fire 5",
+   "file": "/icons/steadykeel-transparent/fire-5.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/holy-0",
+   "pack": "steadykeel-transparent",
+   "name": "holy 0",
+   "file": "/icons/steadykeel-transparent/holy-0.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/holy-1",
+   "pack": "steadykeel-transparent",
+   "name": "holy 1",
+   "file": "/icons/steadykeel-transparent/holy-1.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/holy-2",
+   "pack": "steadykeel-transparent",
+   "name": "holy 2",
+   "file": "/icons/steadykeel-transparent/holy-2.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/holy-3",
+   "pack": "steadykeel-transparent",
+   "name": "holy 3",
+   "file": "/icons/steadykeel-transparent/holy-3.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/holy-4",
+   "pack": "steadykeel-transparent",
+   "name": "holy 4",
+   "file": "/icons/steadykeel-transparent/holy-4.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/holy-5",
+   "pack": "steadykeel-transparent",
+   "name": "holy 5",
+   "file": "/icons/steadykeel-transparent/holy-5.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/ice-0",
+   "pack": "steadykeel-transparent",
+   "name": "ice 0",
+   "file": "/icons/steadykeel-transparent/ice-0.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/ice-1",
+   "pack": "steadykeel-transparent",
+   "name": "ice 1",
+   "file": "/icons/steadykeel-transparent/ice-1.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/ice-2",
+   "pack": "steadykeel-transparent",
+   "name": "ice 2",
+   "file": "/icons/steadykeel-transparent/ice-2.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/ice-3",
+   "pack": "steadykeel-transparent",
+   "name": "ice 3",
+   "file": "/icons/steadykeel-transparent/ice-3.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/ice-4",
+   "pack": "steadykeel-transparent",
+   "name": "ice 4",
+   "file": "/icons/steadykeel-transparent/ice-4.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/ice-5",
+   "pack": "steadykeel-transparent",
+   "name": "ice 5",
+   "file": "/icons/steadykeel-transparent/ice-5.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/lightning-0",
+   "pack": "steadykeel-transparent",
+   "name": "lightning 0",
+   "file": "/icons/steadykeel-transparent/lightning-0.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/lightning-1",
+   "pack": "steadykeel-transparent",
+   "name": "lightning 1",
+   "file": "/icons/steadykeel-transparent/lightning-1.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/lightning-3",
+   "pack": "steadykeel-transparent",
+   "name": "lightning 3",
+   "file": "/icons/steadykeel-transparent/lightning-3.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/lightning-4",
+   "pack": "steadykeel-transparent",
+   "name": "lightning 4",
+   "file": "/icons/steadykeel-transparent/lightning-4.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/lightning-5",
+   "pack": "steadykeel-transparent",
+   "name": "lightning 5",
+   "file": "/icons/steadykeel-transparent/lightning-5.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/nature-0",
+   "pack": "steadykeel-transparent",
+   "name": "nature 0",
+   "file": "/icons/steadykeel-transparent/nature-0.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/nature-1",
+   "pack": "steadykeel-transparent",
+   "name": "nature 1",
+   "file": "/icons/steadykeel-transparent/nature-1.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/nature-2",
+   "pack": "steadykeel-transparent",
+   "name": "nature 2",
+   "file": "/icons/steadykeel-transparent/nature-2.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/nature-3",
+   "pack": "steadykeel-transparent",
+   "name": "nature 3",
+   "file": "/icons/steadykeel-transparent/nature-3.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/nature-4",
+   "pack": "steadykeel-transparent",
+   "name": "nature 4",
+   "file": "/icons/steadykeel-transparent/nature-4.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/nature-5",
+   "pack": "steadykeel-transparent",
+   "name": "nature 5",
+   "file": "/icons/steadykeel-transparent/nature-5.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/shadow-0",
+   "pack": "steadykeel-transparent",
+   "name": "shadow 0",
+   "file": "/icons/steadykeel-transparent/shadow-0.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/shadow-1",
+   "pack": "steadykeel-transparent",
+   "name": "shadow 1",
+   "file": "/icons/steadykeel-transparent/shadow-1.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/shadow-2",
+   "pack": "steadykeel-transparent",
+   "name": "shadow 2",
+   "file": "/icons/steadykeel-transparent/shadow-2.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/shadow-3",
+   "pack": "steadykeel-transparent",
+   "name": "shadow 3",
+   "file": "/icons/steadykeel-transparent/shadow-3.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/shadow-4",
+   "pack": "steadykeel-transparent",
+   "name": "shadow 4",
+   "file": "/icons/steadykeel-transparent/shadow-4.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "steadykeel-transparent/shadow-5",
+   "pack": "steadykeel-transparent",
+   "name": "shadow 5",
+   "file": "/icons/steadykeel-transparent/shadow-5.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "icons151/icon-1",
+   "pack": "icons151",
+   "name": "Icon 1",
+   "file": "/icons/icons151/icon-1.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-2",
+   "pack": "icons151",
+   "name": "Icon 2",
+   "file": "/icons/icons151/icon-2.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-3",
+   "pack": "icons151",
+   "name": "Icon 3",
+   "file": "/icons/icons151/icon-3.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-4",
+   "pack": "icons151",
+   "name": "Icon 4",
+   "file": "/icons/icons151/icon-4.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-5",
+   "pack": "icons151",
+   "name": "Icon 5",
+   "file": "/icons/icons151/icon-5.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-6",
+   "pack": "icons151",
+   "name": "Icon 6",
+   "file": "/icons/icons151/icon-6.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-7",
+   "pack": "icons151",
+   "name": "Icon 7",
+   "file": "/icons/icons151/icon-7.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-8",
+   "pack": "icons151",
+   "name": "Icon 8",
+   "file": "/icons/icons151/icon-8.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-9",
+   "pack": "icons151",
+   "name": "Icon 9",
+   "file": "/icons/icons151/icon-9.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-10",
+   "pack": "icons151",
+   "name": "Icon 10",
+   "file": "/icons/icons151/icon-10.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-11",
+   "pack": "icons151",
+   "name": "Icon 11",
+   "file": "/icons/icons151/icon-11.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-12",
+   "pack": "icons151",
+   "name": "Icon 12",
+   "file": "/icons/icons151/icon-12.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-13",
+   "pack": "icons151",
+   "name": "Icon 13",
+   "file": "/icons/icons151/icon-13.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-14",
+   "pack": "icons151",
+   "name": "Icon 14",
+   "file": "/icons/icons151/icon-14.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-15",
+   "pack": "icons151",
+   "name": "Icon 15",
+   "file": "/icons/icons151/icon-15.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-16",
+   "pack": "icons151",
+   "name": "Icon 16",
+   "file": "/icons/icons151/icon-16.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-17",
+   "pack": "icons151",
+   "name": "Icon 17",
+   "file": "/icons/icons151/icon-17.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-18",
+   "pack": "icons151",
+   "name": "Icon 18",
+   "file": "/icons/icons151/icon-18.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-19",
+   "pack": "icons151",
+   "name": "Icon 19",
+   "file": "/icons/icons151/icon-19.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-20",
+   "pack": "icons151",
+   "name": "Icon 20",
+   "file": "/icons/icons151/icon-20.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-21",
+   "pack": "icons151",
+   "name": "Icon 21",
+   "file": "/icons/icons151/icon-21.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-22",
+   "pack": "icons151",
+   "name": "Icon 22",
+   "file": "/icons/icons151/icon-22.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-23",
+   "pack": "icons151",
+   "name": "Icon 23",
+   "file": "/icons/icons151/icon-23.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-24",
+   "pack": "icons151",
+   "name": "Icon 24",
+   "file": "/icons/icons151/icon-24.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-25",
+   "pack": "icons151",
+   "name": "Icon 25",
+   "file": "/icons/icons151/icon-25.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-26",
+   "pack": "icons151",
+   "name": "Icon 26",
+   "file": "/icons/icons151/icon-26.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-27",
+   "pack": "icons151",
+   "name": "Icon 27",
+   "file": "/icons/icons151/icon-27.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-28",
+   "pack": "icons151",
+   "name": "Icon 28",
+   "file": "/icons/icons151/icon-28.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-29",
+   "pack": "icons151",
+   "name": "Icon 29",
+   "file": "/icons/icons151/icon-29.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-30",
+   "pack": "icons151",
+   "name": "Icon 30",
+   "file": "/icons/icons151/icon-30.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-31",
+   "pack": "icons151",
+   "name": "Icon 31",
+   "file": "/icons/icons151/icon-31.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-32",
+   "pack": "icons151",
+   "name": "Icon 32",
+   "file": "/icons/icons151/icon-32.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-33",
+   "pack": "icons151",
+   "name": "Icon 33",
+   "file": "/icons/icons151/icon-33.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-34",
+   "pack": "icons151",
+   "name": "Icon 34",
+   "file": "/icons/icons151/icon-34.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-35",
+   "pack": "icons151",
+   "name": "Icon 35",
+   "file": "/icons/icons151/icon-35.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-36",
+   "pack": "icons151",
+   "name": "Icon 36",
+   "file": "/icons/icons151/icon-36.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-37",
+   "pack": "icons151",
+   "name": "Icon 37",
+   "file": "/icons/icons151/icon-37.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-38",
+   "pack": "icons151",
+   "name": "Icon 38",
+   "file": "/icons/icons151/icon-38.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-39",
+   "pack": "icons151",
+   "name": "Icon 39",
+   "file": "/icons/icons151/icon-39.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-40",
+   "pack": "icons151",
+   "name": "Icon 40",
+   "file": "/icons/icons151/icon-40.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-41",
+   "pack": "icons151",
+   "name": "Icon 41",
+   "file": "/icons/icons151/icon-41.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-42",
+   "pack": "icons151",
+   "name": "Icon 42",
+   "file": "/icons/icons151/icon-42.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-43",
+   "pack": "icons151",
+   "name": "Icon 43",
+   "file": "/icons/icons151/icon-43.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-44",
+   "pack": "icons151",
+   "name": "Icon 44",
+   "file": "/icons/icons151/icon-44.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-45",
+   "pack": "icons151",
+   "name": "Icon 45",
+   "file": "/icons/icons151/icon-45.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-46",
+   "pack": "icons151",
+   "name": "Icon 46",
+   "file": "/icons/icons151/icon-46.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-47",
+   "pack": "icons151",
+   "name": "Icon 47",
+   "file": "/icons/icons151/icon-47.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-48",
+   "pack": "icons151",
+   "name": "Icon 48",
+   "file": "/icons/icons151/icon-48.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-49",
+   "pack": "icons151",
+   "name": "Icon 49",
+   "file": "/icons/icons151/icon-49.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-50",
+   "pack": "icons151",
+   "name": "Icon 50",
+   "file": "/icons/icons151/icon-50.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-51",
+   "pack": "icons151",
+   "name": "Icon 51",
+   "file": "/icons/icons151/icon-51.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-52",
+   "pack": "icons151",
+   "name": "Icon 52",
+   "file": "/icons/icons151/icon-52.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-53",
+   "pack": "icons151",
+   "name": "Icon 53",
+   "file": "/icons/icons151/icon-53.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-54",
+   "pack": "icons151",
+   "name": "Icon 54",
+   "file": "/icons/icons151/icon-54.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-55",
+   "pack": "icons151",
+   "name": "Icon 55",
+   "file": "/icons/icons151/icon-55.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-56",
+   "pack": "icons151",
+   "name": "Icon 56",
+   "file": "/icons/icons151/icon-56.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-57",
+   "pack": "icons151",
+   "name": "Icon 57",
+   "file": "/icons/icons151/icon-57.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-58",
+   "pack": "icons151",
+   "name": "Icon 58",
+   "file": "/icons/icons151/icon-58.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-59",
+   "pack": "icons151",
+   "name": "Icon 59",
+   "file": "/icons/icons151/icon-59.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-60",
+   "pack": "icons151",
+   "name": "Icon 60",
+   "file": "/icons/icons151/icon-60.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-61",
+   "pack": "icons151",
+   "name": "Icon 61",
+   "file": "/icons/icons151/icon-61.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-62",
+   "pack": "icons151",
+   "name": "Icon 62",
+   "file": "/icons/icons151/icon-62.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-63",
+   "pack": "icons151",
+   "name": "Icon 63",
+   "file": "/icons/icons151/icon-63.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-64",
+   "pack": "icons151",
+   "name": "Icon 64",
+   "file": "/icons/icons151/icon-64.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-65",
+   "pack": "icons151",
+   "name": "Icon 65",
+   "file": "/icons/icons151/icon-65.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-66",
+   "pack": "icons151",
+   "name": "Icon 66",
+   "file": "/icons/icons151/icon-66.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-67",
+   "pack": "icons151",
+   "name": "Icon 67",
+   "file": "/icons/icons151/icon-67.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-68",
+   "pack": "icons151",
+   "name": "Icon 68",
+   "file": "/icons/icons151/icon-68.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-69",
+   "pack": "icons151",
+   "name": "Icon 69",
+   "file": "/icons/icons151/icon-69.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-70",
+   "pack": "icons151",
+   "name": "Icon 70",
+   "file": "/icons/icons151/icon-70.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-71",
+   "pack": "icons151",
+   "name": "Icon 71",
+   "file": "/icons/icons151/icon-71.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-72",
+   "pack": "icons151",
+   "name": "Icon 72",
+   "file": "/icons/icons151/icon-72.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-73",
+   "pack": "icons151",
+   "name": "Icon 73",
+   "file": "/icons/icons151/icon-73.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-74",
+   "pack": "icons151",
+   "name": "Icon 74",
+   "file": "/icons/icons151/icon-74.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-75",
+   "pack": "icons151",
+   "name": "Icon 75",
+   "file": "/icons/icons151/icon-75.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-76",
+   "pack": "icons151",
+   "name": "Icon 76",
+   "file": "/icons/icons151/icon-76.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-77",
+   "pack": "icons151",
+   "name": "Icon 77",
+   "file": "/icons/icons151/icon-77.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-78",
+   "pack": "icons151",
+   "name": "Icon 78",
+   "file": "/icons/icons151/icon-78.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-79",
+   "pack": "icons151",
+   "name": "Icon 79",
+   "file": "/icons/icons151/icon-79.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-80",
+   "pack": "icons151",
+   "name": "Icon 80",
+   "file": "/icons/icons151/icon-80.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-81",
+   "pack": "icons151",
+   "name": "Icon 81",
+   "file": "/icons/icons151/icon-81.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-82",
+   "pack": "icons151",
+   "name": "Icon 82",
+   "file": "/icons/icons151/icon-82.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-83",
+   "pack": "icons151",
+   "name": "Icon 83",
+   "file": "/icons/icons151/icon-83.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-84",
+   "pack": "icons151",
+   "name": "Icon 84",
+   "file": "/icons/icons151/icon-84.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-85",
+   "pack": "icons151",
+   "name": "Icon 85",
+   "file": "/icons/icons151/icon-85.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-86",
+   "pack": "icons151",
+   "name": "Icon 86",
+   "file": "/icons/icons151/icon-86.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-87",
+   "pack": "icons151",
+   "name": "Icon 87",
+   "file": "/icons/icons151/icon-87.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-88",
+   "pack": "icons151",
+   "name": "Icon 88",
+   "file": "/icons/icons151/icon-88.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-89",
+   "pack": "icons151",
+   "name": "Icon 89",
+   "file": "/icons/icons151/icon-89.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-90",
+   "pack": "icons151",
+   "name": "Icon 90",
+   "file": "/icons/icons151/icon-90.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-91",
+   "pack": "icons151",
+   "name": "Icon 91",
+   "file": "/icons/icons151/icon-91.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-92",
+   "pack": "icons151",
+   "name": "Icon 92",
+   "file": "/icons/icons151/icon-92.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-93",
+   "pack": "icons151",
+   "name": "Icon 93",
+   "file": "/icons/icons151/icon-93.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-94",
+   "pack": "icons151",
+   "name": "Icon 94",
+   "file": "/icons/icons151/icon-94.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-95",
+   "pack": "icons151",
+   "name": "Icon 95",
+   "file": "/icons/icons151/icon-95.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-96",
+   "pack": "icons151",
+   "name": "Icon 96",
+   "file": "/icons/icons151/icon-96.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-97",
+   "pack": "icons151",
+   "name": "Icon 97",
+   "file": "/icons/icons151/icon-97.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-98",
+   "pack": "icons151",
+   "name": "Icon 98",
+   "file": "/icons/icons151/icon-98.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-99",
+   "pack": "icons151",
+   "name": "Icon 99",
+   "file": "/icons/icons151/icon-99.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-100",
+   "pack": "icons151",
+   "name": "Icon 100",
+   "file": "/icons/icons151/icon-100.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-101",
+   "pack": "icons151",
+   "name": "Icon 101",
+   "file": "/icons/icons151/icon-101.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-102",
+   "pack": "icons151",
+   "name": "Icon 102",
+   "file": "/icons/icons151/icon-102.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-103",
+   "pack": "icons151",
+   "name": "Icon 103",
+   "file": "/icons/icons151/icon-103.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-104",
+   "pack": "icons151",
+   "name": "Icon 104",
+   "file": "/icons/icons151/icon-104.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-105",
+   "pack": "icons151",
+   "name": "Icon 105",
+   "file": "/icons/icons151/icon-105.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-106",
+   "pack": "icons151",
+   "name": "Icon 106",
+   "file": "/icons/icons151/icon-106.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-107",
+   "pack": "icons151",
+   "name": "Icon 107",
+   "file": "/icons/icons151/icon-107.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-108",
+   "pack": "icons151",
+   "name": "Icon 108",
+   "file": "/icons/icons151/icon-108.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-109",
+   "pack": "icons151",
+   "name": "Icon 109",
+   "file": "/icons/icons151/icon-109.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-110",
+   "pack": "icons151",
+   "name": "Icon 110",
+   "file": "/icons/icons151/icon-110.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-111",
+   "pack": "icons151",
+   "name": "Icon 111",
+   "file": "/icons/icons151/icon-111.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-112",
+   "pack": "icons151",
+   "name": "Icon 112",
+   "file": "/icons/icons151/icon-112.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-113",
+   "pack": "icons151",
+   "name": "Icon 113",
+   "file": "/icons/icons151/icon-113.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-114",
+   "pack": "icons151",
+   "name": "Icon 114",
+   "file": "/icons/icons151/icon-114.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-115",
+   "pack": "icons151",
+   "name": "Icon 115",
+   "file": "/icons/icons151/icon-115.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-116",
+   "pack": "icons151",
+   "name": "Icon 116",
+   "file": "/icons/icons151/icon-116.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-117",
+   "pack": "icons151",
+   "name": "Icon 117",
+   "file": "/icons/icons151/icon-117.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-118",
+   "pack": "icons151",
+   "name": "Icon 118",
+   "file": "/icons/icons151/icon-118.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-119",
+   "pack": "icons151",
+   "name": "Icon 119",
+   "file": "/icons/icons151/icon-119.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-120",
+   "pack": "icons151",
+   "name": "Icon 120",
+   "file": "/icons/icons151/icon-120.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-121",
+   "pack": "icons151",
+   "name": "Icon 121",
+   "file": "/icons/icons151/icon-121.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-122",
+   "pack": "icons151",
+   "name": "Icon 122",
+   "file": "/icons/icons151/icon-122.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-123",
+   "pack": "icons151",
+   "name": "Icon 123",
+   "file": "/icons/icons151/icon-123.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-124",
+   "pack": "icons151",
+   "name": "Icon 124",
+   "file": "/icons/icons151/icon-124.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-125",
+   "pack": "icons151",
+   "name": "Icon 125",
+   "file": "/icons/icons151/icon-125.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-126",
+   "pack": "icons151",
+   "name": "Icon 126",
+   "file": "/icons/icons151/icon-126.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-127",
+   "pack": "icons151",
+   "name": "Icon 127",
+   "file": "/icons/icons151/icon-127.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-128",
+   "pack": "icons151",
+   "name": "Icon 128",
+   "file": "/icons/icons151/icon-128.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-129",
+   "pack": "icons151",
+   "name": "Icon 129",
+   "file": "/icons/icons151/icon-129.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-130",
+   "pack": "icons151",
+   "name": "Icon 130",
+   "file": "/icons/icons151/icon-130.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-131",
+   "pack": "icons151",
+   "name": "Icon 131",
+   "file": "/icons/icons151/icon-131.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-132",
+   "pack": "icons151",
+   "name": "Icon 132",
+   "file": "/icons/icons151/icon-132.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-133",
+   "pack": "icons151",
+   "name": "Icon 133",
+   "file": "/icons/icons151/icon-133.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-134",
+   "pack": "icons151",
+   "name": "Icon 134",
+   "file": "/icons/icons151/icon-134.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-135",
+   "pack": "icons151",
+   "name": "Icon 135",
+   "file": "/icons/icons151/icon-135.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-136",
+   "pack": "icons151",
+   "name": "Icon 136",
+   "file": "/icons/icons151/icon-136.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-137",
+   "pack": "icons151",
+   "name": "Icon 137",
+   "file": "/icons/icons151/icon-137.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-138",
+   "pack": "icons151",
+   "name": "Icon 138",
+   "file": "/icons/icons151/icon-138.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-139",
+   "pack": "icons151",
+   "name": "Icon 139",
+   "file": "/icons/icons151/icon-139.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-140",
+   "pack": "icons151",
+   "name": "Icon 140",
+   "file": "/icons/icons151/icon-140.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-141",
+   "pack": "icons151",
+   "name": "Icon 141",
+   "file": "/icons/icons151/icon-141.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-142",
+   "pack": "icons151",
+   "name": "Icon 142",
+   "file": "/icons/icons151/icon-142.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-143",
+   "pack": "icons151",
+   "name": "Icon 143",
+   "file": "/icons/icons151/icon-143.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-144",
+   "pack": "icons151",
+   "name": "Icon 144",
+   "file": "/icons/icons151/icon-144.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-145",
+   "pack": "icons151",
+   "name": "Icon 145",
+   "file": "/icons/icons151/icon-145.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-146",
+   "pack": "icons151",
+   "name": "Icon 146",
+   "file": "/icons/icons151/icon-146.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-147",
+   "pack": "icons151",
+   "name": "Icon 147",
+   "file": "/icons/icons151/icon-147.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-148",
+   "pack": "icons151",
+   "name": "Icon 148",
+   "file": "/icons/icons151/icon-148.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-149",
+   "pack": "icons151",
+   "name": "Icon 149",
+   "file": "/icons/icons151/icon-149.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-150",
+   "pack": "icons151",
+   "name": "Icon 150",
+   "file": "/icons/icons151/icon-150.webp",
+   "tags": []
+  },
+  {
+   "id": "icons151/icon-151",
+   "pack": "icons151",
+   "name": "Icon 151",
+   "file": "/icons/icons151/icon-151.webp",
+   "tags": []
+  },
+  {
+   "id": "spellset/combine-power-combine",
+   "pack": "spellset",
+   "name": "combine power combine",
+   "file": "/icons/spellset/combine-power-combine.webp",
+   "tags": [
+    "combine-power"
+   ]
+  },
+  {
+   "id": "spellset/fire-bolt-lvl1-fire-arrows",
+   "pack": "spellset",
+   "name": "fire bolt lvl1 fire arrows",
+   "file": "/icons/spellset/fire-bolt-lvl1-fire-arrows.webp",
+   "tags": [
+    "fire-bolt"
+   ]
+  },
+  {
+   "id": "spellset/fire-bolt-lvl2-fire-arrows",
+   "pack": "spellset",
+   "name": "fire bolt lvl2 fire arrows",
+   "file": "/icons/spellset/fire-bolt-lvl2-fire-arrows.webp",
+   "tags": [
+    "fire-bolt"
+   ]
+  },
+  {
+   "id": "spellset/fire-bolt-lvl3-fire-arrows",
+   "pack": "spellset",
+   "name": "fire bolt lvl3 fire arrows",
+   "file": "/icons/spellset/fire-bolt-lvl3-fire-arrows.webp",
+   "tags": [
+    "fire-bolt"
+   ]
+  },
+  {
+   "id": "spellset/ice-shards-ice-shards",
+   "pack": "spellset",
+   "name": "ice shards ice shards",
+   "file": "/icons/spellset/ice-shards-ice-shards.webp",
+   "tags": [
+    "ice-shards"
+   ]
+  },
+  {
+   "id": "spellset/nature-thorns-thorns",
+   "pack": "spellset",
+   "name": "nature (thorns) thorns",
+   "file": "/icons/spellset/nature-thorns-thorns.webp",
+   "tags": [
+    "nature-thorns"
+   ]
+  },
+  {
+   "id": "spellset/revive-finalrev",
+   "pack": "spellset",
+   "name": "revive finalrev",
+   "file": "/icons/spellset/revive-finalrev.webp",
+   "tags": [
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev1",
+   "pack": "spellset",
+   "name": "revive rev1",
+   "file": "/icons/spellset/revive-rev1.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev10",
+   "pack": "spellset",
+   "name": "revive rev10",
+   "file": "/icons/spellset/revive-rev10.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev11",
+   "pack": "spellset",
+   "name": "revive rev11",
+   "file": "/icons/spellset/revive-rev11.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev12",
+   "pack": "spellset",
+   "name": "revive rev12",
+   "file": "/icons/spellset/revive-rev12.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev13",
+   "pack": "spellset",
+   "name": "revive rev13",
+   "file": "/icons/spellset/revive-rev13.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev14",
+   "pack": "spellset",
+   "name": "revive rev14",
+   "file": "/icons/spellset/revive-rev14.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev15",
+   "pack": "spellset",
+   "name": "revive rev15",
+   "file": "/icons/spellset/revive-rev15.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev16",
+   "pack": "spellset",
+   "name": "revive rev16",
+   "file": "/icons/spellset/revive-rev16.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev17",
+   "pack": "spellset",
+   "name": "revive rev17",
+   "file": "/icons/spellset/revive-rev17.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev18",
+   "pack": "spellset",
+   "name": "revive rev18",
+   "file": "/icons/spellset/revive-rev18.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev19",
+   "pack": "spellset",
+   "name": "revive rev19",
+   "file": "/icons/spellset/revive-rev19.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev2",
+   "pack": "spellset",
+   "name": "revive rev2",
+   "file": "/icons/spellset/revive-rev2.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev20",
+   "pack": "spellset",
+   "name": "revive rev20",
+   "file": "/icons/spellset/revive-rev20.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev21",
+   "pack": "spellset",
+   "name": "revive rev21",
+   "file": "/icons/spellset/revive-rev21.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev22",
+   "pack": "spellset",
+   "name": "revive rev22",
+   "file": "/icons/spellset/revive-rev22.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev23",
+   "pack": "spellset",
+   "name": "revive rev23",
+   "file": "/icons/spellset/revive-rev23.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev24",
+   "pack": "spellset",
+   "name": "revive rev24",
+   "file": "/icons/spellset/revive-rev24.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev25",
+   "pack": "spellset",
+   "name": "revive rev25",
+   "file": "/icons/spellset/revive-rev25.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev26",
+   "pack": "spellset",
+   "name": "revive rev26",
+   "file": "/icons/spellset/revive-rev26.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev27",
+   "pack": "spellset",
+   "name": "revive rev27",
+   "file": "/icons/spellset/revive-rev27.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev28",
+   "pack": "spellset",
+   "name": "revive rev28",
+   "file": "/icons/spellset/revive-rev28.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev29",
+   "pack": "spellset",
+   "name": "revive rev29",
+   "file": "/icons/spellset/revive-rev29.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev3",
+   "pack": "spellset",
+   "name": "revive rev3",
+   "file": "/icons/spellset/revive-rev3.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev30",
+   "pack": "spellset",
+   "name": "revive rev30",
+   "file": "/icons/spellset/revive-rev30.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev31",
+   "pack": "spellset",
+   "name": "revive rev31",
+   "file": "/icons/spellset/revive-rev31.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev32",
+   "pack": "spellset",
+   "name": "revive rev32",
+   "file": "/icons/spellset/revive-rev32.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev33",
+   "pack": "spellset",
+   "name": "revive rev33",
+   "file": "/icons/spellset/revive-rev33.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev34",
+   "pack": "spellset",
+   "name": "revive rev34",
+   "file": "/icons/spellset/revive-rev34.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev35",
+   "pack": "spellset",
+   "name": "revive rev35",
+   "file": "/icons/spellset/revive-rev35.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev36",
+   "pack": "spellset",
+   "name": "revive rev36",
+   "file": "/icons/spellset/revive-rev36.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev37",
+   "pack": "spellset",
+   "name": "revive rev37",
+   "file": "/icons/spellset/revive-rev37.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev38",
+   "pack": "spellset",
+   "name": "revive rev38",
+   "file": "/icons/spellset/revive-rev38.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev39",
+   "pack": "spellset",
+   "name": "revive rev39",
+   "file": "/icons/spellset/revive-rev39.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev4",
+   "pack": "spellset",
+   "name": "revive rev4",
+   "file": "/icons/spellset/revive-rev4.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev40",
+   "pack": "spellset",
+   "name": "revive rev40",
+   "file": "/icons/spellset/revive-rev40.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev41",
+   "pack": "spellset",
+   "name": "revive rev41",
+   "file": "/icons/spellset/revive-rev41.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev5",
+   "pack": "spellset",
+   "name": "revive rev5",
+   "file": "/icons/spellset/revive-rev5.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev6",
+   "pack": "spellset",
+   "name": "revive rev6",
+   "file": "/icons/spellset/revive-rev6.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev7",
+   "pack": "spellset",
+   "name": "revive rev7",
+   "file": "/icons/spellset/revive-rev7.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev8",
+   "pack": "spellset",
+   "name": "revive rev8",
+   "file": "/icons/spellset/revive-rev8.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-rev9",
+   "pack": "spellset",
+   "name": "revive rev9",
+   "file": "/icons/spellset/revive-rev9.webp",
+   "tags": [
+    "idea",
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/revive-revive2",
+   "pack": "spellset",
+   "name": "revive revive2",
+   "file": "/icons/spellset/revive-revive2.webp",
+   "tags": [
+    "revive"
+   ]
+  },
+  {
+   "id": "spellset/shadow-shadow-spell",
+   "pack": "spellset",
+   "name": "shadow shadow spell",
+   "file": "/icons/spellset/shadow-shadow-spell.webp",
+   "tags": [
+    "shadow"
+   ]
+  },
+  {
+   "id": "spellset/weapon-enchant-fire-sword",
+   "pack": "spellset",
+   "name": "weapon enchant fire sword",
+   "file": "/icons/spellset/weapon-enchant-fire-sword.webp",
+   "tags": [
+    "weapon-enchant"
+   ]
+  },
+  {
+   "id": "spellset/weapon-enchant-ice-sword",
+   "pack": "spellset",
+   "name": "weapon enchant ice sword",
+   "file": "/icons/spellset/weapon-enchant-ice-sword.webp",
+   "tags": [
+    "weapon-enchant"
+   ]
+  },
+  {
+   "id": "spellset/weapon-enchant-lightning-sword",
+   "pack": "spellset",
+   "name": "weapon enchant lightning sword",
+   "file": "/icons/spellset/weapon-enchant-lightning-sword.webp",
+   "tags": [
+    "weapon-enchant"
+   ]
+  }
+ ]
+}

@@ -168,7 +168,9 @@ describe('owner bot match', () => {
     assert.ok(units.every((u) => u.controller === 'bot'));
     assert.equal(units.find((u) => u.classId === 'warrior').spec, 'fury');
     assert.equal(units.find((u) => u.classId === 'mage').spec, 'fire');
-    assert.ok(units.find((u) => u.classId === 'warrior').name.startsWith('Bot Rampager'), 'bots are named after their spec');
+    const war = units.find((u) => u.classId === 'warrior');
+    assert.match(war.name, /^Bot \w+$/, 'bots are Bot <Name>');
+    assert.equal(room.roster().find((r: any) => r.unitId === war.id).title, 'Rampager', 'the title is the spec');
     assert.ok(sent.some((m) => m.t === 'spectating'));
     const builds = sent.find((m) => m.t === 'builds') as Extract<ServerMsg, { t: 'builds' }> | undefined;
     assert.ok(builds, 'the watcher gets everyone\u2019s build');

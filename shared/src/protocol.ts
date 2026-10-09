@@ -1,10 +1,14 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS } from './data';
 import { PATCH_FILES, validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
+import { HUD_DEFAULT_MAX_CHARS, parseHudDefault } from './hudDefault';
+import type { HudLayoutMap } from './hudDefault';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { HealthHour, TimeGlobal, TimeRecord, TimeRow } from './playtime';
 import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
-import type { ClassKnowledge, LearnReport, LiveLearning } from './learnreport';
+import type { BotBug, ClassKnowledge, LearnReport, LiveLearning, NoteInfo } from './learnreport';
+import { BOT_NOTE_MAX } from './botnote';
+import type { BotTest } from './bottest';
 import type { SlimSnapshot, UnitInfo } from './snapslim';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
@@ -13,8 +17,8 @@ export const PROTOCOL_VERSION = 10;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel (a dev gets only the read and training ones: see DEV_ADMIN_ACTS in the server). */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset' | 'time' | 'bot_commit' | 'cooldowns_reset' | 'cooldowns_off';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset', 'time', 'bot_commit', 'cooldowns_reset', 'cooldowns_off'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset' | 'time' | 'bot_commit' | 'cooldowns_reset' | 'cooldowns_off' | 'bug_fixed';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset', 'time', 'bot_commit', 'cooldowns_reset', 'cooldowns_off', 'bug_fixed'];
 /** A running match in the owner's admin panel. */
 /** One connection on the owner's "Online now" list (guests included). */
 /** `ip` and `where` are only sent to the owner: a dev sees names, status and time. */
@@ -189,6 +193,12 @@ export type ClientMsg =
   | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete'; id?: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
+  /** Owner or dev: a note for the bots about a match (a live one, or a finished one by its match id); see botnote.ts. */
+  | { t: 'bot_note'; id: string; text: string; live?: boolean }
+  /** Dev tools, in the match being played or watched: a quick reset of everyone in it (cooldowns, health, resources, buffs and debuffs, positions) or the dead brought back. */
+  | { t: 'dev_reset'; what: 'cooldowns' | 'health' | 'resources' | 'auras' | 'positions' | 'revive' }
+  /** Dev tools: cooldowns off (no skill starts one) or back on. */
+  | { t: 'dev_cooldowns'; off: boolean }
   /** Owner only, in the match being played or watched: kill a unit, kick its player off the server, or ban its account. */
   | { t: 'dev_unit'; unit: number; op: 'kill' | 'kick' | 'ban'; minutes?: number; reason?: string }
   /** Owner, dev test matches: move the running match to another map. */
@@ -200,6 +210,10 @@ export type ClientMsg =
   /** Owner admin panel. */
   | { t: 'admin_overview' }
   | { t: 'admin_announce'; text: string }
+  /** Owner only: save this HUD layout as the default for everyone (null removes the default). */
+  | { t: 'admin_hud_default'; layout: HudLayoutMap | null }
+  /** Owner only: read (no `names`), save or reset (null) the list bots take their names from. */
+  | { t: 'admin_botnames'; names?: string[] | null }
   | { t: 'admin_end'; id: string }
   /** Owner only, silent: play this bot's unit in a live match (`id` is the match), and give it back to a fresh bot. */
   | { t: 'admin_takeover'; id: string; unit: number }
@@ -263,9 +277,13 @@ export type ServerMsg =
   /** The replays the bots are training on right now and the ones just finished. */
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Owner only: what the bots know now against what shipped, and the last reports of what they learned. */
-  | { t: 'bot_knowledge'; classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; autoTrain?: boolean; canCommit?: boolean }
+  | { t: 'bot_knowledge'; classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; autoTrain?: boolean; canCommit?: boolean; /** Notes written for the bots (newest first) and the bot bugs they reported. */ notes?: NoteInfo[]; bugs?: BotBug[] }
+  /** Owner and devs only, never in a snapshot: which bots of the match you are in or watching play an experimental brain, and what they are trying. `bots` counts every bot in it (the note box shows when there is one). */
+  | { t: 'bot_tests'; match: string; bots: number; units: BotTest[] }
+  /** The answer to a `bot_note`: what the note moved, what it could not place, whether it was a bug report. */
+  | { t: 'bot_note_ack'; id: string; ok: boolean; text: string; lines?: string[]; unmapped?: string[]; bug?: boolean }
   /** Dev tools: the match's pause state and the test numbers in it. */
-  | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean }
+  | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean; /** Cooldowns are switched off in this match. */ noCooldowns?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */
   | { t: 'dev_map'; map: string }
   | { t: 'dev_session'; patches: DataPatch[] }
@@ -314,6 +332,10 @@ export type ServerMsg =
   | { t: 'marks'; marks: [number, number][] }
   /** The owner's announcement: a big banner for everyone online (and anyone joining in the next few minutes). */
   | { t: 'announce'; text: string; by: string; at: number }
+  /** The owner's default HUD layout for everyone (sent when you connect and whenever it changes); `layout` is null when there is none. */
+  | { t: 'hud_default'; layout: HudLayoutMap | null; at: number; by?: string }
+  /** The owner's list of bot names (sent to the owner only). `error` is why a save was refused. */
+  | { t: 'botnames'; names: string[]; custom: boolean; error?: string }
   | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
@@ -352,7 +374,7 @@ export function parsePatches(raw: unknown): DataPatch[] | null {
   for (const p of raw) {
     if (!p || typeof p !== 'object') return null;
     const { file, id, path, value } = p as Record<string, unknown>;
-    if (!(PATCH_FILES as readonly string[]).includes(file as string) || typeof id !== 'string' || id.length > 40 || (typeof value !== 'number' && !(typeof value === 'string' && value.length <= 20))) return null;
+    if (!(PATCH_FILES as readonly string[]).includes(file as string) || typeof id !== 'string' || id.length > 40 || (typeof value !== 'number' && !(typeof value === 'string' && value.length <= 40))) return null;
     if (!Array.isArray(path) || !path.every((k) => (typeof k === 'string' && k.length <= 32) || (typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < 32))) return null;
     const patch: DataPatch = { file: file as DataPatch['file'], id, path: path as (string | number)[], value };
     if (!validPatch(patch)) return null;
@@ -562,6 +584,11 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_builds' };
     case 'dev_restart':
       return { t: 'dev_restart' };
+    case 'dev_reset':
+      if (!['cooldowns', 'health', 'resources', 'auras', 'positions', 'revive'].includes(m.what)) return null;
+      return { t: 'dev_reset', what: m.what };
+    case 'dev_cooldowns':
+      return { t: 'dev_cooldowns', off: m.off === true };
     case 'dev_unit': {
       if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || m.unit < 1 || !['kill', 'kick', 'ban'].includes(m.op)) return null;
       const minutes = typeof m.minutes === 'number' && Number.isFinite(m.minutes) ? Math.max(0, Math.min(525600, Math.round(m.minutes))) : undefined;
@@ -581,6 +608,18 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'admin_announce':
       if (typeof m.text !== 'string' || !m.text.trim()) return null;
       return { t: 'admin_announce', text: m.text.trim().slice(0, 200) };
+    case 'admin_hud_default': {
+      if (m.layout === null) return { t: 'admin_hud_default', layout: null };
+      if (!m.layout || typeof m.layout !== 'object' || JSON.stringify(m.layout).length > HUD_DEFAULT_MAX_CHARS * 2) return null;
+      const layout = parseHudDefault(m.layout);
+      return layout ? { t: 'admin_hud_default', layout } : null;
+    }
+    case 'admin_botnames': {
+      if (m.names === undefined) return { t: 'admin_botnames' };
+      if (m.names === null) return { t: 'admin_botnames', names: null };
+      if (!Array.isArray(m.names) || m.names.length > 100 || m.names.some((n: unknown) => typeof n !== 'string')) return null;
+      return { t: 'admin_botnames', names: m.names.map((n: string) => n.slice(0, 40)) };
+    }
     case 'admin_end':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
       return { t: 'admin_end', id: m.id };
@@ -600,6 +639,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'overrides_pr': {
       const note = typeof m.note === 'string' ? m.note.trim().slice(0, 600) : '';
       return { t: 'overrides_pr', ...(note ? { note } : {}) };
+    }
+    case 'bot_note': {
+      if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id) || typeof m.text !== 'string') return null;
+      const text = m.text.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ').trim().slice(0, BOT_NOTE_MAX);
+      if (!text) return null;
+      return { t: 'bot_note', id: m.id, text, ...(m.live === true ? { live: true } : {}) };
     }
     case 'admin_act': {
       if (!ADMIN_ACTS.includes(m.act)) return null;
@@ -625,7 +670,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.on !== undefined) out.on = m.on === true;
       // the acts on a player need a name, the ones on a match an id
       if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history', 'kill'].includes(out.act) && !out.name) return null;
-      if ((out.act === 'pause_match' || out.act === 'cooldowns_reset' || out.act === 'cooldowns_off' || out.act === 'train' || out.act === 'train_passes') && !out.id) return null;
+      if ((out.act === 'pause_match' || out.act === 'bug_fixed' || out.act === 'cooldowns_reset' || out.act === 'cooldowns_off' || out.act === 'train' || out.act === 'train_passes') && !out.id) return null;
       if (out.act === 'train_passes' && !(out.value !== undefined && Number.isInteger(out.value) && out.value >= 1 && out.value <= 5)) return null;
       return out;
     }

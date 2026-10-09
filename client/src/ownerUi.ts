@@ -1,4 +1,4 @@
-import { ABILITIES, ABILITY_GRANTS, ARENAS, AURAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, resolveCosmetics } from '@arena/shared';
+import { ABILITIES, ABILITY_GRANTS, ARENAS, AURAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, nameOf, resolveCosmetics } from '@arena/shared';
 import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, DataPatch, MatchRecord, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
@@ -265,7 +265,7 @@ export class OwnerPanel {
     }
     const list = el('ul', 'own-overrides');
     for (const p of this.overrides) {
-      const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : p.file === 'fx' ? 'Animations' : AURAS[p.id]?.name;
+      const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : p.file === 'fx' ? 'Animations' : p.file === 'icons' ? nameOf(p.file, p.id, p.path) : AURAS[p.id]?.name;
       list.append(el('li', '', `${name ?? p.id} · ${p.path.join('.')} = ${p.value}`));
     }
     if (this.hooks.limited?.()) {

@@ -8,7 +8,6 @@
  * profiles are saved through nameplateStore.ts as they change, so the game follows live.
  */
 import { AURAS, CLASSES } from '@arena/shared';
-import { AURA_ICON } from './icons';
 import { el } from './bar';
 import { registerPopup } from './popups';
 import { fillFor } from './hudLook';
@@ -611,7 +610,7 @@ class NameplateEditor {
     const good = SAMPLE_BUFFS.slice(0, nb).map((id, i) => ({ id, src: 1, stacks: 0, expiresAt: (9 + i * 5) * 1000 }));
     const list = [...bad, ...good].filter((a) => AURAS[a.id]);
     const info = (id: string) => ({ harmful: !!AURAS[id]?.harmful, kind: AURAS[id]?.kind });
-    return pickAuras(this.prof.auras, list, info, 1).map((a) => ({ id: a.id, glyph: AURA_ICON[a.id] ?? '✦', harmful: !!AURAS[a.id]?.harmful, secs: Math.ceil(a.expiresAt / 1000), stacks: a.stacks ?? 0, title: AURAS[a.id]?.name }));
+    return pickAuras(this.prof.auras, list, info, 1).map((a) => ({ id: a.id, harmful: !!AURAS[a.id]?.harmful, secs: Math.ceil(a.expiresAt / 1000), stacks: a.stacks ?? 0, title: AURAS[a.id]?.name }));
   }
 
   private fillSample(): void {

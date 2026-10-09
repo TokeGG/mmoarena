@@ -2,8 +2,8 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
-import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
+import type { HudLayoutMap, StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
@@ -11,7 +11,8 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { DEFAULT_BOT_NAMES, pickBotName, validateBotNames, currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { formatReport } from '@arena/shared';
 import { whereIs } from './geoip';
 import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import { TickMeter } from './tickmeter';
@@ -25,7 +26,7 @@ import type { ServerHealth } from './health';
 import type { TimeSample } from './playtime';
 import { TIME_IDLE_MS } from '@arena/shared';
 
-import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
+import type { BotTest, Brain, Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
@@ -125,6 +126,11 @@ export function send(p: Player, msg: ServerMsg): void {
   if (p.ws.readyState === 1 /* OPEN */) p.ws.send(JSON.stringify(msg));
 }
 
+/** Who is told which bots are playing an experimental brain: the owner (code entered) and accounts with the dev tag. Nobody else, ever. */
+export function canSeeBotTests(p: Player): boolean {
+  return !!p.ownerOk || !!p.account?.grants?.includes('dev');
+}
+
 /** The arena every duel is played on. */
 export const DUEL_MAP = 'overlook';
 
@@ -147,7 +153,9 @@ export class Room {
   /** A bot was played by the owner at some point: no learning from this match (internal, never sent). */
   private tookOver = false;
   /** Which learned brain each bot is playing with, to credit the result at the end. */
-  private botMeta: { unitId: number; classId: ClassId; variantId: string; difficulty: string }[] = [];
+  private botMeta: { unitId: number; classId: ClassId; variantId: string; difficulty: string; /** The brain the bot was handed (a variant can be rebuilt later). */ brain: Brain }[] = [];
+  /** The testing markers went out once (on the first tick). */
+  private testsSent = false;
   learner?: BotLearner;
   private botsReported = false;
   private endedTicks = 0;
@@ -219,7 +227,7 @@ export class Room {
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     this.onJoin?.(p);
-    if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
+    if (this.devPatches.length || this.paused || this.sim.noCooldowns) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches, noCooldowns: this.sim.noCooldowns });
   }
 
   /** The owner's "train on every match" switch, read when the match ends. */
@@ -232,10 +240,18 @@ export class Room {
 
   /** Tell everyone in the room how the signed-in players want to be shown (emblem, title, name colour). */
   roster(): RosterEntry[] {
-    return [...this.players.entries()]
+    const people = [...this.players.entries()]
       .filter(([, p]) => p.account)
       .map(([unitId, p]) => ({ unitId, rating: p.account!.rating, ...resolveCosmetics(p.account!.cosmetics), avatarUrl: p.account!.avatar ? `/avatar/${p.account!.key}?v=${p.account!.avatar}` : undefined }));
+    // bots wear their spec as the title (their name is "Bot <Name>"), so it stays clear what each one is; no colour of their own
+    const bots = this.realUnits()
+      .filter((u) => u.controller === 'bot')
+      .map((u) => ({ unitId: u.id, rating: 0, emblem: '🤖', title: specOf(u.classId, u.spec ?? '')?.name ?? CLASSES[u.classId].name, color: '' }));
+    return [...people, ...bots];
   }
+
+  /** The names bots may take ("Bot <Name>"); the lobby points this at the owner's list. */
+  botNames: () => readonly string[] = () => DEFAULT_BOT_NAMES;
 
   broadcastRoster(): void {
     const players = this.roster();
@@ -304,6 +320,44 @@ export class Room {
     if (players.length) send(p, { t: 'roster', players });
     if (p.ownerOk) send(p, { t: 'stats', rows: this.statRows() });
     send(p, { t: 'builds', units: this.builds() });
+    this.sendBotTests(p);
+  }
+
+  /** The classes of the bots in this match (a note for the bots without a class tag moves these). */
+  botClasses(): ClassId[] {
+    return [...new Set(this.realUnits().filter((u) => u.controller === 'bot' && !u.image).map((u) => u.classId))];
+  }
+
+  /** Seconds into the fight, or undefined once it is over (a note written now is a live note). */
+  liveSec(): number | undefined {
+    return this.sim.phase === 'ended' ? undefined : Math.max(0, Math.round((this.sim.time - this.sim.prepEndsAt) / 1000));
+  }
+
+  /**
+   * The testing markers: which bots play a brain that differs from the shipped one, and what they are trying. Built from the
+   * learner's own variant records. Owner and devs only: it is its own message, never part of a snapshot, a replay or anything
+   * the other clients get. A unit an owner is playing by hand has none.
+   */
+  botTestsMsg(): Extract<ServerMsg, { t: 'bot_tests' }> | null {
+    const bots = this.bots.length + this.ctl.size;
+    if (!bots) return null;
+    const units: BotTest[] = [];
+    if (this.learner) {
+      for (const m of this.botMeta) {
+        if (this.ctl.has(m.unitId) || !this.bots.some((b) => b.unitId === m.unitId)) continue;
+        const t = this.learner.variantTest(m.classId, m.variantId, m.brain);
+        if (t) units.push({ unit: m.unitId, ...t });
+      }
+    }
+    return { t: 'bot_tests', match: this.id, bots, units };
+  }
+
+  /** Send the markers to one viewer, or to every owner and dev in the match (players, watchers, an owner playing a bot). */
+  sendBotTests(only?: Player): void {
+    const msg = this.botTestsMsg();
+    if (!msg) return;
+    const to = only ? [only] : [...new Set([...this.players.values(), ...this.spectators, ...[...this.ctl.values()].map((c) => c.p)])];
+    for (const q of to) if (canSeeBotTests(q)) send(q, msg);
   }
 
   /** Every unit's spec, talents and bar, for people watching (and a dev in the match). */
@@ -338,7 +392,8 @@ export class Room {
     const players = this.roster();
     if (players.length) send(p, { t: 'roster', players });
     send(p, { t: 'builds', units: this.builds() });
-    if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
+    if (this.devPatches.length || this.paused || this.sim.noCooldowns) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches, noCooldowns: this.sim.noCooldowns });
+    this.sendBotTests(); // the unit played by hand has no marker any more
     return null;
   }
 
@@ -351,7 +406,13 @@ export class Room {
     this.ctl.delete(c.unitId);
     this.slimSeen.delete(p);
     const u = this.sim.units.get(c.unitId);
-    if (held && u && !this.closed) this.bots.push(new Bot(this.sim, c.unitId, held.bot.difficulty, Math.floor(Math.random() * 2 ** 31), this.learner?.pick(u.classId)?.brain));
+    if (held && u && !this.closed) {
+      const learned = this.learner?.pick(u.classId);
+      this.bots.push(new Bot(this.sim, c.unitId, held.bot.difficulty, Math.floor(Math.random() * 2 ** 31), learned?.brain));
+      this.botMeta = this.botMeta.filter((m) => m.unitId !== c.unitId);
+      if (learned) this.botMeta.push({ unitId: c.unitId, classId: u.classId, variantId: learned.variantId, difficulty: held.bot.difficulty, brain: learned.brain });
+      this.sendBotTests(); // a fresh brain: the marker says what it is trying now
+    }
   }
 
   /** Hand the unit back and go on watching the match. */
@@ -367,6 +428,8 @@ export class Room {
     withPatches(this.devPatches, () => this.sim.resetMatch());
     // the bots start with a clear head too
     this.bots = this.bots.map((b) => new Bot(this.sim, b.unitId, b.difficulty, Math.floor(Math.random() * 2 ** 31)));
+    this.botMeta = []; // these bots play the default brain: nothing to mark
+    this.sendBotTests();
     this.endedTicks = 0;
     this.finalSent = false;
     this.finalSentLate = false;
@@ -386,6 +449,8 @@ export class Room {
     this.recorder = null; // the recording knows one map; a swapped match is never stored as a replay
     withPatches(this.devPatches, () => this.sim.switchArena(arenaById(id)));
     this.bots = this.bots.map((b) => new Bot(this.sim, b.unitId, b.difficulty, Math.floor(Math.random() * 2 ** 31)));
+    this.botMeta = [];
+    this.sendBotTests();
     this.endedTicks = 0;
     this.finalSent = false;
     this.finalSentLate = false;
@@ -402,9 +467,12 @@ export class Room {
     // a bot, or the dev's own unit
     if (!(u.controller === 'bot' && i >= 0) && !(own && u.controller === 'player')) return false;
     this.devTest = true;
-    const name = u.controller === 'bot' ? `Bot ${specOf(classId, build.spec)?.name ?? CLASSES[classId].name}` : undefined;
-    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build, name));
+    // a rebuilt bot keeps its name; its title (the spec) follows in the roster
+    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build));
     if (i >= 0) this.bots[i] = new Bot(this.sim, unitId, this.bots[i].difficulty, Math.floor(Math.random() * 2 ** 31));
+    this.broadcastRoster();
+    this.botMeta = this.botMeta.filter((m) => m.unitId !== unitId);
+    this.sendBotTests();
     return true;
   }
 
@@ -451,11 +519,12 @@ export class Room {
     }
     const seed = Math.floor(Math.random() * 2 ** 31);
     const build = botBuild(classId, seed, true, spec);
-    // named after its spec (Bot Rampager, Bot Pyromancy), so you can see what you are up against
-    const u = this.sim.addUnit({ name: `Bot ${specOf(classId, build.spec)?.name ?? label}`, classId, team, controller: 'bot', build });
+    // "Bot <Name>" from the owner's list, unique in this match; the roster gives it the spec as its title
+    const taken = new Set([...this.sim.units.values()].map((x) => x.name));
+    const u = this.sim.addUnit({ name: pickBotName(this.botNames(), taken), classId, team, controller: 'bot', build });
     const learned = this.learner?.pick(classId);
     this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed, learned?.brain));
-    if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId, difficulty });
+    if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId, difficulty, brain: learned.brain });
   }
 
   command(p: Player, msg: ClientMsg): void {
@@ -634,6 +703,10 @@ export class Room {
         }
       }
       return;
+    }
+    if (!this.testsSent) {
+      this.testsSent = true;
+      this.sendBotTests();
     }
     for (const bot of this.bots) bot.tick(); // bots queue their input for this tick, then the sim steps
     this.sim.step();
@@ -863,7 +936,7 @@ export interface LobbyConfig {
 /** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
-const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', cooldowns_reset: 'Resetting cooldowns', cooldowns_off: 'Switching cooldowns off', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub' };
+const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', cooldowns_reset: 'Resetting cooldowns', cooldowns_off: 'Switching cooldowns off', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub', bug_fixed: 'Marking a bot bug fixed' };
 
 export class Lobby {
   private rooms = new Set<Room>();
@@ -881,6 +954,14 @@ export class Lobby {
     void this.adminLog?.maintenance().then((m) => {
       if (!this.maintSet) this.maint = m;
     });
+    void this.adminLog?.hudDefault().then((d) => {
+      if (this.hudSet || !d) return;
+      this.hudDef = { t: 'hud_default', layout: d.layout, at: d.at, by: d.by };
+      for (const q of this.conns) send(q, this.hudDef);
+    });
+    void this.adminLog?.botNames().then((n) => {
+      if (!this.botNamesSet && n) this.botNames = n;
+    });
     void this.adminLog?.autoTrain().then((on) => {
       if (!this.autoTrainSet) this.autoTrain = on;
     });
@@ -891,6 +972,14 @@ export class Lobby {
   /** The owner's switch: the bots train on every finished match (player matches and bot matches too). */
   private autoTrain = false;
   private autoTrainSet = false;
+
+  /** The names bots take: the owner's saved list, or the built-in one. Only the owner is ever sent it. */
+  private botNames: readonly string[] = DEFAULT_BOT_NAMES;
+  private botNamesSet = false;
+
+  /** The owner's default HUD layout (what every client is sent), or null. */
+  private hudDef: Extract<ServerMsg, { t: 'hud_default' }> | null = null;
+  private hudSet = false;
 
   /** Maintenance mode: while set, nobody but the owner starts a match; the text says why. */
   private maint: string | null = null;
@@ -1042,7 +1131,7 @@ export class Lobby {
         room.paused = !!msg.on;
         room.devTest = true; // a paused match no longer counts
         for (const q of [...room.players.values(), ...room.spectators]) {
-          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
           if (q !== p) send(q, { t: 'notice', text: room.paused ? 'The owner paused the match (it no longer counts).' : 'The owner resumed the match.' });
         }
         log(msg.on ? 'pause match' : 'resume match', room.id);
@@ -1132,7 +1221,59 @@ export class Lobby {
       case 'train_status':
         send(p, this.trainStatusMsg());
         break;
+      case 'bug_fixed': {
+        // owner only (a dev reports bugs; the owner closes them)
+        if (!this.learner) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        const ok = this.learner.markBug(msg.id!, msg.on !== false, by);
+        log(msg.on === false ? 'reopened a bot bug' : 'marked a bot bug fixed', msg.id);
+        if (!ok) send(p, { t: 'dev_result', ok: false, text: 'That bug is not in the list any more.' });
+        for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
+        break;
+      }
     }
+  }
+
+  // ------------------------------------------------------------------ notes for the bots
+
+  private lastBotNote = new Map<string, number>();
+
+  /** Which bot classes a match had, and whether it is still running (a live note). Null when the match is not known. */
+  private async matchBots(id: string): Promise<{ classes: ClassId[]; liveSec?: number } | null> {
+    const room = [...this.rooms].find((r) => r.id === id && !r.closed);
+    if (room) return { classes: room.botClasses(), liveSec: room.liveSec() };
+    const entry = (await this.learner?.archived())?.find((e) => e.id === id);
+    if (entry) return { classes: [...new Set(entry.bots)] };
+    try {
+      const gz = await this.accounts?.getReplay(id);
+      if (!gz) return null;
+      const replay = JSON.parse((await gunzip(gz)).toString('utf8')) as ReplayData;
+      if (!replay || !Array.isArray(replay.units)) return null;
+      return { classes: [...new Set(replay.units.filter((u) => u.controller === 'bot').map((u) => u.classId))] };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * A note for the bots from the owner or a dev (see shared/src/botnote.ts): applied to the bots' lesson variant at once, kept
+   * with the match, logged. A normal player cannot send one.
+   */
+  private async botNote(p: Player, msg: Extract<ClientMsg, { t: 'bot_note' }>): Promise<void> {
+    if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+    const fail = (text: string) => send(p, { t: 'bot_note_ack', id: msg.id, ok: false, text });
+    const learner = this.learner;
+    if (!learner) return fail('Bot learning is not running on this server.');
+    const by = p.account?.name ?? p.name;
+    const now = this.clock();
+    if (now - (this.lastBotNote.get(by) ?? 0) < 1000) return fail('One note at a time: wait a second.');
+    this.lastBotNote.set(by, now);
+    const m = await this.matchBots(msg.id);
+    if (!m) return fail('That match is not known any more (replays are kept for 30 days).');
+    if (!m.classes.length) return fail('There were no bots in that match, so there is nothing to teach.');
+    const { note, report } = await learner.addNote({ matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec });
+    void this.adminLog?.add(by, 'note for the bots', msg.id, `"${msg.text.slice(0, 160)}": ${report.headline.slice(0, 200)}${note.bugs.length ? ` (${note.bugs.length} bug${note.bugs.length === 1 ? '' : 's'} reported)` : ''}`);
+    send(p, { t: 'bot_note_ack', id: msg.id, ok: true, text: report.headline, lines: formatReport(report), unmapped: note.unmapped, bug: note.bugs.length > 0 });
+    for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
   }
 
   // ------------------------------------------------------------------ bot training queue
@@ -1144,7 +1285,7 @@ export class Lobby {
   private trainTimer: ReturnType<typeof setInterval> | null = null;
 
   private botKnowledgeMsg(): Extract<ServerMsg, { t: 'bot_knowledge' }> {
-    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [], ...(this.learner ? { live: this.learner.liveStatus() } : {}), autoTrain: this.autoTrain, canCommit: !!this.dev?.canOpenPr };
+    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [], ...(this.learner ? { live: this.learner.liveStatus() } : {}), autoTrain: this.autoTrain, canCommit: !!this.dev?.canOpenPr, ...(this.learner ? { notes: this.learner.noteList(), bugs: this.learner.bugList() } : {}) };
   }
 
   /** Train on every archived replay in turn, with the progress shown in the queue like any other job. */
@@ -1273,7 +1414,7 @@ export class Lobby {
     withPatches(patches, () => room.sim.refreshMods());
     const by = p.account?.name ?? p.name;
     for (const q of [...room.players.values(), ...room.spectators]) {
-      send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+      send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
       if (q !== p) send(q, { t: 'notice', text: patches.length ? `${by} is testing ${patches.length} changed number${patches.length === 1 ? '' : 's'} in this match (it no longer counts${room.isRanked ? ' for rating' : ''}).` : `${by} put the real numbers back.` });
     }
   }
@@ -1389,9 +1530,26 @@ export class Lobby {
     out.country = country;
     // numbers a dev saved for everyone: the client applies them over its own copy of the data
     if (this.dev?.overrides.length) send(out, { t: 'overrides', patches: this.dev.overrides });
+    // the owner's default HUD layout, for everyone (guests and spectators too)
+    if (this.hudDef) send(out, this.hudDef);
     // a recent announcement greets people who come online just after it
     if (this.lastAnnounce && Date.now() - this.lastAnnounce.at < ANNOUNCE_KEEP_MS) send(out, this.lastAnnounce);
     return out;
+  }
+
+  /** Save (or, with null, remove) the default HUD layout, tell everyone connected, and write the admin log. */
+  private async setHudDefault(p: Player, layout: HudLayoutMap | null): Promise<void> {
+    const who = p.account?.name ?? p.name;
+    const at = Date.now();
+    const count = layout ? Object.keys(layout).length : 0;
+    if (layout && !packHudDefault(layout)) return void send(p, { t: 'dev_result', ok: false, text: 'That HUD layout is too big to keep.' });
+    this.hudSet = true;
+    this.hudDef = layout ? { t: 'hud_default', layout, at, by: who } : null;
+    const ok = await this.adminLog?.setHudDefault(layout ? { layout, at, by: who } : null).catch(() => false);
+    if (this.adminLog && !ok) return void send(p, { t: 'dev_result', ok: false, text: 'The HUD default could not be saved. Try again.' });
+    const out: ServerMsg = this.hudDef ?? { t: 'hud_default', layout: null, at };
+    for (const q of this.conns) send(q, out);
+    void this.adminLog?.add(who, layout ? 'hud default saved' : 'hud default removed', undefined, layout ? `${count} elements` : undefined);
   }
 
   /** The owner's last announcement. */
@@ -1684,6 +1842,9 @@ export class Lobby {
         this.changed(p);
         break;
       }
+      case 'bot_note':
+        void this.botNote(p, msg).catch(() => send(p, { t: 'bot_note_ack', id: msg.id, ok: false, text: 'That did not work. Try again.' }));
+        break;
       case 'dev_pause':
       case 'dev_patch': {
         const room = this.devRoom(p);
@@ -1694,7 +1855,7 @@ export class Lobby {
           room.clearInputs(); // whatever was queued before the pause must not move anyone after it
           const by = p.account?.name ?? p.name;
           for (const q of [...room.players.values(), ...room.spectators]) {
-            send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+            send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
             if (q !== p) send(q, { t: 'notice', text: `${by} ${msg.on ? 'paused' : 'resumed'} the match.` });
           }
         } else this.setRoomPatches(room, p, msg.patches);
@@ -1717,10 +1878,35 @@ export class Lobby {
         room.devRestart();
         const by = p.account?.name ?? p.name;
         for (const q of [...room.players.values(), ...room.spectators]) {
-          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, reset: true });
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns, reset: true });
           if (q !== p) send(q, { t: 'notice', text: `${by} restarted the match (it no longer counts).` });
         }
         send(p, { t: 'dev_result', ok: true, text: 'The match started over with the same builds.' });
+        break;
+      }
+      case 'dev_reset':
+      case 'dev_cooldowns': {
+        const room = this.devRoom(p);
+        if (!room || room.closed) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
+        room.devTest = true; // from now on this match counts for nothing
+        const by = p.account?.name ?? p.name;
+        let text = '';
+        if (msg.t === 'dev_cooldowns') {
+          room.sim.noCooldowns = msg.off;
+          if (msg.off) room.sim.resetCooldowns();
+          text = msg.off ? 'Cooldowns are off: no skill starts one.' : 'Cooldowns are back on.';
+        } else if (msg.what === 'cooldowns') {
+          room.sim.resetCooldowns();
+          text = 'Every cooldown was reset.';
+        } else {
+          room.sim.devReset(msg.what);
+          text = { health: 'Everyone alive is at full health.', resources: 'Every resource is full.', auras: 'Every buff and debuff was cleared.', positions: 'Everyone is back at their spawn.', revive: 'The dead are back at their spawns.' }[msg.what];
+        }
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns, ...(msg.t === 'dev_reset' && (msg.what === 'positions' || msg.what === 'revive') ? { reset: true } : {}) });
+          if (q !== p) send(q, { t: 'notice', text: `${by}: ${text}` });
+        }
+        send(p, { t: 'dev_result', ok: true, text });
         break;
       }
       case 'dev_unit': {
@@ -2002,6 +2188,29 @@ export class Lobby {
         this.lastAnnounce = { t: 'announce', text: msg.text, by: p.account?.name ?? p.name, at: Date.now() };
         for (const q of this.conns) send(q, this.lastAnnounce);
         void this.adminLog?.add(p.account?.name ?? p.name, 'announce', undefined, msg.text);
+        break;
+      }
+      case 'admin_hud_default': {
+        if (this.ownerOnly(p, 'The HUD default for everyone')) return;
+        if (!p.ownerOk) return;
+        void this.setHudDefault(p, msg.layout);
+        break;
+      }
+      case 'admin_botnames': {
+        if (this.ownerOnly(p, 'The bot names')) return;
+        if (!p.ownerOk) return;
+        let error: string | undefined;
+        if (msg.names !== undefined) {
+          const v = msg.names === null ? null : validateBotNames(msg.names);
+          if (v && !v.ok) error = v.error;
+          else {
+            this.botNames = v ? v.names : DEFAULT_BOT_NAMES;
+            this.botNamesSet = true;
+            void this.adminLog?.setBotNames(v ? v.names : null);
+            void this.adminLog?.add(p.account?.name ?? p.name, v ? 'bot names changed' : 'bot names reset', undefined, v ? v.names.join(', ') : undefined);
+          }
+        }
+        send(p, { t: 'botnames', names: [...this.botNames], custom: this.botNames !== DEFAULT_BOT_NAMES, ...(error ? { error } : {}) });
         break;
       }
       case 'admin_end': {
@@ -2361,6 +2570,7 @@ export class Lobby {
     room.learner = this.learner;
     room.onJoin = (q) => this.bringSession(room, q);
     room.autoTrain = () => this.autoTrain;
+    room.botNames = () => this.botNames;
     room.onRematch = (old) => this.rematch(old);
     room.onAbort = (r, leaver) => this.abortRanked(r, leaver);
     room.onRequeue = (r, q) => this.requeueAfterRanked(r, q);

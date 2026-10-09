@@ -1,6 +1,6 @@
 import { ABILITIES, UNIT_NAME, fieldOf, skillInfo, skillSlots, valueHint } from '@arena/shared';
 import type { DataPatch, DevField, FieldGroup } from '@arena/shared';
-import { ABILITY_ICON } from './icons';
+import { iconEl } from './iconArt';
 import { EditSet, patchKey, showValue } from './devEdits';
 
 export { patchKey };
@@ -16,7 +16,8 @@ export function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text
 export function skillPicker(ids: string[], pick: string, onPick: (id: string) => void): HTMLElement {
   const picker = el('div', 'devp-skills');
   for (const id of ids) {
-    const b = el('button', `devp-skill${id === pick ? ' sel' : ''}`, ABILITY_ICON[id] ?? '✦');
+    const b = el('button', `devp-skill${id === pick ? ' sel' : ''}`);
+    b.append(iconEl('ability', id, '', true));
     b.dataset.tip = `ability:${id}`;
     b.addEventListener('click', () => onPick(id));
     picker.append(b);

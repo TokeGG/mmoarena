@@ -19,6 +19,7 @@ describe('error and stun text layout', () => {
     assert.equal('bogus' in l, false);
     assert.deepEqual(parseLayout({ err: { fx: 'x', fy: 0, s: 1 }, ccstate: null }, HUD_ELEMENTS, 1000, 500), {});
     assert.deepEqual(parseLayout('junk', HUD_ELEMENTS, 1, 1), {});
+    assert.deepEqual(parseLayout({ announce: { fx: 0.2, fy: 0.1, s: 1 }, builds: { fx: 0, fy: 0, s: 1, w: 9999, h: 9999 } }, HUD_ELEMENTS, 1000, 500), { announce: { fx: 0.2, fy: 0.1, s: 1 }, builds: { fx: 0, fy: 0, s: 1, w: 2000, h: 1400 } });
     assert.deepEqual(parseLayout([1], HUD_ELEMENTS, 1, 1), {});
     assert.deepEqual(parseLayout({ err: { dx: 100, dy: 50, s: 0.1 } }, HUD_ELEMENTS, 1000, 500).err, { fx: 0.1, fy: 0.1, s: 0.6 });
   });

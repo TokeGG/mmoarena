@@ -153,16 +153,17 @@ export interface CursorPlan {
   ripple: boolean;
 }
 
-/** `prefers-reduced-motion`: no overlay animation, trail or ripple; every style falls back to its still art as the native cursor. */
+/** `prefers-reduced-motion`: no overlay animation or automatic trail (an explicit trail or ripple switch still works); every style falls back to its still art as the native cursor. */
 export function planFor(s: CursorSettings, ctx: CursorContext, reducedMotion: boolean): CursorPlan {
   const frost = s.style === 'frost';
   return {
     style: s.style,
     state: ctx,
     overlay: isOverlayStyle(s.style) && !reducedMotion && !isOverride(ctx),
-    trail: !reducedMotion && (s.trail || frost),
+    // the trail and ripple are switches the player turned on themselves, so they work even with reduced motion on (the animated styles and the frost trail still stay off)
+    trail: s.trail || (!reducedMotion && frost),
     trailLen: s.trail ? s.trailLen : frost ? 10 : s.trailLen,
-    ripple: !reducedMotion && s.ripple,
+    ripple: s.ripple,
   };
 }
 

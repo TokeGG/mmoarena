@@ -2,6 +2,8 @@ import { ABILITIES, AURAS, CLASSES, CLASS_BLURB, COSMETICS, SPECS, TALENTS, aura
 import type { Build, ClassId, ModSource, Mods } from '@arena/shared';
 import { invalidateTip, setTipResolver } from './tooltip';
 import type { TipContent } from './tooltip';
+import { botTests } from './botTestState';
+import { botTestTip } from './botTestText';
 
 const SCHOOL_COLOR: Record<string, string> = {
   physical: '#e8d8b8', fire: '#ff9a50', frost: '#8fdcff', arcane: '#d3a8ff', holy: '#fff0a0', shadow: '#b98aff', nature: '#8dff8a',
@@ -130,6 +132,10 @@ export function resolveTip(key: string, data: DOMStringMap | Record<string, stri
       const c = CLASSES[a as ClassId];
       if (!c) return null;
       return { title: c.name, titleColor: c.color, stats: [`${c.maxHealth} health · ${cap(c.resource.type)}`], lines: data.tipText ? [data.tipText] : [] };
+    }
+    case 'bottest': {
+      const t = botTests.get(Number(a));
+      return t ? botTestTip(t) : null;
     }
     case 'text':
       // a body that only restates the title adds nothing

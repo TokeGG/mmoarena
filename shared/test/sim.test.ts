@@ -68,6 +68,32 @@ describe('dev test cooldown switches', () => {
   });
 });
 
+describe('dev test quick resets', () => {
+  it('health, resources, buffs, spawns and revive work on the whole match', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 5, 5);
+    const war = add(sim, 'warrior', 1, -5, 5);
+    advance(sim, TICK);
+    rogue.health = 10;
+    rogue.resource = 0;
+    sim.devReset('health');
+    sim.devReset('resources');
+    assert.equal(rogue.health, rogue.maxHealth);
+    assert.equal(rogue.resource, rogue.resourceMax);
+    war.auras.push({ id: 'hamstring', until: sim.time + 9000, stacks: 1, src: rogue.id } as any);
+    war.dr = { stun: { count: 2, resetAt: sim.time + 9000 } } as any;
+    sim.devReset('auras');
+    assert.equal(war.auras.length, 0);
+    assert.deepEqual(war.dr, {});
+    sim.devReset('positions');
+    assert.notDeepEqual(rogue.pos, { x: 5, z: 5 });
+    war.alive = false;
+    war.health = 0;
+    sim.devReset('revive');
+    assert.ok(war.alive && war.health === war.maxHealth);
+  });
+});
+
 describe('casting, interrupts and school lockouts', () => {
   it('interrupts a cast, locks only that school, and kick on an idle target just misses', () => {
     const sim = live();

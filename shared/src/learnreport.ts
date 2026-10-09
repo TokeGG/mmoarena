@@ -1,3 +1,4 @@
+import { BRAIN_WORDS, plainMove, showBrainValue } from './brainwords';
 import { BRAIN_KEYS } from './botbrain';
 import type { Brain } from './botbrain';
 import { FACT_LABELS, MISTAKE_LABELS } from './mistakes';
@@ -10,10 +11,39 @@ import type { ClassId } from './types';
  * brain numbers moved (before -> after), or why nothing did. Built by the bot learner on the server and by
  * scripts/study-replays.ts offline; both print it with `formatReport`.
  */
-export type LearnSource = 'owner' | 'auto' | 'upload' | 'archive' | 'script';
+export type LearnSource = 'owner' | 'auto' | 'upload' | 'archive' | 'script' | 'note';
 
 export interface BrainMove { key: keyof Brain; before: number; after: number; /** What in the match asked for it. */ why?: string }
 export interface CountLine { label: string; count: number }
+/**
+ * A note an owner or dev wrote for the bots (see botnote.ts): who, about which match, what it asked for in plain words, what
+ * could not be placed. Kept with the report it produced, in the admin log and in the Bot training tab.
+ */
+export interface NoteInfo {
+  id: string;
+  matchId: string;
+  at: number;
+  by: string;
+  role: 'owner' | 'dev';
+  text: string;
+  /** Written while the match was still running: seconds into the fight. */
+  liveSec?: number;
+  /** The classes it moved (named in the note, or every bot class in the match). */
+  classes: ClassId[];
+  /** Each request it was understood to make, in plain words ("break line of sight more"), with the words that said it. */
+  asked: { classId: ClassId; key: keyof Brain; dir: 1 | -1; said: string; moved: boolean }[];
+  /** Parts it could not place (rephrase them). */
+  unmapped: string[];
+  /** Parts that report broken behaviour (kept in the bug list). */
+  bugs: string[];
+  /** Asked for opposite things: nothing was done about these. */
+  conflicts: string[];
+  /** How many replays of evidence it counted for. */
+  weight: number;
+}
+/** Something the bots do wrong that no brain number can fix, reported in a note: the owner's to-do list. */
+export interface BotBug { id: string; matchId: string; at: number; by: string; text: string; fixed: boolean; fixedAt?: number; fixedBy?: string }
+
 export interface BotReport {
   classId: ClassId;
   won: boolean;
@@ -45,6 +75,8 @@ export interface LearnReport {
   /** Why nothing moved; null when something did. */
   nothing: string | null;
   headline: string;
+  /** The note this report is about (source 'note'). */
+  note?: NoteInfo;
 }
 
 /** What the bots of one class know now against what shipped, for the owner's overview. */
@@ -62,6 +94,8 @@ export interface ClassKnowledge {
   mistakes: CountLine[];
   /** How the learned variant is doing against the others (null before it has played). */
   variant: { games: number; winRate: number } | null;
+  /** Every brain in play for the class, in the words the testing marker uses (same records, same words). */
+  variants?: { id: string; label: string; games: number; wins: number; tries: { text: string }[]; more: number }[];
 }
 
 /** The server's live learning at a glance (admin panel, Bot training tab): what it has studied and whether it will survive a restart. */
@@ -99,6 +133,9 @@ export function brainDiff(before: Brain, after: Brain, eps = 0.0049): BrainMove[
   for (const key of BRAIN_KEYS) if (Math.abs(after[key] - before[key]) > eps) out.push({ key, before: before[key], after: after[key] });
   return out;
 }
+
+/** A move in plain words, class by class: what the bots now do differently. */
+export const plainClassMoves = (classId: string, moves: BrainMove[]): string => `${classId} bots now ${moves.map(plainMove).join('; and ')}`;
 
 export const moveText = (m: BrainMove) => {
   const small = Math.abs(m.after - m.before) < 0.01;
@@ -170,7 +207,7 @@ export function buildReport(o: {
   const moved = o.classes.filter((c) => c.moved.length);
   const nothing = moved.length ? null : nothingReason(bots, o.hadReplay);
   const headline = moved.length
-    ? `${moved.length} bot class${moved.length === 1 ? '' : 'es'} changed: ${moved.map((c) => `${c.classId}: ${c.moved.map(moveText).join(', ')}`).join('; ')}`
+    ? `${moved.length} bot class${moved.length === 1 ? '' : 'es'} changed. ${moved.map((c) => `${plainClassMoves(c.classId, c.moved)}.`).join(' ')}`
     : `Nothing to learn from this match: ${nothing}.`;
   return {
     id: o.id, replayId: o.replayId, at: o.at, source: o.source, passes: o.passes, replaysRead: o.replaysRead ?? 1, skipped: o.skipped ?? 0,
@@ -181,17 +218,37 @@ export function buildReport(o: {
 /** The report as lines of text (the admin panel's expandable lines, the study script's output). */
 export function formatReport(r: LearnReport): string[] {
   const lines = [r.headline];
+  if (r.note) lines.push(...noteLines(r.note));
   if (r.replaysRead > 1 || r.skipped) lines.push(`Read ${r.replaysRead} replays${r.skipped ? `, skipped ${r.skipped} (recorded on another version of the game, or unreadable)` : ''}.`);
   if (r.passes > 1) lines.push(`Trained ${r.passes} passes on it.`);
   for (const b of r.bots) {
     const mist = b.mistakes.length ? b.mistakes.map((c) => `${c.count} ${c.label}`).join(', ') : 'no mistakes found';
     lines.push(`${b.classId} bot (${b.won ? 'won' : 'lost'} against ${b.foes.join(', ') || 'nobody'}, ${b.engagedSec}s of fighting): ${mist}.`);
     for (const c of b.compared) lines.push(`  compared with the people: ${c}.`);
-    if (b.lessons.length) lines.push(`  taught: ${b.lessons.map((l) => `${l.key} towards ${fmtNum(l.value)} (evidence ${Math.round(l.weight)})`).join(', ')}.`);
+    if (b.lessons.length) lines.push(`  taught: ${b.lessons.map((l) => `${BRAIN_WORDS[l.key]?.what ?? l.key} towards ${showBrainValue(l.key, l.value)} (evidence ${Math.round(l.weight)})`).join('; ')}.`);
   }
-  for (const c of r.classes) lines.push(c.moved.length ? `${c.classId} (${c.replays} replay${c.replays === 1 ? '' : 's'} so far): ${c.moved.map((m) => moveText(m) + (m.why ? ` (${m.why})` : '')).join(', ')}` : `${c.classId}: no number moved.`);
+  for (const c of r.classes) {
+    if (!c.moved.length) {
+      lines.push(`${c.classId}: nothing changed.`);
+      continue;
+    }
+    lines.push(`${c.classId} bots (${c.replays} replay${c.replays === 1 ? '' : 's'} learned from so far) are trying:`);
+    for (const m of c.moved) lines.push(`  • ${plainMove(m)}${m.why ? ` because ${m.why}` : ''}. Look for: ${BRAIN_WORDS[m.key]?.watch ?? 'a change in how they play'}. [${moveText(m)}]`);
+  }
   for (const c of r.classes) for (const n of c.notes ?? []) lines.push(`${c.classId}: ${n}`);
   if (r.habits) lines.push(`${r.habits} player${r.habits === 1 ? '’s' : 's’'} habits (kick timing, fakes, spacing) were studied.`);
+  if (r.note) return lines;
   lines.push('The changed brain joins the class as a "lesson" variant and plays in a share of its games until it proves itself; a variant that wins more is picked more.');
+  return lines;
+}
+
+/** A note's effect in plain words (the lines under "What was learned"). */
+export function noteLines(n: NoteInfo): string[] {
+  const lines = [`Note from ${n.by} (${n.role === 'owner' ? 'owner' : 'dev'})${n.liveSec !== undefined ? ` ${n.liveSec}s into the match` : ' after the match'}, match ${n.matchId}: "${n.text}"`];
+  lines.push(`It counted like ${n.weight} replays of evidence, inside the same step, drift and bound limits as graded learning.`);
+  for (const a of n.asked) lines.push(`  • ${a.classId} bots: "${a.said}" means ${BRAIN_WORDS[a.key].what} should ${a.dir > 0 ? 'go up' : 'go down'}${a.moved ? '' : ' (it was already at its limit, so nothing moved)'}.`);
+  for (const c of n.conflicts) lines.push(`  • Not done: ${c}.`);
+  if (n.bugs.length) lines.push(`Bot bug${n.bugs.length === 1 ? '' : 's'} reported (no brain number can fix it, it is in the bug list): ${n.bugs.map((b) => `"${b}"`).join('; ')}.`);
+  if (n.unmapped.length) lines.push(`Could not place: ${n.unmapped.map((b) => `"${b}"`).join('; ')}. Rephrase it with words like "didn't los enough", "ran out of mana" or "kicked too early".`);
   return lines;
 }

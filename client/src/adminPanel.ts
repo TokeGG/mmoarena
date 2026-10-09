@@ -1,5 +1,6 @@
-import { CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
-import type { DataPatch, DevRequestRow } from '@arena/shared';
+import { BOT_NAMES_MAX, BOT_NAME_MAX_LEN, BOT_NAME_MIN_LEN, CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText, validateBotNames } from '@arena/shared';
+import type { BotBug, DataPatch, DevRequestRow, NoteInfo } from '@arena/shared';
+import { noteBox } from './botNoteUi';
 import { DevWorkspace } from './devPages';
 import { patchKey } from './devEdits';
 import { designer, requestStatus } from './designer';
@@ -82,6 +83,9 @@ export class AdminPanel {
   private log: AdminLogRow[] | null = null;
   private suggestions: { at: number; name: string; text: string; note?: string }[] | null = null;
   private maintText = '';
+  /** Owner only: the text box of bot names (one per line) and what the server said about the last save. */
+  private botNamesText: string | null = null;
+  private botNamesMsg: { ok: boolean; text: string } | null = null;
   /** Every match played on the server (newest first), with its replay. */
   private feed: MatchRecord[] | null = null;
   private feedFilter: 'all' | 'people' | 'bots' | 'ranked' = 'all';
@@ -95,7 +99,9 @@ export class AdminPanel {
   private jobs: TrainJobRow[] = [];
   private picks = new Set<string>();
   /** What the bots know now against what shipped, and the last reports of what they learned (owner only). */
-  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; canCommit?: boolean } | null = null;
+  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; canCommit?: boolean; notes: NoteInfo[]; bugs: BotBug[] } | null = null;
+  /** Replay rows whose 'Note for the bots' box is open. */
+  private noteRows = new Set<string>();
   /** Queue rows opened to show exactly what was learned. */
   private opened = new Set<string>();
   /** Passes (1..5) for the owner's forced training on one replay. */
@@ -218,6 +224,7 @@ export class AdminPanel {
     if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
+    if (this.tab === 'server' && access === 'owner' && this.botNamesText === null) s({ t: 'admin_botnames' });
     if (this.tab === 'replays') {
       s({ t: 'admin_act', act: 'feed' });
       s({ t: 'admin_act', act: 'train_status' });
@@ -241,7 +248,7 @@ export class AdminPanel {
         this.jobs = m.jobs;
         break;
       case 'bot_knowledge':
-        this.knowledge = { classes: m.classes, reports: m.reports, live: m.live, canCommit: m.canCommit };
+        this.knowledge = { classes: m.classes, reports: m.reports, live: m.live, canCommit: m.canCommit, notes: m.notes ?? [], bugs: m.bugs ?? [] };
         break;
       case 'proposals':
         this.proposals = m.rows;
@@ -264,6 +271,12 @@ export class AdminPanel {
         break;
       case 'owner':
         if (m.ok) this.refresh();
+        break;
+      case 'botnames':
+        if (m.error) this.botNamesMsg = { ok: false, text: m.error };
+        else {
+          this.botNamesText = m.names.join('\n');
+        }
         break;
     }
     this.op.handle(m);
@@ -371,7 +384,7 @@ export class AdminPanel {
         body.append(this.requestsBox());
         break;
       case 'server':
-        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
+        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), ...(access === 'owner' ? [el('h3', '', 'Bot names'), this.botNamesBox()] : []), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
         break;
       case 'log':
         body.append(this.logList(this.log ?? [], 300));
@@ -801,7 +814,7 @@ export class AdminPanel {
     const learnBar = el('div', 'own-row');
     learnBar.append(allBtn, pass);
     if (this.access() === 'owner') learnBar.append(reset);
-    box.append(learnBar, this.jobList(), this.knowledgeBox());
+    box.append(learnBar, this.jobList(), this.knowledgeBox(), this.bugsBox());
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));
@@ -876,7 +889,67 @@ export class AdminPanel {
       if (job) info.append(this.jobBar(job));
       row.append(watch, save, train);
     } else row.append(el('small', 'devp-dim', 'no replay'));
+    // owner and devs: tell the bot brain what went wrong in a match that had bots, and see what earlier notes did
+    const notes = this.knowledge?.notes.filter((n) => n.matchId === m.id) ?? [];
+    if (m.players.some((p) => !p.human)) {
+      const open = this.noteRows.has(m.id);
+      const nb = el('button', `mm-small${open || notes.length ? ' mm-go' : ''}`, `📝 Note for the bots${notes.length ? ` (${notes.length})` : ''}`);
+      nb.title = 'Say what the bots did wrong in this match, in plain words. It moves the bots\' lesson brain and shows under "What was learned".';
+      nb.addEventListener('click', () => {
+        if (open) this.noteRows.delete(m.id);
+        else this.noteRows.add(m.id);
+        this.paint();
+      });
+      row.append(nb);
+      if (open || notes.length) {
+        const wrap = el('div', 'admp-notes');
+        wrap.style.cssText = 'width:calc(100% - 22px);margin:2px 0 8px 22px;box-sizing:border-box;';
+        for (const n of notes) {
+          const rep = this.knowledge?.reports.find((r) => r.note?.id === n.id);
+          const line = el('div', 'devp-dim');
+          line.textContent = `${new Date(n.at).toLocaleString()} · ${n.by}${n.role === 'owner' ? ' (owner)' : ''}${n.liveSec !== undefined ? ` · ${n.liveSec}s in` : ''} · ${rep?.headline ?? `"${n.text}"`}`;
+          wrap.append(line);
+          if (rep) wrap.append(this.reportLines(rep, `rep:${rep.id}`));
+        }
+        if (open) wrap.append(noteBox(m.id, (msg) => this.hooks.send(msg)));
+        const both = el('div');
+        both.append(row, wrap);
+        return both;
+      }
+    }
     return row;
+  }
+
+  /** Bot bugs reported in notes (stuck, frozen...): no brain number fixes these. The owner marks them fixed. */
+  private bugsBox(): HTMLElement {
+    const d = el('details', 'admp-know');
+    d.open = this.opened.has('bugs');
+    d.addEventListener('toggle', () => {
+      if (d.open) this.opened.add('bugs');
+      else this.opened.delete('bugs');
+    });
+    const bugs = this.knowledge?.bugs ?? [];
+    const openCount = bugs.filter((b) => !b.fixed).length;
+    d.append(el('summary', '', `🐞 Bot bugs reported (${openCount} open)`));
+    if (!bugs.length) d.append(el('div', 'devp-dim', 'None. A note like "the mage got stuck behind the pillar" lands here: it is a bug in what the bots can do, not a brain number.'));
+    for (const b of bugs) {
+      const row = el('div', 'admp-know-row');
+      row.append(el('div', b.fixed ? 'devp-dim' : '', `${b.fixed ? '✔ ' : '• '}${b.text}`));
+      row.append(el('small', 'devp-dim', `${b.by} · ${new Date(b.at).toLocaleString()} · match ${b.matchId}${b.fixed ? ` · fixed${b.fixedBy ? ` by ${b.fixedBy}` : ''}` : ''} `));
+      const watch = el('button', 'mm-small', '▶ Watch');
+      watch.addEventListener('click', () => {
+        this.close();
+        this.hooks.replay(b.matchId);
+      });
+      row.append(watch);
+      if (this.access() === 'owner') {
+        const fix = el('button', 'mm-small', b.fixed ? 'Reopen' : 'Mark fixed');
+        fix.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'bug_fixed', id: b.id, on: b.fixed }));
+        row.append(fix);
+      }
+      d.append(row);
+    }
+    return d;
   }
 
   private isTraining(id: string): boolean {
@@ -1007,6 +1080,8 @@ export class AdminPanel {
       const last = c.lastAt ? new Date(c.lastAt).toLocaleString() : 'never';
       row.append(el('b', '', `${CLASSES[c.classId as keyof typeof CLASSES]?.name ?? c.classId}`), el('small', 'devp-dim', ` · ${c.replays} replay${c.replays === 1 ? '' : 's'} taught it · last learned ${last}${c.variant ? ` · learned variant wins ${Math.round(c.variant.winRate * 100)}% of ${c.variant.games} games` : ''}`));
       row.append(el('div', 'devp-dim', c.diff.length ? `Differs from the shipped brain: ${c.diff.map(moveText).join(', ')}` : 'Same as the shipped brain: nothing learned yet.'));
+      // the brains in play, in the words of the learning-test marker a bot wears in a match (same records)
+      for (const v of c.variants ?? []) if (v.tries.length) row.append(el('div', 'devp-dim', `🧪 ${v.label} (${v.games} game${v.games === 1 ? '' : 's'}, ${v.wins} won) is trying: ${v.tries.map((t) => t.text).join(' · ')}${v.more ? ` · and ${v.more} smaller` : ''}`));
       if (c.mistakes.length) row.append(el('div', 'devp-dim', `Mistakes seen: ${c.mistakes.slice(0, 8).map((m) => `${m.count} ${m.label}`).join(', ')}`));
       d.append(row);
     }
@@ -1047,6 +1122,38 @@ export class AdminPanel {
       this.trainMsg = { ok: false, text: 'Could not reach the server.' };
     }
     this.paint();
+  }
+
+  /** The names bots take in matches ("Bot <Name>"): one per line. Owner only; the server checks the list again. */
+  private botNamesBox(): HTMLElement {
+    const box = el('div', 'own-box');
+    box.append(el('p', 'mm-modal-foot', `One name per line, 1 to ${BOT_NAMES_MAX} names, ${BOT_NAME_MIN_LEN} to ${BOT_NAME_MAX_LEN} letters, digits, _ or -. Each bot in a match gets a different one.`));
+    const area = el('textarea');
+    area.rows = 8;
+    area.value = this.botNamesText ?? '';
+    area.addEventListener('input', () => (this.botNamesText = area.value));
+    const msg = el('p', this.botNamesMsg?.ok ? 'adm-state ok' : 'adm-state bad', this.botNamesMsg?.text ?? '');
+    msg.classList.toggle('hidden', !this.botNamesMsg);
+    const row = el('div', 'own-row');
+    const save = el('button', 'mm-small', 'Save');
+    save.addEventListener('click', () => {
+      const names = area.value.split('\n');
+      const v = validateBotNames(names);
+      if (!v.ok) {
+        this.botNamesMsg = { ok: false, text: v.error };
+        return this.paint();
+      }
+      this.botNamesMsg = { ok: true, text: 'Saved.' };
+      this.hooks.send({ t: 'admin_botnames', names: v.names });
+    });
+    const reset = el('button', 'mm-small', 'Reset to default');
+    reset.addEventListener('click', () => {
+      this.botNamesMsg = { ok: true, text: 'Back to the built-in list.' };
+      this.hooks.send({ t: 'admin_botnames', names: null });
+    });
+    row.append(save, reset);
+    box.append(area, msg, row);
+    return box;
   }
 
   /** While on, only the owner can start matches; everyone online is told, and new players see the message. */
