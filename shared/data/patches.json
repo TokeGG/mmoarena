@@ -15,7 +15,8 @@
    "Health bars, resource bars, floating combat text and spell effects now follow a character up decks, ramps and jumps instead of staying at ground height.",
    "A spec's passive list in the character selector no longer shows the weapon's model name.",
    "Look is now the one place for everything that changes how you look: character gear, name and title, cursor, nameplates and HUD, and effects, with tabs and a search box.",
-   "The Customize tab in your profile and the cursor section in the Esc menu moved into Look; the HUD editor is now just for positions and sizes."
+   "The Customize tab in your profile and the cursor section in the Esc menu moved into Look; the HUD editor is now just for positions and sizes.",
+   "Nameplates have their own editor (Look, Nameplates and HUD): separate looks for you, allies and enemies, with drag-to-resize name, health bar, resource bar and debuff row that snap to each other, and an anchor at the head or the feet."
   ]
  },
  {

@@ -1,4 +1,5 @@
 /** DOM pieces of the Look window's sections: the HUD / text look controls with their previews. (The pure part is lookSections.ts.) */
+import { openNameplateEditor } from './nameplateEditor';
 import { LOOK_OPTIONS, TARGET_ARROWS, TARGET_COLORS, hpFill, hpText, look, plateFill, plateHpText, resetLook, setLook } from './hudLook';
 import type { LookOption } from './hudLook';
 import { controlColor } from './hudText';
@@ -88,7 +89,9 @@ export function buildHudPreview(): { el: HTMLElement; paint: () => void } {
     const label = hpText(720, 1000);
     frame.append(el('span', 'lk-pname', 'Your frame'), hp);
     if (label) frame.append(el('small', '', label));
-    box.append(plate('Ally', false, 0.85, '#6aa6ff', false), plate('Enemy', true, 0.55, '#ff8a4a', true), frame);
+    // nameplates have their own editor with a live preview (Edit nameplates below); only your frame is previewed here
+    void plate;
+    box.append(frame);
   };
   paint();
   return { el: box, paint };
@@ -112,7 +115,17 @@ export function buildLookOptionsSection(id: Extract<LookSectionId, 'hud' | 'effe
   const root = el('div', 'lk-sec');
   const preview = id === 'hud' ? buildHudPreview() : buildTextPreview();
   root.append(preview.el);
-  root.append(buildOptionGrid(optionsOfSection(id, LOOK_OPTIONS), preview.paint));
+  if (id === 'hud') {
+    // nameplates: separate looks for you, allies and enemies, dragged to size in a live editor (nameplateEditor.ts)
+    const plates = el('div', 'lk-plates');
+    const btn = el('button', 'mm-small mm-go', 'Edit nameplates…');
+    btn.title = 'Size, place and style the nameplates: separate looks for you, allies and enemies, with the anchor at the head or the feet';
+    btn.addEventListener('click', () => openNameplateEditor({ onClose: rerender }));
+    plates.append(el('h4', 'lk-group', 'Nameplates'), el('p', 'mm-modal-foot', 'Your own, ally and enemy nameplates each have their own look. Open the editor to drag and resize the name, health bar and debuffs, snap them to each other, and anchor the plate at the head or the feet.'), btn);
+    root.append(plates);
+  }
+  // the old single-profile nameplate dropdowns are replaced by that editor
+  root.append(buildOptionGrid(optionsOfSection(id, LOOK_OPTIONS).filter((o) => o.group !== 'Nameplates'), preview.paint));
   const bottom = el('div', 'lk-secfoot');
   const reset = el('button', 'mm-small', 'Reset all HUD looks to default');
   reset.title = 'Puts every bar, nameplate, target mark and text option back to its default (the layout is not touched)';

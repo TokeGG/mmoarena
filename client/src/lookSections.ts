@@ -32,7 +32,8 @@ export function sectionOfOption(o: Pick<LookOption, 'group'>): LookSectionId {
 }
 
 export function optionsOfSection(id: LookSectionId, options: readonly LookOption[]): LookOption[] {
-  return options.filter((o) => sectionOfOption(o) === id);
+  // the old single-profile nameplate dropdowns are replaced by the nameplate editor
+  return options.filter((o) => sectionOfOption(o) === id && o.group !== 'Nameplates');
 }
 
 /** The group headings of a section in display order ('' is the ungrouped head: frames, bars and slots). */
@@ -67,6 +68,6 @@ export function searchLook(query: string, options: readonly LookOption[], extra:
   if (!words.length) return { sections: [], options: [] };
   const has = (hay: string) => words.every((w) => hay.includes(w));
   const sections = LOOK_SECTIONS.filter((s) => has(norm([s.label, ...s.words, ...(s.id === 'character' ? extra : [])].join(' '))));
-  const opts = options.filter((o) => has(norm(`${o.label} ${o.group ?? ''} ${o.id} ${o.choices.map(([, t]) => t).join(' ')}`)));
+  const opts = options.filter((o) => o.group !== 'Nameplates' && has(norm(`${o.label} ${o.group ?? ''} ${o.id} ${o.choices.map(([, t]) => t).join(' ')}`)));
   return { sections, options: opts };
 }

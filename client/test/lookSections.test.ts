@@ -14,18 +14,21 @@ describe('Look window sections', () => {
   it('puts every HUD look option in exactly one section, and none is lost', () => {
     const hud = optionsOfSection('hud', LOOK_OPTIONS);
     const fx = optionsOfSection('effects', LOOK_OPTIONS);
-    assert.equal(hud.length + fx.length, LOOK_OPTIONS.length);
-    assert.equal(new Set([...hud, ...fx].map((o) => o.id)).size, LOOK_OPTIONS.length);
+    // the old single-profile nameplate dropdowns are replaced by the nameplate editor, so they are in no section
+    const old = LOOK_OPTIONS.filter((o) => o.group === 'Nameplates');
+    assert.ok(old.length > 0);
+    assert.equal(hud.length + fx.length + old.length, LOOK_OPTIONS.length);
+    assert.equal(new Set([...hud, ...fx].map((o) => o.id)).size, LOOK_OPTIONS.length - old.length);
     for (const o of LOOK_OPTIONS) assert.ok(['hud', 'effects'].includes(sectionOfOption(o)), o.id);
     assert.ok(fx.every((o) => ['Error text', 'Stun text', 'Network stats'].includes(o.group ?? '')));
-    assert.ok(hud.some((o) => o.group === 'Nameplates'));
+    assert.ok(!hud.some((o) => o.group === 'Nameplates'), 'nameplates have their own editor');
     assert.ok(!optionsOfSection('character', LOOK_OPTIONS).length && !optionsOfSection('cursor', LOOK_OPTIONS).length);
   });
 
   it('groups options under their headings, keeping the order', () => {
     const groups = groupsOf(optionsOfSection('hud', LOOK_OPTIONS));
     assert.equal(groups[0].group, '');
-    assert.deepEqual(groups.map((g) => g.group).slice(1, 4), ['Kill feed', 'Health bars', 'Nameplates']);
+    assert.deepEqual(groups.map((g) => g.group).slice(1, 4), ['Kill feed', 'Health bars', 'Target']);
     assert.equal(groups.reduce((n, g) => n + g.options.length, 0), optionsOfSection('hud', LOOK_OPTIONS).length);
   });
 
@@ -35,7 +38,7 @@ describe('Look window sections', () => {
     assert.ok(searchLook('title', LOOK_OPTIONS).sections.some((s) => s.id === 'name'));
     assert.ok(searchLook('emblem', LOOK_OPTIONS).sections.some((s) => s.id === 'name'));
     const plates = searchLook('nameplate width', LOOK_OPTIONS);
-    assert.deepEqual(plates.options.map((o) => o.id), ['plateWidth']);
+    assert.deepEqual(plates.options.map((o) => o.id), [], 'nameplate options are in the editor now');
     assert.ok(searchLook('stun', LOOK_OPTIONS).options.every((o) => /stun/i.test(`${o.label} ${o.group} ${o.id} ${o.choices.map((c) => c[1])}`)));
     assert.deepEqual(searchLook('zzzz', LOOK_OPTIONS), { sections: [], options: [] });
   });
