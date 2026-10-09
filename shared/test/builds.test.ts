@@ -777,8 +777,9 @@ describe('warrior rework', () => {
     w.resource = 20;
     assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs 30 rage');
   });
-  it('Slam costs 40 rage and recasts every 3 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
-    assert.equal(ABILITIES.slam.cost, 40);
+  it('Slam is free, gives 15 rage and recasts every 3 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
+    assert.equal(ABILITIES.slam.cost, 0);
+    assert.equal(ABILITIES.slam.effects.find((e) => e.type === 'gain')!.amount, 15);
     assert.equal(ABILITIES.slam.cooldown, 3000);
     const { sim, w, f } = war('arms');
     f.maxHealth = f.health = 1e6;

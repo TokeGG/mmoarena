@@ -314,7 +314,7 @@
     "harmful": true,
     "maxStacks": 4,
     "stackProc": "hot_streak",
-    "note": "Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant"
+    "note": "Scorch adds 1 stack and Fireball adds 2; the hit that would take it past its last stack removes them all and gives you Hot Streak, making your next Pyroblast instant"
   },
   "cauterized": {
     "name": "Cauterized",

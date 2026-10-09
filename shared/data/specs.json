@@ -136,7 +136,7 @@
         "id": "fire_staff",
         "name": "Fire staff"
       },
-      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Fireball sears the target with Singed, and the third hit brings Hot Streak, which makes Pyroblast instant. Cauterize saves you from one killing blow.",
+      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Scorch and Fireball sear the target with Singed (1 and 2 stacks), and when it is full the next hit brings Hot Streak, which makes Pyroblast instant; Fireball can also bring Hot Streak by itself. Cauterize saves you from one killing blow.",
       "icon": "\ud83d\udd25",
       "bar": [
         "fireball",
@@ -159,7 +159,7 @@
         "id": "arcane_staff",
         "name": "Arcane staff"
       },
-      "desc": "A damage cooldown, and Arcane Missiles and Barrage that hit hard; Explosion slows what is close.",
+      "desc": "A damage cooldown, and Arcane Blast, Missiles and Barrage that hit hard. Arcane Blast hits 5% harder per Arcane Charge, and Arcane Missiles spends every charge to fire one more missile for each; Explosion slows what is close.",
       "icon": "\ud83d\udd2e",
       "bar": [
         "arcane_blast",

@@ -211,7 +211,7 @@ export type Effect =
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   /** Heals a fraction of the target's missing health. */
   | { type: 'healMissing'; pct: number }
-  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** A damage-over-time payoff (Weak Point): lasts `extraPerCp` ms per combo point spent (one tick each), and the ticks together deal the aura's damage once for every combo point. */ cpDot?: boolean; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
+  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** A damage-over-time payoff (Weak Point): lasts `extraPerCp` ms per combo point spent (one tick each), and the ticks together deal the aura's damage once for every combo point. */ cpDot?: boolean; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean; /** Stacks added by one application of a stacking aura (Fireball puts 2 Singed on the target); 1 when left out. */ stacks?: number }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }
@@ -285,6 +285,8 @@ export interface AbilityDef {
   cpScale?: boolean;
   /** Uses up all stacks of this aura for extra damage (+`perStack` per stack: Arcane Barrage eats Arcane Charge). */
   consumes?: { aura: string; perStack: number };
+  /** Hits harder for each stack the caster has of this aura, without using them up (+`perStack` per stack: Arcane Blast and Arcane Charge). */
+  scalesWith?: { aura: string; perStack: number };
   /** Can be cast while moving (moving does not cancel it). */
   castWhileMoving?: boolean;
   requiresTargetCasting?: boolean;
@@ -312,7 +314,7 @@ export interface AbilityDef {
   /** Cannot be interrupted, and while it lasts the caster shrugs off stuns, fears, incapacitates, roots, slows and pulls (Bladestorm). */
   unstoppable?: boolean;
   /** Channelled: castTime is the whole channel, and the effects fire once per tick (a volley) instead of at the end. */
-  channel?: { ticks: number; /** The first tick fires the moment the channel starts instead of one interval in (Slice and Dice). */ immediate?: boolean; /** The caster stands in place while it lasts (movement is ignored, not cancelling it): Slice and Dice holds you and your targets still. */ hold?: boolean; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean };
+  channel?: { ticks: number; /** The first tick fires the moment the channel starts instead of one interval in (Slice and Dice). */ immediate?: boolean; /** The caster stands in place while it lasts (movement is ignored, not cancelling it): Slice and Dice holds you and your targets still. */ hold?: boolean; /** Drawn and described as a continuous beam instead of missiles. */ beam?: boolean; /** The cast uses up every stack of this aura the caster has, and each one adds a tick to the channel (Arcane Missiles eats Arcane Charge). */ ticksFromStacks?: string };
 }
 
 export interface ClassDef {

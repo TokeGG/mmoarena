@@ -290,7 +290,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const N = M(n);
         const T = M((m) => n(m) * ticks);
         // stated here only (the in-depth view does not repeat it)
-        const scaling = `${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`;
+        const scaling = `${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}${def.scalesWith ? ` +${Math.round(def.scalesWith.perStack * 100)}% damage per ${AURAS[def.scalesWith.aura]?.name ?? def.scalesWith.aura} stack you have.` : ''}${def.channel?.ticksFromStacks ? ` Uses up all your ${AURAS[def.channel.ticksFromStacks]?.name ?? def.channel.ticksFromStacks} stacks, adding one more missile for each.` : ''}`;
         const first = def.channel?.immediate ? ' (the first at once)' : '';
         if (def.channel?.beam) return `Channels a beam into the target, dealing ${N} ${def.school} damage every ${every} (${T} total).${stops ? ` ${stops}` : ''}${scaling}`;
         if (def.channel && e.only) return `On an enemy: deals ${N} ${def.school} damage every ${every} (${T} total).${scaling}`;
@@ -322,7 +322,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         }
         const who = onYou ? 'You gain' : def.target === 'aoe_all' && e.only === 'ally' ? 'You and every ally in range gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
         const when = e.fullCast ? ' (only from a full-length cast)' : '';
-        return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
+        return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${e.stacks && e.stacks > 1 ? `${e.stacks} stacks of ` : ''}${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
       }
       case 'exsanguinate':
         return `Deals ${M(dmgOf(e.perCp))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then makes every current bleed deal ${e.bleedMult}x damage (using it again does not stack).`;

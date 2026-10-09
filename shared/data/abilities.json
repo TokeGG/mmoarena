@@ -133,7 +133,14 @@
    },
    {
     "type": "aura",
-    "aura": "singed"
+    "aura": "singed",
+    "stacks": 2
+   },
+   {
+    "type": "aura",
+    "aura": "hot_streak",
+    "chance": 0.1,
+    "self": true
    }
   ]
  },
@@ -677,7 +684,11 @@
     "aura": "arcane_charge",
     "self": true
    }
-  ]
+  ],
+  "scalesWith": {
+   "aura": "arcane_charge",
+   "perStack": 0.05
+  }
  },
  {
   "id": "arcane_barrage",
@@ -1233,6 +1244,11 @@
     "aura": "hot_streak",
     "chance": 0.25,
     "self": true
+   },
+   {
+    "type": "aura",
+    "aura": "singed",
+    "stacks": 1
    }
   ],
   "castWhileMoving": true
@@ -1446,12 +1462,6 @@
    {
     "type": "aura",
     "aura": "dragons_breath"
-   },
-   {
-    "type": "aura",
-    "aura": "hot_streak",
-    "chance": 0.15,
-    "self": true
    }
   ]
  },
@@ -1497,7 +1507,8 @@
    }
   ],
   "channel": {
-   "ticks": 5
+   "ticks": 5,
+   "ticksFromStacks": "arcane_charge"
   }
  },
  {
@@ -1664,7 +1675,7 @@
   "target": "aoe_enemy",
   "range": 0,
   "radius": 5,
-  "coneDeg": 45,
+  "coneDeg": 90,
   "castTime": 4000,
   "cooldown": 30000,
   "gcd": true,
@@ -1724,6 +1735,10 @@
    {
     "type": "damage",
     "amount": 160
+   },
+   {
+    "type": "gain",
+    "amount": 15
    }
   ]
  },
