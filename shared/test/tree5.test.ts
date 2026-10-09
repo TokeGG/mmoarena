@@ -89,6 +89,19 @@ describe('trinkets', () => {
     assert.equal(p.health, 1000 + Math.round(p.maxHealth * 0.25));
   });
 
+  it('Cleansing Charm clears Polymorph and Dragon\'s Breath, which lock other skills that ignore control', () => {
+    for (const aura of ['polymorph', 'dragons_breath']) {
+      const sim = live();
+      const mage = unit(sim, 'mage', 0, 0, 0, 'frost', { 3: 'trinket_cleanse' });
+      const foe = unit(sim, 'mage', 1, 4, 0, 'fire');
+      advance(sim, TICK);
+      sim.applyAura(foe, mage, aura);
+      assert.ok(mage.auras.some((a) => a.id === aura), `${aura} applied`);
+      ok(sim.useAbility(mage.id, 'trinket_cleanse'));
+      assert.ok(!mage.auras.some((a) => a.id === aura), `${aura} removed`);
+    }
+  });
+
   it('a trinket you did not pick cannot be used', () => {
     const sim = live();
     const m = unit(sim, 'mage', 0, 0, 0, 'frost');
