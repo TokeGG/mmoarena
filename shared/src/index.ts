@@ -26,3 +26,5 @@ export * from './devrequest';
 export * from './snapslim';
 export * from './playtime';
 export * from './brainwords';
+export * from './bottest';
+export * from './botnote';

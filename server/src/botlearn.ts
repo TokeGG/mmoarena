@@ -1,9 +1,10 @@
+import { randomBytes } from 'node:crypto';
 import { promisify } from 'node:util';
 import { gunzip as gunzipCb, gzip as gzipCb } from 'node:zlib';
 import { cpus } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import { BRAIN_BOUNDS, CLASS_IDS, playersEntry, roundBrain, MISTAKE_LABELS, brainDiff, mistakeLines, brainFor, buildReport, contentHash, forcedStudy, freshenPopulation, lessonBrain, limitChange, mergeLessons, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, sanityClamp, styledBrain, sumLines } from '@arena/shared';
-import type { Brain, ClassId, ClassKnowledge, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, LiveLearning, Population, PlayersFile, ReplayData, StudyOptions } from '@arena/shared';
+import { BRAIN_BOUNDS, CLASS_IDS, NOTE_WEIGHT, describeVariant, parseNote, plainClassMoves, variantLabel, playersEntry, roundBrain, MISTAKE_LABELS, brainDiff, mistakeLines, brainFor, buildReport, contentHash, forcedStudy, freshenPopulation, lessonBrain, limitChange, mergeLessons, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, sanityClamp, styledBrain, sumLines } from '@arena/shared';
+import type { BotBug, BotTest, Brain, ClassId, ClassKnowledge, NoteInfo, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, LiveLearning, Population, PlayersFile, ReplayData, StudyOptions } from '@arena/shared';
 import type { Store } from './store';
 
 const gzip = promisify(gzipCb);
@@ -24,6 +25,12 @@ const NUDGE_STEP = 0.04;
 /** A number at its drift limit gets this much more room, up to ROOM_MAX. */
 const ROOM_WIDEN = 0.1;
 const ROOM_MAX = 0.95;
+
+const NOTES_KEY = 'botnotes';
+const BUGS_KEY = 'botbugs';
+/** Notes and bug reports kept (newest first). */
+export const NOTES_MAX = 100;
+export const BUGS_MAX = 100;
 
 const LIVE_KEY = 'botlive';
 /** What the live learner has studied (kept in the store): matches with people and bot-only matches, per class, and the commit counter. */
@@ -153,6 +160,8 @@ export class BotLearner {
   private ledger: Ledger = {};
   private stats = new Map<ClassId, LearnStat>();
   private reports: LearnReport[] = [];
+  private notes: NoteInfo[] = [];
+  private bugs: BotBug[] = [];
   private live: LiveStat = emptyLive();
   /** Told about every match the bots studied by themselves, with what came of it, even when no number moved (the admin log). */
   onStudied?: (e: StudiedEvent) => void;
@@ -201,6 +210,15 @@ export class BotLearner {
       if (Array.isArray(v)) this.reports = v as LearnReport[];
     } catch {
       /* no log yet */
+    }
+    for (const [key, set] of [[NOTES_KEY, (v: unknown[]) => (this.notes = v as NoteInfo[])], [BUGS_KEY, (v: unknown[]) => (this.bugs = v as BotBug[])]] as const) {
+      try {
+        const raw = await this.store.get(key);
+        const v = raw ? (JSON.parse(raw) as unknown) : null;
+        if (Array.isArray(v)) set(v);
+      } catch {
+        /* none yet */
+      }
     }
     try {
       const raw = await this.store.get(LIVE_KEY);
@@ -422,8 +440,151 @@ export class BotLearner {
         classId: c, replays: st?.replays ?? 0, lastAt: st?.lastAt ?? null, shipped, learned, diff: brainDiff(shipped, learned),
         mistakes: Object.entries(st?.mistakes ?? {}).map(([label, count]): CountLine => ({ label, count })).sort((a, b) => b.count - a.count),
         variant: lv && lv.games ? { games: lv.games, winRate: lv.wins / lv.games } : null,
+        variants: (this.pops.get(c)?.variants ?? []).map((v) => {
+          const t = describeVariant(c, v.id, v.brain, v, shipped);
+          return { id: v.id, label: variantLabel(v.id), games: v.games, wins: Math.round(v.wins * 10) / 10, tries: (t?.tries ?? []).map((x) => ({ text: x.text })), more: t?.more ?? 0 };
+        }),
       };
     });
+  }
+
+  /**
+   * What a bot playing this variant is testing, in words (the owner/dev "testing" marker), from the variant's own record.
+   * `brain` is the brain the bot was handed (a variant's brain can be rebuilt after a lesson or a note; the marker says what the bot plays).
+   * Null when it plays the shipped brain.
+   */
+  variantTest(classId: ClassId, variantId: string, brain?: Brain): Omit<BotTest, 'unit'> | null {
+    const v = this.pops.get(classId)?.variants.find((x) => x.id === variantId);
+    const b = brain ?? v?.brain;
+    if (!b) return null;
+    return describeVariant(classId, variantId, b, { games: v?.games ?? 0, wins: v?.wins ?? 0 });
+  }
+
+  /** Notes written for the bots, newest first. */
+  noteList(): NoteInfo[] {
+    return structuredClone(this.notes);
+  }
+
+  /** Bot bugs reported in notes, newest first (fixed ones included). */
+  bugList(): BotBug[] {
+    return structuredClone(this.bugs);
+  }
+
+  /** The owner marks a reported bot bug fixed (or open again). */
+  markBug(id: string, fixed: boolean, by: string): boolean {
+    const b = this.bugs.find((x) => x.id === id);
+    if (!b) return false;
+    b.fixed = fixed;
+    if (fixed) {
+      b.fixedAt = Date.now();
+      b.fixedBy = by;
+    } else {
+      delete b.fixedAt;
+      delete b.fixedBy;
+    }
+    this.saveList(BUGS_KEY, this.bugs);
+    return true;
+  }
+
+  private saveList(key: string, list: unknown[]): void {
+    const json = JSON.stringify(list);
+    this.archiving = this.archiving.then(() => this.store.set(key, json)).catch(() => undefined);
+  }
+
+  /**
+   * A note for the bots from the owner or a dev (see shared/src/botnote.ts). What it asks for is nudged into the 'lesson'
+   * variant of the classes it names (every bot class of the match when it names none), by NOTE_WEIGHT times a graded nudge,
+   * through the same room, step and bound limits, so the bots actually try it against people. What reports a bug goes to the bug
+   * list; what cannot be placed is handed back. Always writes a report (source 'note') so "What was learned" shows its effect.
+   */
+  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number }): Promise<{ note: NoteInfo; report: LearnReport }> {
+    await this.ready;
+    const parsed = parseNote(o.text);
+    const wanted = new Map<ClassId, Map<keyof Brain, { dir: 1 | -1; said: string }>>();
+    const conflicts = [...parsed.conflicts];
+    for (const e of parsed.effects) {
+      for (const c of e.classes ?? o.matchClasses) {
+        if (!this.pops.has(c)) continue;
+        const m = wanted.get(c) ?? new Map();
+        wanted.set(c, m);
+        const have = m.get(e.key);
+        if (have && have.dir !== e.dir) {
+          m.delete(e.key);
+          conflicts.push(`"${have.said}" and "${e.said}" ask for opposite things about ${c} bots`);
+        } else if (!have) m.set(e.key, { dir: e.dir, said: e.said });
+      }
+    }
+    const asked: NoteInfo['asked'] = [];
+    const classes: ClassReport[] = [];
+    for (const [classId, want] of wanted) {
+      const pop = this.pops.get(classId)!;
+      const stat = this.stats.get(classId) ?? { replays: 0, lastAt: null, mistakes: {} };
+      const nudge = (stat.nudge ??= {});
+      const room = (stat.room ??= {});
+      const shipped = brainFor(classId);
+      const rate = (v: { wins: number; games: number }) => (v.wins + 1) / (v.games + 2);
+      const base = [...pop.variants].filter((v) => v.id !== 'human' && v.id !== 'lesson').sort((a, b) => rate(b) - rate(a))[0] ?? pop.variants[0];
+      const mine = pop.variants.find((v) => v.id === 'lesson');
+      const before = mine?.brain ?? base.brain;
+      const brain = { ...before };
+      const why = new Map<keyof Brain, string>();
+      const notes: string[] = [];
+      for (const [k, { dir, said }] of want) {
+        const [bl, bh] = BRAIN_BOUNDS[k];
+        const span = bh - bl;
+        const step = Math.min(NUDGE_STEP * span * NOTE_WEIGHT, STEP_LIMIT * span) * dir;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          const r = room[k] ?? DRIFT_LIMIT;
+          const allowLo = Math.max(bl, shipped[k] - r * span);
+          const allowHi = Math.min(bh, shipped[k] + r * span);
+          const next = Math.min(allowHi, Math.max(allowLo, brain[k] + step));
+          if (Math.abs(next - brain[k]) > 1e-9) {
+            nudge[k] = (nudge[k] ?? 0) + (next - brain[k]);
+            brain[k] = next;
+            why.set(k, `your note said "${said}"`);
+            break;
+          }
+          if (r < ROOM_MAX && ((dir > 0 && allowHi < bh) || (dir < 0 && allowLo > bl))) {
+            room[k] = Math.min(ROOM_MAX, r + ROOM_WIDEN);
+            notes.push(`${k} reached its limit (${Math.round(r * 100)}% of its range from what shipped), so the room was widened to ${Math.round(room[k]! * 100)}%.`);
+          } else {
+            notes.push(`${k} is at its bound, so "${said}" could not move it further.`);
+            break;
+          }
+        }
+        asked.push({ classId, key: k, dir, said, moved: Math.abs(brain[k] - before[k]) > 1e-9 });
+      }
+      const moved = brainDiff(before, brain, 0.0005).map((mv) => ({ ...mv, why: why.get(mv.key) ?? 'your note' }));
+      if (moved.length) {
+        if (mine) mine.brain = brain;
+        else pop.variants.push({ id: 'lesson', brain, wins: 0, games: 0 });
+      }
+      stat.lastAt = Date.now();
+      this.stats.set(classId, stat);
+      classes.push({ classId, moved, notes, replays: stat.replays });
+      this.persist(classId, () => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(STAT_KEY(classId), JSON.stringify(stat))]));
+    }
+    const at = Date.now();
+    const note: NoteInfo = {
+      id: randomBytes(6).toString('hex'), matchId: o.matchId, at, by: o.by, role: o.role, text: o.text, ...(o.liveSec !== undefined ? { liveSec: o.liveSec } : {}),
+      classes: [...wanted.keys()], asked, unmapped: parsed.unmapped, bugs: parsed.bugs, conflicts, weight: NOTE_WEIGHT,
+    };
+    const report = buildReport({ id: `${at.toString(36)}${Math.floor(this.rng() * 1e4).toString(36)}`, replayId: o.matchId, at, source: 'note', passes: 1, study: { bots: [], players: [] }, classes, habits: 0 });
+    const moved = classes.filter((c) => c.moved.length);
+    if (moved.length) {
+      report.nothing = null;
+      report.headline = `Your note moved: ${moved.map((c) => plainClassMoves(c.classId, c.moved)).join('. ')}.`;
+    } else {
+      report.nothing = !parsed.effects.length && !parsed.bugs.length ? 'nothing in it matched a phrase the bots understand' : !parsed.effects.length ? 'it only reported a bug, and no brain number can fix that' : 'the numbers it asked for are already at their limit, or it asked for opposite things';
+      report.headline = `Your note did not move any bot numbers: ${report.nothing}.`;
+    }
+    report.note = note;
+    this.remember(report);
+    this.notes = [note, ...this.notes].slice(0, NOTES_MAX);
+    this.saveList(NOTES_KEY, this.notes);
+    for (const frag of parsed.bugs) this.bugs = [{ id: randomBytes(6).toString('hex'), matchId: o.matchId, at, by: o.by, text: frag, fixed: false }, ...this.bugs].slice(0, BUGS_MAX);
+    if (parsed.bugs.length) this.saveList(BUGS_KEY, this.bugs);
+    return { note, report };
   }
 
   /** Where the bots' learning stands, for the Bot training tab: matches studied, whether the store keeps them, per-class results against people. */
@@ -506,7 +667,9 @@ export class BotLearner {
       this.persist(c, () => Promise.all([this.store.set(KEY(c), JSON.stringify(pop)), this.store.set(LESSON_KEY(c), '{}'), this.store.set(STYLE_KEY(c), '{}'), this.store.set(STAT_KEY(c), JSON.stringify({ replays: 0, lastAt: null, mistakes: {} }))]));
     }
     this.reports = [];
+    this.notes = []; // the bug list stays: it is the owner's to-do list, not something the bots learned
     await this.store.set(REPORTS_KEY, '[]').catch(() => undefined);
+    await this.store.set(NOTES_KEY, '[]').catch(() => undefined);
     await this.flush();
   }
 
