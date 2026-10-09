@@ -717,14 +717,6 @@ export class DevPanel {
       if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
-    const commit = el('button', 'mm-small', 'Commit to GitHub');
-    commit.title = 'Commits these numbers straight to the main branch on GitHub (the data files only). There is no review: the game updates when the next deploy finishes.';
-    commit.addEventListener('click', () => {
-      const all = this.toSend();
-      if (!all.length) return nothing();
-      if (!window.confirm(`Commit ${all.length} changed number${all.length === 1 ? '' : 's'} straight to the main branch on GitHub? There is no review and the live game updates on the next deploy.`)) return;
-      this.hooks.send({ t: 'dev_commit', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
-    });
     const redeploy = el('button', 'mm-small', 'Redeploy Render');
     redeploy.title = 'Starts a deploy of the latest commit on Render. The game restarts when it is ready, so everyone online is disconnected for a moment.';
     redeploy.addEventListener('click', () => {
@@ -745,8 +737,8 @@ export class DevPanel {
       this.paint();
     });
     this.changesBtn = changes;
-    if (this.inMatch) acts.append(tryIt, keep, save, commit, redeploy, reset, changes);
-    else acts.append(keep, save, commit, redeploy, reset, changes);
+    if (this.inMatch) acts.append(tryIt, keep, save, redeploy, reset, changes);
+    else acts.append(keep, save, redeploy, reset, changes);
     return acts;
   }
 
