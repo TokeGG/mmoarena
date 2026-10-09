@@ -459,30 +459,37 @@ export class AdminPanel {
       box.append(card);
     }
     const done = this.proposals.filter((r) => r.status !== 'pending').slice(0, 5);
-    if (rows.length && this.access() === 'owner') {
+    if (rows.length && this.access()) {
+      const owner = this.access() === 'owner';
       const all = el('button', 'mm-small', 'Select all');
       all.addEventListener('click', () => { for (const r of rows) this.picked.add(r.id); this.paint(); });
       const note = el('input');
       note.type = 'text';
       note.maxLength = 600;
-      note.placeholder = 'Note for the pull request (optional)';
+      note.placeholder = 'Note for the commit or pull request (optional)';
       note.value = this.propNote;
       note.addEventListener('input', () => (this.propNote = note.value));
-      const act = (op: 'pr' | 'live' | 'dismiss') => {
+      const act = (op: 'pr' | 'live' | 'commit' | 'dismiss') => {
         const ids = [...this.picked];
         if (!ids.length) return;
         if (op === 'live' && !window.confirm(`Make ${ids.length} proposal${ids.length === 1 ? '' : 's'} live for everyone now?`)) return;
-        this.hooks.send({ t: 'admin_proposals', op, ids, ...(op === 'pr' && this.propNote.trim() ? { note: this.propNote.trim() } : {}) });
+        if (op === 'commit' && !window.confirm(`Commit ${ids.length} proposal${ids.length === 1 ? '' : 's'} straight to the main branch on GitHub? There is no review and the live game updates on the next deploy.`)) return;
+        this.hooks.send({ t: 'admin_proposals', op, ids, ...((op === 'pr' || op === 'commit') && this.propNote.trim() ? { note: this.propNote.trim() } : {}) });
       };
-      const pr = el('button', 'mm-small mm-go', '⤴ One pull request with the ticked ones');
+      const commit = el('button', 'mm-small mm-go', '⤴ Commit the ticked ones to GitHub');
+      commit.title = 'Commits the ticked numbers straight to the main branch (the data files only). There is no review: the game updates on the next deploy.';
+      commit.addEventListener('click', () => act('commit'));
+      const pr = el('button', 'mm-small', 'One pull request with the ticked ones');
       pr.addEventListener('click', () => act('pr'));
       const live = el('button', 'mm-small', 'Make live');
       live.addEventListener('click', () => act('live'));
-      const del = el('button', 'mm-small', 'Mark checked');
+      const del = el('button', 'mm-small', 'Delete ticked');
       del.title = 'Takes the ticked proposals off the list without applying them';
       del.addEventListener('click', () => act('dismiss'));
       const r1 = el('div', 'own-row');
-      r1.append(all, pr, live, del);
+      r1.append(all, commit);
+      if (owner) r1.append(pr, live);
+      r1.append(del);
       const r2 = el('div', 'own-row');
       r2.append(note);
       box.append(r1, r2);
@@ -490,7 +497,7 @@ export class AdminPanel {
     if (done.length) {
       box.append(el('small', 'devp-dim', 'Recently handled'));
       for (const r of done) {
-        const line = el('div', 'admp-prop-done', `${r.by} · ${r.changes.length} change${r.changes.length === 1 ? '' : 's'} · ${r.status === 'pr' ? 'pull request' : r.status}`);
+        const line = el('div', 'admp-prop-done', `${r.by} · ${r.changes.length} change${r.changes.length === 1 ? '' : 's'} · ${r.status === 'pr' ? 'pull request' : r.status === 'committed' ? 'committed to GitHub' : r.status}`);
         if (r.url) {
           const a = el('a', '', ' open');
           a.href = r.url;

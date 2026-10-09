@@ -66,7 +66,7 @@ export class DevTools {
    * The owner acts on proposals: `live` applies them over the data files, `pr` opens one pull request with all of them
    * (later changes to the same number win), `dismiss` forgets them. Returns a line to show and a pull request link.
    */
-  async actOn(op: 'live' | 'pr' | 'dismiss', ids: string[] | undefined, by: string, note?: string): Promise<{ ok: boolean; text: string; url?: string }> {
+  async actOn(op: 'live' | 'pr' | 'commit' | 'dismiss', ids: string[] | undefined, by: string, note?: string): Promise<{ ok: boolean; text: string; url?: string }> {
     const rows = this.props.filter((r) => r.status === 'pending' && (!ids || ids.includes(r.id)));
     if (!rows.length) return { ok: false, text: 'There is nothing pending to act on.' };
     // oldest first, so a newer proposal for the same number wins
@@ -81,6 +81,18 @@ export class DevTools {
       for (const r of rows) r.status = 'live';
       await this.persistProposals();
       return { ok: true, text: `${rows.length} proposal${rows.length === 1 ? ' is' : 's are'} live for everyone now (${merged.length} number${merged.length === 1 ? '' : 's'}).` };
+    }
+    if (op === 'commit') {
+      // straight onto the main branch (the owner's choice), credited to whoever pressed the button
+      const notes = [...rows.filter((r) => r.note).map((r) => `${r.by}: ${r.note}`), ...(note ? [note] : [])].join('\n');
+      try {
+        const url = await this.commitToBase(merged, by, notes || undefined);
+        for (const r of rows) { r.status = 'committed'; r.url = url; }
+        await this.persistProposals();
+        return { ok: true, text: `Committed ${rows.length} proposal${rows.length === 1 ? '' : 's'} (${merged.length} number${merged.length === 1 ? '' : 's'}) to the main branch on GitHub. The game updates when the next deploy finishes.`, url };
+      } catch (e) {
+        return { ok: false, text: (e as Error).message };
+      }
     }
     const names = [...new Set(rows.map((r) => r.by))].join(', ');
     const notes = [...rows.filter((r) => r.note).map((r) => `${r.by}: ${r.note}`), ...(note ? [note] : [])].join('\n');

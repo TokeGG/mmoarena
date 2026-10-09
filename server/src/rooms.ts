@@ -1582,7 +1582,8 @@ export class Lobby {
         const dev = this.dev;
         if (msg.op === 'list') return void send(p, { t: 'proposals', rows: dev.proposals });
         // devs send proposals (from the dev panel) and read them here; applying or dismissing is the owner's call
-        if (this.ownerOnly(p, msg.op === 'live' ? 'Making proposals live' : msg.op === 'pr' ? 'Opening a pull request' : 'Dismissing proposals')) return;
+        // devs commit proposals to GitHub and clear them; making them live or opening a pull request stays the owner's
+        if (msg.op === 'live' || msg.op === 'pr') if (this.ownerOnly(p, msg.op === 'live' ? 'Making proposals live' : 'Opening a pull request')) return;
         const by = p.account?.name ?? p.name;
         void dev.actOn(msg.op, msg.ids, by, msg.note).then(async (r) => {
           if (r.ok) {

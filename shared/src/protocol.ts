@@ -43,7 +43,7 @@ export interface ProposalRow {
   patches: DataPatch[];
   /** The same changes in words: what, old number, new number. */
   changes: { label: string; from: number | string | null; to: number | string }[];
-  status: 'pending' | 'live' | 'pr' | 'dismissed';
+  status: 'pending' | 'live' | 'pr' | 'committed' | 'dismissed';
   url?: string;
 }
 /** What a unit is playing with, shown to people watching a match. */
@@ -140,7 +140,7 @@ export type ClientMsg =
   /** Owner: open a GitHub pull request with every live number change, for the data files. */
   | { t: 'overrides_pr'; note?: string }
   /** Owner: the dev proposals (list), or act on some: make them live, open one pull request with them all, or dismiss them. */
-  | { t: 'admin_proposals'; op: 'list' | 'live' | 'pr' | 'dismiss'; ids?: string[]; note?: string }
+  | { t: 'admin_proposals'; op: 'list' | 'live' | 'pr' | 'commit' | 'dismiss'; ids?: string[]; note?: string }
   /** Owner moderation and server control from the admin panel (see AdminAct). */
   | { t: 'admin_act'; act: AdminAct; name?: string; minutes?: number; reason?: string; value?: number; text?: string; id?: string; on?: boolean }
   /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
@@ -481,7 +481,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'overrides_clear':
       return { t: 'overrides_clear' };
     case 'admin_proposals': {
-      if (!['list', 'live', 'pr', 'dismiss'].includes(m.op)) return null;
+      if (!['list', 'live', 'pr', 'commit', 'dismiss'].includes(m.op)) return null;
       const ids = Array.isArray(m.ids) ? m.ids.filter((x: unknown): x is string => typeof x === 'string' && /^[0-9a-z]{4,20}$/.test(x)).slice(0, 100) : undefined;
       const note = typeof m.note === 'string' ? m.note.trim().slice(0, 600) : '';
       return { t: 'admin_proposals', op: m.op, ...(ids ? { ids } : {}), ...(note ? { note } : {}) };
