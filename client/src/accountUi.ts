@@ -2,7 +2,6 @@ import type { Popup } from './popups';
 import { OwnerPanel } from './ownerUi';
 import { applyName, avatarImg, avatarUrl } from './nameStyle';
 import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
-import { buildCursorPanel } from './cursorUi';
 import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, MatchRecord, ServerMsg } from '@arena/shared';
 import { classIcon, mapName } from './spectate';
 
@@ -23,6 +22,10 @@ export interface AccountHooks {
   onReplay(id: string): void;
   /** Open the owner's admin panel. */
   openAdmin?(tab?: 'replays'): void;
+  /** Open the Look window on a section (the name and title controls live there now). */
+  openLook?(section: 'name'): void;
+  /** Something the Look window shows from the account changed outside an account message (an icon upload finished). */
+  refreshLook?(): void;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -49,7 +52,7 @@ const store = {
   },
 };
 
-type Tab = 'overview' | 'history' | 'customize' | 'leaders' | 'owner';
+type Tab = 'overview' | 'history' | 'leaders' | 'owner';
 
 export class AccountUi {
   readonly chip = el('button', 'acct-chip');
@@ -64,7 +67,7 @@ export class AccountUi {
   private matches: MatchRecord[] | null = null;
   private pendingResume: ((v: void) => void) | null = null;
   private settledPromise: Promise<void> = Promise.resolve();
-  private owner = new OwnerPanel({ send: (m) => this.hooks.send(m), token: () => this.token, rerender: () => this.modal && this.renderModal(), openAdmin: () => { this.closeModal(); this.hooks.openAdmin?.(); } });
+  private owner = new OwnerPanel({ send: (m) => this.hooks.send(m), token: () => this.token, rerender: () => { if (this.modal) this.renderModal(); this.hooks.refreshLook?.(); }, openAdmin: () => { this.closeModal(); this.hooks.openAdmin?.(); } });
 
   constructor(private hooks: AccountHooks) {
     this.chip.addEventListener('click', () => (this.account ? this.openProfile() : this.openAuth()));
@@ -343,10 +346,16 @@ export class AccountUi {
     rank.append(el('div', 'rr-icon', tier.icon), el('div', 'rr-name', tier.name), el('div', 'rr-num', String(a.rating)));
     const close = el('button', 'mm-small', 'Close');
     close.addEventListener('click', () => this.closeModal());
-    head.append(emblem, who, rank, close);
+    const look = el('button', 'mm-small', 'Customize in Look ›');
+    look.title = 'Your emblem, title, name colour and animated icon are in the Look window now';
+    look.addEventListener('click', () => {
+      this.closeModal();
+      this.hooks.openLook?.('name');
+    });
+    head.append(emblem, who, rank, ...(this.hooks.openLook ? [look] : []), close);
 
     const tabs = el('div', 'acct-tabs');
-    const tabList: [Tab, string][] = [['overview', 'Overview'], ['history', 'Matches'], ['customize', 'Customize'], ['leaders', 'Leaderboard']];
+    const tabList: [Tab, string][] = [['overview', 'Overview'], ['history', 'Matches'], ['leaders', 'Leaderboard']];
     if (a.role === 'owner') tabList.push(['owner', '★ Owner']);
     for (const [t, label] of tabList) {
       const b = el('button', this.tab === t ? 'sel' : '', label);
@@ -363,7 +372,6 @@ export class AccountUi {
 
     if (this.tab === 'overview') card.append(this.overview(a));
     else if (this.tab === 'history') card.append(this.history(a));
-    else if (this.tab === 'customize') card.append(this.customize(a));
     else if (this.tab === 'owner' && a.role === 'owner') card.append(this.owner.render(a));
     else card.append(this.leaders(a));
 
@@ -403,8 +411,33 @@ export class AccountUi {
     return box;
   }
 
-  private customize(a: AccountInfo): HTMLElement {
-    const box = el('div', 'prof-cust');
+  /**
+   * Everything the account changes about how you appear (emblem, title, name colour, special style, animated icon, the
+   * owner's own style), for the Look window's "Name and title" section. Nothing here is stored differently from before:
+   * it sends the same `customize` message and obeys the same unlock rules.
+   */
+  nameSection(): HTMLElement {
+    const a = this.account;
+    const box = el('div', 'prof-cust lk-sec');
+    if (!a) {
+      box.append(el('p', 'lk-note', 'Sign in to pick an emblem, a title and a name colour, and to keep them on any device. As a guest your name is whatever you type under Character on the main menu.'));
+      const go = el('button', 'mm-small mm-go', 'Sign in / Register');
+      go.addEventListener('click', () => this.openAuth());
+      box.append(go);
+      return box;
+    }
+    const c = resolveCosmetics(a.cosmetics);
+    // what other players see, live: the emblem (or icon), the name in its colour and the title under it
+    const prev = el('div', 'lk-nameprev');
+    const ico = el('span', 'lk-nico', c.emblem);
+    const img = avatarImg(avatarUrl(a.name, a.avatar), 'av-big');
+    if (img) ico.replaceChildren(img);
+    const nm = el('span', 'lk-nname', a.name);
+    applyName(nm, c, '', 10);
+    const who = el('div', 'lk-nwho');
+    who.append(nm, el('small', '', c.title || 'No title'));
+    prev.append(ico, who);
+    box.append(prev);
     const pick = (field: keyof Cosmetics, defs: CosmeticDef[], render: (d: CosmeticDef) => string, title: string) => {
       box.append(el('h3', '', title));
       const row = el('div', `opt-row ${field}`);
@@ -425,7 +458,6 @@ export class AccountUi {
     pick('emblem', EMBLEMS, (d) => d.value ?? '', 'Emblem');
     pick('title', TITLES, (d) => (d.id ? '«»' : '—'), 'Title');
     pick('color', NAME_COLORS, () => 'Aa', 'Name colour');
-    box.append(el('h3', '', 'Cursor'), buildCursorPanel()); // a local setting, saved with the other settings
     if (a.cosmetics.custom && a.role !== 'owner') {
       const l = el('label', 'chk');
       const i = el('input');
@@ -435,7 +467,13 @@ export class AccountUi {
       l.append(i, `Use my special title «${a.cosmetics.custom.title}» and colours`);
       box.append(el('h3', '', 'Special style'), l);
     }
-    if (a.grants.includes('gif') && a.role !== 'owner') box.append(el('h3', '', 'Animated icon'), this.owner.gifBox(a));
+    if (a.role === 'owner') {
+      if (a.ownerOk) {
+        box.append(el('h3', '', 'Your own name style'));
+        box.append(this.owner.styleEditor(a.cosmetics.custom, !!a.cosmetics.useCustom, (custom, use) => this.hooks.send({ t: 'customize', cosmetics: { ...a.cosmetics, custom, useCustom: use } }), true));
+        box.append(el('h3', '', 'Animated icon'), this.owner.gifBox(a));
+      } else box.append(el('h3', '', 'Your own name style and animated icon'), el('p', 'lk-note', 'Unlock the owner tools first (Profile, Owner tab) and they show up here.'));
+    } else if (a.grants.includes('gif')) box.append(el('h3', '', 'Animated icon'), this.owner.gifBox(a));
     box.append(el('div', 'mm-modal-foot', 'Other players see your emblem, title and colour on your nameplate in matches. Unlock more by playing, winning and climbing the ranks.'));
     if (this.authError) box.append(el('div', 'auth-err', this.authError));
     return box;

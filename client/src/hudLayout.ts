@@ -1,7 +1,6 @@
 import { clamp } from '@arena/shared';
-import { controlColor } from './hudText';
 import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
-import { LOOK_OPTIONS, loadLook, look, resetLook, setLook } from './hudLook';
+import { loadLook } from './hudLook';
 
 /**
  * HUD layout editor. Every movable element gets a saved offset and scale applied through the CSS `translate` and
@@ -127,7 +126,6 @@ export class HudLayout {
   private grid = { show: true, snap: true, size: 16 };
   private gridEl!: HTMLElement;
   private selected: string | null = null;
-  private lookSelects = new Map<string, HTMLSelectElement>();
 
   /** The saved layout as screen fractions; pixel offsets are worked out from it for the current window size. */
   private saved: Record<string, Saved> = {};
@@ -287,8 +285,6 @@ export class HudLayout {
 
   reset() {
     this.setStyle('classic');
-    resetLook();
-    this.syncLookSelects();
   }
 
   // ------------------------------------------------------------------ editor panel
@@ -349,59 +345,11 @@ export class HudLayout {
     sizeLabel.append(sizeSel);
     row2.append(toggle('Show grid', () => this.grid.show, (v) => (this.grid.show = v)), toggle('Snap to grid and centre', () => this.grid.snap, (v) => (this.grid.snap = v)), sizeLabel, mk('small', '', 'Hold Alt while dragging to ignore snapping.'));
 
-    // look options
-    const TEXT_GROUPS = ['Error text', 'Stun text', 'Network stats'];
-    const lookGrid = (summary: string, pick: (o: (typeof LOOK_OPTIONS)[number]) => boolean, open = false) => {
-      const details = document.createElement('details');
-      details.className = 'he-look';
-      details.open = open;
-      details.append(mk('summary', '', summary));
-      const grid = mk('div', 'he-lookgrid');
-      let group = '';
-      for (const o of LOOK_OPTIONS.filter(pick)) {
-        if ((o.group ?? '') !== group) {
-          group = o.group ?? '';
-          grid.append(mk('h4', 'he-group', group));
-        }
-        const l = mk('label', '', `${o.label} `);
-        const sel = document.createElement('select');
-        for (const [v, t] of o.choices) sel.append(new Option(t, v));
-        sel.value = look[o.id];
-        sel.addEventListener('change', () => {
-          setLook(o.id, sel.value);
-          this.paintPreview();
-        });
-        this.lookSelects.set(o.id, sel);
-        l.append(sel);
-        grid.append(l);
-      }
-      details.append(grid);
-      return details;
-    };
-    const details = lookGrid('Frames, health bars, nameplates and slots', (o) => !TEXT_GROUPS.includes(o.group ?? ''));
-    const textDetails = lookGrid('Error text, stun text and network stats (drag them in the editor too)', (o) => TEXT_GROUPS.includes(o.group ?? ''));
-    // live preview of both texts on a dark and a light floor, drawn by the same variables as the real ones
-    const prev = mk('div', 'he-prev');
-    this.prevErr = mk('span', 'he-prev-err', 'Out of range');
-    this.prevCc = mk('span', 'he-prev-cc cc-stun', 'STUNNED 2.1s');
-    prev.append(this.prevErr, this.prevCc);
-    textDetails.append(prev);
-    this.paintPreview();
+    // the look options (bars, nameplates, target marks, text styles) live in the Look window now
+    const moved = mk('div', 'he-moved', 'Health bar, nameplate, target mark and text looks moved to Look (main menu). This editor is for where things sit and how big they are.');
 
-    panel.append(head, row1, row2, details, textDetails);
+    panel.append(head, row1, row2, moved);
     return panel;
-  }
-
-  private syncLookSelects() {
-    for (const [id, sel] of this.lookSelects) sel.value = look[id];
-    this.paintPreview();
-  }
-
-  private prevErr!: HTMLElement;
-  private prevCc!: HTMLElement;
-  /** The preview's stun text takes its colour the way the real one does. */
-  private paintPreview() {
-    this.prevCc.style.color = controlColor(look.ccColor, 'stun', look.ccPlate !== 'none');
   }
 
   private saveGrid() {

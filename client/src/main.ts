@@ -38,7 +38,6 @@ import { RecapCard } from './recapCard';
 import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
 import { initCursors, refreshCursor } from './cursors';
-import { buildCursorPanel } from './cursorUi';
 import { NetClock } from './netClock';
 import { IntervalTracker, InterpDelay, LEAD_EXTRAPOLATE_MS, Lead, RenderTime, poseAt } from './interpDelay';
 import type { Pose } from './interpDelay';
@@ -1641,6 +1640,8 @@ const settingsSync = new SettingsSync((data) => send({ t: 'save_settings', data 
 const accountUi = new AccountUi({
   onReplay: (id) => void startReplay(id),
   openAdmin: (tab) => adminPanel.open(tab),
+  openLook: (section) => mainMenu.openLookSection(section),
+  refreshLook: () => mainMenu.refreshLook(),
   send: (m) => {
     if (ws && ws.readyState === WebSocket.OPEN) send(m);
     else void connect().then((ok) => (ok ? send(m) : accountUi.fail('Could not reach the server.')));
@@ -1736,6 +1737,7 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onPlay: play,
   onControls: () => menu.open(false, 'keys'),
   onEditHud: editHudFromMenu,
+  nameSection: () => accountUi.nameSection(),
   onWatch: () => void openLive(),
   slotKey: (n) => binds.label(`slot${n}` as Action),
   onSelect: (c, b) => {
@@ -1802,6 +1804,5 @@ initCursors({
     return CLASSES[me && !spec ? me.classId : mainMenu.selectedClass]?.color ?? null;
   },
 });
-document.getElementById('cursor-settings')?.append(buildCursorPanel());
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;
