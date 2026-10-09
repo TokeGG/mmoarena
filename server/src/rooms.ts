@@ -2140,6 +2140,15 @@ export class Lobby {
           void reqs.checkPr(msg.id).then(() => this.sendRequests());
           break;
         }
+        if (msg.op === 'merge') {
+          if (this.ownerOnly(p, 'Merging a pull request') || !msg.id) return;
+          void reqs.merge(msg.id).then((r) => {
+            send(p, { t: 'dev_result', ok: r.ok, text: r.text });
+            if (r.ok) void this.adminLog?.add(by, 'request: merged the pull request', undefined, msg.id);
+            this.sendRequests();
+          });
+          break;
+        }
         if (msg.op === 'build') {
           if (this.ownerOnly(p, 'Asking Claude to build a request') || !msg.id) return;
           void reqs.build(msg.id, by).then((r) => {

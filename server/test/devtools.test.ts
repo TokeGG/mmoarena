@@ -504,3 +504,34 @@ describe('building a request with Claude on GitHub', () => {
     assert.equal(saved.prState, 'open');
   });
 });
+
+describe('merging the pull request Claude opened', () => {
+  it('merges only an open pull request whose checks all passed', async () => {
+    let checks: any[] = [{ name: 'build', status: 'completed', conclusion: 'success' }];
+    let merged = 0;
+    const http = (async (url: string, init: any = {}) => {
+      const path = String(url).replace('https://api.github.com/repos/TokeGG/mmoarena', '');
+      const ok = (b: unknown) => ({ ok: true, status: 200, json: async () => b });
+      if (path === '/issues' && init.method === 'POST') return ok({ html_url: 'u', number: 7 });
+      if (path.startsWith('/pulls?')) return ok([{ html_url: 'p', number: 9, state: 'open', merged_at: null, body: 'Closes #7', head: { ref: 'claude/issue-7' } }]);
+      if (path === '/pulls/9') return ok({ state: 'open', merged: false, mergeable: true, head: { sha: 'abc' } });
+      if (path.startsWith('/commits/abc/check-runs')) return ok({ check_runs: checks });
+      if (path === '/pulls/9/merge') { merged++; return ok({ merged: true }); }
+      return ok({});
+    }) as any;
+    const reqs = new DevRequests(new MemoryStore(), { GITHUB_TOKEN: 't' }, http);
+    const { row } = await reqs.file('Dee', 'Fireball', { title: 't', wants: 'w', current: 'c', proposed: 'p', acceptance: [], affects: [], needsCode: 'n' } as any, []);
+    assert.equal((await reqs.merge(row!.id)).ok, false, 'no pull request yet');
+    await reqs.checkPr(row!.id);
+    checks = [{ name: 'build', status: 'in_progress', conclusion: null }];
+    const early = await reqs.merge(row!.id);
+    assert.equal(early.ok, false);
+    assert.match(early.text, /checks have not all passed/);
+    assert.equal(merged, 0);
+    checks = [{ name: 'build', status: 'completed', conclusion: 'success' }];
+    const done = await reqs.merge(row!.id);
+    assert.equal(done.ok, true);
+    assert.equal(merged, 1);
+    assert.equal(reqs.visible('Toke', true)[0].status, 'done');
+  });
+});

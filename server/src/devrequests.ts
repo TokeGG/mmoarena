@@ -173,6 +173,39 @@ export class DevRequests {
     }
   }
 
+  /**
+   * Owner: merge the pull request Claude opened for a request (a squash merge into the base branch). Only when it is open
+   * and its checks have all passed; the game then redeploys from main like after any merge.
+   */
+  async merge(id: string): Promise<{ ok: boolean; text: string }> {
+    await this.ready;
+    const r = this.rows.find((x) => x.id === id);
+    if (!r?.prNumber) return { ok: false, text: 'There is no pull request for this request yet.' };
+    if (!this.env.GITHUB_TOKEN) return { ok: false, text: 'No GITHUB_TOKEN on the server.' };
+    try {
+      const pr = (await this.api(`/pulls/${r.prNumber}`)) as { state: string; merged: boolean; draft?: boolean; mergeable?: boolean | null; head: { sha: string } };
+      if (pr.merged) {
+        r.prState = 'merged';
+        await this.persist();
+        return { ok: false, text: 'It is already merged.' };
+      }
+      if (pr.state !== 'open') return { ok: false, text: 'That pull request is closed.' };
+      if (pr.draft) return { ok: false, text: 'The pull request is still a draft.' };
+      if (pr.mergeable === false) return { ok: false, text: 'GitHub says it has a conflict with the main branch. Ask Claude to fix it with a comment on the pull request.' };
+      const runs = (await this.api(`/commits/${pr.head.sha}/check-runs?per_page=100`)) as { check_runs: { name: string; status: string; conclusion: string | null }[] };
+      const bad = runs.check_runs.filter((c) => c.status !== 'completed' || !['success', 'neutral', 'skipped'].includes(c.conclusion ?? ''));
+      if (bad.length) return { ok: false, text: `The checks have not all passed yet: ${bad.slice(0, 4).map((c) => `${c.name} (${c.status === 'completed' ? c.conclusion : c.status})`).join(', ')}.` };
+      await this.api(`/pulls/${r.prNumber}/merge`, { method: 'PUT', body: JSON.stringify({ merge_method: 'squash' }) });
+    } catch (e) {
+      return { ok: false, text: `GitHub refused the merge: ${(e as Error).message}` };
+    }
+    r.prState = 'merged';
+    r.status = 'done';
+    r.doneAt = Date.now();
+    await this.persist();
+    return { ok: true, text: 'Merged. Render deploys the new version from main.' };
+  }
+
   /** Owner: mark done or open again, or delete. Returns false when there is no such request. */
   async mark(id: string, op: 'done' | 'reopen' | 'delete'): Promise<boolean> {
     await this.ready;

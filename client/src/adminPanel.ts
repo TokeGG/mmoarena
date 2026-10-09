@@ -525,6 +525,12 @@ export class AdminPanel {
       a.rel = 'noopener';
       row.append(a);
     } else if (r.build) row.append(el('small', 'devp-dim', ` Claude is building it (asked by ${r.build.by} ${ago(r.build.at)}). The pull request shows here when it is ready.`));
+    if (owner && r.prUrl && r.prState === 'open') {
+      const mg = el('button', 'mm-small mm-go', '✅ Merge it');
+      mg.title = 'Merges the pull request into main (only if its checks have all passed). The game redeploys with the change.';
+      mg.addEventListener('click', () => window.confirm(`Merge pull request #${r.prNumber} into main now? The live game updates when it deploys.`) && this.hooks.send({ t: 'dev_requests', op: 'merge', id: r.id }));
+      row.append(mg);
+    }
     if (r.build && !r.prUrl) {
       const chk = el('button', 'mm-small', 'Check for the pull request');
       chk.addEventListener('click', () => this.hooks.send({ t: 'dev_requests', op: 'check', id: r.id }));
