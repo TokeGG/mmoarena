@@ -360,8 +360,8 @@
   .ie-chips { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
   .ie-chip { display:inline-flex; gap:5px; align-items:center; padding:2px 8px; background:#1c1a26; border:1px solid #3d3550; border-radius:14px; color:#c8c0da; cursor:pointer; font:inherit; font-size:11.5px; } .ie-chip.sel { background:#2a2238; border-color:#c9a24a; color:#ffd24a; } .ie-chip small { color:#8b8372; }
   .ie-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr)); gap:5px; } .ie-grid.empty::after { content:'No icon matches.'; color:#8b8372; grid-column:1/-1; }
-  .ie-tile { position:relative; padding:0; width:100%; aspect-ratio:1; max-width:72px; border:2px solid #3d3550; border-radius:8px; overflow:hidden; background:#0f0d16; cursor:pointer; } .ie-tile[hidden] { display:none; }
-  .ie-tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .ie-tile { position:relative; padding:0; width:100%; aspect-ratio:1; max-width:72px; border:2px solid #3d3550; border-radius:8px; overflow:hidden; background:#0f0d16 !important; cursor:pointer; } .ie-tile[hidden] { display:none; }
+  .ie-tile img { display:block; width:100%; height:100%; object-fit:cover; background:#0f0d16; }
   .ie-tile:hover { border-color:#ffd24a; } .ie-tile.cur { border-color:#ffd24a; box-shadow:0 0 0 2px #ffd24a66, 0 0 10px #ffd24a88; }
   .ie-tile.def::after { content:''; position:absolute; right:3px; top:3px; width:8px; height:8px; border-radius:50%; background:#5fd36f; border:1px solid #0008; }
   .ie-foot { display:block; margin-top:8px; }

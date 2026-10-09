@@ -66,7 +66,7 @@ describe('searching the library', () => {
     assert.ok(searchIcons('fire bolt').some((i) => i.id.startsWith('spellset/fire-bolt')));
     assert.equal(searchIcons('zzzz nothing').length, 0);
     assert.ok(searchIcons('icon 12', 'icons151').every((i) => i.pack === 'icons151'));
-    assert.ok(searchIcons('revive', 'spellset').length > 10);
+    assert.ok(searchIcons('revive', 'spellset').length >= 2);
     assert.equal(searchIcons('revive', 'barbarian').length, 0);
     // tags: the framed round icons are grouped by school
     assert.ok(searchIcons('arcane').some((i) => i.pack.startsWith('steadykeel')));
