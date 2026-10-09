@@ -7,13 +7,13 @@
   "target": "enemy",
   "range": 3,
   "castTime": 0,
-  "cooldown": 6000,
+  "cooldown": 8000,
   "gcd": true,
   "cost": 30,
   "effects": [
    {
     "type": "damage",
-    "amount": 400
+    "amount": 370
    },
    {
     "type": "aura",
@@ -66,7 +66,7 @@
   "effects": [
    {
     "type": "interrupt",
-    "lockout": 4000
+    "lockout": 5000
    }
   ]
  },
@@ -176,7 +176,7 @@
   "effects": [
    {
     "type": "interrupt",
-    "lockout": 4000
+    "lockout": 5000
    }
   ],
   "ignoresLockout": true,
@@ -737,14 +737,14 @@
   "school": "holy",
   "target": "ally_or_self",
   "range": 40,
-  "castTime": 2600,
+  "castTime": 2800,
   "cooldown": 0,
   "gcd": true,
   "cost": 90,
   "effects": [
    {
     "type": "heal",
-    "amount": 580
+    "amount": 630
    }
   ]
  },
@@ -756,7 +756,7 @@
   "target": "ally_or_self",
   "range": 40,
   "castTime": 0,
-  "cooldown": 45000,
+  "cooldown": 80000,
   "gcd": false,
   "cost": 0,
   "effects": [
@@ -774,7 +774,7 @@
   "target": "self",
   "range": 0,
   "castTime": 0,
-  "cooldown": 90000,
+  "cooldown": 60000,
   "gcd": false,
   "cost": 0,
   "effects": [
@@ -1393,7 +1393,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 300
+    "amount": 250
    },
    {
     "type": "aura",
@@ -1583,7 +1583,7 @@
   "school": "holy",
   "target": "aoe_all",
   "range": 0,
-  "radius": 12,
+  "radius": 15,
   "castTime": 0,
   "cooldown": 12000,
   "gcd": true,
@@ -1591,12 +1591,12 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 80,
+    "amount": 140,
     "only": "enemy"
    },
    {
     "type": "heal",
-    "amount": 130,
+    "amount": 285,
     "only": "ally"
    }
   ]
@@ -1677,7 +1677,7 @@
   "radius": 5,
   "coneDeg": 90,
   "castTime": 4000,
-  "cooldown": 30000,
+  "cooldown": 60000,
   "gcd": true,
   "cost": 30,
   "channel": {
@@ -1704,8 +1704,8 @@
   "target": "aoe_enemy",
   "range": 0,
   "radius": 7,
-  "castTime": 5000,
-  "cooldown": 60000,
+  "castTime": 7000,
+  "cooldown": 80000,
   "gcd": true,
   "cost": 30,
   "castWhileMoving": true,
@@ -1838,7 +1838,7 @@
   "target": "ground",
   "range": 15,
   "castTime": 0,
-  "cooldown": 60000,
+  "cooldown": 80000,
   "gcd": true,
   "cost": 20,
   "effects": [

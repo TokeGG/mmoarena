@@ -68,7 +68,7 @@
     "kind": "absorb",
     "duration": 15000,
     "harmful": false,
-    "absorb": 250,
+    "absorb": 275,
     "dispellable": true
   },
   "stealth": {
@@ -278,7 +278,7 @@
     "harmful": true,
     "dispellable": true,
     "dot": {
-      "amount": 42,
+      "amount": 45,
       "interval": 1000,
       "school": "shadow",
       "ability": "plague_bloom"
