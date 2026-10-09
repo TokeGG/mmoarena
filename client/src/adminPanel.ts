@@ -9,7 +9,6 @@ import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, 
 import { OwnerPanel } from './ownerUi';
 import { TimeView } from './timeUi';
 import { mapName } from './spectate';
-import { makeResizable } from './resizable';
 import type { Popup } from './popups';
 import { tours } from './tour';
 import { toursList } from './tourUi';
@@ -78,7 +77,12 @@ const dur = (ms: number) => {
  * announcements and maintenance mode, and a log of every admin action. The server checks every action again.
  */
 export class AdminPanel {
-  private root: HTMLElement | null = null;
+  /** The panel's body inside the tools window (always there; the window shows it on its Admin tab). */
+  readonly root: HTMLElement = el('div', 'admp embed');
+  /** The Admin tab is showing: the panel refreshes and redraws only then. */
+  private active = false;
+  /** The tools window (set by it) that shows and hides this panel. */
+  private win: { show(): void; hide(): void } | null = null;
   private tab: Tab = 'dashboard';
   private log: AdminLogRow[] | null = null;
   private suggestions: { at: number; name: string; text: string; note?: string }[] | null = null;
@@ -110,8 +114,6 @@ export class AdminPanel {
   private op: OwnerPanel;
   /** Play time per player (owner only). */
   private time: TimeView;
-  readonly popup: Popup = { isOpen: () => !!this.root, close: () => this.close(), el: () => this.root };
-
   /** The bot battle window, started from the main menu (owner only). */
   private bb: HTMLElement | null = null;
   readonly bbPopup: Popup = { isOpen: () => !!this.bb, close: () => this.closeBotBattle(), el: () => this.bb };
@@ -154,7 +156,8 @@ export class AdminPanel {
 
   constructor(private hooks: Hooks) {
     this.time = new TimeView((m) => hooks.send(m), () => this.paint());
-    makeResizable(this.card, { key: 'admin', corner: 'br', minW: 480, minH: 320, z: 61 });
+    this.root.append(this.card);
+    this.root.addEventListener('focusout', () => window.setTimeout(() => this.repaintLater && !this.typing() && this.paint(), 150));
     this.op = new OwnerPanel({ limited: () => this.access() === 'dev', send: hooks.send, token: hooks.token, rerender: () => {
         this.paint();
         this.paintBotBattle(); // the bot battle window from the main menu redraws too (more bots when the size changes)
@@ -166,30 +169,44 @@ export class AdminPanel {
     return adminAccessOf(this.hooks.account());
   }
 
+  /** The tools window is open on the Admin tab. */
   get isOpen(): boolean {
-    return !!this.root;
+    return this.active;
+  }
+
+  setWindow(w: { show(): void; hide(): void }) {
+    this.win = w;
   }
 
   /** Live matches and the dashboard keep themselves up to date while the panel is open. */
   private timer = 0;
 
+  /** Open the tools window on the Admin tab (on `tab`). */
   open(tab?: Tab) {
     if (tab) this.tab = tab;
+    if (this.win && !this.active) this.win.show(); // the window calls activate()
+    else this.activate();
+  }
+
+  /** The window shows the Admin tab: the lists refresh themselves every few seconds until it stops showing. */
+  activate() {
+    this.active = true;
     window.clearInterval(this.timer);
     this.timer = window.setInterval(() => {
-      if (!this.root || !this.access()) return;
+      if (!this.active || document.hidden || !this.access()) return;
       if (this.tab === 'matches' || this.tab === 'dashboard') this.hooks.send({ t: 'admin_overview' });
       else if (this.tab === 'replays') this.hooks.send({ t: 'admin_act', act: 'feed' });
     }, 3000);
-    if (!this.root) {
-      this.root = el('div', 'admp');
-      this.root.addEventListener('mousedown', (e) => e.target === this.root && this.close());
-      this.root.addEventListener('focusout', () => window.setTimeout(() => this.repaintLater && !this.typing() && this.paint(), 150));
-      document.body.append(this.root);
-    }
     this.refresh();
     this.paint();
     this.tourMoment();
+  }
+
+  /** The window closed or switched to the Dev tab: no more polling. */
+  deactivate() {
+    this.active = false;
+    window.clearInterval(this.timer);
+    this.timer = 0;
   }
 
   /** The first time ever on the panel (or on its Tuning tab) a dev is walked through it. */
@@ -205,10 +222,10 @@ export class AdminPanel {
   /** The "?" button's list: every tour, each with a replay button. */
   private toursOpen = false;
 
+  /** Close the whole tools window (watching or taking over a match, losing access). */
   close() {
-    window.clearInterval(this.timer);
-    this.root?.remove();
-    this.root = null;
+    if (this.win) this.win.hide();
+    else this.deactivate();
   }
 
   /** Ask the server for what the current tab shows. */
@@ -282,8 +299,8 @@ export class AdminPanel {
     this.op.handle(m);
     if (m.t === 'admin_overview' && m.maintenance && !this.maintText) this.maintText = m.maintenance;
     // the lists refresh themselves every few seconds: a redraw must not close the phone keyboard on a box being typed in
-    if (this.root && PERIODIC.has(m.t) && this.typing()) this.repaintLater = true;
-    else if (this.root) this.paint();
+    if (this.active && PERIODIC.has(m.t) && this.typing()) this.repaintLater = true;
+    else if (this.active) this.paint();
     if (this.bb) this.paintBotBattle();
   }
 
@@ -291,12 +308,12 @@ export class AdminPanel {
   private repaintLater = false;
   private typing(): boolean {
     const a = document.activeElement;
-    return !!this.root && !!a && this.root.contains(a) && (a instanceof HTMLTextAreaElement || (a instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'file'].includes(a.type)));
+    return !!a && this.root.contains(a) && (a instanceof HTMLTextAreaElement || (a instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'file'].includes(a.type)));
   }
 
   private paint() {
     const r = this.root;
-    if (!r) return;
+    if (!this.active) return;
     this.repaintLater = false;
     const a = this.hooks.account();
     const card = this.card;
@@ -308,12 +325,10 @@ export class AdminPanel {
     card.replaceChildren();
     const head = el('div', 'admp-head');
     const o = this.op.overview;
-    head.append(el('h2', '', '🛡 Admin'), el('span', 'admp-status', o ? `${o.online} online · ${o.rooms.length} match${o.rooms.length === 1 ? '' : 'es'} · v${o.version ?? '?'}${o.maintenance ? ' · 🛠 maintenance' : ''}` : ''));
+    head.append(el('span', 'admp-status', o ? `${o.online} online · ${o.rooms.length} match${o.rooms.length === 1 ? '' : 'es'} · v${o.version ?? '?'}${o.maintenance ? ' · 🛠 maintenance' : ''}` : ''));
     const refresh = el('button', 'mm-small', '↻');
     refresh.title = 'Refresh';
     refresh.addEventListener('click', () => this.refresh());
-    const close = el('button', 'mm-small', 'Close');
-    close.addEventListener('click', () => this.close());
     const help = el('button', `mm-small${this.toursOpen ? ' mm-go' : ''}`, '? Tours');
     help.title = 'Guided tours: replay the walkthroughs of the Dev tools, this panel and the game';
     help.dataset.tour = 'admin-tours';
@@ -321,7 +336,7 @@ export class AdminPanel {
       this.toursOpen = !this.toursOpen;
       this.paint();
     });
-    head.append(help, refresh, close);
+    head.append(help, refresh);
     card.append(head);
 
     const access = this.access();
@@ -445,7 +460,7 @@ export class AdminPanel {
     const box = el('div', 'admp-designer');
     if (!designerOnce) {
       designerOnce = true;
-      designer.onChange(() => this.root && this.tab === 'tuning' && this.paint());
+      designer.onChange(() => this.active && this.tab === 'tuning' && this.paint());
     }
     const ws = this.workspace();
     const left = el('div', 'admp-ds-left');
