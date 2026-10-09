@@ -217,7 +217,7 @@
   "blind": {
     "name": "Blind",
     "kind": "incapacitate",
-    "duration": 5000,
+    "duration": 8000,
     "harmful": true,
     "dr": "incapacitate",
     "breaksOnDamage": true,
@@ -365,7 +365,7 @@
     "perCp": true,
     "maxDuration": 5000,
     "dot": {
-      "amount": 110,
+      "amount": 60,
       "interval": 1000,
       "school": "physical",
       "ability": "eviscerate"
