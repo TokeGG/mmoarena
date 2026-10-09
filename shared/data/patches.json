@@ -1,5 +1,22 @@
 [
  {
+  "version": "0.69.10",
+  "date": "2026-10-09",
+  "at": "2026-10-09T08:04:18Z",
+  "title": "Mage and warrior changes, Heavenly Ascent and elevation",
+  "changes": [
+   "Mirror Image: the two images appear in a triangle with the mage, a couple of yards apart, and never inside walls or pillars.",
+   "Starweaving: Arcane Blast hits 5% harder for each Arcane Charge you have.",
+   "Starweaving: Arcane Missiles uses up all your Arcane Charges when cast and fires one extra missile for each.",
+   "Pyromancy: Scorch gives the target 1 stack of Singed and Fireball gives 2. Fireball also has a 10% chance to give Hot Streak on its own, and Dragon's Breath no longer gives Hot Streak.",
+   "Warrior: Slam generates 15 rage (the Rage Engine talent gives 8 more).",
+   "Warrior: Slice and Dice hits a 90 degree cone in front of you, like Sweep, with a cone shown on the ground and cone-shaped slashes.",
+   "Ascend to the Heavens lifts the priest straight up about 6 yards, where they hover for 4 seconds unable to move, still untargetable and invulnerable, before coming back down. It no longer grants a speed boost.",
+   "Health bars, resource bars, floating combat text and spell effects now follow a character up decks, ramps and jumps instead of staying at ground height.",
+   "A spec's passive list in the character selector no longer shows the weapon's model name."
+  ]
+ },
+ {
   "version": "0.69.9",
   "date": "2026-10-09",
   "at": "2026-10-09T06:39:20Z",
