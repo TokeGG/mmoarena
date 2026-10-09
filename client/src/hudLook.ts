@@ -95,7 +95,8 @@ export const TARGET_ARROWS: Record<string, string> = { arrow: 'â–¼', chevron: 'â
 
 export function applyLook() {
   if (typeof document === 'undefined') return;
-  for (const o of LOOK_OPTIONS) document.body.dataset[`hud${o.id.charAt(0).toUpperCase()}${o.id.slice(1)}`] = look[o.id];
+  // the plate* options are the old single nameplate profile; plates follow their own profiles now (nameplateLayout.ts)
+  for (const o of LOOK_OPTIONS) if (!o.id.startsWith('plate')) document.body.dataset[`hud${o.id.charAt(0).toUpperCase()}${o.id.slice(1)}`] = look[o.id];
   document.body.style.setProperty('--tgt-color', TARGET_COLORS[look.targetColor] ?? '');
   for (const [k, v] of Object.entries(textVars(look))) document.body.style.setProperty(k, v);
 }
@@ -145,7 +146,7 @@ export function hpText(health: number, max: number, absorb = 0): string {
 }
 
 /** A health fill for a colour mode: team colours (the ally / enemy picks), class colour, or green-to-red by health left. */
-function fillFor(mode: string, enemy: boolean, frac: number, classColor: string): string {
+export function fillFor(mode: string, enemy: boolean, frac: number, classColor: string): string {
   if (mode === 'class') return `linear-gradient(${classColor}, ${classColor}aa)`;
   if (mode === 'health') {
     const hue = Math.round(Math.max(0, Math.min(1, frac)) * 120);

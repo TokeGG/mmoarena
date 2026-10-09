@@ -2,6 +2,7 @@ import { clamp } from '@arena/shared';
 import { controlColor } from './hudText';
 import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
 import { LOOK_OPTIONS, loadLook, look, resetLook, setLook } from './hudLook';
+import { nameplateEditorOpen, openNameplateEditor } from './nameplateEditor';
 
 /**
  * HUD layout editor. Every movable element gets a saved offset and scale applied through the CSS `translate` and
@@ -241,7 +242,7 @@ export class HudLayout {
    * it runs before the game's handler, which must not also open the menu on the same press.
    */
   private escHandler = (ev: KeyboardEvent) => {
-    if (!leavesEditor(this.st, ev.code, ev.repeat)) return;
+    if (nameplateEditorOpen() || !leavesEditor(this.st, ev.code, ev.repeat)) return; // the nameplate editor over this one takes Escape first
     ev.preventDefault();
     ev.stopImmediatePropagation();
     this.stop();
@@ -378,7 +379,13 @@ export class HudLayout {
       details.append(grid);
       return details;
     };
-    const details = lookGrid('Frames, health bars, nameplates and slots', (o) => !TEXT_GROUPS.includes(o.group ?? ''));
+    const details = lookGrid('Frames, health bars and slots', (o) => !TEXT_GROUPS.includes(o.group ?? '') && o.group !== 'Nameplates');
+    // nameplates have their own editor (profiles for you, allies and enemies; see nameplateEditor.ts)
+    const plateRow = mk('div', 'he-row');
+    const plateBtn = mk('button', '', 'Edit nameplates…');
+    plateBtn.title = 'Size, place and style the nameplates of yourself, allies and enemies';
+    plateBtn.addEventListener('click', () => openNameplateEditor());
+    plateRow.append(plateBtn);
     const textDetails = lookGrid('Error text, stun text and network stats (drag them in the editor too)', (o) => TEXT_GROUPS.includes(o.group ?? ''));
     // live preview of both texts on a dark and a light floor, drawn by the same variables as the real ones
     const prev = mk('div', 'he-prev');
@@ -388,7 +395,7 @@ export class HudLayout {
     textDetails.append(prev);
     this.paintPreview();
 
-    panel.append(head, row1, row2, details, textDetails);
+    panel.append(head, row1, row2, plateRow, details, textDetails);
     return panel;
   }
 

@@ -44,6 +44,8 @@ import { IntervalTracker, InterpDelay, LEAD_EXTRAPOLATE_MS, Lead, RenderTime, po
 import type { Pose } from './interpDelay';
 import { NetStats, NetStatsView } from './netStats';
 import { ownAhead } from './ownAhead';
+import { anchorWorldY, plateKind } from './nameplateLayout';
+import { plateProfile } from './nameplateStore';
 
 /** Milliseconds per server tick: the server says so in `welcome` (a replay uses the tick length it was recorded at); prediction, the input cadence and the snapshot buffer all follow it. */
 let tickMs: number = TUNING.tickMs;
@@ -1305,11 +1307,16 @@ function frame(now: number) {
   hud.update({ snap, now: estNow, you, targetId });
   hud.nameplates(
     units.map((u) => {
-      const s = scene.project(u.x, 2.7 + (scene.unitY(u.id) ?? u.y), u.z); // follows the model up decks, ramps and jumps
+      const kind = plateKind({ id: u.id, enemy: u.team !== team }, you, !!spec);
+      const prof = plateProfile(kind);
+      const uy = scene.unitY(u.id) ?? u.y; // the model's real height: up decks, ramps and jumps
+      const s = scene.project(u.x, anchorWorldY(prof.anchor, uy), u.z); // the plate's head or feet anchor
+      s.y -= prof.offsetY;
       const meta = snap.units.find((x) => x.id === u.id)!;
-      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, resource: meta.resource, resourceMax: meta.resourceMax, resourceType: meta.resourceType, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
+      return { id: u.id, x: s.x, y: s.y, visible: s.visible, kind, dist: scene.distanceTo(u.x, uy, u.z), name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, resource: meta.resource, resourceMax: meta.resourceMax, resourceType: meta.resourceType, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
     }),
     estNow,
+    spec ? 0 : you,
   );
 }
 requestAnimationFrame(frame);

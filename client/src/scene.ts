@@ -409,6 +409,11 @@ export class ArenaScene {
   /** The level the local player is on, for aiming and ground rings. */
   viewLevel: 0 | 1 = 0;
 
+  /** Camera distance (metres) to a world point. */
+  distanceTo(x: number, y: number, z: number): number {
+    return this.camera.position.distanceTo(this.tmp.set(x, y, z));
+  }
+
   /** World point to screen pixels. */
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {
     this.tmp.set(x, y, z).project(this.camera);
