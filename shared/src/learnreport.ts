@@ -1,3 +1,4 @@
+import { BRAIN_WORDS, plainMove, showBrainValue } from './brainwords';
 import { BRAIN_KEYS } from './botbrain';
 import type { Brain } from './botbrain';
 import { FACT_LABELS, MISTAKE_LABELS } from './mistakes';
@@ -100,6 +101,9 @@ export function brainDiff(before: Brain, after: Brain, eps = 0.0049): BrainMove[
   return out;
 }
 
+/** A move in plain words, class by class: what the bots now do differently. */
+export const plainClassMoves = (classId: string, moves: BrainMove[]): string => `${classId} bots now ${moves.map(plainMove).join('; and ')}`;
+
 export const moveText = (m: BrainMove) => {
   const small = Math.abs(m.after - m.before) < 0.01;
   const f = (n: number) => (small ? n.toFixed(3) : fmtNum(n));
@@ -170,7 +174,7 @@ export function buildReport(o: {
   const moved = o.classes.filter((c) => c.moved.length);
   const nothing = moved.length ? null : nothingReason(bots, o.hadReplay);
   const headline = moved.length
-    ? `${moved.length} bot class${moved.length === 1 ? '' : 'es'} changed: ${moved.map((c) => `${c.classId}: ${c.moved.map(moveText).join(', ')}`).join('; ')}`
+    ? `${moved.length} bot class${moved.length === 1 ? '' : 'es'} changed. ${moved.map((c) => `${plainClassMoves(c.classId, c.moved)}.`).join(' ')}`
     : `Nothing to learn from this match: ${nothing}.`;
   return {
     id: o.id, replayId: o.replayId, at: o.at, source: o.source, passes: o.passes, replaysRead: o.replaysRead ?? 1, skipped: o.skipped ?? 0,
@@ -187,9 +191,16 @@ export function formatReport(r: LearnReport): string[] {
     const mist = b.mistakes.length ? b.mistakes.map((c) => `${c.count} ${c.label}`).join(', ') : 'no mistakes found';
     lines.push(`${b.classId} bot (${b.won ? 'won' : 'lost'} against ${b.foes.join(', ') || 'nobody'}, ${b.engagedSec}s of fighting): ${mist}.`);
     for (const c of b.compared) lines.push(`  compared with the people: ${c}.`);
-    if (b.lessons.length) lines.push(`  taught: ${b.lessons.map((l) => `${l.key} towards ${fmtNum(l.value)} (evidence ${Math.round(l.weight)})`).join(', ')}.`);
+    if (b.lessons.length) lines.push(`  taught: ${b.lessons.map((l) => `${BRAIN_WORDS[l.key]?.what ?? l.key} towards ${showBrainValue(l.key, l.value)} (evidence ${Math.round(l.weight)})`).join('; ')}.`);
   }
-  for (const c of r.classes) lines.push(c.moved.length ? `${c.classId} (${c.replays} replay${c.replays === 1 ? '' : 's'} so far): ${c.moved.map((m) => moveText(m) + (m.why ? ` (${m.why})` : '')).join(', ')}` : `${c.classId}: no number moved.`);
+  for (const c of r.classes) {
+    if (!c.moved.length) {
+      lines.push(`${c.classId}: nothing changed.`);
+      continue;
+    }
+    lines.push(`${c.classId} bots (${c.replays} replay${c.replays === 1 ? '' : 's'} learned from so far) are trying:`);
+    for (const m of c.moved) lines.push(`  • ${plainMove(m)}${m.why ? ` because ${m.why}` : ''}. Look for: ${BRAIN_WORDS[m.key]?.watch ?? 'a change in how they play'}. [${moveText(m)}]`);
+  }
   for (const c of r.classes) for (const n of c.notes ?? []) lines.push(`${c.classId}: ${n}`);
   if (r.habits) lines.push(`${r.habits} player${r.habits === 1 ? '’s' : 's’'} habits (kick timing, fakes, spacing) were studied.`);
   lines.push('The changed brain joins the class as a "lesson" variant and plays in a share of its games until it proves itself; a variant that wins more is picked more.');
