@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.28",
+  "date": "2026-10-09",
+  "at": "2026-10-09T20:47:15Z",
+  "title": "Balance changes",
+  "changes": [
+   "Cleansing Charm: cooldown 60 s to 120 s.",
+   "Healing Charm: cooldown 60 s to 120 s.",
+   "Warding Charm: cooldown 60 s to 120 s."
+  ],
+  "by": "Toke"
+ },
+ {
   "version": "0.69.27",
   "date": "2026-10-10",
   "at": "2026-10-10T05:10:00Z",
