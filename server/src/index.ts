@@ -7,6 +7,7 @@ import { WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
 import { PATCHES, TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
+import { PlayTime } from './playtime';
 import { Accounts } from './accounts';
 import { createStore } from './store';
 import { BotLearner, MeasureWorker } from './botlearn';
@@ -87,7 +88,8 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const tickMs = opts.tickMs ?? tickEnv.tickMs;
   const msgLimit = maxMsgsPerSec(tickMs);
   console.log(`tick: ${tickMs} ms (${Math.round((10000 / tickMs)) / 10} Hz)${tickMs === TUNING.tickMs ? '' : ' (ARENA_TICK_MS)'}`);
-  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env));
+  const playTime = new PlayTime(store);
+  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env), playTime);
 
   const server = http.createServer((req, res) => {
     let url: URL;
@@ -285,13 +287,13 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       resolve({
         port,
         close: () =>
-          new Promise<void>((done) => {
+          lobby.saveTime().then(() => new Promise<void>((done) => {
             loop.stop();
             clearInterval(heartbeat);
             void measurer.close();
             for (const ws of wss.clients) ws.terminate();
             wss.close(() => server.close(() => done()));
-          }),
+          })),
       });
     });
   });

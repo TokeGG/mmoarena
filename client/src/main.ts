@@ -361,6 +361,8 @@ function onMessage(raw: MessageEvent) {
     case 'admin_log':
     case 'admin_history':
     case 'admin_feed':
+    case 'admin_time':
+    case 'admin_time_player':
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
