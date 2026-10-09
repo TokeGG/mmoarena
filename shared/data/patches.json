@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.30",
+  "date": "2026-10-09",
+  "at": "2026-10-09T21:05:41Z",
+  "title": "Balance changes",
+  "changes": [
+   "Recklessness: damage dealt +40% to +30%."
+  ],
+  "by": "Toke"
+ },
+ {
   "version": "0.69.29",
   "date": "2026-10-09",
   "at": "2026-10-09T21:05:22Z",
