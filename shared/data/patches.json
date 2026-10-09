@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.19",
+  "date": "2026-10-09",
+  "at": "2026-10-09T21:10:00Z",
+  "title": "Dragon's Breath spray and smoother Charge",
+  "changes": [
+   "Dragon's Breath now sprays fire out of the mage at once along its cone, instead of a long build-up.",
+   "Charge and Heroic Leap now play as one smooth run or arc instead of blinking forward in jumps, and Charge leaves a dust and streak trail along its path."
+  ]
+ },
+ {
   "version": "0.69.18",
   "date": "2026-10-09",
   "at": "2026-10-09T20:40:00Z",
