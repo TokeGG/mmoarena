@@ -122,7 +122,7 @@ export const NOTE_PHRASES: Record<keyof Brain, Record<Dir, string[]>> = {
     down: ['hid too much', 'los too much', 'kept hiding', 'ran behind pillar too much', 'wasted time on los', 'hid behind the pillar too much', 'too much los'],
   },
   mobility: {
-    up: ['didnt move enough', 'stood still', 'stationary', 'should keep moving', 'too static', 'stood there', 'didnt keep moving'],
+    up: ['didnt move enough', 'stood still', 'stationary', 'should keep moving', 'too static', 'didnt keep moving'],
     down: ['moved too much', 'ran around too much', 'should stand and fight', 'too much hopping', 'jumped too much', 'moves too much', 'circled too much'],
   },
   trinketAt: {
