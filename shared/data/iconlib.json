@@ -43,6 +43,18 @@
    "name": "Spell set (2011)",
    "count": 12,
    "license": "Supplied by the owner (no licence file in the download)"
+  },
+  {
+   "id": "classart",
+   "name": "Class emblems",
+   "count": 20,
+   "license": "Made for this game by combining the other packs (their terms apply to the parts used)"
+  },
+  {
+   "id": "specart",
+   "name": "Spec emblems",
+   "count": 60,
+   "license": "Made for this game by combining the other packs (their terms apply to the parts used)"
   }
  ],
  "icons": [
@@ -2982,6 +2994,866 @@
    "file": "/icons/spellset/weapon-enchant-lightning-sword.webp",
    "tags": [
     "weapon-enchant"
+   ]
+  },
+  {
+   "id": "classart/warrior-1",
+   "pack": "classart",
+   "name": "Warrior 1",
+   "file": "/icons/classart/warrior-1.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-2",
+   "pack": "classart",
+   "name": "Warrior 2",
+   "file": "/icons/classart/warrior-2.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-3",
+   "pack": "classart",
+   "name": "Warrior 3",
+   "file": "/icons/classart/warrior-3.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-4",
+   "pack": "classart",
+   "name": "Warrior 4",
+   "file": "/icons/classart/warrior-4.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-5",
+   "pack": "classart",
+   "name": "Warrior 5",
+   "file": "/icons/classart/warrior-5.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/mage-1",
+   "pack": "classart",
+   "name": "Mage 1",
+   "file": "/icons/classart/mage-1.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-2",
+   "pack": "classart",
+   "name": "Mage 2",
+   "file": "/icons/classart/mage-2.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-3",
+   "pack": "classart",
+   "name": "Mage 3",
+   "file": "/icons/classart/mage-3.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-4",
+   "pack": "classart",
+   "name": "Mage 4",
+   "file": "/icons/classart/mage-4.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-5",
+   "pack": "classart",
+   "name": "Mage 5",
+   "file": "/icons/classart/mage-5.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/priest-1",
+   "pack": "classart",
+   "name": "Priest 1",
+   "file": "/icons/classart/priest-1.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-2",
+   "pack": "classart",
+   "name": "Priest 2",
+   "file": "/icons/classart/priest-2.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-3",
+   "pack": "classart",
+   "name": "Priest 3",
+   "file": "/icons/classart/priest-3.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-4",
+   "pack": "classart",
+   "name": "Priest 4",
+   "file": "/icons/classart/priest-4.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-5",
+   "pack": "classart",
+   "name": "Priest 5",
+   "file": "/icons/classart/priest-5.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/rogue-1",
+   "pack": "classart",
+   "name": "Rogue 1",
+   "file": "/icons/classart/rogue-1.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-2",
+   "pack": "classart",
+   "name": "Rogue 2",
+   "file": "/icons/classart/rogue-2.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-3",
+   "pack": "classart",
+   "name": "Rogue 3",
+   "file": "/icons/classart/rogue-3.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-4",
+   "pack": "classart",
+   "name": "Rogue 4",
+   "file": "/icons/classart/rogue-4.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-5",
+   "pack": "classart",
+   "name": "Rogue 5",
+   "file": "/icons/classart/rogue-5.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "specart/warbringer-1",
+   "pack": "specart",
+   "name": "Warbringer 1",
+   "file": "/icons/specart/warbringer-1.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-2",
+   "pack": "specart",
+   "name": "Warbringer 2",
+   "file": "/icons/specart/warbringer-2.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-3",
+   "pack": "specart",
+   "name": "Warbringer 3",
+   "file": "/icons/specart/warbringer-3.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-4",
+   "pack": "specart",
+   "name": "Warbringer 4",
+   "file": "/icons/specart/warbringer-4.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-5",
+   "pack": "specart",
+   "name": "Warbringer 5",
+   "file": "/icons/specart/warbringer-5.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/rampager-1",
+   "pack": "specart",
+   "name": "Rampager 1",
+   "file": "/icons/specart/rampager-1.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-2",
+   "pack": "specart",
+   "name": "Rampager 2",
+   "file": "/icons/specart/rampager-2.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-3",
+   "pack": "specart",
+   "name": "Rampager 3",
+   "file": "/icons/specart/rampager-3.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-4",
+   "pack": "specart",
+   "name": "Rampager 4",
+   "file": "/icons/specart/rampager-4.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-5",
+   "pack": "specart",
+   "name": "Rampager 5",
+   "file": "/icons/specart/rampager-5.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/barbarian-1",
+   "pack": "specart",
+   "name": "Barbarian 1",
+   "file": "/icons/specart/barbarian-1.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-2",
+   "pack": "specart",
+   "name": "Barbarian 2",
+   "file": "/icons/specart/barbarian-2.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-3",
+   "pack": "specart",
+   "name": "Barbarian 3",
+   "file": "/icons/specart/barbarian-3.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-4",
+   "pack": "specart",
+   "name": "Barbarian 4",
+   "file": "/icons/specart/barbarian-4.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-5",
+   "pack": "specart",
+   "name": "Barbarian 5",
+   "file": "/icons/specart/barbarian-5.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-1",
+   "pack": "specart",
+   "name": "Cryomancy 1",
+   "file": "/icons/specart/cryomancy-1.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-2",
+   "pack": "specart",
+   "name": "Cryomancy 2",
+   "file": "/icons/specart/cryomancy-2.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-3",
+   "pack": "specart",
+   "name": "Cryomancy 3",
+   "file": "/icons/specart/cryomancy-3.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-4",
+   "pack": "specart",
+   "name": "Cryomancy 4",
+   "file": "/icons/specart/cryomancy-4.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-5",
+   "pack": "specart",
+   "name": "Cryomancy 5",
+   "file": "/icons/specart/cryomancy-5.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-1",
+   "pack": "specart",
+   "name": "Pyromancy 1",
+   "file": "/icons/specart/pyromancy-1.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-2",
+   "pack": "specart",
+   "name": "Pyromancy 2",
+   "file": "/icons/specart/pyromancy-2.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-3",
+   "pack": "specart",
+   "name": "Pyromancy 3",
+   "file": "/icons/specart/pyromancy-3.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-4",
+   "pack": "specart",
+   "name": "Pyromancy 4",
+   "file": "/icons/specart/pyromancy-4.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-5",
+   "pack": "specart",
+   "name": "Pyromancy 5",
+   "file": "/icons/specart/pyromancy-5.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/starweaving-1",
+   "pack": "specart",
+   "name": "Starweaving 1",
+   "file": "/icons/specart/starweaving-1.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-2",
+   "pack": "specart",
+   "name": "Starweaving 2",
+   "file": "/icons/specart/starweaving-2.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-3",
+   "pack": "specart",
+   "name": "Starweaving 3",
+   "file": "/icons/specart/starweaving-3.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-4",
+   "pack": "specart",
+   "name": "Starweaving 4",
+   "file": "/icons/specart/starweaving-4.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-5",
+   "pack": "specart",
+   "name": "Starweaving 5",
+   "file": "/icons/specart/starweaving-5.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/warden-1",
+   "pack": "specart",
+   "name": "Warden 1",
+   "file": "/icons/specart/warden-1.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-2",
+   "pack": "specart",
+   "name": "Warden 2",
+   "file": "/icons/specart/warden-2.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-3",
+   "pack": "specart",
+   "name": "Warden 3",
+   "file": "/icons/specart/warden-3.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-4",
+   "pack": "specart",
+   "name": "Warden 4",
+   "file": "/icons/specart/warden-4.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-5",
+   "pack": "specart",
+   "name": "Warden 5",
+   "file": "/icons/specart/warden-5.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-1",
+   "pack": "specart",
+   "name": "Lightbearer 1",
+   "file": "/icons/specart/lightbearer-1.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-2",
+   "pack": "specart",
+   "name": "Lightbearer 2",
+   "file": "/icons/specart/lightbearer-2.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-3",
+   "pack": "specart",
+   "name": "Lightbearer 3",
+   "file": "/icons/specart/lightbearer-3.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-4",
+   "pack": "specart",
+   "name": "Lightbearer 4",
+   "file": "/icons/specart/lightbearer-4.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-5",
+   "pack": "specart",
+   "name": "Lightbearer 5",
+   "file": "/icons/specart/lightbearer-5.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-1",
+   "pack": "specart",
+   "name": "Gloomweaver 1",
+   "file": "/icons/specart/gloomweaver-1.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-2",
+   "pack": "specart",
+   "name": "Gloomweaver 2",
+   "file": "/icons/specart/gloomweaver-2.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-3",
+   "pack": "specart",
+   "name": "Gloomweaver 3",
+   "file": "/icons/specart/gloomweaver-3.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-4",
+   "pack": "specart",
+   "name": "Gloomweaver 4",
+   "file": "/icons/specart/gloomweaver-4.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-5",
+   "pack": "specart",
+   "name": "Gloomweaver 5",
+   "file": "/icons/specart/gloomweaver-5.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-1",
+   "pack": "specart",
+   "name": "Cutthroat 1",
+   "file": "/icons/specart/cutthroat-1.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-2",
+   "pack": "specart",
+   "name": "Cutthroat 2",
+   "file": "/icons/specart/cutthroat-2.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-3",
+   "pack": "specart",
+   "name": "Cutthroat 3",
+   "file": "/icons/specart/cutthroat-3.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-4",
+   "pack": "specart",
+   "name": "Cutthroat 4",
+   "file": "/icons/specart/cutthroat-4.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-5",
+   "pack": "specart",
+   "name": "Cutthroat 5",
+   "file": "/icons/specart/cutthroat-5.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/duelist-1",
+   "pack": "specart",
+   "name": "Duelist 1",
+   "file": "/icons/specart/duelist-1.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-2",
+   "pack": "specart",
+   "name": "Duelist 2",
+   "file": "/icons/specart/duelist-2.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-3",
+   "pack": "specart",
+   "name": "Duelist 3",
+   "file": "/icons/specart/duelist-3.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-4",
+   "pack": "specart",
+   "name": "Duelist 4",
+   "file": "/icons/specart/duelist-4.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-5",
+   "pack": "specart",
+   "name": "Duelist 5",
+   "file": "/icons/specart/duelist-5.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/shade-1",
+   "pack": "specart",
+   "name": "Shade 1",
+   "file": "/icons/specart/shade-1.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-2",
+   "pack": "specart",
+   "name": "Shade 2",
+   "file": "/icons/specart/shade-2.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-3",
+   "pack": "specart",
+   "name": "Shade 3",
+   "file": "/icons/specart/shade-3.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-4",
+   "pack": "specart",
+   "name": "Shade 4",
+   "file": "/icons/specart/shade-4.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-5",
+   "pack": "specart",
+   "name": "Shade 5",
+   "file": "/icons/specart/shade-5.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
    ]
   }
  ]
