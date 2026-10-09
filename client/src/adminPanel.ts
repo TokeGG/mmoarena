@@ -893,15 +893,18 @@ export class AdminPanel {
       row.append(nb);
       if (open || notes.length) {
         const wrap = el('div', 'admp-notes');
+        wrap.style.cssText = 'width:calc(100% - 22px);margin:2px 0 8px 22px;box-sizing:border-box;';
         for (const n of notes) {
           const rep = this.knowledge?.reports.find((r) => r.note?.id === n.id);
           const line = el('div', 'devp-dim');
-          line.textContent = `${new Date(n.at).toLocaleString()} · ${n.by}${n.role === 'owner' ? ' (owner)' : ''}${n.liveSec !== undefined ? ` · ${n.liveSec}s in` : ''}: "${n.text}"`;
+          line.textContent = `${new Date(n.at).toLocaleString()} · ${n.by}${n.role === 'owner' ? ' (owner)' : ''}${n.liveSec !== undefined ? ` · ${n.liveSec}s in` : ''} · ${rep?.headline ?? `"${n.text}"`}`;
           wrap.append(line);
           if (rep) wrap.append(this.reportLines(rep, `rep:${rep.id}`));
         }
         if (open) wrap.append(noteBox(m.id, (msg) => this.hooks.send(msg)));
-        row.append(wrap);
+        const both = el('div');
+        both.append(row, wrap);
+        return both;
       }
     }
     return row;
