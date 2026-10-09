@@ -323,12 +323,12 @@ export class DevTools {
         const files = [...built.files];
         // the patch: notes entry, version, README, SIM_REVISION
         const patchesText = await read('shared/data/patches.json');
-        const list = JSON.parse(patchesText) as { version: string; date: string; at?: string; title: string; changes: string[] }[];
+        const list = JSON.parse(patchesText) as { version: string; date: string; at?: string; title: string; changes: string[]; by?: string }[];
         const version = nextPatchVersion(list[0]?.version ?? '0.0.0');
         const now = new Date();
         const at = now.toISOString().replace(/\.\d+Z$/, 'Z');
         const lines = [...new Set(built.lines)];
-        list.unshift({ version, date: at.slice(0, 10), at, title: o.title, changes: lines });
+        list.unshift({ version, date: at.slice(0, 10), at, title: o.title, changes: lines, by: o.by.slice(0, 40) });
         files.push({ path: 'shared/data/patches.json', content: JSON.stringify(list, null, 1) + (patchesText.endsWith('\n') ? '\n' : '') });
         for (const path of ['package.json', 'client/package.json']) files.push({ path, content: (await read(path)).replace(/("version":\s*")[^"]+(")/, `$1${version}$2`) });
         files.push({ path: 'README.md', content: (await read('README.md')).replace(/^([^\n]*?v)\d+\.\d+\.\d+/, `$1${version}`) });

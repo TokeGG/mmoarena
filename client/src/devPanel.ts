@@ -460,6 +460,11 @@ export class DevPanel {
       }
       line.title = r.lines.join('\n');
       box.append(line);
+      // the patch notes this commit put out, under who pushed them
+      const notes = el('ul', 'devp-commit-notes');
+      for (const l of r.lines.slice(0, 6)) notes.append(el('li', 'devp-dim', l));
+      if (r.lines.length > 6) notes.append(el('li', 'devp-dim', `and ${r.lines.length - 6} more`));
+      box.append(notes);
     }
     const waiting = c.rows.some((r) => DevPanel.newer(r.version, c.running));
     box.append(el('small', 'devp-dim', waiting ? `The game is on patch ${c.running} now. This updates by itself when the deploy finishes (a minute or two); then refresh the page with Ctrl+Shift+R.` : `The game is running patch ${c.running}. Refresh the page (Ctrl+Shift+R) to play on it.`));
