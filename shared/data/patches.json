@@ -13,7 +13,9 @@
    "Warrior: Slice and Dice hits a 90 degree cone in front of you, like Sweep, with a cone shown on the ground and cone-shaped slashes.",
    "Ascend to the Heavens lifts the priest straight up about 6 yards, where they hover for 4 seconds unable to move, still untargetable and invulnerable, before coming back down. It no longer grants a speed boost.",
    "Health bars, resource bars, floating combat text and spell effects now follow a character up decks, ramps and jumps instead of staying at ground height.",
-   "A spec's passive list in the character selector no longer shows the weapon's model name."
+   "A spec's passive list in the character selector no longer shows the weapon's model name.",
+   "Look is now the one place for everything that changes how you look: character gear, name and title, cursor, nameplates and HUD, and effects, with tabs and a search box.",
+   "The Customize tab in your profile and the cursor section in the Esc menu moved into Look; the HUD editor is now just for positions and sizes."
   ]
  },
  {
