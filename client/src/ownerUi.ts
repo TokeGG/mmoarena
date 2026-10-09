@@ -135,9 +135,7 @@ export class OwnerPanel {
     const go = el('button', 'mm-small mm-go', '🛡 Open the admin panel');
     go.addEventListener('click', () => this.hooks.openAdmin?.());
     box.append(go);
-    box.append(el('h3', '', 'Your name style'));
-    box.append(this.styleEditor(a.cosmetics.custom, !!a.cosmetics.useCustom, (custom, use) => this.hooks.send({ t: 'customize', cosmetics: { ...a.cosmetics, custom, useCustom: use } }), true));
-    box.append(el('h3', '', 'Animated icon'), this.gifBox(a));
+    box.append(el('p', 'mm-modal-foot', 'Your own name style and animated icon: moved to Look (main menu), under Name and title.'));
     return box;
   }
 

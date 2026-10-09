@@ -1,6 +1,10 @@
 import type { DevCommitRow } from '@arena/shared';
 import { ABILITIES, ABILITY_CHOICES, ABILITY_FLAGS, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
-import type { ClassId, DataPatch, ProposalRow } from '@arena/shared';
+import { dataFileText, mergePlayers } from '@arena/shared';
+import type { ClassId, DataPatch, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
+
+/** A file in a commit: its path in the repository and its whole new text. */
+interface CommitFile { path: string; content: string }
 import type { Store } from './store';
 
 const KEY = 'devoverrides';
@@ -230,16 +234,10 @@ export class DevTools {
     const sane = (p: DataPatch) => !!p && typeof p.id === 'string' && Array.isArray(p.path) && p.path.length > 0 && p.path.every((k) => typeof k === 'string' || typeof k === 'number')
       && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= 40) && ['abilities', 'auras', 'specs', 'talents', 'classes'].includes(p.file);
     if (!patches.length || !patches.every(sane)) throw new Error('Those changes are not numbers the data files can take.');
-    const { api, base } = this.github(token);
-    const read = async (path: string): Promise<string> => {
-      const got = (await api(`/contents/${path}?ref=${base}`)) as { content: string };
-      return Buffer.from(got.content, 'base64').toString('utf8');
-    };
-    try {
-      for (let attempt = 1; ; attempt++) {
-        const ref = (await api(`/git/ref/heads/${base}`)) as { object: { sha: string } };
-        const head = (await api(`/git/commits/${ref.object.sha}`)) as { tree: { sha: string } };
-        const files: { path: string; content: string }[] = [];
+    const sum = await this.commitPatch(token, {
+      title: 'Balance changes',
+      build: async (read) => {
+        const files: CommitFile[] = [];
         const skipped: string[] = [];
         const lines: string[] = [];
         const notes: string[] = [];
@@ -261,19 +259,82 @@ export class DevTools {
           if (todo.length) files.push({ path: FILES[file], content: patchJsonText(text, file, todo) });
         }
         if (!files.length) throw new Error(`Nothing was committed: ${skipped.length ? skipped.join('; ') : 'those numbers are already what the files have'}.`);
+        return { files, lines, message: (version) => `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, extra: { applied: notes.length, skipped } };
+      },
+      by,
+    });
+    return { url: sum.url, applied: sum.extra.applied, skipped: sum.extra.skipped, version: sum.version };
+  }
+
+  /**
+   * The learned bots straight to the base branch in ONE commit: botbrain.json (the classes that learned something, over the
+   * file's other classes) and players.json (the live human-style data, merged over what the file has), plus the same patch
+   * bookkeeping as a number change, with a single player-facing line saying how many matches the bots studied. The data
+   * comes from BotLearner.exportLive (the formats scripts/study-replays.ts writes).
+   */
+  async commitLearnedBots(data: { brains: Partial<Record<ClassId, Record<string, number>>>; players: PlayersFile; matches: number }, by: string): Promise<{ url: string; version: string; classes: ClassId[]; matches: number }> {
+    const token = this.env.GITHUB_TOKEN;
+    if (!token) throw new Error('No GITHUB_TOKEN on the server: nothing was committed.');
+    if (data.matches < 1) throw new Error('Nothing was committed: the bots have not studied a match with people since the last commit.');
+    const sum = await this.commitPatch(token, {
+      title: 'Bots learned from live matches',
+      by,
+      build: async (read) => {
+        const brainText = await read('shared/data/botbrain.json');
+        const playersText = await read('shared/data/players.json');
+        const brainFile = JSON.parse(brainText) as Record<string, Record<string, number>>;
+        const classes = Object.keys(data.brains) as ClassId[];
+        for (const c of classes) brainFile[c] = data.brains[c]!;
+        const playersFile = mergePlayers(JSON.parse(playersText) as Record<string, Partial<PlayersEntry>>, data.players);
+        const files: CommitFile[] = [];
+        const nextBrain = dataFileText(brainFile);
+        const nextPlayers = dataFileText(playersFile);
+        if (nextBrain !== brainText) files.push({ path: 'shared/data/botbrain.json', content: nextBrain });
+        if (nextPlayers !== playersText) files.push({ path: 'shared/data/players.json', content: nextPlayers });
+        if (!files.length) throw new Error('Nothing was committed: the files already have everything the bots have learned.');
+        const n = data.matches;
+        return {
+          files, lines: [`The bots studied ${n} more match${n === 1 ? '' : 'es'} against players and play better for it.`],
+          message: (version) => `Bots learned from live matches (${version}), committed by ${by}\n\n${n} match${n === 1 ? '' : 'es'} with people studied since the last commit. Brains changed for: ${classes.join(', ') || 'no class'}. Human-style data and results against people updated in players.json.`,
+          extra: { classes, matches: n },
+        };
+      },
+    });
+    return { url: sum.url, version: sum.version, classes: sum.extra.classes, matches: sum.extra.matches };
+  }
+
+  /**
+   * One commit that is also a patch: `build` makes the changed files (reading the repository's own files at the base
+   * branch) and the player-facing lines; this adds the patch-notes entry, the version bumped by its last number in
+   * package.json, client/package.json and the README, and SIM_REVISION raised, makes one tree and one commit, and moves the
+   * branch. A push that raced ours starts again from the new head. Every committer here goes through it.
+   */
+  private async commitPatch<X>(token: string, o: { title: string; by: string; build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X }> }): Promise<{ url: string; version: string; extra: X }> {
+    const { api, base } = this.github(token);
+    const read = async (path: string): Promise<string> => {
+      const got = (await api(`/contents/${path}?ref=${base}`)) as { content: string };
+      return Buffer.from(got.content, 'base64').toString('utf8');
+    };
+    try {
+      for (let attempt = 1; ; attempt++) {
+        const ref = (await api(`/git/ref/heads/${base}`)) as { object: { sha: string } };
+        const head = (await api(`/git/commits/${ref.object.sha}`)) as { tree: { sha: string } };
+        const built = await o.build(read);
+        const files = [...built.files];
         // the patch: notes entry, version, README, SIM_REVISION
         const patchesText = await read('shared/data/patches.json');
         const list = JSON.parse(patchesText) as { version: string; date: string; at?: string; title: string; changes: string[] }[];
         const version = nextPatchVersion(list[0]?.version ?? '0.0.0');
         const now = new Date();
         const at = now.toISOString().replace(/\.\d+Z$/, 'Z');
-        list.unshift({ version, date: at.slice(0, 10), at, title: 'Balance changes', changes: [...new Set(lines)] });
+        const lines = [...new Set(built.lines)];
+        list.unshift({ version, date: at.slice(0, 10), at, title: o.title, changes: lines });
         files.push({ path: 'shared/data/patches.json', content: JSON.stringify(list, null, 1) + (patchesText.endsWith('\n') ? '\n' : '') });
         for (const path of ['package.json', 'client/package.json']) files.push({ path, content: (await read(path)).replace(/("version":\s*")[^"]+(")/, `$1${version}$2`) });
         files.push({ path: 'README.md', content: (await read('README.md')).replace(/^([^\n]*?v)\d+\.\d+\.\d+/, `$1${version}`) });
         files.push({ path: 'shared/src/replay.ts', content: (await read('shared/src/replay.ts')).replace(/(SIM_REVISION\s*=\s*)(\d+)/, (_m, a: string, n: string) => `${a}${Number(n) + 1}`) });
         const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
-        const message = `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`;
+        const message = built.message(version);
         const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string; html_url?: string };
         try {
           await api(`/git/refs/heads/${base}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
@@ -283,8 +344,8 @@ export class DevTools {
           throw e;
         }
         const url = commit.html_url ?? `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commit/${commit.sha}`;
-        await this.recordCommit({ version, by, at: Date.now(), url, lines: [...new Set(lines)] });
-        return { url, applied: notes.length, skipped, version };
+        await this.recordCommit({ version, by: o.by, at: Date.now(), url, lines });
+        return { url, version, extra: built.extra };
       }
     } catch (e) {
       const m = (e as Error).message;
@@ -347,16 +408,21 @@ export class DevTools {
 
   /** A dev's note on a skill, posted to the owner's Discord with the skill's numbers as they are now. */
   async note(by: string, abilityId: string, text: string, testing: DataPatch[] = []): Promise<boolean> {
-    if (!this.webhook) return false;
     const def = ABILITIES[abilityId];
     const mine = testing.filter((p) => p.id === abilityId || def?.effects.some((e) => e.type === 'aura' && e.aura === p.id));
     const content = [
       `📝 **Skill note** on **${def?.name ?? abilityId}** from **${by}**`,
       text,
       ...(mine.length ? ['Testing with: ' + mine.map((p) => `${label(p)} ${currentValue(p) ?? '?'} → ${p.value}`).join(', ')] : []),
-    ].join('\n').slice(0, 1900);
+    ].join('\n');
+    return this.post(content);
+  }
+
+  /** A line to the owner's Discord (dev notes webhook); false when there is none or it failed. */
+  async post(text: string): Promise<boolean> {
+    if (!this.webhook) return false;
     try {
-      const r = await this.http(this.webhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) });
+      const r = await this.http(this.webhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: text.slice(0, 1900), allowed_mentions: { parse: [] } }) });
       return r.ok;
     } catch {
       return false;

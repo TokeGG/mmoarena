@@ -192,6 +192,7 @@ function describeBase(id: string, mods: Mods | undefined, opts: DescribeOptions)
       if (a.empower) parts.push(`Your next ${a.empower.school} damage ability deals ${Math.round((a.empower.mult - 1) * 100)}% more damage and uses this up`);
       if (a.hot) parts.push(`Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s`);
       if (a.noCast) parts.push('You cannot use any ability while it lasts');
+      if (a.hover) parts.push('You cannot move while it lasts');
       if (a.maxStacks) parts.push(`Stacks up to ${a.maxStacks} times`);
       if (a.note) parts.unshift(a.note.replace(/\.$/, ''));
       return parts.join('. ') + '.';
@@ -290,7 +291,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const N = M(n);
         const T = M((m) => n(m) * ticks);
         // stated here only (the in-depth view does not repeat it)
-        const scaling = `${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}`;
+        const scaling = `${def.cpScale ? ' Damage is multiplied by the combo points spent.' : ''}${def.consumes ? ` Consumes ${AURAS[def.consumes.aura]?.name ?? def.consumes.aura}: +${Math.round(def.consumes.perStack * 100)}% damage per stack.` : ''}${def.scalesWith ? ` +${Math.round(def.scalesWith.perStack * 100)}% damage per ${AURAS[def.scalesWith.aura]?.name ?? def.scalesWith.aura} stack you have.` : ''}${def.channel?.ticksFromStacks ? ` Uses up all your ${AURAS[def.channel.ticksFromStacks]?.name ?? def.channel.ticksFromStacks} stacks, adding one more missile for each.` : ''}`;
         const first = def.channel?.immediate ? ' (the first at once)' : '';
         if (def.channel?.beam) return `Channels a beam into the target, dealing ${N} ${def.school} damage every ${every} (${T} total).${stops ? ` ${stops}` : ''}${scaling}`;
         if (def.channel && e.only) return `On an enemy: deals ${N} ${def.school} damage every ${every} (${T} total).${scaling}`;
@@ -322,7 +323,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         }
         const who = onYou ? 'You gain' : def.target === 'aoe_all' && e.only === 'ally' ? 'You and every ally in range gain' : def.target === 'aoe_enemy' || def.target === 'enemy' ? 'Applies' : 'Target gains';
         const when = e.fullCast ? ' (only from a full-length cast)' : '';
-        return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
+        return `${e.chance !== undefined ? `${Math.round(e.chance * 100)}% chance: ` : ''}${who} ${e.stacks && e.stacks > 1 ? `${e.stacks} stacks of ` : ''}${a.name}${dur ? ` for ${D(e)}` : ''}${extra}${when}: ${body}.`;
       }
       case 'exsanguinate':
         return `Deals ${M(dmgOf(e.perCp))} damage per combo point spent plus ${Math.round(e.bleedFraction * 100)}% of the bleed damage remaining on the target, then makes every current bleed deal ${e.bleedMult}x damage (using it again does not stack).`;
@@ -515,7 +516,7 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
 }
 
 /**
- * A spec's passives: what it gives without a button. Its built-in effect (Cauterize), its weapon and auto-attack, and
+ * A spec's passives: what it gives without a button. Its built-in effect (Cauterize), its auto-attack, and
  * every bonus its stat modifiers carry, one line each. Shown on the spec card and in the spec tooltip.
  */
 export function specPassives(classId: ClassId, specId: string): string[] {
@@ -526,8 +527,9 @@ export function specPassives(classId: ClassId, specId: string): string[] {
     out.push(`Cauterize: a blow that would kill you leaves you at ${Math.round(TUNING.cauterizeHealth * 100)}% health instead (once every ${Math.round(TUNING.cauterizeCooldownMs / 60000)} minutes).`);
   }
   if (spec.weapon) {
+    // the auto-attack, not the weapon model's name (a polearm is how it looks, not something the spec does)
     const auto = spec.auto ?? CLASSES[classId].auto;
-    out.push(`${spec.weapon.name}${auto ? `: auto-attacks for ${auto.damage} every ${(auto.interval / 1000).toFixed(1)}s at ${auto.range} yd` : ''}.`);
+    if (auto) out.push(`Auto-attacks for ${auto.damage} every ${(auto.interval / 1000).toFixed(1)}s at ${auto.range} yd.`);
   }
   out.push(...describeMods(spec.mods, CLASSES[classId].resource.type).map(cap));
   return out;

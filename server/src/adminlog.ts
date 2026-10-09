@@ -2,7 +2,7 @@ import type { AdminLogRow } from '@arena/shared';
 import type { Store } from './store';
 
 const KEY = 'adminlog';
-const KEEP = 300;
+const KEEP = 600;
 
 /** Every owner action (bans, kicks, rating changes, announcements, ended matches...), newest first, kept in the store. */
 export class AdminLog {

@@ -299,6 +299,11 @@ export class ArenaScene {
   }
 
   /** Smooth a unit's floor height: up a ramp it follows at once; off a ledge (a jump down from a walkway) it falls. */
+  /** Height the model of this unit is drawn at (floor under it plus any jump or levitation), if it has one. */
+  unitY(id: number): number | undefined {
+    return this.meshes.get(id)?.group.position.y;
+  }
+
   private floorY(m: UnitMesh, ground: number, dt: number): number {
     m.baseY = fallToward(m.baseY, ground, dt, m);
     return m.baseY;
@@ -403,6 +408,11 @@ export class ArenaScene {
   private reticleDot: THREE.Mesh | null = null;
   /** The level the local player is on, for aiming and ground rings. */
   viewLevel: 0 | 1 = 0;
+
+  /** Camera distance (metres) to a world point. */
+  distanceTo(x: number, y: number, z: number): number {
+    return this.camera.position.distanceTo(this.tmp.set(x, y, z));
+  }
 
   /** World point to screen pixels. */
   project(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {

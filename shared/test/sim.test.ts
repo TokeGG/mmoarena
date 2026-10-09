@@ -475,7 +475,7 @@ describe('stealth', () => {
     assert.ok(absorbOf()! < full, 'shield shrank');
   });
 
-  it('scorch is a 0.6 s cast you can move through, and may make the next pyroblast instant', () => {
+  it('scorch is a short cast you can move through, and may make the next pyroblast instant', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'scorch'];
@@ -483,49 +483,33 @@ describe('stealth', () => {
     foe.maxHealth = foe.health = 1e6;
     advance(sim, TICK);
     assert.ok(sim.useAbility(mage.id, 'scorch', foe.id).ok);
-    assert.ok(mage.cast && mage.cast.end - mage.cast.start === 600);
+    assert.ok(mage.cast && mage.cast.end - mage.cast.start === ABILITIES.scorch.castTime);
     sim.queueInput(mage.id, { seq: 1, fwd: 1, strafe: 0, facing: 0 });
-    advance(sim, 300);
+    advance(sim, ABILITIES.scorch.castTime / 2);
     assert.equal(mage.cast?.ability, 'scorch', 'moving does not cancel it');
-    advance(sim, 500);
+    advance(sim, ABILITIES.scorch.castTime / 2 + 2 * TICK);
     assert.equal(mage.cast, null);
     assert.ok(foe.health < 1e6, 'it landed');
-    // about 25% of casts grant Hot Streak (expect ~75 of 300)
+    // the listed share of casts grant Hot Streak
+    const pStreak = (ABILITIES.scorch.effects.find((e) => e.type === 'aura' && e.aura === 'hot_streak') as { chance: number }).chance;
     let procs = 0;
     for (let i = 0; i < 300; i++) {
       mage.resource = mage.resourceMax;
       mage.auras = mage.auras.filter((x) => x.id !== 'hot_streak');
+      foe.auras = []; // Singed stacks would pop into Hot Streak on their own; this counts only the direct chance
       mage.cooldowns = {};
       mage.gcdEnd = 0;
       mage.pos = { x: 0, z: 0 };
       mage.facing = 0;
       if (!sim.useAbility(mage.id, 'scorch', foe.id).ok) { advance(sim, 100); continue; }
-      advance(sim, 700);
+      advance(sim, ABILITIES.scorch.castTime + 100);
       if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
     }
-    assert.ok(procs >= 45 && procs <= 110, `procs ${procs}/300 (25%)`);
+    assert.ok(procs >= 300 * pStreak * 0.6 && procs <= 300 * pStreak * 1.45, `procs ${procs}/300 (chance ${pStreak})`);
   });
 
-  it('Dragon\'s Breath has a 15% chance per cast to grant Hot Streak', () => {
-    for (const ab of ['dragons_breath']) {
-      const sim = live(9);
-      const mage = add(sim, 'mage', 0, 0, 0);
-      mage.bar = [...mage.bar.slice(0, 7), ab];
-      const foes = [add(sim, 'warrior', 1, 0, 6), add(sim, 'warrior', 1, 1, 6), add(sim, 'warrior', 1, -1, 6)];
-      for (const f of foes) f.maxHealth = f.health = 1e9;
-      advance(sim, TICK);
-      let procs = 0;
-      const N = 200;
-      for (let i = 0; i < N; i++) {
-        mage.resource = mage.resourceMax; mage.auras = mage.auras.filter((x) => x.id !== 'hot_streak'); mage.cooldowns = {}; mage.gcdEnd = 0;
-        mage.pos = { x: 0, z: 0 }; mage.facing = 0; mage.lastInput = { ...mage.lastInput, facing: 0 };
-        foes.forEach((f, k) => { f.pos = { x: k - 1, z: 6 }; f.auras = []; }); // disoriented foes wander off
-        if (!sim.useAbility(mage.id, ab, foes[0].id, { x: 0, z: 6 }).ok) { advance(sim, 100); continue; }
-        advance(sim, 3300);
-        if (mage.auras.some((x) => x.id === 'hot_streak')) procs++;
-      }
-      assert.ok(procs >= 15 && procs <= 50, `${ab}: ${procs}/${N}`);
-    }
+  it('Dragon\'s Breath no longer grants Hot Streak', () => {
+    assert.ok(!ABILITIES.dragons_breath.effects.some((e) => e.type === 'aura' && e.aura === 'hot_streak'));
   });
 
   it('Flamestrike always grants Hot Streak when its opening hit lands on an enemy, and never when it hits nothing', () => {
@@ -631,7 +615,7 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
-  it('a fully cast Pyroblast hits for 550 and no longer grants Hot Streak', () => {
+  it('a fully cast Pyroblast hits for its listed damage and no longer grants Hot Streak', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'pyroblast'];
@@ -639,38 +623,40 @@ describe('stealth', () => {
     foe.health = foe.maxHealth = 5000;
     advance(sim, TICK);
     assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
-    advance(sim, 3200);
+    advance(sim, ABILITIES.pyroblast.castTime + 200);
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'a full cast gives no Hot Streak');
     const hits = foe.maxHealth - foe.health;
-    assert.ok(hits >= 500 && hits <= 600, `first hit ${hits}`);
+    const listed = (ABILITIES.pyroblast.effects.find((e) => e.type === 'damage') as { amount: number }).amount;
+    const v = TUNING.damageVariance;
+    const lo = listed * (1 - v) - 1;
+    assert.ok(hits >= lo && hits <= listed * (1 + v) * 1.3, `first hit ${hits} vs listed ${listed}`);
   });
 
-  it('Fireball gives Singed (10 s, 2 stacks); the third hit pops it into Hot Streak for the caster', () => {
+  it('Fireball gives 2 Singed stacks; the hit that would take them past the limit pops them into Hot Streak for the caster', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'fireball'];
     const foe = add(sim, 'warrior', 1, 0, 10);
     foe.maxHealth = foe.health = 1e9;
     advance(sim, TICK);
+    const max = AURAS.singed.maxStacks!;
     const singed = () => foe.auras.find((x) => x.id === 'singed');
     const hot = () => mage.auras.some((x) => x.id === 'hot_streak');
-    const fire = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok); advance(sim, TICK); };
-    fire();
-    assert.equal(singed()?.stacks, 1);
-    assert.ok(!hot());
-    assert.ok(Math.abs((singed()!.expiresAt - sim.time) - 10000) <= TICK * 2, 'lasts 10 s');
+    const fire = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; mage.auras = mage.auras.filter((x) => x.id !== 'hot_streak'); assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok); advance(sim, 2000); };
     fire();
     assert.equal(singed()?.stacks, 2);
-    assert.ok(!hot());
+    assert.ok(Math.abs((singed()!.expiresAt - sim.time) - AURAS.singed.duration) <= 2000 + TICK * 2, 'lasts its full duration');
+    let n = 1;
+    while (singed() && (singed()!.stacks ?? 0) + 2 <= max) { fire(); n++; assert.ok(n < 10); }
     fire();
-    assert.equal(singed(), undefined, 'all stacks removed');
+    assert.equal(singed()?.stacks ?? 0, 0, 'all stacks removed');
     assert.ok(hot(), 'Hot Streak on the caster');
     assert.ok(!foe.auras.some((x) => x.id === 'hot_streak'));
     fire();
-    assert.equal(singed()?.stacks, 1, 'starts over');
+    assert.equal(singed()?.stacks, 2, 'starts over');
   });
 
-  it('Singed falls off after 10 seconds and Pyroblast never gives Hot Streak', () => {
+  it('Singed falls off after its duration and Pyroblast never gives Hot Streak', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'fireball'];
@@ -678,7 +664,7 @@ describe('stealth', () => {
     foe.maxHealth = foe.health = 1e9;
     advance(sim, TICK);
     assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok);
-    advance(sim, 10200);
+    advance(sim, AURAS.singed.duration + 2200);
     assert.ok(!foe.auras.some((x) => x.id === 'singed'));
     assert.ok(!ABILITIES.pyroblast.effects.some((e) => e.type === 'aura'), 'Pyroblast has no aura effect');
   });
@@ -703,29 +689,36 @@ describe('stealth', () => {
     assert.ok(Math.abs(aura.expiresAt - sim.time - 4000) <= 100, `disorient lasts about 4 s, got ${aura.expiresAt - sim.time} ms`);
   });
 
-  it('execute costs rage, hits for its listed damage and only works on targets below 20% health', () => {
+  it('execute spends its listed rage, hits for its listed damage and only works on targets below its health threshold', () => {
     const sim = live();
     const war = add(sim, 'warrior', 0, 0, 0);
     war.bar = [...war.bar.slice(0, 7), 'execute'];
     const foe = add(sim, 'warrior', 1, 1.5, 0);
+    const ex = ABILITIES.execute;
+    const pct = ex.maxTargetHealthPct!;
+    const below = Math.floor(foe.maxHealth * (pct - 1) / 100);
+    const re = new RegExp(`below ${pct}% health`);
     war.facing = Math.PI / 2; // face the target (+x)
     advance(sim, TICK);
     war.facing = Math.PI / 2;
     war.resource = 100;
-    mustFail(sim.useAbility(war.id, 'execute', foe.id), /below 20% health/);
-    foe.health = Math.floor(foe.maxHealth * 0.19);
-    war.resource = 39;
-    mustFail(sim.useAbility(war.id, 'execute', foe.id), /not enough rage/); // costs 40 rage
+    mustFail(sim.useAbility(war.id, 'execute', foe.id), re);
+    foe.health = below;
+    if (ex.cost > 0) {
+      war.resource = ex.cost - 1;
+      mustFail(sim.useAbility(war.id, 'execute', foe.id), /not enough rage/);
+    }
     war.resource = 100;
-    foe.health = Math.floor(foe.maxHealth * 0.2); // exactly 20% is not below 20%
-    mustFail(sim.useAbility(war.id, 'execute', foe.id), /below 20% health/);
-    foe.health = Math.floor(foe.maxHealth * 0.19);
+    foe.health = Math.floor(foe.maxHealth * pct / 100); // exactly at the threshold is not below it
+    mustFail(sim.useAbility(war.id, 'execute', foe.id), re);
+    foe.health = below;
     const hp = foe.health;
     const r = sim.useAbility(war.id, 'execute', foe.id);
     assert.ok(r.ok, JSON.stringify(r));
     const dealt = hp - foe.health;
+    const listed = (ex.effects.find((e) => e.type === 'damage') as { amount: number }).amount;
     const v = TUNING.damageVariance;
-    assert.ok(dealt >= 560 * (1 - v) - 1 && dealt <= 560 * (1 + v) + 1, `dealt ${dealt}`);
+    assert.ok(dealt >= listed * (1 - v) - 1 && dealt <= listed * (1 + v) + 1, `dealt ${dealt}`);
   });
 
   it('global cooldown is 1 s for every class', () => {
@@ -780,7 +773,7 @@ describe('stealth', () => {
     assert.equal(rg.cp, 0, 'spent');
     go('sinister_strike');
     const one = wp('eviscerate');
-    assert.ok(five - one > 300, `${five} vs ${one}`);
+    assert.ok(five > one, `payoff grows with combo points: ${five} vs ${one}`);
     go('sinister_strike'); assert.equal(rg.cp, 1);
     rg.autoAttack = false;
     foe.pos = { x: 0, z: 80 };

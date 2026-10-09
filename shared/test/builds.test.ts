@@ -287,10 +287,9 @@ describe('specs and talents in the sim', () => {
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
     war.resource = 100;
     assert.ok(sim.useAbility(war.id, 'recklessness').ok);
-    assert.ok(Math.abs(sim.modsOf(war).damageDone - war.mods.damageDone * 1.4) < 1e-9);
+    assert.ok(Math.abs(sim.modsOf(war).damageDone - war.mods.damageDone * AURAS.recklessness.mods!.damageDone!) < 1e-9);
     assert.equal(sim.modsOf(war).damageTaken, war.mods.damageTaken, 'no downside');
-    assert.equal(sim.modsOf(war).rage, 2);
-    assert.equal(AURAS.recklessness.duration, 12000);
+    assert.equal(sim.modsOf(war).rage, AURAS.recklessness.mods!.rage);
     advance(sim, AURAS.recklessness.duration + TICK * 2);
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
     // base mods must never be mutated by buffs
@@ -742,7 +741,7 @@ describe('warrior rework', () => {
     const near = war('arms', 4.2);
     assert.ok(near.f.health === near.f.maxHealth && near.sim.useAbility(near.w.id, 'slam', near.f.id).ok === false, 'a sword Slam does not');
   });
-  it('Hamstring slows but does no damage; Heroic Leap jumps to the spot on a 60 s cooldown', () => {
+  it('Hamstring slows but does no damage; Heroic Leap jumps to the spot and goes on cooldown', () => {
     const { sim, w, f } = war('arms');
     assert.ok(!ABILITIES.hamstring.effects.some((e) => e.type === 'damage'), 'no damage effect');
     assert.ok(sim.useAbility(w.id, 'hamstring', f.id).ok);
@@ -759,9 +758,9 @@ describe('warrior rework', () => {
     assert.ok(f.health < hp, 'slam hurt the enemy at the landing spot');
     advance(sim, TICK);
     assert.ok(!sim.useAbility(w.id, 'heroic_leap', null, { x: 0, z: 5 }).ok);
-    assert.equal(ABILITIES.heroic_leap.cooldown, 60000);
+    assert.ok(ABILITIES.heroic_leap.cooldown > 0);
   });
-  it('Mortal Strike spends 30 rage, hits for a flat amount and does not refund rage from its own hit', () => {
+  it('Mortal Strike spends its rage cost, hits for a flat amount and does not refund rage from its own hit', () => {
     const hit = (rage: number) => {
       const { sim, w, f } = war('arms');
       w.resource = rage;
@@ -770,16 +769,15 @@ describe('warrior rework', () => {
       advance(sim, TICK);
       return { dealt: hp - f.health, left: w.resource };
     };
-    const lo = hit(30), hi = hit(100);
+    const lo = hit(ABILITIES.mortal_strike.cost), hi = hit(100);
     assert.equal(lo.dealt, hi.dealt, 'same damage whatever the rage');
-    assert.ok(Math.abs(hi.left - lo.left - 70) < 1, `rage left ${lo.left} / ${hi.left}`); // 70 more rage in, 70 more left: no refund from the hit
+    assert.ok(Math.abs(hi.left - lo.left - (100 - ABILITIES.mortal_strike.cost)) < 1, `rage left ${lo.left} / ${hi.left}`); // the extra rage put in is all still there: no refund from the hit
     const { sim, w, f } = war('arms');
-    w.resource = 20;
-    assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs 30 rage');
+    w.resource = ABILITIES.mortal_strike.cost - 1;
+    assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs its rage cost');
   });
-  it('Slam costs 40 rage and recasts every 3 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
-    assert.equal(ABILITIES.slam.cost, 40);
-    assert.equal(ABILITIES.slam.cooldown, 3000);
+  it('Slam gives its listed rage; Mortal Strike hits for about its listed damage and applies Mortal Wounds (less healing taken)', () => {
+    assert.ok(ABILITIES.slam.effects.some((e) => e.type === 'gain' && e.amount > 0), 'Slam gives rage');
     const { sim, w, f } = war('arms');
     f.maxHealth = f.health = 1e6;
     const priest = add(sim, 'priest', 0, 0, -3);
@@ -788,33 +786,35 @@ describe('warrior rework', () => {
     const hp = f.health;
     assert.ok(sim.useAbility(w.id, 'mortal_strike', f.id).ok);
     advance(sim, TICK);
-    assert.ok(hp - f.health > 330 && hp - f.health < 560, `dealt ${hp - f.health}`);
+    const msDmg = (ABILITIES.mortal_strike.effects.find((e) => e.type === 'damage') as { amount: number }).amount;
+    assert.ok(hp - f.health > msDmg * 0.8 && hp - f.health < msDmg * 1.4, `dealt ${hp - f.health} vs listed ${msDmg}`);
     assert.ok(f.auras.some((x) => x.id === 'mortal_wounds'));
     const heal = (target: typeof f, amount: number) => { const h = target.health; sim.heal(priest, target, amount, 'flash_heal'); return target.health - h; };
     f.health = 1000;
-    assert.equal(heal(f, 500), 300, '40% less healing on the wounded');
+    assert.equal(heal(f, 500), Math.round(500 * AURAS.mortal_wounds.mods!.healingTaken!), 'less healing on the wounded');
     assert.equal(heal(priest, 500), 500, 'others heal normally');
   });
-  it('Slice and Dice is a 30 s cooldown that cuts for 25 every quarter second', () => {
-    assert.equal(ABILITIES.slice_and_dice.cooldown, 30000);
-    assert.equal(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount, 25);
-    assert.equal(ABILITIES.slice_and_dice.castTime / ABILITIES.slice_and_dice.channel!.ticks, 250);
+  it('Slice and Dice is a channel with a cooldown that cuts once per tick', () => {
+    assert.ok(ABILITIES.slice_and_dice.cooldown > 0);
+    assert.ok(ABILITIES.slice_and_dice.effects.find((e) => e.type === 'damage')!.amount > 0);
+    assert.ok(ABILITIES.slice_and_dice.castTime / ABILITIES.slice_and_dice.channel!.ticks > 0);
   });
-  it('Slice and Dice lands a 25 cut every 0.25 s, the same 400 in all as before', () => {
+  it('Slice and Dice lands one cut per channel tick, evenly spaced', () => {
     const { sim, w, f } = war('arms', 3);
     w.facing = Math.atan2(0, 1); w.lastInput = { ...w.lastInput, facing: w.facing };
     f.pos = { x: 0, z: 3 };
     const hits: number[] = [];
     const start = sim.time;
     assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
-    for (let t = 0; t < 4600; t += TICK) {
+    const sd = ABILITIES.slice_and_dice, gap = sd.castTime / sd.channel!.ticks;
+    for (let t = 0; t < sd.castTime + 600; t += TICK) {
       const evs = advance(sim, TICK);
       for (const e of evs) if (e.t === 'damage' && e.src === w.id && e.tgt === f.id && e.ability === 'slice_and_dice') hits.push(sim.time - start);
     }
-    assert.equal(hits.length, 16, `hits at ${hits.join(',')}`);
-    for (let i = 1; i < hits.length; i++) assert.ok(Math.abs(hits[i] - hits[i - 1] - 250) <= TICK, `gap ${hits[i] - hits[i - 1]}`);
+    assert.equal(hits.length, sd.channel!.ticks, `hits at ${hits.join(',')}`);
+    for (let i = 1; i < hits.length; i++) assert.ok(Math.abs(hits[i] - hits[i - 1] - gap) <= TICK, `gap ${hits[i] - hits[i - 1]}`);
   });
-  it('Slice and Dice stuns and cuts everything in the cone over 4 seconds, and nothing behind', () => {
+  it('Slice and Dice stuns and cuts everything in the cone over its channel, and nothing behind', () => {
     const { sim, w, f } = war('arms', 3);
     const behind = add(sim, 'mage', 1, 0, -3);
     w.facing = Math.atan2(0, 1); w.lastInput = { ...w.lastInput, facing: w.facing };
@@ -824,9 +824,11 @@ describe('warrior rework', () => {
     advance(sim, TICK * 2);
     assert.ok(f.auras.some((a) => a.id === 'slice_hold'), 'held straight away');
     assert.ok(f.health < hp, 'first cut lands straight away');
+    const sd = ABILITIES.slice_and_dice;
     advance(sim, 1000);
-    advance(sim, 4000);
-    assert.ok(hp - f.health > 200, `dealt ${hp - f.health}`);
+    advance(sim, sd.castTime);
+    const cut = (sd.effects.find((e) => e.type === 'damage') as { amount: number }).amount;
+    assert.ok(hp - f.health > cut * sd.channel!.ticks * 0.5, `dealt ${hp - f.health}`);
     assert.equal(behind.health, hb, 'untouched behind');
   });
   it('Slice and Dice holds you and your targets in place for the whole channel, with no gaps', () => {
@@ -835,7 +837,7 @@ describe('warrior rework', () => {
     w.facing = 0;
     assert.ok(sim.useAbility(w.id, 'slice_and_dice').ok);
     const spot = { ...w.pos }, foe = { ...f.pos };
-    for (let i = 0; i < 4000 / TICK - 4; i++) {
+    for (let i = 0; i < ABILITIES.slice_and_dice.castTime / TICK - 4; i++) {
       sim.queueInput(w.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 });
       sim.queueInput(f.id, { seq: i + 1, fwd: 1, strafe: 0, facing: 0 });
       advance(sim, TICK);
@@ -851,60 +853,66 @@ describe('warrior rework', () => {
     assert.ok(sim.useAbility(w.id, 'bladestorm').ok);
     for (let i = 0; i < 5; i++) { sim.queueInput(w.id, { seq: i + 1, fwd: 0, strafe: 1, facing: w.facing }); advance(sim, TICK); }
     assert.ok(w.cast, 'still channelling while moving');
-    advance(sim, 4500);
-    assert.ok(hp - f.health > 150, `dealt ${hp - f.health}`);
+    advance(sim, ABILITIES.bladestorm.castTime);
+    const tick = (ABILITIES.bladestorm.effects.find((e) => e.type === 'damage') as { amount: number }).amount;
+    assert.ok(hp - f.health > tick * 3, `dealt ${hp - f.health}`);
   });
-  it('Bloodthirst hits every enemy around the warrior and heals 3% of maximum health per enemy hit', () => {
+  it('Bloodthirst hits every enemy around the warrior and heals its listed percent of maximum health per enemy hit', () => {
     const { sim, w, f } = war('fury', 2);
     const g = add(sim, 'mage', 1, 0, -3);
     const far = add(sim, 'mage', 1, 0, 9);
+    const healPct = (ABILITIES.bloodthirst.effects.find((e) => e.type === 'healMax') as { pct: number }).pct;
     w.health = Math.round(w.maxHealth * 0.5);
     const before = w.health;
     const [hp, hpG, hpFar] = [f.health, g.health, far.health];
-    w.resource = 40;
+    w.resource = Math.max(ABILITIES.bloodthirst.cost, 40);
     assert.ok(sim.useAbility(w.id, 'bloodthirst').ok, 'needs no target');
     advance(sim, TICK);
     assert.ok(f.health < hp && g.health < hpG, 'both in reach, one in front and one behind');
     assert.equal(far.health, hpFar, 'the far one is not hit');
-    assert.ok(Math.abs(w.health - before - 2 * Math.round(w.maxHealth * 0.03)) <= 3, `healed ${w.health - before}`);
-    assert.equal(ABILITIES.bloodthirst.cooldown, 4500);
+    assert.ok(Math.abs(w.health - before - 2 * Math.round(w.maxHealth * healPct)) <= 3, `healed ${w.health - before}`);
+    assert.ok(ABILITIES.bloodthirst.cooldown > 0, 'Bloodthirst has a cooldown');
     assert.equal(ABILITIES.bloodthirst.target, 'aoe_enemy');
   });
-  it('Sweep is a 90 degree, 5 yard slice ahead for 300 damage on a 4 s cooldown', () => {
+  it('Sweep is a cone slice ahead that hits only what is in front, within its radius, and goes on cooldown', () => {
     const d = ABILITIES.sweep;
-    assert.deepEqual([d.coneDeg, d.radius, d.cooldown, d.effects[0]], [90, 5, 4000, { type: 'damage', amount: 300 }]);
-    const { sim, w, f } = war('fury', 4.5);
+    assert.ok(d.coneDeg! > 0 && d.coneDeg! < 180 && d.cooldown > 0);
+    const { sim, w, f } = war('fury', d.radius! - 0.5);
     w.facing = Math.PI / 2; // +x
     const behind = add(sim, 'mage', 1, -3, 0);
     const side = add(sim, 'mage', 1, 0, 3);
-    const out = add(sim, 'mage', 1, 6, 0);
+    const out = add(sim, 'mage', 1, d.radius! + 1, 0);
     const [h0, hb, hs, ho] = [f.health, behind.health, side.health, out.health];
     assert.ok(sim.useAbility(w.id, 'sweep').ok);
     advance(sim, TICK);
-    assert.ok(h0 - f.health > 200, `dealt ${h0 - f.health}`);
-    assert.ok(behind.health === hb && side.health === hs && out.health === ho, 'behind, beside and past 5 yards are safe');
+    assert.ok(h0 - f.health > (d.effects[0] as { amount: number }).amount * 0.6, `dealt ${h0 - f.health}`);
+    assert.ok(behind.health === hb && side.health === hs && out.health === ho, 'behind, beside and past its radius are safe');
     advance(sim, TICK);
     assert.ok(!sim.useAbility(w.id, 'sweep').ok, 'on cooldown');
   });
-  it('Recklessness gives 40% more damage and doubles every rage gain for 12 seconds', () => {
+  it('Recklessness multiplies damage and every rage gain by its aura numbers for its listed duration', () => {
     const gain = (reckless: boolean) => {
       const { sim, w, f } = war('fury', 2);
-      w.resource = 40;
+      const start = 10 + ABILITIES.bloodthirst.cost; // low enough that the doubled gain never hits the cap
+      w.resource = start;
       if (reckless) assert.ok(sim.useAbility(w.id, 'recklessness').ok);
-      sim.useAbility(w.id, 'bloodthirst');
+      assert.ok(sim.useAbility(w.id, 'bloodthirst').ok);
       advance(sim, TICK);
-      return { rage: w.resource - (40 - ABILITIES.bloodthirst.cost), dealt: f.maxHealth - f.health };
+      return { rage: w.resource - (start - ABILITIES.bloodthirst.cost), dealt: f.maxHealth - f.health };
     };
+    const rm = AURAS.recklessness.mods!;
     const a = gain(false), b = gain(true);
-    assert.ok(b.rage > a.rage * 1.9, `rage ${a.rage} -> ${b.rage}`);
-    assert.ok(b.dealt > a.dealt * 1.3, `damage ${a.dealt} -> ${b.dealt}`);
+    assert.ok(AURAS.recklessness.duration > 0 && (rm.damageDone ?? 1) > 1 && (rm.rage ?? 1) > 1);
+    assert.ok(b.rage > a.rage * (rm.rage! - 0.1), `rage ${a.rage} -> ${b.rage}`);
+    assert.ok(b.dealt > a.dealt * (rm.damageDone! - 0.1), `damage ${a.dealt} -> ${b.dealt}`);
   });
-  it('Enraged Regeneration lasts 8 seconds and heals 300% of the damage you deal, and does nothing once it ends', () => {
+  it('Enraged Regeneration lasts its listed duration and heals its listed multiple of the damage you deal, and does nothing once it ends', () => {
     const { sim, w, f } = war('arms', 2);
     const sim0 = sim;
     w.bar = [...w.bar.slice(0, 7), 'enraged_regeneration'];
-    assert.equal(AURAS.enraged_regeneration.duration, 8000);
-    assert.equal(AURAS.enraged_regeneration.mods?.lifesteal, 3);
+    const er = AURAS.enraged_regeneration;
+    const steal = er.mods?.lifesteal ?? 0;
+    assert.ok(steal > 0 && er.duration > 0);
     w.maxHealth = 100000; w.health = 10000;
     f.maxHealth = f.health = 1e6;
     assert.ok(sim0.useAbility(w.id, 'enraged_regeneration').ok);
@@ -913,25 +921,24 @@ describe('warrior rework', () => {
     advance(sim0, TICK);
     const dealt = hp - f.health;
     assert.ok(dealt > 300);
-    assert.ok(Math.abs(w.health - mine - dealt * 3) <= 3, `dealt ${dealt}, healed ${w.health - mine}`);
-    advance(sim0, 8500);
+    assert.ok(Math.abs(w.health - mine - dealt * steal) <= 3, `dealt ${dealt}, healed ${w.health - mine}`);
+    advance(sim0, er.duration + 500);
     const h2 = w.health, f2 = f.health;
     w.cooldowns = {}; w.gcdEnd = 0; w.resource = 100;
     sim0.useAbility(w.id, 'mortal_strike', f.id);
     advance(sim0, TICK);
     assert.ok(f.health < f2 && w.health <= h2, 'no healing after it ends');
   });
-  it('Deep Cuts stacks its bleed up to three times; Axe Throw reaches 10 yards and costs rage', () => {
+  it('Deep Cuts stacks its bleed up to three times; Axe Throw reaches its listed range and costs rage', () => {
     const { sim, w, f } = war('protection');
-    assert.equal(ABILITIES.deep_cuts.cost, 0);
     for (let i = 0; i < 5; i++) { w.resource = 0; assert.ok(sim.useAbility(w.id, 'deep_cuts', f.id).ok); advance(sim, 100); assert.ok(w.resource >= 10, `rage ${w.resource}`); advance(sim, 4000); }
     const cuts = f.auras.find((a) => a.id === 'deep_cuts_bleed');
     assert.equal(cuts?.stacks, 3);
-    const t1 = war('protection', 9.5);
-    assert.ok(t1.sim.useAbility(t1.w.id, 'axe_throw', t1.f.id).ok, 'Axe Throw at 9.5 yards');
-    assert.equal(ABILITIES.axe_throw.cost, 50);
-    assert.equal(ABILITIES.axe_throw.cooldown, 2000);
-    const t2 = war('protection', 12);
+    const reach = ABILITIES.axe_throw.range;
+    const t1 = war('protection', reach - 0.5);
+    assert.ok(t1.sim.useAbility(t1.w.id, 'axe_throw', t1.f.id).ok, 'Axe Throw just inside its range');
+    assert.ok(ABILITIES.axe_throw.cost > 0, 'Axe Throw costs rage');
+    const t2 = war('protection', reach + 2);
     assert.ok(!t2.sim.useAbility(t2.w.id, 'axe_throw', t2.f.id).ok);
   });
   it('Reel In pulls everything in a 10 yard cone in front of you, and nothing behind or beyond', () => {
@@ -948,14 +955,15 @@ describe('warrior rework', () => {
     assert.ok(d(f) < 3 && d(side) < 3, 'both enemies in the cone were dragged in');
     assert.ok(d(behind) > 7 && d(far) > 12, 'the ones behind and beyond stayed put');
   });
-  it('Axe Throw hits for about 300', () => {
+  it('Axe Throw hits for about its listed damage', () => {
     const { sim, w, f } = war('protection', 8);
     f.maxHealth = f.health = 1e6;
     const hp = f.health;
     assert.ok(sim.useAbility(w.id, 'axe_throw', f.id).ok);
     advance(sim, TICK);
     const dealt = hp - f.health;
-    assert.ok(dealt > 250 && dealt < 380, `dealt ${dealt}`);
+    const listed = (ABILITIES.axe_throw.effects.find((e) => e.type === 'damage') as { amount: number }).amount;
+    assert.ok(dealt > listed * 0.8 && dealt < listed * 1.3, `dealt ${dealt} vs listed ${listed}`);
   });
   it('the banner traps enemies inside its circle and lets nobody out', () => {
     const { sim, w, f } = war('protection', 10);

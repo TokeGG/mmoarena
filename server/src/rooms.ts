@@ -11,13 +11,18 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import { whereIs } from './geoip';
-import type { AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
+import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
-import type { AiTune } from './aitune';
+import type { AiTune, StoredTurn } from './aitune';
+import type { DevRequests } from './devrequests';
+import { label as patchLabel } from './devtools';
+import { PlayTime } from './playtime';
+import type { TimeSample } from './playtime';
+import { TIME_IDLE_MS } from '@arena/shared';
 
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
@@ -75,6 +80,8 @@ export interface Player {
   pending?: number;
   /** The socket has closed: queued account work for it is skipped. */
   gone?: boolean;
+  /** When the player last did something (any message but background polling), for play time: an idle menu stops counting. */
+  activeAt?: number;
 }
 
 export interface Party {
@@ -355,6 +362,9 @@ export class Room {
       watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable,
     };
   }
+
+  /** A one-on-one between two friends (a duel), for play time. */
+  duel = false;
 
   /** An owner's private bot match: nobody plays in it, and it closes once nobody is watching. */
   botsOnly = false;
@@ -641,7 +651,7 @@ export class Room {
     const forced = !!this.autoTrain?.() && this.sim.time - this.sim.prepEndsAt >= 20000;
     if (!counted && !forced) return;
     this.studied = true;
-    if (forced) void this.learner.trainOn(replay, this.id).catch(() => undefined);
+    if (forced) void this.learner.trainOn(replay, this.id, { source: 'auto' }).catch(() => undefined);
     else void this.learner.learnFrom(replay, this.id);
   }
 
@@ -769,12 +779,14 @@ export interface LobbyConfig {
   minCountedMatchMs?: number;
   /** Milliseconds per tick for every room (default TUNING.tickMs; the server reads ARENA_TICK_MS). */
   tickMs?: number;
+  /** The clock for play time and idle detection (tests inject a fake one). */
+  now?: () => number;
 }
 
 /** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
-const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain' };
+const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub' };
 
 export class Lobby {
   private rooms = new Set<Room>();
@@ -785,7 +797,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune) {
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private requests?: DevRequests, private time?: PlayTime) {
     this.tickMs = Math.max(1, Math.round(cfg.tickMs ?? TUNING.tickMs));
     this.meter = new TickMeter(this.tickMs);
     // the saved state, unless the owner already changed it while it loaded
@@ -795,6 +807,8 @@ export class Lobby {
     void this.adminLog?.autoTrain().then((on) => {
       if (!this.autoTrainSet) this.autoTrain = on;
     });
+    // every match the bots study on their own is written in the admin log with what came of it, even when no number moved
+    if (this.learner) this.learner.onStudied = (e) => void this.adminLog?.add('bots (automatic)', e.kind === 'people' ? 'studied a match with people' : 'studied a bot-only match', e.replayId, e.text);
   }
 
   /** The owner's switch: the bots train on every finished match (player matches and bot matches too). */
@@ -833,6 +847,41 @@ export class Lobby {
   /** Every connection signed in to this account. */
   private connsOf(key: string): Player[] {
     return [...this.conns].filter((q) => q.account?.key === key);
+  }
+
+  private clock(): number {
+    return this.cfg.now ? this.cfg.now() : Date.now();
+  }
+  private lastTimeAt = 0;
+
+  /** What a connection is doing, for play time. */
+  private timeSample(q: Player, now: number): TimeSample {
+    const base = { ...(q.account ? { key: q.account.key, name: q.account.name } : { conn: q.id }) };
+    const room = q.room && !q.room.closed ? q.room : undefined;
+    if (room && room.sim.phase !== 'ended') {
+      const u = q.unitId !== undefined ? room.sim.units.get(q.unitId) : undefined;
+      const humans = room.players.size;
+      const cat = room.devTest ? 'dev' : room.isRanked ? 'ranked' : room.duel ? 'duel' : humans > 1 ? 'party' : 'practice';
+      return { ...base, cat, active: true, classId: u?.classId ?? q.classId, spec: u?.spec ?? q.build?.spec ?? emptyBuild(q.classId).spec, map: room.arenaId, size: room.size };
+    }
+    if (q.watching && !q.watching.closed) return { ...base, cat: 'spectate', active: true };
+    if (this.inQueue(q) || q.duelWith !== undefined) return { ...base, cat: 'queue', active: true };
+    // the menu (and the end screen of a match) stops counting when nobody has touched anything for a while
+    return { ...base, cat: 'menu', active: now - (q.activeAt ?? q.since ?? now) < TIME_IDLE_MS };
+  }
+
+  /** Hand every connection's state to the play time counter. */
+  private sampleTime(): void {
+    if (!this.time) return;
+    const now = this.clock();
+    this.lastTimeAt = now;
+    this.time.tick([...this.conns].map((q) => this.timeSample(q, now)), now);
+  }
+
+  /** Count the last seconds and write every record (shutdown). */
+  async saveTime(): Promise<void> {
+    this.sampleTime();
+    await this.time?.flush().catch(() => undefined);
   }
 
   /** The owner's moderation and server actions (admin panel). Everything is logged. */
@@ -927,6 +976,12 @@ export class Lobby {
         send(p, { t: 'admin_history', name: msg.name!, rows: await acc.history(key) });
         break;
       }
+      case 'time': {
+        if (!this.time) return void send(p, { t: 'dev_result', ok: false, text: 'Play time tracking is off on this server.' });
+        if (msg.name) send(p, { t: 'admin_time_player', name: msg.name, rec: await this.time.player(msg.name) });
+        else send(p, { t: 'admin_time', ...(await this.time.overview(this.onlineKeys())) });
+        break;
+      }
       case 'log':
         send(p, { t: 'admin_log', rows: (await this.adminLog?.list()) ?? [] });
         break;
@@ -962,6 +1017,25 @@ export class Lobby {
         for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
         break;
       }
+      case 'bot_commit': {
+        // owner only: the learner's current state (brains and human-style data) goes to the main branch in one commit that is also a patch
+        const dev = this.dev;
+        const learner = this.learner;
+        if (!learner || !dev) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        if (!dev.canOpenPr) return void send(p, { t: 'dev_result', ok: false, text: 'No GITHUB_TOKEN on the server: nothing was committed.' });
+        try {
+          const data = await learner.exportLive();
+          const r = await dev.commitLearnedBots(data, by);
+          learner.markCommitted({ version: r.version, url: r.url, matches: r.matches });
+          log('committed learned bots to GitHub', r.version, `${r.matches} match${r.matches === 1 ? '' : 'es'}; brains: ${r.classes.join(', ') || 'none changed'}; ${r.url}`);
+          send(p, { t: 'dev_result', ok: true, text: `Committed the learned bots to the main branch on GitHub as patch ${r.version} (${r.matches} match${r.matches === 1 ? '' : 'es'} studied; brains changed for ${r.classes.join(', ') || 'no class'}). The game updates when the next deploy finishes.`, url: r.url });
+        } catch (e) {
+          log('commit learned bots failed', undefined, (e as Error).message);
+          send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
+        }
+        for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
+        break;
+      }
       case 'train_status':
         send(p, this.trainStatusMsg());
         break;
@@ -977,7 +1051,7 @@ export class Lobby {
   private trainTimer: ReturnType<typeof setInterval> | null = null;
 
   private botKnowledgeMsg(): Extract<ServerMsg, { t: 'bot_knowledge' }> {
-    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [] };
+    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [], ...(this.learner ? { live: this.learner.liveStatus() } : {}), autoTrain: this.autoTrain, canCommit: !!this.dev?.canOpenPr };
   }
 
   /** Train on every archived replay in turn, with the progress shown in the queue like any other job. */
@@ -1115,6 +1189,49 @@ export class Lobby {
   private bringSession(room: Room, p: Player): void {
     if (!p.devSession?.length || !this.isDev(p) || room.isRanked) return; // ranked never silently stops counting
     this.setRoomPatches(room, p, mergePatches(room.devPatches, p.devSession));
+  }
+
+  /** The dev's test numbers now: the match's, or the session's when not in one; in the Tuning tab, what they have proposed and nobody has handled yet. */
+  private testingOf(p: Player, propose = false): DataPatch[] {
+    if (propose) {
+      const by = p.account?.name ?? p.name;
+      return [...(this.dev?.proposals ?? [])].reverse().filter((r) => r.status === 'pending' && r.by === by).reduce<DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
+    }
+    return this.devRoom(p)?.devPatches ?? p.devSession ?? [];
+  }
+
+  private setTesting(p: Player, list: DataPatch[]): void {
+    const room = this.devRoom(p);
+    if (room && !room.closed) this.setRoomPatches(room, p, list);
+    else {
+      p.devSession = list;
+      send(p, { t: 'dev_session', patches: list });
+    }
+  }
+
+  /** Claude's changes: tried in the dev's match (or kept for their session), or, in the Tuning tab, added to the proposals list. */
+  private async applyAi(p: Player, rec: StoredTurn): Promise<boolean> {
+    if (rec.propose) {
+      if (!this.dev) return false;
+      const row = await this.dev.propose(p.account?.name ?? p.name, rec.patches, 'Ask Claude');
+      rec.proposalId = row.id;
+      for (const q of this.panelViewers()) send(q, { t: 'proposals', rows: this.dev.proposals });
+    } else {
+      rec.before = this.testingOf(p);
+      this.setTesting(p, mergePatches(rec.before, rec.patches));
+    }
+    rec.applied = true;
+    return true;
+  }
+
+  /** Every dev gets their change requests (the owner all of them). */
+  private sendRequests(): void {
+    if (!this.requests) return;
+    for (const q of this.conns) {
+      if (!this.isDev(q)) continue;
+      const all = this.adminAccess(q) === 'owner';
+      send(q, { t: 'dev_requests', rows: this.requests.visible(q.account?.name ?? q.name, all), all });
+    }
   }
 
   /** The owner (with the code entered this session) or an account the owner gave the 'dev' tag. */
@@ -1386,6 +1503,8 @@ export class Lobby {
   }
 
   handle(p: Player, msg: ClientMsg): void {
+    // background polling (pings, the live-match badge) is not the player doing something
+    if (msg.t !== 'ping' && msg.t !== 'live' && msg.t !== 'admin_overview' && !(msg.t === 'admin_proposals' && msg.op === 'list')) p.activeAt = this.clock();
     switch (msg.t) {
       case 'ping':
         send(p, { t: 'pong', n: msg.n, load: this.meter.report().load }); // answered at once, in any state
@@ -1619,17 +1738,89 @@ export class Lobby {
       case 'dev_ai': {
         if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         if (!this.ai) return void send(p, { t: 'dev_result', ok: false, text: 'Ask Claude is off on this server.' });
-        // in a match the answer is tried in it; from the menu it goes into the dev's session numbers
-        const room = this.devRoom(p);
+        const who = p.account?.key ?? p.ip;
         const by = p.account?.name ?? p.name;
-        void this.ai.suggest(p.account?.key ?? p.ip, msg.ability, msg.text, room ? room.devPatches : p.devSession ?? []).then((r) => {
-          if (r.ok && room && !room.closed) this.setRoomPatches(room, p, mergePatches(room.devPatches, r.patches));
-          else if (r.ok && !room) {
-            p.devSession = mergePatches(p.devSession ?? [], r.patches);
-            send(p, { t: 'dev_session', patches: p.devSession });
+        const scope = msg.classId ? `class:${msg.classId}` : msg.ability;
+        const scopeName = msg.classId ? CLASSES[msg.classId].name : ABILITIES[msg.ability]?.name ?? msg.ability;
+        const propose = !!msg.propose;
+        void this.ai.chat(who, msg.ability, msg.classId, msg.text, this.testingOf(p, propose)).then(async (a) => {
+          const rec = this.ai?.turn(who, a.turn);
+          const changes: ChatChange[] = a.patches.map((x) => ({ label: patchLabel(x), from: currentValue(x) ?? null, to: x.value }));
+          let applied = false;
+          if (rec && a.patches.length) rec.propose = propose;
+          if (rec && a.patches.length && a.confident) applied = await this.applyAi(p, rec);
+          const turn: ChatTurn = { id: a.turn, kind: a.kind, scope, text: a.text, ...(a.questions.length ? { questions: a.questions } : {}), ...(changes.length ? { changes, applied, patches: a.patches, ...(rec?.proposalId ? { proposalId: rec.proposalId } : {}) } : {}), ...(a.dropped.length ? { dropped: a.dropped } : {}) };
+          if (a.ok && a.kind === 'request' && a.request) {
+            if (!this.requests) {
+              turn.kind = 'error';
+              turn.text = `${a.text} (Requests are not set up on this server, so nothing was filed.)`;
+            } else {
+              const tested: ChatChange[] = this.testingOf(p, propose).slice(0, 40).map((x) => ({ label: patchLabel(x), from: currentValue(x) ?? null, to: x.value }));
+              const r = await this.requests.file(by, scopeName, a.request, tested);
+              if (!r.ok || !r.row) {
+                turn.kind = 'error';
+                turn.text = r.text;
+              } else {
+                const row = r.row;
+                turn.request = { id: row.id, title: row.title, ...(row.issueUrl ? { issueUrl: row.issueUrl, issueNumber: row.issueNumber } : {}), ...(row.issueError ? { issueError: row.issueError } : {}) };
+                turn.text = `${a.text}\n\nThat needs a code change. I have saved it as a request for the owner with the full details ("${row.title}"); you can follow its status in the dev panel.${row.issueUrl ? ` A GitHub issue was opened too: ${row.issueUrl}` : ''}${row.issueError ? `\n\nThe GitHub issue could not be opened (${row.issueError}). The request is saved for the owner anyway.` : ''}`;
+                this.sendRequests();
+              }
+            }
           }
-          void this.adminLog?.add(by, 'ask Claude', ABILITIES[msg.ability]?.name ?? msg.ability, `${msg.text} → ${r.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', ') || 'no change'}`);
-          send(p, { t: 'dev_result', ok: r.ok, text: !r.ok ? `🤖 ${r.text}` : room ? `🤖 ${r.text} (trying it in this match now; "Keep for my session" or "Save for everyone" to keep it)` : `🤖 ${r.text} (kept for your session: every match you start uses it)` });
+          if (rec) rec.view = turn;
+          void this.adminLog?.add(by, 'ask Claude', scopeName, `${msg.text} → ${turn.kind}${a.patches.length ? `: ${a.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', ')}` : ''}${turn.request ? ` (request ${turn.request.id})` : ''}`);
+          send(p, { t: 'dev_chat', turn });
+        });
+        break;
+      }
+      case 'dev_ai_apply':
+      case 'dev_ai_undo': {
+        if (!this.isDev(p) || !this.ai) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        const rec = this.ai.turn(p.account?.key ?? p.ip, msg.turn);
+        if (!rec?.view) return void send(p, { t: 'dev_result', ok: false, text: 'That answer is too old to change. Ask again.' });
+        const view = rec.view;
+        void (async () => {
+          if (msg.t === 'dev_ai_apply') {
+            if (!rec.applied) await this.applyAi(p, rec);
+          } else if (rec.applied) {
+            if (rec.propose) {
+              // the proposal it made is taken off the list
+              if (rec.proposalId && this.dev) {
+                await this.dev.actOn('dismiss', [rec.proposalId], p.account?.name ?? p.name);
+                for (const q of this.panelViewers()) send(q, { t: 'proposals', rows: this.dev.proposals });
+              }
+              rec.proposalId = undefined;
+            } else {
+              const k = (x: DataPatch) => `${x.file}:${x.id}:${x.path.join('.')}`;
+              const keys = new Set(rec.patches.map(k));
+              this.setTesting(p, [...this.testingOf(p).filter((x) => !keys.has(k(x))), ...(rec.before ?? []).filter((x) => keys.has(k(x)))]);
+            }
+            rec.applied = false;
+          }
+          const { proposalId: _drop, ...rest } = view;
+          rec.view = { ...rest, applied: rec.applied, ...(rec.proposalId ? { proposalId: rec.proposalId } : {}) };
+          send(p, { t: 'dev_chat', turn: rec.view });
+        })();
+        break;
+      }
+      case 'dev_ai_clear':
+        if (this.isDev(p)) this.ai?.clear(p.account?.key ?? p.ip, msg.scope);
+        break;
+      case 'dev_requests': {
+        const access = this.adminAccess(p);
+        if (!this.isDev(p) || !this.requests) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        const reqs = this.requests;
+        const by = p.account?.name ?? p.name;
+        if (msg.op === 'list') {
+          send(p, { t: 'dev_requests', rows: reqs.visible(by, access === 'owner'), all: access === 'owner' });
+          break;
+        }
+        if (this.ownerOnly(p, 'Marking or deleting requests') || !msg.id) return;
+        void reqs.mark(msg.id, msg.op).then((ok) => {
+          if (!ok) return void send(p, { t: 'dev_result', ok: false, text: 'That request is gone.' });
+          void this.adminLog?.add(by, `request: ${msg.op}`, undefined, msg.id);
+          this.sendRequests();
         });
         break;
       }
@@ -1785,11 +1976,13 @@ export class Lobby {
 
   disconnect(p: Player): void {
     p.gone = true;
+    this.sampleTime(); // the time up to now still counts
     this.conns.delete(p);
     this.leave(p);
     this.leaveParty(p);
     this.dropInvites(p);
     this.changed(p);
+    this.sampleTime(); // writes the account's record if this was its last connection
   }
 
   private leave(p: Player): void {
@@ -1997,6 +2190,7 @@ export class Lobby {
     void first; // duels never use anyone's map pick: they always play on The Overlook
     const room = this.makeRoom(this.cfg.queuePrepMs, true, false, DUEL_MAP);
     room.size = 1;
+    room.duel = true;
     p.duelWith = mate.duelWith = undefined;
     room.addPlayer(mate, 0);
     room.addPlayer(p, 1);
@@ -2301,6 +2495,7 @@ export class Lobby {
       }
     }
     if (now - this.lastSweep >= 60000) { this.lastSweep = now; this.sweep(now); } // once a minute
+    if (this.time && this.clock() - this.lastTimeAt >= 1000) this.sampleTime(); // play time: once a second
     for (const q of this.conns) {
       if (q.duelWith !== undefined && now - (q.duelAt ?? 0) > DUEL_WAIT_MS) {
         q.duelWith = undefined;

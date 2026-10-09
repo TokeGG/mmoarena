@@ -18,6 +18,8 @@ export interface EffectUnit {
   id: number;
   x: number;
   z: number;
+  /** Height of the model's feet as drawn (floor plus air). */
+  y: number;
   facing: number;
   alive: boolean;
   auras: string[];
@@ -28,6 +30,8 @@ export interface EffectUnit {
 interface Pos {
   x: number;
   z: number;
+  /** Height of the model's feet as drawn (the floor under it plus any jump or levitation): unit-attached effects are built on it. */
+  y: number;
   facing: number;
 }
 
@@ -155,6 +159,7 @@ interface ZoneVfx {
 interface Layer {
   group: THREE.Group;
   x: number;
+  y: number;
   z: number;
   sc: number;
   age: number;
@@ -198,6 +203,8 @@ export class Effects {
   private casting = new Map<number, Fx & { stop(): void }>();
   private attach = new Map<string, Attachment>();
   private prevPos = new Map<number, { x: number; z: number }>();
+  /** The units drawn this frame, so a ring or column at a unit's spot can sit at its height. */
+  private ids: number[] = [];
   private clock = 0;
   private ringGeo = new THREE.RingGeometry(0.88, 1, 56);
   private discGeo = new THREE.CircleGeometry(1, 40);
@@ -343,12 +350,21 @@ export class Effects {
     return f;
   }
 
+  /** Height of the floor for something drawn at (x, z): the feet of a unit standing exactly there (a decked, jumping or levitating caster or target), else the ground. */
+  private floorAt(x: number, z: number): number {
+    for (const id of this.ids) {
+      const p = this.pos(id);
+      if (p && p.x === x && p.z === z) return p.y;
+    }
+    return this.groundY(x, z);
+  }
+
   /** Flat ring on the ground that expands and fades. */
   private ring(x: number, z: number, color: number, from: number, to: number, life: number, y = 0.07, opacity = 0.9, additive = true) {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false });
     const mesh = new THREE.Mesh(this.ringGeo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(x, y + this.groundY(x, z), z);
+    mesh.position.set(x, y + this.floorAt(x, z), z);
     this.scene.add(mesh);
     let t = 0;
     this.addFx({
@@ -376,7 +392,7 @@ export class Effects {
     const mat = new THREE.MeshBasicMaterial({ color, map: this.tex.glow, transparent: true, opacity, side: THREE.DoubleSide, blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false });
     const mesh = new THREE.Mesh(this.discGeo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(x, y + this.groundY(x, z), z);
+    mesh.position.set(x, y + this.floorAt(x, z), z);
     this.scene.add(mesh);
     let t = 0;
     this.addFx({
@@ -399,7 +415,7 @@ export class Effects {
   private column(x: number, z: number, color: number, life = 0.7, radius = 0.55, height = 6, op = 0.55) {
     const mat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: op, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
     const mesh = new THREE.Mesh(this.beamGeo, mat);
-    mesh.position.set(x, height / 2, z);
+    mesh.position.set(x, height / 2 + this.floorAt(x, z), z);
     this.scene.add(mesh);
     let t = 0;
     this.addFx({
@@ -463,7 +479,7 @@ export class Effects {
   /** Crescent slash across the target, seen from the attacker's side. */
   private slash(ax: number, az: number, tx: number, tz: number, color: number, scale = 1, y = CHEST, tilt = rnd(-0.7, 0.7)) {
     const group = new THREE.Group();
-    group.position.set(tx, y, tz);
+    group.position.set(tx, y + this.floorAt(tx, tz), tz);
     group.rotation.y = Math.atan2(tx - ax, tz - az);
     const inner = new THREE.Group();
     inner.rotation.z = tilt;
@@ -509,7 +525,7 @@ export class Effects {
     // volley missiles leave from alternating sides of the caster and curve in towards the target
     const side = Math.random() < 0.5 ? -1 : 1;
     const hand = swirl ? side * rnd(0.3, 0.6) : 0;
-    const p = new THREE.Vector3(s.x + Math.sin(s.facing) * 0.6 + Math.cos(s.facing) * hand, 1.5 + (swirl ? rnd(-0.1, 0.5) : 0), s.z + Math.cos(s.facing) * 0.6 - Math.sin(s.facing) * hand);
+    const p = new THREE.Vector3(s.x + Math.sin(s.facing) * 0.6 + Math.cos(s.facing) * hand, s.y + 1.5 + (swirl ? rnd(-0.1, 0.5) : 0), s.z + Math.cos(s.facing) * 0.6 - Math.sin(s.facing) * hand);
     const q = p.clone();
     core.position.copy(p);
     halo.position.copy(p);
@@ -521,7 +537,7 @@ export class Effects {
       update: (dt) => {
         t += dt;
         const tp = this.pos(tgtId);
-        const to = tp ? new THREE.Vector3(tp.x, CHEST, tp.z) : p;
+        const to = tp ? new THREE.Vector3(tp.x, tp.y + CHEST, tp.z) : p;
         const d = to.clone().sub(p);
         const step = PROJECTILE_SPEED * dt;
         const done = d.length() <= step + 0.4 || t > 3;
@@ -612,7 +628,7 @@ export class Effects {
         const sinF = Math.sin(p.facing);
         const cosF = Math.cos(p.facing);
         // held out in front of the right hand; with a close camera it slides to the side and down so it never fills the view
-        pos.set(p.x + sinF * 0.7 - cosF * 0.35, 1.4, p.z + cosF * 0.7 + sinF * 0.35);
+        pos.set(p.x + sinF * 0.7 - cosF * 0.35, p.y + 1.4, p.z + cosF * 0.7 + sinF * 0.35);
         let want = 1;
         if (this.camera) {
           const cp = this.camera.position;
@@ -653,7 +669,7 @@ export class Effects {
     const rig = this.makeRig(look);
     const sh = rig.shape;
     const col = rig.colors;
-    const p = new THREE.Vector3(s.x + Math.sin(s.facing) * 0.6, 1.5, s.z + Math.cos(s.facing) * 0.6);
+    const p = new THREE.Vector3(s.x + Math.sin(s.facing) * 0.6, s.y + 1.5, s.z + Math.cos(s.facing) * 0.6);
     const dir = new THREE.Vector3(Math.sin(s.facing), 0, Math.cos(s.facing));
     const first = this.pos(tgtId);
     const flight = first ? Math.hypot(first.x - p.x, first.z - p.z) / PROJECTILE_SPEED : 0.2;
@@ -667,7 +683,7 @@ export class Effects {
       update: (dt) => {
         t += dt;
         const tp = this.pos(tgtId);
-        if (tp) _fd.set(tp.x - p.x, CHEST - p.y, tp.z - p.z);
+        if (tp) _fd.set(tp.x - p.x, tp.y + CHEST - p.y, tp.z - p.z);
         else _fd.set(0, 0, 0);
         const remaining = _fd.length();
         const step = PROJECTILE_SPEED * dt;
@@ -724,7 +740,7 @@ export class Effects {
     const sh = fireballShape(look.size, look.heat);
     const col = fireballColors(look.heat);
     const pk = Math.max(0.7, Math.min(1.4, 0.7 + 0.3 * power));
-    const gy = this.groundY(x, z);
+    const gy = this.floorAt(x, z); // the floor under the hit: a target on a deck or in the air
     // the flash and the heat bloom
     this.fireFlash(x, y, z, sh.flare, look.heat, pk);
     // flipbook flames flaring outward and up
@@ -825,10 +841,10 @@ export class Effects {
     this.scene.add(holder);
     const sx = s.x + Math.sin(s.facing) * 0.6 + Math.cos(s.facing) * 0.35;
     const sz = s.z + Math.cos(s.facing) * 0.6 - Math.sin(s.facing) * 0.35;
-    const sy = 1.6;
+    const sy = s.y + 1.6;
     let t = 0;
     let trail = 0;
-    let tx = t0.x, tz = t0.z;
+    let tx = t0.x, tz = t0.z, ty = t0.y;
     this.addFx({
       update: (dt) => {
         t += dt;
@@ -836,11 +852,12 @@ export class Effects {
         if (tp) {
           tx = tp.x;
           tz = tp.z;
+          ty = tp.y;
         }
         const k = Math.min(1, t / AXE_FLIGHT);
         const px = sx + (tx - sx) * k;
         const pz = sz + (tz - sz) * k;
-        const py = sy + (CHEST - sy) * k + Math.sin(Math.PI * k) * 0.9;
+        const py = sy + (ty + CHEST - sy) * k + Math.sin(Math.PI * k) * 0.9;
         holder.position.set(px, py, pz);
         holder.rotation.y = Math.atan2(tx - sx, tz - sz); // local Z points at the target
         axe.rotation.set(-k * Math.PI * 5 - 0.6, 0, 0);
@@ -852,9 +869,9 @@ export class Effects {
         }
         if (k >= 1) {
           this.onHit(tgtId);
-          this.burst(px, CHEST, pz, 0xfff0c0, 14, 6, 0.26, 0.4, 5);
-          this.burst(px, CHEST, pz, 0xdfe6f2, 8, 4, 0.22, 0.35, 3);
-          this.particle(px, CHEST, pz, { tex: 'star', color: 0xffffff, s0: 0.3, s1: 2.2, life: 0.18 });
+          this.burst(px, ty + CHEST, pz, 0xfff0c0, 14, 6, 0.26, 0.4, 5);
+          this.burst(px, ty + CHEST, pz, 0xdfe6f2, 8, 4, 0.22, 0.35, 3);
+          this.particle(px, ty + CHEST, pz, { tex: 'star', color: 0xffffff, s0: 0.3, s1: 2.2, life: 0.18 });
           this.ring(px, pz, 0xdfe6f2, 0.3, 1.6, 0.25, 0.1, 0.8);
           return true;
         }
@@ -882,7 +899,7 @@ export class Effects {
         const ax = a.x + Math.sin(a.facing) * 0.4, az = a.z + Math.cos(a.facing) * 0.4;
         const reach = Math.min(1, t / 0.1);
         const dx = b.x - ax, dz = b.z - az;
-        const dy = CHEST - 1.3;
+        const dy = b.y + CHEST - (a.y + 1.3);
         const len = Math.hypot(dx, dy, dz) * reach;
         const n = Math.max(1, Math.min(MAX, Math.round(len / 0.24)));
         _v.set(dx, dy, dz).normalize();
@@ -898,7 +915,7 @@ export class Effects {
           const f = (i + 0.5) / n;
           const dist = f * len;
           const sag = Math.sin(Math.PI * f) * 0.35 * tension;
-          _o.position.set(ax + _v.x * dist, 1.3 + _v.y * dist - sag, az + _v.z * dist);
+          _o.position.set(ax + _v.x * dist, a.y + 1.3 + _v.y * dist - sag, az + _v.z * dist);
           _o.quaternion.copy(_q);
           _o.rotateX(i % 2 ? Math.PI / 2 : 0);
           _o.scale.set(1.35, 1, 1);
@@ -906,10 +923,10 @@ export class Effects {
           mesh.setMatrixAt(i, _o.matrix);
         }
         mesh.instanceMatrix.needsUpdate = true;
-        hook.position.set(ax + _v.x * len, 1.3 + _v.y * len, az + _v.z * len);
+        hook.position.set(ax + _v.x * len, a.y + 1.3 + _v.y * len, az + _v.z * len);
         hook.quaternion.setFromUnitVectors(_y, _v);
         hook.rotateX(Math.PI); // barb points at the target
-        if (t < 0.15 && Math.random() < 0.8) this.particle(b.x, CHEST, b.z, { color: 0xdfe6f2, vx: rnd(-2, 2), vz: rnd(-2, 2), vy: rnd(0, 2), s0: 0.2, life: 0.25, drag: 2 });
+        if (t < 0.15 && Math.random() < 0.8) this.particle(b.x, b.y + CHEST, b.z, { color: 0xdfe6f2, vx: rnd(-2, 2), vz: rnd(-2, 2), vy: rnd(0, 2), s0: 0.2, life: 0.25, drag: 2 });
         return t >= life;
       },
       dispose: () => {
@@ -1095,14 +1112,16 @@ export class Effects {
   }
 
   /** An instant hit shown on the target itself: flash, shock rings and a few school specific accents. Nothing travels. */
-  impactAt(tgt: number | { x: number; z: number }, kind: ImpactKind, scale = 1, y = CHEST) {
+  impactAt(tgt: number | { x: number; z: number; y?: number }, kind: ImpactKind, scale = 1, dy = CHEST) {
     const p = typeof tgt === 'number' ? this.pos(tgt) : tgt;
     if (!p) return;
+    const feet = p.y ?? this.groundY(p.x, p.z);
+    const y = feet + dy;
     const P = ERUPT[kind];
     this.particle(p.x, y, p.z, { tex: 'star', color: 0xffffff, s0: 0.4 * scale, s1: 2.6 * scale, life: 0.2 });
     this.particle(p.x, y, p.z, { tex: 'glow', color: P.col, s0: 0.6 * scale, s1: 3.2 * scale, life: 0.35, a: 0.8 });
     this.ring(p.x, p.z, P.col, 0.3, 2.0 * scale, 0.4, 0.08, 0.9);
-    this.ring(p.x, p.z, P.col, 0.2 * scale, 1.7 * scale, 0.3, y, 0.7); // shock disc at body height
+    this.ring(p.x, p.z, P.col, 0.2 * scale, 1.7 * scale, 0.3, dy, 0.7); // shock disc at body height
     this.burst(p.x, y, p.z, P.spark, Math.round(12 * scale), 5 * scale, 0.3, 0.5, kind === 'frost' ? 4 : 2);
     switch (kind) {
       case 'fire':
@@ -1132,7 +1151,7 @@ export class Effects {
         for (let i = 0; i < 4; i++) this.particle(p.x + rnd(-0.5, 0.5), y - 0.5, p.z + rnd(-0.5, 0.5), { tex: 'plus', color: 0xfff1a8, vy: rnd(1, 2), s0: 0.35, s1: 0.1, life: 0.8, drag: 0.5 });
         break;
       case 'dust':
-        this.puff(p.x, HEAD - 0.1, p.z, 0xc9b99a, 5, 1.1 * scale);
+        this.puff(p.x, feet + HEAD - 0.1, p.z, 0xc9b99a, 5, 1.1 * scale);
         break;
       default:
         break;
@@ -1140,7 +1159,7 @@ export class Effects {
   }
 
   /** A spiral of motes winding up around a target (polymorph, dispel, leaps of faith). */
-  swirlAt(tgt: number | { x: number; z: number }, kind: ImpactKind, scale = 1) {
+  swirlAt(tgt: number | { x: number; z: number; y?: number }, kind: ImpactKind, scale = 1) {
     const P = ERUPT[kind];
     let t = 0;
     let acc = 0;
@@ -1148,6 +1167,7 @@ export class Effects {
       update: (dt) => {
         const p = typeof tgt === 'number' ? this.pos(tgt) : tgt;
         if (!p) return true;
+        const feet = p.y ?? this.groundY(p.x, p.z);
         t += dt;
         acc += dt;
         while (acc > 0.025) {
@@ -1156,11 +1176,11 @@ export class Effects {
           for (const o of [0, Math.PI]) {
             const a = t * 14 + o;
             const r = (1.0 - 0.55 * k) * scale;
-            this.particle(p.x + Math.cos(a) * r, 0.2 + k * 1.9, p.z + Math.sin(a) * r, { tex: k > 0.5 ? 'star' : 'glow', color: o ? P.core : P.col, s0: 0.3 * scale, s1: 0.1, life: 0.35 });
+            this.particle(p.x + Math.cos(a) * r, feet + 0.2 + k * 1.9, p.z + Math.sin(a) * r, { tex: k > 0.5 ? 'star' : 'glow', color: o ? P.core : P.col, s0: 0.3 * scale, s1: 0.1, life: 0.35 });
           }
         }
         if (t >= 0.6) {
-          this.burst(p.x, 2, p.z, P.spark, 12, 3, 0.3, 0.5, 0);
+          this.burst(p.x, feet + 2, p.z, P.spark, 12, 3, 0.3, 0.5, 0);
           this.ring(p.x, p.z, P.col, 0.4, 1.8 * scale, 0.4);
           return true;
         }
@@ -1222,7 +1242,7 @@ export class Effects {
     const mat = this.flatMat(color, 0, this.getFanTex());
     const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.x = -Math.PI / 2;
-    mesh.position.set(x, 0.07 + this.groundY(x, z), z);
+    mesh.position.set(x, 0.07 + this.floorAt(x, z), z);
     mesh.scale.set(0.01, 0.01, 1);
     this.scene.add(mesh);
     let t = 0;
@@ -1235,7 +1255,7 @@ export class Effects {
         mesh.scale.set(sc, sc, 1);
         if (follow !== undefined) {
           const p = this.pos(follow);
-          if (p) mesh.position.set(p.x, 0.07 + this.groundY(p.x, p.z), p.z);
+          if (p) mesh.position.set(p.x, 0.07 + p.y, p.z);
         }
         mat.opacity = opacity * Math.min(1, t / 0.08) * (1 - k * k) * (0.88 + 0.12 * Math.sin(t * 40));
         return k >= 1;
@@ -1246,6 +1266,58 @@ export class Effects {
         mat.dispose();
       },
     });
+  }
+
+  /**
+   * Slice and Dice: the real cone on the ground (as Sweep draws it) stays under the warrior for the whole channel and turns with him,
+   * and the blade flashes back and forth across the wedge instead of spinning all round. Ends with stop().
+   */
+  private sliceCone(unit: number, range: number, half: number, dur: number): Fx & { stop(): void } {
+    const geo = new THREE.CircleGeometry(1, Math.max(8, Math.ceil(half * 14)), -Math.PI / 2 - half, half * 2);
+    const mat = this.flatMat(0xdfe6f2, 0, this.getFanTex());
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.scale.set(range, range, 1);
+    const grp = new THREE.Group();
+    grp.add(mesh);
+    this.scene.add(grp);
+    let t = 0;
+    let off = 0;
+    let stopped = false;
+    let cut = 0;
+    const fx = {
+      stop: () => {
+        stopped = true;
+      },
+      update: (dt: number) => {
+        t += dt;
+        const p = this.pos(unit);
+        if (!p) return true;
+        if (stopped) off += dt;
+        const k = Math.min(1, t / 0.12) * (stopped ? Math.max(0, 1 - off / 0.2) : Math.min(1, Math.max(0, (dur - t) / 0.2)));
+        grp.position.set(p.x, 0.07 + this.groundY(p.x, p.z), p.z);
+        grp.rotation.y = p.facing;
+        mat.opacity = 0.32 * k * (0.9 + 0.1 * Math.sin(t * 30));
+        cut -= dt;
+        if (cut <= 0 && k > 0.5) {
+          // a flash of steel across a different part of the wedge every few frames
+          cut = 0.12;
+          const a = p.facing + Math.sin(t * 17) * half * 0.8;
+          const px = p.x + Math.sin(a) * range * 0.7;
+          const pz = p.z + Math.cos(a) * range * 0.7;
+          this.slash(p.x, p.z, px, pz, 0xe9eef7, 1.1, CHEST, Math.sin(t * 17) * 0.9);
+          this.particle(px, 1.0 + rnd(-0.3, 0.3), pz, { color: 0xfff1d0, s0: 0.2, s1: 0.04, life: 0.3, vx: Math.sin(a) * 2, vz: Math.cos(a) * 2 });
+        }
+        return stopped ? off >= 0.2 : t >= dur;
+      },
+      dispose: () => {
+        this.scene.remove(grp);
+        geo.dispose();
+        mat.dispose();
+      },
+    };
+    this.addFx(fx);
+    return fx;
   }
 
   /**
@@ -1266,15 +1338,15 @@ export class Effects {
     const hot = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex.glow, color: 0xfff0b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
     this.scene.add(hot);
     this.sector(p0.x, p0.z, p0.facing, range, half, 0xff5a14, dur + 0.15, 0.55, unit);
-    this.fireFlash(p0.x + Math.sin(p0.facing) * 0.8, 1.7, p0.z + Math.cos(p0.facing) * 0.8, 0.6);
+    this.fireFlash(p0.x + Math.sin(p0.facing) * 0.8, p0.y + 1.7, p0.z + Math.cos(p0.facing) * 0.8, 0.6);
     let t = 0;
     let acc = 0;
     let accS = 0;
-    const MY = 1.7;
     this.addFx({
       update: (dt) => {
         t += dt;
         const p = this.pos(unit) ?? p0;
+        const MY = p.y + 1.7;
         const env = Math.min(1, t / 0.12) * Math.min(1, Math.max(0, (dur - t) / 0.3));
         const fx = Math.sin(p.facing);
         const fz = Math.cos(p.facing);
@@ -1389,7 +1461,7 @@ export class Effects {
           const e = 1 - (1 - k) ** 2.2;
           const q = this.pos(unit) ?? p;
           mesh.visible = true;
-          mesh.position.set(q.x + Math.sin(q.facing) * 0.45, MY, q.z + Math.cos(q.facing) * 0.45);
+          mesh.position.set(q.x + Math.sin(q.facing) * 0.45, q.y + MY, q.z + Math.cos(q.facing) * 0.45);
           mesh.rotation.y = q.facing;
           const sc = 0.5 + (radius - 0.5) * e;
           mesh.scale.set(sc * widen, sc * widen, sc);
@@ -1415,7 +1487,7 @@ export class Effects {
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + rnd(-0.1, 0.1);
       const sp = radius / 0.55;
-      this.particle(x + Math.cos(a) * 0.6, 0.2, z + Math.sin(a) * 0.6, {
+      this.particle(x + Math.cos(a) * 0.6, this.floorAt(x, z) + 0.2, z + Math.sin(a) * 0.6, {
         tex: 'smoke', color: 0xb8a888, add: false, vx: Math.cos(a) * sp * rnd(0.6, 0.95), vz: Math.sin(a) * sp * rnd(0.6, 0.95), vy: rnd(0.3, 1.2),
         s0: 0.7, s1: 2.0, life: rnd(0.55, 0.85), a: 0.5, drag: 3.2,
       });
@@ -1432,7 +1504,7 @@ export class Effects {
       const p = this.pos(unit) ?? s;
       this.soundWaves(unit, radius, color, { count: o.count ?? 4, opacity: o.opacity });
       this.shockwave(p.x, p.z, radius, o.ring2 ?? color, o.dust !== false);
-      this.burst(p.x + Math.sin(p.facing) * 0.5, 1.7, p.z + Math.cos(p.facing) * 0.5, color, 10, 3.5, 0.22, 0.4, 0);
+      this.burst(p.x + Math.sin(p.facing) * 0.5, p.y + 1.7, p.z + Math.cos(p.facing) * 0.5, color, 10, 3.5, 0.22, 0.4, 0);
     });
   }
 
@@ -1465,13 +1537,13 @@ export class Effects {
         if (!p) return true;
         if (stopped) off += dt;
         const k = Math.min(1, t / 0.12) * (stopped ? Math.max(0, 1 - off / 0.2) : Math.min(1, Math.max(0, (dur - t) / 0.2)));
-        grp.position.set(p.x, 1.05 + Math.sin(t * 9) * 0.08, p.z);
+        grp.position.set(p.x, p.y + 1.05 + Math.sin(t * 9) * 0.08, p.z);
         grp.rotation.y = -t * ((turns * Math.PI * 2) / Math.max(dur, 0.01));
         mat.opacity = 0.6 * k;
         mat2.opacity = 0.35 * k;
         if (k > 0.3 && Math.random() < dt * 40) {
           const ang = rnd(0, Math.PI * 2);
-          this.particle(p.x + Math.cos(ang) * radius * 0.9, 1.0 + rnd(-0.3, 0.3), p.z + Math.sin(ang) * radius * 0.9, { color: 0xfff1d0, s0: 0.2, s1: 0.04, life: 0.3, vx: -Math.sin(ang) * 3, vz: Math.cos(ang) * 3 });
+          this.particle(p.x + Math.cos(ang) * radius * 0.9, p.y + 1.0 + rnd(-0.3, 0.3), p.z + Math.sin(ang) * radius * 0.9, { color: 0xfff1d0, s0: 0.2, s1: 0.04, life: 0.3, vx: -Math.sin(ang) * 3, vz: Math.cos(ang) * 3 });
         }
         return stopped ? off >= 0.2 : t >= dur;
       },
@@ -1486,7 +1558,7 @@ export class Effects {
   }
 
   /** The table-driven result of an instant spell, drawn at (or under) the target. */
-  private hitVisual(h: { kind: ImpactKind; style: 'eruption' | 'impact' | 'pillar' | 'swirl' }, p: { x: number; z: number }, target: number) {
+  private hitVisual(h: { kind: ImpactKind; style: 'eruption' | 'impact' | 'pillar' | 'swirl' }, p: { x: number; z: number; y?: number }, target: number) {
     switch (h.style) {
       case 'eruption':
         this.groundEruption(p.x, p.z, h.kind, 1);
@@ -1525,18 +1597,18 @@ export class Effects {
       case 'shadow':
         for (let i = 0; i < 4; i++) {
           const a = Math.random() * Math.PI * 2;
-          this.particle(p.x + Math.cos(a) * 0.9, rnd(0.6, 1.8), p.z + Math.sin(a) * 0.9, { tex: 'glow', color: 0x8a3dff, vx: -Math.cos(a) * 3, vz: -Math.sin(a) * 3, s0: 0.4, s1: 0.1, life: 0.3 });
+          this.particle(p.x + Math.cos(a) * 0.9, p.y + rnd(0.6, 1.8), p.z + Math.sin(a) * 0.9, { tex: 'glow', color: 0x8a3dff, vx: -Math.cos(a) * 3, vz: -Math.sin(a) * 3, s0: 0.4, s1: 0.1, life: 0.3 });
         }
-        this.particle(p.x, CHEST, p.z, { tex: 'glow', color: 0x7a2fd8, s0: 0.5, s1: 2.2, life: 0.35, a: 0.8 });
+        this.particle(p.x, p.y + CHEST, p.z, { tex: 'glow', color: 0x7a2fd8, s0: 0.5, s1: 2.2, life: 0.35, a: 0.8 });
         break;
       case 'bleed':
-        for (let i = 0; i < 6; i++) this.particle(p.x + rnd(-0.25, 0.25), rnd(0.8, 1.6), p.z + rnd(-0.25, 0.25), { color: 0xb8101c, add: false, vx: rnd(-1, 1), vz: rnd(-1, 1), vy: rnd(0.5, 2), s0: 0.24, s1: 0.14, life: 0.6, grav: 9 });
+        for (let i = 0; i < 6; i++) this.particle(p.x + rnd(-0.25, 0.25), p.y + rnd(0.8, 1.6), p.z + rnd(-0.25, 0.25), { color: 0xb8101c, add: false, vx: rnd(-1, 1), vz: rnd(-1, 1), vy: rnd(0.5, 2), s0: 0.24, s1: 0.14, life: 0.6, grav: 9 });
         this.ring(p.x, p.z, 0xc01820, 0.3, 1.3, 0.35, 0.06, 0.7 * s);
         break;
       case 'burn':
         // a tick flares the field on the body (see the burn layer); a few tongues and embers fly off it
-        for (let i = 0; i < 2; i++) this.fireTongue(p.x + rnd(-0.3, 0.3), 0.7 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.55);
-        this.emberShower(p.x, 0.8, p.z, 0.35, 5, { rise: 1.2 });
+        for (let i = 0; i < 2; i++) this.fireTongue(p.x + rnd(-0.3, 0.3), p.y + 0.7 + rnd(0, 0.8), p.z + rnd(-0.3, 0.3), 0.55);
+        this.emberShower(p.x, p.y + 0.8, p.z, 0.35, 5, { rise: 1.2 });
         break;
       default:
         break;
@@ -1548,16 +1620,16 @@ export class Effects {
     switch (style) {
       case 'shadow':
         this.ring(p.x, p.z, 0x7a2fd8, 0.4, 2.0, 0.5);
-        this.puff(p.x, 1.0, p.z, 0x2a1040, 3, 1.1);
+        this.puff(p.x, p.y + 1.0, p.z, 0x2a1040, 3, 1.1);
         break;
       case 'bleed':
-        this.burst(p.x, CHEST, p.z, 0xc01820, 8, 3, 0.2, 0.5, 8);
+        this.burst(p.x, p.y + CHEST, p.z, 0xc01820, 8, 3, 0.2, 0.5, 8);
         this.ring(p.x, p.z, 0xc01820, 0.3, 1.5, 0.4, 0.06, 0.8);
         break;
       case 'burn':
-        this.fireFlash(p.x, 1.1, p.z, 0.35);
-        for (let i = 0; i < 4; i++) this.fireTongue(p.x + rnd(-0.3, 0.3), 0.5 + rnd(0, 0.9), p.z + rnd(-0.3, 0.3), 0.7);
-        this.smokeWisps(p.x, 1.6, p.z, 2, 0.7, { spread: 0.3 });
+        this.fireFlash(p.x, p.y + 1.1, p.z, 0.35);
+        for (let i = 0; i < 4; i++) this.fireTongue(p.x + rnd(-0.3, 0.3), p.y + 0.5 + rnd(0, 0.9), p.z + rnd(-0.3, 0.3), 0.7);
+        this.smokeWisps(p.x, p.y + 1.6, p.z, 2, 0.7, { spread: 0.3 });
         break;
       case 'frost':
         this.ring(p.x, p.z, 0x9fe0ff, 0.3, 1.8, 0.45);
@@ -1619,7 +1691,7 @@ export class Effects {
           while (acc > 1) {
             acc -= 1;
             const ang = Math.random() * Math.PI * 2;
-            this.particle(wx(l, Math.cos(ang) * 0.6), 0.2, l.z + Math.sin(ang) * 0.6 * l.sc, { tex: 'glow', color: 0xb06bff, vy: rnd(0.6, 1.2), s0: 0.22 * l.sc, s1: 0.05, life: 1.0, a: 0.8 });
+            this.particle(wx(l, Math.cos(ang) * 0.6), l.y + 0.2, l.z + Math.sin(ang) * 0.6 * l.sc, { tex: 'glow', color: 0xb06bff, vy: rnd(0.6, 1.2), s0: 0.22 * l.sc, s1: 0.05, life: 1.0, a: 0.8 });
           }
         };
         break;
@@ -1643,7 +1715,7 @@ export class Effects {
           while (acc > 1) {
             acc -= 1;
             const sIdx = (Math.random() * 3) | 0;
-            this.particle(wx(l, spots[sIdx][0]), spots[sIdx][1] * l.sc, l.z + spots[sIdx][2] * l.sc, { color: 0xb8101c, add: false, s0: 0.22 * l.sc, s1: 0.14 * l.sc, life: 0.8, grav: 9, a: 1 });
+            this.particle(wx(l, spots[sIdx][0]), l.y + spots[sIdx][1] * l.sc, l.z + spots[sIdx][2] * l.sc, { color: 0xb8101c, add: false, s0: 0.22 * l.sc, s1: 0.14 * l.sc, life: 0.8, grav: 9, a: 1 });
           }
         };
         break;
@@ -1657,7 +1729,7 @@ export class Effects {
         upd = (l, dt, a, t) => {
           pl.x = l.x;
           pl.z = l.z;
-          pl.y = this.groundY(l.x, l.z);
+          pl.y = l.y;
           pl.t = t;
           pl.build = a;
           pl.fade = Math.min(1, a * 1.5) * (0.75 + 0.25 * S);
@@ -1714,7 +1786,7 @@ export class Effects {
           while (acc > 1) {
             acc -= 1;
             const ang = Math.random() * Math.PI * 2;
-            this.particle(l.x + Math.cos(ang) * 0.6 * l.sc, 0.15, l.z + Math.sin(ang) * 0.6 * l.sc, { tex: 'smoke', color: 0xbfe8ff, add: false, s0: 0.35 * l.sc, s1: 0.9 * l.sc, life: 0.9, a: 0.35, vy: 0.35, vx: rnd(-0.2, 0.2) });
+            this.particle(l.x + Math.cos(ang) * 0.6 * l.sc, l.y + 0.15, l.z + Math.sin(ang) * 0.6 * l.sc, { tex: 'smoke', color: 0xbfe8ff, add: false, s0: 0.35 * l.sc, s1: 0.9 * l.sc, life: 0.9, a: 0.35, vy: 0.35, vx: rnd(-0.2, 0.2) });
           }
         };
         break;
@@ -1766,16 +1838,16 @@ export class Effects {
           acc += dt * 4 * a;
           while (acc > 1) {
             acc -= 1;
-            this.particle(l.x + rnd(-0.3, 0.3) * l.sc, rnd(0.4, 1.6) * l.sc, l.z + rnd(-0.3, 0.3) * l.sc, { tex: 'smoke', color: 0x5aa83a, add: false, vy: 0.6, s0: 0.2, s1: 0.5, life: 0.8, a: 0.4 });
+            this.particle(l.x + rnd(-0.3, 0.3) * l.sc, l.y + rnd(0.4, 1.6) * l.sc, l.z + rnd(-0.3, 0.3) * l.sc, { tex: 'smoke', color: 0x5aa83a, add: false, vy: 0.6, s0: 0.2, s1: 0.5, life: 0.8, a: 0.4 });
           }
         };
       }
     }
     const layer: Layer = {
-      group, x: 0, z: 0, sc: 1, age: 0, flare: 0,
+      group, x: 0, y: 0, z: 0, sc: 1, age: 0, flare: 0,
       update: (dt, a, t) => {
         layer.flare = Math.max(0, layer.flare - dt * 3.5);
-        group.position.set(layer.x, 0, layer.z);
+        group.position.set(layer.x, layer.y, layer.z);
         group.scale.setScalar(layer.sc);
         upd(layer, dt, a, t);
       },
@@ -1814,10 +1886,16 @@ export class Effects {
       this.addFx(fx);
       return;
     }
-    if (ability === 'bladestorm' || ability === 'slice_and_dice') {
+    if (ability === 'slice_and_dice') {
+      // a flurry of cuts across the cone in front of the warrior, drawn on the real wedge, until the channel ends
+      const cone = coneShape(def);
+      this.casting.set(unit, this.sliceCone(unit, cone?.range ?? 5, cone?.half ?? Math.PI / 4, (def.castTime || 4000) / 1000));
+      return;
+    }
+    if (ability === 'bladestorm') {
       // a warrior whirling steel, not a caster gathering a spell: blades spin round him until the channel ends
       const dur = (def.castTime || 4000) / 1000;
-      this.casting.set(unit, this.spinBlades(unit, ability === 'bladestorm' ? def.radius ?? 6 : Math.min(3, def.radius ?? 3), 0xdfe6f2, dur, dur * (ability === 'bladestorm' ? 1.6 : 2.4)));
+      this.casting.set(unit, this.spinBlades(unit, def.radius ?? 6, 0xdfe6f2, dur, dur * 1.6));
       return;
     }
     const orb = this.sprite('glow', color);
@@ -1845,12 +1923,12 @@ export class Effects {
         const hx = p.x + Math.sin(p.facing) * 0.55;
         const hz = p.z + Math.cos(p.facing) * 0.55;
         const grow = Math.min(1, t / 0.6);
-        orb.position.set(hx, 1.55, hz);
-        core.position.set(hx, 1.55, hz);
+        orb.position.set(hx, p.y + 1.55, hz);
+        core.position.set(hx, p.y + 1.55, hz);
         const pulse = 1 + Math.sin(t * 22) * 0.15;
         orb.scale.set((0.5 + grow * 0.9) * pulse, (0.5 + grow * 0.9) * pulse, 1);
         core.scale.set(0.25 + grow * 0.4, 0.25 + grow * 0.4, 1);
-        rune.position.set(p.x, 0.06, p.z);
+        rune.position.set(p.x, p.y + 0.06, p.z);
         a.rotation.z = t * 1.8;
         b.rotation.z = -t * 2.6;
         rune.scale.setScalar(0.9 + Math.sin(t * 5) * 0.04);
@@ -1859,7 +1937,7 @@ export class Effects {
           acc -= 0.05;
           const ang = Math.random() * Math.PI * 2;
           const r = rnd(1.2, 1.8);
-          this.particle(p.x + Math.cos(ang) * r, rnd(0.2, 1.6), p.z + Math.sin(ang) * r, {
+          this.particle(p.x + Math.cos(ang) * r, p.y + rnd(0.2, 1.6), p.z + Math.sin(ang) * r, {
             color, s0: 0.22, life: 0.42,
             vx: (hx - (p.x + Math.cos(ang) * r)) * 2.4, vy: (1.5 - 0.9) * 1.5, vz: (hz - (p.z + Math.sin(ang) * r)) * 2.4,
           });
@@ -1920,9 +1998,9 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (p) {
           const c = SCHOOL_COLOR[ev.school] ?? 0xffffff;
-          this.burst(p.x, HEAD, p.z, 0xff5a4d, 14, 4, 0.3, 0.5, 0);
+          this.burst(p.x, p.y + HEAD, p.z, 0xff5a4d, 14, 4, 0.3, 0.5, 0);
           const s = this.sprite('star', 0xff4d3d);
-          s.position.set(p.x, HEAD + 0.2, p.z);
+          s.position.set(p.x, p.y + HEAD + 0.2, p.z);
           s.scale.set(0.2, 0.2, 1);
           let t = 0;
           this.addFx({
@@ -1951,8 +2029,8 @@ export class Effects {
         this.onHit(ev.tgt);
         if (ev.ability === 'lava') {
           // standing in a lava pit: flames lick up the body and embers fly, every burn tick
-          this.fireFlash(p.x, 0.4, p.z, 0.7, 0.3);
-          this.emberShower(p.x, 0.2, p.z, 0.8, 6, { heat: 0.3, rise: 1.4 });
+          this.fireFlash(p.x, p.y + 0.4, p.z, 0.7, 0.3);
+          this.emberShower(p.x, p.y + 0.2, p.z, 0.8, 6, { heat: 0.3, rise: 1.4 });
           break;
         }
         {
@@ -1969,7 +2047,7 @@ export class Effects {
           this.onSwing(ev.src, true);
           if (a) {
             const ang = (this.clock * 9 + ev.tgt) % (Math.PI * 2);
-            this.slash(p.x - Math.sin(ang) * 1.1, p.z - Math.cos(ang) * 1.1, p.x + Math.sin(ang) * 1.1, p.z + Math.cos(ang) * 1.1, 0xe9eef7, 0.6, CHEST + Math.sin(ang * 2) * 0.4);
+            this.slash(p.x - Math.sin(ang) * 1.1, p.z - Math.cos(ang) * 1.1, p.x + Math.sin(ang) * 1.1, p.z + Math.cos(ang) * 1.1, 0xe9eef7, 0.6, p.y - this.groundY(p.x, p.z) + CHEST + Math.sin(ang * 2) * 0.4);
           }
         } else if (ev.ability === null && ev.src !== 0) {
           // auto-attack: swing the attacker's weapon and draw a quick steel slash so every swing is visible
@@ -1993,28 +2071,28 @@ export class Effects {
         this.later(delay, () => {
           const q = this.pos(ev.tgt) ?? p;
           if (absorbed) {
-            this.burst(q.x, CHEST, q.z, 0xfff1a8, 10, 3, 0.25, 0.4, 0);
+            this.burst(q.x, q.y + CHEST, q.z, 0xfff1a8, 10, 3, 0.25, 0.4, 0);
             return;
           }
           if (quiet) {
-            this.burst(q.x, CHEST, q.z, color, 4, 3, 0.25, 0.4);
+            this.burst(q.x, q.y + CHEST, q.z, color, 4, 3, 0.25, 0.4);
             return;
           }
           const fl = fireballLookFor(ev.ability);
           if (fl) {
-            this.fireballImpact(q.x, CHEST, q.z, fl, big);
+            this.fireballImpact(q.x, q.y + CHEST, q.z, fl, big);
             return;
           }
-          this.burst(q.x, CHEST, q.z, color, Math.round(8 * big), 4 * big, 0.3, 0.5);
-          if (ev.school === 'fire') for (let i = 0, n = 2 + Math.round(big * 2); i < n; i++) this.flame(q.x + rnd(-0.4, 0.4), CHEST - 0.5 + rnd(0, 0.6), q.z + rnd(-0.4, 0.4), big * rnd(0.9, 1.4));
+          this.burst(q.x, q.y + CHEST, q.z, color, Math.round(8 * big), 4 * big, 0.3, 0.5);
+          if (ev.school === 'fire') for (let i = 0, n = 2 + Math.round(big * 2); i < n; i++) this.flame(q.x + rnd(-0.4, 0.4), q.y + CHEST - 0.5 + rnd(0, 0.6), q.z + rnd(-0.4, 0.4), big * rnd(0.9, 1.4));
           if (ev.ability === 'frostbolt') {
             this.ring(q.x, q.z, 0x7fd8ff, 0.3, 2.0, 0.4);
-            this.burst(q.x, CHEST, q.z, 0xe6f8ff, 12, 4.5, 0.3, 0.6, 4);
+            this.burst(q.x, q.y + CHEST, q.z, 0xe6f8ff, 12, 4.5, 0.3, 0.6, 4);
           } else if (ev.ability === 'smite') {
             this.column(q.x, q.z, 0xfff1a8, 0.55, 0.7, 7);
             this.ring(q.x, q.z, 0xffe98a, 0.3, 2.2, 0.4);
           } else if (ev.ability === 'frost_nova') {
-            this.burst(q.x, 0.5, q.z, 0xcdf1ff, 8, 3, 0.3, 0.5, 4);
+            this.burst(q.x, q.y + 0.5, q.z, 0xcdf1ff, 8, 3, 0.3, 0.5, 4);
           }
         });
         break;
@@ -2023,7 +2101,7 @@ export class Effects {
         const p = this.pos(ev.tgt);
         if (!p || ev.amount <= 0) break;
         for (let i = 0; i < 6; i++) {
-          this.particle(p.x + rnd(-0.5, 0.5), rnd(0.2, 1.0), p.z + rnd(-0.5, 0.5), {
+          this.particle(p.x + rnd(-0.5, 0.5), p.y + rnd(0.2, 1.0), p.z + rnd(-0.5, 0.5), {
             tex: 'plus', color: Math.random() < 0.5 ? 0x7dff9a : 0xfff1a8, vy: rnd(1.2, 2.4), s0: rnd(0.3, 0.5), s1: 0.1, life: rnd(0.8, 1.2), drag: 0.5,
           });
         }
@@ -2036,21 +2114,21 @@ export class Effects {
         if (!p) break;
         switch (ev.aura) {
           case 'polymorph':
-            this.puff(p.x, 1.1, p.z, 0xf3ecff, 10, 1.6);
-            this.burst(p.x, 1.2, p.z, 0xc58bff, 16, 4, 0.35, 0.7, 0);
+            this.puff(p.x, p.y + 1.1, p.z, 0xf3ecff, 10, 1.6);
+            this.burst(p.x, p.y + 1.2, p.z, 0xc58bff, 16, 4, 0.35, 0.7, 0);
             break;
           case 'frost_nova_root':
-            this.burst(p.x, 0.3, p.z, 0xcdf1ff, 10, 3, 0.3, 0.5, 5);
+            this.burst(p.x, p.y + 0.3, p.z, 0xcdf1ff, 10, 3, 0.3, 0.5, 5);
             break;
           case 'psychic_scream':
-            this.burst(p.x, HEAD, p.z, 0x9a4dff, 12, 3, 0.35, 0.7, 0);
+            this.burst(p.x, p.y + HEAD, p.z, 0x9a4dff, 12, 3, 0.35, 0.7, 0);
             break;
           case 'cheap_shot_stun':
           case 'kidney_shot':
-            this.burst(p.x, HEAD, p.z, 0xfff1a8, 10, 3, 0.3, 0.5, 0);
+            this.burst(p.x, p.y + HEAD, p.z, 0xfff1a8, 10, 3, 0.3, 0.5, 0);
             break;
           case 'pw_shield':
-            this.burst(p.x, 1.0, p.z, 0xfff1a8, 14, 3, 0.3, 0.6, 0);
+            this.burst(p.x, p.y + 1.0, p.z, 0xfff1a8, 14, 3, 0.3, 0.6, 0);
             this.ring(p.x, p.z, 0xffe98a, 0.4, 1.8, 0.5);
             break;
           default: {
@@ -2063,16 +2141,16 @@ export class Effects {
       case 'aura_removed': {
         const p = this.pos(ev.tgt);
         if (!p) break;
-        if (ev.aura === 'polymorph') this.puff(p.x, 1.1, p.z, 0xf3ecff, 8, 1.4);
-        else if (ev.aura === 'pw_shield' && ev.reason !== 'expired') this.burst(p.x, 1.0, p.z, 0xfff1a8, 18, 5, 0.35, 0.6, 0);
-        else if (ev.aura === 'stealth') this.puff(p.x, 1.0, p.z, 0x2b2b33, 7, 1.2);
+        if (ev.aura === 'polymorph') this.puff(p.x, p.y + 1.1, p.z, 0xf3ecff, 8, 1.4);
+        else if (ev.aura === 'pw_shield' && ev.reason !== 'expired') this.burst(p.x, p.y + 1.0, p.z, 0xfff1a8, 18, 5, 0.35, 0.6, 0);
+        else if (ev.aura === 'stealth') this.puff(p.x, p.y + 1.0, p.z, 0x2b2b33, 7, 1.2);
         break;
       }
       case 'dispel': {
         const p = this.pos(ev.tgt);
         if (!p) break;
         for (let i = 0; i < 12; i++) {
-          this.particle(p.x + rnd(-0.5, 0.5), rnd(0.2, 1.6), p.z + rnd(-0.5, 0.5), { tex: 'star', color: 0xfff1a8, vy: rnd(0.5, 2), s0: 0.35, life: 0.8, drag: 0.5 });
+          this.particle(p.x + rnd(-0.5, 0.5), p.y + rnd(0.2, 1.6), p.z + rnd(-0.5, 0.5), { tex: 'star', color: 0xfff1a8, vy: rnd(0.5, 2), s0: 0.35, life: 0.8, drag: 0.5 });
         }
         this.ring(p.x, p.z, 0xffe98a, 0.4, 1.8, 0.5);
         break;
@@ -2081,9 +2159,9 @@ export class Effects {
         this.stopCast(ev.unit);
         const p = this.pos(ev.unit);
         if (!p) break;
-        this.puff(p.x, 0.6, p.z, 0x8a8f9a, 10, 1.6);
+        this.puff(p.x, p.y + 0.6, p.z, 0x8a8f9a, 10, 1.6);
         for (let i = 0; i < 10; i++) {
-          this.particle(p.x + rnd(-0.3, 0.3), rnd(0.5, 1.3), p.z + rnd(-0.3, 0.3), { color: 0xcfe8ff, vy: rnd(1, 2.5), s0: rnd(0.25, 0.45), life: rnd(1, 1.6), drag: 0.4 });
+          this.particle(p.x + rnd(-0.3, 0.3), p.y + rnd(0.5, 1.3), p.z + rnd(-0.3, 0.3), { color: 0xcfe8ff, vy: rnd(1, 2.5), s0: rnd(0.25, 0.45), life: rnd(1, 1.6), drag: 0.4 });
         }
         this.ring(p.x, p.z, 0xcfe8ff, 0.4, 2.6, 0.9);
         break;
@@ -2103,7 +2181,7 @@ export class Effects {
       if (!t) return;
       this.onSwing(unit);
       this.slash(s.x, s.z, t.x, t.z, c, scale, y);
-      this.burst(t.x, y, t.z, c, 6, 3.5, 0.25, 0.35);
+      this.burst(t.x, t.y + y, t.z, c, 6, 3.5, 0.25, 0.35);
     };
 
     switch (ability) {
@@ -2123,8 +2201,8 @@ export class Effects {
           const px = s.x + Math.sin(a) * r * 0.7;
           const pz = s.z + Math.cos(a) * r * 0.7;
           this.later(i * 0.05, () => {
-            this.slash(s.x, s.z, px, pz, 0xffaa40, 1.5, CHEST, k * 0.9);
-            this.burst(px, CHEST, pz, 0xffaa40, 5, 3.5, 0.25, 0.35);
+            this.slash(s.x, s.z, px, pz, 0xffaa40, 1.5, s.y - this.groundY(px, pz) + CHEST, k * 0.9);
+            this.burst(px, s.y + CHEST, pz, 0xffaa40, 5, 3.5, 0.25, 0.35);
           });
         });
         break;
@@ -2158,11 +2236,13 @@ export class Effects {
           const a = s.facing + coneSpawnAngle(rnd(-1, 1), half);
           const d = r * rnd(0.4, 1);
           const life = rnd(0.35, 0.55);
-          this.particle(s.x + Math.sin(a) * d, rnd(0.3, 1.4), s.z + Math.cos(a) * d, { tex: 'star', color: i % 3 ? 0xdfe6f2 : 0xaab4c8, s0: 0.6, s1: 0.08, life, vx: -Math.sin(a) * d / life * 0.9, vz: -Math.cos(a) * d / life * 0.9, drag: 0 });
+          this.particle(s.x + Math.sin(a) * d, s.y + rnd(0.3, 1.4), s.z + Math.cos(a) * d, { tex: 'star', color: i % 3 ? 0xdfe6f2 : 0xaab4c8, s0: 0.6, s1: 0.08, life, vx: -Math.sin(a) * d / life * 0.9, vz: -Math.cos(a) * d / life * 0.9, drag: 0 });
         }
         break;
       }
       case 'slice_and_dice':
+        this.onSwing(unit); // the cone itself is drawn by the channel
+        break;
       case 'bladestorm':
         this.onSwing(unit);
         this.ring(s.x, s.z, 0xdfe6f2, 0.3, def.radius ?? 6, 0.3, 0.08, 0.9);
@@ -2186,19 +2266,20 @@ export class Effects {
         break;
       }
       case 'vanish':
-        this.puff(s.x, 0.9, s.z, 0x2b2b33, 16, 2.0);
-        this.puff(s.x, 1.5, s.z, 0x4a3a66, 8, 1.4);
+        this.puff(s.x, s.y + 0.9, s.z, 0x2b2b33, 16, 2.0);
+        this.puff(s.x, s.y + 1.5, s.z, 0x4a3a66, 8, 1.4);
         this.ring(s.x, s.z, 0x555566, 0.4, 3, 0.6);
-        this.burst(s.x, 1.1, s.z, 0x9a8ac0, 18, 4, 0.3, 0.7, 0);
+        this.burst(s.x, s.y + 1.1, s.z, 0x9a8ac0, 18, 4, 0.3, 0.7, 0);
         break;
       case 'mirror_image':
-        for (let i = 0; i < 3; i++) {
-          const a = s.facing + (i / 3) * Math.PI * 2 + 0.6;
-          const x = s.x + Math.sin(a) * 1.8;
-          const z = s.z + Math.cos(a) * 1.8;
+        for (let i = 0; i < 2; i++) {
+          // the two images stand behind the mage to either side, the three of them making a triangle
+          const side = i === 0 ? -1.2 : 1.2;
+          const x = s.x + Math.cos(s.facing) * side - Math.sin(s.facing) * 2.08;
+          const z = s.z - Math.sin(s.facing) * side - Math.cos(s.facing) * 2.08;
           this.later(i * 0.08, () => {
-            this.puff(x, 1.0, z, 0xe6d8ff, 6, 1.3);
-            this.burst(x, 1.1, z, 0xc58bff, 10, 3.5, 0.3, 0.6, 0);
+            this.puff(x, s.y + 1.0, z, 0xe6d8ff, 6, 1.3);
+            this.burst(x, s.y + 1.1, z, 0xc58bff, 10, 3.5, 0.3, 0.6, 0);
             this.column(x, z, 0xc58bff, 0.5, 0.5, 3);
           });
         }
@@ -2212,7 +2293,7 @@ export class Effects {
         for (let i = 0; i < 26; i++) {
           const a = Math.random() * Math.PI * 2;
           const d = rnd(0.5, r * 0.85);
-          this.particle(s.x + Math.cos(a) * d * 0.3, rnd(0.2, 0.8), s.z + Math.sin(a) * d * 0.3, { tex: 'star', color: 0xfff1a8, vx: Math.cos(a) * d * 1.3, vz: Math.sin(a) * d * 1.3, vy: rnd(0.8, 2.4), s0: rnd(0.3, 0.5), s1: 0.08, life: rnd(0.6, 0.9), drag: 1.8 });
+          this.particle(s.x + Math.cos(a) * d * 0.3, s.y + rnd(0.2, 0.8), s.z + Math.sin(a) * d * 0.3, { tex: 'star', color: 0xfff1a8, vx: Math.cos(a) * d * 1.3, vz: Math.sin(a) * d * 1.3, vy: rnd(0.8, 2.4), s0: rnd(0.3, 0.5), s1: 0.08, life: rnd(0.6, 0.9), drag: 1.8 });
         }
         break;
       }
@@ -2231,7 +2312,7 @@ export class Effects {
           const a = Math.random() * Math.PI * 2;
           const d = rnd(2.5, 4);
           const life = rnd(0.5, 0.8);
-          this.particle(s.x + Math.cos(a) * d, rnd(0.2, 2.2), s.z + Math.sin(a) * d, { color: 0xc58bff, s0: 0.35, s1: 0.08, life, vx: -Math.cos(a) * d / life, vz: -Math.sin(a) * d / life, vy: (1.2 - 1) * 0 });
+          this.particle(s.x + Math.cos(a) * d, s.y + rnd(0.2, 2.2), s.z + Math.sin(a) * d, { color: 0xc58bff, s0: 0.35, s1: 0.08, life, vx: -Math.cos(a) * d / life, vz: -Math.sin(a) * d / life, vy: (1.2 - 1) * 0 });
         }
         this.column(s.x, s.z, 0xc58bff, 0.8, 0.8, 4);
         this.ring(s.x, s.z, 0xc58bff, 0.4, 2.0, 0.5);
@@ -2240,7 +2321,7 @@ export class Effects {
       case 'enraged_regeneration':
         this.ring(s.x, s.z, 0xff4a2a, 0.3, 2.2, 0.5);
         this.column(s.x, s.z, 0xff4a2a, 0.7, 0.7, 4, 0.4);
-        for (let i = 0; i < 8; i++) this.particle(s.x + rnd(-0.6, 0.6), rnd(0.2, 1.0), s.z + rnd(-0.6, 0.6), { tex: 'plus', color: 0xff6a4a, vy: rnd(1.2, 2.4), s0: rnd(0.3, 0.5), s1: 0.1, life: rnd(0.8, 1.2), drag: 0.5 });
+        for (let i = 0; i < 8; i++) this.particle(s.x + rnd(-0.6, 0.6), s.y + rnd(0.2, 1.0), s.z + rnd(-0.6, 0.6), { tex: 'plus', color: 0xff6a4a, vy: rnd(1.2, 2.4), s0: rnd(0.3, 0.5), s1: 0.1, life: rnd(0.8, 1.2), drag: 0.5 });
         break;
       case 'frostbolt':
       case 'fireball':
@@ -2268,7 +2349,7 @@ export class Effects {
         this.onSwing(unit);
         this.column(p.x, p.z, 0xfff1a8, 0.4, 0.45, 8, 0.32);
         this.ring(p.x, p.z, 0xffe98a, 0.3, 1.6, 0.35, 0.08);
-        this.burst(p.x, CHEST, p.z, 0xfff1a8, 6, 3, 0.25, 0.4, 0);
+        this.burst(p.x, p.y + CHEST, p.z, 0xfff1a8, 6, 3, 0.25, 0.4, 0);
         break;
       }
       case 'frost_nova': {
@@ -2278,7 +2359,7 @@ export class Effects {
         for (let i = 0; i < 28; i++) {
           const a = Math.random() * Math.PI * 2;
           const sp = rnd(r * 1.1, r * 1.8);
-          this.particle(s.x, 0.4, s.z, { tex: 'star', color: 0xcdf1ff, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(0, 1.4), s0: rnd(0.3, 0.5), life: 0.55, drag: 2.5, grav: 3 });
+          this.particle(s.x, s.y + 0.4, s.z, { tex: 'star', color: 0xcdf1ff, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(0, 1.4), s0: rnd(0.3, 0.5), life: 0.55, drag: 2.5, grav: 3 });
         }
         break;
       }
@@ -2291,36 +2372,36 @@ export class Effects {
           for (let i = 0; i < 20; i++) {
             const a = Math.random() * Math.PI * 2;
             const sp = rnd(r * 0.9, r * 1.5);
-            this.particle(s.x, rnd(0.5, 1.8), s.z, { color: 0xb06bff, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(-0.2, 0.8), s0: rnd(0.4, 0.8), life: 0.6, drag: 2.2 });
+            this.particle(s.x, s.y + rnd(0.5, 1.8), s.z, { color: 0xb06bff, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(-0.2, 0.8), s0: rnd(0.4, 0.8), life: 0.6, drag: 2.2 });
           }
         });
         break;
       }
       case 'blink': {
-        this.burst(s.x, 1.1, s.z, 0xc58bff, 22, 5, 0.4, 0.6, 0);
+        this.burst(s.x, s.y + 1.1, s.z, 0xc58bff, 22, 5, 0.4, 0.6, 0);
         this.ring(s.x, s.z, 0xc58bff, 0.3, 2.2, 0.4);
         this.later(0.06, () => {
           const n = this.pos(unit);
           if (!n) return;
-          this.burst(n.x, 1.1, n.z, 0xe0c2ff, 22, 5, 0.4, 0.6, 0);
+          this.burst(n.x, n.y + 1.1, n.z, 0xe0c2ff, 22, 5, 0.4, 0.6, 0);
           this.ring(n.x, n.z, 0xc58bff, 0.3, 2.2, 0.4);
-          this.beam(s.x, 1.1, s.z, n.x, 1.1, n.z, 0xc58bff, 0.3, 0.05);
+          this.beam(s.x, s.y + 1.1, s.z, n.x, n.y + 1.1, n.z, 0xc58bff, 0.3, 0.05);
         });
         break;
       }
       case 'charge': {
         const ox = s.x;
         const oz = s.z;
-        this.puff(ox, 0.4, oz, 0xb59a7a, 8, 1.4);
+        this.puff(ox, s.y + 0.4, oz, 0xb59a7a, 8, 1.4);
         this.later(0.05, () => {
           const n = this.pos(unit);
           if (!n) return;
           const steps = 14;
           for (let i = 0; i <= steps; i++) {
             const f = i / steps;
-            this.particle(ox + (n.x - ox) * f, 1.0 + rnd(-0.4, 0.4), oz + (n.z - oz) * f, { color: 0xffe2b0, s0: 0.9, s1: 0.2, life: 0.35 + f * 0.1, a: 0.7, drag: 0 });
+            this.particle(ox + (n.x - ox) * f, s.y + (n.y - s.y) * f + 1.0 + rnd(-0.4, 0.4), oz + (n.z - oz) * f, { color: 0xffe2b0, s0: 0.9, s1: 0.2, life: 0.35 + f * 0.1, a: 0.7, drag: 0 });
           }
-          this.burst(n.x, 0.4, n.z, 0xd9c19a, 10, 4, 0.5, 0.5);
+          this.burst(n.x, n.y + 0.4, n.z, 0xd9c19a, 10, 4, 0.5, 0.5);
           this.ring(n.x, n.z, 0xffe2b0, 0.4, 2.8, 0.35);
           this.onSwing(unit);
         });
@@ -2346,17 +2427,17 @@ export class Effects {
         break;
       case 'cheap_shot':
         melee(0xffffff, 1.3);
-        if (t) this.burst(t.x, HEAD, t.z, 0xfff1a8, 10, 3, 0.35, 0.5, 0);
+        if (t) this.burst(t.x, t.y + HEAD, t.z, 0xfff1a8, 10, 3, 0.35, 0.5, 0);
         break;
       case 'kidney_shot':
         melee(0xc01818, 1.3, 1.0);
         break;
       case 'stealth':
-        this.puff(s.x, 0.9, s.z, 0x2b2b33, 12, 1.5);
+        this.puff(s.x, s.y + 0.9, s.z, 0x2b2b33, 12, 1.5);
         this.ring(s.x, s.z, 0x555566, 0.4, 2, 0.5);
         break;
       case 'sprint':
-        this.puff(s.x, 0.3, s.z, 0xc9b99a, 8, 1.2);
+        this.puff(s.x, s.y + 0.3, s.z, 0xc9b99a, 8, 1.2);
         this.ring(s.x, s.z, 0xfff079, 0.3, 1.8, 0.35);
         break;
       default:
@@ -2373,19 +2454,19 @@ export class Effects {
 
     if (has('charge') && t) {
       // dust and a streak while the unit runs, then an impact where it lands
-      this.puff(s.x, 0.4, s.z, 0x8a7a60, 7, 1.4);
+      this.puff(s.x, s.y + 0.4, s.z, 0x8a7a60, 7, 1.4);
       for (let k = 1; k <= 18; k++) {
         this.later(k * 0.05, () => {
           const n = this.pos(unit);
           if (!n) return;
-          this.particle(n.x + rnd(-0.3, 0.3), 0.9 + rnd(-0.4, 0.4), n.z + rnd(-0.3, 0.3), { color, s0: 0.7, s1: 0.1, life: 0.35, a: 0.55 });
-          if (k % 3 === 0) this.puff(n.x, 0.2, n.z, 0x8a7a60, 2, 0.7);
+          this.particle(n.x + rnd(-0.3, 0.3), n.y + 0.9 + rnd(-0.4, 0.4), n.z + rnd(-0.3, 0.3), { color, s0: 0.7, s1: 0.1, life: 0.35, a: 0.55 });
+          if (k % 3 === 0) this.puff(n.x, n.y + 0.2, n.z, 0x8a7a60, 2, 0.7);
         });
       }
       this.later(0.95, () => {
         const n = this.pos(unit);
         if (!n) return;
-        this.burst(n.x, 0.5, n.z, color, 10, 4, 0.4, 0.5);
+        this.burst(n.x, n.y + 0.5, n.z, color, 10, 4, 0.4, 0.5);
         this.ring(n.x, n.z, color, 0.4, 2.8, 0.3);
         this.onSwing(unit);
       });
@@ -2394,15 +2475,15 @@ export class Effects {
     if (has('dashToTarget') && t) {
       const ox = s.x;
       const oz = s.z;
-      this.puff(ox, 0.4, oz, 0x2b2b33, 6, 1.2);
+      this.puff(ox, s.y + 0.4, oz, 0x2b2b33, 6, 1.2);
       this.later(0.05, () => {
         const n = this.pos(unit);
         if (!n) return;
         for (let i = 0; i <= 12; i++) {
           const f = i / 12;
-          this.particle(ox + (n.x - ox) * f, 1.0 + rnd(-0.3, 0.3), oz + (n.z - oz) * f, { color, s0: 0.8, s1: 0.2, life: 0.35, a: 0.6 });
+          this.particle(ox + (n.x - ox) * f, s.y + (n.y - s.y) * f + 1.0 + rnd(-0.3, 0.3), oz + (n.z - oz) * f, { color, s0: 0.8, s1: 0.2, life: 0.35, a: 0.6 });
         }
-        this.burst(n.x, 0.5, n.z, color, 8, 3.5, 0.4, 0.45);
+        this.burst(n.x, n.y + 0.5, n.z, color, 8, 3.5, 0.4, 0.45);
         this.ring(n.x, n.z, color, 0.4, 2.4, 0.3);
         this.onSwing(unit);
       });
@@ -2427,7 +2508,7 @@ export class Effects {
         for (let i = 0; i < 46; i++) {
           const a = s.facing + coneSpawnAngle(rnd(-1, 1), cone.half);
           const sp = rnd(r * 0.8, r * 1.9);
-          this.particle(s.x + Math.sin(a) * 0.8, rnd(0.6, 1.6), s.z + Math.cos(a) * 0.8, { color: i % 3 === 0 ? 0xffe066 : color, vx: Math.sin(a) * sp, vz: Math.cos(a) * sp, vy: rnd(-0.2, 0.8), s0: rnd(0.4, 0.8), life: 0.6, drag: 2.3 });
+          this.particle(s.x + Math.sin(a) * 0.8, s.y + rnd(0.6, 1.6), s.z + Math.cos(a) * 0.8, { color: i % 3 === 0 ? 0xffe066 : color, vx: Math.sin(a) * sp, vz: Math.cos(a) * sp, vy: rnd(-0.2, 0.8), s0: rnd(0.4, 0.8), life: 0.6, drag: 2.3 });
         }
         if (has('damage')) this.onSwing(unit);
         return;
@@ -2437,7 +2518,7 @@ export class Effects {
       for (let i = 0; i < 22; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = rnd(r * 0.9, r * 1.6);
-        this.particle(s.x, rnd(0.4, 1.5), s.z, { color, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(0, 1), s0: rnd(0.3, 0.6), life: 0.55, drag: 2.3 });
+        this.particle(s.x, s.y + rnd(0.4, 1.5), s.z, { color, vx: Math.cos(a) * sp, vz: Math.sin(a) * sp, vy: rnd(0, 1), s0: rnd(0.3, 0.6), life: 0.55, drag: 2.3 });
       }
       if (has('damage')) this.onSwing(unit);
       return;
@@ -2446,15 +2527,15 @@ export class Effects {
       this.onSwing(unit);
       const heavy = def.effects.some((e) => e.type === 'damage' && e.amount >= 140);
       this.slash(s.x, s.z, t.x, t.z, color, heavy ? 1.35 : 1.1);
-      this.burst(t.x, CHEST, t.z, color, 7, 3.6, 0.26, 0.4);
-      if (has('aura') && !has('damage')) this.burst(t.x, HEAD, t.z, 0xfff1a8, 8, 3, 0.3, 0.5, 0);
+      this.burst(t.x, t.y + CHEST, t.z, color, 7, 3.6, 0.26, 0.4);
+      if (has('aura') && !has('damage')) this.burst(t.x, t.y + HEAD, t.z, 0xfff1a8, 8, 3, 0.3, 0.5, 0);
       return;
     }
     if (enemyTarget && t && has('damage')) {
       const kind = def.school === 'fire' ? 'fire' : def.school === 'frost' ? 'frost' : def.school === 'holy' ? 'holy' : def.school === 'shadow' ? 'shadow' : 'arcane';
       if (def.channel?.beam) {
         // a continuous beam: each pulse redraws a beam that lasts until the next one
-        this.beam(s.x, 1.5, s.z, t.x, CHEST, t.z, color, (def.castTime / def.channel.ticks / 1000) * 1.15, 0.1);
+        this.beam(s.x, s.y + 1.5, s.z, t.x, t.y + CHEST, t.z, color, (def.castTime / def.channel.ticks / 1000) * 1.15, 0.1);
         this.onSwing(unit);
       } else if (def.channel) {
         // one small curving missile per tick of the volley
@@ -2483,7 +2564,7 @@ export class Effects {
     const p = def.target === 'ally_or_self' && target ? this.pos(target) ?? s : s;
     this.column(p.x, p.z, color, 0.7, 0.8, 4);
     this.ring(p.x, p.z, color, 0.4, 2.0, 0.5);
-    this.burst(p.x, 1.0, p.z, color, 14, 3.2, 0.3, 0.6, 0);
+    this.burst(p.x, p.y + 1.0, p.z, color, 14, 3.2, 0.3, 0.6, 0);
   }
 
   // ------------------------------------------------------------ persistent aura visuals
@@ -2544,6 +2625,35 @@ export class Effects {
           },
         });
       }
+      case 'ascended': {
+        // Ascend to the Heavens: a soft halo round the hovering priest, a faint shaft of light down to the floor and motes drifting down it
+        const halo = this.sprite('glow', 0xfff1a8);
+        this.scene.remove(halo);
+        group.add(halo);
+        sprites.push(halo);
+        halo.position.y = 1.2;
+        const mat = new THREE.MeshBasicMaterial({ color: 0xfff1a8, transparent: true, opacity: 0.12, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+        mats.push(mat);
+        const shaft = new THREE.Mesh(this.beamGeo, mat);
+        group.add(shaft);
+        meshes.push(shaft);
+        return finish({
+          update: (dt, t, u) => {
+            const drop = Math.max(0.01, u.y - this.groundY(u.x, u.z)); // how far up the feet are
+            shaft.visible = drop > 0.3;
+            shaft.scale.set(0.55, drop, 0.55);
+            shaft.position.y = -drop / 2;
+            mat.opacity = 0.1 + Math.sin(t * 2.4) * 0.03;
+            const hm = halo.material as THREE.SpriteMaterial;
+            hm.opacity = 0.45 + Math.sin(t * 3) * 0.1;
+            halo.scale.setScalar(3.2 + Math.sin(t * 2.4) * 0.25);
+            if (Math.random() < dt * 14) {
+              const ang = Math.random() * Math.PI * 2;
+              this.particle(u.x + Math.cos(ang) * 0.5, u.y + 0.5 + rnd(0, 1.5), u.z + Math.sin(ang) * 0.5, { tex: 'glow', color: 0xfff1a8, vy: -rnd(0.6, 1.4), s0: 0.22, s1: 0.06, life: 0.9, a: 0.7 });
+            }
+          },
+        });
+      }
       case 'ice_barrier':
       case 'pw_shield': {
         const tint = aura === 'ice_barrier' ? 0x9fe0ff : 0xffe98a;
@@ -2563,7 +2673,7 @@ export class Effects {
             b.rotation.y = t * 0.8;
             if (Math.random() < 0.15) {
               const ang = Math.random() * Math.PI * 2;
-              this.particle(group.position.x + Math.cos(ang) * 1.1, rnd(0.2, 2), group.position.z + Math.sin(ang) * 1.1, { color: 0xfff1a8, s0: 0.2, life: 0.6, vy: 0.8 });
+              this.particle(group.position.x + Math.cos(ang) * 1.1, group.position.y + rnd(0.2, 2), group.position.z + Math.sin(ang) * 1.1, { color: 0xfff1a8, s0: 0.2, life: 0.6, vy: 0.8 });
             }
           },
         });
@@ -2583,7 +2693,7 @@ export class Effects {
             m.scale.set(s, s, 1);
             mat.opacity = 0.45 + Math.sin(t * 5) * 0.15;
             if (aura === 'frostbolt_slow' && Math.random() < 0.12) {
-              this.particle(group.position.x + rnd(-0.4, 0.4), 1.8, group.position.z + rnd(-0.4, 0.4), { tex: 'star', color: 0xcdf1ff, vy: -0.8, s0: 0.22, life: 0.9 });
+              this.particle(group.position.x + rnd(-0.4, 0.4), group.position.y + 1.8, group.position.z + rnd(-0.4, 0.4), { tex: 'star', color: 0xcdf1ff, vy: -0.8, s0: 0.22, life: 0.9 });
             }
           },
         });
@@ -2592,8 +2702,8 @@ export class Effects {
         return finish({
           update: (_dt, _t, _u, moving) => {
             if (moving && Math.random() < 0.6) {
-              this.particle(group.position.x + rnd(-0.2, 0.2), 0.15, group.position.z + rnd(-0.2, 0.2), { tex: 'smoke', color: 0xc9b99a, add: false, s0: 0.3, s1: 0.9, life: 0.5, a: 0.5, vy: 0.4 });
-              this.particle(group.position.x + rnd(-0.2, 0.2), rnd(0.3, 1.3), group.position.z + rnd(-0.2, 0.2), { color: 0xfff079, s0: 0.15, life: 0.3, a: 0.7 });
+              this.particle(group.position.x + rnd(-0.2, 0.2), group.position.y + 0.15, group.position.z + rnd(-0.2, 0.2), { tex: 'smoke', color: 0xc9b99a, add: false, s0: 0.3, s1: 0.9, life: 0.5, a: 0.5, vy: 0.4 });
+              this.particle(group.position.x + rnd(-0.2, 0.2), group.position.y + rnd(0.3, 1.3), group.position.z + rnd(-0.2, 0.2), { color: 0xfff079, s0: 0.15, life: 0.3, a: 0.7 });
             }
           },
         });
@@ -2601,7 +2711,7 @@ export class Effects {
         return finish({
           update: (_dt, t) => {
             if (Math.random() < 0.1) {
-              this.particle(group.position.x + rnd(-0.4, 0.4), 1.4 + Math.sin(t) * 0.1, group.position.z + rnd(-0.4, 0.4), { tex: 'star', color: 0xd9b3ff, vy: 0.7, s0: 0.25, life: 0.8 });
+              this.particle(group.position.x + rnd(-0.4, 0.4), group.position.y + 1.4 + Math.sin(t) * 0.1, group.position.z + rnd(-0.4, 0.4), { tex: 'star', color: 0xd9b3ff, vy: 0.7, s0: 0.25, life: 0.8 });
             }
           },
         });
@@ -2625,7 +2735,7 @@ export class Effects {
             mat.opacity = 0.5 + Math.sin(t * 6) * 0.15;
             if (Math.random() < 0.35) {
               const a = Math.random() * Math.PI * 2;
-              this.particle(group.position.x + Math.cos(a) * 0.9, 0.1, group.position.z + Math.sin(a) * 0.9, { color: col, vy: rnd(1.2, 2.4), s0: 0.22, life: 0.7, drag: 0.3 });
+              this.particle(group.position.x + Math.cos(a) * 0.9, group.position.y + 0.1, group.position.z + Math.sin(a) * 0.9, { color: col, vy: rnd(1.2, 2.4), s0: 0.22, life: 0.7, drag: 0.3 });
             }
           },
         });
@@ -3522,6 +3632,7 @@ export class Effects {
 
   update(dt: number, units: EffectUnit[]) {
     this.clock += dt;
+    this.ids = units.map((u) => u.id);
 
     // timers
     for (let i = this.timers.length - 1; i >= 0; i--) {
@@ -3609,6 +3720,7 @@ export class Effects {
             this.layers.set(lk, l);
           }
           l.x = u.x;
+          l.y = u.y;
           l.z = u.z;
           l.sc = u.scale ?? 1;
         }
@@ -3624,7 +3736,7 @@ export class Effects {
           att = made;
           this.attach.set(key, att);
         }
-        att.group.position.set(u.x, 0, u.z);
+        att.group.position.set(u.x, u.y, u.z);
         att.update(dt, this.clock, u, moving);
       }
     }

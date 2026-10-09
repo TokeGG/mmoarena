@@ -1,7 +1,11 @@
-import { CLASSES, formatReport, moveText } from '@arena/shared';
+import { ABILITIES, CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
+import type { ClassId, DevRequestRow } from '@arena/shared';
+import { SkillEditor, skillPicker } from './skillView';
+import { designer, requestStatus } from './designer';
 import { pendingProposals } from './counts';
-import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
+import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, LiveLearning, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
+import { TimeView } from './timeUi';
 import { mapName } from './spectate';
 import { makeResizable } from './resizable';
 import type { Popup } from './popups';
@@ -13,6 +17,8 @@ export function adminAccessOf(a: AccountInfo | null): 'owner' | 'dev' | null {
   return a.grants.includes('dev') ? 'dev' : null;
 }
 
+let designerOnce = false;
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -20,14 +26,16 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-type Tab = 'dashboard' | 'players' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'server' | 'log';
+type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'requests' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
+  ['time', 'Play time'],
   ['matches', 'Live matches'],
   ['replays', 'Replays'],
   ['moderation', 'Moderation'],
   ['tuning', 'Tuning'],
+  ['requests', 'Requests'],
   ['server', 'Server'],
   ['log', 'Log'],
 ];
@@ -80,13 +88,15 @@ export class AdminPanel {
   private jobs: TrainJobRow[] = [];
   private picks = new Set<string>();
   /** What the bots know now against what shipped, and the last reports of what they learned (owner only). */
-  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[] } | null = null;
+  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; canCommit?: boolean } | null = null;
   /** Queue rows opened to show exactly what was learned. */
   private opened = new Set<string>();
   /** Passes (1..5) for the owner's forced training on one replay. */
   private passes = 1;
   /** The same tools as the profile's Owner tab (players, matches, tuning), drawn here. */
   private op: OwnerPanel;
+  /** Play time per player (owner only). */
+  private time: TimeView;
   readonly popup: Popup = { isOpen: () => !!this.root, close: () => this.close(), el: () => this.root };
 
   /** The bot battle window, started from the main menu (owner only). */
@@ -130,6 +140,7 @@ export class AdminPanel {
   private card = el('div', 'admp-card');
 
   constructor(private hooks: Hooks) {
+    this.time = new TimeView((m) => hooks.send(m), () => this.paint());
     makeResizable(this.card, { key: 'admin', corner: 'br', minW: 480, minH: 320, z: 61 });
     this.op = new OwnerPanel({ limited: () => this.access() === 'dev', send: hooks.send, token: hooks.token, rerender: () => {
         this.paint();
@@ -180,7 +191,9 @@ export class AdminPanel {
     const s = this.hooks.send;
     s({ t: 'admin_overview' });
     if (this.tab === 'players' && access === 'owner') s({ t: 'admin_list' });
+    if (this.tab === 'time' && access === 'owner') this.time.refresh();
     if (this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
+    if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
     if (this.tab === 'replays') {
@@ -191,6 +204,7 @@ export class AdminPanel {
   }
 
   handle(m: ServerMsg) {
+    this.time.handle(m);
     switch (m.t) {
       case 'admin_log':
         this.log = m.rows;
@@ -205,7 +219,7 @@ export class AdminPanel {
         this.jobs = m.jobs;
         break;
       case 'bot_knowledge':
-        this.knowledge = { classes: m.classes, reports: m.reports };
+        this.knowledge = { classes: m.classes, reports: m.reports, live: m.live, canCommit: m.canCommit };
         break;
       case 'proposals':
         this.proposals = m.rows;
@@ -264,7 +278,7 @@ export class AdminPanel {
     const tabs = el('div', 'admp-tabs');
     for (const [id, label] of TABS) {
       if (access === 'dev' && !DEV_TABS.includes(id)) continue;
-      const waiting = id === 'tuning' ? pendingProposals(this.proposals) : 0;
+      const waiting = id === 'tuning' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.addEventListener('click', () => {
         this.tab = id;
@@ -281,6 +295,9 @@ export class AdminPanel {
       case 'players':
         body.append(el('p', 'mm-modal-foot', 'Click a player for moderation (kick, ban, mute), rating and stats, unlocks and the dev tag, a private note and their recent matches.'), this.op.adminList());
         break;
+      case 'time':
+        body.append(this.time.render());
+        break;
       case 'matches':
         body.append(el('p', 'mm-modal-foot', access === 'dev' ? 'Every match running now. You can watch the ones open for watching (the same slightly delayed view as everyone). Pausing and ending matches is the owner\u2019s.' : 'Every match running now, bot matches included. Watch one, pause it to change numbers (F2 while watching), or end it.'), this.op.serverBox());
         break;
@@ -291,8 +308,11 @@ export class AdminPanel {
         body.append(this.moderation());
         break;
       case 'tuning':
-        body.append(el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
+        body.append(el('h3', '', 'Skill designer'), this.designerBox(), el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
         if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
+        break;
+      case 'requests':
+        body.append(this.requestsBox());
         break;
       case 'server':
         body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance());
@@ -303,6 +323,116 @@ export class AdminPanel {
     }
     card.append(tabs, body);
     r.replaceChildren(card);
+  }
+
+  /** The designer's state: the class and skill on show and what was typed. */
+  private ds = { cls: CLASS_IDS[0] as ClassId, pick: '', mode: 'skills' as 'skills' | 'class' };
+  private dsEditor = new SkillEditor();
+
+  /**
+   * The debug window's skill view and Ask Claude chat, for the admin panel (no match is running here): pick a skill, read
+   * everything about it, edit numbers or talk to Claude. Edits and Claude's changes become proposals below, which are
+   * committed to GitHub with "Commit the ticked ones" (one commit that is also a patch) or deleted.
+   */
+  private designerBox(): HTMLElement {
+    const box = el('div', 'admp-designer');
+    if (!designerOnce) {
+      designerOnce = true;
+      designer.onChange(() => this.root && this.tab === 'tuning' && this.paint());
+    }
+    const me = this.hooks.account()?.name;
+    const pending = (this.proposals ?? []).filter((r) => r.status === 'pending' && r.by === me).reverse().reduce<import('@arena/shared').DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
+    const testing = new Map(pending.map((p) => [this.dsEditor.key(p), p]));
+    const tabs = el('div', 'devp-row');
+    for (const c of CLASS_IDS) {
+      const b = el('button', `mm-small${c === this.ds.cls ? ' mm-go' : ''}`, CLASSES[c].name);
+      b.addEventListener('click', () => {
+        this.ds.cls = c;
+        this.ds.pick = '';
+        this.dsEditor.edits.clear();
+        this.paint();
+      });
+      tabs.append(b);
+    }
+    const modes = el('div', 'devp-row');
+    for (const [id, label] of [['skills', 'Skills'], ['class', 'Class, specs and talents']] as const) {
+      const b = el('button', `mm-small${this.ds.mode === id ? ' mm-go' : ''}`, label);
+      b.addEventListener('click', () => {
+        this.ds.mode = id;
+        this.paint();
+      });
+      modes.append(b);
+    }
+    const ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === this.ds.cls || ABILITIES[id].class === 'trinket'));
+    if (!this.ds.pick || !ids.includes(this.ds.pick)) this.ds.pick = ids[0] ?? '';
+    const left = el('div', 'admp-ds-left');
+    left.append(tabs, modes);
+    if (this.ds.mode === 'skills') {
+      left.append(skillPicker(ids, this.ds.pick, (id) => {
+        this.ds.pick = id;
+        this.paint();
+      }));
+      if (this.ds.pick) left.append(this.dsEditor.skillBody(this.ds.pick, testing));
+    } else left.append(this.dsEditor.classSections(this.ds.cls, testing));
+    const add = el('button', 'mm-small mm-go', 'Add my edits to proposals');
+    add.title = 'Puts the numbers you typed on the proposals list below (old -> new), ready to commit to GitHub.';
+    add.addEventListener('click', () => {
+      const patches = [...this.dsEditor.edits.values()];
+      if (!patches.length) {
+        this.propMsg = { ok: false, text: 'Change a number first.' };
+        return this.paint();
+      }
+      this.dsEditor.edits.clear();
+      this.hooks.send({ t: 'dev_save', patches });
+    });
+    left.append(add);
+    const scope = this.ds.mode === 'skills' ? { ability: this.ds.pick, name: ABILITIES[this.ds.pick]?.name ?? 'a skill' } : { ability: '', classId: this.ds.cls, name: `the ${CLASSES[this.ds.cls].name} class` };
+    box.append(left, designer.renderChat(scope, this.hooks.send, true));
+    return box;
+  }
+
+  /** The owner's list of change requests: what devs asked for that needs code, written so it can be handed to a coding session. */
+  private requestsBox(): HTMLElement {
+    const box = el('div', 'own-box admp-reqs');
+    const rows = designer.requests;
+    box.append(el('p', 'mm-modal-foot', 'Things devs asked Claude for that need a code change (new mechanics, visuals, AI). Each is a complete spec: copy it into a coding session. Number-only changes never land here: they are proposals under Tuning.'));
+    if (!rows.length) box.append(el('p', 'mm-modal-foot', 'No requests yet.'));
+    const owner = this.access() === 'owner';
+    for (const r of rows) box.append(this.requestCard(r, owner));
+    return box;
+  }
+
+  private requestCard(r: DevRequestRow, owner: boolean): HTMLElement {
+    const card = el('details', 'admp-prop');
+    const sum = el('summary', 'admp-prop-head');
+    sum.append(el('b', '', r.title), el('small', '', ` · ${r.by} · ${r.scope} · ${ago(r.at)} · ${requestStatus(r)}`));
+    card.append(sum);
+    const pre = el('pre', 'admp-req-text', requestText(r));
+    pre.style.whiteSpace = 'pre-wrap';
+    card.append(pre);
+    const row = el('div', 'own-row');
+    const copy = el('button', 'mm-small', 'Copy spec');
+    copy.addEventListener('click', () => void navigator.clipboard?.writeText(requestText(r)).catch(() => undefined));
+    row.append(copy);
+    if (r.issueUrl) {
+      const a = el('a', '', ' GitHub issue');
+      a.href = r.issueUrl;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      row.append(a);
+    }
+    if (r.issueError) row.append(el('small', 'devp-dim', ` (no GitHub issue: ${r.issueError})`));
+    if (owner) {
+      const done = el('button', 'mm-small mm-go', r.status === 'done' ? 'Reopen' : 'Mark done');
+      done.addEventListener('click', () => this.hooks.send({ t: 'dev_requests', op: r.status === 'done' ? 'reopen' : 'done', id: r.id }));
+      const del = el('button', 'mm-small', 'Delete');
+      del.addEventListener('click', () => {
+        if (window.confirm(`Delete the request "${r.title}"?`)) this.hooks.send({ t: 'dev_requests', op: 'delete', id: r.id });
+      });
+      row.append(done, del);
+    }
+    card.append(row);
+    return card;
   }
 
   private dashboard(): HTMLElement {
@@ -559,6 +689,7 @@ export class AdminPanel {
     cb.addEventListener('change', () => this.hooks.send({ t: 'admin_act', act: 'autotrain', on: cb.checked }));
     auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
     if (this.access() === 'owner') box.append(auto);
+    box.append(this.liveBox());
     box.append(this.trainBanner());
     const allBtn = el('button', 'mm-small mm-go', '🧠 Train on all archived replays');
     allBtn.title = 'Plays back every replay the server kept (people against bots, and the ones you picked) one after another; replays from another version of the game are skipped and counted.';
@@ -717,6 +848,54 @@ export class AdminPanel {
       box.append(el('b', '', 'All archived replays'));
       box.append(this.jobBar(job));
     }
+    return box;
+  }
+
+  /**
+   * Live learning: what the bots have studied in real play, whether the server keeps it, and the owner's button that commits
+   * the learned bots to GitHub. Devs see the status; the button is the owner's.
+   */
+  private liveBox(): HTMLElement {
+    const box = el('div', 'admp-live');
+    box.append(el('b', '', '📡 Live learning'));
+    const l = this.knowledge?.live;
+    if (!l) {
+      box.append(el('small', 'devp-dim', ' Loading…'));
+      return box;
+    }
+    if (!l.persistent) box.append(el('div', 'adm-state warn', 'Learning is lost when the server restarts: set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Render. (The server is using its in-memory store, so what the bots learn from live matches disappears on every restart or deploy.)'));
+    const last = l.lastAt ? new Date(l.lastAt).toLocaleString() : 'never';
+    box.append(el('div', '', `${l.people + l.botOnly} match${l.people + l.botOnly === 1 ? '' : 'es'} studied since the store began (${l.storeKind}): ${l.people} with people, ${l.botOnly} bot-only. Last learned: ${last}.`));
+    const pct = (x: number) => `${Math.round(x * 100)}%`;
+    for (const c of l.classes) {
+      const row = el('div', 'devp-dim');
+      row.textContent = `${CLASSES[c.classId as keyof typeof CLASSES]?.name ?? c.classId}: ${c.people} with people, ${c.botOnly} bot-only · bots won ${c.vsWinRate === null ? 'no games yet' : `${pct(c.vsWinRate)} of ${c.vsGames} games against people`} · learned variant ${c.variant ? `wins ${pct(c.variant.winRate)} of ${c.variant.games} games` : 'has not played yet'}`;
+      box.append(row);
+    }
+    box.append(el('small', 'devp-dim', 'Matches with people are always studied. "Train on every match" also studies bot-only matches (lower value, off by default).'));
+    const c = l.lastCommit;
+    const row = el('div', 'own-row');
+    if (this.access() === 'owner') {
+      const btn = el('button', 'mm-small mm-go', '⬆ Commit learned bots to GitHub');
+      btn.title = 'Writes the brains the bots learned and the human-style data to shared/data/botbrain.json and players.json on the main branch in one commit, as a patch (version +1, patch notes). The game updates on the next deploy.';
+      btn.disabled = l.sinceCommit < 1 || this.knowledge?.canCommit === false;
+      btn.addEventListener('click', () => {
+        if (!window.confirm(`Commit the learned bots to the main branch? It is one commit and a new patch (${l.sinceCommit} match${l.sinceCommit === 1 ? '' : 'es'} studied since the last one) and starts a deploy.`)) return;
+        this.trainMsg = { ok: true, text: 'Committing the learned bots…' };
+        this.hooks.send({ t: 'admin_act', act: 'bot_commit' });
+        this.paint();
+      });
+      row.append(btn);
+    }
+    row.append(el('small', 'devp-dim', `${l.sinceCommit} match${l.sinceCommit === 1 ? '' : 'es'} with people studied since the last commit${c ? ` · last commit ${c.version} on ${new Date(c.at).toLocaleString()}` : ' · nothing committed yet'}${this.knowledge?.canCommit === false ? ' · no GITHUB_TOKEN on the server' : ''}`));
+    if (c) {
+      const a = el('a', 'mm-small', 'view');
+      a.setAttribute('href', c.url);
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+      row.append(a);
+    }
+    box.append(row);
     return box;
   }
 

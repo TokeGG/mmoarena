@@ -17,6 +17,11 @@ import { CLASS_BLURB, tipBuildKey } from './tips';
 import { patchTime } from './patchTime';
 import { CREDITS } from './credits';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
+import { LOOK_OPTIONS } from './hudLook';
+import { buildCursorPanel } from './cursorUi';
+import { buildLookOptionsSection, buildOptionResults } from './lookUi';
+import { LOOK_SECTIONS, searchLook } from './lookSections';
+import type { LookSectionId } from './lookSections';
 
 /**
  * Character-select style main menu. A 3D preview of the chosen class stands in the arena behind it (see
@@ -53,6 +58,8 @@ export interface MainMenuHooks {
   onSide(side: 0 | 1): void;
   /** The account chip, placed top right under the settings bar. */
   extras?: HTMLElement;
+  /** The Look window's "Name and title" section (emblem, title, colour, icon), drawn by the account module from the signed-in account. */
+  nameSection?(): HTMLElement;
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
@@ -539,7 +546,7 @@ export class MainMenu {
       });
       list.append(slot);
     });
-    // the spec's passives: what it gives without a button (a built-in effect, its weapon, its bonuses)
+    // the spec's passives: what it gives without a button (a built-in effect, its auto-attack, its bonuses)
     const passives = specPassives(this.classId, spec.id);
     const pas = el('div', 'sp-passives');
     pas.append(el('div', 'sp-sub', 'Passives'));
@@ -624,7 +631,7 @@ export class MainMenu {
     this.lookCard.replaceChildren();
     const ico = el('span', 'lc-ico', '🎭');
     const txt = el('span', 'lc-txt');
-    txt.append(el('span', 'lc-t', 'Look'), el('span', 'lc-s', worn ? `${worn} of ${COSMETICS.slots.length} slots dressed · ${progress.matches} matches played` : 'Headwear, wings, back, glow and 3 more'));
+    txt.append(el('span', 'lc-t', 'Look'), el('span', 'lc-s', worn ? `${worn} of ${COSMETICS.slots.length} slots dressed · name, cursor and HUD looks too` : 'Gear, name and title, cursor, nameplates and HUD'));
     this.lookCard.append(ico, txt, el('span', 'lc-go', '›'));
     if (this.openSlot) this.openLook(this.openSlot);
   }
@@ -635,14 +642,41 @@ export class MainMenu {
 
   // ------------------------------------------------------------------ the Look menu
 
-  /** Slots down the left, the options of the picked slot as a grid on the right. Click to try one on; Done closes. */
+  private lookSection: LookSectionId = 'character';
+  private lookQuery = '';
+  private lookBody = el('div', 'lk-main');
+  private lookBlurb = el('p', 'lk-blurb');
+  private lookTabs = new Map<LookSectionId, HTMLButtonElement>();
+  private lookGearBtns: HTMLElement[] = [];
+
+  /** Open the Look window on one of its sections (the profile's "Name, title and icon" button, for one). */
+  openLookSection(section: LookSectionId) {
+    this.lookSection = section;
+    this.lookQuery = '';
+    this.openLook();
+  }
+
+  /** The account or an icon upload changed while the window is open: draw the sections that show them again. */
+  refreshLook() {
+    if (this.openSlot && (this.lookSection === 'name' || this.lookQuery)) this.paintLookBody();
+  }
+
+  /** Words the search knows for the Character section: its slots and every item name. */
+  private gearWords(): string[] {
+    return COSMETICS.slots.flatMap((sl) => [sl.name, sl.id, ...itemsForSlot(sl.id).filter((i) => !i.owner || flags.owner).map((i) => i.name)]);
+  }
+
+  /**
+   * One window for everything that changes how you or your game look: Character (gear), Name and title, Cursor,
+   * Nameplates and HUD, Effects. Tabs switch the section; the search jumps to a section or shows the matching options.
+   */
   private openLook(slotId = this.lookSlot) {
     this.lookSlot = slotId;
     this.openSlot = slotId;
     const card = el('div', 'mm-modal-card lk-card');
     const head = el('div', 'lk-head');
     const titles = el('div', 'lk-titles');
-    titles.append(el('h2', '', 'LOOK'), el('p', '', `Cosmetics change how you look to everyone. They never change how you fight. Flashier ones unlock as you play (${progress.matches} matches so far).`));
+    titles.append(el('h2', '', 'LOOK'), el('p', '', `Everything that changes how you look, in one place: your character, name and title, cursor, nameplates and HUD. Cosmetics never change how you fight. Flashier ones unlock as you play (${progress.matches} matches so far).`));
     const random = el('button', 'mm-small', 'Random look');
     random.addEventListener('click', () => {
       this.build.gear = Object.fromEntries(COSMETICS.slots.filter(() => Math.random() < 0.8).map((sl) => {
@@ -658,8 +692,102 @@ export class MainMenu {
     });
     const done = el('button', 'mm-small mm-go', 'Done');
     done.addEventListener('click', () => this.closeGear());
+    this.lookGearBtns = [random, clearAll];
     head.append(titles, random, clearAll, done);
 
+    // search and the section tabs
+    const bar = el('div', 'lk-bar');
+    const search = el('input', 'lk-search');
+    search.type = 'search';
+    search.placeholder = 'Search: title, nameplate, trail, halo…';
+    search.setAttribute('aria-label', 'Search the look options');
+    search.value = this.lookQuery;
+    search.addEventListener('input', () => {
+      this.lookQuery = search.value;
+      this.paintLookBody();
+    });
+    const tabs = el('div', 'lk-tabs');
+    this.lookTabs.clear();
+    for (const sec of LOOK_SECTIONS) {
+      const t = el('button', 'lk-tab', sec.label);
+      t.dataset.s = sec.id;
+      t.addEventListener('click', () => {
+        this.lookSection = sec.id;
+        this.lookQuery = '';
+        search.value = '';
+        this.paintLookBody();
+      });
+      this.lookTabs.set(sec.id, t);
+      tabs.append(t);
+    }
+    bar.append(search, tabs);
+
+    this.lookBody = el('div', 'lk-main');
+    this.lookBlurb = el('p', 'lk-blurb');
+    card.append(head, bar, this.lookBlurb, this.lookBody);
+    this.modal.replaceChildren(card, this.lookControls());
+    this.modal.className = 'mm-modal lk-dock';
+    this.root.classList.add('look-open');
+    this.paintLookBody();
+  }
+
+  /** Draw what the current tab (or the search) shows into the window. */
+  private paintLookBody() {
+    const q = this.lookQuery.trim();
+    const sec = LOOK_SECTIONS.find((x) => x.id === this.lookSection) ?? LOOK_SECTIONS[0];
+    for (const [id, t] of this.lookTabs) t.classList.toggle('sel', !q && id === sec.id);
+    const showGear = !q && sec.id === 'character';
+    for (const b of this.lookGearBtns) b.classList.toggle('hidden', !showGear);
+    this.lookBlurb.textContent = q ? `Results for “${q}”` : sec.blurb;
+    const again = () => this.paintLookBody();
+    if (q) {
+      const hits = searchLook(q, LOOK_OPTIONS, this.gearWords());
+      const out = el('div', 'lk-sec');
+      if (hits.sections.length) {
+        out.append(el('h4', 'lk-group', 'Go to'));
+        const list = el('div', 'lk-hits');
+        for (const h of hits.sections) {
+          const b = el('button', 'lk-hit');
+          b.append(el('b', '', h.label), el('small', '', h.blurb));
+          b.addEventListener('click', () => {
+            this.lookSection = h.id;
+            this.lookQuery = '';
+            this.openLook();
+          });
+          list.append(b);
+        }
+        out.append(list);
+      }
+      if (hits.options.length) {
+        out.append(el('h4', 'lk-group', 'Options'), buildOptionResults(hits.options, () => undefined));
+      }
+      if (!hits.sections.length && !hits.options.length) out.append(el('p', 'lk-note', 'Nothing matches. Try “title”, “nameplate”, “cursor”, “trail”, “health bar” or the name of a slot.'));
+      this.lookBody.replaceChildren(out);
+      return;
+    }
+    switch (sec.id) {
+      case 'character':
+        this.lookBody.replaceChildren(this.characterSection());
+        break;
+      case 'name':
+        this.lookBody.replaceChildren(this.hooks.nameSection ? this.hooks.nameSection() : el('p', 'lk-note', 'Not available here.'));
+        break;
+      case 'cursor': {
+        const box = el('div', 'lk-sec');
+        box.append(buildCursorPanel());
+        this.lookBody.replaceChildren(box);
+        break;
+      }
+      case 'hud':
+      case 'effects':
+        this.lookBody.replaceChildren(buildLookOptionsSection(sec.id, again));
+        break;
+    }
+  }
+
+  /** Slots down the left, the options of the picked slot as a grid on the right. Click to try one on. */
+  private characterSection(): HTMLElement {
+    const slotId = this.lookSlot;
     const body = el('div', 'lk-body');
     const list = el('div', 'lk-slots');
     for (const sl of COSMETICS.slots) {
@@ -700,10 +828,7 @@ export class MainMenu {
     }
     pane.append(grid, el('div', 'lk-foot', 'Your character beside this window updates as you pick. Drag it to turn.'));
     body.append(list, pane);
-    card.append(head, body);
-    this.modal.replaceChildren(card, this.lookControls());
-    this.modal.className = 'mm-modal lk-dock';
-    this.root.classList.add('look-open');
+    return body;
   }
 
   /** Turn / auto-rotate / zoom buttons floating over the free side, next to the model. */

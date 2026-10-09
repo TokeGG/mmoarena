@@ -142,6 +142,8 @@ export function skillInfo(abilityId: string): SkillInfo {
     if (e.type === 'zone' && e.procOnHit) tie(e.procOnHit, 'buff on you when the opening hit lands');
   }
   if (def.consumes) tie(def.consumes.aura, `consumed by it: ${def.consumes.perStack} more per stack`);
+  if (def.scalesWith) tie(def.scalesWith.aura, `it does ${def.scalesWith.perStack * 100}% more per stack`);
+  if (def.channel?.ticksFromStacks) tie(def.channel.ticksFromStacks, 'consumed by it: one more missile per stack');
   if (def.exploit) tie(def.exploit.aura, `it does ×${def.exploit.mult} to targets with it`);
   for (const [id, a] of Object.entries(AURAS)) if ((a as { dot?: { ability?: string } }).dot?.ability === abilityId) tie(id, 'its damage over time');
 

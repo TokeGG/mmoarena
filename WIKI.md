@@ -53,15 +53,15 @@ Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts
 Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice stuns the cone ahead.
 
 - **Weapon:** Twin Blades
-- **Auto-attack:** 60 damage every 1.4s, 3 yd reach
+- **Auto-attack:** 45 damage every 1.4s, 3 yd reach
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
-| 1 | [Slam](#skill-slam) | 40 rage · 3 yd range · Instant · 3s cooldown |
+| 1 | [Slam](#skill-slam) | 3 yd range · Instant · 3s cooldown |
 | 2 | [Mortal Strike](#skill-mortal-strike) | 30 rage · 3 yd range · Instant · 6s cooldown |
 | 3 | [Execute](#skill-execute) | 40 rage · 3 yd range · Instant · 5s cooldown |
-| 4 | [Slice and Dice](#skill-slice-and-dice) | 30 rage · 6 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun |
-| 5 | [Charge](#skill-charge) | 25 yd range · min 8 yd · Instant · 15s cooldown |
+| 4 | [Slice and Dice](#skill-slice-and-dice) | 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun |
+| 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 10s cooldown |
 | 7 | [Hamstring](#skill-hamstring) | 10 rage · 3 yd range · Instant · 8s slow |
 | 8 | [Heroic Leap](#skill-heroic-leap) | 25 yd range · Aimed at the cursor · Instant · 60s cooldown |
@@ -72,7 +72,7 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 |---|---|---|
 | III | ⚔️ **Harder Slam** | Slam does 10% more damage. |
 |  | 🦵 **Crippling Strikes** | Slam has a 30% chance to Hamstring the target. |
-|  | 😡 **Rage Engine** | Slam generates 8 rage. |
+|  | 😡 **Rage Engine** | Slam generates 8 more rage. |
 
 <a id="warrior-fury"></a>
 ### 🗡️ Rampager · Two-handed sword
@@ -86,10 +86,10 @@ Slow swings with long reach. Bloodthirst cleaves everything around you and heals
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Bladestorm](#skill-bladestorm) | 30 rage · 7 yd radius · 5s channel · 60s cooldown |
-| 2 | [Bloodthirst](#skill-bloodthirst) | 20 rage · **4.5** (base 3) yd radius · Instant · 4.5s cooldown |
+| 2 | [Bloodthirst](#skill-bloodthirst) | **4.5** (base 3) yd radius · Instant · 3.5s cooldown |
 | 3 | [Recklessness](#skill-recklessness) | Instant · 45s cooldown · 12s buff |
 | 4 | [Sweep](#skill-sweep) | 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown |
-| 5 | [Charge](#skill-charge) | 25 yd range · min 8 yd · Instant · 15s cooldown |
+| 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 10s cooldown |
 | 7 | [Hamstring](#skill-hamstring) | 10 rage · 3 yd range · Instant · 8s slow |
 | 8 | [Heroic Leap](#skill-heroic-leap) | 25 yd range · Aimed at the cursor · Instant · 60s cooldown |
@@ -108,7 +108,7 @@ Slow swings with long reach. Bloodthirst cleaves everything around you and heals
 Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps enemies in place.
 
 - **Weapon:** Halberd
-- **Auto-attack:** 45 damage every 2.4s, 5 yd reach
+- **Auto-attack:** 80 damage every 2.4s, 5 yd reach
 - **Spec bonuses:** Deep Cuts: +2 yd range, Hamstring: +2 yd range, Pummel: +2 yd range
 
 | Key | Skill | Numbers with this spec |
@@ -117,7 +117,7 @@ Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps ene
 | 2 | [Deep Cuts](#skill-deep-cuts) | **5** (base 3) yd range · Instant · 4s cooldown · 6s bleed |
 | 3 | [Axe Throw](#skill-axe-throw) | 50 rage · 10 yd range · Instant · 2s cooldown |
 | 4 | [You're Not Going Anywhere](#skill-not-going-anywhere) | 20 rage · 15 yd range · Aimed at the cursor · Instant · 60s cooldown · 8s banner |
-| 5 | [Charge](#skill-charge) | 25 yd range · min 8 yd · Instant · 15s cooldown |
+| 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · **5** (base 3) yd range · Instant · 10s cooldown |
 | 7 | [Hamstring](#skill-hamstring) | 10 rage · **5** (base 3) yd range · Instant · 8s slow |
 | 8 | [Heroic Leap](#skill-heroic-leap) | 25 yd range · Aimed at the cursor · Instant · 60s cooldown |
@@ -137,9 +137,11 @@ Base numbers, before spec and talent changes (in game, hover a skill to see your
 <a id="skill-slam"></a>
 #### Slam
 
-*Physical* · 40 rage · 3 yd range · Instant · 3s cooldown
+*Physical* · 3 yd range · Instant · 3s cooldown
 
 - Deals 160 physical damage.
+- Generates 15 rage.
+- *Its damage builds rage: 15% of the damage dealt (24 per hit).*
 
 On the bar: [Warbringer](#warrior-arms) (key 1).
 
@@ -160,14 +162,14 @@ On the bar: [Warbringer](#warrior-arms) (key 2).
 *Physical* · 40 rage · 3 yd range · Instant · 5s cooldown
 
 - Deals 560 physical damage.
-- *Only usable on targets below 20% health.*
+- *Only usable on targets below 25% health.*
 
 On the bar: [Warbringer](#warrior-arms) (key 3).
 
 <a id="skill-slice-and-dice"></a>
 #### Slice and Dice
 
-*Physical* · 30 rage · 6 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun
+*Physical* · 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun
 
 - Strikes every enemy in range 16 times, once every 0.3s (the first at once), for 25 physical damage each (400 total). You stand still while it lasts, and being interrupted stops it.
 - Cannot move, cast or act.
@@ -177,7 +179,7 @@ On the bar: [Warbringer](#warrior-arms) (key 4).
 <a id="skill-charge"></a>
 #### Charge
 
-*Physical* · 25 yd range · min 8 yd · Instant · 15s cooldown
+*Physical* · 25 yd range · min 6 yd · Instant · 15s cooldown
 
 - Stuns the target for up to 2.5s as you sprint at it, closing the distance in about a second, then hits it for 50 and ends the stun when you land. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).
 - Generates 10 rage.
@@ -221,7 +223,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 
 *Physical* · 30 rage · 7 yd radius · 5s channel · 60s cooldown
 
-- Strikes every enemy in range 10 times, once every 0.5s, for 22 physical damage each (220 total).
+- Strikes every enemy in range 10 times, once every 0.5s, for 100 physical damage each (1000 total).
 - *Can be cast while moving.*
 - *Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.*
 
@@ -230,11 +232,12 @@ On the bar: [Rampager](#warrior-fury) (key 1).
 <a id="skill-bloodthirst"></a>
 #### Bloodthirst
 
-*Physical* · 20 rage · 3 yd radius · Instant · 4.5s cooldown
+*Physical* · 3 yd radius · Instant · 3.5s cooldown
 
-- Deals 150 physical damage to all enemies in range.
+- Deals 200 physical damage to all enemies in range.
 - Heals you for 3% of your maximum health.
 - Generates 8 rage.
+- *Its damage builds rage: 15% of the damage dealt (30 per enemy hit).*
 
 On the bar: [Rampager](#warrior-fury) (key 2).
 
@@ -311,7 +314,7 @@ Talent: Warbringer tier V *Terrifying Roar* (replaces Heroic Leap); Rampager tie
 
 *Physical* · 10 rage · Instant · 60s cooldown · 8s buff
 
-- Heals you for 300% of the damage you deal.
+- Heals you for 100% of the damage you deal.
 - *Does not trigger the global cooldown.*
 
 Talent: Warbringer tier V *Savage Mending* (replaces Heroic Leap); Rampager tier V *Savage Mending* (replaces Heroic Leap); Barbarian tier V *Savage Mending* (replaces Heroic Leap).
@@ -381,41 +384,41 @@ Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance i
 <a id="mage-fire"></a>
 ### 🔥 Pyromancy · Burst damage
 
-Big fire damage with Pyroblast, Fireball and Flamestrike. Fireball sears the target with Singed, and the third hit brings Hot Streak, which makes Pyroblast instant. Cauterize saves you from one killing blow.
+Big fire damage with Pyroblast, Fireball and Flamestrike. Scorch and Fireball sear the target with Singed (1 and 2 stacks), and when it is full the next hit brings Hot Streak, which makes Pyroblast instant; Fireball can also bring Hot Streak by itself. Cauterize saves you from one killing blow.
 
 - **Weapon:** Fire staff
 - **Passive, Cauterize:** a killing blow leaves you at 35% health instead, once every 3 minutes
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
-| 1 | [Fireball](#skill-fireball) | 60 mana · 30 yd range · Instant · 8s cooldown |
-| 2 | [Pyroblast](#skill-pyroblast) | 90 mana · 30 yd range · 3s cast |
-| 3 | [Flamestrike](#skill-flamestrike) | 70 mana · 30 yd range · Aimed at the cursor · 3s cast · 12s cooldown · 8s ground effect |
+| 1 | [Fireball](#skill-fireball) | 60 mana · 30 yd range · 1.8s cast |
+| 2 | [Pyroblast](#skill-pyroblast) | 90 mana · 30 yd range · 4s cast |
+| 3 | [Flamestrike](#skill-flamestrike) | 70 mana · 30 yd range · Aimed at the cursor · 2.8s cast · 45s cooldown · 8s ground effect |
 | 4 | [Blink](#skill-blink) | Instant · 15s cooldown |
 | 5 | [Counterspell](#skill-counterspell) | 30 yd range · Instant · 24s cooldown |
 | 6 | [Polymorph](#skill-polymorph) | 70 mana · 30 yd range · 1.7s cast · 8s incapacitate |
-| 7 | [Scorch](#skill-scorch) | 20 mana · 30 yd range · 0.6s cast |
-| 8 | [Dragon's Breath](#skill-dragons-breath) | 45 mana · 14 yd range, 90° cone in front of you · Instant · 30s cooldown · 4s fear |
+| 7 | [Scorch](#skill-scorch) | 20 mana · 30 yd range · 1s cast |
+| 8 | [Dragon's Breath](#skill-dragons-breath) | 45 mana · 14 yd range, 90° cone in front of you · Instant · 45s cooldown · 4s fear |
 
 **Talents** (one per tier; tiers I and II and IV and V are under [Mage](#mage)):
 
 | Tier | Talent | What it does |
 |---|---|---|
 | III | ☄️ **Hotter Fireball** | Fireball does 10% more damage. |
-|  | 🔥 **Streaking** | Singed lasts 50% (5 seconds) longer. |
+|  | 🔥 **Streaking** | Singed lasts 50% longer. |
 |  | 🌋 **Searing Touch** | Fireball has a 10% chance to set the target burning for 4 seconds, dealing 25 damage every second. |
 
 <a id="mage-arcane"></a>
 ### 🔮 Starweaving · Sustain / utility
 
-A damage cooldown, and Arcane Missiles and Barrage that hit hard; Explosion slows what is close.
+A damage cooldown, and Arcane Blast, Missiles and Barrage that hit hard. Arcane Blast hits 5% harder per Arcane Charge, and Arcane Missiles spends every charge to fire one more missile for each; Explosion slows what is close.
 
 - **Weapon:** Arcane staff
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Arcane Blast](#skill-arcane-blast) | 55 mana · 30 yd range · 1.8s cast |
-| 2 | [Arcane Missiles](#skill-arcane-missiles) | 35 mana · 30 yd range · 2s channel · 6s cooldown |
+| 2 | [Arcane Missiles](#skill-arcane-missiles) | 35 mana · 30 yd range · 2s channel · 15s cooldown |
 | 3 | [Polymorph](#skill-polymorph) | 70 mana · 30 yd range · 1.7s cast · 8s incapacitate |
 | 4 | [Counterspell](#skill-counterspell) | 30 yd range · Instant · 24s cooldown |
 | 5 | [Blink](#skill-blink) | Instant · 15s cooldown |
@@ -523,53 +526,53 @@ On the bar: [Cryomancy](#mage-frost) (key 8).
 <a id="skill-fireball"></a>
 #### Fireball
 
-*Fire* · 60 mana · 30 yd range · Instant · 8s cooldown
+*Fire* · 60 mana · 30 yd range · 1.8s cast
 
-- Deals 210 fire damage.
-- Applies Singed for 10s: Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant.
-- Effects: [Singed](#effect-singed)
+- Deals 280 fire damage.
+- Applies 2 stacks of Singed for 20s: Scorch adds 1 stack and Fireball adds 2; the hit that would take it past its last stack removes them all and gives you Hot Streak, making your next Pyroblast instant.
+- 10% chance: You gain Hot Streak for 10s: Your next Pyroblast is instant.
+- Effects: [Singed](#effect-singed), [Hot Streak](#effect-hot-streak)
 
 On the bar: [Pyromancy](#mage-fire) (key 1).
 
 <a id="skill-pyroblast"></a>
 #### Pyroblast
 
-*Fire* · 90 mana · 30 yd range · 3s cast
+*Fire* · 90 mana · 30 yd range · 4s cast
 
-- Deals 550 fire damage.
+- Deals 450 fire damage.
 
 On the bar: [Pyromancy](#mage-fire) (key 2).
 
 <a id="skill-flamestrike"></a>
 #### Flamestrike
 
-*Fire* · 70 mana · 30 yd range · Aimed at the cursor · 3s cast · 12s cooldown · 8s ground effect
+*Fire* · 70 mana · 30 yd range · Aimed at the cursor · 2.8s cast · 45s cooldown · 8s ground effect
 
-- Enemies in the area take 420 fire damage the moment the cast lands. Marks a 5-yard circle at the chosen spot. Enemies still inside take 70 fire damage every 1s. Jump to avoid a pulse (one dodging jump every 1.5s). If the opening hit lands on an enemy you always gain Hot Streak.
+- Enemies in the area take 600 fire damage the moment the cast lands. Marks a 5-yard circle at the chosen spot. Enemies still inside take 70 fire damage every 1s. Jump to avoid a pulse (one dodging jump every 1.5s). If the opening hit lands on an enemy you always gain Hot Streak.
 
 On the bar: [Pyromancy](#mage-fire) (key 3).
 
 <a id="skill-scorch"></a>
 #### Scorch
 
-*Fire* · 20 mana · 30 yd range · 0.6s cast
+*Fire* · 20 mana · 30 yd range · 1s cast
 
-- Deals 70 fire damage.
+- Deals 110 fire damage.
 - 25% chance: You gain Hot Streak for 10s: Your next Pyroblast is instant.
+- Applies Singed for 20s: Scorch adds 1 stack and Fireball adds 2; the hit that would take it past its last stack removes them all and gives you Hot Streak, making your next Pyroblast instant.
 - *Can be cast while moving.*
-- Effects: [Hot Streak](#effect-hot-streak)
+- Effects: [Hot Streak](#effect-hot-streak), [Singed](#effect-singed)
 
 On the bar: [Pyromancy](#mage-fire) (key 7).
 
 <a id="skill-dragons-breath"></a>
 #### Dragon's Breath
 
-*Fire* · 45 mana · 14 yd range, 90° cone in front of you · Instant · 30s cooldown · 4s fear
+*Fire* · 45 mana · 14 yd range, 90° cone in front of you · Instant · 45s cooldown · 4s fear
 
-- Deals 50 fire damage to all enemies in range.
+- Deals 80 fire damage to all enemies in range.
 - Runs around in fear at 35% speed. Cannot cast or act, not even Blink.
-- 15% chance: You gain Hot Streak for 10s: Your next Pyroblast is instant.
-- Effects: [Hot Streak](#effect-hot-streak)
 
 On the bar: [Pyromancy](#mage-fire) (key 8).
 
@@ -578,7 +581,7 @@ On the bar: [Pyromancy](#mage-fire) (key 8).
 
 *Arcane* · 55 mana · 30 yd range · 1.8s cast
 
-- Deals 190 arcane damage.
+- Deals 190 arcane damage. +5% damage per Arcane Charge stack you have.
 - You gain Arcane Charge for 12s: Stacks up to 5 times.
 - Effects: [Arcane Charge](#effect-arcane-charge)
 
@@ -587,9 +590,9 @@ On the bar: [Starweaving](#mage-arcane) (key 1).
 <a id="skill-arcane-missiles"></a>
 #### Arcane Missiles
 
-*Arcane* · 35 mana · 30 yd range · 2s channel · 6s cooldown
+*Arcane* · 35 mana · 30 yd range · 2s channel · 15s cooldown
 
-- Fires 5 missiles, one every 0.4s, each dealing 34 arcane damage (170 total). Moving or being interrupted stops it.
+- Fires 5 missiles, one every 0.4s, each dealing 85 arcane damage (425 total). Moving or being interrupted stops it. Uses up all your Arcane Charge stacks, adding one more missile for each.
 - 30% chance: You gain Arcane Charge for 12s: Stacks up to 5 times.
 - Effects: [Arcane Charge](#effect-arcane-charge)
 
@@ -829,8 +832,8 @@ On the bar: [Warden](#priest-discipline) (key 6), [Lightbearer](#priest-holy) (k
 
 *Holy* · 45 mana · 30 yd range · 1.5s channel · 10s cooldown
 
-- On an enemy: deals 60 holy damage every 0.5s (180 total).
-- On an ally: heals for 75 every 0.5s (225 total).
+- On an enemy: deals 85 holy damage every 0.5s (255 total).
+- On an ally: heals for 125 every 0.5s (375 total).
 
 On the bar: [Warden](#priest-discipline) (key 7).
 
@@ -941,7 +944,7 @@ Talent: Warden tier V *Cleansing Radiance* (replaces Desperate Prayer); Lightbea
 
 - Enemies lose their target on you and spells aimed at you are cancelled.
 - Removes every root and slow from you.
-- You gain Ascended for 4s: You fly away: nothing can target or hurt you, and harmful effects cannot take hold. +60% movement speed. You cannot use any ability while it lasts.
+- You gain Ascended for 4s: You rise straight up and hover, unable to move, then drift back down: nothing can target or hurt you, and harmful effects cannot take hold. You cannot use any ability while it lasts. You cannot move while it lasts.
 - *Does not trigger the global cooldown.*
 - Effects: [Ascended](#effect-ascended)
 
@@ -1040,7 +1043,7 @@ Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard f
 | 1 | [Stealth](#skill-stealth) | Instant · 10s cooldown |
 | 2 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s) |
 | 3 | [Kick](#skill-kick) | 3 yd range · Instant · 15s cooldown |
-| 4 | [Shadowstep](#skill-shadowstep) | 10 energy · 25 yd range · min 5 yd · Instant · 20s cooldown |
+| 4 | [Shadowstep](#skill-shadowstep) | 10 energy · 15 yd range · Instant · 20s cooldown |
 | 5 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
 | 6 | [Sprint](#skill-sprint) | Instant · 60s cooldown · 8s speed boost |
 | 7 | [Backstab](#skill-backstab) | 40 energy · 3 yd range · Instant |
@@ -1178,7 +1181,7 @@ On the bar: [Duelist](#rogue-combat) (key 8).
 <a id="skill-shadowstep"></a>
 #### Shadowstep
 
-*Physical* · 10 energy · 25 yd range · min 5 yd · Instant · 20s cooldown
+*Physical* · 10 energy · 15 yd range · Instant · 20s cooldown
 
 - Rushes to the target and lands behind it, turning you to face it.
 - *Awards 3 combo points.*
@@ -1202,7 +1205,7 @@ On the bar: [Shade](#rogue-subtlety) (key 7).
 
 *Physical* · 35 energy · 3 yd range · Instant · +1s per combo point, up to 5s damage over time
 
-- Takes 110 physical damage every 1s for each combo point spent. Silenced and disarmed: cannot cast spells, auto attack or use physical abilities.
+- Takes 60 physical damage every 1s for each combo point spent. Silenced and disarmed: cannot cast spells, auto attack or use physical abilities.
 - *Spends all combo points (needs at least 1).*
 
 On the bar: [Shade](#rogue-subtlety) (key 8).
@@ -1210,7 +1213,7 @@ On the bar: [Shade](#rogue-subtlety) (key 8).
 <a id="skill-blind"></a>
 #### Blind
 
-*Physical* · 30 energy · 15 yd range · Instant · 60s cooldown · 5s incapacitate
+*Physical* · 30 energy · 15 yd range · Instant · 60s cooldown · 8s incapacitate
 
 - Removes damage over time and fear effects from the target.
 - Cannot move, cast or act. Breaks on damage.
@@ -1299,8 +1302,8 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-arcane-charge"></a>**Arcane Charge** | Buff | 12s | Stacks up to 5 times. | [Arcane Blast](#skill-arcane-blast), [Arcane Missiles](#skill-arcane-missiles) |
 | <a id="effect-arcane-slow"></a>**Arcane Explosion** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Arcane Explosion](#skill-arcane-explosion) |
 | <a id="effect-arcane-power"></a>**Arcane Power** | Buff, magic | 15s | +25% damage dealt. −30% cast time. | [Arcane Power](#skill-arcane-power) |
-| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | You fly away: nothing can target or hurt you, and harmful effects cannot take hold. +60% movement speed. You cannot use any ability while it lasts. | [Ascend to the Heavens](#skill-ascend) |
-| <a id="effect-blind"></a>**Blind** | Debuff (incapacitate) | 5s | Cannot move, cast or act. Breaks on damage. | [Blind](#skill-blind) |
+| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | You rise straight up and hover, unable to move, then drift back down: nothing can target or hurt you, and harmful effects cannot take hold. You cannot use any ability while it lasts. You cannot move while it lasts. | [Ascend to the Heavens](#skill-ascend) |
+| <a id="effect-blind"></a>**Blind** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Blind](#skill-blind) |
 | <a id="effect-cauterized"></a>**Cauterized** | Buff (mark) | 4s | Cheated death: a killing blow left you at 35% health. Cauterize is ready again in 3 minutes. | Pyromancy passive (Cauterize) |
 | <a id="effect-charge-stun"></a>**Charge** | Debuff (stun) | 2.5s | Cannot move, cast or act. | [Charge](#skill-charge) |
 | <a id="effect-cheap-shot-stun"></a>**Cheap Shot** | Debuff (stun) | 4s | Cannot move, cast or act. | [Cheap Shot](#skill-cheap-shot) |
@@ -1309,7 +1312,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-plague-bloom"></a>**Devouring Plague** | Debuff (dot), magic | 10s | Takes 42 shadow damage every 1s (420 total). | [Devouring Plague](#skill-plague-bloom) |
 | <a id="effect-dispersion"></a>**Dispersion** | Buff | 6s | −90% damage taken. You cannot use any ability while it lasts. | [Dispersion](#skill-dispersion) |
 | <a id="effect-dragons-breath"></a>**Dragon's Breath** | Debuff (fear), magic | 4s | Runs around in fear at 35% speed. Cannot cast or act, not even Blink. | [Dragon's Breath](#skill-dragons-breath) |
-| <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | Heals you for 300% of the damage you deal. | [Enraged Regeneration](#skill-enraged-regeneration) |
+| <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | Heals you for 100% of the damage you deal. | [Enraged Regeneration](#skill-enraged-regeneration) |
 | <a id="effect-evasion"></a>**Evasion** | Buff | 6s | −45% damage taken. | [Evasion](#skill-evasion) |
 | <a id="effect-evocation"></a>**Evocation** | Buff, magic | 6s | −15% damage taken. +300% mana regeneration. Heals 2% of maximum health every 1s. | [Evocation](#skill-evocation) |
 | <a id="effect-fingers-of-frost"></a>**Fingers of Frost** | Debuff (mark) | 15s | Ice Lance treats it as Shatter and uses it up. | [Frostbolt](#skill-frostbolt), [Frost Nova](#skill-frost-nova), talent *Fingers Crossed* ([Frostbolt](#skill-frostbolt)) |
@@ -1319,7 +1322,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-gouge"></a>**Gouge** | Debuff (incapacitate) | 4s | Cannot move, cast or act. Breaks on damage. | [Gouge](#skill-gouge) |
 | <a id="effect-hamstring-slow"></a>**Hamstring** | Debuff (slow) | 8s | Movement speed reduced by 50%. | [Hamstring](#skill-hamstring) |
 | <a id="effect-rogue-slow"></a>**Hobbled** | Debuff (slow) | 3s | Movement speed reduced by 10%. | talent *Crippling Cuts* ([Mutilate](#skill-mutilate)), talent *Hobbling Strikes* ([Sinister Strike](#skill-sinister-strike)), talent *Hobbling Backstab* ([Backstab](#skill-backstab)) |
-| <a id="effect-hot-streak"></a>**Hot Streak** | Buff | 10s | Your next Pyroblast is instant. | [Scorch](#skill-scorch), [Dragon's Breath](#skill-dragons-breath) |
+| <a id="effect-hot-streak"></a>**Hot Streak** | Buff | 10s | Your next Pyroblast is instant. | [Fireball](#skill-fireball), [Scorch](#skill-scorch) |
 | <a id="effect-ice-barrier"></a>**Ice Barrier** | Buff (absorb), magic | 12s | Absorbs damage equal to 25% of max health. | [Ice Barrier](#skill-ice-barrier) |
 | <a id="effect-intercept-guard"></a>**Intercepted** | Buff | 4s | −20% damage taken. | talent *Intercept* ([Charge](#skill-charge)) |
 | <a id="effect-intimidating-shout"></a>**Intimidating Shout** | Debuff (fear) | 5s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Intimidating Shout](#skill-intimidating-shout) |
@@ -1338,11 +1341,11 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-protective-vanish"></a>**Shadow Shroud** | Buff | 2s | Immune to damage and crowd control. Lost when you leave stealth. | talent *Protective Vanish* ([Vanish](#skill-vanish)) |
 | <a id="effect-creeping-rot"></a>**Shadow Word: Pain** | Debuff (dot), magic | 10s | Takes 30 shadow damage every 1s (300 total). | [Shadow Word: Pain](#skill-shadow-word-death) |
 | <a id="effect-shatter"></a>**Shatter** | Debuff (mark) | 4s or 6s | Takes 5x damage from frost abilities. Lost when damaged, unless Deep Freeze is active. | [Frost Nova](#skill-frost-nova), [Deep Freeze](#skill-deep-freeze) |
-| <a id="effect-singed"></a>**Singed** | Debuff (mark) | 10s | Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant. | [Fireball](#skill-fireball) |
+| <a id="effect-singed"></a>**Singed** | Debuff (mark) | 20s | Scorch adds 1 stack and Fireball adds 2; the hit that would take it past its last stack removes them all and gives you Hot Streak, making your next Pyroblast instant. | [Fireball](#skill-fireball), [Scorch](#skill-scorch) |
 | <a id="effect-slice-hold"></a>**Slice and Dice** | Debuff (stun) | 1.1s | Cannot move, cast or act. | [Slice and Dice](#skill-slice-and-dice) |
 | <a id="effect-sprint"></a>**Sprint** | Buff (speed) | 8s | Movement speed increased by 70%. | [Sprint](#skill-sprint) |
 | <a id="effect-stealth"></a>**Stealth** | Buff (stealth) | until broken | Hidden from enemies farther than 2 yards. Broken by damage or attacking. | [Stealth](#skill-stealth), [Vanish](#skill-vanish) |
 | <a id="effect-trinket-shield"></a>**Warding Charm** | Buff (absorb) | 8s | Absorbs damage equal to 20% of max health. | [Warding Charm](#skill-trinket-shield) |
-| <a id="effect-weak-point"></a>**Weak Point** | Debuff (dot) | 1s | Takes 110 physical damage every 1s for each combo point spent. Silenced and disarmed: cannot cast spells, auto attack or use physical abilities. | [Weak Point](#skill-eviscerate) |
+| <a id="effect-weak-point"></a>**Weak Point** | Debuff (dot) | 1s | Takes 60 physical damage every 1s for each combo point spent. Silenced and disarmed: cannot cast spells, auto attack or use physical abilities. | [Weak Point](#skill-eviscerate) |
 
 *Magic* effects can be removed with Dispel Magic.

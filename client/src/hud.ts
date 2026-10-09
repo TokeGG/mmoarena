@@ -2,52 +2,21 @@ import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor, lockedByAura, silenc
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
-import { TARGET_ARROWS, hpFill, hpText, look, plateFill, plateHpText, plateShown } from './hudLook';
+import { TARGET_ARROWS, fillFor, hpFill, hpText, look } from './hudLook';
+import { PlateView } from './nameplateView';
+import { plateProfile } from './nameplateStore';
+import { arrowGlyph, barText, distanceScale, fadeAlpha, pickAuras, plateZ, type PlateKind } from './nameplateLayout';
 import { applyName, avatarImg } from './nameStyle';
+import { Bar, el } from './bar';
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
-
-function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
-  const e = document.createElement(tag);
-  if (cls) e.className = cls;
-  if (text) e.textContent = text;
-  return e;
-}
 
 const SCHOOL_TEXT: Record<string, string> = { physical: '#ffffff', fire: '#ffb04a', frost: '#8fdcff', arcane: '#d79bff', holy: '#fff3a0', shadow: '#c68bff', nature: '#8dff8d' };
 
 const RES_COLOR = { mana: '#3b82f6', rage: '#c0392b', energy: '#e6c229' } as const;
 const HP_ALLY = '#3fbf5f';
 const HP_ENEMY = '#c0392b';
-
-class Bar {
-  readonly root: HTMLElement;
-  private fill = el('div', 'fill');
-  private label = el('div', 'blabel');
-  private shield = el('div', 'shield');
-  constructor(color: string, thin = false) {
-    this.root = el('div', thin ? 'bar thin' : 'bar');
-    this.root.append(this.fill, this.shield, this.label);
-    this.fill.style.background = color;
-  }
-  setColor(c: string) {
-    if (this.fill.dataset.c !== c) {
-      this.fill.dataset.c = c;
-      this.fill.style.background = c;
-    }
-  }
-  /** `absorb` draws a pale segment after the health (pushed back from the right edge when it would overflow). */
-  set(v: number, max: number, text: string, absorb = 0) {
-    const hp = max > 0 ? Math.max(0, Math.min(100, (v / max) * 100)) : 0;
-    this.fill.style.width = `${hp}%`;
-    const w = max > 0 ? Math.min(100, (absorb / max) * 100) : 0;
-    this.shield.style.display = w > 0 ? 'block' : 'none'; // 'block', not '': the stylesheet hides it by default
-    this.shield.style.width = `${w}%`;
-    this.shield.style.left = `${Math.min(hp, 100 - w)}%`;
-    this.label.textContent = text;
-  }
-}
 
 /**
  * A cast that stopped before it finished stays in its cast bar for a moment, frozen where it stopped, coloured and labelled
@@ -225,7 +194,7 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string; badge: HTMLElement }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; res: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string; mark: HTMLElement; arrow: HTMLElement; mk: number }>();
+  private plates = new Map<number, { view: PlateView; av: string; mk: number }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
@@ -529,100 +498,94 @@ export class Hud {
     $('damp').classList.add('hidden');
   }
 
-  /** Nameplates over each visible unit. `units` come with screen positions already projected. */
+  /**
+   * Nameplates over each visible unit. `units` come with the plate's anchor point already projected (at the head or the
+   * feet, as the unit's profile says: `kind` is own / ally / enemy, `dist` the camera distance in metres). `you` is your unit id.
+   */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; resource?: number; resourceMax?: number; resourceType?: keyof typeof RES_COLOR; target?: boolean; mark?: number; classId?: ClassId }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number; src?: number; stacks?: number }[]; absorb?: number; resource?: number; resourceMax?: number; resourceType?: keyof typeof RES_COLOR; target?: boolean; mark?: number; classId?: ClassId; kind?: PlateKind; dist?: number }[],
     now: number,
+    you = 0,
   ) {
     const seen = new Set<number>();
     for (const u of units) {
       seen.add(u.id);
       let p = this.plates.get(u.id);
       if (!p) {
-        const root = el('div', 'plate');
-        const name = el('div', 'pname');
-        const bar = new Bar(HP_ALLY, true);
-        const res = new Bar(RES_COLOR.mana, true);
-        res.root.classList.add('pres');
-        const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
-        cast.root.classList.add('pcast', 'hidden');
-        const title = el('div', 'ptitle');
-        const icon = el('div', 'picon');
-        const debuffs = el('div', 'pdebuffs');
-        // over the head: your team's raid mark, and a bobbing arrow on your target
-        const top = el('div', 'ptop');
-        const mark = el('div', 'pmark hidden');
-        const arrow = el('div', 'parrow hidden', '▼');
-        top.append(mark, arrow);
-        root.append(top, icon, name, title, bar.root, res.root, cast.root, debuffs);
-        $('labels').append(root);
-        p = { root, name, title, bar, res, cast, icon, av: '', debuffs, dkey: '', mark, arrow, mk: 0 };
+        const view = new PlateView();
+        $('labels').append(view.root);
+        p = { view, av: '', mk: 0 };
         this.plates.set(u.id, p);
       }
-      p.root.classList.toggle('hidden', !u.visible || !u.alive || !plateShown(u.enemy));
-      p.root.style.left = `${u.x}px`;
-      p.root.style.top = `${u.y}px`;
+      const v = p.view;
+      const prof = plateProfile(u.kind ?? (u.enemy ? 'enemy' : 'ally'));
+      const dist = u.dist ?? 0;
+      const alpha = fadeAlpha(prof, dist);
+      v.root.classList.toggle('hidden', !u.visible || !u.alive || !prof.show || alpha < 0.03);
+      v.position(u.x, u.y, distanceScale(prof, dist), alpha, plateZ(dist, !!u.target));
       const who = this.roster.get(u.id);
-      p.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;
-      applyName(p.name, { color: who?.color || (u.enemy ? '#ff8a7a' : '#a8f0b8'), color2: who?.color2, glow: who?.glow }, '0 1px 2px #000');
       const av = who?.avatarUrl ?? '';
+      const frac = u.maxHealth > 0 ? u.health / u.maxHealth : 0;
+      const pStop = u.cast ? null : stoppedCast(u.id);
+      // effect icons: by the profile's pick (debuffs, all, only mine, crowd control), with the time left and stacks
+      const shownAuras = pickAuras(prof.auras, u.auras ?? [], (id) => ({ harmful: !!AURAS[id]?.harmful, kind: AURAS[id]?.kind }), you);
+      const hasRes = !!u.resourceType && !!(u.resourceMax && u.resourceMax > 0);
+      const arrowOn = !!u.target && look.targetArrow !== 'off';
+      v.apply(prof, { hasMark: (u.mark ?? 0) > 0, hasArrow: arrowOn, hasAvatar: av.startsWith('/avatar/'), hasTitle: !!who?.title, hasRes, hasCast: !!u.cast || !!pStop, auraCount: shownAuras.length });
+      v.setAuras(
+        shownAuras.map((a) => ({ id: a.id, glyph: AURA_ICON[a.id] ?? '✦', harmful: !!AURAS[a.id]?.harmful, secs: a.expiresAt > 0 ? Math.max(0, Math.ceil((a.expiresAt - now) / 1000)) : -1, stacks: a.stacks ?? 0, title: AURAS[a.id]?.name })),
+        prof,
+      );
+      v.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;
+      const teamColor = who?.color || (u.enemy ? '#ff8a7a' : '#a8f0b8');
+      const classColor = u.classId ? CLASSES[u.classId].color : u.enemy ? HP_ENEMY : HP_ALLY;
+      if (prof.name.color === 'team') applyName(v.name, { color: teamColor, color2: who?.color2, glow: who?.glow }, v.nameBase);
+      else applyName(v.name, { color: prof.name.color === 'class' ? classColor : prof.name.custom }, v.nameBase);
       if (p.av !== av) {
         p.av = av;
-        p.icon.replaceChildren();
+        v.icon.replaceChildren();
         const img = avatarImg(av, 'pav');
-        if (img) p.icon.append(img);
+        if (img) v.icon.append(img);
       }
       const mk = u.mark ?? 0;
       if (p.mk !== mk) {
         p.mk = mk;
         const def = MARKS[mk - 1];
-        p.mark.textContent = def?.icon ?? '';
-        p.mark.title = def?.name ?? '';
-        p.mark.dataset.mark = def?.id ?? '';
-        p.mark.classList.toggle('hidden', !def);
+        v.mark.textContent = def?.icon ?? '';
+        v.mark.title = def?.name ?? '';
+        v.mark.dataset.mark = def?.id ?? '';
+        v.mark.classList.toggle('hidden', !def);
       }
-      p.arrow.classList.toggle('hidden', !u.target || look.targetArrow === 'off');
-      if (u.target) p.arrow.textContent = TARGET_ARROWS[look.targetArrow] ?? '▼';
-      p.arrow.classList.toggle('enemy', u.enemy);
-      p.root.classList.toggle('targeted', !!u.target);
-      p.title.textContent = who?.title ? `«${who.title}»` : '';
-      p.title.classList.toggle('hidden', !who?.title);
-      p.bar.setColor(plateFill(u.enemy, u.maxHealth > 0 ? u.health / u.maxHealth : 0, u.classId ? CLASSES[u.classId].color : u.enemy ? HP_ENEMY : HP_ALLY));
-      p.bar.set(u.health, u.maxHealth, plateHpText(u.health, u.maxHealth), u.absorb ?? 0);
+      v.arrow.classList.toggle('hidden', !arrowOn || !prof.target.arrow);
+      if (u.target) v.arrow.textContent = arrowGlyph(TARGET_ARROWS[look.targetArrow] ?? '▼', prof.anchor);
+      v.arrow.classList.toggle('enemy', u.enemy);
+      v.root.classList.toggle('targeted', !!u.target);
+      v.title.textContent = who?.title ? `«${who.title}»` : '';
+      v.title.classList.toggle('hidden', !who?.title);
+      v.bar.setColor(prof.bar.color === 'custom' ? prof.bar.custom : fillFor(prof.bar.color, u.enemy, frac, classColor));
+      v.bar.set(u.health, u.maxHealth, barText(prof.bar.text, u.health, u.maxHealth), u.absorb ?? 0);
       // the class resource right under the health bar, in the colour the HUD uses for it
-      p.res.root.classList.toggle('hidden', !u.resourceType || !(u.resourceMax && u.resourceMax > 0));
+      v.res.root.classList.toggle('hidden', !hasRes);
       if (u.resourceType) {
-        p.res.setColor(RES_COLOR[u.resourceType]);
-        p.res.set(u.resource ?? 0, u.resourceMax ?? 0, '');
+        v.res.setColor(RES_COLOR[u.resourceType]);
+        v.res.set(u.resource ?? 0, u.resourceMax ?? 0, '');
       }
-      // harmful effects on the unit (stuns, roots, slows, DoTs), each with its time left; rebuilt only when the set or a second changes
-      const bad = (u.auras ?? []).filter((a) => AURAS[a.id]?.harmful).slice(0, 6);
-      const dkey = bad.map((a) => `${a.id}:${a.expiresAt > 0 ? Math.ceil((a.expiresAt - now) / 1000) : ''}`).join();
-      if (p.dkey !== dkey) {
-        p.dkey = dkey;
-        p.debuffs.replaceChildren(...bad.map((a) => {
-          const ic = el('div', 'pdebuff', AURA_ICON[a.id] ?? '✦');
-          if (a.expiresAt > 0) ic.append(el('i', '', String(Math.max(0, Math.ceil((a.expiresAt - now) / 1000)))));
-          return ic;
-        }));
-      }
-      // cast bar over the head: gold for allies, hot orange for enemies so you can see what to interrupt
-      const pStop = u.cast ? null : stoppedCast(u.id);
-      p.cast.root.classList.toggle('hidden', !u.cast && !pStop);
+      // cast bar: gold for allies, hot orange for enemies so you can see what to interrupt
+      v.cast.root.classList.toggle('hidden', !u.cast && !pStop);
       if (pStop) {
-        p.cast.setColor(pStop.color);
-        p.cast.set(pStop.frac, 1, pStop.label);
+        v.cast.setColor(pStop.color);
+        v.cast.set(pStop.frac, 1, pStop.label);
       }
       if (u.cast) {
         seeCast(u.id, u.cast, now);
-        p.cast.root.classList.toggle('enemy', u.enemy);
-        p.cast.setColor(u.enemy ? 'linear-gradient(#ff9a52,#d94a1c)' : 'linear-gradient(#ffd966,#d9962a)');
-        p.cast.set(ABILITIES[u.cast.ability]?.channel ? u.cast.end - now : now - u.cast.start, u.cast.end - u.cast.start, ABILITIES[u.cast.ability]?.name ?? u.cast.ability);
+        v.cast.root.classList.toggle('enemy', u.enemy);
+        v.cast.setColor(u.enemy ? 'linear-gradient(#ff9a52,#d94a1c)' : 'linear-gradient(#ffd966,#d9962a)');
+        v.cast.set(ABILITIES[u.cast.ability]?.channel ? u.cast.end - now : now - u.cast.start, u.cast.end - u.cast.start, ABILITIES[u.cast.ability]?.name ?? u.cast.ability);
       }
     }
     for (const [id, p] of this.plates) {
       if (!seen.has(id)) {
-        p.root.remove();
+        p.view.root.remove();
         this.plates.delete(id);
       }
     }

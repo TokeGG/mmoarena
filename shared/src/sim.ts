@@ -1,7 +1,7 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING, lockedByAura, silencedBy } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, stealthSwapsFor, trinketFor, withAuraMods } from './build';
 import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, inLava, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
-import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
+import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, hoverHeight, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
 } from './types';
@@ -36,6 +36,9 @@ const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'targ
 const IMAGE_LINGER_MS = 700;
 const GCD_REFUND = ['moved', 'cancelled', 'switched spell', 'target vanished', 'blinded by smoke'];
 /** A repeat of the spell being cast, pressed this close to the end of the cast, is held and cast right after it. */
+/** Mirror Image: the side of the triangle the caster and the two images make, and the angles (radians) it is turned through to find clear ground. */
+const IMAGE_SIDE = 2.4;
+const IMAGE_TURNS = [0, Math.PI / 6, -Math.PI / 6, Math.PI / 3, -Math.PI / 3, Math.PI / 2, -Math.PI / 2, (2 * Math.PI) / 3, -(2 * Math.PI) / 3, (5 * Math.PI) / 6, -(5 * Math.PI) / 6, Math.PI];
 const REPEAT_HOLD_MS = 400;
 const CC_KINDS: AuraKind[] = ['stun', 'incapacitate', 'fear'];
 /** What an unstoppable channel (Bladestorm) is immune to. */
@@ -388,10 +391,19 @@ export class ArenaSim {
 
     if (def.channel && def.castTime > 0) {
       // channels pay and go on cooldown up front, then fire their effects once per tick while the caster stands still
-      const castMs = this.castTimeOf(u, def);
+      let castMs = this.castTimeOf(u, def);
       u.resource -= this.costOf(u, def);
       this.startCooldown(u, def);
-      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks: this.abilityMod(u, def).ticks ?? def.channel.ticks, done: 0 };
+      let ticks = this.abilityMod(u, def).ticks ?? def.channel.ticks;
+      // a channel that eats a stacking buff (Arcane Missiles) gets one more tick per stack, at the same pace
+      const fed = def.channel.ticksFromStacks ? u.auras.find((a) => a.id === def.channel!.ticksFromStacks) : undefined;
+      if (fed) {
+        const more = fed.stacks ?? 1;
+        castMs = Math.round((castMs * (ticks + more)) / ticks);
+        ticks += more;
+        this.removeAura(u, fed, 'consumed');
+      }
+      u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks, done: 0 };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
@@ -531,7 +543,7 @@ export class ArenaSim {
       if (move) extras.push(x);
       u.lastInput = x;
       u.lastSeq = x.seq;
-      if (x.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) {
+      if (x.jump && this.canAct(u) && !this.hovering(u) && canStartJump(this.time - u.jumpStart)) {
         u.jumpStart = this.time;
         if (this.time >= u.dodgeReadyAt) {
           u.dodgeUntil = this.time + JUMP_MS;
@@ -557,7 +569,7 @@ export class ArenaSim {
     }
 
     // a fresh jump request only (a repeated stale input must not re-jump)
-    if (queued?.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) {
+    if (queued?.jump && this.canAct(u) && !this.hovering(u) && canStartJump(this.time - u.jumpStart)) {
       u.jumpStart = this.time;
       if (this.time >= u.dodgeReadyAt) {
         u.dodgeUntil = this.time + JUMP_MS;
@@ -662,7 +674,41 @@ export class ArenaSim {
   // ------------------------------------------------------------------ mirror images
 
   /**
-   * Mirror Image: `count` copies of the caster appear beside it (same name, class, spec, talents and look). They are made here, not
+   * Where the images stand: with two, the caster and the pair make an equilateral triangle (the caster at the front corner,
+   * the images behind it to either side, `IMAGE_SIDE` yards apart). Nobody overlaps and nobody stands in a wall or pillar: the
+   * triangle is turned to the first angle where both corners are clear and in sight, else to the one that keeps them furthest
+   * apart. No randomness, so replays agree. Other counts fan out on a ring.
+   */
+  private imageSpots(u: Unit, count: number): Vec2[] {
+    const around = (rot: number): Vec2[] => {
+      const out: Vec2[] = [];
+      for (let i = 0; i < count; i++) {
+        let dx: number, dz: number; // offset in the caster's frame: x to the right, z forward
+        if (count === 2) { dx = (i === 0 ? -1 : 1) * IMAGE_SIDE / 2; dz = -IMAGE_SIDE * Math.sqrt(3) / 2; } else { const a = (i / count) * Math.PI * 2 + Math.PI; dx = Math.sin(a) * IMAGE_SIDE; dz = Math.cos(a) * IMAGE_SIDE; }
+        const c = Math.cos(rot), sn = Math.sin(rot);
+        const rx = dx * c + dz * sn, rz = -dx * sn + dz * c;
+        const f = u.facing;
+        out.push({ x: u.pos.x + rx * Math.cos(f) + rz * Math.sin(f), z: u.pos.z - rx * Math.sin(f) + rz * Math.cos(f) });
+      }
+      return out;
+    };
+    let best: Vec2[] = [];
+    let bestGap = -1;
+    for (const rot of IMAGE_TURNS) {
+      const want = around(rot);
+      const got = want.map((p) => resolveCollisions(p, this.arena, u.level));
+      const clear = got.every((p, i) => dist(p, want[i]) < 0.05 && hasLOS(u.pos, p, this.arena, u.level, u.level));
+      let gap = Infinity;
+      const all = [u.pos, ...got];
+      for (let i = 0; i < all.length; i++) for (let j = i + 1; j < all.length; j++) gap = Math.min(gap, dist(all[i], all[j]));
+      if (clear) return got;
+      if (gap > bestGap) { bestGap = gap; best = got; }
+    }
+    return best;
+  }
+
+  /**
+   * Mirror Image: `count` copies of the caster appear around it (see imageSpots) (same name, class, spec, talents and look). They are made here, not
    * with a recorded `addUnit`, so a replay does not add them twice: it summons them itself on the same tick, with the same ids.
    */
   private summonImages(u: Unit, count: number, duration: number, damage: number): void {
@@ -670,12 +716,11 @@ export class ArenaSim {
     const rec = this.onUnit;
     this.onUnit = null;
     try {
+      const spots = this.imageSpots(u, count);
       for (let i = 0; i < count; i++) {
         const img = this.addUnit({ name: u.name, classId: u.classId, team: u.team, controller: 'bot', gearMult: u.gearMult, build: u.buildRef });
-        const side = count > 1 ? (i / (count - 1)) * 2 - 1 : 0;
-        const a = u.facing + Math.PI / 2;
         img.level = u.level;
-        img.pos = resolveCollisions({ x: u.pos.x + Math.sin(a) * side * 1.8, z: u.pos.z + Math.cos(a) * side * 1.8 }, this.arena, u.level);
+        img.pos = spots[i];
         img.facing = u.facing;
         img.lastInput = { seq: 0, fwd: 0, strafe: 0, facing: u.facing };
         img.maxHealth = 1;
@@ -936,6 +981,8 @@ export class ArenaSim {
     if (empowerAura) this.empowerMult = AURAS[empowerAura.id].empower!.mult;
     const eaten = def.consumes ? u.auras.find((a) => a.id === def.consumes!.aura) : undefined;
     if (eaten) this.stackMult = 1 + def.consumes!.perStack * (eaten.stacks ?? 1);
+    const scaler = def.scalesWith ? u.auras.find((a) => a.id === def.scalesWith!.aura) : undefined;
+    if (scaler) this.stackMult *= 1 + def.scalesWith!.perStack * (scaler.stacks ?? 1);
 
     const targets = this.targetsOf(u, def, tgt);
 
@@ -1057,7 +1104,7 @@ export class ArenaSim {
           if (inst) inst.dotMult = (Math.max(1, this.cpSpent) * this.modsOf(u).cpPower) / ticks;
         } else {
           const auraId = this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura;
-          const r = this.applyAura(u, eff.self ? u : t, auraId, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+          const r = this.applyAura(u, eff.self ? u : t, auraId, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration, eff.stacks ?? 1);
           const stronger = this.modsOf(u).ability[def.id]?.heal;
           if (stronger && r.applied && AURAS[auraId]?.kind === 'absorb') { const sh = (eff.self ? u : t).auras.find((a) => a.id === auraId && a.sourceId === u.id); if (sh) sh.absorbLeft = Math.round(sh.absorbLeft * stronger); } // a stronger Power Word: Shield
           if (def.stopsAuto && r.applied && t.team !== u.team) u.autoAttack = false;
@@ -1302,7 +1349,21 @@ export class ArenaSim {
 
   /** How high a unit is in a jump right now (0 on its feet). */
   airOf(u: Unit): number {
-    return jumpHeight(this.time - u.jumpStart);
+    return Math.max(jumpHeight(this.time - u.jumpStart), this.hoverOf(u));
+  }
+
+  /** How high a unit is lifted by a hover aura (Ascend to the Heavens) right now, 0 without one. */
+  hoverOf(u: Unit): number {
+    for (const a of u.auras) {
+      const d = AURAS[a.id];
+      if (d?.hover && isFinite(a.expiresAt)) return hoverHeight(d.hover, d.duration - (a.expiresAt - this.time), d.duration);
+    }
+    return 0;
+  }
+
+  /** Held in the air by a hover aura: it cannot move or jump. */
+  hovering(u: Unit): boolean {
+    return u.auras.some((a) => AURAS[a.id]?.hover);
   }
 
   private canCauterize(u: Unit): boolean {
@@ -1410,7 +1471,7 @@ export class ArenaSim {
 
   // ------------------------------------------------------------------ auras, crowd control, diminishing returns
 
-  applyAura(src: Unit, tgt: Unit, auraId: string, extraMs = 0, baseMs?: number): AuraResult {
+  applyAura(src: Unit, tgt: Unit, auraId: string, extraMs = 0, baseMs?: number, addStacks = 1): AuraResult {
     const def = AURAS[auraId];
     if (!def || !tgt.alive) return { applied: false, immune: true };
 
@@ -1464,8 +1525,8 @@ export class ArenaSim {
     } else duration = base * (this.modsOf(src).auraDuration[auraId] ?? 1);
 
     const prior = tgt.auras.find((a) => a.id === auraId && a.sourceId === src.id);
-    if (def.stackProc && def.maxStacks && prior && (prior.stacks ?? 0) >= def.maxStacks) {
-      // the hit that finds it full pops it and pays out
+    if (def.stackProc && def.maxStacks && prior && (prior.stacks ?? 0) + addStacks > def.maxStacks) {
+      // the hit that would take it past full pops it and pays out
       this.removeAura(tgt, prior, 'consumed');
       this.applyAura(src, src, def.stackProc);
       return { applied: true, duration: 0, dr: drMult };
@@ -1483,7 +1544,7 @@ export class ArenaSim {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
       absorbLeft: Math.round(((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone * (1 - this.dampening())),
-      ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + 1) } : {}),
+      ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + addStacks) } : {}),
       ...(def.dot ? { nextTick: this.time + def.dot.interval } : def.hot ? { nextTick: this.time + def.hot.interval } : {}),
     };
     tgt.auras.push(inst);
@@ -1576,7 +1637,7 @@ export class ArenaSim {
     return !this.hasAura(u, CC_KINDS);
   }
   canMove(u: Unit): boolean {
-    return this.canAct(u) && !this.hasAura(u, ['root']);
+    return this.canAct(u) && !this.hasAura(u, ['root']) && !this.hovering(u);
   }
   speedMult(u: Unit): number {
     if (!this.canMove(u)) return 0;
@@ -1777,9 +1838,9 @@ export class ArenaSim {
       stealthed: this.isStealthed(u),
       ...(u.image ? { img: u.image.owner } : {}),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
-      y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100) : 0,
+      y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(this.airOf(u) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
-      controlled: !this.canAct(u) || !!u.charge || !!u.leap,
+      controlled: !this.canAct(u) || !!u.charge || !!u.leap || this.hovering(u),
       autoAttack: u.autoAttack,
       lastSeq: u.lastSeq,
     };
