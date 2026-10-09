@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.14",
+  "date": "2026-10-09",
+  "at": "2026-10-09T16:20:00Z",
+  "title": "Bigger text in HUD boxes",
+  "changes": [
+   "In Edit HUD, the combat log, kill feed and network stats now grow their text when you drag the box bigger, and the scroll wheel over them changes the text size."
+  ]
+ },
+ {
   "version": "0.69.13",
   "date": "2026-10-09",
   "at": "2026-10-09T15:01:20Z",

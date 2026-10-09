@@ -1,6 +1,6 @@
 {
   "name": "wow-arena",
-  "version": "0.69.13",
+  "version": "0.69.14",
   "private": true,
   "type": "module",
   "engines": { "node": ">=22 <25" },

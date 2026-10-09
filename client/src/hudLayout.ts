@@ -16,6 +16,8 @@ interface Slot {
   /** Width and height set by dragging the element's corner (before its scale), or none for its natural size. */
   w?: number;
   h?: number;
+  /** Text size multiplier for boxes of text (the combat log, kill feed, network stats). */
+  t?: number;
 }
 /** What is saved (and synced to other devices): the offset as a fraction of the screen, so a layout made on a big screen still fits a small one. */
 interface Saved {
@@ -24,7 +26,13 @@ interface Saved {
   s: number;
   w?: number;
   h?: number;
+  t?: number;
 }
+
+/** Boxes of text: their text grows with the box (dragging the corner) and with the scroll wheel. Value: the text size in px at 1x. */
+const TEXT_BOX: Record<string, number> = { log: 11, killfeed: 12, netstats: 11 };
+const TEXT_MIN = 0.6;
+const TEXT_MAX = 3;
 
 const TARGETS: [string, string][] = [
   ['self-frame', 'Your frame'],
@@ -96,7 +104,7 @@ export function parseLayout(rawIn: unknown, ids: string[], width: number, height
     const r = raw[id];
     if (!r || typeof r !== 'object' || !num(r.s)) continue;
     const sc = clamp(r.s, 0.6, 1.6);
-    const size = { ...(num(r.w) ? { w: clamp(r.w, 40, 2000) } : {}), ...(num(r.h) ? { h: clamp(r.h, 16, 1400) } : {}) };
+    const size = { ...(num(r.w) ? { w: clamp(r.w, 40, 2000) } : {}), ...(num(r.h) ? { h: clamp(r.h, 16, 1400) } : {}), ...(num(r.t) && id in TEXT_BOX ? { t: clamp(r.t, TEXT_MIN, TEXT_MAX) } : {}) };
     if (num(r.fx) && num(r.fy)) out[id] = { fx: clamp(r.fx, -1, 1), fy: clamp(r.fy, -1, 1), s: sc, ...size };
     else if (num(r.dx) && num(r.dy)) out[id] = { fx: r.dx / width, fy: r.dy / height, s: sc }; // an older pixel layout
   }
@@ -118,7 +126,7 @@ export class HudLayout {
   private bar: HTMLElement;
   private drag: { id: string; px: number; py: number; dx: number; dy: number } | null = null;
   /** Dragging an element's corner grip: its size when the drag began. */
-  private sizing: { id: string; px: number; py: number; w: number; h: number } | null = null;
+  private sizing: { id: string; px: number; py: number; w: number; h: number; w0: number } | null = null;
   private grips = new Map<string, HTMLElement>();
   private style = 'classic';
   private styleSel!: HTMLSelectElement;
@@ -299,7 +307,7 @@ export class HudLayout {
     };
     const panel = mk('div', 'he-panel');
     const head = mk('div', 'he-head');
-    head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Drag the corner to change width and height (double-click it for the natural size). Scroll to scale. Arrow keys nudge the last one you moved.'));
+    head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Drag the corner to change width and height (double-click it for the natural size). Scroll to scale (on a text box: scroll to resize the text, and it grows when you drag the corner). Arrow keys nudge the last one you moved.'));
     const done = mk('button', 'primary', 'Done (Esc)');
     done.title = 'Save and leave the editor (Esc)';
     done.addEventListener('click', () => this.stop());
@@ -429,6 +437,12 @@ export class HudLayout {
     e.style.width = s?.w ? `${s.w}px` : '';
     e.style.height = s?.h ? `${s.h}px` : '';
     e.classList.toggle('hud-sized', !!(s?.w || s?.h));
+    const base = TEXT_BOX[id];
+    if (base) {
+      const px = s?.t && s.t !== 1 ? `${Math.round(base * s.t * 10) / 10}px` : '';
+      if (id === 'netstats') e.style.setProperty('--net-size', px || '11px');
+      else e.style.fontSize = px;
+    }
   }
 
   /** The corner grip shown on an element while editing: drag it to change the element's width and height. */
@@ -445,13 +459,14 @@ export class HudLayout {
       const r = e.getBoundingClientRect();
       this.selected = id;
       this.paintSelection();
-      this.sizing = { id, px: ev.clientX, py: ev.clientY, w: r.width / s.s, h: r.height / s.s };
+      this.sizing = { id, px: ev.clientX, py: ev.clientY, w: r.width / s.s, h: r.height / s.s, w0: s.w ? s.w / (s.t || 1) : r.width / s.s };
     });
     g.addEventListener('dblclick', (ev) => {
       ev.stopPropagation();
       const s = this.slot(id);
       delete s.w;
       delete s.h;
+      delete s.t;
       this.apply(id);
       this.fit(id);
       this.save();
@@ -493,7 +508,7 @@ export class HudLayout {
   /** Pixel offsets for this window size from the saved fractions. */
   private fromSaved() {
     this.data = {};
-    for (const [id, f] of Object.entries(this.saved)) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s, ...(f.w ? { w: f.w } : {}), ...(f.h ? { h: f.h } : {}) };
+    for (const [id, f] of Object.entries(this.saved)) this.data[id] = { dx: f.fx * window.innerWidth, dy: f.fy * window.innerHeight, s: f.s, ...(f.w ? { w: f.w } : {}), ...(f.h ? { h: f.h } : {}), ...(f.t ? { t: f.t } : {}) };
     for (const [id] of TARGETS) this.apply(id);
   }
 
@@ -522,6 +537,7 @@ export class HudLayout {
       const g = this.grid.snap && !ev.altKey ? this.grid.size / 2 : 1;
       s.w = Math.round(clamp(z.w + (ev.clientX - z.px) / s.s, 40, window.innerWidth) / g) * g;
       s.h = Math.round(clamp(z.h + (ev.clientY - z.py) / s.s, 16, window.innerHeight) / g) * g;
+      if (z.id in TEXT_BOX) s.t = Math.round(clamp(s.w / z.w0, TEXT_MIN, TEXT_MAX) * 100) / 100; // the text grows with the box
       this.apply(z.id);
       return;
     }
@@ -539,13 +555,20 @@ export class HudLayout {
     if (!this.editing) return;
     ev.preventDefault();
     const s = this.slot(id);
+    if (id in TEXT_BOX) {
+      s.t = clamp(Math.round(((s.t ?? 1) - Math.sign(ev.deltaY) * 0.1) * 100) / 100, TEXT_MIN, TEXT_MAX); // text boxes: the wheel sizes the text
+      this.apply(id);
+      this.fit(id);
+      this.save();
+      return;
+    }
     s.s = clamp(Math.round((s.s - Math.sign(ev.deltaY) * 0.05) * 100) / 100, 0.6, 1.6);
     this.apply(id);
     this.fit(id);
   }
 
   private save() {
-    this.saved = Object.fromEntries(Object.entries(this.data).map(([id, d]) => [id, { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s, ...(d.w ? { w: Math.round(d.w) } : {}), ...(d.h ? { h: Math.round(d.h) } : {}) }]));
+    this.saved = Object.fromEntries(Object.entries(this.data).map(([id, d]) => [id, { fx: Math.round((d.dx / window.innerWidth) * 10000) / 10000, fy: Math.round((d.dy / window.innerHeight) * 10000) / 10000, s: d.s, ...(d.w ? { w: Math.round(d.w) } : {}), ...(d.h ? { h: Math.round(d.h) } : {}), ...(d.t ? { t: d.t } : {}) }]));
     try {
       localStorage.setItem(KEY, JSON.stringify(this.saved));
     } catch {
