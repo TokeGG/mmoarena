@@ -84,6 +84,8 @@ export class AdminPanel {
   private feedFilter: 'all' | 'people' | 'bots' | 'ranked' = 'all';
   /** What devs sent in from the debug window, newest first. */
   private proposals: ProposalRow[] | null = null;
+  /** The skill designer below the proposals is folded away until opened. */
+  private designOpen = false;
   private picked = new Set<string>();
   private propNote = '';
   private propMsg: { ok: boolean; text: string; url?: string } | null = null;
@@ -328,7 +330,11 @@ export class AdminPanel {
         body.append(this.moderation());
         break;
       case 'tuning':
-        body.append(el('h3', '', 'Skill designer'), this.designerBox(), el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
+        const design = el('details', 'admp-design');
+        design.open = this.designOpen;
+        design.addEventListener('toggle', () => (this.designOpen = design.open));
+        design.append(el('summary', 'devp-sec-head', 'Edit values: skill designer and Ask Claude'), this.designerBox());
+        body.append(el('h3', '', 'Proposed by devs (newest first)'), this.proposalBox(), design, el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
         if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
         break;
       case 'requests':
