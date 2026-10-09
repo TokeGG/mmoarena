@@ -92,6 +92,7 @@
 
   #log { position:fixed; left:12px; bottom:12px; width:360px; font-size:11px; color:var(--dim); pointer-events:none; text-shadow:0 0 3px #000; }
   #help { position:fixed; right:12px; bottom:12px; font-size:11px; color:var(--dim); text-align:right; pointer-events:none; max-width:calc(50vw - 312px); }
+  body.spectating:not(.hud-edit) #help { display:none; } /* the controls hint is for players */
 
   #menu { position:fixed; inset:0; z-index:50; background:radial-gradient(ellipse at center, rgba(8,6,4,.55), rgba(3,3,6,.88)); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; animation:menuFade .15s ease-out; }
   @keyframes menuFade { from { opacity:0; } }
@@ -735,7 +736,7 @@
   #recap tr.recap-ally td.recap-who { color:#7ee08f; } #recap tr.recap-foe td.recap-who { color:#ff7a6b; }
   #recap tr.recap-mvp { background:rgba(255,210,74,.14); }
   .recap-badge { margin-left:6px; padding:0 5px; border-radius:4px; background:#ffd24a; color:#1a1405; font-size:10px; font-weight:800; }
-  .follow-box { position:fixed; right:12px; bottom:40px; z-index:70; box-sizing:border-box; width:104px; display:flex; flex-direction:column; align-items:stretch; gap:3px; padding:6px 8px; background:rgba(20,18,25,.92); border:1px solid #7a4bb0; border-radius:10px; color:#e9e4f2; font-size:11px; box-shadow:0 4px 16px rgba(0,0,0,.6); }
+  .follow-box { position:fixed; right:12px; bottom:68px; z-index:70; box-sizing:border-box; width:104px; display:flex; flex-direction:column; align-items:stretch; gap:3px; padding:6px 8px; background:rgba(20,18,25,.92); border:1px solid #7a4bb0; border-radius:10px; color:#e9e4f2; font-size:11px; box-shadow:0 4px 16px rgba(0,0,0,.6); }
   .follow-box.hidden { display:none; }
   .follow-box .fb-lbl { font-size:10px; letter-spacing:.04em; text-transform:uppercase; color:#b9a4dc; white-space:nowrap; }
   .follow-box .fb-name { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -910,6 +911,10 @@
   body.hud-edit .fr-toasts, body.hud-edit .fr-invites { min-width:200px; min-height:44px; background:rgba(255,210,74,.1); }
   body.hud-edit .fr-toasts:empty::before { content:'Notices appear here'; color:var(--dim); font-size:12px; }
   body.hud-edit .fr-invites:empty::before { content:'Invites appear here'; color:var(--dim); font-size:12px; }
+  #hud-edit-bar .he-sel { gap:8px; min-height:30px; } #hud-edit-bar .he-sel b { color:#e9c872; } #hud-edit-bar button:disabled { opacity:.45; cursor:default; }
+  #hud-edit-bar .he-owner { display:grid; gap:6px; margin-top:6px; padding:8px 10px; border:1px solid #3d7a8a; border-radius:10px; background:rgba(110,231,255,.06); } #hud-edit-bar .he-owner.hidden { display:none; }
+  #hud-edit-bar .he-owner-h { font-weight:700; letter-spacing:1px; text-transform:uppercase; color:#8fe6ff; font-size:12px; } #hud-edit-bar .he-owner small { display:block; }
+  #hud-edit-bar button.he-mode.on { background:#2a6f82; border-color:#8fe6ff; color:#fff; }
   body.hud-edit-all [data-hud] { outline-color:rgba(110,231,255,.9) !important; }
   body.hud-edit-all [data-hud]::after { background:#6ee7ff; }
   body.hud-demo #hud { z-index:40; }
@@ -1184,7 +1189,7 @@ input, textarea, select, [contenteditable] { -webkit-user-select:text; user-sele
   .builds .bd-talent { padding:5px 9px; font-size:12px; }
   .builds .mm-small { min-width:40px; }
   /* a watcher has no use for the player's own frames and bars: the arena gets the room */
-  body.spectating #help { display:none; }
+  body.spectating:not(.hud-edit) #help { display:none; }
   /* a watcher on a small screen: a compact roster, no action bars or combat log, so the arena gets the room */
   body.spectating #actionbar, body.spectating #trinketbar, body.spectating #log, body.spectating #autoind, body.spectating #target-frame, body.spectating #damp { display:none !important; }
   body.spectating .frame { padding:3px 6px; width:150px !important; }
