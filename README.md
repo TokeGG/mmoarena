@@ -8,7 +8,7 @@ A 3D arena game in the style of WoW arena that runs in your browser: tab-target 
 
 **https://mmoarena.onrender.com**
 
-- Use Chrome, Edge or Firefox on a computer with a mouse and keyboard.
+- Use Chrome, Edge or Firefox on a computer with a mouse and keyboard to play. On a phone you can watch live matches and replays (see [Watching on a phone](#watching-and-replays)); playing needs a keyboard and mouse.
 - Pick a class, a spec and talents, then press **Practice** (bots) or **Ranked** (needs an account).
 - The first visit after a quiet spell can take up to a minute while the server wakes up. If the page is slow, wait and reload.
 - Guests can play everything except ranked, rating, match history, friends and the leaderboard. Sign up in the menu (name and password) to keep your rating, unlocks, settings and history.
@@ -35,8 +35,9 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 | Menu | Esc (clears your target first) |
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
+- **Free camera:** there is no free-fly camera any more; spectators follow players.
 - **Lobby:** drag on the empty middle of the menu to turn your character.
-- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor (move and resize every element, including the error text (out of range, no line of sight...) and the stun text, and restyle those two: size, colour, outline, background, how long they stay) and Leave match. Your cursor style (a steel gauntlet by default) is used everywhere, except that every player sees the same red sword over enemies, green cross over allies and crosshair while aiming a ground spell (red when it cannot be cast); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
+- **Esc menu:** Resume, Controls, auto-attack on or off, mouse sensitivity, brightness, the **Cursor** section (style, size, tint, click ripple and trail), volume, the HUD editor (move and resize every element, including the error text (out of range, no line of sight...) and the stun text, and restyle those two: size, colour, outline, background, how long they stay; the combat log, kill feed and network stats grow their text when you drag the box bigger, and the scroll wheel over them changes the text size) and Leave match. Your cursor style (a steel gauntlet by default) is used everywhere, except that every player sees the same red sword over enemies, green cross over allies and crosshair while aiming a ground spell (red when it cannot be cast); ten more styles open as you play matches, win and climb the ladder, and the same section is in Profile > Customize.
 - **Binding keys:** click a box and press a key, or hold Shift, Ctrl or Alt for a combo such as Shift+1. Every action has two slots, right-click clears a slot, and Esc is reserved.
 - Signed in, your keybinds, HUD, sound settings and builds follow your account to any device.
 
@@ -135,7 +136,7 @@ Bots use the same commands as a player, so they obey the global cooldown, range,
 
 - **Rating:** everyone starts at 1000 and one rating covers every team size. Elo K is 48 for your first 5 ranked games, 32 up to 20, then 24; teams are compared by their average rating. Tiers: Bronze, Silver (1100), Gold (1300), Platinum (1500), Diamond (1700), Gladiator (1900).
 - **Profile:** rating, tier, peak, wins and matches, unlocks and the Matches tab (history and replays). There is a leaderboard of every account.
-- **Looks:** headwear, wings, back, weapon glow, ground aura, armor dye and a companion. Looks never change how you fight. More of them unlock as you play (at 5, 15, 30, 60 and 100 matches); the Look menu shows what is still locked. Titles, emblems and name colours unlock with matches, wins or peak rating and show on your nameplate.
+- **Look:** one menu for everything that changes how you look, with tabs and a search box: **Character** (headwear, wings, back, weapon glow, ground aura, armor dye and a companion), **Name and title**, **Cursor**, **Nameplates and HUD** and **Effects**. The nameplate editor gives you, your allies and your enemies their own looks: drag to resize the name, health bar, resource bar and debuff row (they snap to each other) and anchor the plate at the head or the feet. Looks never change how you fight. More of them unlock as you play (at 5, 15, 30, 60 and 100 matches); the Look menu shows what is still locked. Titles, emblems and name colours unlock with matches, wins or peak rating and show on your nameplate.
 - **Settings follow the account:** HUD layout and style, keybinds, sensitivity, cursor, volume, class, builds and practice options apply on any device after you sign in. Guests keep settings in the browser only.
 - Passwords are never stored (only a salted hash), and a login lasts 30 days.
 
@@ -148,6 +149,7 @@ Bots use the same commands as a player, so they obey the global cooldown, range,
 ## Watching and replays
 
 - Every match with a player in it can be watched live (except solo dummy training), five seconds behind.
+- **On a phone:** drag to turn the camera, pinch to zoom, tap a player to follow them and double tap for the next one; big buttons switch player, show builds and scores, and leave. Replays have thumb-sized play/pause, speed and seek buttons. The **Light graphics** setting (Automatic, On, Off) lowers resolution and effects on small screens, and the game can be added to a phone's home screen. The Settings button on the main menu has a Done button to get back out.
 - Replays re-run the exact match in your browser, so you can pause, change speed, seek and follow any player. A replay link can be shared with anyone.
 - Replays only play on the game data they were recorded with; after a balance change an older replay says so instead of showing a wrong fight.
 

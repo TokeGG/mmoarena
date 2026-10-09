@@ -57,8 +57,8 @@ describe('what a dev has typed in the panel', () => {
     assert.deepEqual(rows.map((r) => [r.owner, r.pending]), [['Warden', true], ['Game options', false]]);
     assert.equal(rows[0].fromText, '1.5 (+50%)');
     assert.equal(rows[0].toText, '2 (+100%)');
-    assert.equal(rows[1].fromText, '1000 (1 s)');
-    assert.equal(rows[1].toText, '1500 (1.5 s)');
+    assert.equal(rows[1].fromText, '1 s');
+    assert.equal(rows[1].toText, '1.5 s');
     assert.match(rows[0].label, /shield strength/);
     e.undo(rows[0].key, testing);
     e.undo(rows[1].key, testing);
@@ -106,5 +106,13 @@ describe('which page owns a change', () => {
     assert.ok(pageOwns('options', { file: 'tuning', id: 'game', path: ['gcdMs'], value: 1200 }));
     assert.equal(navIdOf('passives', mod), 's:discipline');
     assert.equal(navIdOf('passives', { file: 'talents', id: 'x', path: ['mods', 'a'], value: 1 }), 't:x');
+  });
+});
+
+describe('times are shown in seconds', () => {
+  it('a millisecond value reads as seconds, with decimals', () => {
+    const p = { file: 'tuning', id: 'game', path: ['gcdMs'] } as const;
+    assert.equal(showValue(p, 1200), '1.2 s');
+    assert.equal(showValue(p, 9000), '9 s');
   });
 });

@@ -73,7 +73,7 @@ export class SkillEditor {
       row.classList.toggle('pending', this.set.pending(f));
       undo.hidden = !changed;
       was.textContent = changed ? `file: ${showValue(f, f.base)}` : '';
-      meaning.textContent = f.kind === 'number' ? valueHint(f.unit, Number(shown())) : '';
+      meaning.textContent = f.kind === 'number' ? (f.unit === 'ms' ? 'seconds' : valueHint(f.unit, Number(shown()))) : '';
     };
     let control: HTMLElement;
     let reread: () => void;
@@ -104,12 +104,17 @@ export class SkillEditor {
     } else {
       const input = el('input');
       input.type = 'number';
-      input.step = STEP[f.unit] ?? 'any';
-      reread = () => (input.value = String(Math.round(Number(shown()) * 10000) / 10000));
+      // times are typed in seconds (1.2 is 1.2 s) and stored in milliseconds
+      const secs = f.unit === 'ms';
+      input.step = secs ? '0.05' : STEP[f.unit] ?? 'any';
+      input.title = secs ? 'Seconds (decimals allowed: 1.2)' : '';
+      if (secs) input.classList.add('devp-secs');
+      reread = () => (input.value = String(Math.round(Number(shown()) * (secs ? 0.001 : 1) * 10000) / 10000));
       input.addEventListener('input', () => {
         if (input.value.trim() === '') return;
-        const v = Number(input.value);
-        if (!Number.isFinite(v) || Math.abs(v) > 1_000_000) return;
+        const typed = Number(input.value);
+        if (!Number.isFinite(typed) || Math.abs(typed) > 1_000_000) return;
+        const v = secs ? Math.round(typed * 1000) : typed;
         this.set.set(f, v, testing, this.canRevert);
         sync();
         this.onEdit();
