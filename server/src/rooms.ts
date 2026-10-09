@@ -1582,9 +1582,9 @@ export class Lobby {
         // the owner's choice: a dev's numbers go straight to the main branch (data files only, one commit per file)
         void (async () => {
           try {
-            const url = await dev.commitToBase(msg.patches, by, msg.note);
+            const r = await dev.commitToBase(msg.patches, by, msg.note);
             void this.adminLog?.add(by, 'committed numbers to GitHub', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
-            send(p, { t: 'dev_result', ok: true, text: `Committed ${msg.patches.length} change${msg.patches.length === 1 ? '' : 's'} to the main branch on GitHub. The game updates when the next deploy finishes.`, url });
+            send(p, { t: 'dev_result', ok: true, text: `Committed ${r.applied} number${r.applied === 1 ? '' : 's'} to the main branch on GitHub. The game updates when the next deploy finishes.${r.skipped.length ? ` Left out: ${r.skipped.join('; ')}.` : ''}`, url: r.url });
           } catch (e) {
             send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
           }

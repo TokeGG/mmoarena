@@ -88,10 +88,10 @@ export class DevTools {
       // straight onto the main branch (the owner's choice), credited to whoever pressed the button
       const notes = [...rows.filter((r) => r.note).map((r) => `${r.by}: ${r.note}`), ...(note ? [note] : [])].join('\n');
       try {
-        const url = await this.commitToBase(merged, by, notes || undefined);
-        for (const r of rows) { r.status = 'committed'; r.url = url; }
+        const r1 = await this.commitToBase(merged, by, notes || undefined);
+        for (const r of rows) { r.status = 'committed'; r.url = r1.url; }
         await this.persistProposals();
-        return { ok: true, text: `Committed ${rows.length} proposal${rows.length === 1 ? '' : 's'} (${merged.length} number${merged.length === 1 ? '' : 's'}) to the main branch on GitHub. The game updates when the next deploy finishes.`, url };
+        return { ok: true, text: `Committed ${r1.applied} number${r1.applied === 1 ? '' : 's'} from ${rows.length} proposal${rows.length === 1 ? '' : 's'} to the main branch on GitHub. The game updates when the next deploy finishes.${r1.skipped.length ? ` Left out: ${r1.skipped.join('; ')}.` : ''}`, url: r1.url };
       } catch (e) {
         return { ok: false, text: (e as Error).message };
       }
@@ -211,13 +211,17 @@ export class DevTools {
    * JSON data files' numbers can change this way (the patches are validated first), one commit per file. Resolves to the
    * URL of the last commit, or throws a message fit to show.
    */
-  async commitToBase(patches: DataPatch[], by: string, note?: string): Promise<string> {
+  async commitToBase(patches: DataPatch[], by: string, note?: string): Promise<{ url: string; applied: number; skipped: string[] }> {
     const token = this.env.GITHUB_TOKEN;
     if (!token) throw new Error('No GITHUB_TOKEN on the server: nothing was committed.');
-    if (!patches.length || !patches.every((p) => validPatch(p))) throw new Error('Those changes are not valid numbers.');
+    // judged against the repository's own files, not the running game: a number that no longer exists there is skipped and reported
+    const sane = (p: DataPatch) => !!p && typeof p.id === 'string' && Array.isArray(p.path) && p.path.length > 0 && p.path.every((k) => typeof k === 'string' || typeof k === 'number')
+      && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= 40) && ['abilities', 'auras', 'specs', 'talents', 'classes'].includes(p.file);
+    if (!patches.length || !patches.every(sane)) throw new Error('Those changes are not numbers the data files can take.');
     const { api, base } = this.github(token);
     let url = '';
-    let n = 0;
+    let applied = 0;
+    const skipped: string[] = [];
     try {
       for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
         const mine = patches.filter((p) => p.file === file);
@@ -226,16 +230,28 @@ export class DevTools {
         for (let attempt = 1; ; attempt++) {
           const got = (await api(`/contents/${FILES[file]}?ref=${base}`)) as { content: string; sha: string };
           const text = Buffer.from(got.content, 'base64').toString('utf8');
-          const next = patchJsonText(text, file, mine);
-          if (next === text) break;
-          const lines = mine.map((p) => `${label(p)}: ${fileValue(text, file, p) ?? '?'} -> ${p.value}`);
+          const todo: DataPatch[] = [];
+          const notes: string[] = [];
+          const skip: string[] = [];
+          for (const p of mine) {
+            const was = fileValue(text, file, p);
+            if (was === undefined) skip.push(`${label(p)} (no longer in the data files)`);
+            else if (String(was) === String(p.value)) skip.push(`${label(p)} (already ${p.value})`);
+            else {
+              todo.push(p);
+              notes.push(`${label(p)}: ${was} -> ${p.value}`);
+            }
+          }
+          if (!todo.length) { skipped.push(...skip); break; }
+          const next = patchJsonText(text, file, todo);
           try {
             const res = (await api(`/contents/${FILES[file]}`, {
               method: 'PUT',
-              body: JSON.stringify({ message: `Dev tuning by ${by}: ${lines.slice(0, 3).join('; ')}${lines.length > 3 ? ` and ${lines.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: got.sha, branch: base }),
+              body: JSON.stringify({ message: `Dev tuning by ${by}: ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: got.sha, branch: base }),
             })) as { commit?: { html_url?: string } };
             url = res.commit?.html_url ?? url;
-            n++;
+            applied += todo.length;
+            skipped.push(...skip);
             break;
           } catch (e) {
             if (attempt < 3 && /does not match|409|422/.test((e as Error).message)) continue;
@@ -246,8 +262,8 @@ export class DevTools {
     } catch (e) {
       throw new Error(friendlyGithubError((e as Error).message, base));
     }
-    if (!n) throw new Error('Nothing changed: those numbers are already what the files have.');
-    return url || `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commits/${base}`;
+    if (!applied) throw new Error(`Nothing was committed: ${skipped.length ? skipped.join('; ') : 'those numbers are already what the files have'}.`);
+    return { url: url || `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commits/${base}`, applied, skipped };
   }
 
   private lastRedeploy = 0;

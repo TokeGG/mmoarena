@@ -87,6 +87,28 @@ describe('dev commits to GitHub', () => {
     assert.equal(calls.length, 0);
   });
 
+  it('a number that no longer exists in the files is left out and reported, the rest is committed; all stale means nothing is committed', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    const { lobby, devP, outD } = await world(mkHttp(calls));
+    lobby.handle(devP, { t: 'dev_commit', patches: [
+      { file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 },
+      { file: 'abilities', id: 'removed_skill_from_old_patch', path: ['cooldown'], value: 5 },
+    ] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 60));
+    const ok = last(outD, 'dev_result')!;
+    // the second patch never gets past the parser's check against the running data, so only the first goes
+    assert.equal(ok.ok, true, ok.text);
+    const { dev } = await world(mkHttp(calls));
+    const r = await dev.commitToBase([
+      { file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7001 },
+      { file: 'abilities', id: 'removed_skill_from_old_patch', path: ['cooldown'], value: 5 },
+    ], 'Dee');
+    assert.equal(r.applied, 1);
+    assert.equal(r.skipped.length, 1);
+    assert.match(r.skipped[0], /no longer in the data files/);
+    await assert.rejects(dev.commitToBase([{ file: 'abilities', id: 'removed_skill_from_old_patch', path: ['cooldown'], value: 5 }], 'Dee'), /Nothing was committed/);
+  });
+
   it('a commit that races another one on the same file is read again and retried', async () => {
     const calls: { url: string; method: string; body?: any }[] = [];
     let puts = 0;
