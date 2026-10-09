@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.5",
+  "date": "2026-10-09",
+  "at": "2026-10-09T00:30:00Z",
+  "title": "Rogue changes: Protective Vanish, longer Sap, Gouge stops auto attack",
+  "changes": [
+   "Smoke Veil is replaced by Protective Vanish: Vanish also makes you immune to damage and crowd control for 2 seconds, ending early if you leave stealth. Vanish no longer drops smoke.",
+   "Sap now reaches 7 yards, no longer takes you out of stealth, and ends on any damage.",
+   "Gouge now turns off your auto attack when it lands on an enemy.",
+   "Smoke clouds are much lighter to draw, which fixes the lag and crashes they caused."
+  ]
+ },
+ {
   "version": "0.69.4",
   "date": "2026-10-08",
   "at": "2026-10-08T21:21:47Z",
@@ -8,7 +20,8 @@
    "Fixed visual glitches on the Sandstone Yard in the lobby.",
    "The scoreboard at the end of a match is gone: the match recap is the end screen now.",
    "Flamestrike, Scorch and burning now use the same blazing flames as Fireball and Pyroblast.",
-   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while rotating between different heals keeps each at full strength; a short pause starts fresh.",
+   "Bots learn from many more kinds of mistakes (using trinkets, cooldowns, healing and defensive timing, target switching, movement and more), so they play smarter and keep improving.",
+   "Healing changes: dampening (heals getting weaker the longer a fight goes) is gone. Instead, pressing the same heal again and again now makes it weaker each time (15% less per repeat, down to 40% of full), while casting anything else in between (another heal or any other skill) keeps it at full strength; a short pause starts fresh.",
    "Lava Forge's lava basins are now real lava: you can jump into one without being pushed out, but standing in it burns you (5% of your health every half second) and the rim holds you in, so you have to jump out.",
    "Line of sight is more accurate: a unit whose edge shows past a pillar or wall corner can now be seen and targeted, as the picture shows, instead of reporting 'no line of sight'.",
    "Pillars and cover now look exactly like what blocks you and your line of sight, so 'no line of sight' no longer shows up when you can plainly see your target (most of all on Cinder Crater, Lava Forge and Sandstone Yard).",
@@ -19,9 +32,11 @@
    "The Rampager's greatsword now rests on his shoulder edge-on (the cutting edge toward you) instead of lying flat.",
    "Bots were retrained for the new rules: healer bots now rotate their heals, use Pain Suppression more readily (even on themselves when dying), and warrior bots add Dragon Roar to their attacks.",
    "Movement and combat feel smoother and more accurate online: other players are drawn closer to where they really are, your own character responds faster, and a lag spike no longer leaves your movement stuck behind for the rest of the fight.",
-   "You can now fly a free camera when you are dead or spectating (G, rebindable), and toggle back to following players.",
    "New optional Network stats readout in the Esc menu settings: your ping, jitter and connection quality in the corner of the screen.",
    "The error text (out of range, no line of sight...) is now bigger and easier to read, and both it and the stun/control text can be moved, resized and restyled in the HUD editor (colour, size, outline, background, how long it stays).",
+   "The Barbarian's polearm arm no longer looks stretched and torn around the shoulder: he holds it across the body with both hands in a natural pose.",
+   "Esc now always leaves the HUD editor, even right after picking something from a drop-down, and the Done button shows its key.",
+   "The network stats readout moved to the bottom right and can be moved, resized and restyled in the HUD editor, like the sound button, so nothing covers it any more.",
    "The game server now supports a much higher update rate (62.5 instead of 20 updates a second) for tighter, more accurate fights, and other players are drawn closer to where they really are, so two screens agree on where each of you stands."
   ]
  },

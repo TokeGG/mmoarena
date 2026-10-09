@@ -2615,7 +2615,7 @@ export class Effects {
 
   /** Ground zones (Flamestrike etc.): warning ring that fills until the first beat, then a pulsing fire disc. */
   private smokeMeshes = new Map<number, { group: THREE.Group; disc: THREE.Mesh; blobs: { mesh: THREE.Mesh; x: number; z: number; r: number; ph: number }[] }>();
-  private smokeGeo = new THREE.SphereGeometry(1, 12, 10);
+  private smokeGeo = new THREE.SphereGeometry(1, 8, 6);
 
   /** A smoke cloud: pops up from the caster's feet, billows for its duration and thins out at the end. */
   private setSmoke(z: ZoneSnap, now: number, seenSmoke: Set<number>) {
@@ -2630,7 +2630,7 @@ export class Effects {
       disc.position.y = 0.05;
       group.add(disc);
       const blobs: { mesh: THREE.Mesh; x: number; z: number; r: number; ph: number }[] = [];
-      for (let i = 0; i < 16; i++) {
+      for (let i = 0; i < 7; i++) {
         const a = Math.random() * Math.PI * 2;
         const d = Math.sqrt(Math.random()) * z.r * 0.85;
         const mesh = new THREE.Mesh(this.smokeGeo, mat());

@@ -389,6 +389,7 @@ export class ArenaSim {
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks: this.abilityMod(u, def).ticks ?? def.channel.ticks, done: 0 };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
+      this.breakHealChain(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       if (def.channel.immediate) this.tickChannel(u); // the first strike (and its stun) lands the moment the channel starts, not a tick later
       return ok;
@@ -406,6 +407,7 @@ export class ArenaSim {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z, ...(ground.lv === 1 ? { gl: 1 as const } : {}) } : {}) };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      this.breakHealChain(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
@@ -844,6 +846,7 @@ export class ArenaSim {
     } else u.resource -= this.costOf(u, def);
     this.startCooldown(u, def);
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
+    this.breakHealChain(u, def.id);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
 
     const abMod = this.modsOf(u).ability[def.id];
@@ -883,7 +886,7 @@ export class ArenaSim {
     this.stackMult = 1;
     this.ground = null;
 
-    if (isMelee(def) && autoFor(u.classId, u.spec) && !u.autoDisabled) {
+    if (isMelee(def) && !def.stopsAuto && autoFor(u.classId, u.spec) && !u.autoDisabled) {
       if (!u.autoAttack) u.autoSince = this.time;
       u.autoAttack = true;
     }
@@ -975,7 +978,10 @@ export class ArenaSim {
       case 'aura':
         if (eff.fullCast && this.procCast) break; // an instant proc cast does not earn the next proc
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
-        this.applyAura(u, eff.self ? u : t, this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+        {
+          const r = this.applyAura(u, eff.self ? u : t, this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+          if (def.stopsAuto && r.applied && t.team !== u.team) u.autoAttack = false;
+        }
         break;
       case 'exsanguinate': {
         let bleed = 0;
@@ -1226,9 +1232,14 @@ export class ArenaSim {
 
   /**
    * Heal spam: pressing the same heal again and again weakens it (each repeat in a row is `healSpamStep` weaker, down to
-   * `healSpamFloor`), while rotating between different heals keeps each at full strength. A pause longer than
+   * `healSpamFloor`), while casting anything else in between (another heal or any other skill) keeps each heal at full strength. A pause longer than
    * `healSpamWindowMs` starts fresh. One cast (several targets, an echo) counts once.
    */
+  /** Any cast other than the heal being chained starts the heal-spam count again. */
+  private breakHealChain(u: Unit, abilityId: string): void {
+    if (u.lastHeal && u.lastHeal.ability !== abilityId) u.lastHeal = undefined;
+  }
+
   private healSpam(u: Unit, def: { id: string }): number {
     const st = u.lastHeal;
     if (st && st.ability === def.id && st.at === this.time) return st.mult;
@@ -1416,6 +1427,8 @@ export class ArenaSim {
       if (st) st.resetAt = this.time + TUNING.drResetMs; // DR window starts when the CC ends
     }
     this.emit({ t: 'aura_removed', tgt: u.id, aura: a.id, reason });
+    // Protective Vanish lasts only while you stay hidden
+    if (a.kind === 'stealth') for (const x of u.auras) if (x.id === 'protective_vanish') this.removeAura(u, x, 'left stealth');
   }
 
   /** Allies lose a harmful magic aura; enemies lose a beneficial magic aura. Crowd control goes first. */
