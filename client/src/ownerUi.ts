@@ -18,6 +18,8 @@ interface Hooks {
   /** Watch a match / follow a player (from the admin panel). */
   watch?(id: string): void;
   follow?(name: string): void;
+  /** True for a dev who is not the owner: matches they may watch only, no pause or end, numbers read-only. (The server refuses it all again.) */
+  limited?(): boolean;
 }
 
 const MAX_GIF = 256 * 1024;
@@ -171,17 +173,25 @@ export class OwnerPanel {
         el('span', '', `${sides[0]}  vs  ${sides[1]}`),
         el('small', '', [r.watchers ? `${r.watchers} watching` : '', r.devTest ? 'dev test numbers' : '', r.paused ? 'paused' : ''].filter(Boolean).join(' · ')),
       );
-      const watch = el('button', 'mm-small', 'Watch');
-      watch.addEventListener('click', () => (this.hooks.watch ? this.hooks.watch(r.id) : this.hooks.send({ t: 'spectate', id: r.id })));
-      const pause = el('button', 'mm-small', r.paused ? 'Resume' : 'Pause');
-      pause.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'pause_match', id: r.id, on: !r.paused }));
-      const end = el('button', 'mm-small', 'End');
-      end.addEventListener('click', () => window.confirm('End this match for everyone in it?') && this.hooks.send({ t: 'admin_end', id: r.id }));
-      row.append(info, watch, pause, end);
+      const limited = !!this.hooks.limited?.();
+      row.append(info);
+      // a dev watches the listed matches only (the same delayed view as everyone); pausing and ending are the owner's
+      if (!limited || r.watchable) {
+        const watch = el('button', 'mm-small', 'Watch');
+        watch.addEventListener('click', () => (this.hooks.watch ? this.hooks.watch(r.id) : this.hooks.send({ t: 'spectate', id: r.id })));
+        row.append(watch);
+      } else info.append(el('small', 'devp-dim', 'not open for watching'));
+      if (!limited) {
+        const pause = el('button', 'mm-small', r.paused ? 'Resume' : 'Pause');
+        pause.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'pause_match', id: r.id, on: !r.paused }));
+        const end = el('button', 'mm-small', 'End');
+        end.addEventListener('click', () => window.confirm('End this match for everyone in it?') && this.hooks.send({ t: 'admin_end', id: r.id }));
+        row.append(pause, end);
+      }
       wrap.append(row);
       // follow any person in it: you are taken into every match they play
       const humans = r.players.filter((x) => x.human);
-      if (humans.length && this.hooks.follow) {
+      if (humans.length && this.hooks.follow && (!limited || r.watchable)) {
         const fr = el('div', 'own-row own-follow');
         fr.append(el('small', 'devp-dim', 'Follow:'));
         for (const x of humans) {
@@ -230,6 +240,10 @@ export class OwnerPanel {
     for (const p of this.overrides) {
       const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : AURAS[p.id]?.name;
       list.append(el('li', '', `${name ?? p.id} · ${p.path.join('.')} = ${p.value}`));
+    }
+    if (this.hooks.limited?.()) {
+      wrap.append(list, el('small', 'devp-dim', 'Only the owner can clear these or open a pull request.'));
+      return wrap;
     }
     const clear = el('button', 'mm-small', 'Clear all (back to the data files)');
     clear.addEventListener('click', () => window.confirm('Put every saved number back to the data files, for everyone?') && this.hooks.send({ t: 'overrides_clear' }));

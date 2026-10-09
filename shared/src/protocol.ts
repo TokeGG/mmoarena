@@ -11,13 +11,14 @@ export const PROTOCOL_VERSION = 10;
 
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
-/** What the owner can do from the admin panel. */
+/** What the owner can do from the admin panel (a dev gets only the read and training ones: see DEV_ADMIN_ACTS in the server). */
 export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset';
 const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset'];
 /** A running match in the owner's admin panel. */
 /** One connection on the owner's "Online now" list (guests included). */
-export interface AdminOnline { name: string; guest: boolean; ip: string; where: string; status: string; sinceMs: number }
-export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean }
+/** `ip` and `where` are only sent to the owner: a dev sees names, status and time. */
+export interface AdminOnline { name: string; guest: boolean; ip?: string; where?: string; status: string; sinceMs: number }
+export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean; /** Listed for watching (a dev can only watch these; the owner can watch any). */ watchable: boolean }
 /** One replay the bots are training on (or just trained on), for the admin panel's progress bars. */
 export interface TrainJobRow {
   id: string;

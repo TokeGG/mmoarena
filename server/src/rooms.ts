@@ -13,7 +13,7 @@ import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
 import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import { whereIs } from './geoip';
-import type { AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
+import type { AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
@@ -346,7 +346,7 @@ export class Room {
     return {
       id: this.id, map: this.arenaId, size: this.size, kind, elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
       players: [...this.sim.units.values()].map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player' })),
-      watchers: this.spectators.size, devTest: this.devTest, paused: this.paused,
+      watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable,
     };
   }
 
@@ -765,6 +765,11 @@ export interface LobbyConfig {
   tickMs?: number;
 }
 
+/** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
+const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
+/** How a refused action is named in the message a dev gets. */
+const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain' };
+
 export class Lobby {
   private rooms = new Set<Room>();
   private queue: QEntry<Player>[] = [];
@@ -801,18 +806,19 @@ export class Lobby {
   }
 
   /** Everyone connected, guests included, for the owner: name, address, country and what they are doing. */
-  private onlineList(): AdminOnline[] {
+  private onlineList(withAddress: boolean): AdminOnline[] {
     const now = Date.now();
     return [...this.conns].map((q) => ({
-      name: q.account?.name ?? q.name, guest: !q.account, ip: q.ip, where: whereIs(q.ip, q.country),
+      name: q.account?.name ?? q.name, guest: !q.account, ...(withAddress ? { ip: q.ip, where: whereIs(q.ip, q.country) } : {}),
       status: q.room && !q.room.closed ? `in a ${q.room.adminRow().kind} match` : this.inQueue(q) ? 'in the queue' : 'in the menu',
       sinceMs: now - (q.since ?? now),
     })).sort((a, b) => a.sinceMs - b.sinceMs);
   }
 
-  private overviewMsg(): ServerMsg {
+  /** `access` decides how much: a dev gets no addresses or locations, and nothing about what only the owner may change. */
+  private overviewMsg(access: 'owner' | 'dev' = 'owner'): ServerMsg {
     return {
-      t: 'admin_overview', online: this.conns.size, players: this.onlineList(), queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
+      t: 'admin_overview', online: this.conns.size, players: this.onlineList(access === 'owner'), queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
       uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
       tick: this.tickReport(), pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, autoTrain: this.autoTrain, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
     };
@@ -829,6 +835,12 @@ export class Lobby {
     const by = p.account?.name ?? p.name;
     const log = (action: string, target?: string, detail?: string) => void this.adminLog?.add(by, action, target, detail);
     const key = msg.name?.toLowerCase() ?? '';
+    // the server decides what a dev may do, whatever the client shows
+    const access = this.adminAccess(p);
+    if (!access) return;
+    if (access === 'dev' && !DEV_ADMIN_ACTS.has(msg.act)) {
+      return void send(p, { t: 'dev_result', ok: false, text: `${DEV_REFUSED[msg.act] ?? 'That'} is for the owner only. The dev tag opens the panel's read and training tools.` });
+    }
     switch (msg.act) {
       case 'kick': {
         const conns = this.connsOf(key);
@@ -941,7 +953,7 @@ export class Lobby {
         log('reset the learned bot brain');
         await this.adminLog?.add(by, 'reset learned bot brain', 'all classes');
         send(p, { t: 'dev_result', ok: true, text: 'Every class is back on the brain it ships with. What the bots learned (lessons, habits, counters and the log) is cleared.' });
-        for (const q of this.conns) if (q.ownerOk) send(q, this.botKnowledgeMsg());
+        for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
         break;
       }
       case 'train_status':
@@ -990,7 +1002,7 @@ export class Lobby {
       job.finishedAt = Date.now();
       this.trainRuns.delete(id);
       this.pushTrain();
-      for (const q of this.conns) if (q.ownerOk) send(q, this.botKnowledgeMsg());
+      for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
       return { ok: job.state === 'done', text: job.text ?? '' };
     })();
     this.trainRuns.set(id, run);
@@ -1004,7 +1016,7 @@ export class Lobby {
 
   private pushTrain(): void {
     const msg = this.trainStatusMsg();
-    for (const q of this.conns) if (q.ownerOk) send(q, msg);
+    for (const q of this.panelViewers()) send(q, msg);
     // while something trains, the time left is refreshed every second
     if (msg.active && !this.trainTimer) {
       this.trainTimer = setInterval(() => this.pushTrain(), 1000);
@@ -1068,7 +1080,7 @@ export class Lobby {
       void this.adminLog?.add(by, 'train bots on replay', id, r.ok ? r.report.headline.slice(0, 200) : r.reason);
       if (r.ok) {
         job.report = r.report;
-        for (const q of this.conns) if (q.ownerOk) send(q, this.botKnowledgeMsg());
+        for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
       }
       // the learner has already put the new brains into the population, so the next bots spawned can draw them
       return finish(r.ok ? { ok: true, text: r.report.headline } : { ok: false, text: r.reason });
@@ -1102,6 +1114,29 @@ export class Lobby {
   /** The owner (with the code entered this session) or an account the owner gave the 'dev' tag. */
   private isDev(p: Player): boolean {
     return !!p.ownerOk || !!p.account?.grants?.includes('dev');
+  }
+
+  /**
+   * Who may use the admin panel: the owner (code entered this session) has all of it; an account with the 'dev' tag has the
+   * read and operational part (see DEV_ADMIN_ACTS); everyone else, guests included, nothing. Checked on every message, from
+   * the live account record, so taking the tag away takes effect at once.
+   */
+  adminAccess(p: Player): 'owner' | 'dev' | null {
+    if (p.ownerOk) return 'owner';
+    return p.account?.grants?.includes('dev') ? 'dev' : null;
+  }
+
+  /** Refuse a dev (clearly) an owner-only part of the panel. Returns true when `p` is not the owner so the caller stops. */
+  private ownerOnly(p: Player, what: string): boolean {
+    const access = this.adminAccess(p);
+    if (access === 'owner') return false;
+    if (access === 'dev') send(p, { t: 'dev_result', ok: false, text: `${what} is for the owner only. The dev tag opens the panel's read and training tools.` });
+    return true;
+  }
+
+  /** Every admin-panel viewer (owner and devs) for broadcasts of what the panel shows. */
+  private panelViewers(): Player[] {
+    return [...this.conns].filter((q) => this.adminAccess(q) !== null);
   }
 
   /**
@@ -1290,12 +1325,12 @@ export class Lobby {
           send(p, { t: 'history', rows: await acc.history(p.account.key) });
           break;
         case 'admin_list': {
-          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: 'Owner tools are locked.' });
+          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: this.adminAccess(p) ? 'The player list and moderation are for the owner only.' : 'Owner tools are locked.' });
           send(p, { t: 'admin_accounts', rows: await acc.adminList(this.onlineKeys()) });
           break;
         }
         case 'admin_set': {
-          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: 'Owner tools are locked.' });
+          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: this.adminAccess(p) ? 'Account changes (tags, passwords) are for the owner only.' : 'Owner tools are locked.' });
           const r = await acc.adminSet(msg.name, msg);
           if (!r.ok) return void send(p, { t: 'admin_result', ok: false, name: msg.name, reason: r.reason });
           // a friend who is online gets the change immediately (and a reset password signs them out)
@@ -1511,7 +1546,7 @@ export class Lobby {
           try {
             await dev.propose(by, msg.patches, msg.note);
             void this.adminLog?.add(by, 'proposed numbers', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
-            for (const q of this.conns) if (q.ownerOk) send(q, { t: 'proposals', rows: dev.proposals });
+            for (const q of this.panelViewers()) send(q, { t: 'proposals', rows: dev.proposals });
             send(p, { t: 'dev_result', ok: true, text: `Sent ${msg.patches.length} change${msg.patches.length === 1 ? '' : 's'} to the owner's admin panel. Nothing is live until the owner applies it.` });
           } catch {
             send(p, { t: 'dev_result', ok: false, text: 'Could not send the changes.' });
@@ -1520,9 +1555,12 @@ export class Lobby {
         break;
       }
       case 'admin_proposals': {
-        if (!p.ownerOk || !this.dev) return;
+        const access = this.adminAccess(p);
+        if (!access || !this.dev) return;
         const dev = this.dev;
         if (msg.op === 'list') return void send(p, { t: 'proposals', rows: dev.proposals });
+        // devs send proposals (from the dev panel) and read them here; applying or dismissing is the owner's call
+        if (this.ownerOnly(p, msg.op === 'live' ? 'Making proposals live' : msg.op === 'pr' ? 'Opening a pull request' : 'Dismissing proposals')) return;
         const by = p.account?.name ?? p.name;
         void dev.actOn(msg.op, msg.ids, by, msg.note).then(async (r) => {
           if (r.ok) {
@@ -1530,7 +1568,7 @@ export class Lobby {
             if (msg.op === 'live') for (const q of this.conns) send(q, { t: 'overrides', patches: dev.overrides });
           }
           send(p, { t: 'dev_result', ok: r.ok, text: r.text, ...(r.url ? { url: r.url } : {}) });
-          for (const q of this.conns) if (q.ownerOk) send(q, { t: 'proposals', rows: dev.proposals });
+          for (const q of this.panelViewers()) send(q, { t: 'proposals', rows: dev.proposals });
         });
         break;
       }
@@ -1562,24 +1600,25 @@ export class Lobby {
         break;
       }
       case 'admin_overview': {
-        if (!p.ownerOk) return;
-        send(p, this.overviewMsg());
+        const access = this.adminAccess(p);
+        if (!access) return;
+        send(p, this.overviewMsg(access));
         break;
       }
       case 'admin_act': {
-        if (!p.ownerOk) return;
+        if (!this.adminAccess(p)) return;
         void this.adminAct(p, msg).catch(() => send(p, { t: 'dev_result', ok: false, text: 'That did not work. Try again.' }));
         break;
       }
       case 'admin_announce': {
-        if (!p.ownerOk) return;
+        if (this.ownerOnly(p, 'Announcements')) return;
         this.lastAnnounce = { t: 'announce', text: msg.text, by: p.account?.name ?? p.name, at: Date.now() };
         for (const q of this.conns) send(q, this.lastAnnounce);
         void this.adminLog?.add(p.account?.name ?? p.name, 'announce', undefined, msg.text);
         break;
       }
       case 'admin_end': {
-        if (!p.ownerOk) return;
+        if (this.ownerOnly(p, 'Ending a match')) return;
         const room = [...this.rooms].find((r) => r.id === msg.id);
         if (room) {
           room.close('The owner ended this match.');
@@ -1589,7 +1628,7 @@ export class Lobby {
         break;
       }
       case 'overrides_pr': {
-        if (!p.ownerOk || !this.dev) return;
+        if (this.ownerOnly(p, 'Opening a pull request') || !this.dev) return;
         const dev = this.dev;
         const by = p.account?.name ?? p.name;
         if (!dev.overrides.length) return void send(p, { t: 'dev_result', ok: false, text: 'There are no live number changes to propose.' });
@@ -1603,7 +1642,7 @@ export class Lobby {
         break;
       }
       case 'overrides_clear': {
-        if (!p.ownerOk || !this.dev) return;
+        if (this.ownerOnly(p, 'Clearing the live numbers') || !this.dev) return;
         void this.adminLog?.add(p.account?.name ?? p.name, 'clear number overrides');
         void this.dev.clear().then(() => {
           for (const q of this.conns) send(q, { t: 'overrides', patches: [] });
@@ -1612,7 +1651,7 @@ export class Lobby {
         break;
       }
       case 'follow': {
-        if (!p.ownerOk) return void send(p, { t: 'notice', text: 'Only the owner can follow players.' });
+        if (!this.adminAccess(p)) return void send(p, { t: 'notice', text: 'Only the owner can follow players.' });
         if (msg.name === null) {
           p.follow = undefined;
           return void send(p, { t: 'following', name: null });
@@ -1688,7 +1727,7 @@ export class Lobby {
         break;
       }
       case 'suggestions':
-        if (!p.ownerOk || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can read the box.' });
+        if (!this.adminAccess(p) || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can read the box.' });
         void this.suggestions.list().then((rows) => send(p, { t: 'suggestions', rows }));
         break;
       case 'suggest_delete':
@@ -1752,7 +1791,8 @@ export class Lobby {
     const key = q.account?.key;
     if (!room || !key) return;
     for (const f of this.conns) {
-      if (f.follow !== key || !f.ownerOk || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
+      // a dev follows into matches a dev may watch (listed ones, on the delayed view), never into private practice
+      if (f.follow !== key || !(f.ownerOk || (this.adminAccess(f) && room.watchable)) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
       f.watching?.removeSpectator(f);
       room.addSpectator(f);
       send(f, { t: 'notice', text: `Following ${q.account!.name} into their match.` });

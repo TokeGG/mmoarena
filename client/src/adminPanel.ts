@@ -6,6 +6,13 @@ import { mapName } from './spectate';
 import { makeResizable } from './resizable';
 import type { Popup } from './popups';
 
+/** The panel's access for an account (the server decides for real; this only shapes what is shown). */
+export function adminAccessOf(a: AccountInfo | null): 'owner' | 'dev' | null {
+  if (!a) return null;
+  if (a.ownerOk) return 'owner';
+  return a.grants.includes('dev') ? 'dev' : null;
+}
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -24,6 +31,9 @@ const TABS: [Tab, string][] = [
   ['server', 'Server'],
   ['log', 'Log'],
 ];
+
+/** The tabs a dev can use (the rest is account moderation, announcements and maintenance). */
+const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'tuning', 'log'];
 
 interface Hooks {
   send(m: ClientMsg): void;
@@ -121,10 +131,15 @@ export class AdminPanel {
 
   constructor(private hooks: Hooks) {
     makeResizable(this.card, { key: 'admin', corner: 'br', minW: 480, minH: 320, z: 61 });
-    this.op = new OwnerPanel({ send: hooks.send, token: hooks.token, rerender: () => {
+    this.op = new OwnerPanel({ limited: () => this.access() === 'dev', send: hooks.send, token: hooks.token, rerender: () => {
         this.paint();
         this.paintBotBattle(); // the bot battle window from the main menu redraws too (more bots when the size changes)
       }, watch: (id) => { this.close(); hooks.watch(id); }, follow: (n) => hooks.follow(n) });
+  }
+
+  /** What the signed-in account may do here: the owner (code entered) everything, the dev tag the read and training part. The server checks again. */
+  private access(): 'owner' | 'dev' | null {
+    return adminAccessOf(this.hooks.account());
   }
 
   get isOpen(): boolean {
@@ -138,7 +153,7 @@ export class AdminPanel {
     if (tab) this.tab = tab;
     window.clearInterval(this.timer);
     this.timer = window.setInterval(() => {
-      if (!this.root || !this.hooks.account()?.ownerOk) return;
+      if (!this.root || !this.access()) return;
       if (this.tab === 'matches' || this.tab === 'dashboard') this.hooks.send({ t: 'admin_overview' });
       else if (this.tab === 'replays') this.hooks.send({ t: 'admin_act', act: 'feed' });
     }, 3000);
@@ -159,10 +174,12 @@ export class AdminPanel {
 
   /** Ask the server for what the current tab shows. */
   private refresh() {
-    if (!this.hooks.account()?.ownerOk) return;
+    const access = this.access();
+    if (!access) return;
+    if (access === 'dev' && !DEV_TABS.includes(this.tab)) this.tab = 'dashboard';
     const s = this.hooks.send;
     s({ t: 'admin_overview' });
-    if (this.tab === 'players') s({ t: 'admin_list' });
+    if (this.tab === 'players' && access === 'owner') s({ t: 'admin_list' });
     if (this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
@@ -231,12 +248,13 @@ export class AdminPanel {
     head.append(refresh, close);
     card.append(head);
 
-    if (!a || a.role !== 'owner') {
-      card.append(el('p', 'mm-modal-foot', 'Only the founder account can use the admin panel.'));
+    const access = this.access();
+    if (!a || (!access && a.role !== 'owner')) {
+      card.append(el('p', 'mm-modal-foot', 'Only the founder account and accounts with the dev tag can use the admin panel.'));
       r.replaceChildren(card);
       return;
     }
-    if (!a.ownerOk) {
+    if (!access) {
       // the unlock form of the Owner tab
       card.append(this.op.render(a));
       r.replaceChildren(card);
@@ -245,6 +263,7 @@ export class AdminPanel {
 
     const tabs = el('div', 'admp-tabs');
     for (const [id, label] of TABS) {
+      if (access === 'dev' && !DEV_TABS.includes(id)) continue;
       const waiting = id === 'tuning' ? pendingProposals(this.proposals) : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.addEventListener('click', () => {
@@ -263,7 +282,7 @@ export class AdminPanel {
         body.append(el('p', 'mm-modal-foot', 'Click a player for moderation (kick, ban, mute), rating and stats, unlocks and the dev tag, a private note and their recent matches.'), this.op.adminList());
         break;
       case 'matches':
-        body.append(el('p', 'mm-modal-foot', 'Every match running now, bot matches included. Watch one, pause it to change numbers (F2 while watching), or end it.'), this.op.serverBox());
+        body.append(el('p', 'mm-modal-foot', access === 'dev' ? 'Every match running now. You can watch the ones open for watching (the same slightly delayed view as everyone). Pausing and ending matches is the owner\u2019s.' : 'Every match running now, bot matches included. Watch one, pause it to change numbers (F2 while watching), or end it.'), this.op.serverBox());
         break;
       case 'replays':
         body.append(this.replays());
@@ -272,7 +291,8 @@ export class AdminPanel {
         body.append(this.moderation());
         break;
       case 'tuning':
-        body.append(el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox(), el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
+        body.append(el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
+        if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
         break;
       case 'server':
         body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance());
@@ -346,6 +366,12 @@ export class AdminPanel {
     const ul = el('ul', 'admp-log');
     for (const q of list) {
       const li = el('li');
+      if (q.ip === undefined) {
+        // a dev: name, status and time only, never an address or a location
+        li.append(el('b', '', `${q.name}${q.guest ? ' (guest)' : ''}`), el('span', '', ` · ${q.status} · ${dur(q.sinceMs)}`));
+        ul.append(li);
+        continue;
+      }
       const ip = el('a', '', q.ip || '?') as HTMLAnchorElement;
       if (q.ip && q.where !== 'local network') {
         ip.href = `https://ipwho.is/${encodeURIComponent(q.ip)}`;
@@ -374,13 +400,16 @@ export class AdminPanel {
       const info = el('div', 'own-room-info');
       info.append(el('b', '', `${s.name} · ${new Date(s.at).toLocaleString()}`), el('span', 'admp-wrap', s.text));
       if (s.note) info.append(el('small', '', `+ attached note (${s.note.length} characters)`));
-      const del = el('button', 'mm-small', 'Delete');
-      del.addEventListener('click', () => {
-        this.hooks.send({ t: 'suggest_delete', at: s.at, text: s.text });
-        this.suggestions = this.suggestions!.filter((x) => x !== s);
-        this.paint();
-      });
-      row.append(info, del);
+      row.append(info);
+      if (this.access() === 'owner') {
+        const del = el('button', 'mm-small', 'Delete');
+        del.addEventListener('click', () => {
+          this.hooks.send({ t: 'suggest_delete', at: s.at, text: s.text });
+          this.suggestions = this.suggestions!.filter((x) => x !== s);
+          this.paint();
+        });
+        row.append(del);
+      }
       box.append(row);
     }
     return box;
@@ -409,7 +438,7 @@ export class AdminPanel {
       }
       box.append(m);
     }
-    if (!rows.length) box.append(el('p', 'mm-modal-foot', 'Nothing waiting. Devs send their number changes here from the debug window (F2): "Send to the admin panel". Nothing they send is live until you act on it.'));
+    if (!rows.length) box.append(el('p', 'mm-modal-foot', this.access() === 'dev' ? 'Nothing waiting. Send your number changes from the debug window (F2): "Send to the admin panel". The owner decides what goes live.' : 'Nothing waiting. Devs send their number changes here from the debug window (F2): "Send to the admin panel". Nothing they send is live until you act on it.'));
     for (const r of rows) {
       const card = el('div', 'admp-prop');
       const top = el('label', 'admp-prop-head');
@@ -430,7 +459,7 @@ export class AdminPanel {
       box.append(card);
     }
     const done = this.proposals.filter((r) => r.status !== 'pending').slice(0, 5);
-    if (rows.length) {
+    if (rows.length && this.access() === 'owner') {
       const all = el('button', 'mm-small', 'Select all');
       all.addEventListener('click', () => { for (const r of rows) this.picked.add(r.id); this.paint(); });
       const note = el('input');
@@ -522,7 +551,7 @@ export class AdminPanel {
     cb.checked = !!this.op.overview?.autoTrain;
     cb.addEventListener('change', () => this.hooks.send({ t: 'admin_act', act: 'autotrain', on: cb.checked }));
     auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
-    box.append(auto);
+    if (this.access() === 'owner') box.append(auto);
     box.append(this.trainBanner());
     const allBtn = el('button', 'mm-small mm-go', '🧠 Train on all archived replays');
     allBtn.title = 'Plays back every replay the server kept (people against bots, and the ones you picked) one after another; replays from another version of the game are skipped and counted.';
@@ -543,7 +572,8 @@ export class AdminPanel {
       this.hooks.send({ t: 'admin_act', act: 'bot_reset' });
     });
     const learnBar = el('div', 'own-row');
-    learnBar.append(allBtn, pass, reset);
+    learnBar.append(allBtn, pass);
+    if (this.access() === 'owner') learnBar.append(reset);
     box.append(learnBar, this.jobList(), this.knowledgeBox());
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
