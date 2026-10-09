@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.24",
+  "date": "2026-10-10",
+  "at": "2026-10-10T01:10:00Z",
+  "title": "Cursor trail and click ripple fixed",
+  "changes": [
+   "The cursor Trail and click Ripple options now work for everyone, including when the computer is set to reduce motion."
+  ]
+ },
+ {
   "version": "0.69.23",
   "date": "2026-10-10",
   "at": "2026-10-10T00:20:00Z",
