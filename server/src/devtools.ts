@@ -1,5 +1,6 @@
 import type { DevCommitRow } from '@arena/shared';
-import { ABILITIES, ABILITY_CHOICES, ABILITY_FLAGS, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
+import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, PATCH_FILES, applyPatches, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
+import { ABILITIES, AURAS } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
 import type { ClassId, DataPatch, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
 
@@ -13,7 +14,7 @@ const COMMITS = 'devcommits';
 const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
-const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json' };
+const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json' };
 
 export interface DevToolsEnv {
   /** A GitHub token that may push branches and open pull requests on the repository. */
@@ -184,7 +185,7 @@ export class DevTools {
     const branch = `dev-tuning/${Date.now().toString(36)}`;
     await api('/git/refs', { method: 'POST', body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: ref.object.sha }) });
     const lines: string[] = [];
-    for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
+    for (const file of PATCH_FILES) {
       const mine = patches.filter((p) => p.file === file);
       if (!mine.length) continue;
       const got = (await api(`/contents/${FILES[file]}?ref=${branch}`)) as { content: string; sha: string };
@@ -232,7 +233,7 @@ export class DevTools {
     const token = this.env.GITHUB_TOKEN;
     if (!token) throw new Error('No GITHUB_TOKEN on the server: nothing was committed.');
     const sane = (p: DataPatch) => !!p && typeof p.id === 'string' && Array.isArray(p.path) && p.path.length > 0 && p.path.every((k) => typeof k === 'string' || typeof k === 'number')
-      && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= 40) && ['abilities', 'auras', 'specs', 'talents', 'classes'].includes(p.file);
+      && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= 40) && (PATCH_FILES as readonly string[]).includes(p.file);
     if (!patches.length || !patches.every(sane)) throw new Error('Those changes are not numbers the data files can take.');
     const sum = await this.commitPatch(token, {
       title: 'Balance changes',
@@ -241,7 +242,7 @@ export class DevTools {
         const skipped: string[] = [];
         const lines: string[] = [];
         const notes: string[] = [];
-        for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
+        for (const file of PATCH_FILES) {
           const mine = patches.filter((p) => p.file === file);
           if (!mine.length) continue;
           const text = await read(FILES[file]);
@@ -439,8 +440,39 @@ export function nextPatchVersion(v: string): string {
 const MS_KEYS = new Set(['cooldown', 'castTime', 'duration', 'interval', 'lockout', 'maxDuration']);
 const NOUN: Record<string, string> = { cooldown: 'cooldown', castTime: 'cast time', duration: 'duration', cost: 'cost', range: 'range', radius: 'radius', interval: 'tick time', maxDuration: 'longest duration', lockout: 'lockout', absorb: 'shield', absorbPct: 'shield', charges: 'charges' };
 
+/** A value the way patch notes say it: a multiplier as a percent, a time in seconds, a share as a percent, a switch as on or off. */
+function showValue(p: DataPatch, v: number | string): string {
+  if (isSwitch(p)) return Number(v) === 1 ? 'on' : 'off';
+  if (typeof v !== 'number') return String(v);
+  const r = (n: number) => String(Math.round(n * 100) / 100);
+  switch (plainPath(p.file, p.id, p.path).unit) {
+    case 'x': return v === 1 ? 'normal' : v > 1 ? `+${r((v - 1) * 100)}%` : `-${r((1 - v) * 100)}%`;
+    case 'ms': return `${r(v / 1000)} s`;
+    case 'chance': return `${r(v * 100)}%`;
+    case 'percent': return `${r(v)}%`;
+    case 'yd': return `${r(v)} yd`;
+    default: return r(v);
+  }
+}
+
 /** One short, player-facing patch-notes line for a number: "Fireball: cooldown 8 s to 7 s". */
 function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: number | string): string {
+  // stat bonuses, switches and the game's own rules are worded from the shared labels: "Warden: Power Word: Shield shield strength +50% to +60%."
+  if (file === 'tuning' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
+    let name = file === 'tuning' ? 'Game rules' : p.id;
+    try {
+      const data = JSON.parse(text) as unknown;
+      const t = file === 'tuning' ? undefined : ((file === 'classes' ? (data as Record<string, unknown>)[p.id] : targetsIn(data, file, p.id)[0]) as { name?: string } | undefined);
+      if (t?.name) name = t.name;
+    } catch {
+      /* keep the id */
+    }
+    const plain = plainPath(file, p.id, p.path).label;
+    // the label starts with a skill or buff name ("Power Word: Shield: shield strength"): keep its capitals
+    const label = [...Object.values(ABILITIES), ...Object.values(AURAS)].some((x) => plain.startsWith(x.name)) ? plain : `${plain.charAt(0).toLowerCase()}${plain.slice(1)}`;
+    if (isSwitch(p)) return `${name}: ${label} (now ${showValue(p, p.value)}).`;
+    return `${name}: ${label} ${showValue(p, was)} to ${showValue(p, p.value)}.`;
+  }
   let name = p.id;
   let parent: Record<string, unknown> | undefined;
   try {
@@ -475,13 +507,12 @@ function friendlyGithubError(msg: string, base: string): string {
   return msg;
 }
 
-/** "Fireball · effects.0.amount" */
+/** "Fireball · Damage amount", "Warden · Power Word: Shield: shield strength" */
 export function label(p: DataPatch): string {
-  const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : p.file === 'auras' ? AURAS[p.id]?.name : p.file === 'classes' ? CLASSES[p.id as ClassId]?.name : p.file === 'specs' ? Object.values(SPECS).flat().find((x) => x.id === p.id)?.name : Object.values(TALENTS).flatMap((b) => Object.values(b).flat(2)).find((x) => x.id === p.id)?.name;
-  return `${name ?? p.id} · ${p.path.join('.')}`;
+  return `${nameOf(p.file, p.id)} · ${plainPath(p.file, p.id, p.path).label}`;
 }
 
-/** The objects in a data file's parsed JSON that a patch changes: one ability, aura, class or spec, or every copy of a talent. */
+/** The objects in a data file's parsed JSON that a patch changes: one ability, aura, class or spec, or every copy of a talent (the game options are the whole file). */
 function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[] {
   switch (file) {
     case 'abilities':
@@ -493,15 +524,25 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
       return Object.values(data as Record<string, { id: string }[]>).flat().filter((x) => x.id === id);
     case 'talents':
       return Object.values(data as Record<string, Record<string, { id: string }[][]>>).flatMap((bySpec) => Object.values(bySpec).flat(2)).filter((x) => x.id === id);
+    case 'tuning':
+      return id === 'game' ? [data] : [];
   }
 }
 
-/** The number at a patch's spot in a data file's text (the file as the repository has it). */
+/** The number at a patch's spot in a data file's text (the file as the repository has it); a stat change or switch the file does not have yet reads as the value that does nothing. */
 function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | string | undefined {
   try {
-    let o: unknown = targetsIn(JSON.parse(text) as unknown, file, p.id)[0];
+    const target = targetsIn(JSON.parse(text) as unknown, file, p.id)[0];
+    if (!target) return undefined;
+    let o: unknown = target;
     for (const k of p.path) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[k] : undefined;
-    return typeof o === 'number' || typeof o === 'string' ? o : typeof o === 'boolean' ? (o ? 1 : 0) : undefined;
+    if (typeof o === 'number' || typeof o === 'string') return o;
+    if (typeof o === 'boolean') return o ? 1 : 0;
+    // not in the file: a stat change can be added, a switch is off
+    const slot = modSlot(p);
+    if (slot && (file === 'specs' || file === 'talents' || file === 'auras')) return slot.def;
+    if (isSwitch(p)) return 0;
+    return undefined;
   } catch {
     return undefined;
   }
@@ -535,10 +576,27 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
   const data = JSON.parse(text) as unknown;
   for (const p of patches) {
     for (const start of targetsIn(data, file, p.id)) {
-      let o: unknown = start;
-      for (let i = 0; i < p.path.length - 1; i++) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[p.path[i]] : undefined;
+      if (!start || typeof start !== 'object') continue;
       const last = p.path[p.path.length - 1];
-      if (!o || typeof o !== 'object') continue;
+      // walk down to the object that holds the value; a stat change the file does not have yet gets its missing levels made
+      const chain: Record<string | number, unknown>[] = [start as Record<string | number, unknown>];
+      let o: unknown = start;
+      let broken = false;
+      for (let i = 0; i < p.path.length - 1; i++) {
+        const k = p.path[i];
+        let next = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[k] : undefined;
+        if (next === undefined && o && typeof o === 'object' && !Array.isArray(o) && modSlot(p)) {
+          next = {};
+          (o as Record<string | number, unknown>)[k] = next;
+        }
+        if (!next || typeof next !== 'object') {
+          broken = true;
+          break;
+        }
+        chain.push(next as Record<string | number, unknown>);
+        o = next;
+      }
+      if (broken) continue;
       const rec = o as Record<string | number, unknown>;
       if (file === 'abilities' && p.path.length === 1 && Object.hasOwn(ABILITY_FLAGS, String(last))) {
         // a yes/no option: true or false (an option the file does not have stays out when it is off)
@@ -546,12 +604,26 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
         else if (last === 'gcd') rec[last] = false;
         else delete rec[last];
       } else if (file === 'abilities' && p.path.length === 1 && Object.hasOwn(ABILITY_CHOICES, String(last))) rec[last] = p.value;
-      else if (typeof rec[last] === 'number') rec[last] = p.value;
+      else if (file === 'auras' && p.path.length === 1 && Object.hasOwn(AURA_FLAGS, String(last))) {
+        // an aura's option: on is written, off leaves it out
+        if (p.value === 1) rec[last] = true;
+        else delete rec[last];
+      } else if (modSlot(p)?.kind === 'flag') {
+        // a switch inside mods (castWhileMoving): on is written; off removes it, and a skill entry left empty goes with it
+        if (p.value === 1) rec[last] = true;
+        else {
+          delete rec[last];
+          for (let i = chain.length - 1; i >= 2; i--) {
+            if (Object.keys(chain[i]).length) break;
+            delete chain[i - 1][p.path[i - 1]];
+          }
+        }
+      } else if (typeof rec[last] === 'number' || (modSlot(p) && rec[last] === undefined && typeof p.value === 'number')) rec[last] = p.value;
     }
   }
   const indent = /\n( +)\S/.exec(text)?.[1].length ?? 2;
   let json = JSON.stringify(data, null, indent);
   // specs.json keeps its symbols as \u escapes
-  if (file === 'specs') json = json.replace(/[\u0080-\uffff]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
+  if (file === 'specs') json = json.replace(/[\u0080-￿]/g, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`);
   return json + (text.endsWith('\n') ? '\n' : '');
 }

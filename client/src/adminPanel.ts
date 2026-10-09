@@ -1,6 +1,7 @@
-import { ABILITIES, CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
-import type { ClassId, DevRequestRow } from '@arena/shared';
-import { SkillEditor, skillPicker } from './skillView';
+import { CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
+import type { DataPatch, DevRequestRow } from '@arena/shared';
+import { DevWorkspace } from './devPages';
+import { patchKey } from './devEdits';
 import { designer, requestStatus } from './designer';
 import { pendingProposals } from './counts';
 import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, LiveLearning, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
@@ -347,14 +348,41 @@ export class AdminPanel {
     if (!keep.top) tabs.querySelector('.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
-  /** The designer's state: the class and skill on show and what was typed. */
-  private ds = { cls: CLASS_IDS[0] as ClassId, pick: '', mode: 'skills' as 'skills' | 'class' };
-  private dsEditor = new SkillEditor();
+  /** The designer's pages (the same ones as the debug panel's Edit values section) and where the chat sits. */
+  private dsWorkspace: DevWorkspace | null = null;
+  private dsChat: HTMLElement | null = null;
+  private dsAddBtn: HTMLButtonElement | null = null;
+
+  /** What this account has proposed and nobody has handled yet, by patch key. */
+  private pendingMine(): DataPatch[] {
+    const me = this.hooks.account()?.name;
+    return (this.proposals ?? []).filter((r) => r.status === 'pending' && r.by === me).reverse().reduce<DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
+  }
+
+  private workspace(): DevWorkspace {
+    if (!this.dsWorkspace) {
+      this.dsWorkspace = new DevWorkspace({
+        testing: () => new Map(this.pendingMine().map((p) => [patchKey(p), p])),
+        inEffect: () => this.pendingMine(),
+        canRevert: false,
+        onEdit: () => this.refreshAdd(),
+        repaint: () => this.paint(),
+        startClass: () => CLASS_IDS[0],
+        onSelect: () => this.dsChat?.isConnected && this.dsWorkspace && this.dsChat.replaceChildren(designer.renderChat(this.dsWorkspace.chatScope(), this.hooks.send, true)),
+      });
+    }
+    return this.dsWorkspace;
+  }
+
+  private refreshAdd() {
+    const ws = this.dsWorkspace;
+    if (this.dsAddBtn && ws) this.dsAddBtn.textContent = `Add my edits to proposals (${ws.set.edits.size})`;
+  }
 
   /**
-   * The debug window's skill view and Ask Claude chat, for the admin panel (no match is running here): pick a skill, read
-   * everything about it, edit numbers or talk to Claude. Edits and Claude's changes become proposals below, which are
-   * committed to GitHub with "Commit the ticked ones" (one commit that is also a patch) or deleted.
+   * The debug window's pages and Ask Claude chat, for the admin panel (no match is running here): classes, specs, talents,
+   * skills, auras and game options, with the same search, resets and changes list. Edits and Claude's changes become proposals
+   * below, which are committed to GitHub with "Commit the ticked ones" (one commit that is also a patch) or deleted.
    */
   private designerBox(): HTMLElement {
     const box = el('div', 'admp-designer');
@@ -362,54 +390,27 @@ export class AdminPanel {
       designerOnce = true;
       designer.onChange(() => this.root && this.tab === 'tuning' && this.paint());
     }
-    const me = this.hooks.account()?.name;
-    const pending = (this.proposals ?? []).filter((r) => r.status === 'pending' && r.by === me).reverse().reduce<import('@arena/shared').DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
-    const testing = new Map(pending.map((p) => [this.dsEditor.key(p), p]));
-    const tabs = el('div', 'devp-row');
-    for (const c of CLASS_IDS) {
-      const b = el('button', `mm-small${c === this.ds.cls ? ' mm-go' : ''}`, CLASSES[c].name);
-      b.addEventListener('click', () => {
-        this.ds.cls = c;
-        this.ds.pick = '';
-        this.dsEditor.edits.clear();
-        this.paint();
-      });
-      tabs.append(b);
-    }
-    const modes = el('div', 'devp-row');
-    for (const [id, label] of [['skills', 'Skills'], ['class', 'Class, specs and talents']] as const) {
-      const b = el('button', `mm-small${this.ds.mode === id ? ' mm-go' : ''}`, label);
-      b.addEventListener('click', () => {
-        this.ds.mode = id;
-        this.paint();
-      });
-      modes.append(b);
-    }
-    const ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === this.ds.cls || ABILITIES[id].class === 'trinket'));
-    if (!this.ds.pick || !ids.includes(this.ds.pick)) this.ds.pick = ids[0] ?? '';
+    const ws = this.workspace();
     const left = el('div', 'admp-ds-left');
-    left.append(tabs, modes);
-    if (this.ds.mode === 'skills') {
-      left.append(skillPicker(ids, this.ds.pick, (id) => {
-        this.ds.pick = id;
-        this.paint();
-      }));
-      if (this.ds.pick) left.append(this.dsEditor.skillBody(this.ds.pick, testing));
-    } else left.append(this.dsEditor.classSections(this.ds.cls, testing));
-    const add = el('button', 'mm-small mm-go', 'Add my edits to proposals');
+    const add = el('button', 'mm-small mm-go', `Add my edits to proposals (${ws.set.edits.size})`);
     add.title = 'Puts the numbers you typed on the proposals list below (old -> new), ready to commit to GitHub.';
+    this.dsAddBtn = add;
     add.addEventListener('click', () => {
-      const patches = [...this.dsEditor.edits.values()];
+      const patches = [...ws.set.edits.values()];
       if (!patches.length) {
         this.propMsg = { ok: false, text: 'Change a number first.' };
         return this.paint();
       }
-      this.dsEditor.edits.clear();
+      ws.set.clear();
       this.hooks.send({ t: 'dev_save', patches });
     });
-    left.append(add);
-    const scope = this.ds.mode === 'skills' ? { ability: this.ds.pick, name: ABILITIES[this.ds.pick]?.name ?? 'a skill' } : { ability: '', classId: this.ds.cls, name: `the ${CLASSES[this.ds.cls].name} class` };
-    box.append(left, designer.renderChat(scope, this.hooks.send, true));
+    const changes = el('details', 'devp-sec');
+    changes.append(el('summary', 'devp-sec-head', 'Changes so far (old -> new)'), ws.changesList());
+    left.append(add, ws.render(), changes);
+    const chat = el('div', 'admp-chatholder');
+    chat.append(designer.renderChat(ws.chatScope(), this.hooks.send, true));
+    this.dsChat = chat;
+    box.append(left, chat);
     return box;
   }
 
