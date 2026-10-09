@@ -185,6 +185,7 @@ export class DevWorkspace {
     const root = el('div', 'devp-ws');
     const rows = this.set.rows(this.host.inEffect());
     const tabs = el('div', 'devp-tabs');
+    tabs.dataset.tour = 'dev-pages'; // the guided tours point at these (tourData.ts)
     this.tabBtns.clear();
     this.changedIds = new Set(rows.filter((r) => pageOwns(this.page, r.patch)).map((r) => navIdOf(this.page, r.patch)));
     let step = '';
@@ -196,6 +197,7 @@ export class DevWorkspace {
       const n = rows.filter((r) => pageOwns(p.id, r.patch)).length;
       const b = el('button', `devp-tab${p.id === this.page ? ' sel' : ''}`, p.label);
       b.title = p.blurb;
+      b.dataset.tour = `dev-page-${p.id}`;
       if (n) b.append(el('span', 'devp-badge', String(n)));
       b.addEventListener('click', () => {
         this.page = p.id;
@@ -212,6 +214,7 @@ export class DevWorkspace {
     this.noteClass();
 
     const bar = el('div', 'devp-searchrow');
+    bar.dataset.tour = 'dev-search';
     const input = el('input', 'devp-search');
     input.type = 'search';
     input.placeholder = `Search ${DEV_PAGES.find((p) => p.id === this.page)!.label.toLowerCase()}…`;
@@ -241,6 +244,8 @@ export class DevWorkspace {
     const split = el('div', 'devp-split');
     this.navBox = el('div', 'devp-nav');
     this.detailBox = el('div', 'devp-detail');
+    this.navBox.dataset.tour = 'dev-nav';
+    this.detailBox.dataset.tour = 'dev-detail';
     split.append(this.navBox, this.detailBox);
     if (this.page === 'options') split.classList.add('single'); // one entry: no list to pick from
     root.append(split);
