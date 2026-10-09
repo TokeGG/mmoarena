@@ -1,0 +1,64 @@
+# A change request a dev made in the game's "Ask Claude" chat arrives here as an issue labelled `dev-request`.
+# Claude Code reads the repository, makes the change, runs the checks and opens a PULL REQUEST for the owner to merge.
+# It never merges anything. One-time setup: install the Claude GitHub app on this repository and add the repository
+# secret ANTHROPIC_API_KEY (Settings, Secrets and variables, Actions).
+name: Dev request
+
+on:
+  issues:
+    types: [labeled]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+  actions: read
+
+jobs:
+  implement:
+    # a request is an issue with the dev-request label; the owner (or anyone with write access) can also ask for changes with "@claude" in a comment
+    if: >-
+      (github.event_name == 'issues' && github.event.label.name == 'dev-request') ||
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --include=dev
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          trigger_phrase: "@claude"
+          label_trigger: "dev-request"
+          base_branch: "main"
+          branch_prefix: "claude/"
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE: #${{ github.event.issue.number }}
+
+            This issue is a change request from a developer of this game, written with the in-game assistant. Implement it.
+            Read CLAUDE.md first and follow every rule in it (update the bots in shared/src/bot.ts for ability or class changes,
+            keep the per-spec bot test passing, add tests for the new behaviour, update README/DEVELOPING when behaviour changes).
+            Do NOT bump versions, SIM_REVISION or edit shared/data/patches.json, WIKI.md, rotations.json or botbrain.json: the
+            owner does that when merging (say in the pull request what needs it).
+            Before you finish, run the same checks CI runs and fix every failure you caused:
+              npx tsc --noEmit -p shared && npx tsc --noEmit -p server && npx tsc --noEmit -p client
+              npm run build
+              npx tsx --test shared/test/*.test.ts server/test/*.test.ts client/test/*.test.ts
+            (the fixed-seed golden test in shared/test/tickms.test.ts and the WIKI.md test may legitimately fail after a
+            gameplay change: update the golden values it prints, and run `npx tsx scripts/gen-wiki.ts` to refresh WIKI.md).
+            If the request is unclear or you cannot do part of it safely, say exactly what in a comment on the issue and
+            implement the rest. Finish by opening a pull request into main that explains what changed, how you tested it,
+            and what the owner must do before merging. Never merge it yourself.
+          claude_args: |
+            --max-turns 80
+            --allowedTools "Edit,Read,Write,Glob,Grep,Bash(npm:*),Bash(npx:*),Bash(git:*),Bash(node:*),Bash(ls:*),Bash(cat:*),Bash(sed:*),Bash(grep:*)"
