@@ -83,10 +83,13 @@ export class Audio {
   constructor() {
     const unlock = () => {
       this.ensure();
-      if (this.ctx?.state === 'suspended') void this.ctx.resume();
+      if (this.ctx && this.ctx.state !== 'running' && this.ctx.state !== 'closed') void this.ctx.resume();
     };
     window.addEventListener('pointerdown', unlock, { passive: true });
     window.addEventListener('keydown', unlock, { passive: true });
+    // iPhone Safari only lets audio start from the end of a tap (touchend or click), not from the first touch
+    window.addEventListener('touchend', unlock, { passive: true });
+    window.addEventListener('click', unlock, { passive: true });
     // every button in the interface gets a click sound
     document.addEventListener(
       'click',

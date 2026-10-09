@@ -1,3 +1,4 @@
+import { lightMode } from './lightMode';
 import * as THREE from 'three';
 import { RAIL_THICKNESS, deckPiers, deckRails, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
@@ -395,7 +396,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
 
   // ---------------------------------------------------------- atmosphere and light rig
   renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  renderer.shadowMap.type = lightMode.on ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = th.exposure;
   scene.background = skyTexture(th.sky);
@@ -407,7 +408,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   sun.target.position.set(cx, 0, cz);
   root.add(sun.target);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.mapSize.set(lightMode.on ? 1024 : 2048, lightMode.on ? 1024 : 2048);
   // the shadow box is fitted to the arena (and a little beyond, for the rampart and tall props), the same on every map
   const reach = Math.hypot(w, d) / 2 + 6;
   const sc = sun.shadow.camera;

@@ -1,5 +1,6 @@
 import { ACTIONS, Keybinds, browserKeeps, comboOf, isModifierCode, keyLabel } from './keybinds';
 import type { Action } from './keybinds';
+import { lightMode } from './lightMode';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
 
@@ -96,6 +97,11 @@ export class Menu {
     };
     bright.addEventListener('input', applyBright);
     applyBright();
+
+    // light graphics: automatic on phones and small screens, or forced on or off; kept on this device only
+    const light = $('light-sel') as HTMLSelectElement;
+    light.value = lightMode.choice;
+    light.addEventListener('change', () => lightMode.set(light.value as 'auto' | 'on' | 'off'));
 
     const auto = $('auto-toggle') as HTMLInputElement;
     try {

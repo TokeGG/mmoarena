@@ -938,6 +938,9 @@ controls.onClick = (x, y) => {
   if (id !== null) setTarget(id);
   else if (!spec && targetId !== null) setTarget(null); // clicking empty space drops the target (and auto-attack with it)
 };
+controls.onDoubleTap = () => {
+  if (spec) cycleFollow(1); // watching on a phone: a double tap is "next player"
+};
 controls.onRightClick = (x, y) => {
   if (spec || aiming) return;
   const id = scene.pick(x, y, you, false); // right-click is for enemies and allies, never yourself (your model is under the cursor whenever you steer)
@@ -1334,6 +1337,9 @@ const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () =>
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
   switchKey: () => binds.label('nextTarget'),
+  onCycle: (dir) => cycleFollow(dir),
+  onBuilds: () => buildsPanel.toggle(),
+  onSettings: () => (menu.isOpen ? menu.back() : menu.open(true)),
   onExit: () => {
     if (spec?.kind === 'live') send({ t: 'leave' });
     exitSpectate();
@@ -1716,6 +1722,7 @@ const header = buildHeaderBar([
   { icon: 'patches', label: 'Patch notes', onClick: () => mainMenu.openPatches(), badge: patchBadgeEl },
   { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive(), badge: liveBadge },
   { icon: 'suggest', label: 'Suggestions', onClick: () => suggestUi.open() },
+  { icon: 'settings', label: 'Settings (sound, graphics)', onClick: () => menu.open(false) },
   { icon: 'bots', label: 'Bot battle (owner)', onClick: () => adminPanel.openBotBattle() },
   { icon: 'admin', label: 'Admin panel', onClick: () => adminPanel.open(), badge: adminBadge },
 ]);
@@ -1811,5 +1818,7 @@ initCursors({
     return CLASSES[me && !spec ? me.classId : mainMenu.selectedClass]?.color ?? null;
   },
 });
+// dev server only (stripped from the build): lets a test read the camera and the followed unit
+if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) (window as unknown as Record<string, unknown>).__cam = () => ({ yaw: controls.yaw, pitch: controls.pitch, dist: controls.dist, you, spec: !!spec, rate: spec?.rate, paused: spec?.paused, tick: latest?.tick });
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;

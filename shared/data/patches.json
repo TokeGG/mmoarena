@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.69.11",
+  "date": "2026-10-09",
+  "at": "2026-10-09T14:35:31Z",
+  "title": "Phone support and patch note credits",
+  "changes": [
+   "The game now works on phones for watching: drag to turn the camera, pinch to zoom, tap a player to follow, double tap for the next one, with big buttons for previous, next, builds, scores and leave.",
+   "Replays have thumb-sized play/pause, speed and seek controls on phones.",
+   "New Light graphics setting (Automatic, On, Off): phones and small screens use lower resolution, fewer particles and no bloom so matches run smoothly.",
+   "Tapping a skill or talent in the builds panel shows its tooltip on touch screens.",
+   "Menus, the Watch list, profile and patch notes fit small screens, with a Settings button on the main menu for touch.",
+   "Sound starts on the first tap on iPhone, and the game can be added to a phone's home screen.",
+   "Patch notes now show who pushed a patch that came from a commit."
+  ]
+ },
+ {
   "version": "0.69.10",
   "date": "2026-10-09",
   "at": "2026-10-09T08:04:18Z",
