@@ -3,7 +3,7 @@ import type { ClassId, DevRequestRow } from '@arena/shared';
 import { SkillEditor, skillPicker } from './skillView';
 import { designer, requestStatus } from './designer';
 import { pendingProposals } from './counts';
-import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
+import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, LiveLearning, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
 import { TimeView } from './timeUi';
 import { mapName } from './spectate';
@@ -88,7 +88,7 @@ export class AdminPanel {
   private jobs: TrainJobRow[] = [];
   private picks = new Set<string>();
   /** What the bots know now against what shipped, and the last reports of what they learned (owner only). */
-  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[] } | null = null;
+  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; canCommit?: boolean } | null = null;
   /** Queue rows opened to show exactly what was learned. */
   private opened = new Set<string>();
   /** Passes (1..5) for the owner's forced training on one replay. */
@@ -219,7 +219,7 @@ export class AdminPanel {
         this.jobs = m.jobs;
         break;
       case 'bot_knowledge':
-        this.knowledge = { classes: m.classes, reports: m.reports };
+        this.knowledge = { classes: m.classes, reports: m.reports, live: m.live, canCommit: m.canCommit };
         break;
       case 'proposals':
         this.proposals = m.rows;
@@ -689,6 +689,7 @@ export class AdminPanel {
     cb.addEventListener('change', () => this.hooks.send({ t: 'admin_act', act: 'autotrain', on: cb.checked }));
     auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
     if (this.access() === 'owner') box.append(auto);
+    box.append(this.liveBox());
     box.append(this.trainBanner());
     const allBtn = el('button', 'mm-small mm-go', '🧠 Train on all archived replays');
     allBtn.title = 'Plays back every replay the server kept (people against bots, and the ones you picked) one after another; replays from another version of the game are skipped and counted.';
@@ -847,6 +848,54 @@ export class AdminPanel {
       box.append(el('b', '', 'All archived replays'));
       box.append(this.jobBar(job));
     }
+    return box;
+  }
+
+  /**
+   * Live learning: what the bots have studied in real play, whether the server keeps it, and the owner's button that commits
+   * the learned bots to GitHub. Devs see the status; the button is the owner's.
+   */
+  private liveBox(): HTMLElement {
+    const box = el('div', 'admp-live');
+    box.append(el('b', '', '📡 Live learning'));
+    const l = this.knowledge?.live;
+    if (!l) {
+      box.append(el('small', 'devp-dim', ' Loading…'));
+      return box;
+    }
+    if (!l.persistent) box.append(el('div', 'adm-state warn', 'Learning is lost when the server restarts: set UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN in Render. (The server is using its in-memory store, so what the bots learn from live matches disappears on every restart or deploy.)'));
+    const last = l.lastAt ? new Date(l.lastAt).toLocaleString() : 'never';
+    box.append(el('div', '', `${l.people + l.botOnly} match${l.people + l.botOnly === 1 ? '' : 'es'} studied since the store began (${l.storeKind}): ${l.people} with people, ${l.botOnly} bot-only. Last learned: ${last}.`));
+    const pct = (x: number) => `${Math.round(x * 100)}%`;
+    for (const c of l.classes) {
+      const row = el('div', 'devp-dim');
+      row.textContent = `${CLASSES[c.classId as keyof typeof CLASSES]?.name ?? c.classId}: ${c.people} with people, ${c.botOnly} bot-only · bots won ${c.vsWinRate === null ? 'no games yet' : `${pct(c.vsWinRate)} of ${c.vsGames} games against people`} · learned variant ${c.variant ? `wins ${pct(c.variant.winRate)} of ${c.variant.games} games` : 'has not played yet'}`;
+      box.append(row);
+    }
+    box.append(el('small', 'devp-dim', 'Matches with people are always studied. "Train on every match" also studies bot-only matches (lower value, off by default).'));
+    const c = l.lastCommit;
+    const row = el('div', 'own-row');
+    if (this.access() === 'owner') {
+      const btn = el('button', 'mm-small mm-go', '⬆ Commit learned bots to GitHub');
+      btn.title = 'Writes the brains the bots learned and the human-style data to shared/data/botbrain.json and players.json on the main branch in one commit, as a patch (version +1, patch notes). The game updates on the next deploy.';
+      btn.disabled = l.sinceCommit < 1 || this.knowledge?.canCommit === false;
+      btn.addEventListener('click', () => {
+        if (!window.confirm(`Commit the learned bots to the main branch? It is one commit and a new patch (${l.sinceCommit} match${l.sinceCommit === 1 ? '' : 'es'} studied since the last one) and starts a deploy.`)) return;
+        this.trainMsg = { ok: true, text: 'Committing the learned bots…' };
+        this.hooks.send({ t: 'admin_act', act: 'bot_commit' });
+        this.paint();
+      });
+      row.append(btn);
+    }
+    row.append(el('small', 'devp-dim', `${l.sinceCommit} match${l.sinceCommit === 1 ? '' : 'es'} with people studied since the last commit${c ? ` · last commit ${c.version} on ${new Date(c.at).toLocaleString()}` : ' · nothing committed yet'}${this.knowledge?.canCommit === false ? ' · no GITHUB_TOKEN on the server' : ''}`));
+    if (c) {
+      const a = el('a', 'mm-small', 'view');
+      a.setAttribute('href', c.url);
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener');
+      row.append(a);
+    }
+    box.append(row);
     return box;
   }
 

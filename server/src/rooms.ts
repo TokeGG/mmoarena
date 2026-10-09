@@ -651,7 +651,7 @@ export class Room {
     const forced = !!this.autoTrain?.() && this.sim.time - this.sim.prepEndsAt >= 20000;
     if (!counted && !forced) return;
     this.studied = true;
-    if (forced) void this.learner.trainOn(replay, this.id).catch(() => undefined);
+    if (forced) void this.learner.trainOn(replay, this.id, { source: 'auto' }).catch(() => undefined);
     else void this.learner.learnFrom(replay, this.id);
   }
 
@@ -786,7 +786,7 @@ export interface LobbyConfig {
 /** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
-const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain' };
+const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub' };
 
 export class Lobby {
   private rooms = new Set<Room>();
@@ -807,6 +807,8 @@ export class Lobby {
     void this.adminLog?.autoTrain().then((on) => {
       if (!this.autoTrainSet) this.autoTrain = on;
     });
+    // every match the bots study on their own is written in the admin log with what came of it, even when no number moved
+    if (this.learner) this.learner.onStudied = (e) => void this.adminLog?.add('bots (automatic)', e.kind === 'people' ? 'studied a match with people' : 'studied a bot-only match', e.replayId, e.text);
   }
 
   /** The owner's switch: the bots train on every finished match (player matches and bot matches too). */
@@ -1015,6 +1017,25 @@ export class Lobby {
         for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
         break;
       }
+      case 'bot_commit': {
+        // owner only: the learner's current state (brains and human-style data) goes to the main branch in one commit that is also a patch
+        const dev = this.dev;
+        const learner = this.learner;
+        if (!learner || !dev) return void send(p, { t: 'dev_result', ok: false, text: 'Bot learning is not running on this server.' });
+        if (!dev.canOpenPr) return void send(p, { t: 'dev_result', ok: false, text: 'No GITHUB_TOKEN on the server: nothing was committed.' });
+        try {
+          const data = await learner.exportLive();
+          const r = await dev.commitLearnedBots(data, by);
+          learner.markCommitted({ version: r.version, url: r.url, matches: r.matches });
+          log('committed learned bots to GitHub', r.version, `${r.matches} match${r.matches === 1 ? '' : 'es'}; brains: ${r.classes.join(', ') || 'none changed'}; ${r.url}`);
+          send(p, { t: 'dev_result', ok: true, text: `Committed the learned bots to the main branch on GitHub as patch ${r.version} (${r.matches} match${r.matches === 1 ? '' : 'es'} studied; brains changed for ${r.classes.join(', ') || 'no class'}). The game updates when the next deploy finishes.`, url: r.url });
+        } catch (e) {
+          log('commit learned bots failed', undefined, (e as Error).message);
+          send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
+        }
+        for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
+        break;
+      }
       case 'train_status':
         send(p, this.trainStatusMsg());
         break;
@@ -1030,7 +1051,7 @@ export class Lobby {
   private trainTimer: ReturnType<typeof setInterval> | null = null;
 
   private botKnowledgeMsg(): Extract<ServerMsg, { t: 'bot_knowledge' }> {
-    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [] };
+    return { t: 'bot_knowledge', classes: this.learner?.knowledge() ?? [], reports: this.learner?.learnReports() ?? [], ...(this.learner ? { live: this.learner.liveStatus() } : {}), autoTrain: this.autoTrain, canCommit: !!this.dev?.canOpenPr };
   }
 
   /** Train on every archived replay in turn, with the progress shown in the queue like any other job. */

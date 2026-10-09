@@ -2,8 +2,8 @@ import { promisify } from 'node:util';
 import { gunzip as gunzipCb, gzip as gzipCb } from 'node:zlib';
 import { cpus } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import { BRAIN_BOUNDS, CLASS_IDS, MISTAKE_LABELS, brainDiff, mistakeLines, brainFor, buildReport, contentHash, forcedStudy, freshenPopulation, lessonBrain, limitChange, mergeLessons, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, sanityClamp, styledBrain, sumLines } from '@arena/shared';
-import type { Brain, ClassId, ClassKnowledge, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, Population, ReplayData, StudyOptions } from '@arena/shared';
+import { BRAIN_BOUNDS, CLASS_IDS, playersEntry, roundBrain, MISTAKE_LABELS, brainDiff, mistakeLines, brainFor, buildReport, contentHash, forcedStudy, freshenPopulation, lessonBrain, limitChange, mergeLessons, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, sanityClamp, styledBrain, sumLines } from '@arena/shared';
+import type { Brain, ClassId, ClassKnowledge, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, LiveLearning, Population, PlayersFile, ReplayData, StudyOptions } from '@arena/shared';
 import type { Store } from './store';
 
 const gzip = promisify(gzipCb);
@@ -24,6 +24,15 @@ const NUDGE_STEP = 0.04;
 /** A number at its drift limit gets this much more room, up to ROOM_MAX. */
 const ROOM_WIDEN = 0.1;
 const ROOM_MAX = 0.95;
+
+const LIVE_KEY = 'botlive';
+/** What the live learner has studied (kept in the store): matches with people and bot-only matches, per class, and the commit counter. */
+interface LiveStat { people: number; botOnly: number; lastAt: number | null; sinceCommit: number; lastCommit: LiveLearning['lastCommit']; byClass: Record<string, { people: number; botOnly: number }> }
+const emptyLive = (): LiveStat => ({ people: 0, botOnly: 0, lastAt: null, sinceCommit: 0, lastCommit: null, byClass: {} });
+/** A variant that has played this many games against people has earned a hearing when it is compared with the lesson brain. */
+const PROVEN_GAMES = 30;
+/** What the admin log is told about each match the bots studied on their own (counted matches, and every match with "train on every match"). */
+export interface StudiedEvent { replayId: string; kind: 'people' | 'bots'; text: string }
 
 type Measured = ReturnType<typeof readReplay>;
 /**
@@ -144,6 +153,9 @@ export class BotLearner {
   private ledger: Ledger = {};
   private stats = new Map<ClassId, LearnStat>();
   private reports: LearnReport[] = [];
+  private live: LiveStat = emptyLive();
+  /** Told about every match the bots studied by themselves, with what came of it, even when no number moved (the admin log). */
+  onStudied?: (e: StudiedEvent) => void;
   private ready: Promise<void>;
   /** Archive writes run one after another, so two matches ending together never lose each other's index entry. */
   private archiving: Promise<void> = Promise.resolve();
@@ -189,6 +201,13 @@ export class BotLearner {
       if (Array.isArray(v)) this.reports = v as LearnReport[];
     } catch {
       /* no log yet */
+    }
+    try {
+      const raw = await this.store.get(LIVE_KEY);
+      const v = raw ? (JSON.parse(raw) as LiveStat) : null;
+      if (v && typeof v === 'object' && typeof v.people === 'number') this.live = { ...emptyLive(), ...v };
+    } catch {
+      /* start counting again */
     }
     try {
       const raw = await this.store.get(LEDGER_KEY);
@@ -247,13 +266,15 @@ export class BotLearner {
   async learnFrom(replay: ReplayData, matchId?: string): Promise<LearnReport | null> {
     await this.ready;
     if (matchId) this.archive(matchId, replay);
+    const kind = hasPeople(replay) ? 'people' : 'bots';
     let measured: Measured;
     try {
       measured = await this.measure(replay);
     } catch {
+      this.onStudied?.({ replayId: matchId ?? 'live', kind, text: 'could not be studied: the recording was unreadable' });
       return null; // an unreadable recording teaches nothing
     }
-    return this.learn(measured, { replayId: matchId ?? 'live', source: 'auto', passes: 1, log: true });
+    return this.learn(measured, { replayId: matchId ?? 'live', source: 'auto', passes: 1, log: true, kind });
   }
 
   /**
@@ -263,17 +284,22 @@ export class BotLearner {
    */
   async trainOn(replay: ReplayData, id: string, o: { passes?: number; source?: LearnSource; log?: boolean } = {}): Promise<{ ok: true; lessons: number; habits: number; report: LearnReport } | { ok: false; reason: string }> {
     await this.ready;
-    if (replay.hash !== contentHash(replay.tickMs)) return { ok: false, reason: 'That replay was recorded on an older version of the game, so it cannot be played back the same.' };
+    const kind = hasPeople(replay) ? 'people' : 'bots';
+    const skip = (reason: string) => {
+      if (o.source === 'auto') this.onStudied?.({ replayId: id, kind, text: `skipped: ${reason}` });
+      return { ok: false as const, reason };
+    };
+    if (replay.hash !== contentHash(replay.tickMs)) return skip('That replay was recorded on an older version of the game, so it cannot be played back the same.');
     const opts = forcedStudy(replay);
-    if (!opts) return { ok: false, reason: 'Nothing to learn: no people played in it and nobody won.' };
+    if (!opts) return skip('Nothing to learn: no people played in it and nobody won.');
     let measured: Measured;
     try {
       measured = await this.measure(replay, opts);
     } catch {
-      return { ok: false, reason: 'That replay could not be played back.' };
+      return skip('That replay could not be played back.');
     }
     const passes = Math.max(1, Math.min(5, Math.round(o.passes ?? 1)));
-    const report = this.learn(measured, { replayId: id, source: o.source ?? 'owner', passes, log: o.log ?? true });
+    const report = this.learn(measured, { replayId: id, source: o.source ?? 'owner', passes, log: o.log ?? true, kind });
     this.archive(id, replay, true);
     const lessons = measured.study.bots.filter((b) => Object.keys(b.lessons).length).length;
     const habits = measured.humans.filter((h) => Object.keys(h.sample).length).length + measured.study.players.filter((p) => Object.keys(p.sample).length).length;
@@ -281,12 +307,37 @@ export class BotLearner {
   }
 
   /** Apply what a measured replay teaches and write down what came of it. */
-  private learn(measured: Measured, o: { replayId: string; source: LearnSource; passes: number; log: boolean; replaysRead?: number; skipped?: number }): LearnReport {
+  private learn(measured: Measured, o: { replayId: string; source: LearnSource; passes: number; log: boolean; kind?: 'people' | 'bots'; replaysRead?: number; skipped?: number }): LearnReport {
     const classes = this.apply(measured, o.passes);
     const habits = measured.humans.filter((h) => Object.keys(h.sample).length).length + measured.study.players.filter((p) => Object.keys(p.sample).length).length;
     const report = buildReport({ id: `${Date.now().toString(36)}${Math.floor(this.rng() * 1e4).toString(36)}`, replayId: o.replayId, at: Date.now(), source: o.source, passes: o.passes, study: measured.study, classes, habits, replaysRead: o.replaysRead, skipped: o.skipped });
     if (o.log) this.remember(report);
+    if (o.source === 'auto' && o.kind) {
+      // a match the bots studied on their own (live play): counted, and written down even when no number moved
+      this.countLive(o.kind, [...new Set([...measured.study.bots.map((b) => b.classId), ...measured.humans.map((h) => h.classId), ...measured.study.players.map((p) => p.classId)])]);
+      this.onStudied?.({ replayId: o.replayId, kind: o.kind, text: report.headline });
+    }
     return report;
+  }
+
+  private countLive(kind: 'people' | 'bots', classes: ClassId[]): void {
+    const l = this.live;
+    if (kind === 'people') {
+      l.people++;
+      l.sinceCommit++;
+    } else l.botOnly++;
+    l.lastAt = Date.now();
+    for (const c of classes) {
+      const e = (l.byClass[c] ??= { people: 0, botOnly: 0 });
+      if (kind === 'people') e.people++;
+      else e.botOnly++;
+    }
+    this.saveLive();
+  }
+
+  private saveLive(): void {
+    const json = JSON.stringify(this.live);
+    this.archiving = this.archiving.then(() => this.store.set(LIVE_KEY, json)).catch(() => undefined);
   }
 
   private remember(report: LearnReport): void {
@@ -373,6 +424,74 @@ export class BotLearner {
         variant: lv && lv.games ? { games: lv.games, winRate: lv.wins / lv.games } : null,
       };
     });
+  }
+
+  /** Where the bots' learning stands, for the Bot training tab: matches studied, whether the store keeps them, per-class results against people. */
+  liveStatus(): LiveLearning {
+    const l = this.live;
+    return {
+      persistent: this.store.kind !== 'memory', storeKind: this.store.kind,
+      people: l.people, botOnly: l.botOnly, lastAt: l.lastAt, sinceCommit: l.sinceCommit, lastCommit: l.lastCommit,
+      classes: CLASS_IDS.map((c) => {
+        let g = 0;
+        let w = 0;
+        for (const [k, e] of Object.entries(this.ledger)) if (k.startsWith(`${c}>`)) { g += e.g; w += e.w; }
+        const lv = this.pops.get(c)?.variants.find((v) => v.id === 'lesson');
+        const by = l.byClass[c];
+        return { classId: c, people: by?.people ?? 0, botOnly: by?.botOnly ?? 0, vsGames: g, vsWinRate: g ? w / g : null, variant: lv && lv.games ? { games: lv.games, winRate: lv.wins / lv.games } : null };
+      }),
+    };
+  }
+
+  /**
+   * The brain to commit for a class: the "lesson" brain (the best brain moved towards what the people taught it), unless
+   * another variant has played PROVEN_GAMES against people and clearly beats it. Null when that is what already ships.
+   */
+  private championFor(c: ClassId): Brain | null {
+    const pop = this.pops.get(c);
+    if (!pop) return null;
+    const rate = (v: { wins: number; games: number }) => (v.wins + 1) / (v.games + 2);
+    const lesson = pop.variants.find((v) => v.id === 'lesson');
+    const proven = pop.variants.filter((v) => v.id !== 'lesson' && v.id !== 'human' && v.games >= PROVEN_GAMES).sort((a, b) => rate(b) - rate(a))[0];
+    let pick = lesson;
+    if (proven && (!lesson || (lesson.games >= PROVEN_GAMES && rate(proven) > rate(lesson) + 0.05))) pick = proven;
+    if (!pick) return null;
+    const same = JSON.stringify(roundBrain(pick.brain)) === JSON.stringify(roundBrain(brainFor(c)));
+    return same ? null : pick.brain;
+  }
+
+  /**
+   * What "Commit learned bots" writes, in the formats scripts/study-replays.ts writes: the brain each class has learned
+   * (only the classes that differ from what ships) for botbrain.json, and the human-style data and real results against
+   * people for players.json. `matches` is how many matches with people were studied since the last commit.
+   */
+  async exportLive(): Promise<{ brains: Partial<Record<ClassId, Record<string, number>>>; players: PlayersFile; matches: number }> {
+    await this.ready;
+    await this.flush();
+    const brains: Partial<Record<ClassId, Record<string, number>>> = {};
+    const players: PlayersFile = {};
+    for (const c of CLASS_IDS) {
+      const b = this.championFor(c);
+      if (b) brains[c] = roundBrain(b);
+      const vs = new Map<string, { games: number; botWins: number }>();
+      for (const [k, e] of Object.entries(this.ledger)) {
+        if (!k.startsWith(`${c}>`)) continue;
+        const person = k.slice(c.length + 1).split(':')[0];
+        const cur = vs.get(person) ?? { games: 0, botWins: 0 };
+        cur.games += e.g;
+        cur.botWins += e.w;
+        vs.set(person, cur);
+      }
+      players[c] = playersEntry(this.styles.get(c), vs);
+    }
+    return { brains, players, matches: this.live.sinceCommit };
+  }
+
+  /** The learned bots went to the repository: start counting matches again from here. */
+  markCommitted(c: { version: string; url: string; matches: number }): void {
+    this.live.sinceCommit = 0;
+    this.live.lastCommit = { at: Date.now(), ...c };
+    this.saveLive();
   }
 
   /** Put every class back to the brain it ships with: the learned variants, lessons, habits and counters are cleared. */
@@ -572,4 +691,9 @@ export class BotLearner {
     }
     return out;
   }
+}
+
+/** Did a person play in this match (a recording without a controller marker is a person's)? */
+function hasPeople(replay: ReplayData): boolean {
+  return replay.units.some((u) => u.controller === 'player' || u.controller === undefined);
 }

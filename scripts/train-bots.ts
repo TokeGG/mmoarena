@@ -2,9 +2,15 @@
  * Offline training for bot brains. Usage:
  *   npx tsx scripts/train-bots.ts [--classes warrior,rogue] [--gens 4] [--mutants 5] [--seeds 8] [--minutes 20] [--sizes 1,2,3]
  *   npx tsx scripts/train-bots.ts --calibrate [--seeds 12]   (simulated 1v1 win rates next to the real ones, no training)
+ *   add --allow-sim-only to train and write botbrain.json with no human data in players.json (pure bot-vs-bot self-play)
  * Each generation mutates the current champion, plays every candidate against the other classes (specs and talents
  * rotating) on the same seeds, in 1v1, 2v2 and 3v3 and on every arena in turn, keeps the best, and writes
  * shared/data/botbrain.json. Run it after every patch that changes abilities, then commit the file (see CLAUDE.md).
+ *
+ * THIS IS BOT-VS-BOT SELF-PLAY, NOT LIVE LEARNING. Training against bots alone teaches bots to beat bots, not to beat people.
+ * When shared/data/players.json holds no human data for a class the script says so loudly and refuses to write
+ * shared/data/botbrain.json, unless --allow-sim-only is passed. Prefer the owner's "Commit learned bots" button on the live
+ * server (Bot training tab), or scripts/study-replays.ts with real replays first.
  *
  * Training against bots alone teaches bots to beat bots. When shared/data/players.json has real data (written by
  * scripts/study-replays.ts from the server's replays), the opponents play the way people of that class do (their
@@ -13,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ARENAS, ArenaSim, Bot, CLASS_IDS, SPECS, brainFor, botBuild, mutateBrain, styledBrain, BRAIN_KEYS, mulberry32 } from '../shared/src/index';
+import { ARENAS, ArenaSim, Bot, CLASS_IDS, SPECS, brainFor, botBuild, hasHumanData, mutateBrain, styledBrain, BRAIN_KEYS, mulberry32 } from '../shared/src/index';
 import type { Brain, ClassId, HumanStyle } from '../shared/src/index';
 
 const arg = (k: string, d: string) => {
@@ -105,6 +111,15 @@ if (process.argv.includes('--calibrate')) {
     }
   }
   process.exit(0);
+}
+
+// self-play is not live learning: without human data the opponents are plain bots, so say so and do not write unless told to
+const noHuman = classes.filter((c) => !hasHumanData(players, c));
+const ALLOW_SIM_ONLY = process.argv.includes('--allow-sim-only');
+if (noHuman.length) {
+  const bar = '!'.repeat(78);
+  console.warn(`\n${bar}\nWARNING: shared/data/players.json has no human data for ${noHuman.join(', ')}.\nThis run is BOT-VS-BOT SELF-PLAY in the sim, NOT live learning: the opponents play like bots, so the result\nteaches bots to beat bots. Prefer 'Commit learned bots' on the live server (admin panel, Bot training tab), or\nscripts/study-replays.ts with real replays first.\n${ALLOW_SIM_ONLY ? 'Continuing because --allow-sim-only was passed.' : 'Refusing to write shared/data/botbrain.json. Pass --allow-sim-only to train and write it anyway.'}\n${bar}\n`);
+  if (!ALLOW_SIM_ONLY) process.exit(2);
 }
 
 const file = path.join(path.dirname(fileURLToPath(import.meta.url)), '../shared/data/botbrain.json');
