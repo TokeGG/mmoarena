@@ -62,7 +62,7 @@ describe('the icon library and the default icons', () => {
 describe('searching the library', () => {
   it('matches names, packs and tags, all words together, and narrows to one pack', () => {
     assert.equal(searchIcons('').length, ICON_LIST.length);
-    assert.ok(searchIcons('barbarian').every((i) => i.pack === 'barbarian') && searchIcons('barbarian').length === 40);
+    assert.ok(searchIcons('barbarian', 'barbarian').every((i) => i.pack === 'barbarian') && searchIcons('barbarian', 'barbarian').length === 40);
     assert.ok(searchIcons('fire bolt').some((i) => i.id.startsWith('spellset/fire-bolt')));
     assert.equal(searchIcons('zzzz nothing').length, 0);
     assert.ok(searchIcons('icon 12', 'icons151').every((i) => i.pack === 'icons151'));

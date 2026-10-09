@@ -26,7 +26,7 @@ export function botTestSummary(t: BotTest): string {
 /** The tooltip the pseudo-aura shows. */
 export function botTestTip(t: BotTest): TipContent {
   const lines = t.tries.map((x) => `• ${x.text}`);
-  if (t.more > 0) lines.push(`• and ${t.more} smaller change${t.more === 1 ? '' : 's'}`);
+  if (t.more > 0) lines.push(`• and ${t.more} smaller change${t.more === 1 ? '' : 's'} (hold Alt to see them all)`);
   const watch = [...new Set(t.tries.map((x) => x.watch))];
   return {
     title: 'Learning test',
@@ -35,6 +35,7 @@ export function botTestTip(t: BotTest): TipContent {
     stats: ['This bot is trying, against the brain it ships with:', testRecord(t)],
     lines,
     notes: watch.length ? [`Look for: ${watch.join('; ')}`] : [],
+    more: (t.rest ?? []).map((x, i) => `${i + 4}. ${x.text}`),
     footer: 'Only you (owner and devs) can see this. Players are never told.',
   };
 }

@@ -39,7 +39,7 @@ describe('learning-test marker text', () => {
     const tip = botTestTip(test({ more: 1 }));
     assert.equal(tip.title, 'Learning test');
     assert.equal(tip.tag, 'lesson');
-    assert.deepEqual(tip.lines, ['• use defensive cooldowns later (62% instead of 65%)', '• and 1 smaller change']);
+    assert.deepEqual(tip.lines, ['• use defensive cooldowns later (62% instead of 65%)', '• and 1 smaller change (hold Alt to see them all)']);
     assert.match(tip.notes![0], /^Look for: Evasion/);
     assert.match(tip.footer!, /Only you \(owner and devs\) can see this/);
   });

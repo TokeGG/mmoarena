@@ -12,12 +12,12 @@ const priv = ICON_LIST.find((i) => i.pack.startsWith('steadykeel'))!;
 describe('the Icon edit page: the grid', () => {
   it('filters by search and by pack, and counts for the chips', () => {
     assert.equal(gridIcons('', '').length, ICON_LIST.filter((i) => !i.pack.startsWith('steadykeel')).length, 'private packs are hidden until the server has them');
-    assert.equal(gridIcons('barbarian', '').length, 40);
+    assert.equal(gridIcons('barbarian', '').length, 45, 'the pack (40) and the Barbarian spec emblems (5)');
     assert.equal(gridIcons('', 'frostmage').length, 25);
     assert.equal(gridIcons('barbarian', 'frostmage').length, 0);
     const chips = packChips('barbarian');
     assert.equal(chips[0].id, '');
-    assert.equal(chips[0].count, 40);
+    assert.equal(chips[0].count, 45);
     assert.equal(chips.find((c) => c.id === 'barbarian')!.count, 40);
     assert.equal(chips.find((c) => c.id === 'firemage')!.count, 0);
   });
