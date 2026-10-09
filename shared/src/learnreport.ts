@@ -73,7 +73,11 @@ export function brainDiff(before: Brain, after: Brain, eps = 0.0049): BrainMove[
   return out;
 }
 
-export const moveText = (m: BrainMove) => `${m.key} ${fmtNum(m.before)} -> ${fmtNum(m.after)}`;
+export const moveText = (m: BrainMove) => {
+  const small = Math.abs(m.after - m.before) < 0.01;
+  const f = (n: number) => (small ? n.toFixed(3) : fmtNum(n));
+  return `${m.key} ${f(m.before)} -> ${f(m.after)}`;
+};
 
 /** The mistakes one bot's play showed, by type. */
 export function mistakeLines(f: BotStudy['facts']): CountLine[] {

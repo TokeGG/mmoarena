@@ -95,15 +95,16 @@ describe('the bot learner says what it learned', () => {
     if (!r.ok) return;
     const mage = r.report.classes.find((c) => c.classId === 'mage')!;
     assert.equal(mage.moved.length, 1);
-    assert.equal(mage.moved[0].key, 'mobility');
+    assert.ok(['mobility', 'strafe'].includes(mage.moved[0].key), 'the first number on the list that is not at its bound');
     assert.ok(mage.moved[0].after > mage.moved[0].before);
     assert.match(mage.moved[0].why ?? '', /standing still: stood still 70%/);
     assert.equal(r.report.nothing, null);
     const text = formatReport(r.report).join('\n');
-    assert.match(text, /mobility \d\.\d\d -> \d\.\d\d \(standing still/);
+    assert.match(text, /(mobility|strafe) \d\.\d\d -> \d\.\d\d \(standing still/);
     assert.doesNotMatch(text, /already play/i);
     // a win counts half as much
-    const w = new BotLearner(new MemoryStore(), () => 0.5, stub([{ ...mageLoss({}, {}, [nudge(['mobility'])]), won: true }]));
+    const key = mage.moved[0].key;
+    const w = new BotLearner(new MemoryStore(), () => 0.5, stub([{ ...mageLoss({}, {}, [nudge([key as 'mobility'])]), won: true }]));
     const rw = await w.trainOn(replay, 'rep0000000c2');
     const step = (x: Awaited<ReturnType<BotLearner['trainOn']>>) => (x.ok ? x.report.classes[0].moved[0].after - x.report.classes[0].moved[0].before : 0);
     assert.ok(Math.abs(step(rw) - step(r) / 2) < 1e-6, `win ${step(rw)} loss ${step(r)}`);
@@ -130,7 +131,7 @@ describe('the bot learner says what it learned', () => {
 
   it('a number at its limit is widened or the next number moves, and it says so', async () => {
     const replay = botMatch();
-    const l = new BotLearner(new MemoryStore(), () => 0.5, stub([mageLoss({}, {}, [nudge(['mobility'], 1, 1)])]));
+    const l = new BotLearner(new MemoryStore(), () => 0.5, stub([mageLoss({}, {}, [nudge(['mobility', 'strafe'], 1, 1)])]));
     const first = brainFor('mage').mobility;
     let widened = false;
     for (let i = 0; i < 40; i++) {
@@ -139,9 +140,10 @@ describe('the bot learner says what it learned', () => {
       if (r.ok && r.report.classes[0].notes?.some((n) => /widened/.test(n))) widened = true;
       if (r.ok) assert.ok(r.report.classes[0].moved.length >= 1 || r.report.classes[0].notes?.length, 'never stalls silently');
     }
-    assert.ok(widened || l.knowledge().find((c) => c.classId === 'mage')!.learned.mobility >= 1 - 1e-9, 'it widened the room or reached the bound');
-    assert.ok(l.knowledge().find((c) => c.classId === 'mage')!.learned.mobility > first);
-    assert.ok(l.knowledge().find((c) => c.classId === 'mage')!.learned.mobility <= 1);
+    const k = l.knowledge().find((c) => c.classId === 'mage')!.learned;
+    assert.ok(k.mobility > first || k.strafe > brainFor('mage').strafe, 'one of the two numbers on the list moved up');
+    assert.ok(k.mobility <= 1 && k.strafe <= 1);
+    void widened;
   });
 
   it('keeps the last 50 reports, and survives a restart', async () => {

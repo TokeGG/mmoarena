@@ -161,26 +161,26 @@ export function gradedNudges(bot: Graded, people: Graded, classId: ClassId): Nud
     out.push({ metric, why, keys, sign: delta > 0 ? 1 : -1, strength: Math.min(1, Math.max(0.2, Math.abs(delta) / scale)) });
   };
   // movement
-  add('standing still', bot.still - people.still, 0.5, ['mobility', 'strafe'], ['mobility'], `stood still ${pct(bot.still)} of the fight, the people ${pct(people.still)}`);
-  add('time in the open', bot.exposed - people.exposed, 0.5, ['coverHp', 'losUse'], ['losUse'], `in an enemy's sight ${pct(bot.exposed)} of the fight, the people ${pct(people.exposed)}`);
-  add('line-of-sight breaks', people.losBreaks - bot.losBreaks, 4, ['losUse'], ['losUse'], `broke sight ${bot.losBreaks.toFixed(1)} times a minute, the people ${people.losBreaks.toFixed(1)}`);
-  add('sidestepping', people.strafed - bot.strafed, 0.4, ['strafe'], ['strafe'], `moved sideways ${pct(bot.strafed)} of the fight, the people ${pct(people.strafed)}`);
-  if (RANGED[classId]) add('spacing', people.dist - bot.dist, 8, ['rangeBias'], ['rangeBias'], `stood ${yd(bot.dist)} from its target, the people ${yd(people.dist)}`);
-  else add('chasing', bot.dist - people.dist, 4, ['chase', 'mobility'], ['chase'], `stood ${yd(bot.dist)} from its target, the people ${yd(people.dist)}`);
-  add('staying near the healer', bot.healerOut - people.healerOut, 0.3, ['stayNear'], ['stayNear'], `out of its healer's reach ${pct(bot.healerOut)} of the fight, the people ${pct(people.healerOut)}`);
-  add('lava', bot.lava - people.lava, 1, ['edgeCare'], [], `${bot.lava.toFixed(1)}s in lava, the people ${people.lava.toFixed(1)}s`);
+  add('standing still', bot.still - people.still, 0.5, ['mobility', 'strafe', 'dodge'], ['mobility', 'strafe'], `stood still ${pct(bot.still)} of the fight, the people ${pct(people.still)}`);
+  add('time in the open', bot.exposed - people.exposed, 0.5, ['coverHp', 'losUse', 'dodge'], ['losUse', 'coverHp'], `in an enemy's sight ${pct(bot.exposed)} of the fight, the people ${pct(people.exposed)}`);
+  add('line-of-sight breaks', people.losBreaks - bot.losBreaks, 4, ['losUse', 'coverHp'], ['losUse', 'coverHp'], `broke sight ${bot.losBreaks.toFixed(1)} times a minute, the people ${people.losBreaks.toFixed(1)}`);
+  add('sidestepping', people.strafed - bot.strafed, 0.4, ['strafe', 'mobility'], ['strafe', 'mobility'], `moved sideways ${pct(bot.strafed)} of the fight, the people ${pct(people.strafed)}`);
+  if (RANGED[classId]) add('spacing', people.dist - bot.dist, 8, ['rangeBias', 'mobility'], ['rangeBias', 'mobility'], `stood ${yd(bot.dist)} from its target, the people ${yd(people.dist)}`);
+  else add('chasing', bot.dist - people.dist, 4, ['chase', 'mobility', 'strafe'], ['chase', 'mobility'], `stood ${yd(bot.dist)} from its target, the people ${yd(people.dist)}`);
+  add('staying near the healer', bot.healerOut - people.healerOut, 0.3, ['stayNear', 'coverHp'], ['stayNear', 'chase'], `out of its healer's reach ${pct(bot.healerOut)} of the fight, the people ${pct(people.healerOut)}`);
+  add('lava', bot.lava - people.lava, 1, ['edgeCare', 'dodge'], [], `${bot.lava.toFixed(1)}s in lava, the people ${people.lava.toFixed(1)}s`);
   // gameplay
-  add('offensive cooldowns', bot.cdIdle - people.cdIdle, 0.4, ['burstUse', 'burstHp'], [], `held a cooldown ready ${pct(bot.cdIdle)} of the fight, the people ${pct(people.cdIdle)}`);
+  add('offensive cooldowns', bot.cdIdle - people.cdIdle, 0.4, ['burstUse', 'burstHp', 'trinketAt'], [], `held a cooldown ready ${pct(bot.cdIdle)} of the fight, the people ${pct(people.cdIdle)}`);
   if (bot.defHp !== null || people.defHp !== null) {
     const b = bot.defHp ?? 0;
     const h = people.defHp ?? 0;
-    add('defensive timing', h - b, 0.25, ['defHp', 'panicHp'], ['defHp'], `pressed defensives at ${pct(b)} health${bot.defHp === null ? ' (never)' : ''}, the people at ${pct(h)}${people.defHp === null ? ' (never)' : ''}`);
+    add('defensive timing', h - b, 0.25, ['defHp', 'panicHp', 'coverHp'], ['defHp', 'panicHp'], `pressed defensives at ${pct(b)} health${bot.defHp === null ? ' (never)' : ''}, the people at ${pct(h)}${people.defHp === null ? ' (never)' : ''}`);
   }
-  add('target switching', bot.switches - people.switches, 6, ['stickiness', 'switchHp'], ['stickiness'], `changed target ${bot.switches.toFixed(1)} times a minute, the people ${people.switches.toFixed(1)}`);
+  add('target switching', bot.switches - people.switches, 6, ['stickiness', 'switchHp', 'focus'], ['stickiness', 'switchHp'], `changed target ${bot.switches.toFixed(1)} times a minute, the people ${people.switches.toFixed(1)}`);
   if (bot.trinketHp !== null || people.trinketHp !== null) {
     const b = bot.trinketHp ?? 0;
     const h = people.trinketHp ?? 0;
-    add('trinket use', h - b, 0.3, ['trinketAt'], ['trinketAt'], `used the trinket at ${pct(b)} health${bot.trinketHp === null ? ' (never)' : ''}, the people at ${pct(h)}${people.trinketHp === null ? ' (never)' : ''}`);
+    add('trinket use', h - b, 0.3, ['trinketAt', 'defHp'], ['trinketAt', 'defHp'], `used the trinket at ${pct(b)} health${bot.trinketHp === null ? ' (never)' : ''}, the people at ${pct(h)}${people.trinketHp === null ? ' (never)' : ''}`);
   }
   return out;
 }
