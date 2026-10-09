@@ -123,6 +123,7 @@ let endBoardUp = false;
 /** The end screen is a ready check: everyone presses Play again (or leaves) and the next match starts when all are ready. */
 const endChoice = (() => {
   const box = document.createElement('div');
+  box.id = 'endchoice'; // a HUD element (hudLayout.ts)
   box.style.cssText = 'position:fixed;left:50%;bottom:9%;transform:translateX(-50%);display:none;flex-direction:column;align-items:center;gap:10px;z-index:60;';
   const row = document.createElement('div');
   row.style.cssText = 'display:flex;gap:14px;';
@@ -253,6 +254,9 @@ const menu = new Menu(binds, {
   onHelp: () => helpWindow.open(),
 });
 const hudLayout = new HudLayout();
+// the owner's part of the editor: who is the owner, and sending the layout to the server as the default for everyone
+hudLayout.isOwner = () => !!accountUi.account?.ownerOk;
+hudLayout.publish = (layout) => void send({ t: 'admin_hud_default', layout });
 // the HUD editor opened from the main menu (over a pretend fight) is tracked by the editor itself (hudEditState.ts)
 hudLayout.onChange = (editing, restoreMenu) => {
   controls.enabled = !editing;
@@ -423,6 +427,9 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'marks':
       teamMarks = new Map(m.marks);
+      break;
+    case 'hud_default':
+      hudLayout.setDefault(m.layout, m.at, m.by);
       break;
     case 'announce':
       announceBanner.show(m, () => audio.ui('select'));
@@ -1428,16 +1435,22 @@ let following: string | null = null;
 const followBox = (() => {
   const box = document.createElement('div');
   box.className = 'follow-box hidden';
-  const text = document.createElement('span');
+  const lbl = document.createElement('span');
+  lbl.className = 'fb-lbl';
+  lbl.textContent = '👁 Following';
+  const nameEl = document.createElement('b');
+  nameEl.className = 'fb-name';
   const stop = document.createElement('button');
-  stop.textContent = 'Stop following';
+  stop.textContent = 'Stop';
+  stop.title = 'Stop following';
   stop.addEventListener('click', () => send({ t: 'follow', name: null }));
-  box.append(text, stop);
+  box.append(lbl, nameEl, stop);
   document.body.append(box);
   return {
     set(name: string | null) {
       box.classList.toggle('hidden', !name);
-      text.textContent = name ? `👁 Following ${name}: you join every match they play` : '';
+      nameEl.textContent = name ?? '';
+      box.title = name ? `Following ${name}: you join every match they play. Press Stop to go back to normal.` : '';
     },
   };
 })();
