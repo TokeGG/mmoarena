@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.15",
+  "date": "2026-10-09",
+  "at": "2026-10-09T18:30:00Z",
+  "title": "Guided tours",
+  "changes": [
+   "New players get short guided tours the first time they see the main menu, build screen, first match and watch mode. Help & tours in the Esc menu and on the main menu replays any of them."
+  ]
+ },
+ {
   "version": "0.69.14",
   "date": "2026-10-09",
   "at": "2026-10-09T16:20:00Z",
