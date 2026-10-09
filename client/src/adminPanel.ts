@@ -1,4 +1,7 @@
-import { CLASSES, formatReport, moveText } from '@arena/shared';
+import { ABILITIES, CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
+import type { ClassId, DevRequestRow } from '@arena/shared';
+import { SkillEditor, skillPicker } from './skillView';
+import { designer, requestStatus } from './designer';
 import { pendingProposals } from './counts';
 import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
@@ -13,6 +16,8 @@ export function adminAccessOf(a: AccountInfo | null): 'owner' | 'dev' | null {
   return a.grants.includes('dev') ? 'dev' : null;
 }
 
+let designerOnce = false;
+
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -20,7 +25,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-type Tab = 'dashboard' | 'players' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'server' | 'log';
+type Tab = 'dashboard' | 'players' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'requests' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
@@ -28,6 +33,7 @@ const TABS: [Tab, string][] = [
   ['replays', 'Replays'],
   ['moderation', 'Moderation'],
   ['tuning', 'Tuning'],
+  ['requests', 'Requests'],
   ['server', 'Server'],
   ['log', 'Log'],
 ];
@@ -181,6 +187,7 @@ export class AdminPanel {
     s({ t: 'admin_overview' });
     if (this.tab === 'players' && access === 'owner') s({ t: 'admin_list' });
     if (this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
+    if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
     if (this.tab === 'replays') {
@@ -264,7 +271,7 @@ export class AdminPanel {
     const tabs = el('div', 'admp-tabs');
     for (const [id, label] of TABS) {
       if (access === 'dev' && !DEV_TABS.includes(id)) continue;
-      const waiting = id === 'tuning' ? pendingProposals(this.proposals) : 0;
+      const waiting = id === 'tuning' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.addEventListener('click', () => {
         this.tab = id;
@@ -291,8 +298,11 @@ export class AdminPanel {
         body.append(this.moderation());
         break;
       case 'tuning':
-        body.append(el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
+        body.append(el('h3', '', 'Skill designer'), this.designerBox(), el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
         if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
+        break;
+      case 'requests':
+        body.append(this.requestsBox());
         break;
       case 'server':
         body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance());
@@ -303,6 +313,116 @@ export class AdminPanel {
     }
     card.append(tabs, body);
     r.replaceChildren(card);
+  }
+
+  /** The designer's state: the class and skill on show and what was typed. */
+  private ds = { cls: CLASS_IDS[0] as ClassId, pick: '', mode: 'skills' as 'skills' | 'class' };
+  private dsEditor = new SkillEditor();
+
+  /**
+   * The debug window's skill view and Ask Claude chat, for the admin panel (no match is running here): pick a skill, read
+   * everything about it, edit numbers or talk to Claude. Edits and Claude's changes become proposals below, which are
+   * committed to GitHub with "Commit the ticked ones" (one commit that is also a patch) or deleted.
+   */
+  private designerBox(): HTMLElement {
+    const box = el('div', 'admp-designer');
+    if (!designerOnce) {
+      designerOnce = true;
+      designer.onChange(() => this.root && this.tab === 'tuning' && this.paint());
+    }
+    const me = this.hooks.account()?.name;
+    const pending = (this.proposals ?? []).filter((r) => r.status === 'pending' && r.by === me).reverse().reduce<import('@arena/shared').DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
+    const testing = new Map(pending.map((p) => [this.dsEditor.key(p), p]));
+    const tabs = el('div', 'devp-row');
+    for (const c of CLASS_IDS) {
+      const b = el('button', `mm-small${c === this.ds.cls ? ' mm-go' : ''}`, CLASSES[c].name);
+      b.addEventListener('click', () => {
+        this.ds.cls = c;
+        this.ds.pick = '';
+        this.dsEditor.edits.clear();
+        this.paint();
+      });
+      tabs.append(b);
+    }
+    const modes = el('div', 'devp-row');
+    for (const [id, label] of [['skills', 'Skills'], ['class', 'Class, specs and talents']] as const) {
+      const b = el('button', `mm-small${this.ds.mode === id ? ' mm-go' : ''}`, label);
+      b.addEventListener('click', () => {
+        this.ds.mode = id;
+        this.paint();
+      });
+      modes.append(b);
+    }
+    const ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === this.ds.cls || ABILITIES[id].class === 'trinket'));
+    if (!this.ds.pick || !ids.includes(this.ds.pick)) this.ds.pick = ids[0] ?? '';
+    const left = el('div', 'admp-ds-left');
+    left.append(tabs, modes);
+    if (this.ds.mode === 'skills') {
+      left.append(skillPicker(ids, this.ds.pick, (id) => {
+        this.ds.pick = id;
+        this.paint();
+      }));
+      if (this.ds.pick) left.append(this.dsEditor.skillBody(this.ds.pick, testing));
+    } else left.append(this.dsEditor.classSections(this.ds.cls, testing));
+    const add = el('button', 'mm-small mm-go', 'Add my edits to proposals');
+    add.title = 'Puts the numbers you typed on the proposals list below (old -> new), ready to commit to GitHub.';
+    add.addEventListener('click', () => {
+      const patches = [...this.dsEditor.edits.values()];
+      if (!patches.length) {
+        this.propMsg = { ok: false, text: 'Change a number first.' };
+        return this.paint();
+      }
+      this.dsEditor.edits.clear();
+      this.hooks.send({ t: 'dev_save', patches });
+    });
+    left.append(add);
+    const scope = this.ds.mode === 'skills' ? { ability: this.ds.pick, name: ABILITIES[this.ds.pick]?.name ?? 'a skill' } : { ability: '', classId: this.ds.cls, name: `the ${CLASSES[this.ds.cls].name} class` };
+    box.append(left, designer.renderChat(scope, this.hooks.send, true));
+    return box;
+  }
+
+  /** The owner's list of change requests: what devs asked for that needs code, written so it can be handed to a coding session. */
+  private requestsBox(): HTMLElement {
+    const box = el('div', 'own-box admp-reqs');
+    const rows = designer.requests;
+    box.append(el('p', 'mm-modal-foot', 'Things devs asked Claude for that need a code change (new mechanics, visuals, AI). Each is a complete spec: copy it into a coding session. Number-only changes never land here: they are proposals under Tuning.'));
+    if (!rows.length) box.append(el('p', 'mm-modal-foot', 'No requests yet.'));
+    const owner = this.access() === 'owner';
+    for (const r of rows) box.append(this.requestCard(r, owner));
+    return box;
+  }
+
+  private requestCard(r: DevRequestRow, owner: boolean): HTMLElement {
+    const card = el('details', 'admp-prop');
+    const sum = el('summary', 'admp-prop-head');
+    sum.append(el('b', '', r.title), el('small', '', ` · ${r.by} · ${r.scope} · ${ago(r.at)} · ${requestStatus(r)}`));
+    card.append(sum);
+    const pre = el('pre', 'admp-req-text', requestText(r));
+    pre.style.whiteSpace = 'pre-wrap';
+    card.append(pre);
+    const row = el('div', 'own-row');
+    const copy = el('button', 'mm-small', 'Copy spec');
+    copy.addEventListener('click', () => void navigator.clipboard?.writeText(requestText(r)).catch(() => undefined));
+    row.append(copy);
+    if (r.issueUrl) {
+      const a = el('a', '', ' GitHub issue');
+      a.href = r.issueUrl;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      row.append(a);
+    }
+    if (r.issueError) row.append(el('small', 'devp-dim', ` (no GitHub issue: ${r.issueError})`));
+    if (owner) {
+      const done = el('button', 'mm-small mm-go', r.status === 'done' ? 'Reopen' : 'Mark done');
+      done.addEventListener('click', () => this.hooks.send({ t: 'dev_requests', op: r.status === 'done' ? 'reopen' : 'done', id: r.id }));
+      const del = el('button', 'mm-small', 'Delete');
+      del.addEventListener('click', () => {
+        if (window.confirm(`Delete the request "${r.title}"?`)) this.hooks.send({ t: 'dev_requests', op: 'delete', id: r.id });
+      });
+      row.append(done, del);
+    }
+    card.append(row);
+    return card;
   }
 
   private dashboard(): HTMLElement {

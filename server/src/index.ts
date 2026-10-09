@@ -13,6 +13,7 @@ import { BotLearner, MeasureWorker } from './botlearn';
 import { DevTools } from './devtools';
 import { AdminLog } from './adminlog';
 import { AiTune } from './aitune';
+import { DevRequests } from './devrequests';
 import { Suggestions } from './suggestions';
 import { AVATAR_MAX_BYTES, REPLAY_MAX_BYTES, validateGif } from './accounts';
 import type { Store } from './store';
@@ -87,7 +88,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const tickMs = opts.tickMs ?? tickEnv.tickMs;
   const msgLimit = maxMsgsPerSec(tickMs);
   console.log(`tick: ${tickMs} ms (${Math.round((10000 / tickMs)) / 10} Hz)${tickMs === TUNING.tickMs ? '' : ' (ARENA_TICK_MS)'}`);
-  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env));
+  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)));
 
   const server = http.createServer((req, res) => {
     let url: URL;

@@ -48,6 +48,56 @@ export interface ProposalRow {
   status: 'pending' | 'live' | 'pr' | 'committed' | 'dismissed';
   url?: string;
 }
+/** One change Claude proposes in the dev panel's chat: what, the old value, the new one. */
+export interface ChatChange { label: string; from: number | string | null; to: number | string }
+/** A change request a dev filed through Ask Claude for something that needs code: a spec the owner can hand to a coding session. */
+export interface DevRequestRow {
+  id: string;
+  by: string;
+  at: number;
+  /** The skill or class the chat was about ("Fireball", "Mage"). */
+  scope: string;
+  title: string;
+  /** What the dev wants, in their words. */
+  wants: string;
+  /** What happens today, with the numbers. */
+  current: string;
+  /** What should happen. */
+  proposed: string;
+  acceptance: string[];
+  /** Skills and files it touches, as far as Claude could tell. */
+  affects: string[];
+  /** Which part needs code and cannot be done with data numbers. */
+  needsCode: string;
+  /** The number changes the dev tested alongside. */
+  tested: ChatChange[];
+  status: 'open' | 'done';
+  doneAt?: number;
+  /** The GitHub issue opened for it, or why none was. */
+  issueUrl?: string;
+  issueNumber?: number;
+  issueError?: string;
+}
+/** One answer of the dev panel's Ask Claude chat. */
+export interface ChatTurn {
+  id: string;
+  /** What this answer is: questions (nothing changed), changes (numbers), a change request, a plain reply, or an error. */
+  kind: 'questions' | 'changes' | 'request' | 'reply' | 'error';
+  /** Which skill (ability id) or class the chat is about. */
+  scope: string;
+  text: string;
+  questions?: string[];
+  changes?: ChatChange[];
+  /** The numbers are being tried (in the match, or kept for the session) now; false = waiting for the dev's Apply. */
+  applied?: boolean;
+  /** The changes as patches (so they can be committed to GitHub from the chat). */
+  patches?: DataPatch[];
+  /** In the admin panel's Tuning tab "applied" means added to the proposals list: this is that proposal. */
+  proposalId?: string;
+  /** Changes that were left out and why. */
+  dropped?: string[];
+  request?: { id: string; title: string; issueUrl?: string; issueNumber?: number; issueError?: string };
+}
 /** What a unit is playing with, shown to people watching a match. */
 export interface UnitBuild { id: number; name: string; classId: ClassId; team: TeamId; spec: string | null; talents: string[]; bar: string[]; /** A bot (its class and build can be changed from the dev panel). */ bot?: boolean; }
 /** One bot in an owner's bot match: its class and, if chosen, its spec (else a random one). */
@@ -129,7 +179,13 @@ export type ClientMsg =
   /** Dev tools: a note on a skill, sent to the owner. */
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
-  | { t: 'dev_ai'; ability: string; text: string }
+  | { t: 'dev_ai'; ability: string; text: string; /** Tuning tab: the changes become proposals (no match needed) instead of being tried in a match. */ propose?: boolean; /** Chat about a whole class (its numbers, specs and talents) instead of one skill. */ classId?: ClassId }
+  /** Ask Claude chat: apply the changes it proposed, take back what it applied, or start the thread over. */
+  | { t: 'dev_ai_apply'; turn: string }
+  | { t: 'dev_ai_undo'; turn: string }
+  | { t: 'dev_ai_clear'; scope: string }
+  /** Dev tools: change requests. `list` shows your own (the owner sees all); done, reopen and delete are the owner's. */
+  | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete'; id?: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
   /** Owner, dev test matches: move the running match to another map. */
@@ -208,6 +264,10 @@ export type ServerMsg =
   | { t: 'dev_map'; map: string }
   | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
+  /** Ask Claude's next answer in the chat. */
+  | { t: 'dev_chat'; turn: ChatTurn }
+  /** Change requests (a dev gets their own, the owner all of them). */
+  | { t: 'dev_requests'; rows: DevRequestRow[]; all: boolean }
   /** Owner admin panel: who is online and every match running (private ones included), and the server's state. */
   | { t: 'admin_overview'; /** How the server loop copes (owner only). */ tick?: { ms: number; avgMs: number; maxMs: number; load: number; late: number; worstMs: number; rooms: number }; online: number; /** Everyone connected, guests too (owner only). */ players?: AdminOnline[]; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
   | { t: 'admin_log'; rows: AdminLogRow[] }
@@ -466,8 +526,25 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       const note = typeof m.note === 'string' ? m.note.slice(0, 600) : undefined;
       return { t: m.t === 'dev_commit' ? 'dev_commit' : 'dev_save', patches, ...(note ? { note } : {}) } as ClientMsg;
     }
+    case 'dev_ai': {
+      if (typeof m.text !== 'string' || !m.text.trim()) return null;
+      const text = m.text.trim().slice(0, 600);
+      const propose = m.propose === true ? { propose: true as const } : {};
+      if (typeof m.classId === 'string' && CLASS_IDS.includes(m.classId as ClassId)) return { t: 'dev_ai', ability: '', text, classId: m.classId as ClassId, ...propose };
+      if (typeof m.ability !== 'string' || !Object.hasOwn(ABILITIES, m.ability)) return null;
+      return { t: 'dev_ai', ability: m.ability, text, ...propose };
+    }
+    case 'dev_ai_apply':
+    case 'dev_ai_undo':
+      return typeof m.turn === 'string' && /^[0-9a-z]{4,20}$/.test(m.turn) ? { t: m.t, turn: m.turn } : null;
+    case 'dev_ai_clear':
+      return typeof m.scope === 'string' && m.scope.length <= 40 ? { t: 'dev_ai_clear', scope: m.scope } : null;
+    case 'dev_requests': {
+      if (!['list', 'done', 'reopen', 'delete'].includes(m.op)) return null;
+      if (m.op !== 'list' && !(typeof m.id === 'string' && /^[0-9a-z]{4,20}$/.test(m.id))) return null;
+      return { t: 'dev_requests', op: m.op, ...(typeof m.id === 'string' ? { id: m.id } : {}) };
+    }
     case 'dev_note':
-    case 'dev_ai':
       if (typeof m.ability !== 'string' || !Object.hasOwn(ABILITIES, m.ability) || typeof m.text !== 'string' || !m.text.trim()) return null;
       return { t: m.t, ability: m.ability, text: m.text.trim().slice(0, 600) };
     case 'dev_builds':

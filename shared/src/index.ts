@@ -18,4 +18,5 @@ export * from './graded';
 export * from './learnreport';
 export * from './devpatch';
 export * from './devinfo';
+export * from './devrequest';
 export * from './snapslim';
