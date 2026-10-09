@@ -1,0 +1,15 @@
+{
+  "name": "Arena",
+  "short_name": "Arena",
+  "description": "Tab-target arena PvP in your browser. Watch live matches and replays from your phone.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b0d12",
+  "theme_color": "#140f0b",
+  "icons": [
+    { "src": "/apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

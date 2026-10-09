@@ -4,6 +4,7 @@ import { ABILITIES, ARENAS, CLASSES, contentHash, specOf, talentsFor } from '@ar
 import type { LiveMatch, ReplayData, StatRow, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON, CLASS_ICON } from './icons';
 import { tipBuildKey } from './tips';
+import { compactScreen } from './lightMode';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -35,7 +36,18 @@ export interface SpectateHandlers {
   onSeek(tick: number): void;
   /** The key bound to switching targets (shown in the "follow" hint), e.g. "Tab". */
   switchKey?(): string;
+  /** The on-screen previous / next buttons: follow the previous (-1) or next (1) player. */
+  onCycle?(dir: 1 | -1): void;
+  /** The builds button (the N key on a keyboard). */
+  onBuilds?(): void;
+  /** The settings button (the Esc menu on a keyboard). */
+  onSettings?(): void;
 }
+
+/** The replay speeds, slowest first. */
+export const RATES = [0.5, 1, 2, 4];
+/** The speed after this one, wrapping from the fastest back to the slowest. */
+export const nextRate = (r: number): number => RATES[(Math.max(0, RATES.indexOf(r)) + 1) % RATES.length];
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
@@ -70,7 +82,10 @@ export class BuildsPanel {
   get visible(): boolean {
     return !this.root.classList.contains('hidden');
   }
+  /** Wanted on screen: always at first on a big screen, only on request on a phone (it covers half the picture). */
+  private wanted = !compactScreen();
   toggle(on = !this.visible) {
+    this.wanted = on;
     this.root.classList.toggle('hidden', !on || !this.units.length);
   }
   set(units: UnitBuild[]) {
@@ -97,7 +112,7 @@ export class BuildsPanel {
     head.addEventListener('dblclick', () => this.setMinimized(!this.minimized));
     this.root.append(head);
     this.root.classList.toggle('min', this.minimized);
-    if (this.minimized) return void this.root.classList.toggle('hidden', !this.units.length);
+    if (this.minimized) return void this.root.classList.toggle('hidden', !this.units.length || !this.wanted);
     for (const team of [0, 1]) {
       const units = this.units.filter((u) => u.team === team);
       if (!units.length) continue;
@@ -133,7 +148,7 @@ export class BuildsPanel {
         this.root.append(card);
       }
     }
-    this.root.classList.toggle('hidden', !this.units.length);
+    this.root.classList.toggle('hidden', !this.units.length || !this.wanted);
   }
 }
 
@@ -181,7 +196,11 @@ export class Scoreboard {
       }
     }
     const title = el('div', 'sb-head', this.title);
-    this.root.replaceChildren(title, table, el('small', '', 'Press B or the button to hide'));
+    const close = el('button', 'mm-small sb-close', 'Close');
+    close.addEventListener('click', () => this.toggle(false));
+    const wrap = el('div', 'sb-scroll');
+    wrap.append(table);
+    this.root.replaceChildren(title, wrap, el('small', 'sb-hint', 'Press B or the button to hide'), close);
   }
 }
 
@@ -190,24 +209,52 @@ export class SpectateBar {
   readonly root = el('div', 'spec-bar hidden');
   private title = el('span', 'sb-title');
   private follow = el('span', 'sb-follow');
-  private play = el('button', 'mm-small', '⏸');
+  private play = el('button', 'mm-small sb-play', '⏸');
   private seek = el('input');
   private time = el('span', 'sb-time');
   private rateBtns: HTMLButtonElement[] = [];
-  private replayRow = el('div', 'sb-row');
+  private replayRow = el('div', 'sb-row sb-replay');
+  /** One button that steps through the speeds, for screens too narrow for the four. */
+  private speedBtn = el('button', 'mm-small sb-speed', '1×');
+  private rate = 1;
   private paused = false;
   private total = 1;
   /** Milliseconds per tick of the replay being shown (the clock is ticks times this). */
   private tickMs = 50;
   readonly board = new Scoreboard();
-  private scoreBtn = el('button', 'mm-small hidden', 'Scoreboard (B)');
+  private scoreBtn = el('button', 'mm-small hidden', 'Scores');
+  private fold = el('button', 'mm-small sb-fold', '▴');
 
   constructor(private h: SpectateHandlers) {
-    const top = el('div', 'sb-row');
-    const exit = el('button', 'mm-small', 'Exit');
+    const top = el('div', 'sb-row sb-top');
+    const exit = el('button', 'mm-small sb-exit', 'Leave');
     exit.addEventListener('click', () => h.onExit());
     this.scoreBtn.addEventListener('click', () => this.board.toggle());
-    top.append(this.title, this.follow, this.scoreBtn, exit);
+    this.scoreBtn.title = 'Scoreboard (B)';
+    const builds = el('button', 'mm-small sb-builds', 'Builds');
+    builds.title = 'Builds, talents and skills (N)';
+    builds.addEventListener('click', () => h.onBuilds?.());
+    const cog = el('button', 'mm-small sb-cog', '⚙');
+    cog.title = 'Settings';
+    cog.setAttribute('aria-label', 'Settings');
+    cog.addEventListener('click', () => h.onSettings?.());
+    // small screens: the bar folds down to its title so the picture stays clear
+    this.fold.title = 'Fold the bar';
+    this.fold.addEventListener('click', () => {
+      const on = this.root.classList.toggle('folded');
+      this.fold.textContent = on ? '▾' : '▴';
+    });
+    top.append(this.title, this.scoreBtn, builds, cog, exit, this.fold);
+    const nav = el('div', 'sb-row sb-nav');
+    const prev = el('button', 'mm-small sb-prev', '◀');
+    prev.title = 'Previous player';
+    prev.setAttribute('aria-label', 'Previous player');
+    prev.addEventListener('click', () => h.onCycle?.(-1));
+    const next = el('button', 'mm-small sb-next', '▶');
+    next.title = 'Next player';
+    next.setAttribute('aria-label', 'Next player');
+    next.addEventListener('click', () => h.onCycle?.(1));
+    nav.append(prev, this.follow, next);
 
     this.play.addEventListener('click', () => this.setPaused(!this.paused, true));
     this.seek.type = 'range';
@@ -215,7 +262,7 @@ export class SpectateBar {
     this.seek.value = '0';
     this.seek.addEventListener('input', () => h.onSeek(Number(this.seek.value)));
     const rates = el('span', 'sb-rates');
-    for (const r of [0.5, 1, 2, 4]) {
+    for (const r of RATES) {
       const b = el('button', 'mm-small', `${r}×`);
       b.addEventListener('click', () => {
         this.setRate(r);
@@ -224,13 +271,21 @@ export class SpectateBar {
       this.rateBtns.push(b);
       rates.append(b);
     }
-    this.replayRow.append(this.play, this.seek, this.time, rates);
-    this.root.append(top, this.replayRow);
+    this.speedBtn.title = 'Playback speed';
+    this.speedBtn.addEventListener('click', () => {
+      const r = nextRate(this.rate);
+      this.setRate(r);
+      h.onRate(r);
+    });
+    this.replayRow.append(this.play, this.seek, this.time, rates, this.speedBtn);
+    this.root.append(top, nav, this.replayRow);
     document.body.append(this.root);
   }
 
   private setRate(r: number) {
-    this.rateBtns.forEach((b, i) => b.classList.toggle('sel', [0.5, 1, 2, 4][i] === r));
+    this.rate = r;
+    this.rateBtns.forEach((b, i) => b.classList.toggle('sel', RATES[i] === r));
+    this.speedBtn.textContent = `${r}×`;
   }
 
   setPaused(p: boolean, notify = false) {
@@ -240,7 +295,7 @@ export class SpectateBar {
   }
 
   showLive() {
-    this.title.textContent = '👁 Watching live · 5 s behind';
+    this.title.textContent = '👁 Live · 5 s behind';
     this.replayRow.classList.add('hidden');
     this.root.classList.remove('hidden');
   }
@@ -248,6 +303,7 @@ export class SpectateBar {
   showReplay(totalTicks: number, label: string, shareUrl: string, tickMs = 50) {
     this.tickMs = tickMs;
     this.title.textContent = `⏪ Replay · ${label}`;
+    this.title.title = label;
     this.total = Math.max(1, totalTicks);
     this.seek.max = String(this.total);
     this.replayRow.classList.remove('hidden');
@@ -255,22 +311,28 @@ export class SpectateBar {
     this.setRate(1);
     const old = this.root.querySelector('.sb-share');
     old?.remove();
-    const share = el('button', 'mm-small sb-share', '🔗 Copy link');
+    const share = el('button', 'mm-small sb-share');
+    const say = (icon: string, text: string) => {
+      share.textContent = icon;
+      share.append(el('span', 'sb-lbl', ` ${text}`));
+    };
+    say('🔗', 'Copy link');
     share.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(shareUrl);
-        share.textContent = '✔ Copied';
+        say('✔', 'Copied');
       } catch {
         share.textContent = shareUrl;
       }
     });
-    this.root.firstElementChild!.insertBefore(share, this.root.firstElementChild!.lastElementChild);
+    this.root.firstElementChild!.insertBefore(share, this.scoreBtn);
     this.root.classList.remove('hidden');
   }
 
   update(tick: number, followName: string) {
     const key = this.h.switchKey?.() ?? 'Tab';
-    this.follow.textContent = followName ? `following ${followName} · ${key && key !== '—' ? `${key} or click` : 'click'} to switch` : '';
+    this.follow.textContent = followName ? `${followName}` : '';
+    this.follow.title = followName ? `Following ${followName}. ${key && key !== '—' ? `${key}, ` : ''}the arrows, or a tap on a player switches.` : '';
     if (!this.replayRow.classList.contains('hidden')) {
       if (document.activeElement !== this.seek) this.seek.value = String(tick);
       const s = Math.round((tick * this.tickMs) / 1000);
@@ -284,13 +346,15 @@ export class SpectateBar {
   setStats(rows: StatRow[]) {
     if (this.scoreBtn.classList.contains('hidden')) {
       this.scoreBtn.classList.remove('hidden');
-      this.title.textContent = '👁 Watching live · no delay (owner)';
+      this.title.textContent = '👁 Live · no delay';
     }
     this.board.update(rows);
   }
 
   hide() {
     this.root.classList.add('hidden');
+    this.root.classList.remove('folded');
+    this.fold.textContent = '▴';
     this.scoreBtn.classList.add('hidden');
     this.board.toggle(false);
   }

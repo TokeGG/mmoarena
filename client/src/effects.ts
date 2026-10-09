@@ -1,3 +1,4 @@
+import { lightMode } from './lightMode';
 import * as THREE from 'three';
 import { ABILITIES, AURAS } from '@arena/shared';
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
@@ -178,6 +179,7 @@ const _o = new THREE.Object3D();
 const _c = new THREE.Color();
 const _c2 = new THREE.Color();
 const PARTICLE_CAP = 900;
+const PARTICLE_CAP_LIGHT = 360;
 const FIRE_FRAMES = 25;
 const _v = new THREE.Vector3();
 const _q = new THREE.Quaternion();
@@ -196,6 +198,7 @@ export class Effects {
   /** The fire flipbook (public/fx/fire-sheet.webp, 5 x 5 frames, flame on black: drawn additively). Null until it has loaded or when it is missing: flames then use the canvas teardrop. */
   private fireFrames: THREE.Texture[] | null = null;
   private parts: Particle[] = [];
+  private thin = 0;
   private pool: THREE.Sprite[] = [];
   private fx: Fx[] = [];
   private timers: { at: number; fn: () => void }[] = [];
@@ -296,7 +299,8 @@ export class Effects {
     x: number, y: number, z: number,
     o: { tex?: TexName; color: number; vx?: number; vy?: number; vz?: number; life?: number; s0?: number; s1?: number; a?: number; grav?: number; drag?: number; add?: boolean; spin?: number; rot?: number; fire?: boolean; fps?: number; col1?: number },
   ) {
-    if (this.parts.length > PARTICLE_CAP) return;
+    if (this.parts.length > (lightMode.on ? PARTICLE_CAP_LIGHT : PARTICLE_CAP)) return;
+    if (lightMode.on && this.thin++ % 5 < 2) return; // light mode: two of every five sparks are never drawn
     const flip = !!o.fire && !!this.fireFrames;
     const sp = this.sprite(flip ? 'glow' : o.tex ?? 'spark', o.color, flip ? true : o.add ?? true);
     const mat = sp.material as THREE.SpriteMaterial;

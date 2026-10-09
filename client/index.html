@@ -2,13 +2,19 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover" />
 <title>Arena · tab-target PvP in your browser</title>
 <meta name="description" content="WoW-style arena PvP in your browser: 1v1, 2v2 and 3v3 tab-target fights with warriors, mages, priests and rogues. Specs, talents, ranked, bots, replays. Free, nothing to install." />
 <meta name="theme-color" content="#140f0b" />
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
 <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="manifest" href="/manifest.json" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-title" content="Arena" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="format-detection" content="telephone=no" />
 <!-- link previews (Discord, iMessage, X, Slack...) -->
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="Arena" />
@@ -183,8 +189,8 @@
   .slot.locked::before { content:attr(data-lock); position:absolute; left:0; right:0; bottom:3px; z-index:2; font:800 13px/1 system-ui; color:#fff; text-shadow:0 0 3px #000, 0 0 3px #000; text-align:center; }
   .slot.locked:hover, body[data-hud-style=glass] .slot.locked:hover { border-color:#8a7340; transform:none; cursor:not-allowed; }
   .slot.blocked { filter:grayscale(1) brightness(.35); } .slot.blocked:hover { transform:none; border-color:#8a7340; }
-  .scoreboard { position:fixed; top:90px; left:50%; transform:translateX(-50%); z-index:30; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:10px 14px; min-width:520px; box-shadow:0 6px 24px rgba(0,0,0,.7); }
-  .builds { position:fixed; top:90px; right:12px; z-index:29; width:250px; max-height:calc(100vh - 200px); overflow:auto; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:12px; }
+  .scoreboard { position:fixed; top:130px; left:50%; transform:translateX(-50%); z-index:30; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:10px 14px; min-width:520px; box-shadow:0 6px 24px rgba(0,0,0,.7); }
+  .builds { position:fixed; top:130px; right:12px; z-index:29; width:250px; max-height:calc(100vh - 240px); overflow:auto; background:rgba(14,16,22,.93); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); font-size:12px; }
   .builds.hidden { display:none; }
   .builds.min { width:auto; padding:4px 8px; }
   .builds .bd-btns { display:flex; gap:4px; }
@@ -901,6 +907,191 @@
   .sp-passives .sp-sub { margin:0 0 4px; color:#e9c872; font-size:11px; letter-spacing:1px; text-transform:uppercase; }
   .sp-passive { font-size:12px; color:#cfe8c8; line-height:1.45; } .sp-passive::before { content:'◆ '; color:#c9a24a; } .sp-passive.dim { color:#8b8372; }
   .sp-note { margin-top:8px; font-size:11px; color:#8b8372; font-style:italic; line-height:1.4; }
+.sb-fold,.sb-speed{display:none}.sb-nav .sb-follow{text-align:center;font-weight:600;color:#cfd6e6}.sb-top .sb-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-scroll{overflow-x:auto}.sb-close{display:none}
+
+/* =====================================================================================================================
+   Phones and tablets: watching live matches and replays, and the admin panel. Everything is keyed on screen size
+   (max-width) and on the pointer being a finger (pointer: coarse), never on the browser's name. Desktop is unchanged.
+   ===================================================================================================================== */
+:root { --sat:env(safe-area-inset-top,0px); --sar:env(safe-area-inset-right,0px); --sab:env(safe-area-inset-bottom,0px); --sal:env(safe-area-inset-left,0px); }
+html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+body { overscroll-behavior:none; -webkit-tap-highlight-color:transparent; touch-action:manipulation; }
+/* the scene takes every touch itself (orbit, pinch, tap): the browser must not scroll or zoom the page under it */
+canvas { touch-action:none; }
+button, select, summary, label, a, .mm-small, .mm-btn { touch-action:manipulation; }
+/* iOS will not let anyone type in a box that is user-select:none */
+input, textarea, select, [contenteditable] { -webkit-user-select:text; user-select:text; }
+.sb-scroll { overflow-x:auto; }
+@supports (height:100dvh) {
+  .builds { max-height:calc(100dvh - 240px); }
+  .devp { max-height:calc(100dvh - 160px); }
+  .admp-card { height:min(760px, calc(100dvh - 32px)); }
+  .admp-card.admp-small { max-height:calc(100dvh - 32px); }
+  #hud-edit-bar .he-panel { max-height:calc(100dvh - 28px); }
+  .mm-modal-card { max-height:90dvh; }
+  #join { height:100dvh; bottom:auto; }
+}
+
+/* ---- every touch screen: finger-sized controls, no zoom-on-focus, no hover-only things ---- */
+@media (pointer:coarse) {
+  button, .mm-small, .mm-btn, select, summary, .admp-tab, .live-row, .chip-btn { min-height:40px; }
+  .mm-small { padding:8px 13px; font-size:13px; }
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]), select, textarea { font-size:16px !important; min-height:40px; }
+  input[type=checkbox], input[type=radio] { width:22px; height:22px; }
+  input[type=range] { min-height:34px; }
+  .rs-grip, #help, .hud-grip { display:none !important; }
+  /* hover-only helpers have no place on a screen with no hover: the tooltip shows on tap instead (tooltip.ts) */
+  #menu-hud, #menu-controls, #keys-reset { display:none !important; }
+  #mute-btn { width:44px; height:44px; left:calc(10px + var(--sal)); bottom:calc(10px + var(--sab)); }
+  #tooltip { max-width:min(340px, calc(100vw - 16px)); }
+  body:has(.mm-modal) #mute-btn { display:none; }
+  .chk, .chk-grid label, .admp-card label, .devp label { min-height:40px; display:flex; align-items:center; gap:8px; }
+  .devp-skill { width:40px; height:40px; font-size:18px; }
+  .devp-skills { gap:5px; }
+}
+/* the settings button of the main menu: always there on touch and small screens (no Esc key) */
+.hdr-btn[data-icon="settings"] { display:none; --hc:#cfd6e6; }
+@media (pointer:coarse), (max-width:760px) { .hdr-btn[data-icon="settings"] { display:flex; } }
+
+/* ---- small screens (a phone in portrait, a narrow window) ---- */
+#menu select { background:#14161c; color:#e9dcc0; border:1px solid #6b5a35; border-radius:8px; padding:6px 8px; }
+@media (max-width:760px) {
+  #join { padding:calc(8px + var(--sat)) calc(10px + var(--sar)) calc(16px + var(--sab)) calc(10px + var(--sal)); }
+  .hdr-icons { flex-wrap:wrap; justify-content:center; gap:6px; }
+  .hdr-btn { width:40px; height:40px; }
+  .acct-tabs { flex:none; overflow-x:auto; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+  .acct-tabs::-webkit-scrollbar { display:none; }
+  .acct-tabs button { flex:1 0 auto; min-height:40px; padding:8px 12px; white-space:nowrap; }
+  .menu-extras { max-width:100%; justify-content:center; }
+  .mm-modal { align-items:flex-end; }
+  .mm-modal-card { width:100vw; max-width:100vw; max-height:92dvh; max-height:92vh; border-radius:16px 16px 0 0; padding:16px 14px calc(16px + var(--sab)); }
+  @supports (height:100dvh) { .mm-modal-card { max-height:92dvh; } }
+  .mm-modal-head { flex-wrap:wrap; }
+  .mm-modal-head h2 { font-size:18px; letter-spacing:2px; }
+  .live-list { max-height:none; }
+  .live-row { padding:12px; }
+  .live-row .live-people { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; }
+  .live-follow { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  #menu .card { width:100vw; max-width:100vw; max-height:100dvh; overflow:auto; }
+  #menu .srow .sl { width:100px; }
+  #menu .srow select { flex:1; }
+  #menu select { background:#14161c; color:#e9dcc0; border:1px solid #6b5a35; border-radius:8px; padding:8px; }
+  .follow-box { max-width:calc(100vw - 16px); flex-wrap:wrap; }
+}
+
+/* ---- the admin panel, as a full-screen sheet ---- */
+@media (max-width:760px), (pointer:coarse) and (max-width:1100px) {
+  .admp { padding:0; align-items:stretch; background:#141219; }
+  .admp .admp-card, .admp .admp-card.admp-small { width:100% !important; max-width:none !important; height:100vh !important; max-height:none !important; border-radius:0; border:0; box-shadow:none; }
+  @supports (height:100dvh) { .admp .admp-card, .admp .admp-card.admp-small { height:100dvh !important; } }
+  .admp-head { flex:none; flex-wrap:wrap; gap:8px; padding:calc(10px + var(--sat)) calc(12px + var(--sar)) 10px calc(12px + var(--sal)); }
+  .admp-head h2 { font-size:18px; }
+  .admp-status { order:5; flex:1 0 100%; font-size:12px; }
+  .admp-head .mm-small { min-width:44px; }
+  /* the ten tabs scroll sideways in one row, the chosen one stays in view */
+  .admp-tabs { flex:none; flex-wrap:nowrap; overflow-x:auto; overflow-y:hidden; -webkit-overflow-scrolling:touch; scrollbar-width:none; gap:4px; padding:6px calc(8px + var(--sar)) 0 calc(8px + var(--sal)); scroll-snap-type:x proximity; }
+  .admp-tabs::-webkit-scrollbar { display:none; }
+  .admp-tab { flex:none; min-height:44px; padding:8px 14px; font-size:14px; white-space:nowrap; scroll-snap-align:center; }
+  .admp-body { padding:12px calc(12px + var(--sar)) calc(28px + var(--sab)) calc(12px + var(--sal)); -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  .admp-stats { grid-template-columns:repeat(2, minmax(0, 1fr)); }
+  .admp-card .own-row { gap:8px; }
+  .admp-card .own-row > input, .admp-card .own-row > select { flex:1 1 140px; }
+  .admp-card .own-room { flex-wrap:wrap; }
+  .admp-card .own-room-info { flex:1 1 100%; }
+  .admp-card .own-room-info span { white-space:normal; }
+  .adm-list { max-height:none; }
+  .adm-row { padding:10px; }
+  .adm-note { min-height:72px; font-size:16px; }
+  .tm-grid { grid-template-columns:1fr; }
+  .tm-line { grid-template-columns:minmax(70px, 34%) 1fr auto; font-size:13px; padding:4px 0; }
+  .tm-table tbody tr { cursor:default; }
+  /* wide tables scroll sideways inside the page and keep their first column in view */
+  .admp-body table { display:block; max-width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  .admp-body table th:first-child, .admp-body table td:first-child { position:sticky; left:0; z-index:1; background:#141219; box-shadow:2px 0 0 #241f30; }
+  .admp-body table td, .admp-body table th { padding:9px 8px; }
+  .admp-designer, .admp-ds-left { min-width:0; max-width:100%; }
+  .admp-ds-left { max-height:none; overflow-y:visible; flex-basis:100%; }
+  .admp-designer .devp-chat { flex-basis:100%; }
+  .admp-prop-head { min-height:40px; }
+  .admp-job-track { width:100px; }
+  .admp-log li { padding:8px 0; }
+  .admp-body textarea, .admp-body input[type=text], .admp-body input[type=search], .admp-body input[type=password], .admp-body input[type=number] { max-width:100%; }
+  .admp-body pre { white-space:pre-wrap; word-break:break-word; }
+}
+
+/* ---- watching: the spectator bar, the scoreboard and the side panel ---- */
+@media (max-width:900px), (pointer:coarse) {
+  /* the bar's pieces become thumb-sized strips: the title and buttons at the top, follow and replay controls at the bottom */
+  .spec-bar { display:contents; }
+  body.spectating #mute-btn { top:calc(6px + var(--sat)); bottom:auto; left:calc(8px + var(--sal)); width:48px; height:48px; z-index:41; }
+  .spec-bar .sb-top { position:fixed; z-index:40; top:calc(6px + var(--sat)); left:calc(62px + var(--sal)); right:calc(8px + var(--sar)); display:flex; gap:6px; align-items:center; padding:5px 6px; background:rgba(14,17,24,.88); border:1px solid #3a4258; border-radius:12px; }
+  .spec-bar .sb-top .sb-title { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:13px; }
+  .spec-bar .sb-top .mm-small { flex:none; min-width:42px; min-height:42px; padding:6px 10px; }
+  .spec-bar .sb-exit { border-color:#8e3a32; color:#ffb0a8; }
+  .spec-bar .sb-nav { position:fixed; z-index:40; left:50%; transform:translateX(-50%); bottom:calc(8px + var(--sab)); width:min(440px, calc(100vw - 16px - var(--sal) - var(--sar))); display:flex; gap:8px; align-items:center; padding:6px; background:rgba(14,17,24,.88); border:1px solid #3a4258; border-radius:14px; }
+  .spec-bar .sb-nav .mm-small { flex:none; width:64px; min-height:48px; font-size:20px; padding:0; }
+  .spec-bar .sb-nav .sb-follow { flex:1; min-width:0; text-align:center; font-size:15px; font-weight:700; color:#e6e9ef; }
+  .spec-bar .sb-row:not(.sb-top):not(.sb-nav) { position:fixed; z-index:40; left:calc(8px + var(--sal)); right:calc(8px + var(--sar)); bottom:calc(72px + var(--sab)); display:flex; gap:8px; align-items:center; padding:6px 8px; background:rgba(14,17,24,.88); border:1px solid #3a4258; border-radius:14px; }
+  .spec-bar .sb-row.hidden { display:none; }
+  .spec-bar .sb-row input[type=range] { height:40px; margin:0; }
+  .spec-bar .sb-rates { display:none; }
+  .spec-bar .sb-speed { display:inline-block; }
+  .spec-bar .sb-lbl { display:none; }
+  .spec-bar .sb-rates .mm-small, .spec-bar .sb-row > .mm-small { min-width:44px; min-height:44px; padding:6px 8px; }
+  .spec-bar .sb-time { min-width:0; font-size:11px; }
+  .spec-bar.folded .sb-nav, .spec-bar.folded .sb-row:not(.sb-top):not(.sb-nav), .spec-bar.folded .sb-top .mm-small:not(.sb-fold):not(.sb-exit) { display:none; }
+  .spec-bar .sb-fold { display:inline-block; }
+  .scoreboard { top:calc(62px + var(--sat)); left:calc(8px + var(--sal)); right:calc(8px + var(--sar)); transform:none; min-width:0; max-height:calc(100vh - 150px - var(--sat) - var(--sab)); overflow:auto; z-index:41; padding:8px 10px; }
+  .scoreboard .sb-hint { display:none; }
+  .scoreboard .sb-head { text-align:left; padding-right:76px; font-size:14px; letter-spacing:1px; }
+  .scoreboard .sb-close { display:block; position:absolute; top:6px; right:8px; margin:0; }
+  .sb-table { font-size:12px; } .sb-table th, .sb-table td { padding:3px 5px; white-space:nowrap; }
+  .builds { top:calc(62px + var(--sat)); right:calc(8px + var(--sar)); left:auto; bottom:calc(76px + var(--sab)); max-height:none; width:min(300px, calc(100vw - 16px - var(--sal) - var(--sar))); z-index:41; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  .builds .bd-skill { width:34px; height:34px; font-size:18px; }
+  .builds .bd-talent { padding:5px 9px; font-size:12px; }
+  .builds .mm-small { min-width:40px; }
+  /* a watcher has no use for the player's own frames and bars: the arena gets the room */
+  body.spectating #help { display:none; }
+  /* a watcher on a small screen: a compact roster, no action bars or combat log, so the arena gets the room */
+  body.spectating #actionbar, body.spectating #trinketbar, body.spectating #log, body.spectating #autoind, body.spectating #target-frame, body.spectating #damp { display:none !important; }
+  body.spectating .frame { padding:3px 6px; width:150px !important; }
+  body.spectating .frame .auras { display:none; }
+  body.spectating .frame .bar.thin { height:8px; }
+  body.spectating #self-frame { left:calc(8px + var(--sal)) !important; top:calc(62px + var(--sat)) !important; }
+  body.spectating #party { left:calc(8px + var(--sal)) !important; top:calc(112px + var(--sat)) !important; gap:3px; }
+  body.spectating #enemies { right:calc(8px + var(--sar)) !important; top:calc(62px + var(--sat)) !important; gap:3px; }
+  body.spectating #party .frame, body.spectating #enemies .frame { width:150px !important; }
+  body.spectating #killfeed { top:calc(62px + var(--sat)); left:50%; right:auto; transform:translateX(-50%); width:min(260px, 36vw); font-size:11px; }
+}
+@media (pointer:coarse) { .builds .bd-btns .mm-small { min-width:44px; } }
+
+/* a phone held sideways: every pixel of height matters */
+@media (max-height:500px) and (pointer:coarse) {
+  #join { padding-top:calc(4px + var(--sat)); }
+  .mm-acct { position:static; grid-column:1 / -1; grid-row:1; justify-self:center; }
+  .mm-logo { grid-row:2; }
+  .mm-logo h1 { font-size:30px; letter-spacing:6px; }
+  .mm-logo::after { display:none; }
+  .mm-modal { align-items:center; }
+  .mm-modal-card { width:min(720px, calc(100vw - 16px)); max-height:calc(100vh - 12px); border-radius:14px; }
+  .spec-bar .sb-top { top:calc(4px + var(--sat)); padding:3px 5px; }
+  body.spectating #mute-btn { top:calc(4px + var(--sat)); }
+  .spec-bar .sb-top .mm-small { min-height:40px; }
+  .spec-bar .sb-nav { left:auto; right:calc(8px + var(--sar)); transform:none; bottom:calc(6px + var(--sab)); width:min(300px, 40vw); padding:4px; }
+  .spec-bar .sb-nav .mm-small { width:52px; min-height:44px; }
+  .spec-bar .sb-row:not(.sb-top):not(.sb-nav) { right:calc(min(300px, 40vw) + 16px + var(--sar)); bottom:calc(6px + var(--sab)); }
+  .scoreboard { top:calc(52px + var(--sat)); max-height:calc(100vh - 110px); }
+  .builds { top:calc(52px + var(--sat)); bottom:calc(60px + var(--sab)); }
+  .admp-head { padding-top:calc(6px + var(--sat)); }
+  .admp-head h2 { font-size:16px; }
+  .admp-status { order:0; flex:1; flex-basis:auto; }
+}
+.rot-hint{display:none}
+@media (pointer:coarse) and (orientation:portrait) {
+  body.spectating .rot-hint { display:block; position:fixed; top:calc(68px + var(--sat)); left:50%; transform:translateX(-50%); z-index:39; padding:6px 12px; border-radius:999px; background:rgba(14,17,24,.9); border:1px solid #3a4258; font-size:12px; color:#cfd6e6; pointer-events:none; white-space:nowrap; animation:rotHint 7s forwards; }
+}
+@keyframes rotHint { 0%,75% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
 </style>
 </head>
 <body>
@@ -929,6 +1120,7 @@
   <div id="damp" class="hidden" data-tip="text:" data-tip-title="Dampening" data-tip-text="Healing and shields get weaker the longer a fight lasts, so two healers cannot out-heal each other forever."></div>
 <div id="recap" class="hidden"></div>
 <div id="join"></div>
+<div class="rot-hint" aria-hidden="true">↻ Turn your phone sideways for a wider view</div>
 <button id="mute-btn" title="Sound on/off" aria-label="Sound on/off">🔊</button>
 
 <div id="menu" class="hidden">
@@ -944,6 +1136,7 @@
         </div>
         <div class="m-settings">
           <div class="srow"><span class="sl">Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /><b class="sw"></b> <span id="auto-toggle-val">On</span></label></div>
+          <div class="srow"><span class="sl">Light graphics</span><select id="light-sel" title="Fewer effects and a lower resolution, easier on phones. Automatic turns it on for touch screens and small screens."><option value="auto">Automatic</option><option value="on">On</option><option value="off">Off</option></select></div>
           <div class="srow"><span class="sl">Show network stats</span><label class="tgl"><input id="netstats-toggle" type="checkbox" /><b class="sw"></b> <span id="netstats-toggle-val">Off</span></label></div>
           <div class="srow"><span class="sl">Mouse sensitivity</span><input id="sens" type="range" min="0.3" max="2.5" step="0.1" value="1" /><span id="sens-val">1.0×</span></div>
           <div class="srow"><span class="sl">Brightness</span><input id="brightness" type="range" min="0.6" max="1.6" step="0.05" value="1" /><span id="brightness-val">100%</span></div>

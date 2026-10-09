@@ -15,6 +15,7 @@ import { buildArenaEnvironment } from './arenaMap';
 import type { ArenaEnvironment } from './arenaMap';
 import type { Character } from './models';
 import { TARGET_COLORS, look as hudLook } from './hudLook';
+import { lightMode } from './lightMode';
 
 export interface RenderUnit {
   id: number;
@@ -91,7 +92,7 @@ export class ArenaScene {
 
   constructor(canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(lightMode.pixelRatio());
     this.camera = new THREE.PerspectiveCamera(60, 1, 0.1, 700);
     this.env = buildArenaEnvironment(this.scene, this.renderer, this.arena);
     this.pillars = this.env.pillars;
@@ -106,6 +107,12 @@ export class ArenaScene {
     this.composer = this.buildComposer();
     window.addEventListener('resize', resize);
     resize();
+    // light mode switched in the settings: the pixel ratio and the post-processing follow at once
+    lightMode.onChange(() => {
+      this.renderer.setPixelRatio(lightMode.pixelRatio());
+      this.composer = this.buildComposer();
+      resize();
+    });
   }
 
   /** Brightness setting: 0.6 (darker) .. 1.6 (brighter), 1 = as designed. Lifts the midtones without clipping highlights. */
@@ -138,10 +145,11 @@ export class ArenaScene {
   /** Bloom makes torches, runes and spell glows bloom; the grade adds a warm punch and a soft vignette. */
   private buildComposer(): EffectComposer | null {
     try {
-      const target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: 4 });
+      const light = lightMode.on;
+      const target = new THREE.WebGLRenderTarget(window.innerWidth, window.innerHeight, { type: THREE.HalfFloatType, samples: light ? 0 : 4 });
       const composer = new EffectComposer(this.renderer, target);
       composer.addPass(new RenderPass(this.scene, this.camera));
-      composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.75, 1.5));
+      if (!light) composer.addPass(new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.7, 0.75, 1.5));
       composer.addPass(new OutputPass()); // tone mapping + sRGB
       composer.addPass(
         new ShaderPass({
