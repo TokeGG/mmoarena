@@ -21,6 +21,7 @@ import type { AiTune, StoredTurn } from './aitune';
 import type { DevRequests } from './devrequests';
 import { label as patchLabel } from './devtools';
 import { PlayTime } from './playtime';
+import type { ServerHealth } from './health';
 import type { TimeSample } from './playtime';
 import { TIME_IDLE_MS } from '@arena/shared';
 
@@ -797,7 +798,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private requests?: DevRequests, private time?: PlayTime) {
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private requests?: DevRequests, private time?: PlayTime, private health?: ServerHealth) {
     this.tickMs = Math.max(1, Math.round(cfg.tickMs ?? TUNING.tickMs));
     this.meter = new TickMeter(this.tickMs);
     // the saved state, unless the owner already changed it while it loaded
@@ -882,6 +883,7 @@ export class Lobby {
   async saveTime(): Promise<void> {
     this.sampleTime();
     await this.time?.flush().catch(() => undefined);
+    await this.health?.flush().catch(() => undefined);
   }
 
   /** The owner's moderation and server actions (admin panel). Everything is logged. */
@@ -994,7 +996,7 @@ export class Lobby {
       case 'time': {
         if (!this.time) return void send(p, { t: 'dev_result', ok: false, text: 'Play time tracking is off on this server.' });
         if (msg.name) send(p, { t: 'admin_time_player', name: msg.name, rec: await this.time.player(msg.name) });
-        else send(p, { t: 'admin_time', ...(await this.time.overview(this.onlineKeys())) });
+        else send(p, { t: 'admin_time', ...(await this.time.overview(this.onlineKeys())), health: await this.health?.list() });
         break;
       }
       case 'log':
@@ -2484,6 +2486,7 @@ export class Lobby {
   readonly tickMs: number;
   readonly meter: TickMeter;
   private lastSweep = Date.now();
+  private lastHealthAt = 0;
   roomCount(): number {
     return this.rooms.size;
   }
@@ -2511,6 +2514,10 @@ export class Lobby {
     }
     if (now - this.lastSweep >= 60000) { this.lastSweep = now; this.sweep(now); } // once a minute
     if (this.time && this.clock() - this.lastTimeAt >= 1000) this.sampleTime(); // play time: once a second
+    if (this.health && this.clock() - this.lastHealthAt >= 1000) {
+      this.lastHealthAt = this.clock();
+      this.health.record(this.meter.drain(), this.conns.size);
+    }
     for (const q of this.conns) {
       if (q.duelWith !== undefined && now - (q.duelAt ?? 0) > DUEL_WAIT_MS) {
         q.duelWith = undefined;

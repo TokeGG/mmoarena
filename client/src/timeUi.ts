@@ -1,5 +1,5 @@
 import { ARENAS, CLASSES, SPECS, TIME_CATS, TIME_CAT_LABEL, TIME_DAYS } from '@arena/shared';
-import type { ClientMsg, ServerMsg, TimeBuckets, TimeCat, TimeGlobal, TimeRecord, TimeRow } from '@arena/shared';
+import type { ClientMsg, HealthHour, ServerMsg, TimeBuckets, TimeCat, TimeGlobal, TimeRecord, TimeRow } from '@arena/shared';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -22,6 +22,39 @@ const ago = (t: number) => {
   const s = Math.max(0, Math.round((Date.now() - t) / 1000));
   return s < 60 ? 'just now' : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
 };
+
+const HOUR_MS = 3_600_000;
+const pad2 = (n: number) => String(n).padStart(2, '0');
+
+/** The three busiest hours of the day (UTC), busiest first, with their share of all counted time. */
+export function busiestHours(hours: number[]): { hour: number; ms: number; share: number }[] {
+  const total = hours.reduce((a, b) => a + b, 0);
+  return hours
+    .map((ms, hour) => ({ hour, ms, share: total ? ms / total : 0 }))
+    .filter((x) => x.ms > 0)
+    .sort((a, b) => b.ms - a.ms || a.hour - b.hour)
+    .slice(0, 3);
+}
+
+/** How much of its tick budget the server used in one hour (1 = every tick needed the whole step). */
+export const hourLoad = (h: HealthHour): number => (h.ticks && h.stepMs ? h.busyMs / (h.ticks * h.stepMs) : 0);
+
+/** Totals over the kept hours: average and worst load, late ticks and their share, slowest tick, most people online. */
+export function healthSummary(hours: HealthHour[]): { avgLoad: number; peakLoad: number; peakHour: number | null; late: number; ticks: number; lateShare: number; maxMs: number; peakOnline: number } {
+  let busy = 0, budget = 0, ticks = 0, late = 0, maxMs = 0, peakOnline = 0, peakLoad = 0;
+  let peakHour: number | null = null;
+  for (const h of hours) {
+    busy += h.busyMs;
+    budget += h.ticks * h.stepMs;
+    ticks += h.ticks;
+    late += h.late;
+    maxMs = Math.max(maxMs, h.maxMs);
+    peakOnline = Math.max(peakOnline, h.peakOnline);
+    const l = hourLoad(h);
+    if (l > peakLoad) { peakLoad = l; peakHour = h.h; }
+  }
+  return { avgLoad: budget ? busy / budget : 0, peakLoad, peakHour, late, ticks, lateShare: ticks ? late / ticks : 0, maxMs, peakOnline };
+}
 
 type Col = 'total' | 'ranked' | 'practice' | 'party' | 'menu' | 'spectate' | 'last';
 /** The columns of the table and what each sums up. */
@@ -71,7 +104,7 @@ export function lastDays(days: TimeBuckets, n = TIME_DAYS, now = Date.now()): { 
 
 /** The owner's Play time tab: the server at a glance, a table of players by time, and one player's breakdown. */
 export class TimeView {
-  private data: { global: TimeGlobal; rows: TimeRow[] } | null = null;
+  private data: { global: TimeGlobal; rows: TimeRow[]; health: HealthHour[] } | null = null;
   private detail: { name: string; rec: TimeRecord | null } | null = null;
   private sort: Col = 'total';
   private query = '';
@@ -86,7 +119,7 @@ export class TimeView {
   }
 
   handle(m: ServerMsg): boolean {
-    if (m.t === 'admin_time') this.data = { global: m.global, rows: m.rows };
+    if (m.t === 'admin_time') this.data = { global: m.global, rows: m.rows, health: m.health ?? [] };
     else if (m.t === 'admin_time_player') {
       if (m.name.toLowerCase() === this.picked.toLowerCase()) this.detail = { name: m.name, rec: m.rec };
     } else return false;
@@ -132,6 +165,102 @@ export class TimeView {
     return box;
   }
 
+  /** Show the hours of the day in this browser's time zone instead of UTC. */
+  private local = false;
+
+  private hoursChart(utc: number[]): HTMLElement {
+    const box = el('div', 'tm-box');
+    const offset = this.local ? -Math.round(new Date().getTimezoneOffset() / 60) : 0;
+    const zone = this.local ? 'your time' : 'UTC';
+    // the bar for local hour L holds UTC hour L - offset
+    const hours = Array.from({ length: 24 }, (_, l) => utc[(((l - offset) % 24) + 24) % 24] ?? 0);
+    const head = el('div', 'tm-hhead');
+    head.append(el('h4', '', `Busiest hours of the day (${zone})`));
+    const toggle = el('button', 'mm-small', this.local ? 'Show UTC' : 'Show my time');
+    toggle.addEventListener('click', () => {
+      this.local = !this.local;
+      this.repaint();
+    });
+    head.append(toggle);
+    box.append(head);
+    const top = busiestHours(hours);
+    if (!top.length) {
+      box.append(el('small', 'tm-none', 'No play time counted yet.'));
+      return box;
+    }
+    const range = (h: number) => `${pad2(h)}:00-${pad2((h + 1) % 24)}:00`;
+    box.append(el('div', 'tm-hbest', `Busiest: ${range(top[0].hour)} ${zone}, ${span(top[0].ms)} (${Math.round(top[0].share * 100)}% of all play)${top.length > 1 ? `. Next: ${top.slice(1).map((x) => `${range(x.hour)} (${Math.round(x.share * 100)}%)`).join(', ')}` : ''}`));
+    const row = el('div', 'tm-hours');
+    const max = Math.max(1, ...hours);
+    const rank = new Map(top.map((x, i) => [x.hour, i]));
+    hours.forEach((ms, h) => {
+      const col = el('div', `tm-hour${rank.has(h) ? ` top${rank.get(h)}` : ''}`);
+      col.title = `${range(h)} ${zone}: ${span(ms)}${rank.has(h) ? ` (busiest #${rank.get(h)! + 1})` : ''}`;
+      const fill = el('i');
+      fill.style.height = ms ? `${Math.max(4, Math.round((ms / max) * 100))}%` : '2px';
+      col.append(fill);
+      if (rank.has(h)) col.append(el('em', '', `#${rank.get(h)! + 1}`));
+      col.append(el('small', '', pad2(h)));
+      row.append(col);
+    });
+    box.append(row);
+    return box;
+  }
+
+  /** Server load and losses per hour for the last three days: how much of its step each tick used, and how many were late. */
+  private healthBox(): HTMLElement {
+    const box = el('div', 'tm-box');
+    const list = this.data?.health ?? [];
+    box.append(el('h4', '', 'Server load and losses (last 72 hours, UTC)'));
+    if (!list.length) {
+      box.append(el('small', 'tm-none', 'Nothing recorded yet: the server starts counting when it runs, one record per hour.'));
+      return box;
+    }
+    const sum = healthSummary(list);
+    const cards = el('div', 'admp-stats');
+    const stat = (v: string, k: string, cls = '') => {
+      const c = el('div', `admp-stat ${cls}`);
+      c.append(el('b', '', v), el('small', '', k));
+      cards.append(c);
+    };
+    const pct = (x: number) => `${Math.round(x * 100)}%`;
+    stat(pct(sum.avgLoad), 'Average load', sum.avgLoad > 0.7 ? 'bad' : '');
+    stat(pct(sum.peakLoad), sum.peakHour === null ? 'Busiest hour load' : `Load at its worst (${pad2(sum.peakHour % 24)}:00 UTC)`, sum.peakLoad > 0.7 ? 'bad' : '');
+    stat(`${sum.late}`, `Late ticks (${sum.ticks ? `${(sum.lateShare * 100).toFixed(sum.lateShare < 0.001 ? 3 : 2)}%` : '0%'} of all ticks)`, sum.late > 0 ? 'warn' : '');
+    stat(`${Math.round(sum.maxMs)} ms`, 'Slowest single tick');
+    stat(String(sum.peakOnline), 'Most people online');
+    box.append(cards);
+    box.append(el('small', 'tm-none', 'Load is how much of its step the server needed for each tick: 100% means it could not keep up. A late tick took longer than its step or started more than a step late, so everyone sees a small hitch.'));
+    // one bar per hour for the last 72 hours, empty hours kept as gaps
+    const last = list[list.length - 1].h;
+    const byH = new Map(list.map((x) => [x.h, x]));
+    const hoursList = Array.from({ length: 72 }, (_, i) => last - 71 + i);
+    const chart = (title: string, value: (h: HealthHour) => number, fmt: (h: HealthHour) => string, cls: (h: HealthHour) => string, scaleMin: number) => {
+      const wrap = el('div', 'tm-hchart');
+      wrap.append(el('small', 'tm-hlabel', title));
+      const row = el('div', 'tm-hours tm-long');
+      const max = Math.max(scaleMin, ...list.map(value));
+      hoursList.forEach((hr) => {
+        const h = byH.get(hr);
+        const col = el('div', `tm-hour${h ? ` ${cls(h)}` : ' gap'}`);
+        const when = new Date(hr * HOUR_MS);
+        col.title = h ? `${when.toISOString().slice(5, 10)} ${pad2(when.getUTCHours())}:00 UTC: ${fmt(h)} · slowest tick ${Math.round(h.maxMs)} ms · up to ${h.peakOnline} online` : `${when.toISOString().slice(5, 10)} ${pad2(when.getUTCHours())}:00 UTC: not recorded`;
+        const fill = el('i');
+        fill.style.height = h && value(h) > 0 ? `${Math.max(4, Math.round((value(h) / max) * 100))}%` : '2px';
+        col.append(fill);
+        if (when.getUTCHours() % 6 === 0) col.append(el('small', '', when.getUTCHours() === 0 ? when.toISOString().slice(5, 10) : pad2(when.getUTCHours())));
+        row.append(col);
+      });
+      wrap.append(row);
+      return wrap;
+    };
+    box.append(
+      chart('Load (percent of the step used)', hourLoad, (h) => `load ${Math.round(hourLoad(h) * 100)}%`, (h) => (hourLoad(h) > 0.7 ? 'hot' : hourLoad(h) > 0.4 ? 'warm' : 'cool'), 1),
+      chart('Losses (late ticks per hour)', (h) => h.late, (h) => `${h.late} late tick${h.late === 1 ? '' : 's'} of ${h.ticks}`, (h) => (h.late > 0 ? 'hot' : 'cool'), 5),
+    );
+    return box;
+  }
+
   private summary(g: TimeGlobal): HTMLElement {
     const box = el('div', 'tm-sum');
     const cards = el('div', 'admp-stats');
@@ -149,20 +278,8 @@ export class TimeView {
     const matchTotal = g.cat.practice + g.cat.party + g.cat.duel + g.cat.ranked + g.cat.dev;
     grid.append(this.bars('Most played classes', topBars(g.cls, className), matchTotal), this.bars('Most played specs', topBars(g.spec, specName, 8), matchTotal), this.bars('Arenas', topBars(g.map, mapLabel), matchTotal), this.bars('Modes', topBars(g.mode, (k) => k), matchTotal));
     box.append(grid);
-    const hours = el('div', 'tm-box');
-    hours.append(el('h4', '', 'Busiest hours of the day (UTC)'));
-    const row = el('div', 'tm-hours');
-    const max = Math.max(1, ...g.hours);
-    g.hours.forEach((ms, h) => {
-      const col = el('div', 'tm-hour');
-      col.title = `${String(h).padStart(2, '0')}:00 UTC: ${span(ms)}`;
-      const fill = el('i');
-      fill.style.height = ms ? `${Math.max(4, Math.round((ms / max) * 100))}%` : '2px';
-      col.append(fill, el('small', '', h % 3 === 0 ? String(h) : ''));
-      row.append(col);
-    });
-    hours.append(row);
-    box.append(hours);
+    box.append(this.hoursChart(g.hours));
+    box.append(this.healthBox());
     box.append(el('small', 'tm-none', `Counting since ${new Date(g.since).toLocaleDateString()}. Guests are one anonymous group: their time is in the totals above, not in the table.`));
     return box;
   }
