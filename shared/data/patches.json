@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.5",
+  "date": "2026-10-09",
+  "at": "2026-10-09T00:30:00Z",
+  "title": "Rogue changes: Protective Vanish, longer Sap, Gouge stops auto attack",
+  "changes": [
+   "Smoke Veil is replaced by Protective Vanish: Vanish also makes you immune to damage and crowd control for 2 seconds, ending early if you leave stealth. Vanish no longer drops smoke.",
+   "Sap now reaches 7 yards, no longer takes you out of stealth, and ends on any damage.",
+   "Gouge now turns off your auto attack when it lands on an enemy.",
+   "Smoke clouds are much lighter to draw, which fixes the lag and crashes they caused."
+  ]
+ },
+ {
   "version": "0.69.4",
   "date": "2026-10-08",
   "at": "2026-10-08T21:21:47Z",

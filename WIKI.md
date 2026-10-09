@@ -962,7 +962,7 @@ Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.
 
 | Tier | Talent | What it does |
 |---|---|---|
-| I | 💨 **Smoke Veil** | Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone. |
+| I | 🛡️ **Protective Vanish** | Vanish also makes you immune to damage and crowd control for 2 seconds. It ends early if you leave stealth. |
 |  | 🌫️ **Twin Vanish** | Vanish holds two charges, and each charge recharges on its own timer. |
 |  | 💚 **Shadow Mend** | Vanishing heals you for 50% of your missing health. |
 | II | ⚡ **Quiet Reserves** | Energy regenerates 20% faster. |
@@ -1232,7 +1232,7 @@ Talent: Cutthroat tier V *Evasive Dancer* (replaces Sprint); Duelist tier V *Eva
 <a id="skill-sap"></a>
 #### Sap
 
-*Physical* · 35 energy · 3 yd range · Instant · 8s incapacitate
+*Physical* · 35 energy · 7 yd range · Instant · 8s incapacitate
 
 - Cannot move, cast or act. Breaks on damage.
 - *Requires stealth.*
@@ -1337,6 +1337,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-purified"></a>**Purified** | Buff | 4s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
 | <a id="effect-renew"></a>**Renew** | Buff, magic | 5s | Heals 1% of maximum health every 1s. | talent *Renewing Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |
+| <a id="effect-protective-vanish"></a>**Shadow Shroud** | Buff | 2s | Immune to damage and crowd control. Lost when you leave stealth. | talent *Protective Vanish* ([Vanish](#skill-vanish)) |
 | <a id="effect-creeping-rot"></a>**Shadow Word: Pain** | Debuff (dot), magic | 10s | Takes 30 shadow damage every 1s (300 total). | [Shadow Word: Pain](#skill-shadow-word-death) |
 | <a id="effect-shatter"></a>**Shatter** | Debuff (mark) | 4s or 6s | Takes 5x damage from frost abilities. Lost when damaged, unless Deep Freeze is active. | [Frost Nova](#skill-frost-nova), [Deep Freeze](#skill-deep-freeze) |
 | <a id="effect-slice-hold"></a>**Slice and Dice** | Debuff (stun) | 1.1s | Cannot move, cast or act. | [Slice and Dice](#skill-slice-and-dice) |
