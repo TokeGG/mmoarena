@@ -1,5 +1,5 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS } from './data';
-import { validPatch } from './devpatch';
+import { PATCH_FILES, validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { TimeGlobal, TimeRecord, TimeRow } from './playtime';
@@ -345,7 +345,7 @@ export function parsePatches(raw: unknown): DataPatch[] | null {
   for (const p of raw) {
     if (!p || typeof p !== 'object') return null;
     const { file, id, path, value } = p as Record<string, unknown>;
-    if (!['abilities', 'auras', 'specs', 'talents', 'classes'].includes(file as string) || typeof id !== 'string' || id.length > 40 || (typeof value !== 'number' && !(typeof value === 'string' && value.length <= 20))) return null;
+    if (!(PATCH_FILES as readonly string[]).includes(file as string) || typeof id !== 'string' || id.length > 40 || (typeof value !== 'number' && !(typeof value === 'string' && value.length <= 20))) return null;
     if (!Array.isArray(path) || !path.every((k) => (typeof k === 'string' && k.length <= 32) || (typeof k === 'number' && Number.isInteger(k) && k >= 0 && k < 32))) return null;
     const patch: DataPatch = { file: file as DataPatch['file'], id, path: path as (string | number)[], value };
     if (!validPatch(patch)) return null;

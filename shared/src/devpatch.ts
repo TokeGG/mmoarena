@@ -1,13 +1,19 @@
-import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS } from './data';
+import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING } from './data';
 
 /**
  * Dev tuning: a change to one number in the game data, e.g. Fireball's damage or Frost Nova's root duration. Dev
  * testers try patches in a match against bots (only in their room), and a saved patch is applied for everyone (and
  * proposed for the data files as a pull request).
  */
+export type PatchFile = 'abilities' | 'auras' | 'specs' | 'talents' | 'classes' | 'tuning';
+/** Every data file a patch can name (the game options, shared/data/tuning.json, are one flat object with the id 'game'). */
+export const PATCH_FILES: readonly PatchFile[] = ['abilities', 'auras', 'specs', 'talents', 'classes', 'tuning'];
+/** The id of the one object in tuning.json. */
+export const TUNING_ID = 'game';
+
 export interface DataPatch {
-  file: 'abilities' | 'auras' | 'specs' | 'talents' | 'classes';
-  /** The ability, aura, spec or talent id (a talent in several specs is changed in all of them). */
+  file: PatchFile;
+  /** The ability, aura, spec or talent id (a talent in several specs is changed in all of them); 'game' for the game options. */
   id: string;
   /** Where the number sits inside it, e.g. ['effects', 0, 'amount'] or ['cooldown']. */
   path: (string | number)[];
@@ -37,90 +43,203 @@ export const ABILITY_CHOICES: Record<string, { label: string; options: string[] 
   school: { label: 'School', options: ['physical', 'fire', 'frost', 'arcane', 'holy', 'shadow', 'nature'] },
 };
 
+/** The yes/no options of an aura (patched as 1 or 0). */
+export const AURA_FLAGS: Record<string, string> = {
+  harmful: 'Harmful (a debuff)',
+  dispellable: 'Can be dispelled',
+  breaksOnDamage: 'Breaks when the target takes damage',
+  unique: 'Only one at a time on a target',
+  bleed: 'Counts as a bleed',
+  invulnerable: 'Target takes no damage and is immune to control',
+  untargetable: 'Target cannot be targeted',
+  blocksDebuffs: 'Harmful effects cannot take hold',
+  locksAbilities: 'Target cannot use skills',
+  noCast: 'Target cannot cast',
+  silence: 'Silences the target',
+  disarm: 'Disarms the target',
+  flee: 'Target runs away',
+  canTurn: 'Target can still turn',
+  perCp: 'Scales with combo points',
+};
+
+/** What a stat bonus (`mods.<key>`) does nothing by (its neutral value): a multiplier is 1, an added amount is 0. */
+export const MOD_SCALAR_DEFAULT: Record<string, number> = {
+  damageDone: 1, healingDone: 1, healingTaken: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, cpPower: 1, rage: 1, maxCp: 0, lifesteal: 0,
+};
+/** A skill change (`mods.ability.<skill>.<key>`): the neutral value of each number. */
+export const MOD_ABILITY_DEFAULT: Record<string, number> = {
+  damage: 1, heal: 1, cooldown: 1, castTime: 1, cost: 1, gain: 1, stored: 0, cpChance: 0, shadowProc: 0, range: 0, charges: 0, shieldPct: 0, echo: 0,
+};
+/** The yes/no changes a spec, talent or buff can make to a skill. */
+export const MOD_ABILITY_FLAGS: readonly string[] = ['castWhileMoving', 'free', 'castDuring', 'allyOk'];
+/** Game options a patch may not touch (the length of a server step changes how every match is played back). */
+const TUNING_LOCKED = new Set(['tickMs']);
+
 /** Fields that are ids, flags or structure, never balance numbers. */
 const NOT_TUNABLE = new Set(['id', 'class', 'school', 'target', 'type', 'name', 'kind', 'dr', 'aura', 'icon']);
 const MAX_ABS = 1_000_000;
 
+/** The data as the files have it, copied before any patch can be applied (for "the file's value" next to the live one). */
+const PRISTINE = structuredClone({ ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING }) as unknown as { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING };
+type Source = { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING };
+const LIVE: Source = { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING };
+
 /** Every object an id names in a data file: one ability or aura, a spec, or a talent (the same talent sits in each spec's tree). */
-function roots(file: DataPatch['file'], id: string): Record<string, unknown>[] {
+function roots(file: DataPatch['file'], id: string, src: Source = LIVE): Record<string, unknown>[] {
   if (file === 'abilities' || file === 'auras') {
-    const table = (file === 'abilities' ? ABILITIES : AURAS) as Record<string, unknown>;
+    const table = (file === 'abilities' ? src.ABILITIES : src.AURAS) as Record<string, unknown>;
     return Object.hasOwn(table, id) ? [table[id] as Record<string, unknown>] : [];
   }
+  if (file === 'tuning') return id === TUNING_ID ? [src.TUNING as unknown as Record<string, unknown>] : [];
   const found = new Set<Record<string, unknown>>();
   if (file === 'classes') {
-    return Object.hasOwn(CLASSES, id) ? [(CLASSES as unknown as Record<string, Record<string, unknown>>)[id]] : [];
+    return Object.hasOwn(src.CLASSES, id) ? [(src.CLASSES as unknown as Record<string, Record<string, unknown>>)[id]] : [];
   } else if (file === 'specs') {
-    for (const specs of Object.values(SPECS)) for (const s of specs) if (s.id === id) found.add(s as unknown as Record<string, unknown>);
+    for (const specs of Object.values(src.SPECS)) for (const s of specs) if (s.id === id) found.add(s as unknown as Record<string, unknown>);
   } else if (file === 'talents') {
-    for (const bySpec of Object.values(TALENTS)) for (const tiers of Object.values(bySpec)) for (const tier of tiers) for (const t of tier) if (t.id === id) found.add(t as unknown as Record<string, unknown>);
+    for (const bySpec of Object.values(src.TALENTS)) for (const tiers of Object.values(bySpec)) for (const tier of tiers) for (const t of tier) if (t.id === id) found.add(t as unknown as Record<string, unknown>);
   } else return [];
   return [...found];
 }
 
-const FILES = ['abilities', 'auras', 'specs', 'talents', 'classes'];
+type PatchAt = Pick<DataPatch, 'file' | 'id' | 'path'>;
+
+/** What kind of stat change a path inside `mods` is (a spec, talent or buff that does not have it yet can be given it), with the value that does nothing. */
+export function modSlot(p: PatchAt): { kind: 'number' | 'flag'; def: number } | null {
+  if (p.file !== 'specs' && p.file !== 'talents' && p.file !== 'auras') return null;
+  const [top, a, b, c] = p.path;
+  if (top !== 'mods' || typeof a !== 'string') return null;
+  if (p.path.length === 2) return Object.hasOwn(MOD_SCALAR_DEFAULT, a) ? { kind: 'number', def: MOD_SCALAR_DEFAULT[a] } : null;
+  if (p.path.length === 3 && (a === 'auraDuration' || a === 'auraExtend')) return typeof b === 'string' && Object.hasOwn(AURAS, b) ? { kind: 'number', def: a === 'auraDuration' ? 1 : 0 } : null;
+  if (p.path.length === 4 && a === 'ability' && typeof b === 'string' && Object.hasOwn(ABILITIES, b) && typeof c === 'string') {
+    if (Object.hasOwn(MOD_ABILITY_DEFAULT, c)) return { kind: 'number', def: MOD_ABILITY_DEFAULT[c] };
+    if (MOD_ABILITY_FLAGS.includes(c)) return { kind: 'flag', def: 0 };
+  }
+  return null;
+}
+
+/** True when the patch is a yes/no switch (patched as 1 or 0). */
+export function isSwitch(p: PatchAt): boolean {
+  if (p.path.length === 1 && p.file === 'abilities') return Object.hasOwn(ABILITY_FLAGS, String(p.path[0]));
+  if (p.path.length === 1 && p.file === 'auras') return Object.hasOwn(AURA_FLAGS, String(p.path[0]));
+  return modSlot(p)?.kind === 'flag';
+}
+
+interface Loc { obj: Record<string | number, unknown>; key: string | number; /** Keys below `key` that do not exist yet (a stat change the file does not have): they are made when the patch applies. */ rest: (string | number)[] }
 
 /** Where a patch points: the parent object and key in every copy of the thing it names (empty when the path does not lead to a number). */
-function locateAll(p: Pick<DataPatch, 'file' | 'id' | 'path'>): { obj: Record<string | number, unknown>; key: string | number }[] {
-  if (!FILES.includes(p.file)) return [];
+function locateAll(p: PatchAt, src: Source = LIVE): Loc[] {
+  if (!PATCH_FILES.includes(p.file)) return [];
   if (!Array.isArray(p.path) || p.path.length < 1 || p.path.length > 10) return [];
-  const out: { obj: Record<string | number, unknown>; key: string | number }[] = [];
-  // a skill's yes/no options and choices sit right on the ability
-  if (p.file === 'abilities' && p.path.length === 1 && typeof p.path[0] === 'string' && (Object.hasOwn(ABILITY_FLAGS, p.path[0]) || Object.hasOwn(ABILITY_CHOICES, p.path[0]))) {
-    const a = roots('abilities', p.id)[0];
-    return a ? [{ obj: a, key: p.path[0] }] : [];
+  // a skill's yes/no options and choices sit right on the ability; an aura's options on the aura
+  if (p.path.length === 1 && typeof p.path[0] === 'string') {
+    const k = p.path[0];
+    if (p.file === 'abilities' && (Object.hasOwn(ABILITY_FLAGS, k) || Object.hasOwn(ABILITY_CHOICES, k))) {
+      const a = roots('abilities', p.id, src)[0];
+      return a ? [{ obj: a, key: k, rest: [] }] : [];
+    }
+    if (p.file === 'auras' && Object.hasOwn(AURA_FLAGS, k)) {
+      const a = roots('auras', p.id, src)[0];
+      return a ? [{ obj: a, key: k, rest: [] }] : [];
+    }
   }
-  for (const start of roots(p.file, p.id)) {
+  const slot = modSlot(p);
+  const out: Loc[] = [];
+  for (const start of roots(p.file, p.id, src)) {
     let obj: unknown = start;
     for (let i = 0; i < p.path.length; i++) {
       const k = p.path[i];
       if (typeof k === 'string' && (k === '__proto__' || k === 'constructor' || k === 'prototype' || NOT_TUNABLE.has(k) || ((p.file === 'specs' || p.file === 'classes') && (k === 'bar' || k === 'weapon')))) return [];
+      if (p.file === 'tuning' && i === 0 && typeof k === 'string' && TUNING_LOCKED.has(k)) return [];
       if (typeof k !== 'string' && !(typeof k === 'number' && Number.isInteger(k) && k >= 0)) return [];
-      if (!obj || typeof obj !== 'object' || !Object.hasOwn(obj, k)) return [];
-      if (i === p.path.length - 1) {
-        if (typeof (obj as Record<string | number, unknown>)[k] !== 'number') return [];
-        out.push({ obj: obj as Record<string | number, unknown>, key: k });
+      if (!obj || typeof obj !== 'object') return [];
+      if (!Object.hasOwn(obj, k)) {
+        // a stat change this spec, talent or buff does not have yet: it can be added
+        if (!slot || Array.isArray(obj)) return [];
+        out.push({ obj: obj as Record<string | number, unknown>, key: k, rest: p.path.slice(i + 1) });
         break;
       }
-      obj = (obj as Record<string | number, unknown>)[k];
+      const v = (obj as Record<string | number, unknown>)[k];
+      if (i === p.path.length - 1) {
+        if (typeof v !== 'number' && !(typeof v === 'boolean' && isSwitch(p))) return [];
+        out.push({ obj: obj as Record<string | number, unknown>, key: k, rest: [] });
+        break;
+      }
+      obj = v;
     }
   }
   return out;
 }
 
-const locate = (p: Pick<DataPatch, 'file' | 'id' | 'path'>) => locateAll(p)[0] ?? null;
+const locate = (p: PatchAt) => locateAll(p)[0] ?? null;
 
 /** What a patch's value must look like at its spot: a yes/no is 1 or 0, a choice is one of its words, anything else a sane number. */
 function valueFits(p: DataPatch): boolean {
   const k = p.path.length === 1 && p.file === 'abilities' ? String(p.path[0]) : '';
   if (k && Object.hasOwn(ABILITY_FLAGS, k)) return p.value === 0 || p.value === 1;
   if (k && Object.hasOwn(ABILITY_CHOICES, k)) return typeof p.value === 'string' && ABILITY_CHOICES[k].options.includes(p.value);
+  if (isSwitch(p)) return p.value === 0 || p.value === 1;
   return typeof p.value === 'number' && Number.isFinite(p.value) && Math.abs(p.value) <= MAX_ABS;
 }
 
-/** True when the patch names an existing number (or option) and sets it to something sane. */
+/** True when the patch names an existing number (or option), or a stat change that can be added, and sets it to something sane. */
 export function validPatch(p: DataPatch): boolean {
-  return !!p && typeof p.id === 'string' && valueFits(p) && locate(p) !== null;
+  return !!p && typeof p.id === 'string' && Array.isArray(p.path) && valueFits(p) && locate(p) !== null;
 }
 
-/** The value a patch would change, as it is now (a yes/no option reads 1 or 0). */
-export function currentValue(p: Pick<DataPatch, 'file' | 'id' | 'path'>): number | string | undefined {
-  const at = locate(p);
-  if (!at) return undefined;
+/** The value at a located spot: a switch reads 1 or 0, a stat change the data does not have reads as the value that does nothing. */
+function readAt(at: Loc, p: PatchAt): number | string | undefined {
+  if (at.rest.length || !Object.hasOwn(at.obj, at.key)) {
+    const slot = modSlot(p);
+    if (slot) return slot.def;
+    return isSwitch(p) ? 0 : undefined;
+  }
   const v = at.obj[at.key];
-  return typeof v === 'boolean' || v === undefined ? (v ? 1 : 0) : (v as number | string);
+  return typeof v === 'boolean' ? (v ? 1 : 0) : (v as number | string);
 }
 
-const isFlag = (p: DataPatch) => p.file === 'abilities' && p.path.length === 1 && Object.hasOwn(ABILITY_FLAGS, String(p.path[0]));
+/** The value a patch would change, as it is now (a yes/no option reads 1 or 0; a stat change the data does not have reads as the value that does nothing). */
+export function currentValue(p: PatchAt): number | string | undefined {
+  const at = locate(p);
+  return at ? readAt(at, p) : undefined;
+}
+
+/** The value the data FILE has for a patch's spot, before any patch (undefined when the spot is not in the file; a stat change it lacks reads as the neutral value). */
+export function fileDefault(p: PatchAt): number | string | undefined {
+  const at = locateAll(p, PRISTINE as unknown as Source)[0];
+  return at ? readAt(at, p) : undefined;
+}
+
+/** True when the data file has no such entry yet (a stat change the patch would add). */
+export function isAddition(p: PatchAt): boolean {
+  const at = locateAll(p, PRISTINE as unknown as Source)[0];
+  return !!at && (at.rest.length > 0 || !Object.hasOwn(at.obj, at.key));
+}
 
 /** Apply patches to the live data; returns a function that puts every number back as it was. Invalid patches are skipped. */
 export function applyPatches(patches: readonly DataPatch[]): () => void {
   const undo: { obj: Record<string | number, unknown>; key: string | number; was: unknown; had: boolean }[] = [];
   for (const p of patches) {
     if (!validPatch(p)) continue;
+    const sw = isSwitch(p);
+    const value = sw ? p.value === 1 : p.value;
     for (const at of locateAll(p)) {
-      undo.push({ obj: at.obj, key: at.key, was: at.obj[at.key], had: Object.hasOwn(at.obj, at.key) });
-      at.obj[at.key] = isFlag(p) ? p.value === 1 : p.value;
+      if (!at.rest.length) {
+        undo.push({ obj: at.obj, key: at.key, was: at.obj[at.key], had: Object.hasOwn(at.obj, at.key) });
+        at.obj[at.key] = value;
+        continue;
+      }
+      // a stat change the data does not have: make the missing levels (undone by removing the first one made)
+      if (sw && !value) continue; // switching off what is not there
+      undo.push({ obj: at.obj, key: at.key, was: undefined, had: false });
+      let cur: Record<string | number, unknown> = {};
+      at.obj[at.key] = cur;
+      for (let i = 0; i < at.rest.length - 1; i++) {
+        const next: Record<string | number, unknown> = {};
+        cur[at.rest[i]] = next;
+        cur = next;
+      }
+      cur[at.rest[at.rest.length - 1]] = value;
     }
   }
   return () => {
@@ -159,7 +278,7 @@ export function tunableNumbers(file: DataPatch['file'], id: string, prefix = '')
   const walk = (obj: unknown, path: (string | number)[], label: string, depth: number) => {
     if (depth > 9 || !obj || typeof obj !== 'object') return;
     for (const [k, v] of Object.entries(obj)) {
-      if (NOT_TUNABLE.has(k)) continue;
+      if (NOT_TUNABLE.has(k) || (file === 'tuning' && depth === 0 && TUNING_LOCKED.has(k))) continue;
       const key: string | number = Array.isArray(obj) ? Number(k) : k;
       const here = [...path, key];
       const name = Array.isArray(obj) ? `${label}${label ? ' ' : ''}#${Number(k) + 1}` : `${label}${label ? ' · ' : ''}${k}`;

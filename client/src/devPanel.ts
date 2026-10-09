@@ -1,12 +1,11 @@
-import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, TALENTS, applyPatches, mergePatches, skillInfo, talentsFor, tunableNumbers } from '@arena/shared';
-import type { Build, DevCommitRow, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, TunableNumber, UnitBuild } from '@arena/shared';
+import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
+import type { Build, DevCommitRow, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
 import { cycleArena } from './mapCycle';
-import { SkillEditor, skillPicker } from './skillView';
+import { DevWorkspace } from './devPages';
 import { designer } from './designer';
-import type { ChatScope } from './designer';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -82,11 +81,13 @@ export class DevPanel {
   readonly root = el('div', 'devp hidden');
   readonly button = el('button', 'devp-btn hidden', '🛠');
   private paused = false;
-  private pick = '';
-  /** The skill view and number editor (shared with the admin panel's Tuning tab). */
-  private editor = new SkillEditor();
+  /** The pages and number editor (shared with the admin panel's Tuning tab). */
+  private ws: DevWorkspace;
+  /** What the window shows: the values to edit, the match tools, or Ask Claude. */
+  private section: 'values' | 'match' | 'ask' = 'values';
+  private drawerOpen = false;
   private get edits() {
-    return this.editor.edits;
+    return this.ws.set;
   }
   private result: { ok: boolean; text: string; url?: string } | null = null;
   private note = '';
@@ -94,7 +95,6 @@ export class DevPanel {
   private session: DataPatch[] = [];
   /** In a match the tools act on it; in the menu changes go to the dev's session or to everyone. */
   private inMatch = false;
-  private menuCls: ClassId | null = null;
   /** Bots being edited: the class and build chosen for each, until applied. */
   private botDraft = new Map<number, { classId: ClassId; build: Build }>();
   private botsOpen = false;
@@ -108,8 +108,6 @@ export class DevPanel {
   private setupName = '';
   /** The window paused the match when it opened (and resumes it when it closes). */
   private autoPaused = false;
-  /** Skills, or every number of a class, its specs and its talents. */
-  private mode: 'skills' | 'class' = 'skills';
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.id = 'devbtn'; // a HUD element: movable in the HUD editor
@@ -117,8 +115,18 @@ export class DevPanel {
     this.button.setAttribute('aria-label', 'Dev tools');
     this.button.addEventListener('click', () => this.toggle());
     document.body.append(this.root, this.button);
+    this.ws = new DevWorkspace({
+      testing: () => new Map(this.inEffect().map((p) => [this.key(p), p])),
+      inEffect: () => this.inEffect(),
+      canRevert: true,
+      onEdit: () => this.refreshBar(),
+      repaint: () => this.paint(),
+      startClass: () => this.startClass(),
+      matchSkills: () => (this.inMatch ? this.matchSkills() : []),
+      onSelect: () => (this.section === 'ask' || this.drawerOpen ? this.paint() : undefined),
+    });
     designer.onChange(() => this.open && this.paint());
-    makeResizable(this.root, { key: 'dev', corner: 'br', minW: 240, minH: 200, z: 32 });
+    makeResizable(this.root, { key: 'dev2', corner: 'br', minW: 300, minH: 260, z: 32 });
     this.draggable();
   }
 
@@ -272,7 +280,7 @@ export class DevPanel {
     save.addEventListener('click', () => {
       const label = this.setupName.trim();
       if (!label) return;
-      const patches = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
+      const patches = this.toSend();
       const you = this.hooks.youId();
       const builds = this.inMatch
         ? this.hooks.builds().filter((b) => b.bot || b.id === you).map((b) => ({ me: b.id === you, classId: b.classId, build: { spec: b.spec ?? SPECS[b.classId][0].id, talents: [...b.talents], gear: {} } as Build }))
@@ -479,8 +487,10 @@ export class DevPanel {
       this.meter.clear();
     } else if (m.t === 'dev_state') {
       this.paused = m.paused;
+      // what was typed stays when only the pause changed; new numbers in the match replace it
+      const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
       this.layers.setRoom(m.patches);
-      this.edits.clear();
+      if (!same || m.reset) this.edits.clear();
     } else if (m.t === 'dev_session') {
       this.session = m.patches;
       this.layers.setSession(m.patches);
@@ -581,114 +591,137 @@ export class DevPanel {
 
   private key = (p: Pick<DataPatch, 'file' | 'id' | 'path'>) => `${p.file}:${p.id}:${p.path.join('.')}`;
 
+  /** The numbers in effect that the pages compare against: the match's test numbers, or in the menu the session's. */
+  private inEffect(): DataPatch[] {
+    return this.inMatch ? this.layers.roomPatches : this.session;
+  }
+
+  /** The class the pages open on: yours in a match, else the one picked in the menu. */
+  private startClass(): ClassId {
+    const me = this.hooks.builds().find((b) => b.id === this.hooks.youId());
+    return this.inMatch && me ? me.classId : this.hooks.menuClass();
+  }
+
+  /** The skills in this match: yours first, then everyone else's, then the trinkets. */
+  private matchSkills(): string[] {
+    const ids = [...new Set([...this.hooks.myBar(), ...this.hooks.builds().flatMap((b) => b.bar)])].filter((id) => ABILITIES[id]);
+    for (const id of Object.keys(ABILITIES)) if (ABILITIES[id].class === 'trinket' && !ABILITIES[id].retired && !ids.includes(id)) ids.push(id);
+    return ids;
+  }
+
+  /** Everything to send with "Keep", "Send" and "Commit": what is in effect, minus what was put back, plus what was typed. */
+  private toSend(): DataPatch[] {
+    return this.edits.patches(this.inEffect());
+  }
+
+  private changesBtn: HTMLButtonElement | null = null;
+  private drawerList: HTMLElement | null = null;
+
+  /** A value was typed or reset: the counter and the open changes list follow without drawing the pages again. */
+  private refreshBar() {
+    const n = this.ws.changeCount();
+    if (this.changesBtn) this.changesBtn.textContent = `Changes (${n})`;
+    if (this.drawerList?.isConnected) this.drawerList.replaceChildren(this.ws.changesList());
+  }
+
+  private scrollOf(sel: string): number {
+    return this.root.querySelector<HTMLElement>(sel)?.scrollTop ?? 0;
+  }
+
   private paint() {
     const r = this.root;
+    const keep = { body: this.scrollOf('.devp-body'), nav: this.scrollOf('.devp-nav'), detail: this.scrollOf('.devp-detail'), drawer: this.scrollOf('.devp-drawer') };
     r.replaceChildren();
     const head = el('div', 'devp-head');
-    head.append(el('b', '', '🛠 Dev tools'));
-    const close = el('button', 'mm-small', '✕');
-    close.addEventListener('click', () => this.toggle(false));
-    head.append(close);
-    r.append(head);
-
-    let ids: string[];
+    const title = el('div', 'devp-title-row');
+    title.append(el('b', '', '🛠 Dev tools'));
+    const room = this.layers.roomPatches.length;
+    title.append(el('small', 'devp-dim', this.inMatch ? (room ? `${room} test number${room === 1 ? '' : 's'} in this match` : 'Real numbers') : 'Menu'));
+    head.append(title);
+    const secs = el('div', 'devp-sections');
+    for (const [id, label] of [['values', 'Edit values'], ['match', 'Match tools'], ['ask', 'Ask Claude']] as const) {
+      const b = el('button', `devp-sec-tab${this.section === id ? ' sel' : ''}`, label);
+      b.addEventListener('click', () => {
+        this.section = id;
+        this.paint();
+      });
+      secs.append(b);
+    }
+    head.append(secs);
+    const hr = el('div', 'devp-row');
     if (this.inMatch) {
-      const row = el('div', 'devp-row');
       const pause = el('button', `mm-small${this.paused ? ' mm-go' : ''}`, this.paused ? '▶ Resume' : '⏸ Pause');
       pause.addEventListener('click', () => {
         this.autoPaused = false; // your own choice from now on
         this.hooks.send({ t: 'dev_pause', on: !this.paused });
       });
-      row.append(pause, el('small', 'devp-dim', this.layers.roomPatches.length ? `${this.layers.roomPatches.length} test number${this.layers.roomPatches.length === 1 ? '' : 's'} in this match` : 'Real numbers'));
-      r.append(row);
-      // the skills in this match: yours first, then everyone else's
-      ids = [...new Set([...this.hooks.myBar(), ...this.hooks.builds().flatMap((b) => b.bar)])].filter((id) => ABILITIES[id]);
-      // the trinkets are tier IV picks on every class: offered after the bars
-      for (const id of Object.keys(ABILITIES)) if (ABILITIES[id].class === 'trinket' && !ABILITIES[id].retired) ids.push(id);
-    } else {
-      // in the menu: every skill of a class; changes go to your session (every match you start) or to everyone
-      r.append(el('small', 'devp-dim', 'From the menu: "Keep for my session" puts your numbers in every match you start (not ranked); "Send to the admin panel" proposes them to the owner (nothing is live until the owner acts).'));
-      const cls = this.menuCls ?? this.hooks.menuClass();
-      const tabs = el('div', 'devp-row');
-      for (const c of CLASS_IDS) {
-        const b = el('button', `mm-small${c === cls ? ' mm-go' : ''}`, CLASSES[c].name);
-        b.addEventListener('click', () => {
-          this.menuCls = c;
-          this.pick = '';
-          this.paint();
-        });
-        tabs.append(b);
+      hr.append(pause);
+    }
+    const close = el('button', 'mm-small', '✕');
+    close.addEventListener('click', () => this.toggle(false));
+    hr.append(close);
+    head.append(hr);
+    r.append(head, this.toolbar());
+    if (this.result) {
+      const res = el('div', `devp-result ${this.result.ok ? 'ok' : 'bad'}`, this.result.text);
+      if (this.result.url) {
+        const a = el('a', '', ' Open the pull request');
+        a.href = this.result.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        res.append(a);
       }
-      r.append(tabs);
-      ids = Object.keys(ABILITIES).filter((id) => !ABILITIES[id].retired && (ABILITIES[id].class === cls || ABILITIES[id].class === 'trinket'));
+      r.append(res);
     }
-    const testing = new Map((this.inMatch ? this.layers.roomPatches : this.session).map((p) => [this.key(p), p]));
-    r.append(this.matchTools());
-    if (this.inMatch) r.append(this.botEditor());
-    const modes = el('div', 'devp-row');
-    for (const [id, label] of [['skills', 'Skills'], ['class', 'Class, specs and talents']] as const) {
-      const b = el('button', `mm-small${this.mode === id ? ' mm-go' : ''}`, label);
-      b.addEventListener('click', () => {
-        this.mode = id;
-        this.paint();
-      });
-      modes.append(b);
-    }
-    r.append(modes);
-    if (this.mode === 'class') {
-      r.append(this.classView(testing));
-      this.tail(r, false);
-      return;
-    }
-    if (!this.pick || !ids.includes(this.pick)) this.pick = ids[0] ?? '';
-    const picker = skillPicker(ids, this.pick, (id) => {
-      this.pick = id;
-      this.paint();
-    });
-    r.append(picker);
-    if (!this.pick) return;
-    r.append(this.editor.skillBody(this.pick, testing));
+    if (this.drawerOpen) r.append(this.drawer());
 
-    this.tail(r, true);
+    const body = el('div', `devp-body ${this.section}`);
+    if (this.section === 'values') body.append(this.ws.render());
+    else if (this.section === 'match') body.append(this.matchSection());
+    else body.append(this.askSection());
+    r.append(body);
+    body.scrollTop = keep.body;
+    const nav = r.querySelector<HTMLElement>('.devp-nav');
+    const detail = r.querySelector<HTMLElement>('.devp-detail');
+    if (nav) nav.scrollTop = keep.nav;
+    if (detail) detail.scrollTop = keep.detail;
+    const drawer = r.querySelector<HTMLElement>('.devp-drawer');
+    if (drawer) drawer.scrollTop = keep.drawer;
   }
 
-  /** What the chat is about: the picked skill, or (in the class view) the class on show. */
-  private chatScope(skill: boolean): ChatScope | null {
-    if (skill) return this.pick ? { ability: this.pick, name: ABILITIES[this.pick].name } : null;
-    const me = this.hooks.builds().find((b) => b.id === this.hooks.youId());
-    const cls = this.menuCls ?? (this.inMatch && me ? me.classId : this.hooks.menuClass());
-    return { ability: '', classId: cls, name: `the ${CLASSES[cls].name} class` };
-  }
-
-  /** The buttons that try, keep, send or clear the changes, then (for skills) Ask Claude and a note, and the last result. */
-  private tail(r: HTMLElement, withAsk: boolean) {
-    const acts = el('div', 'devp-row');
+  /** The actions, always in view: try the changes, keep them, send them, commit them, redeploy, put everything back. */
+  private toolbar(): HTMLElement {
+    const acts = el('div', 'devp-toolbar');
     const tryIt = el('button', 'mm-small mm-go', 'Try in this match');
-    tryIt.addEventListener('click', () => this.hooks.send({ t: 'dev_patch', patches: mergePatches(this.layers.roomPatches, [...this.edits.values()]) }));
+    tryIt.title = 'Everyone in this match plays on these numbers at once (the match no longer counts)';
+    tryIt.addEventListener('click', () => this.hooks.send({ t: 'dev_patch', patches: this.toSend() }));
     const reset = el('button', 'mm-small', 'Put all back');
+    reset.title = this.inMatch ? 'Back to the real numbers in this match' : 'Forget what you typed and the numbers kept for your session';
     reset.addEventListener('click', () => {
       this.edits.clear();
-      this.hooks.send({ t: 'dev_patch', patches: [] });
-    });
-    const save = el('button', 'mm-small', 'Send to the admin panel…');
-    save.title = 'Sends these changes, with the old and new numbers, to the owner\'s admin panel. Nothing goes live until the owner acts on it.';
-    save.addEventListener('click', () => {
-      const all = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
-      if (!all.length) {
-        this.result = { ok: false, text: 'Change a number first.' };
-        return this.paint();
+      if (this.inMatch) this.hooks.send({ t: 'dev_patch', patches: [] });
+      else {
+        this.hooks.send({ t: 'dev_session', patches: [] });
+        this.paint();
       }
+    });
+    const nothing = () => {
+      this.result = { ok: false, text: 'Change a number first.' };
+      this.paint();
+    };
+    const save = el('button', 'mm-small', 'Send to the admin panel…');
+    save.title = "Sends these changes, with the old and new numbers, to the owner's admin panel. Nothing goes live until the owner acts on it.";
+    save.addEventListener('click', () => {
+      const all = this.toSend();
+      if (!all.length) return nothing();
       if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
     const commit = el('button', 'mm-small', 'Commit to GitHub');
     commit.title = 'Commits these numbers straight to the main branch on GitHub (the data files only). There is no review: the game updates when the next deploy finishes.';
     commit.addEventListener('click', () => {
-      const all = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
-      if (!all.length) {
-        this.result = { ok: false, text: 'Change a number first.' };
-        return this.paint();
-      }
+      const all = this.toSend();
+      if (!all.length) return nothing();
       if (!window.confirm(`Commit ${all.length} changed number${all.length === 1 ? '' : 's'} straight to the main branch on GitHub? There is no review and the live game updates on the next deploy.`)) return;
       this.hooks.send({ t: 'dev_commit', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
@@ -701,79 +734,77 @@ export class DevPanel {
     const keep = el('button', 'mm-small mm-go', 'Keep for my session');
     keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
     keep.addEventListener('click', () => {
-      const all = mergePatches(mergePatches(this.session, this.layers.roomPatches), [...this.edits.values()]);
-      if (!all.length) {
-        this.result = { ok: false, text: 'Change a number first.' };
-        return this.paint();
-      }
+      const all = this.edits.patches(mergePatches(this.session, this.layers.roomPatches));
+      if (!all.length) return nothing();
       this.hooks.send({ t: 'dev_session', patches: all });
     });
-    if (this.inMatch) acts.append(tryIt, keep, reset, save, commit, redeploy);
-    else acts.append(keep, save, commit, redeploy);
-    r.append(acts);
-    const done = this.commitsBox();
-    if (done) r.append(done);
+    const changes = el('button', `mm-small devp-changes-btn${this.drawerOpen ? ' mm-go' : ''}`, `Changes (${this.ws.changeCount()})`);
+    changes.title = 'Every changed number as old -> new, with an undo for each';
+    changes.addEventListener('click', () => {
+      this.drawerOpen = !this.drawerOpen;
+      this.paint();
+    });
+    this.changesBtn = changes;
+    if (this.inMatch) acts.append(tryIt, keep, save, commit, redeploy, reset, changes);
+    else acts.append(keep, save, commit, redeploy, reset, changes);
+    return acts;
+  }
+
+  /** The "changes so far" list with the session's numbers and the recent commits. */
+  private drawer(): HTMLElement {
+    const box = el('div', 'devp-drawer');
+    box.append(el('b', '', 'Changes so far'));
+    const list = el('div');
+    list.append(this.ws.changesList());
+    this.drawerList = list;
+    box.append(list);
     if (this.session.length) {
       const srow = el('div', 'devp-row');
       srow.append(el('small', 'devp-dim', `🔁 ${this.session.length} number${this.session.length === 1 ? '' : 's'} kept for your session`));
       const clear = el('button', 'mm-small', 'Clear session');
       clear.addEventListener('click', () => this.hooks.send({ t: 'dev_session', patches: [] }));
       srow.append(clear);
-      r.append(srow);
+      box.append(srow);
     }
-
-    // Ask Claude: a chat that asks what is unclear, then tries the numbers in this match (or keeps them for the session)
-    const scope = this.chatScope(withAsk);
-    if (scope) r.append(designer.renderChat(scope, this.hooks.send, false));
-    const mine = designer.renderRequests(true);
-    if (mine) r.append(mine);
-    if (withAsk) {
-      const noteBox = el('textarea', 'devp-note');
-      noteBox.placeholder = `A note on ${(ABILITIES[this.pick]?.name ?? 'a skill')} for the owner (sent to Discord)`;
-      noteBox.maxLength = 600;
-      noteBox.value = this.note;
-      noteBox.addEventListener('input', () => (this.note = noteBox.value));
-      const send = el('button', 'mm-small', 'Send note');
-      send.addEventListener('click', () => {
-        if (!this.note.trim()) return;
-        this.hooks.send({ t: 'dev_note', ability: this.pick, text: this.note.trim() });
-        this.note = '';
-        noteBox.value = '';
-      });
-      r.append(noteBox, send);
-
-
-    }
-    if (this.result) {
-      const res = el('div', `devp-result ${this.result.ok ? 'ok' : 'bad'}`, this.result.text);
-      if (this.result.url) {
-        const a = el('a', '', ' Open the pull request');
-        a.href = this.result.url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        res.append(a);
-      }
-      r.append(res);
-    }
+    const done = this.commitsBox();
+    if (done) box.append(done);
+    return box;
   }
 
-  /** Every number of a class (health, resource, auto-attack), of each of its specs (bonuses, weapon swing) and of every talent. */
-  private classView(testing: Map<string, DataPatch>): HTMLElement {
-    const wrap = el('div');
-    const me = this.hooks.builds().find((b) => b.id === this.hooks.youId());
-    const cls = this.menuCls ?? (this.inMatch && me ? me.classId : this.hooks.menuClass());
-    const tabs = el('div', 'devp-row');
-    for (const c of CLASS_IDS) {
-      const b = el('button', `mm-small${c === cls ? ' mm-go' : ''}`, CLASSES[c].name);
-      b.addEventListener('click', () => {
-        this.menuCls = c;
-        this.pick = '';
-        this.paint();
-      });
-      tabs.append(b);
-    }
-    wrap.append(tabs);
-    wrap.append(this.editor.classSections(cls, testing));
+  /** Pause, restart, map, meter, saved setups and the bots' builds. */
+  private matchSection(): HTMLElement {
+    const wrap = el('div', 'devp-matchtab');
+    if (!this.inMatch) wrap.append(el('small', 'devp-dim', 'From the menu: "Keep for my session" puts your numbers in every match you start (not ranked); "Send to the admin panel" proposes them to the owner (nothing is live until the owner acts). The match tools below need a match.'));
+    wrap.append(this.matchTools());
+    if (this.inMatch) wrap.append(this.botEditor());
+    return wrap;
+  }
+
+  /** The chat about the skill or class on show, the dev's change requests and a note to the owner. */
+  private askSection(): HTMLElement {
+    const wrap = el('div', 'devp-asktab');
+    const scope = this.ws.chatScope();
+    wrap.append(el('small', 'devp-dim', `Asking about ${scope.name}. Open another skill or class under Edit values to ask about that.`));
+    wrap.append(designer.renderChat(scope, this.hooks.send, false));
+    const mine = designer.renderRequests(true);
+    if (mine) wrap.append(mine);
+    const ability = scope.ability;
+    const noteBox = el('textarea', 'devp-note');
+    noteBox.placeholder = ability ? `A note on ${ABILITIES[ability]?.name ?? 'a skill'} for the owner (sent to Discord)` : 'Open a skill on the Skills page to leave a note on it for the owner';
+    noteBox.maxLength = 600;
+    noteBox.disabled = !ability;
+    noteBox.value = this.note;
+    noteBox.addEventListener('input', () => (this.note = noteBox.value));
+    noteBox.addEventListener('keydown', (e) => e.stopPropagation());
+    const send = el('button', 'mm-small', 'Send note');
+    send.disabled = !ability;
+    send.addEventListener('click', () => {
+      if (!this.note.trim() || !ability) return;
+      this.hooks.send({ t: 'dev_note', ability, text: this.note.trim() });
+      this.note = '';
+      noteBox.value = '';
+    });
+    wrap.append(noteBox, send);
     return wrap;
   }
 }
