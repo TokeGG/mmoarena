@@ -1,5 +1,6 @@
 import { CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
-import type { DataPatch, DevRequestRow } from '@arena/shared';
+import type { BotBug, DataPatch, DevRequestRow, NoteInfo } from '@arena/shared';
+import { noteBox } from './botNoteUi';
 import { DevWorkspace } from './devPages';
 import { patchKey } from './devEdits';
 import { designer, requestStatus } from './designer';
@@ -95,7 +96,9 @@ export class AdminPanel {
   private jobs: TrainJobRow[] = [];
   private picks = new Set<string>();
   /** What the bots know now against what shipped, and the last reports of what they learned (owner only). */
-  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; canCommit?: boolean } | null = null;
+  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; canCommit?: boolean; notes: NoteInfo[]; bugs: BotBug[] } | null = null;
+  /** Replay rows whose 'Note for the bots' box is open. */
+  private noteRows = new Set<string>();
   /** Queue rows opened to show exactly what was learned. */
   private opened = new Set<string>();
   /** Passes (1..5) for the owner's forced training on one replay. */
@@ -241,7 +244,7 @@ export class AdminPanel {
         this.jobs = m.jobs;
         break;
       case 'bot_knowledge':
-        this.knowledge = { classes: m.classes, reports: m.reports, live: m.live, canCommit: m.canCommit };
+        this.knowledge = { classes: m.classes, reports: m.reports, live: m.live, canCommit: m.canCommit, notes: m.notes ?? [], bugs: m.bugs ?? [] };
         break;
       case 'proposals':
         this.proposals = m.rows;
@@ -801,7 +804,7 @@ export class AdminPanel {
     const learnBar = el('div', 'own-row');
     learnBar.append(allBtn, pass);
     if (this.access() === 'owner') learnBar.append(reset);
-    box.append(learnBar, this.jobList(), this.knowledgeBox());
+    box.append(learnBar, this.jobList(), this.knowledgeBox(), this.bugsBox());
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));
@@ -876,7 +879,64 @@ export class AdminPanel {
       if (job) info.append(this.jobBar(job));
       row.append(watch, save, train);
     } else row.append(el('small', 'devp-dim', 'no replay'));
+    // owner and devs: tell the bot brain what went wrong in a match that had bots, and see what earlier notes did
+    const notes = this.knowledge?.notes.filter((n) => n.matchId === m.id) ?? [];
+    if (m.players.some((p) => !p.human)) {
+      const open = this.noteRows.has(m.id);
+      const nb = el('button', `mm-small${open || notes.length ? ' mm-go' : ''}`, `📝 Note for the bots${notes.length ? ` (${notes.length})` : ''}`);
+      nb.title = 'Say what the bots did wrong in this match, in plain words. It moves the bots\' lesson brain and shows under "What was learned".';
+      nb.addEventListener('click', () => {
+        if (open) this.noteRows.delete(m.id);
+        else this.noteRows.add(m.id);
+        this.paint();
+      });
+      row.append(nb);
+      if (open || notes.length) {
+        const wrap = el('div', 'admp-notes');
+        for (const n of notes) {
+          const rep = this.knowledge?.reports.find((r) => r.note?.id === n.id);
+          const line = el('div', 'devp-dim');
+          line.textContent = `${new Date(n.at).toLocaleString()} · ${n.by}${n.role === 'owner' ? ' (owner)' : ''}${n.liveSec !== undefined ? ` · ${n.liveSec}s in` : ''}: "${n.text}"`;
+          wrap.append(line);
+          if (rep) wrap.append(this.reportLines(rep, `rep:${rep.id}`));
+        }
+        if (open) wrap.append(noteBox(m.id, (msg) => this.hooks.send(msg)));
+        row.append(wrap);
+      }
+    }
     return row;
+  }
+
+  /** Bot bugs reported in notes (stuck, frozen...): no brain number fixes these. The owner marks them fixed. */
+  private bugsBox(): HTMLElement {
+    const d = el('details', 'admp-know');
+    d.open = this.opened.has('bugs');
+    d.addEventListener('toggle', () => {
+      if (d.open) this.opened.add('bugs');
+      else this.opened.delete('bugs');
+    });
+    const bugs = this.knowledge?.bugs ?? [];
+    const openCount = bugs.filter((b) => !b.fixed).length;
+    d.append(el('summary', '', `🐞 Bot bugs reported (${openCount} open)`));
+    if (!bugs.length) d.append(el('div', 'devp-dim', 'None. A note like "the mage got stuck behind the pillar" lands here: it is a bug in what the bots can do, not a brain number.'));
+    for (const b of bugs) {
+      const row = el('div', 'admp-know-row');
+      row.append(el('div', b.fixed ? 'devp-dim' : '', `${b.fixed ? '✔ ' : '• '}${b.text}`));
+      row.append(el('small', 'devp-dim', `${b.by} · ${new Date(b.at).toLocaleString()} · match ${b.matchId}${b.fixed ? ` · fixed${b.fixedBy ? ` by ${b.fixedBy}` : ''}` : ''} `));
+      const watch = el('button', 'mm-small', '▶ Watch');
+      watch.addEventListener('click', () => {
+        this.close();
+        this.hooks.replay(b.matchId);
+      });
+      row.append(watch);
+      if (this.access() === 'owner') {
+        const fix = el('button', 'mm-small', b.fixed ? 'Reopen' : 'Mark fixed');
+        fix.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'bug_fixed', id: b.id, on: b.fixed }));
+        row.append(fix);
+      }
+      d.append(row);
+    }
+    return d;
   }
 
   private isTraining(id: string): boolean {
@@ -1007,6 +1067,8 @@ export class AdminPanel {
       const last = c.lastAt ? new Date(c.lastAt).toLocaleString() : 'never';
       row.append(el('b', '', `${CLASSES[c.classId as keyof typeof CLASSES]?.name ?? c.classId}`), el('small', 'devp-dim', ` · ${c.replays} replay${c.replays === 1 ? '' : 's'} taught it · last learned ${last}${c.variant ? ` · learned variant wins ${Math.round(c.variant.winRate * 100)}% of ${c.variant.games} games` : ''}`));
       row.append(el('div', 'devp-dim', c.diff.length ? `Differs from the shipped brain: ${c.diff.map(moveText).join(', ')}` : 'Same as the shipped brain: nothing learned yet.'));
+      // the brains in play, in the words of the learning-test marker a bot wears in a match (same records)
+      for (const v of c.variants ?? []) if (v.tries.length) row.append(el('div', 'devp-dim', `🧪 ${v.label} (${v.games} game${v.games === 1 ? '' : 's'}, ${v.wins} won) is trying: ${v.tries.map((t) => t.text).join(' · ')}${v.more ? ` · and ${v.more} smaller` : ''}`));
       if (c.mistakes.length) row.append(el('div', 'devp-dim', `Mistakes seen: ${c.mistakes.slice(0, 8).map((m) => `${m.count} ${m.label}`).join(', ')}`));
       d.append(row);
     }

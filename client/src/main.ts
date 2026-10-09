@@ -39,6 +39,8 @@ import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
 import { Recap } from './recap';
+import { botTests } from './botTestState';
+import { handleNoteAck, noteBox } from './botNoteUi';
 import { RecapCard } from './recapCard';
 import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
@@ -168,7 +170,7 @@ function showRecap(snap: Snapshot) {
   if (!recapExact) return;
   const w = snap.winner;
   const mine = snap.units.find((u) => u.id === you)?.team;
-  recapCard.show(recap, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat', spec ? null : team);
+  recapCard.show(recap, w === undefined || w === null ? 'Match over' : w === 'draw' ? 'Draw' : spec || mine === undefined ? `Team ${Number(w) + 1} wins` : w === mine ? 'Victory' : 'Defeat', spec ? null : team, botTests.match && botTests.bots > 0 && isDev() ? noteBox(botTests.match, send) : null);
 }
 let latestAt = 0;
 let lastCount = -1;
@@ -308,6 +310,7 @@ function onMessage(raw: MessageEvent) {
   switch (m.t) {
     case 'welcome':
     case 'controlling':
+      botTests.clear();
       clearMenuLayers();
       if (m.t === 'controlling') {
         // owner only: the watched match turns into a normal match for the unit just taken over (no delay, no spectator bar)
@@ -437,7 +440,18 @@ function onMessage(raw: MessageEvent) {
       liveWanted = false;
       break;
     case 'spectating':
+      botTests.clear();
       startSpectate('live', m.map, m.id);
+      break;
+    case 'bot_tests':
+      // owner and devs only (the server sends nobody else this): which bots wear the learning-test marker
+      botTests.handle(m);
+      if (lastBuilds.length && (spec || isDev())) buildsPanel.set(lastBuilds);
+      devPanel.refresh();
+      break;
+    case 'bot_note_ack':
+      handleNoteAck(m);
+      adminPanel.handle(m);
       break;
     case 'builds':
       lastBuilds = m.units;
@@ -547,6 +561,7 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      botTests.clear();
       controlling = false;
       takeoverUi.setControlling(null);
       matchStarting = false;
@@ -1392,7 +1407,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, spectating: () => !!spec, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, spectating: () => !!spec, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass, noteMatch: () => (botTests.match && botTests.bots > 0 ? botTests.match : null) }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
@@ -1546,6 +1561,7 @@ function resetRecap() {
 }
 
 function endSpectateState() {
+  botTests.clear();
   resetRecap();
   if (!spec) return;
   spec = null;

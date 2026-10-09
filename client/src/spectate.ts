@@ -5,6 +5,7 @@ import type { LiveMatch, ReplayData, StatRow, UnitBuild } from '@arena/shared';
 import { CLASS_ICON } from './icons';
 import { iconEl } from './iconArt';
 import { tipBuildKey } from './tips';
+import { botTestBadge } from './botTestIcon';
 import { compactScreen } from './lightMode';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -126,6 +127,8 @@ export class BuildsPanel {
         const name = el('div', 'bd-name');
         name.append(el('span', '', `${CLASS_ICON[u.classId] ?? ''} ${u.name}`), el('small', '', spec ? `${spec.name} ${CLASSES[u.classId].name}` : CLASSES[u.classId].name));
         name.style.color = CLASSES[u.classId].color;
+        const test = botTestBadge(u.id); // owner and devs only: this bot plays an experimental brain
+        if (test) name.append(test);
         card.append(name);
         const bar = el('div', 'bd-bar');
         const key = tipBuildKey(u.classId, { spec: u.spec ?? '', talents: u.talents, gear: {} });

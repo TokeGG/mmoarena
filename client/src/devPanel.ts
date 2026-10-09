@@ -7,6 +7,7 @@ import { cycleArena } from './mapCycle';
 import { DevWorkspace } from './devPages';
 import { tours } from './tour';
 import { designer } from './designer';
+import { noteBox } from './botNoteUi';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -74,6 +75,8 @@ interface Hooks {
   menuClass(): ClassId;
   /** Whether the signed-in account is the owner. */
   isOwner(): boolean;
+  /** The id of the match being played or watched when it has bots (a note for the bots can be written for it), else null. */
+  noteMatch?(): string | null;
 }
 
 /**
@@ -106,6 +109,7 @@ export class DevPanel {
   private meter = new Map<number, { dealt: number; healed: number; taken: number; log: { t: number; d: number; h: number }[] }>();
   private meterNow = 0;
   private meterOpen = false;
+  private noteOpen = false;
   private meterBox: HTMLElement | null = null;
   private meterPaintAt = 0;
   private setupsOpen = false;
@@ -287,6 +291,17 @@ export class DevPanel {
       });
       row.append(restart, meter);
       wrap.append(this.mapPicker(), this.resetTools());
+      const noteId = this.hooks.noteMatch?.();
+      if (noteId) {
+        const note = el('button', `mm-small${this.noteOpen ? ' mm-go' : ''}`, '📝 Note for the bots');
+        note.title = 'Write what the bots did wrong in this match, in plain words. It goes to the bot brain with the match, stamped with the time in the fight.';
+        note.addEventListener('click', () => {
+          this.noteOpen = !this.noteOpen;
+          this.paint();
+        });
+        row.append(note);
+        if (this.noteOpen) wrap.append(noteBox(noteId, this.hooks.send, { liveNote: true }));
+      }
       if (this.hooks.isOwner()) wrap.append(this.unitTools());
     }
     const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
