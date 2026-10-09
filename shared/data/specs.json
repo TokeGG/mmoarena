@@ -194,7 +194,16 @@
         "penance",
         "desperate_prayer"
       ],
-      "mods": {},
+      "mods": {
+        "ability": {
+          "power_word_shield": {
+            "heal": 1.5
+          },
+          "penance": {
+            "castWhileMoving": true
+          }
+        }
+      },
       "weapon": {
         "id": "holy_staff",
         "name": "Holy Staff"
@@ -294,7 +303,7 @@
       "id": "subtlety",
       "name": "Shade",
       "role": "Control / mobility",
-      "desc": "Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes.",
+      "desc": "Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Weak Point finishes.",
       "icon": "\ud83d\udc64",
       "bar": [
         "stealth",

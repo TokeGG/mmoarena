@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
@@ -875,7 +875,7 @@ function groundBlocked(ability: string): string | null {
   const now = estimatedNow();
   if (groundCooldownLeft(ability) > GROUND_SLACK_MS) return 'That is not ready yet';
   if (me.resource < def.cost) return `Not enough ${me.resourceType}`;
-  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities))) return 'You cannot act right now';
+  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (def.class !== 'trinket' && !!silencedBy(me.auras, def)) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities))) return 'You cannot act right now';
   if (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now) return `${def.school} is locked out`;
   return null;
 }

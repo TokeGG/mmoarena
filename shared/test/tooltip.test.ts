@@ -75,6 +75,7 @@ describe('tooltips say each thing once', () => {
     assert.ok(!explainAbility(ABILITIES.frostbolt, newMods(), []).some((l) => l.startsWith('Damage:')));
     // combo point scaling and Consumes are explained in the short view only
     assert.ok(!explainAbility(ABILITIES.eviscerate, newMods(), []).some((l) => /combo point/i.test(l)));
+    assert.equal(ABILITIES.eviscerate.name, 'Weak Point');
     assert.ok(!explainAbility(ABILITIES.arcane_barrage, newMods(), []).some((l) => l.startsWith('Consumes')));
     // a buff that boosts both damage and healing is named once
     const penance = explainAbility(ABILITIES.penance, newMods(), []).find((l) => l.startsWith('Boosted by'));

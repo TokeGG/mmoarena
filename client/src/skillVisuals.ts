@@ -243,6 +243,7 @@ export interface AuraVisual {
 export const AURA_VISUAL: Record<string, AuraVisual> = {
   creeping_rot: { style: 'shadow', strength: 0.8 },
   plague_bloom: { style: 'shadow', strength: 1 },
+  weak_point: { style: 'bleed', strength: 1 },
   garrote_bleed: { style: 'bleed', strength: 1 },
   mutilate_bleed: { style: 'bleed', strength: 0.7 },
   deep_cuts_bleed: { style: 'bleed', strength: 0.8 },

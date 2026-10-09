@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, arenaById, parseClientMsg, talentsFor } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TALENTS, TUNING, arenaById, parseClientMsg, talentsFor } from '../src/index';
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -740,10 +740,11 @@ describe('stealth', () => {
     go('sinister_strike'); assert.equal(rg.cp, 2);
     for (let i = 0; i < 6; i++) go('sinister_strike');
     assert.equal(rg.cp, 5, 'capped at 5');
-    const five = go('eviscerate');
+    const wp = (id: string) => { rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; const h = foe.health; assert.ok(sim.useAbility(rg.id, id, foe.id).ok, id); advance(sim, 6500); return h - foe.health; };
+    const five = wp('eviscerate');
     assert.equal(rg.cp, 0, 'spent');
     go('sinister_strike');
-    const one = go('eviscerate');
+    const one = wp('eviscerate');
     assert.ok(five - one > 300, `${five} vs ${one}`);
     go('sinister_strike'); assert.equal(rg.cp, 1);
     rg.autoAttack = false;
@@ -759,6 +760,99 @@ describe('stealth', () => {
       assert.equal(Math.round((st.expiresAt - sim.time) / 100) / 10, secs, `${cp} cp stun`);
       assert.equal(rg.cp, 0);
     }
+  });
+
+  it('Weak Point (eviscerate): a debuff of one second and one tick per combo point, up to 5 s, that silences and disarms and deals the old hit per point', () => {
+    const sim = live();
+    const rg = sim.addUnit({ name: 'r', classId: 'rogue', team: 0, build: { spec: 'assassination', talents: [], gear: {} } });
+    rg.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'mage', 1, 0, 2);
+    foe.maxHealth = foe.health = 1e6;
+    foe.gearMult = 1; rg.gearMult = 1;
+    rg.bar = [...rg.bar.slice(0, 5), 'eviscerate'];
+    advance(sim, TICK);
+    assert.equal(ABILITIES.eviscerate.name, 'Weak Point');
+    const hits: number[] = [];
+    const run = (cp: number) => {
+      foe.auras = []; foe.health = 1e6; rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; rg.cp = cp; sim.drainEvents();
+      assert.ok(sim.useAbility(rg.id, 'eviscerate', foe.id).ok);
+      const a = foe.auras.find((x) => x.id === 'weak_point')!;
+      assert.ok(a, 'debuff applied');
+      assert.equal(foe.health, 1e6, 'no instant damage');
+      rg.autoAttack = false;
+      const left = Math.round((a.expiresAt - sim.time) / 1000);
+      const ticks = advance(sim, 6500).filter((e) => e.t === 'damage' && e.ability === 'eviscerate');
+      return { left, ticks: ticks.length, total: ticks.reduce((n, e) => n + (e.t === 'damage' ? e.amount : 0), 0), cp: rg.cp, gone: !foe.auras.some((x) => x.id === 'weak_point') };
+    };
+    for (const cp of [1, 3, 5]) {
+      const r = run(cp);
+      hits.push(r.total);
+      assert.equal(r.left, cp, `${cp} cp lasts ${cp} s`);
+      assert.equal(r.ticks, cp, `${cp} ticks, one per second`);
+      assert.equal(r.cp, 0);
+      assert.ok(r.gone);
+    }
+    assert.ok(Math.abs(hits[1] / hits[0] - 3) < 0.3 && Math.abs(hits[2] / hits[0] - 5) < 0.5, `scales with points: ${hits}`);
+    // past five points the debuff stops at 5 s with the damage squeezed into those five ticks
+    const six = run(8);
+    assert.equal(six.left, 5); assert.equal(six.ticks, 5);
+    assert.ok(Math.abs(six.total / hits[0] - 8) < 0.8, `8 points deal 8x: ${six.total} vs ${hits[0]}`);
+    // silence stops spells, disarm stops physical abilities and auto attacks
+    foe.auras = []; rg.cp = 3; rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax;
+    sim.useAbility(rg.id, 'eviscerate', foe.id);
+    foe.cooldowns = {}; foe.gcdEnd = 0; foe.resource = foe.resourceMax;
+    const r1 = sim.useAbility(foe.id, 'frostbolt', rg.id);
+    assert.ok(!r1.ok && /silenced/.test(String((r1 as { reason?: string }).reason)), 'cannot cast spells');
+    foe.cast = null;
+    const phys = Object.keys(ABILITIES).find((id) => ABILITIES[id].school === 'physical' && ABILITIES[id].class === 'mage');
+    if (phys) assert.ok(!sim.useAbility(foe.id, phys, rg.id).ok);
+    const war = sim.addUnit({ name: 'w', classId: 'warrior', team: 1, build: { spec: 'arms', talents: [], gear: {} } });
+    war.pos = { x: 0, z: 2 };
+    war.auras.push({ id: 'weak_point', kind: 'dot', sourceId: rg.id, expiresAt: sim.time + 3000, absorbLeft: 0 });
+    war.autoAttack = true; war.target = rg.id; war.nextSwing = 0;
+    const before = rg.health;
+    advance(sim, 2500);
+    assert.equal(rg.health, before, 'a disarmed warrior does not auto attack');
+  });
+
+  it('Warden passive: Power Word: Shield is 50% stronger and Penance keeps channelling while moving; other priests get neither', () => {
+    const shield = (spec: string) => {
+      const sim = live();
+      const pr = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec, talents: [], gear: {} } });
+      pr.pos = { x: 0, z: 0 }; pr.gearMult = 1;
+      add(sim, 'warrior', 1, 0, 40);
+      advance(sim, TICK);
+      pr.resource = pr.resourceMax;
+      assert.ok(sim.useAbility(pr.id, 'power_word_shield', pr.id).ok);
+      return { sim, pr, absorb: pr.auras.find((a) => a.id === 'pw_shield')!.absorbLeft };
+    };
+    const w = shield('discipline'), l = shield('holy');
+    assert.equal(l.absorb, AURAS.pw_shield.absorb);
+    assert.equal(w.absorb, Math.round(AURAS.pw_shield.absorb! * 1.5));
+    const penance = (spec: string) => {
+      const sim = live();
+      const pr = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec, talents: [], gear: {} } });
+      pr.pos = { x: 0, z: 0 };
+      const foe = add(sim, 'warrior', 1, 0, 6);
+      foe.maxHealth = foe.health = 1e6;
+      pr.bar = [...pr.bar.slice(0, 7), 'penance'];
+      advance(sim, TICK);
+      assert.ok(sim.useAbility(pr.id, 'penance', foe.id).ok);
+      sim.queueInput(pr.id, { seq: 1, fwd: 0, strafe: 1, facing: 0 });
+      const ev = advance(sim, 600);
+      return { moved: Math.abs(pr.pos.x) > 0.5, channelling: !!pr.cast, hits: ev.filter((e) => e.t === 'damage' && e.ability === 'penance').length };
+    };
+    const a = penance('discipline');
+    assert.ok(a.moved && a.channelling && a.hits >= 1, `warden ${JSON.stringify(a)}`);
+    const b = penance('holy');
+    assert.ok(b.moved && !b.channelling, 'others are stopped by moving');
+  });
+
+  it('Shadow Might adds 10% healing as well as damage', () => {
+    const t = Object.values(TALENTS.priest).flat(2).find((x) => x.id === 'priest_t2c')!;
+    assert.equal(t.mods?.damageDone, 1.1);
+    assert.equal(t.mods?.healingDone, 1.1);
+    assert.match(t.desc, /damage and healing/);
   });
 
   it('exsanguinate adds damage from the target\'s bleeds and then triples them; adrenaline rush lasts longer per combo point', () => {

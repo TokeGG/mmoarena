@@ -13,6 +13,14 @@ export const ABILITIES: Record<string, AbilityDef> = Object.fromEntries(
   (abilitiesJson as unknown as AbilityDef[]).map((a) => [a.id, a]),
 );
 export const AURAS = aurasJson as unknown as Record<string, AuraDef>;
+/** Why a unit with these auras cannot use this ability, or '' if it can: silence stops spells (anything not physical), disarm stops physical abilities. */
+export function silencedBy(auras: { id: string }[], def: AbilityDef | undefined): string {
+  if (!def) return '';
+  const physical = def.school === 'physical';
+  if (!physical && auras.some((a) => AURAS[a.id]?.silence)) return 'you are silenced';
+  if (physical && auras.some((a) => AURAS[a.id]?.disarm)) return 'you are disarmed';
+  return '';
+}
 export const CLASSES = classesJson as unknown as Record<ClassId, ClassDef>;
 /** Every arena the server can play on. The first is the default. */
 export const ARENAS = arenasJson as unknown as ArenaDef[];

@@ -1,4 +1,4 @@
-import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING } from './data';
+import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING, silencedBy } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, stealthSwapsFor, trinketFor, withAuraMods } from './build';
 import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, inLava, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
 import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
@@ -322,6 +322,7 @@ export class ArenaSim {
     if (this.phase === 'prep' && !def.prepOk) return fail('match has not started');
     if (u.auras.some((a) => AURAS[a.id]?.noCast)) return fail('you cannot act while dispersed');
     if (!this.canAct(u) && !def.ignoresControl) return fail('you are incapacitated');
+    if (u.trinket !== def.id) { const why = silencedBy(u.auras, def); if (why) return fail(why); }
     if (def.ignoresControl && u.auras.some((a) => AURAS[a.id]?.locksAbilities)) return fail(u.auras.some((a) => a.id === 'polymorph') ? 'you are polymorphed' : 'you are disoriented');
     if (!def.ignoresLockout && (u.lockouts[def.school] ?? 0) > this.time) return fail(`${def.school} school is locked out`);
     if (this.storedFull(u, def)) return fail('ability is on cooldown');
@@ -597,7 +598,7 @@ export class ArenaSim {
         // blocked by a pillar: stop rather than push against it
         if (dist(before, u.pos) < k * 0.3) this.endCharge(u, false);
         if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
-        if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
+        if (u.cast && dist(before, u.pos) > 0.001 && !this.castsOnTheMove(u, u.cast.ability)) this.cancelCast(u, 'moved');
         this.tryAutoAttack(u);
         return;
       }
@@ -648,7 +649,7 @@ export class ArenaSim {
       }
     }
     if (this.phase === 'prep') u.pos = clampToGate(u.pos, u.team, this.arena);
-    if (u.cast && dist(before, u.pos) > 0.001 && !ABILITIES[u.cast.ability]?.castWhileMoving) this.cancelCast(u, 'moved');
+    if (u.cast && dist(before, u.pos) > 0.001 && !this.castsOnTheMove(u, u.cast.ability)) this.cancelCast(u, 'moved');
 
     if (u.cast?.ticks) this.tickChannel(u);
     if (u.cast && u.cast.end <= this.time) this.completeCast(u);
@@ -978,8 +979,18 @@ export class ArenaSim {
       case 'aura':
         if (eff.fullCast && this.procCast) break; // an instant proc cast does not earn the next proc
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
-        {
-          const r = this.applyAura(u, eff.self ? u : t, this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+        if (eff.cpDot) {
+          // a damage-over-time payoff (Weak Point): one tick per combo point spent (the aura's ceiling caps the ticks), and together they deal the hit once per point
+          const d = AURAS[eff.aura];
+          const ticks = Math.max(1, Math.min(this.cpSpent, Math.floor((d.maxDuration ?? Infinity) / (d.dot?.interval ?? 1000))));
+          const r = this.applyAura(u, t, eff.aura, ticks * (eff.extraPerCp ?? 0), 0);
+          const inst = r.applied ? t.auras.find((a) => a.id === eff.aura && a.sourceId === u.id) : undefined;
+          if (inst) inst.dotMult = (Math.max(1, this.cpSpent) * this.modsOf(u).cpPower) / ticks;
+        } else {
+          const auraId = this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura;
+          const r = this.applyAura(u, eff.self ? u : t, auraId, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+          const stronger = this.modsOf(u).ability[def.id]?.heal;
+          if (stronger && r.applied && AURAS[auraId]?.kind === 'absorb') { const sh = (eff.self ? u : t).auras.find((a) => a.id === auraId && a.sourceId === u.id); if (sh) sh.absorbLeft = Math.round(sh.absorbLeft * stronger); } // a stronger Power Word: Shield
           if (def.stopsAuto && r.applied && t.team !== u.team) u.autoAttack = false;
         }
         break;
@@ -1309,9 +1320,14 @@ export class ArenaSim {
     }
   }
 
+  /** True when moving does not break this cast: the ability allows it, or the unit's spec or talents do (Warden Penance). */
+  private castsOnTheMove(u: Unit, ability: string): boolean {
+    return !!ABILITIES[ability]?.castWhileMoving || !!this.modsOf(u).ability[ability]?.castWhileMoving;
+  }
+
   private tryAutoAttack(u: Unit): void {
     const auto = autoFor(u.classId, u.spec);
-    if (!auto || !u.autoAttack || this.phase !== 'live' || !this.canAct(u) || u.cast) return;
+    if (!auto || !u.autoAttack || this.phase !== 'live' || !this.canAct(u) || u.cast || u.auras.some((a) => AURAS[a.id]?.disarm)) return;
     const t = u.target !== null ? this.units.get(u.target) : undefined;
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;
     // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
@@ -1410,6 +1426,7 @@ export class ArenaSim {
       src.lastCombatAt = this.time;
       tgt.lastCombatAt = this.time;
     }
+    if (tgt.cast && silencedBy(tgt.auras, ABILITIES[tgt.cast.ability])) this.cancelCast(tgt, 'silenced');
     if (CC_KINDS.includes(def.kind)) {
       if (tgt.cast) this.cancelCast(tgt, 'crowd controlled');
       if (def.kind === 'fear') tgt.fearRetargetAt = 0;

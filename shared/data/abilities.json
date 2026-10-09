@@ -1136,19 +1136,20 @@
   "gcd": true,
   "range": 3,
   "id": "eviscerate",
-  "name": "Eviscerate",
+  "name": "Weak Point",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
   "cost": 35,
   "effects": [
    {
-    "type": "damage",
-    "amount": 110
+    "type": "aura",
+    "aura": "weak_point",
+    "extraPerCp": 1000,
+    "cpDot": true
    }
   ],
-  "cpSpend": true,
-  "cpScale": true
+  "cpSpend": true
  },
  {
   "castTime": 0,

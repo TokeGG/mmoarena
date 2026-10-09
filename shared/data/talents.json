@@ -1313,10 +1313,11 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage.",
+          "desc": "+10% damage and healing.",
           "icon": "💥",
           "mods": {
-            "damageDone": 1.1
+            "damageDone": 1.1,
+            "healingDone": 1.1
           }
         }
       ],
@@ -1495,10 +1496,11 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage.",
+          "desc": "+10% damage and healing.",
           "icon": "💥",
           "mods": {
-            "damageDone": 1.1
+            "damageDone": 1.1,
+            "healingDone": 1.1
           }
         }
       ],
@@ -1678,10 +1680,11 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage.",
+          "desc": "+10% damage and healing.",
           "icon": "💥",
           "mods": {
-            "damageDone": 1.1
+            "damageDone": 1.1,
+            "healingDone": 1.1
           }
         }
       ],
