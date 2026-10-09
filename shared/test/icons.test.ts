@@ -16,7 +16,7 @@ describe('the icon library and the default icons', () => {
       if (!isPrivateIcon(i.id)) assert.ok(fs.existsSync(`${publicDir}${i.file}`), `${i.id} has no file`);
     }
     for (const p of ICON_PACKS) assert.equal(ICON_LIST.filter((i) => i.pack === p.id).length, p.count, p.id);
-    assert.ok(ICON_PACKS.filter((p) => p.private).length >= 1, 'the licence-restricted pack is marked private');
+    // a pack can be marked private (served by the server, not stored); none is right now
   });
 
   it('every ability that can appear on a bar has an icon of the library, a public one, and no two abilities of a spec share it', () => {

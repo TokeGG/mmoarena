@@ -1421,7 +1421,10 @@ const spectateBar = new SpectateBar({
   onCycle: (dir) => cycleFollow(dir),
   onBuilds: () => buildsPanel.toggle(),
   onSettings: () => (menu.isOpen ? menu.back() : menu.open(true)),
-  onPlayAs: (anchor) => takeoverUi.pick(lastBuilds, anchor),
+  onPlayAs: (anchor) => {
+    if (!lastBuilds.some((u) => u.bot)) accountUi.sendRaw({ t: 'dev_builds' }); // ask again: the list may not have arrived yet
+    takeoverUi.pick(lastBuilds, anchor);
+  },
   onExit: () => {
     if (spec?.kind === 'live') send({ t: 'leave' });
     exitSpectate();
@@ -1515,6 +1518,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
   devPanel.setAvailable(false); // test numbers never carry over from a match you played
   if (accountUi.account?.ownerOk && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched
+  if (accountUi.account?.ownerOk && kind === 'live') accountUi.sendRaw({ t: 'dev_builds' }); // the bots list for the Play as picker, without opening the tools window
   audio.ambience(arena.theme);
   you = 0;
   team = 0;
