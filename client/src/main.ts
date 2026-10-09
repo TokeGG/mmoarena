@@ -1,6 +1,6 @@
 import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
 import { helpWindow } from './tourUi';
-import { ABILITIES, AURAS, ARENAS, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { UpdateNotice } from './updateNotice';
@@ -43,6 +43,7 @@ import { MarkPicker } from './markPicker';
 import { closeAllPopups, registerPopup } from './popups';
 import { initCursors, refreshCursor } from './cursors';
 import { NetClock } from './netClock';
+import { DashTracker, anchorBlend, anchorSnaps } from './dashPath';
 import { IntervalTracker, InterpDelay, LEAD_EXTRAPOLATE_MS, Lead, RenderTime, poseAt } from './interpDelay';
 import type { Pose } from './interpDelay';
 import { NetStats, NetStatsView } from './netStats';
@@ -66,6 +67,11 @@ const netClock = new NetClock();
 const merger = new SnapMerger();
 const snapInterval = new IntervalTracker();
 const interpDelay = new InterpDelay();
+/** Our own Charge or Heroic Leap: drawn along the snapshot timeline instead of the 20 Hz prediction (see dashPath.ts). */
+const dash = new DashTracker();
+let ownDashing = false;
+/** Units in the air from a Heroic Leap (their arc height is scaled by the Animations page). */
+const leaping = new Set<number>();
 const renderTime = new RenderTime();
 /** Other players are drawn this far ahead of the buffered time (dead reckoning along their last movement), so two screens agree on where each stands. */
 const lead = new Lead();
@@ -545,6 +551,8 @@ function resetNetState(): void {
   snapInterval.reset(tickMs);
   interpDelay.reset(tickMs);
   lead.reset();
+  dash.reset();
+  leaping.clear();
   netStats.reset();
   pending = [];
   jumpTicks = 1e6;
@@ -580,6 +588,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
 
   const me = snap.units.find((u) => u.id === you);
   if (me) {
+    dash.sample(snap.time, me.x, me.z, me.controlled && me.alive, TUNING.runSpeed * (me.speedMult || 1));
     // Reconcile: start from the server's position, then replay inputs it has not processed yet.
     // While we can't act (stunned, feared, sheep) the server moves us, so glide from the last position to the new one;
     // otherwise the render position would swing back to where the crowd control began on every tick.
@@ -634,6 +643,8 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     // a teleport behind someone turns you round: the camera comes with you
     if (ev.t === 'turn' && ev.unit === you && !spec) controls.yaw = controls.facing = ev.facing;
     hud.event(ev, ctx);
+    if (ev.t === 'leap') leaping.add(ev.unit);
+    else if (ev.t === 'leap_land' || ev.t === 'death') leaping.delete(ev.unit);
     effects.event(ev);
     if (ev.t === 'cast') scene.cast(ev.unit);
     // Mirror Image: an enemy that had the caster targeted loses the target (the server cleared its own side)
@@ -668,10 +679,15 @@ function applyInput(i: MoveInput & { air: number }, me: UnitSnap) {
   pred.z = p.z;
 }
 
+/** A leaping unit's height with the Animations page's arc scale (a picture change only: the server's landing is unchanged). */
+function leapArc(id: number, y: number): number {
+  return leaping.has(id) ? y * fxNum('heroicLeap', 'arcScale') : y;
+}
+
 /** How high your own character is in the air: your predicted jump, or (while the server moves you, e.g. Heroic Leap) its arc. */
 function ownHeight(u: UnitSnap | undefined, serverY?: number): number {
   const jump = jumpHeight(performance.now() - myJumpAt);
-  return u?.controlled ? Math.max(jump, serverY ?? u.y ?? 0) : jump;
+  return u?.controlled || ownDashing ? Math.max(jump, leapArc(u?.id ?? 0, serverY ?? u?.y ?? 0)) : jump;
 }
 
 /** Runs at exactly the server tick rate so one input is produced per server step. */
@@ -1187,6 +1203,13 @@ function frame(now: number) {
       tx = p.x;
       tz = p.z;
     }
+    // a Charge or Heroic Leap: the server is moving us fast, so we are drawn on the same snapshot timeline as everyone else (smooth, no lag, no snapping)
+    const ownI = interp.get(you);
+    ownDashing = !spec && !!meNow0?.alive && !!ownI && dash.dashing(snap.time, ownI, meNow0, meNow0.controlled);
+    if (ownDashing && ownI) {
+      tx = ownI.x;
+      tz = ownI.z;
+    }
     if (spec) {
       // watching: the camera follows the interpolated server position of the followed unit
       const f = interp.get(you);
@@ -1196,14 +1219,14 @@ function frame(now: number) {
         vis.facing = f.facing;
       }
     }
-    if (!vis.ready || Math.hypot(tx - vis.x, tz - vis.z) > 4) {
+    if (!vis.ready || anchorSnaps(Math.hypot(tx - vis.x, tz - vis.z), ownDashing)) {
       vis.x = tx;
       vis.z = tz;
       vis.ready = true;
     } else {
       // while stunned, feared or polymorphed the server is moving us, so the camera anchor is damped heavily and the view stays steady
       const held = !spec && !!meNow0?.alive && meNow0.controlled;
-      const k = 1 - Math.exp(-dt * (held ? 5 : 38));
+      const k = anchorBlend(dt, ownDashing, held);
       vis.x += (tx - vis.x) * k;
       vis.z += (tz - vis.z) * k;
     }
@@ -1222,6 +1245,7 @@ function frame(now: number) {
     let y = u.y;
     const i = interp.get(u.id);
     if (i) ({ x, z, y, facing } = i);
+    y = leapArc(u.id, y);
     if (!spec && u.id === you) {
       x = vis.x;
       z = vis.z;

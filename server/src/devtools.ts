@@ -14,7 +14,7 @@ const COMMITS = 'devcommits';
 const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
-const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json' };
+const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json' };
 
 export interface DevToolsEnv {
   /** A GitHub token that may push branches and open pull requests on the repository. */
@@ -260,7 +260,7 @@ export class DevTools {
           if (todo.length) files.push({ path: FILES[file], content: patchJsonText(text, file, todo) });
         }
         if (!files.length) throw new Error(`Nothing was committed: ${skipped.length ? skipped.join('; ') : 'those numbers are already what the files have'}.`);
-        return { files, lines, message: (version) => `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, extra: { applied: notes.length, skipped } };
+        return { files, lines, sim: files.some((f) => f.path !== FILES.fx), message: (version) => `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, extra: { applied: notes.length, skipped } };
       },
       by,
     });
@@ -310,7 +310,7 @@ export class DevTools {
    * package.json, client/package.json and the README, and SIM_REVISION raised, makes one tree and one commit, and moves the
    * branch. A push that raced ours starts again from the new head. Every committer here goes through it.
    */
-  private async commitPatch<X>(token: string, o: { title: string; by: string; build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X }> }): Promise<{ url: string; version: string; extra: X }> {
+  private async commitPatch<X>(token: string, o: { title: string; by: string; build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }> }): Promise<{ url: string; version: string; extra: X }> {
     const { api, base } = this.github(token);
     const read = async (path: string): Promise<string> => {
       const got = (await api(`/contents/${path}?ref=${base}`)) as { content: string };
@@ -333,7 +333,7 @@ export class DevTools {
         files.push({ path: 'shared/data/patches.json', content: JSON.stringify(list, null, 1) + (patchesText.endsWith('\n') ? '\n' : '') });
         for (const path of ['package.json', 'client/package.json']) files.push({ path, content: (await read(path)).replace(/("version":\s*")[^"]+(")/, `$1${version}$2`) });
         files.push({ path: 'README.md', content: (await read('README.md')).replace(/^([^\n]*?v)\d+\.\d+\.\d+/, `$1${version}`) });
-        files.push({ path: 'shared/src/replay.ts', content: (await read('shared/src/replay.ts')).replace(/(SIM_REVISION\s*=\s*)(\d+)/, (_m, a: string, n: string) => `${a}${Number(n) + 1}`) });
+        if (built.sim !== false) files.push({ path: 'shared/src/replay.ts', content: (await read('shared/src/replay.ts')).replace(/(SIM_REVISION\s*=\s*)(\d+)/, (_m, a: string, n: string) => `${a}${Number(n) + 1}`) });
         const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
         const message = built.message(version);
         const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string; html_url?: string };
@@ -459,11 +459,11 @@ function showValue(p: DataPatch, v: number | string): string {
 /** One short, player-facing patch-notes line for a number: "Fireball: cooldown 8 s to 7 s". */
 function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: number | string): string {
   // stat bonuses, switches and the game's own rules are worded from the shared labels: "Warden: Power Word: Shield shield strength +50% to +60%."
-  if (file === 'tuning' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
-    let name = file === 'tuning' ? 'Game rules' : p.id;
+  if (file === 'tuning' || file === 'fx' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
+    let name = file === 'tuning' ? 'Game rules' : file === 'fx' ? 'Animations' : p.id;
     try {
       const data = JSON.parse(text) as unknown;
-      const t = file === 'tuning' ? undefined : ((file === 'classes' ? (data as Record<string, unknown>)[p.id] : targetsIn(data, file, p.id)[0]) as { name?: string } | undefined);
+      const t = file === 'tuning' || file === 'fx' ? undefined : ((file === 'classes' ? (data as Record<string, unknown>)[p.id] : targetsIn(data, file, p.id)[0]) as { name?: string } | undefined);
       if (t?.name) name = t.name;
     } catch {
       /* keep the id */
@@ -527,6 +527,8 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
       return Object.values(data as Record<string, Record<string, { id: string }[][]>>).flatMap((bySpec) => Object.values(bySpec).flat(2)).filter((x) => x.id === id);
     case 'tuning':
       return id === 'game' ? [data] : [];
+    case 'fx':
+      return id === 'fx' ? [data] : [];
   }
 }
 

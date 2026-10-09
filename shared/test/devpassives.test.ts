@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, autoFor, CLASSES, DEV_PAGES, SPECS, TALENTS, TUNING, applyPatches, compileMods, currentValue, entryFor, fileDefault, isAddition, mergePatches, navFor, patchOf, tunableNumbers, validPatch } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, autoFor, CLASSES, DEV_PAGES, FX, FX_ID, FX_INFO, contentHash, fxNum, SPECS, TALENTS, TUNING, applyPatches, compileMods, currentValue, entryFor, fileDefault, isAddition, mergePatches, navFor, patchOf, tunableNumbers, validPatch } from '../src/index';
 import type { DataPatch, DevField } from '../src/index';
 
 const warden = { spec: 'discipline', talents: [], gear: {} };
@@ -136,6 +136,51 @@ describe('the game options (tuning.json) can be patched', () => {
   });
 });
 
+describe('the animations (fx.json) are visual only and editable', () => {
+  it('every number in fx.json has words, bounds and a default inside them, and the file has nothing the catalogue lacks', () => {
+    for (const [g, fields] of Object.entries(FX)) {
+      assert.ok(FX_INFO[g], `group ${g}`);
+      for (const [k, v] of Object.entries(fields)) {
+        const info = FX_INFO[g].fields[k];
+        assert.ok(info, `${g}.${k}`);
+        assert.ok(info.label.length > 3 && info.hint.length > 10);
+        assert.ok(v >= info.min && v <= info.max, `${g}.${k} = ${v}`);
+      }
+    }
+    for (const [g, info] of Object.entries(FX_INFO)) for (const k of Object.keys(info.fields)) assert.equal(typeof FX[g]?.[k], 'number', `${g}.${k} is missing from fx.json`);
+  });
+
+  it('a patch is live at once, is put back, stays within bounds, and never touches the simulation hash', () => {
+    const hash = contentHash();
+    const p: DataPatch = { file: 'fx', id: FX_ID, path: ['dragonsBreath', 'sprayMs'], value: 1200 };
+    assert.ok(validPatch(p));
+    assert.equal(fxNum('dragonsBreath', 'sprayMs'), 650);
+    const undo = applyPatches([p]);
+    assert.equal(fxNum('dragonsBreath', 'sprayMs'), 1200);
+    assert.equal(contentHash(), hash, 'fx.json is not part of the content hash');
+    assert.equal(fileDefault(p), 650);
+    undo();
+    assert.equal(fxNum('dragonsBreath', 'sprayMs'), 650);
+    assert.ok(!validPatch({ ...p, value: 50 }), 'below the lowest value');
+    assert.ok(!validPatch({ ...p, value: 100000 }), 'above the highest value');
+    assert.ok(!validPatch({ ...p, path: ['dragonsBreath', 'nonsense'] }));
+    assert.ok(!validPatch({ ...p, id: 'game' }));
+  });
+
+  it("the Animations page lists every group, times in milliseconds (shown as seconds), and the Dragon's Breath numbers", () => {
+    const page = DEV_PAGES.find((x) => x.id === 'animations')!;
+    assert.equal(page.step, 'What they do');
+    const nav = navFor('animations')[0].entries.map((e) => e.id);
+    assert.deepEqual(nav, Object.keys(FX_INFO));
+    const db = entryFor('animations', 'dragonsBreath')!.groups.flatMap((g) => g.fields);
+    assert.deepEqual(db.map((f) => f.path[1]), ['startDelayMs', 'sprayMs', 'fadeMs', 'lengthScale', 'widthScale', 'density']);
+    const spray = db.find((f) => f.path[1] === 'sprayMs')!;
+    assert.equal(spray.unit, 'ms');
+    assert.equal(spray.value, 650);
+    assert.ok(spray.min === 100 && spray.max === 4000);
+  });
+});
+
 describe('a patch reaches the units already in a match', () => {
   it('refreshMods works the Warden passive, a new stat and a talent out again for every unit', () => {
     const sim = new ArenaSim({ seed: 1, prepMs: 0 });
@@ -224,6 +269,7 @@ describe('the catalogue behind the pages', () => {
     for (const id of new Set(Object.values(TALENTS).flatMap((b) => Object.values(b).flat(2)).map((t) => t.id))) check('talents', id);
     for (const id of Object.keys(AURAS)) check('auras', id);
     check('tuning', 'game');
+    check('fx', FX_ID);
     assert.deepEqual(missing, []);
   });
 

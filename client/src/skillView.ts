@@ -109,12 +109,17 @@ export class SkillEditor {
       input.step = secs ? '0.05' : STEP[f.unit] ?? 'any';
       input.title = secs ? 'Seconds (decimals allowed: 1.2)' : '';
       if (secs) input.classList.add('devp-secs');
+      const unitK = secs ? 0.001 : 1;
+      if (f.min !== undefined) input.min = String(f.min * unitK);
+      if (f.max !== undefined) input.max = String(f.max * unitK);
       reread = () => (input.value = String(Math.round(Number(shown()) * (secs ? 0.001 : 1) * 10000) / 10000));
       input.addEventListener('input', () => {
         if (input.value.trim() === '') return;
         const typed = Number(input.value);
         if (!Number.isFinite(typed) || Math.abs(typed) > 1_000_000) return;
-        const v = secs ? Math.round(typed * 1000) : typed;
+        let v = secs ? Math.round(typed * 1000) : typed;
+        if (f.min !== undefined) v = Math.max(f.min, v);
+        if (f.max !== undefined) v = Math.min(f.max, v);
         this.set.set(f, v, testing, this.canRevert);
         sync();
         this.onEdit();

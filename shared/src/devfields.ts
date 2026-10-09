@@ -2,6 +2,7 @@ import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING } from './data';
 import { CLASS_BLURB, auraOrigins, describeAura, describeTalent, plainText, specPassives } from './describe';
 import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MOD_ABILITY_DEFAULT, MOD_ABILITY_FLAGS, MOD_SCALAR_DEFAULT, TUNING_ID, currentValue, fileDefault, isAddition, isSwitch, tunableNumbers } from './devpatch';
 import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
+import { FX_ID, FX_INFO, fxField } from './fx';
 import type { ClassId } from './types';
 
 /**
@@ -29,6 +30,9 @@ export interface DevField {
   /** The file does not have it yet: the value shown is the neutral one, and changing it adds it. */
   added?: boolean;
   options?: string[];
+  /** Bounds of a number a page keeps it within (in the file's own unit: milliseconds for times). */
+  min?: number;
+  max?: number;
 }
 
 /** A titled run of fields. */
@@ -168,6 +172,7 @@ export function nameOf(file: PatchFile, id: string): string {
     case 'classes': return className(id);
     case 'specs': return specInfo(id)?.spec.name ?? id;
     case 'talents': return findTalent(id)?.t.name ?? id;
+    case 'fx': return 'Animations';
     default: return 'Game options';
   }
 }
@@ -188,6 +193,10 @@ interface Plain { label: string; hint?: string; unit: FieldUnit }
 /** Words for one spot in a data file. */
 export function plainPath(file: PatchFile, id: string, path: readonly (string | number)[]): Plain {
   const last = String(path[path.length - 1]);
+  if (file === 'fx') {
+    const f = fxField(path);
+    return f ? { label: `${FX_INFO[String(path[0])].title}: ${f.label.charAt(0).toLowerCase()}${f.label.slice(1)}`, hint: f.hint, unit: f.unit } : { label: cap(words(last)), unit: 'plain' };
+  }
   if (file === 'tuning') {
     const t = TUNING_INFO[String(path[0])];
     if (t) return path.length > 1 ? { label: `${t.label}: ${ordinal(Number(path[1]))} time`, hint: t.hint, unit: t.unit } : { label: t.label, hint: t.hint, unit: t.unit };
@@ -331,6 +340,10 @@ export function fieldAt(file: PatchFile, id: string, path: (string | number)[], 
   if (hint) f.hint = hint;
   if (choice) f.options = choice.options;
   if (path[0] === 'mods' && isAddition({ file, id, path })) f.added = true;
+  if (file === 'fx') {
+    const b = fxField(path);
+    if (b) { f.min = b.min; f.max = b.max; }
+  }
   return f;
 }
 
@@ -416,7 +429,7 @@ export function modGroups(file: 'specs' | 'talents' | 'auras', id: string, scope
 
 // ------------------------------------------------------------------ the pages
 
-export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'options';
+export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'options';
 
 export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The tab row is read left to right in these steps. */ step: string }[] = [
   { id: 'classes', label: 'Classes', step: 'Who', blurb: 'Health, resource and auto-attack of each class.' },
@@ -425,6 +438,7 @@ export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The t
   { id: 'skills', label: 'Skills', step: 'What they do', blurb: 'Every ability: numbers, options, effects and the buffs and debuffs it applies.' },
   { id: 'passives', label: 'Passives', step: 'What they do', blurb: 'What a spec or talent gives without a button: stat bonuses, changes to skills, Cauterize.' },
   { id: 'auras', label: 'Buffs & debuffs', step: 'What they do', blurb: 'Every buff and debuff (the icons on a unit): duration, ticks, stacks, stat changes.' },
+  { id: 'animations', label: 'Animations', step: 'What they do', blurb: 'How long the big visual effects take and stay (Dragon\'s Breath, Flamestrike, Charge, Heroic Leap). Looks only: never changes a match. Shows on the next cast.' },
   { id: 'options', label: 'Game options', step: 'Rules', blurb: 'Global rules: cooldowns, speeds, dampening, match length.' },
 ];
 
@@ -505,6 +519,8 @@ export function navFor(page: DevPageId): NavGroup[] {
       }
       return [...byKind.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, entries]) => ({ title: cap(words(k)), entries }));
     }
+    case 'animations':
+      return [{ title: 'Animations', entries: Object.entries(FX_INFO).map(([id, g]) => ({ id, name: g.title, sub: g.sub })) }];
     default:
       return [{ title: 'Game options', entries: [{ id: TUNING_ID, name: 'Game options', sub: 'global rules' }] }];
   }
@@ -518,6 +534,7 @@ export function entryFor(page: DevPageId, id: string): DevEntry | null {
     case 'talents': return talentEntry(id);
     case 'passives': return id.startsWith('s:') ? specEntry(id.slice(2), true) : id.startsWith('t:') ? talentEntry(id.slice(2), true) : null;
     case 'auras': return auraEntry(id);
+    case 'animations': return animationEntry(id);
     case 'options': return optionsEntry();
     default: return null;
   }
@@ -600,6 +617,18 @@ function auraEntry(id: string): DevEntry | null {
   if (origins.length) facts.push(['Comes from', origins.join(', ')]);
   const targets: ModTarget[] = Object.keys(ABILITIES).filter((x) => !ABILITIES[x].retired).map((x) => ({ kind: 'ability', id: x, name: abilityName(x) }));
   return { file: 'auras', id, name: a.name, sub: `${a.harmful ? 'debuff' : 'buff'} · ${a.kind}`, lines: [plainText(describeAura(id))].filter(Boolean), facts, groups, addTargets: [...targets, ...auraTargets()] };
+}
+
+function animationEntry(id: string): DevEntry | null {
+  const g = FX_INFO[id];
+  if (!g) return null;
+  const fields = some(Object.keys(g.fields).map((k) => fieldAt('fx', FX_ID, [id, k])));
+  return {
+    file: 'fx', id: FX_ID, name: g.title, sub: g.sub,
+    lines: ['These only change how the effect looks. Times are in seconds. A change shows the next time the effect plays (cast it again).'],
+    facts: [],
+    groups: [{ id: 'timing', title: 'Timing and size', sub: 'seconds and scales', open: true, fields }],
+  };
 }
 
 function optionsEntry(): DevEntry {
