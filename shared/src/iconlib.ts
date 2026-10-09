@@ -12,10 +12,45 @@ export type IconKind = 'ability' | 'aura' | 'class' | 'spec';
 /** The table of icons.json each kind lives in. */
 export const ICON_TABLE: Record<IconKind, keyof IconTable> = { ability: 'abilities', aura: 'auras', class: 'classes', spec: 'specs' };
 
-export const ICON_PACKS: readonly IconPack[] = ICONLIB.packs;
-export const ICON_LIST: readonly IconDef[] = ICONLIB.icons;
+/** The library: the manifest's packs and icons, then the custom ones the server has (setCustomIcons). Both arrays are updated in place. */
+export const ICON_PACKS: readonly IconPack[] = [...ICONLIB.packs];
+export const ICON_LIST: readonly IconDef[] = [...ICONLIB.icons];
+const BUILT_IN = new Set(ICONLIB.packs.map((p) => p.id));
 const BY_ID = new Map(ICON_LIST.map((i) => [i.id, i]));
 const PACK_BY_ID = new Map(ICON_PACKS.map((p) => [p.id, p]));
+
+/** A custom pack's id: 2 to 24 of a-z, 0-9 and dashes (not starting or ending with a dash). */
+export const CUSTOM_PACK_ID = /^[a-z0-9](?:[a-z0-9-]{0,22}[a-z0-9])$/;
+export const validPackId = (id: unknown): id is string => typeof id === 'string' && CUSTOM_PACK_ID.test(id) && !BUILT_IN.has(id);
+/** A custom icon's file name part: lowercase letters, digits and dashes, 1 to 48. */
+export const CUSTOM_ICON_SLUG = /^[a-z0-9][a-z0-9-]{0,47}$/;
+
+/**
+ * The icons uploaded to the server (GET /api/icons/custom) join the library: the grid, the search, the pack chips and the
+ * icon validation (validPatch) all see them. Replaces the previous custom set; a pack or icon whose id is already a built-in one is ignored.
+ */
+export function setCustomIcons(packs: readonly IconPack[], icons: readonly IconDef[]): void {
+  const keepP = ICON_PACKS.filter((p) => BUILT_IN.has(p.id));
+  const keepI = ICON_LIST.filter((i) => BUILT_IN.has(i.pack));
+  const ok = new Set<string>();
+  const seen = new Set<string>(keepI.map((i) => i.id));
+  for (const p of packs) if (validPackId(p.id) && !ok.has(p.id)) {
+    ok.add(p.id);
+    keepP.push({ id: p.id, name: String(p.name), count: 0, license: String(p.license ?? ''), custom: true });
+  }
+  for (const i of icons) if (ok.has(i.pack) && i.id.startsWith(`${i.pack}/`) && CUSTOM_ICON_SLUG.test(i.id.slice(i.pack.length + 1)) && !seen.has(i.id)) {
+    seen.add(i.id);
+    keepI.push({ id: i.id, pack: i.pack, name: String(i.name), file: i.file, tags: Array.isArray(i.tags) ? i.tags.map(String) : [] });
+  }
+  for (const p of keepP) if (p.custom) p.count = keepI.filter((i) => i.pack === p.id).length;
+  (ICON_PACKS as IconPack[]).splice(0, ICON_PACKS.length, ...keepP);
+  (ICON_LIST as IconDef[]).splice(0, ICON_LIST.length, ...keepI);
+  BY_ID.clear();
+  for (const i of ICON_LIST) BY_ID.set(i.id, i);
+  PACK_BY_ID.clear();
+  for (const p of ICON_PACKS) PACK_BY_ID.set(p.id, p);
+  haystack.clear();
+}
 
 /** The mapping as the file has it, copied before any patch can be applied. */
 export const PRISTINE_ICONS: IconTable = structuredClone(ICONS);
@@ -23,6 +58,8 @@ export const PRISTINE_ICONS: IconTable = structuredClone(ICONS);
 export const iconDef = (id: string | undefined | null): IconDef | undefined => (id ? BY_ID.get(id) : undefined);
 export const iconExists = (id: unknown): id is string => typeof id === 'string' && BY_ID.has(id);
 export const iconPack = (packId: string): IconPack | undefined => PACK_BY_ID.get(packId);
+/** True for an icon of a pack that was uploaded to the server. */
+export const isCustomIcon = (id: string | undefined | null): boolean => !!iconDef(id) && !!PACK_BY_ID.get(iconDef(id)!.pack)?.custom;
 /** True for an icon of a pack whose files the server hands out (they are not in the repository). */
 export const isPrivateIcon = (id: string | undefined | null): boolean => !!iconDef(id) && !!PACK_BY_ID.get(iconDef(id)!.pack)?.private;
 /** Where the picture of an icon is served from (empty for an id that is not in the library). */

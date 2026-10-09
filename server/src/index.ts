@@ -14,6 +14,7 @@ import { createStore } from './store';
 import { BotLearner, MeasureWorker } from './botlearn';
 import { DevTools } from './devtools';
 import { AdminLog } from './adminlog';
+import { CUSTOM_LIMITS, CustomIcons } from './customicons';
 import { AiTune } from './aitune';
 import { DevRequests } from './devrequests';
 import { Suggestions } from './suggestions';
@@ -92,7 +93,10 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   console.log(`tick: ${tickMs} ms (${Math.round((10000 / tickMs)) / 10} Hz)${tickMs === TUNING.tickMs ? '' : ' (ARENA_TICK_MS)'}`);
   const playTime = new PlayTime(store);
   const health = new ServerHealth(store, tickMs);
-  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, new AdminLog(store), new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)), playTime, health);
+  const adminLog = new AdminLog(store);
+  // icon packs uploaded in the Icon edit window: kept in the store, part of the library the server validates icon picks against
+  const customIcons = new CustomIcons(store, adminLog);
+  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, adminLog, new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)), playTime, health);
 
   const server = http.createServer((req, res) => {
     let url: URL;
@@ -154,6 +158,54 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
           res.writeHead(r.ok ? 200 : 400, { 'content-type': 'application/json' }).end(JSON.stringify(r));
         } catch {
           fail(500, 'Could not train on that file.');
+        }
+      });
+      return;
+    }
+    // the icon packs the owner and devs uploaded (they live in the store, not in the repository)
+    if (url.pathname === '/api/icons/custom' && req.method === 'GET') {
+      customIcons.ready.then(() => res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify(customIcons.list()))).catch(() => res.writeHead(500).end());
+      return;
+    }
+    if ((url.pathname === '/api/icons/custom' && req.method === 'POST') || (url.pathname.startsWith('/api/icons/custom/') && req.method === 'DELETE')) {
+      const token = /^Bearer (\S{10,80})$/.exec(String(req.headers.authorization ?? ''))?.[1];
+      const fail = (code: number, msg: string) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false, text: msg }));
+      if (!token) return void fail(401, 'Sign in first.');
+      const max = Math.ceil(CUSTOM_LIMITS.uploadBytes * 1.4) + 65536; // base64 and the names around it
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let dead = false;
+      req.on('data', (c: Buffer) => {
+        size += c.length;
+        if (size > max) {
+          dead = true;
+          fail(413, 'That upload is too big.');
+          req.destroy();
+        } else chunks.push(c);
+      });
+      req.on('end', async () => {
+        if (dead) return;
+        try {
+          const a = await accounts.accountForToken(token);
+          if (!a) return void fail(401, 'Session expired. Sign in again.');
+          const owner = await accounts.isOwnerSession(token, a);
+          let r;
+          if (req.method === 'DELETE') {
+            if (!owner) return void fail(403, 'Only the owner can delete an icon pack.');
+            r = await customIcons.remove(a.name, decodeURIComponent(url.pathname.slice('/api/icons/custom/'.length)));
+          } else {
+            if (!owner && !a.grants?.includes('dev')) return void fail(403, 'Only the owner or a dev can add icon packs.');
+            let body: unknown;
+            try {
+              body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            } catch {
+              return void fail(400, 'That upload is not readable.');
+            }
+            r = await customIcons.upload(a.name, body);
+          }
+          res.writeHead(r.ok ? 200 : r.status, { 'content-type': 'application/json' }).end(JSON.stringify(r.ok ? r : { ok: false, text: r.text }));
+        } catch {
+          fail(500, 'Could not save the icons.');
         }
       });
       return;
@@ -230,6 +282,15 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       return;
     }
     fs.readFile(full, (err, data) => {
+      const custom = err ? /^\/icons\/([a-z0-9-]+)\/([a-z0-9-]+)\.webp$/.exec(rel) : null;
+      if (custom) {
+        // not in the static folder: maybe an icon uploaded to this server
+        customIcons
+          .file(custom[1], custom[2])
+          .then((b) => (b ? res.writeHead(200, { 'content-type': 'image/webp', 'cache-control': 'public, max-age=3600', 'x-content-type-options': 'nosniff' }).end(b) : res.writeHead(404, { 'content-type': 'text/plain' }).end('not found')))
+          .catch(() => res.writeHead(500).end());
+        return;
+      }
       if (err) {
         res.writeHead(404, { 'content-type': 'text/plain' }).end('not found (has the client been built? npm run build)');
         return;
@@ -284,7 +345,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
-    server.listen(opts.port, opts.host ?? '0.0.0.0', () => {
+    void customIcons.ready.then(() => server.listen(opts.port, opts.host ?? '0.0.0.0', () => {
       const addr = server.address();
       const port = typeof addr === 'object' && addr ? addr.port : opts.port;
       resolve({
@@ -298,7 +359,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
             wss.close(() => server.close(() => done()));
           })),
       });
-    });
+    }));
   });
 }
 
