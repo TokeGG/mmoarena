@@ -717,12 +717,6 @@ export class DevPanel {
       if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
-    const redeploy = el('button', 'mm-small', 'Redeploy Render');
-    redeploy.title = 'Starts a deploy of the latest commit on Render. The game restarts when it is ready, so everyone online is disconnected for a moment.';
-    redeploy.addEventListener('click', () => {
-      if (!window.confirm('Start a deploy on Render now? The game restarts when it is ready (a minute or two) and everyone online is disconnected for a moment.')) return;
-      this.hooks.send({ t: 'dev_redeploy' });
-    });
     const keep = el('button', 'mm-small mm-go', 'Keep for my session');
     keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
     keep.addEventListener('click', () => {
@@ -737,8 +731,8 @@ export class DevPanel {
       this.paint();
     });
     this.changesBtn = changes;
-    if (this.inMatch) acts.append(tryIt, keep, save, redeploy, reset, changes);
-    else acts.append(keep, save, redeploy, reset, changes);
+    if (this.inMatch) acts.append(tryIt, keep, save, reset, changes);
+    else acts.append(keep, save, reset, changes);
     return acts;
   }
 
