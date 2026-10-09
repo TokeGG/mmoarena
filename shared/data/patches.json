@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.69.29",
+  "date": "2026-10-09",
+  "at": "2026-10-09T21:05:22Z",
+  "title": "Balance changes",
+  "changes": [
+   "Bladestorm: damage 100 to 90.",
+   "Pyroblast has a new icon."
+  ],
+  "by": "Toke"
+ },
+ {
   "version": "0.69.28",
   "date": "2026-10-09",
   "at": "2026-10-09T20:47:15Z",
