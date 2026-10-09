@@ -187,6 +187,9 @@ export interface EventContext {
   project(id: number): { x: number; y: number } | null;
 }
 
+/** Lines of the combat log kept for the match. */
+const LOG_KEEP = 3000;
+
 export class Hud {
   private self = new UnitFrame($('self-frame'), true);
   private target = new UnitFrame($('target-frame'), true);
@@ -199,7 +202,7 @@ export class Hud {
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
   private errGate = new ErrorGate();
-  private logLines: string[] = [];
+  private logCount = 0;
 
   constructor(private handlers: HudHandlers) {
     $('cast').append(this.castBar.root);
@@ -246,7 +249,11 @@ export class Hud {
 
   show(visible: boolean) {
     $('hud').classList.toggle('hidden', !visible);
-    if (!visible) this.clearLabels();
+    if (!visible) {
+      this.clearLabels();
+      $('log').replaceChildren(); // a new match starts with an empty log
+      this.logCount = 0;
+    }
   }
 
   /** `trinket`: the last ability is the tier IV trinket, drawn apart from the bar. */
@@ -636,9 +643,15 @@ export class Hud {
   }
 
   private log(line: string) {
-    this.logLines.push(line);
-    if (this.logLines.length > 7) this.logLines.shift();
-    $('log').replaceChildren(...this.logLines.map((l) => el('div', '', l)));
+    // the whole match is kept and can be scrolled; the view follows the newest line unless you scrolled up to read
+    const box = $('log');
+    const atEnd = box.scrollHeight - box.scrollTop - box.clientHeight < 24;
+    box.append(el('div', '', line));
+    if (++this.logCount > LOG_KEEP) {
+      box.firstElementChild?.remove();
+      this.logCount--;
+    }
+    if (atEnd) box.scrollTop = box.scrollHeight;
   }
 
   event(ev: SimEvent, ctx: EventContext) {

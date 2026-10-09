@@ -257,7 +257,7 @@
   #party.hud-sized .frame, #enemies.hud-sized .frame { width:100% !important; flex:1 1 0; min-height:0; }
   #actionbar.hud-sized { flex-wrap:wrap; justify-content:center; align-content:center; }
   #cast.hud-sized .bar { height:100% !important; margin:0; }
-  #log.hud-sized { max-width:none; }
+  #log.hud-sized { max-width:none; max-height:none; }
   /* health bars (Edit HUD > Health bars) */
   body[data-hud-bar-height=thin] .frame .bar:not(.thin) { height:9px; } body[data-hud-bar-height=thin] .frame .bar:not(.thin) .blabel { font-size:8px; line-height:9px; }
   body[data-hud-bar-height=thick] .frame .bar:not(.thin) { height:22px; } body[data-hud-bar-height=thick] .frame .bar:not(.thin) .blabel { line-height:22px; }
@@ -379,7 +379,7 @@
   #banner small { color:#e9dcc0; -webkit-text-fill-color:#e9dcc0; -webkit-text-stroke:0; }
   #err { font-family:var(--serif); }
 
-  #log { padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:min(380px, calc(50vw - 360px)); bottom:12px; left:60px; color:#cfc6b2; } /* clear of the sound button in the corner */
+  #log { pointer-events:auto; overflow-y:auto; max-height:136px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#6b5a2e transparent; padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:min(380px, calc(50vw - 360px)); bottom:12px; left:60px; color:#cfc6b2; } /* clear of the sound button in the corner */
   /* small screens: the log and the help text keep clear of the action bar (about 570 px wide, centred) */
   @media (max-width:1000px) { #help { display:none; } #log { width:300px; bottom:100px; } }
   #log:empty { display:none; }
