@@ -133,9 +133,7 @@
    },
    {
     "type": "aura",
-    "aura": "hot_streak",
-    "chance": 0.15,
-    "self": true
+    "aura": "singed"
    }
   ]
  },
@@ -654,12 +652,6 @@
    {
     "type": "damage",
     "amount": 550
-   },
-   {
-    "type": "aura",
-    "aura": "hot_streak",
-    "self": true,
-    "fullCast": true
    }
   ]
  },

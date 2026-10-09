@@ -916,20 +916,11 @@
         {
           "id": "mage_fire_t3b",
           "name": "Streaking",
-          "desc": "Fireball has an extra 5% chance to give Hot Streak.",
+          "desc": "Singed lasts 50% (5 seconds) longer.",
           "icon": "🔥",
           "mods": {
-            "ability": {
-              "fireball": {
-                "extra": [
-                  {
-                    "type": "aura",
-                    "aura": "hot_streak",
-                    "chance": 0.05,
-                    "self": true
-                  }
-                ]
-              }
+            "auraDuration": {
+              "singed": 1.5
             }
           }
         },
