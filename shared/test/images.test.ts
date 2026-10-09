@@ -152,10 +152,7 @@ describe('Mirror Image', () => {
     let casted = false;
     for (let i = 0; i < 400; i++) {
       for (const b of bots) b.tick();
-      if (!casted && i === 40) {
-        m.cooldowns = {};
-        casted = sim.useAbility(m.id, 'mirror_image').ok;
-      }
+      if (!casted && i >= 40) casted = sim.useAbility(m.id, 'mirror_image').ok; // a refused press is not recorded, so just try each tick until the mage can
       sim.step();
       sim.drainEvents();
     }
