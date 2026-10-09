@@ -29,7 +29,7 @@ import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { DataLayers, DevPanel } from './devPanel';
-import { AdminPanel } from './adminPanel';
+import { AdminPanel, adminAccessOf } from './adminPanel';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
 import { Recap } from './recap';
@@ -1503,7 +1503,7 @@ function setBadge(b: HTMLElement, n: number) {
 const pollBadges = () => {
   if (!accountUi.account || !mainMenu.visible || document.hidden) return;
   send({ t: 'live' });
-  if (accountUi.account.ownerOk) send({ t: 'admin_proposals', op: 'list' });
+  if (adminAccessOf(accountUi.account)) send({ t: 'admin_proposals', op: 'list' });
 };
 window.setInterval(pollBadges, 20000);
 window.setTimeout(pollBadges, 4000);
@@ -1642,7 +1642,7 @@ const accountUi = new AccountUi({
     // the admin panel follows the account (unlocking the owner code there opens the rest of it)
     queueMicrotask(() => {
       if (adminPanel.isOpen) {
-        if (a?.role === 'owner') adminPanel.open();
+        if (a?.role === 'owner' || adminAccessOf(a)) adminPanel.open();
         else adminPanel.close();
       }
     });
@@ -1706,7 +1706,7 @@ const paintHeader = () => {
   const b = header.buttons.profile;
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
-  header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner'); // only the founder account sees the admin button
+  header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner' && !adminAccessOf(a)); // the founder account and accounts with the dev tag see the admin button
   header.buttons.bots.classList.toggle('hidden', a?.role !== 'owner'); // and the bot battle button
 };
 paintHeader();
