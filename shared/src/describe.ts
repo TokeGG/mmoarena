@@ -359,6 +359,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
       }
       case 'strip':
         return `Removes ${e.kinds.map((k) => (k === 'dot' ? 'damage over time' : k === 'fear' ? 'fear' : `${k}`)).join(' and ')} effects from the target.`;
+      case 'images':
+        return `Summons ${e.count} images of you for ${fmtS(e.duration / 1000)}: same class, spec and talents, 1 health and ${Math.round((1 - e.damage) * 100)}% less damage. They fight at your side.`;
       case 'dropTargets':
         return 'Enemies lose their target on you and spells aimed at you are cancelled.';
       case 'zoneBuff': {

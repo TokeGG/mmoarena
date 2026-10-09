@@ -61,7 +61,7 @@ describe('content data is consistent', () => {
       for (const sp of SPECS[cls]) for (const t of specTalents(cls, sp.id).flat()) check(t.mods, t.id);
       for (const s of SPECS[cls]) check(s.mods, s.id);
     }
-    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor || a.empower || a.maxStacks || a.hot || a.decoys || a.untargetable || a.invulnerable || a.blocksDebuffs || a.resetsCooldown || a.freeCooldownFor || a.flee, `${id} buff has mods`);
+    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor || a.empower || a.maxStacks || a.hot || a.untargetable || a.invulnerable || a.blocksDebuffs || a.resetsCooldown || a.freeCooldownFor || a.flee, `${id} buff has mods`);
   });
 
   it('descriptions never contain NaN or undefined', () => {

@@ -506,8 +506,8 @@ describe('stealth', () => {
     assert.ok(procs >= 45 && procs <= 110, `procs ${procs}/300 (25%)`);
   });
 
-  it('Fireball and Dragon\'s Breath each have a 15% chance per cast to grant Hot Streak', () => {
-    for (const ab of ['fireball', 'dragons_breath']) {
+  it('Dragon\'s Breath has a 15% chance per cast to grant Hot Streak', () => {
+    for (const ab of ['dragons_breath']) {
       const sim = live(9);
       const mage = add(sim, 'mage', 0, 0, 0);
       mage.bar = [...mage.bar.slice(0, 7), ab];
@@ -631,7 +631,7 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
-  it('a fully cast Pyroblast hits for 550 and always grants Hot Streak; the instant one does not chain', () => {
+  it('a fully cast Pyroblast hits for 550 and no longer grants Hot Streak', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'pyroblast'];
@@ -640,12 +640,47 @@ describe('stealth', () => {
     advance(sim, TICK);
     assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
     advance(sim, 3200);
-    assert.ok(mage.auras.some((x) => x.id === 'hot_streak'), 'full cast gives Hot Streak');
+    assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'a full cast gives no Hot Streak');
     const hits = foe.maxHealth - foe.health;
     assert.ok(hits >= 500 && hits <= 600, `first hit ${hits}`);
-    mage.gcdEnd = 0;
-    assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
-    assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'the instant cast used it up and did not refresh it');
+  });
+
+  it('Fireball gives Singed (10 s, 2 stacks); the third hit pops it into Hot Streak for the caster', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'fireball'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.maxHealth = foe.health = 1e9;
+    advance(sim, TICK);
+    const singed = () => foe.auras.find((x) => x.id === 'singed');
+    const hot = () => mage.auras.some((x) => x.id === 'hot_streak');
+    const fire = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok); advance(sim, TICK); };
+    fire();
+    assert.equal(singed()?.stacks, 1);
+    assert.ok(!hot());
+    assert.ok(Math.abs((singed()!.expiresAt - sim.time) - 10000) <= TICK * 2, 'lasts 10 s');
+    fire();
+    assert.equal(singed()?.stacks, 2);
+    assert.ok(!hot());
+    fire();
+    assert.equal(singed(), undefined, 'all stacks removed');
+    assert.ok(hot(), 'Hot Streak on the caster');
+    assert.ok(!foe.auras.some((x) => x.id === 'hot_streak'));
+    fire();
+    assert.equal(singed()?.stacks, 1, 'starts over');
+  });
+
+  it('Singed falls off after 10 seconds and Pyroblast never gives Hot Streak', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'fireball'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.maxHealth = foe.health = 1e9;
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok);
+    advance(sim, 10200);
+    assert.ok(!foe.auras.some((x) => x.id === 'singed'));
+    assert.ok(!ABILITIES.pyroblast.effects.some((e) => e.type === 'aura'), 'Pyroblast has no aura effect');
   });
 
   it("dragon's breath is a 14 yd, 80 degree cone that disorients for 4 s", () => {

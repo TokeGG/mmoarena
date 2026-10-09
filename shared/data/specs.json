@@ -139,7 +139,7 @@
         "id": "fire_staff",
         "name": "Fire staff"
       },
-      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Cauterize saves you from one killing blow.",
+      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Fireball sears the target with Singed, and the third hit brings Hot Streak, which makes Pyroblast instant. Cauterize saves you from one killing blow.",
       "icon": "\ud83d\udd25",
       "bar": [
         "fireball",

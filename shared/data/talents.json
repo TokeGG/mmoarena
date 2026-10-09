@@ -781,7 +781,7 @@
         {
           "id": "mage_t5a",
           "name": "Illusionist",
-          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
           "swap": {
@@ -979,7 +979,7 @@
         {
           "id": "mage_t5a",
           "name": "Illusionist",
-          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
           "swap": {
@@ -1193,7 +1193,7 @@
         {
           "id": "mage_t5a",
           "name": "Illusionist",
-          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
           "swap": {

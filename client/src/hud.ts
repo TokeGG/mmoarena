@@ -377,8 +377,8 @@ export class Hud {
     $('target-frame').classList.toggle('hidden', !tgt);
     if (tgt) this.target.update(tgt, now, tgt.team !== me.team);
 
-    this.syncFrames($('party'), this.partyFrames, snap.units.filter((u) => u.team === me.team && u.id !== you), now, false, targetId);
-    this.syncFrames($('enemies'), this.enemyFrames, snap.units.filter((u) => u.team !== me.team), now, true, targetId);
+    this.syncFrames($('party'), this.partyFrames, snap.units.filter((u) => u.team === me.team && u.id !== you && u.img === undefined), now, false, targetId);
+    this.syncFrames($('enemies'), this.enemyFrames, snap.units.filter((u) => u.team !== me.team && u.img === undefined), now, true, targetId);
 
     // action bar
     const gcdLeft = Math.max(0, me.gcdEnd - now);
