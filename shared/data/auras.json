@@ -163,11 +163,11 @@
     "harmful": false,
     "mods": {
       "regen": 1.6,
-      "autoSpeed": 0.55
+      "autoSpeed": 0.58
     },
     "hot": {
-      "pct": 2,
-      "interval": 3000
+      "pct": 2.5,
+      "interval": 2000
     }
   },
   "evasion": {

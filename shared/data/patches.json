@@ -1,5 +1,19 @@
 [
  {
+  "version": "0.69.37",
+  "date": "2026-10-09",
+  "at": "2026-10-09T22:56:01Z",
+  "title": "Balance changes",
+  "changes": [
+   "Adrenaline Rush: cooldown 15 s to 10 s.",
+   "Sinister Strike: damage 110 to 150.",
+   "Adrenaline Rush: tick time 3 s to 2 s.",
+   "Adrenaline Rush: pct 2 to 2.5.",
+   "Adrenaline Rush: auto-attack swing time -45% to -42%."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.36",
   "date": "2026-10-09",
   "at": "2026-10-09T22:56:00Z",
