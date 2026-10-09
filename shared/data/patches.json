@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.27",
+  "date": "2026-10-10",
+  "at": "2026-10-10T05:10:00Z",
+  "title": "More icons",
+  "changes": [
+   "The icon library has about 590 more icons from three new packs for skills, buffs and classes."
+  ]
+ },
+ {
   "version": "0.69.26",
   "date": "2026-10-10",
   "at": "2026-10-10T04:30:00Z",
