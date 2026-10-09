@@ -134,7 +134,7 @@ describe('admin panel for the dev tag', () => {
     }
   });
 
-  it('a dev sees the proposals and what they send is logged under their name, but cannot apply or dismiss them', async () => {
+  it('a dev sees the proposals and what they send is logged under their name, and can delete them, but cannot make them live or open a pull request', async () => {
     const { lobby, devP, owner, dev, log, out } = await world();
     handle(lobby, devP, { t: 'dev_save', patches: [{ file: 'abilities', id: 'fireball', path: ['effects', '0', 'amount'], value: 99 }], note: 'more' });
     await tick();
@@ -145,16 +145,18 @@ describe('admin panel for the dev tag', () => {
     assert.equal(last(out.dev, 'proposals')!.rows.length, dev.proposals.length);
     // the owner is not bothered, and sees it too
     const id = dev.proposals[0].id;
-    for (const op of ['live', 'pr', 'dismiss'] as const) {
+    for (const op of ['live', 'pr'] as const) {
       handle(lobby, devP, { t: 'admin_proposals', op, ids: [id] });
       await tick();
       assert.match(last(out.dev, 'dev_result')!.text, /for the owner only/, op);
     }
     assert.equal(dev.proposals.find((r) => r.id === id)!.status, 'pending');
     assert.equal(dev.overrides.length, 0, 'nothing went live');
-    handle(lobby, owner, { t: 'admin_proposals', op: 'dismiss', ids: [id] });
+    // a dev may delete a proposal
+    handle(lobby, devP, { t: 'admin_proposals', op: 'dismiss', ids: [id] });
     await tick();
     assert.equal(dev.proposals.find((r) => r.id === id)!.status, 'dismissed');
+    void owner;
   });
 
   it('a dev is refused every forbidden action with a clear message, and nothing happens', async () => {

@@ -57,6 +57,22 @@ describe('dev commits to GitHub', () => {
     assert.match(String((res as any).url), /commit\/abc123/);
   });
 
+  it('a dev commits the ticked proposals from the admin panel straight to main, and they show as committed', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    const { lobby, devP, outD, dev } = await world(mkHttp(calls));
+    lobby.handle(devP, { t: 'dev_save', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    const id = dev.proposals[0].id;
+    lobby.handle(devP, { t: 'admin_proposals', op: 'commit', ids: [id], note: 'ship it' } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 60));
+    const put = calls.find((c) => c.method === 'PUT');
+    assert.ok(put, 'one commit');
+    assert.equal(put!.body.branch, 'main');
+    assert.ok(!calls.some((c) => c.url.endsWith('/pulls')), 'no pull request');
+    assert.equal(dev.proposals.find((r) => r.id === id)!.status, 'committed');
+    assert.equal(last(outD, 'dev_result')?.ok, true);
+  });
+
   it('only devs can; a normal account, a guest, and nonsense numbers are refused', async () => {
     const calls: { url: string; method: string; body?: any }[] = [];
     const { lobby, bobP, devP, outB, outD } = await world(mkHttp(calls));
