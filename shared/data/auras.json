@@ -346,6 +346,22 @@
     "slowPct": 40,
     "dispellable": true
   },
+  "weak_point": {
+    "name": "Weak Point",
+    "kind": "dot",
+    "duration": 1000,
+    "harmful": true,
+    "silence": true,
+    "disarm": true,
+    "perCp": true,
+    "maxDuration": 5000,
+    "dot": {
+      "amount": 110,
+      "interval": 1000,
+      "school": "physical",
+      "ability": "eviscerate"
+    }
+  },
   "garrote_bleed": {
     "name": "Garrote",
     "kind": "dot",

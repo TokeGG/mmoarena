@@ -44,6 +44,8 @@ export interface AbilityMod {
   swapAura?: Record<string, string>;
   /** Share of the healing this ability does that also arrives as a barrier on the target (Penance). */
   shieldPct?: number;
+  /** Can be cast while moving (a channel keeps going when the caster walks: the Warden's Penance). */
+  castWhileMoving?: boolean;
   /** Share of a heal that is also sent to the other side of the pair: an ally if you healed yourself, you if you healed an ally (Greater Heal). */
   echo?: number;
 }
@@ -176,6 +178,12 @@ export interface AuraDef {
   locksAbilities?: boolean;
   /** While this is on you, you cannot use any ability at all (Dispersion). */
   noCast?: boolean;
+  /** Put on by a combo point payoff that ticks once per point spent (Weak Point): the tooltip does not total it. */
+  perCp?: boolean;
+  /** The holder cannot cast spells (any ability that is not physical) while it lasts (Weak Point). */
+  silence?: boolean;
+  /** The holder cannot auto attack or use physical abilities while it lasts (Weak Point). */
+  disarm?: boolean;
   /** Heals the holder this percent of maximum health every interval. */
   hot?: { pct: number; interval: number };
   dispellable?: boolean;
@@ -198,7 +206,7 @@ export type Effect =
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   /** Heals a fraction of the target's missing health. */
   | { type: 'healMissing'; pct: number }
-  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
+  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** A damage-over-time payoff (Weak Point): lasts `extraPerCp` ms per combo point spent (one tick each), and the ticks together deal the aura's damage once for every combo point. */ cpDot?: boolean; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }

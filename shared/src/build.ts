@@ -31,6 +31,7 @@ export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
       if (m.charges !== undefined) cur.charges = (cur.charges ?? 0) + m.charges;
       if (m.after) cur.after = [...(cur.after ?? []), ...m.after];
       if (m.free) cur.free = true;
+      if (m.castWhileMoving) cur.castWhileMoving = true;
       if (m.castDuring) cur.castDuring = true;
       if (m.allyOk) cur.allyOk = true;
       if (m.before) cur.before = [...(cur.before ?? []), ...m.before];

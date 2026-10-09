@@ -2202,6 +2202,14 @@ export class Effects {
         }
         break;
       }
+      case 'purifying_light': {
+        // the sanctified ground: a circle of light at the real radius that stays as long as the Purified aura it gives lasts
+        const r = def.radius ?? 12;
+        this.ring(s.x, s.z, 0xfff1a8, 0.5, r, 0.55, 0.08, 1);
+        this.column(s.x, s.z, 0xfff1a8, 0.6, 1.1, 6, 0.45);
+        this.holyCircle(s.x, s.z, r, (AURAS.purified?.duration ?? 4000) / 1000);
+        break;
+      }
       case 'evocation':
       case 'arcane_power': {
         // arcane energy streams in towards the caster
@@ -2900,6 +2908,42 @@ export class Effects {
         rm.dispose();
       },
     };
+  }
+
+  /** A lasting ring of holy light with a slowly turning rune disc and a soft glow on the ground over `r` yards (Purifying Light): it fades in, holds, then fades out over the last moments of `dur` seconds. */
+  private holyCircle(x: number, z: number, r: number, dur: number) {
+    const group = new THREE.Group();
+    group.position.set(x, this.groundY(x, z), z);
+    const ringM = this.flatMat(0xffe98a, 0);
+    const runeM = this.flatMat(0xfff1c0, 0, this.getRuneTex());
+    const glowM = this.flatMat(0xffe27a, 0);
+    this.flat(group, this.discGeo, glowM, 0.06, r);
+    this.flat(group, this.ringGeo, ringM, 0.07, r);
+    const rune = this.flat(group, this.discGeo, runeM, 0.08, r * 1.02);
+    this.scene.add(group);
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const fade = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (dur - t) / 0.8));
+        ringM.opacity = (0.7 + 0.15 * Math.sin(t * 5)) * fade;
+        runeM.opacity = 0.3 * fade;
+        glowM.opacity = 0.13 * fade;
+        rune.rotation.z = t * 0.5;
+        if (fade > 0.5 && Math.random() < dt * r * 0.6) {
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * r * 0.95;
+          this.particle(x + Math.cos(a) * d, 0.1, z + Math.sin(a) * d, { tex: 'star', color: 0xfff1a8, vy: rnd(0.8, 1.8), s0: rnd(0.2, 0.35), s1: 0.05, life: rnd(0.7, 1.1), drag: 0.4 });
+        }
+        return t >= dur;
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        ringM.dispose();
+        runeM.dispose();
+        glowM.dispose();
+      },
+    });
   }
 
   /**

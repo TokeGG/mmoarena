@@ -66,7 +66,8 @@ function modFacts(m: ModsInput | undefined, res = 'resource'): ModFact[] {
   for (const [id, a] of Object.entries(m.ability ?? {})) {
     const name = ABILITIES[id]?.name ?? id;
     if (a.damage) add(a.damage > 1 ? '+' : '−', a.damage, 'damage', K.damage, name);
-    if (a.heal) add(a.heal > 1 ? '+' : '−', a.heal, 'healing', /heal/, name);
+    if (a.heal) add(a.heal > 1 ? '+' : '−', a.heal, ABILITIES[id]?.effects.some((e) => e.type === 'aura' && AURAS[e.aura]?.kind === 'absorb') ? 'shield strength' : 'healing', /heal|shield/, name);
+    if (a.castWhileMoving) out.push({ text: `${name}: can be cast while moving`, amount: 'moving', subject: name, kind: /moving|move/ });
     if (a.cooldown) add(a.cooldown < 1 ? '−' : '+', a.cooldown, 'cooldown', K.cooldown, name);
     if (a.castTime) add(a.castTime < 1 ? '−' : '+', a.castTime, 'cast time', K.cast, name);
     if (a.range) out.push({ text: `${name}: ${a.range > 0 ? '+' : '−'}${Math.abs(a.range)} yd range`, amount: `${Math.abs(a.range)} yd`, subject: name, kind: K.range });
@@ -199,7 +200,8 @@ function describeBase(id: string, mods: Mods | undefined, opts: DescribeOptions)
       const per = (m: Mods | undefined) => Math.round(dot.amount * (m ? m.damageDone * (m.ability[dot.ability]?.damage ?? 1) : 1));
       const total = (m: Mods | undefined) => per(m) * Math.round((a.duration * (m?.auraDuration[id] ?? 1)) / dot.interval);
       const mk = (f: (m: Mods | undefined) => number) => marked(opts.mark, f(mods), f(undefined));
-      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} ${mk(per)} ${dot.school} damage every ${sec(dot.interval)}${a.duration ? ` (${mk(total)} total)` : ''}.`;
+      const cant = a.silence && a.disarm ? ' Silenced and disarmed: cannot cast spells, auto attack or use physical abilities.' : a.silence ? ' Silenced: cannot cast spells.' : a.disarm ? ' Disarmed: cannot auto attack or use physical abilities.' : '';
+      return `${a.bleed ? 'Bleeding: takes' : 'Takes'} ${mk(per)} ${dot.school} damage every ${sec(dot.interval)}${a.perCp ? ' for each combo point spent' : a.duration ? ` (${mk(total)} total)` : ''}.${cant}`;
     }
   }
 }
@@ -269,12 +271,13 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   const main = lasting.length === 1 ? lasting[0] : undefined;
   if (main?.type === 'aura') {
     const a = AURAS[main.aura];
-    stats.push(`${D(main)} ${a.kind === 'dot' && a.bleed ? 'bleed' : LASTING[a.kind]}${main.extraPerCp ? ` (+${sec(main.extraPerCp)} per combo point${a.maxDuration ? `, up to ${sec(a.maxDuration)}` : ''})` : ''}`);
+    if (main.cpDot) stats.push(`+${sec(main.extraPerCp ?? 0)} per combo point, up to ${sec(a.maxDuration ?? 0)} ${LASTING[a.kind]}`);
+    else stats.push(`${D(main)} ${a.kind === 'dot' && a.bleed ? 'bleed' : LASTING[a.kind]}${main.extraPerCp ? ` (+${sec(main.extraPerCp)} per combo point${a.maxDuration ? `, up to ${sec(a.maxDuration)}` : ''})` : ''}`);
   } else if (main) stats.push(`${fmtS(main.duration / 1000)} ${main.type === 'zone' ? 'ground effect' : main.type === 'flag' ? 'banner' : 'smoke cloud'}`);
 
   const ticks = def.channel?.ticks ?? 1;
   const every = def.channel ? M((m) => secs(castMs(m) / ticks), fmtS, false) : '';
-  const stops = def.unstoppable ? '' : def.channel?.hold ? 'You stand still while it lasts, and being interrupted stops it.' : def.castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
+  const stops = def.unstoppable ? '' : def.channel?.hold ? 'You stand still while it lasts, and being interrupted stops it.' : def.castWhileMoving || ab(mods).castWhileMoving ? 'Being interrupted stops it.' : 'Moving or being interrupted stops it.';
   const dmgOf = (amount: number) => (m: Mods) => Math.round(amount * m.damageDone * (ab(m).damage ?? 1));
   const healOf = (amount: number) => (m: Mods) => Math.round(amount * m.healingDone * (ab(m).heal ?? 1));
 
@@ -305,7 +308,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         const dur = auraSecs(e, mods);
         const extra = e.extraPerCp ? ` (+${sec(e.extraPerCp)} per combo point spent${a.maxDuration ? `, up to ${sec(a.maxDuration)} in all` : ''})` : '';
         const body = a.kind === 'absorb'
-          ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${M((m) => Math.round((a.absorb ?? 0) * m.healingDone))} damage`}`
+          ? `Absorbs ${a.absorbPct ? `${Math.round(a.absorbPct * 100)}% of your max health` : `${M((m) => Math.round((a.absorb ?? 0) * m.healingDone * (m.ability[def.id]?.heal ?? 1)))} damage`}`
           : describeAura(e.aura, mods, o).replace(/\.$/, '');
         const onYou = e.self || def.target === 'self';
         const youLead = onYou && def.target !== 'self' ? 'On you' : '';
@@ -406,7 +409,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (res === 'rage' && !def.cost && firstHit) notes.push(`Its damage builds rage: ${Math.round(TUNING.rageFromDealt * 100)}% of the damage dealt (${M((m) => Math.round(dmgOf(firstHit)(m) * TUNING.rageFromDealt))} per ${aoe || def.effects.some((e) => e.type === 'leap' || e.type === 'zone') ? 'enemy hit' : 'hit'}).`);
   if (def.requiresStealth) notes.push('Requires stealth.');
   if (def.stealthSwap && ABILITIES[def.stealthSwap]) notes.push(`While you are stealthed this slot becomes ${ABILITIES[def.stealthSwap].name}.`);
-  if (def.castWhileMoving) notes.push('Can be cast while moving.');
+  if (def.castWhileMoving || mods.ability[def.id]?.castWhileMoving) notes.push('Can be cast while moving.');
   if (def.unstoppable) notes.push('Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.');
   if (def.requiresTargetCasting) notes.push('Target must be casting.');
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);

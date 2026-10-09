@@ -316,8 +316,13 @@ export class Bot {
    * A cast that keeps the bot standing still. Spells cast on the move (Bladestorm, Scorch) do not: while one runs the
    * bot keeps chasing, kiting, sidestepping and dodging like any player would.
    */
+  /** Moving does not cancel this ability: it says so itself, or the unit's spec or talents allow it (the Warden's Penance). */
+  private movesWhileCasting(u: Unit, ability: string): boolean {
+    return !!ABILITIES[ability]?.castWhileMoving || !!u.mods.ability[ability]?.castWhileMoving;
+  }
+
   private castHolds(u: Unit): boolean {
-    return !!u.cast && !ABILITIES[u.cast.ability]?.castWhileMoving;
+    return !!u.cast && !this.movesWhileCasting(u, u.cast.ability);
   }
 
   /** The melee enemy a caster is running from this tick, if any. */
@@ -337,7 +342,7 @@ export class Bot {
     // running from a melee that is not slowed only pays while there is an instant to throw on the way (it keeps up)
     const instant = u.bar.some((id) => {
       const a = ABILITIES[id];
-      return !!a && (a.castTime === 0 || !!a.castWhileMoving) && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
+      return !!a && (a.castTime === 0 || this.movesWhileCasting(u, id)) && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
     });
     const slowReady = u.bar.some((id) => {
       const a = ABILITIES[id];
@@ -461,7 +466,7 @@ export class Bot {
   private use(u: Unit, ability: string, target?: number, ground?: Vec2 & { lv?: 1 }): boolean {
     const def = ABILITIES[ability];
     // on the run (to cover, out of a cast's sight) a cast would only be cancelled by the next step
-    if (this.moving && def && def.castTime > 0 && !def.castWhileMoving) return false;
+    if (this.moving && def && def.castTime > 0 && !this.movesWhileCasting(u, ability)) return false;
     if (this.wastesCC(u, ability, target)) return false;
     // a cast started at the very edge of its range fails when the target takes a step back
     if (def && def.castTime > 0 && !def.channel && def.target === 'enemy' && def.range > 0 && this.brain.rangeBuffer > 0 && target !== undefined) {
@@ -900,11 +905,11 @@ export class Bot {
     // Fan of Knives whenever someone is within its 8 yards; Crippling Strike keeps a runner slowed
     if (enemies.some((e) => dist(u.pos, e.pos) <= 7.5) && this.use(u, 'fan_of_knives')) return;
     if (!tgt.auras.some((a) => a.kind === 'slow' || a.kind === 'root') && this.use(u, 'crippling_strike', tgt.id)) return;
-    // finishers: spend at 4 (at 3 on a target about to die); Kidney Shot only with 4 or more, and only while its stun
+    // finishers (Weak Point silences and disarms for a second per point while it bleeds them): spend at 4 (at 3 on a target about to die); Kidney Shot only with 4 or more, and only while its stun
     // still lands for long (not on a target that is already diminished), so points are not thrown away on 1-point stuns
     const stunDr = tgt.dr.stun && this.sim.time < tgt.dr.stun.resetAt ? tgt.dr.stun.count : 0;
     if (u.cp >= 4 && !stunned && stunDr === 0 && this.use(u, 'kidney_shot', tgt.id)) return;
-    if ((u.cp >= 4 || (u.cp >= 3 && hpFrac(tgt) < 0.25)) && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
+    if ((u.cp >= 4 || (u.cp >= 3 && hpFrac(tgt) < 0.25)) && this.useFirst(u, tgt.auras.some((a) => a.id === 'weak_point') ? ['exsanguinate'] : ['eviscerate', 'exsanguinate'], tgt.id)) return;
     if (!tgt.auras.some((a) => a.id === 'garrote_bleed') && this.use(u, 'garrote', tgt.id)) return;
     this.rotate(u, tgt, ['mutilate', 'backstab', 'sinister_strike', 'garrote', 'crippling_strike', 'fan_of_knives']);
   }

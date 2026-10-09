@@ -17,6 +17,14 @@ export const AURAS = aurasJson as unknown as Record<string, AuraDef>;
 export const lockedByAura = (def: AbilityDef, auras: { id: string }[]): boolean =>
   !!def.ignoresControl && !def.effects.some((e) => e.type === 'cleanse') && auras.some((a) => AURAS[a.id]?.locksAbilities);
 
+/** Why a unit with these auras cannot use this ability, or '' if it can: silence stops spells (anything not physical), disarm stops physical abilities. */
+export function silencedBy(auras: { id: string }[], def: AbilityDef | undefined): string {
+  if (!def) return '';
+  const physical = def.school === 'physical';
+  if (!physical && auras.some((a) => AURAS[a.id]?.silence)) return 'you are silenced';
+  if (physical && auras.some((a) => AURAS[a.id]?.disarm)) return 'you are disarmed';
+  return '';
+}
 export const CLASSES = classesJson as unknown as Record<ClassId, ClassDef>;
 /** Every arena the server can play on. The first is the default. */
 export const ARENAS = arenasJson as unknown as ArenaDef[];
