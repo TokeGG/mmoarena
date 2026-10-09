@@ -1,5 +1,5 @@
 import type { DevCommitRow } from '@arena/shared';
-import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, PATCH_FILES, applyPatches, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
+import { resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, PATCH_FILES, applyPatches, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
 import { ABILITIES, AURAS } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
 import type { ClassId, DataPatch, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
@@ -14,7 +14,7 @@ const COMMITS = 'devcommits';
 const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
-const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json' };
+const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json', icons: 'shared/data/icons.json' };
 
 export interface DevToolsEnv {
   /** A GitHub token that may push branches and open pull requests on the repository. */
@@ -260,7 +260,7 @@ export class DevTools {
           if (todo.length) files.push({ path: FILES[file], content: patchJsonText(text, file, todo) });
         }
         if (!files.length) throw new Error(`Nothing was committed: ${skipped.length ? skipped.join('; ') : 'those numbers are already what the files have'}.`);
-        return { files, lines, sim: files.some((f) => f.path !== FILES.fx), message: (version) => `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, extra: { applied: notes.length, skipped } };
+        return { files, lines, sim: files.some((f) => f.path !== FILES.fx && f.path !== FILES.icons), message: (version) => `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, extra: { applied: notes.length, skipped } };
       },
       by,
     });
@@ -458,6 +458,7 @@ function showValue(p: DataPatch, v: number | string): string {
 
 /** One short, player-facing patch-notes line for a number: "Fireball: cooldown 8 s to 7 s". */
 function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: number | string): string {
+  if (file === 'icons') return p.path[0] === 'aura' ? `The ${nameOf(file, p.id, p.path).replace(/ \((buff|debuff)\)$/, '')} ${AURAS[p.id]?.harmful ? 'debuff' : 'buff'} has a new icon.` : `${nameOf(file, p.id, p.path)} has a new icon.`;
   // stat bonuses, switches and the game's own rules are worded from the shared labels: "Warden: Power Word: Shield shield strength +50% to +60%."
   if (file === 'tuning' || file === 'fx' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
     let name = file === 'tuning' ? 'Game rules' : file === 'fx' ? 'Animations' : p.id;
@@ -510,7 +511,7 @@ function friendlyGithubError(msg: string, base: string): string {
 
 /** "Fireball · Damage amount", "Warden · Power Word: Shield: shield strength" */
 export function label(p: DataPatch): string {
-  return `${nameOf(p.file, p.id)} · ${plainPath(p.file, p.id, p.path).label}`;
+  return `${nameOf(p.file, p.id, p.path)} · ${plainPath(p.file, p.id, p.path).label}`;
 }
 
 /** The objects in a data file's parsed JSON that a patch changes: one ability, aura, class or spec, or every copy of a talent (the game options are the whole file). */
@@ -529,11 +530,21 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
       return id === 'game' ? [data] : [];
     case 'fx':
       return id === 'fx' ? [data] : [];
+    case 'icons':
+      return [data];
   }
 }
 
 /** The number at a patch's spot in a data file's text (the file as the repository has it); a stat change or switch the file does not have yet reads as the value that does nothing. */
 function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | string | undefined {
+  if (file === 'icons') {
+    try {
+      const t = JSON.parse(text) as { abilities?: Record<string, string>; auras?: Record<string, string> };
+      return resolveIcon({ abilities: t.abilities ?? {}, auras: t.auras ?? {} }, p.path[0] === 'aura' ? 'aura' : 'ability', p.id) ?? 'none';
+    } catch {
+      return undefined;
+    }
+  }
   try {
     const target = targetsIn(JSON.parse(text) as unknown, file, p.id)[0];
     if (!target) return undefined;
@@ -576,6 +587,12 @@ function patchClassesText(text: string, patches: DataPatch[]): string {
 /** A data file's text with the patches applied, keeping its layout (abilities.json indents by one space, the others by two). */
 export function patchJsonText(text: string, file: DataPatch['file'], patches: DataPatch[]): string {
   if (file === 'classes') return patchClassesText(text, patches);
+  if (file === 'icons') {
+    // the skill's (or buff's) entry in icons.json: set, or added when a buff wore its skill's icon until now
+    const t = JSON.parse(text) as { abilities: Record<string, string>; auras: Record<string, string> };
+    for (const p of patches) if (typeof p.value === 'string') (p.path[0] === 'aura' ? t.auras : t.abilities)[p.id] = p.value;
+    return JSON.stringify(t, null, 2) + (text.endsWith('\n') ? '\n' : '');
+  }
   const data = JSON.parse(text) as unknown;
   for (const p of patches) {
     for (const start of targetsIn(data, file, p.id)) {

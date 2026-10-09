@@ -377,7 +377,8 @@ describe('the replay shows each mistake', () => {
     assert.equal(typeof study.bots[0].facts.mistakes, 'object');
     const report = buildReport({ id: 'x', replayId: 'r', at: 1, source: 'owner', passes: 1, study, classes: [{ classId: 'mage', moved: [{ key: 'peelAt', before: 0.5, after: 0.62 }], replays: 3 }], habits: 1 });
     const text = formatReport(report).join('\n');
-    assert.match(text, /mage: peelAt 0\.50 -> 0\.62/);
+    assert.match(text, /\[peelAt 0\.50 -> 0\.62\]/);
+    assert.match(text, /mage bots now peel melee away sooner/);
     assert.match(text, /mage bot \((won|lost) against warrior/);
     assert.equal(report.nothing, null);
     const none = buildReport({ id: 'x', replayId: 'r', at: 1, source: 'owner', passes: 1, study: { bots: [], players: [] }, classes: [], habits: 0 });

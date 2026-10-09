@@ -55,3 +55,13 @@ describe('bot brains', () => {
     assert.equal(recordResult(pop, 'gone', true, r), false, 'unknown variants are ignored');
   });
 });
+
+import { BRAIN_KEYS as WORD_KEYS } from '../src/botbrain';
+import { BRAIN_WORDS, plainMove, showBrainValue } from '../src/brainwords';
+describe('bot learning in plain words', () => {
+  it('every brain number has words, and a move reads as behaviour', () => {
+    for (const k of WORD_KEYS) assert.ok(BRAIN_WORDS[k]?.what && BRAIN_WORDS[k].up && BRAIN_WORDS[k].down && BRAIN_WORDS[k].watch, k);
+    assert.equal(plainMove({ key: 'defHp', before: 0.65, after: 0.62 }), 'hold defensive cooldowns until they are lower (the health at which it uses defensive cooldowns: 62%, was 65%)');
+    assert.equal(showBrainValue('strafeFlip', 1.5), '1.5 s');
+  });
+});

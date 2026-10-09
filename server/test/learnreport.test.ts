@@ -39,7 +39,7 @@ describe('the bot learner says what it learned', () => {
     const moved = Object.fromEntries(mage.moved.map((m) => [m.key, m]));
     assert.ok(moved.peelAt && moved.peelAt.after > moved.peelAt.before, JSON.stringify(mage.moved));
     assert.ok(moved.trinketAt.after > moved.trinketAt.before);
-    assert.match(r.report.headline, /mage: .*peelAt \d\.\d\d -> \d\.\d\d/);
+    assert.match(r.report.headline, /mage bots now .*peel melee away sooner/);
     assert.deepEqual(r.report.totals.map((t) => t.label).sort(), ['locked down with the trinket ready', 'stood still with melee on it and a push-off ready']);
     assert.equal(r.report.nothing, null);
     assert.match(formatReport(r.report).join('\n'), /6 stood still with melee on it/);
@@ -100,7 +100,8 @@ describe('the bot learner says what it learned', () => {
     assert.match(mage.moved[0].why ?? '', /standing still: stood still 70%/);
     assert.equal(r.report.nothing, null);
     const text = formatReport(r.report).join('\n');
-    assert.match(text, /(mobility|strafe) \d\.\d\d -> \d\.\d\d \(standing still/);
+    assert.match(text, /\[(mobility|strafe) \d\.\d\d -> \d\.\d\d\]/);
+    assert.match(text, /because standing still/);
     assert.doesNotMatch(text, /already play/i);
     // a win counts half as much
     const key = mage.moved[0].key;
@@ -206,7 +207,7 @@ describe('the bot learner says what it learned', () => {
     (lobby as any).conns.add(owner);
     const r = await lobby.trainOnReplay('Toke', zlib.gzipSync(JSON.stringify(botMatch())), 'abcdef123456', { passes: 2 });
     assert.equal(r.ok, true, r.text);
-    assert.match(r.text, /mage: .*peelAt/);
+    assert.match(r.text, /mage bots now .*peel melee/);
     const status = out.filter((m) => m.t === 'train_status').at(-1);
     assert.ok(status.jobs[0].report.classes.find((c: any) => c.classId === 'mage').moved.length, 'the queue row carries the report');
     assert.ok(out.some((m) => m.t === 'bot_knowledge' && m.classes.length === 4));

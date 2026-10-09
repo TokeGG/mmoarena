@@ -206,8 +206,16 @@ export function forgetRiggedModels() {
   version++;
 }
 
+let settled = false;
+/**
+ * True once the character models have finished loading (or failed, or took too long). Until then the scene keeps characters
+ * hidden instead of showing the procedural stand-ins, so a refresh does not flash the old models for a few seconds.
+ */
+export const modelsSettled = (): boolean => settled;
+
 /** Start loading every registered model; resolves when all have finished (failures are logged and leave the procedural model in place). */
 export function preloadRiggedModels(): Promise<void> {
+  window.setTimeout(() => { settled = true; }, 12000); // never keep characters hidden forever on a slow link
   const loader = new GLTFLoader();
   const tex = new THREE.TextureLoader();
   const weapons = Promise.all([preloadWeaponModels(), preloadCapeModel(), preloadWingModel()]).then(() => undefined); // the weapon and cape models load alongside the characters that wear them
@@ -236,7 +244,7 @@ export function preloadRiggedModels(): Promise<void> {
           )
           .catch((e) => console.warn(`model ${id} failed to load, keeping the procedural model`, e)),
     ),
-  ).then(() => weapons);
+  ).then(() => weapons).finally(() => { settled = true; });
 }
 
 /** Optional per-material texture files declared in the registry (an owner can drop one next to the GLB later). */

@@ -21,6 +21,8 @@ export * from './devpatch';
 export * from './devinfo';
 export * from './devfields';
 export * from './fx';
+export * from './iconlib';
 export * from './devrequest';
 export * from './snapslim';
 export * from './playtime';
+export * from './brainwords';
