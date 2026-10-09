@@ -1,6 +1,6 @@
 import { lightMode } from './lightMode';
 import * as THREE from 'three';
-import { ABILITIES, AURAS } from '@arena/shared';
+import { ABILITIES, AURAS, fxNum, fxSec } from '@arena/shared';
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
 import { clothShade, clothWave, endFade, unfurlProgress } from './flagCloth';
 import { AURA_VISUAL, LayerBook, coneShape, fireFieldShape, coneSpawnAngle, fireballLookFor, fireballShape, fireballTailScale, hotAuras, impactKindFor, isDotTick, layerAlpha, visualFor, windupScale } from './skillVisuals';
@@ -1325,103 +1325,68 @@ export class Effects {
   }
 
   /**
-   * A true cone of flame (Dragon's Breath, Dragon Roar): a jet of billowing fire sprites (the flipbook, or the canvas teardrop) leaves the
-   * caster's mouth and fans out to the spell's real range and width, with a white-hot core, dark smoke and rising embers at the far end,
-   * a flickering glow at the mouth and a scorched ground sector showing exactly what is hit. Follows the caster while it burns.
-   * Per frame it spawns about `rate` pooled sprites; the global particle cap bounds the total.
+   * A true cone of flame (Dragon's Breath, Dragon Roar): the caster simply sprays fire out in front of him. Pooled fire sprites (the
+   * flipbook, or the canvas teardrop) leave the mouth at once and fly out to the spell's real range, spread over the real cone angle
+   * (a thin ground outline shows exactly what is hit), with a few embers. `spray` seconds of full fire, then `fade` seconds dying down;
+   * `length` and `width` scale the plume and `density` how many flames are drawn (the Animations page of the dev panel, FX_INFO).
+   * Follows the caster while it burns. Per frame it spawns about `rate` pooled sprites; the global particle cap bounds the total.
    */
-  fireCone(unit: number, range: number, half: number, dur: number, o: { color?: number; smoke?: boolean; density?: number } = {}) {
+  fireCone(unit: number, range: number, half: number, o: { spray: number; fade: number; length?: number; width?: number; density?: number; color?: number } = { spray: 0.65, fade: 0.25 }) {
     const p0 = this.pos(unit);
     if (!p0) return;
     const density = o.density ?? 1;
+    const reach = range * (o.length ?? 1);
+    const spread = half * (o.width ?? 1);
+    const total = o.spray + o.fade;
     // flames per second: enough to fill the area in front of the caster
-    const rate = (90 + 12 * range * (half / (Math.PI / 4))) * density;
-    const glowMat = new THREE.SpriteMaterial({ map: this.tex.glow, color: 0xff7a24, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
-    const glow = new THREE.Sprite(glowMat);
-    this.scene.add(glow);
-    const hot = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex.glow, color: 0xfff0b0, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    this.scene.add(hot);
-    this.sector(p0.x, p0.z, p0.facing, range, half, 0xff5a14, dur + 0.15, 0.55, unit);
-    this.fireFlash(p0.x + Math.sin(p0.facing) * 0.8, p0.y + 1.7, p0.z + Math.cos(p0.facing) * 0.8, 0.6);
+    const rate = (70 + 9 * range * (half / (Math.PI / 4))) * density * Math.max(0.3, o.width ?? 1);
+    this.sector(p0.x, p0.z, p0.facing, range, half, o.color ?? 0xff5a14, total + 0.1, 0.3, unit);
+    this.fireFlash(p0.x + Math.sin(p0.facing) * 0.8, p0.y + 1.7, p0.z + Math.cos(p0.facing) * 0.8, 0.5);
     let t = 0;
     let acc = 0;
-    let accS = 0;
     this.addFx({
       update: (dt) => {
         t += dt;
         const p = this.pos(unit) ?? p0;
-        const MY = p.y + 1.7;
-        const env = Math.min(1, t / 0.12) * Math.min(1, Math.max(0, (dur - t) / 0.3));
-        const fx = Math.sin(p.facing);
-        const fz = Math.cos(p.facing);
-        const mx = p.x + fx * 0.5;
-        const mz = p.z + fz * 0.5;
-        const flick = 0.75 + 0.25 * Math.sin(t * 47) + 0.15 * Math.sin(t * 23 + 1);
-        glow.position.set(mx + fx * 0.8, MY - 0.1, mz + fz * 0.8);
-        glow.scale.setScalar((2.2 + range * 0.12) * env * flick);
-        glowMat.opacity = 0.55 * env;
-        hot.position.set(mx + fx * 0.3, MY, mz + fz * 0.3);
-        hot.scale.setScalar(1.0 * env * flick);
-        (hot.material as THREE.SpriteMaterial).opacity = 0.9 * env;
-        if (env <= 0.01 && t > 0.3) return t >= dur;
+        const MY = p.y + 1.6;
+        // full strength for `spray` seconds (a quick ramp in), then it dies down over `fade`
+        const env = Math.min(1, t / 0.05) * (t <= o.spray ? 1 : o.fade > 0 ? Math.max(0, 1 - (t - o.spray) / o.fade) : 0);
+        if (t >= total) return true;
+        const mx = p.x + Math.sin(p.facing) * 0.5;
+        const mz = p.z + Math.cos(p.facing) * 0.5;
         acc += dt * rate * env;
         while (acc >= 1) {
           acc -= 1;
-          const u = rnd(-1, 1);
-          const a = p.facing + coneSpawnAngle(Math.sign(u) * Math.abs(u) ** 0.85, half);
-          const life = rnd(0.42, 0.66);
-          const near = Math.random() < 0.14; // the white-hot core stays close to the mouth
-          const dist = range * (near ? rnd(0.1, 0.4) : rnd(0.5, 1.0));
+          const a = p.facing + coneSpawnAngle(rnd(-1, 1), spread);
+          const life = rnd(0.36, 0.55);
+          const near = Math.random() < 0.12; // a few white-hot flames stay by the mouth
+          const dist = reach * (near ? rnd(0.08, 0.3) : 0.3 + 0.7 * Math.sqrt(Math.random())); // more flames far out, where the cone is wider
           const sp = dist / life;
           const sx = Math.sin(a);
           const sz = Math.cos(a);
-          const size1 = near ? 2.0 : Math.min(7.5, 2.4 + dist * 0.4);
-          const yEnd = size1 * 0.32 + rnd(0.1, 1.1); // big sprites stay clear of the ground instead of being cut off by it
-          if (!near && Math.random() < 0.35) {
-            // the dark red body behind the flames (normal blending), like the fireball's: the jet has a darker edge and depth
-            this.particle(mx + sx * 0.3, MY + rnd(-0.1, 0.1), mz + sz * 0.3, {
-              tex: 'glow', color: 0x7a1a08, add: false, vx: sx * sp * 0.9, vz: sz * sp * 0.9, vy: (yEnd - MY) / life, s0: 1.2, s1: size1 * 0.9, life: life * 1.1, a: 0.26, drag: 0.1,
-            });
-          }
+          // the flame grows as it travels, but stays small enough for its edge to stay inside the cone
+          const size1 = near ? 1.2 : Math.min(3.4, 1.0 + dist * 0.22);
+          const yEnd = Math.max(0.5, MY - 0.6 + rnd(-0.2, 0.5));
           this.particle(mx + sx * 0.3, MY + rnd(-0.1, 0.1), mz + sz * 0.3, {
             fire: true, color: near ? 0xffe8b0 : 0xffd0a0, col1: near ? 0xff9030 : 0xff2a08,
             vx: sx * sp, vz: sz * sp, vy: (yEnd - MY) / life,
-            s0: near ? 0.7 : 1.1, s1: size1, life, a: near ? 0.7 : 0.55,
+            s0: near ? 0.5 : 0.7, s1: size1, life, a: near ? 0.7 : 0.6,
             fps: rnd(16, 30), rot: rnd(-0.5, 0.5), spin: rnd(-0.6, 0.6),
           });
-          if (Math.random() < 0.25) {
-            // embers racing out
-            const l2 = rnd(0.7, 1.2);
-            const d2 = range * rnd(0.6, 1.1);
-            this.particle(mx, MY, mz, { tex: 'spark', color: 0xffc050, col1: 0xff3010, vx: sx * d2 / l2, vz: sz * d2 / l2, vy: rnd(-0.5, 2.2), s0: rnd(0.14, 0.26), s1: 0.04, life: l2, grav: 2.2, drag: 0.3 });
+          if (Math.random() < 0.12) {
+            // an ember racing out
+            const l2 = rnd(0.5, 0.9);
+            const d2 = reach * rnd(0.5, 1.0);
+            this.particle(mx, MY, mz, { tex: 'spark', color: 0xffc050, col1: 0xff3010, vx: sx * d2 / l2, vz: sz * d2 / l2, vy: rnd(-0.3, 1.2), s0: rnd(0.12, 0.2), s1: 0.04, life: l2, grav: 2.2, drag: 0.3 });
           }
         }
-        if (o.smoke !== false) {
-          accS += dt * rate * 0.18 * env * (t > 0.12 ? 1 : 0);
-          while (accS >= 1) {
-            accS -= 1;
-            const u = rnd(-1, 1);
-            const a = p.facing + coneSpawnAngle(u, half);
-            const life = rnd(0.8, 1.2);
-            const dist = range * rnd(0.55, 0.95);
-            this.particle(mx, MY - 0.2, mz, {
-              tex: 'smoke', color: 0x2c2420, add: false, vx: Math.sin(a) * dist / life, vz: Math.cos(a) * dist / life, vy: rnd(-0.2, 0.9),
-              s0: 1.4, s1: Math.min(6, 2.5 + range * 0.25), life, a: 0.55, drag: 0.4, spin: rnd(-0.5, 0.5),
-            });
-          }
-        }
-        return t >= dur + 0.05;
+        return false;
       },
-      dispose: () => {
-        this.scene.remove(glow);
-        this.scene.remove(hot);
-        glowMat.dispose();
-        (hot.material as THREE.SpriteMaterial).dispose();
-      },
+      dispose: () => {},
     });
-    // scorch marks smoulder on the ground inside the cone after the jet
-    for (let i = 0; i < 6; i++) {
-      this.later(rnd(0.1, dur), () => {
+    // scorch marks smoulder on the ground inside the cone while it burns
+    for (let i = 0; i < 4; i++) {
+      this.later(rnd(0.05, Math.max(0.1, o.spray)), () => {
         const a = p0.facing + coneSpawnAngle(rnd(-1, 1), half);
         const d = range * rnd(0.3, 0.95);
         const p = this.pos(unit) ?? p0;
@@ -1429,7 +1394,6 @@ export class Effects {
         const fz = p.z + Math.cos(a) * d;
         this.fireTongue(fx, this.groundY(fx, fz) + 0.1, fz, rnd(0.8, 1.2));
         this.fireGroundGlow(fx, fz, 1.1, 0, { light: true, life: 0.8 });
-        this.emberShower(fx, 0, fz, 0.5, 2);
       });
     }
   }
@@ -1483,9 +1447,9 @@ export class Effects {
   }
 
   /** Ground shock: a ring racing out to `radius`, a second fainter one behind it, and a ring of dust kicked up along it. */
-  shockwave(x: number, z: number, radius: number, color = 0xffe2b0, dust = true) {
-    this.ring(x, z, color, 0.5, radius, 0.55, 0.08, 1);
-    this.later(0.07, () => this.ring(x, z, 0xffffff, 0.3, radius * 0.8, 0.45, 0.09, 0.6));
+  shockwave(x: number, z: number, radius: number, color = 0xffe2b0, dust = true, life = 0.55) {
+    this.ring(x, z, color, 0.5, radius, life, 0.08, 1);
+    this.later(0.07, () => this.ring(x, z, 0xffffff, 0.3, radius * 0.8, life * 0.82, 0.09, 0.6));
     if (!dust) return;
     const n = Math.min(22, 8 + Math.round(radius * 1.6));
     for (let i = 0; i < n; i++) {
@@ -1899,7 +1863,7 @@ export class Effects {
     if (ability === 'bladestorm') {
       // a warrior whirling steel, not a caster gathering a spell: blades spin round him until the channel ends
       const dur = (def.castTime || 4000) / 1000;
-      this.casting.set(unit, this.spinBlades(unit, def.radius ?? 6, 0xdfe6f2, dur, dur * 1.6));
+      this.casting.set(unit, this.spinBlades(unit, def.radius ?? 6, 0xdfe6f2, dur, dur * fxNum('bladestorm', 'spinPerSec')));
       return;
     }
     const orb = this.sprite('glow', color);
@@ -1992,7 +1956,7 @@ export class Effects {
         break;
       case 'leap_land':
         this.column(ev.x, ev.z, 0xffd34a, 0.7, 1, 5);
-        this.shockwave(ev.x, ev.z, this.leapRadius(), 0xffd34a, true);
+        this.shockwave(ev.x, ev.z, this.leapRadius(), 0xffd34a, true, fxSec('heroicLeap', 'landingRingMs'));
         break;
       case 'cast_fail':
         this.stopCast(ev.unit);
@@ -2263,10 +2227,12 @@ export class Effects {
         this.shout(unit, s, def.radius ?? 8, 0xffd9a0, { count: 4 });
         break;
       case 'dragons_breath': {
-        // the mage breathes fire: head back, then a jet that fans out to the spell's real cone
+        // the mage sprays fire at once over the spell's real cone; how long it waits, stays and fades is on the Animations page
         const cone = coneShape(def);
-        this.onShout(unit);
-        this.later(SHOUT_RELEASE, () => this.fireCone(unit, cone?.range ?? 14, cone?.half ?? Math.PI / 4, 1.1));
+        this.later(fxSec('dragonsBreath', 'startDelayMs'), () => this.fireCone(unit, cone?.range ?? 14, cone?.half ?? Math.PI / 4, {
+          spray: fxSec('dragonsBreath', 'sprayMs'), fade: fxSec('dragonsBreath', 'fadeMs'),
+          length: fxNum('dragonsBreath', 'lengthScale'), width: fxNum('dragonsBreath', 'widthScale'), density: fxNum('dragonsBreath', 'density'),
+        }));
         break;
       }
       case 'vanish':
@@ -2291,8 +2257,9 @@ export class Effects {
         break;
       case 'holy_nova': {
         const r = def.radius ?? 12;
-        this.ring(s.x, s.z, 0xffe98a, 0.5, r, 0.6, 0.08, 1);
-        this.later(0.08, () => this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.7, 0.5, 0.09, 0.8));
+        const grow = fxSec('holyNova', 'expandMs');
+        this.ring(s.x, s.z, 0xffe98a, 0.5, r, grow, 0.08, 1);
+        this.later(0.08, () => this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.7, grow * 0.85, 0.09, 0.8));
         this.column(s.x, s.z, 0xfff1a8, 0.6, 1.3, 6, 0.5);
         for (let i = 0; i < 26; i++) {
           const a = Math.random() * Math.PI * 2;
@@ -2358,8 +2325,9 @@ export class Effects {
       }
       case 'frost_nova': {
         const r = def.radius ?? 10;
-        this.ring(s.x, s.z, 0x7fd8ff, 0.5, r, 0.55, 0.08, 1);
-        this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.8, 0.4, 0.09, 0.8);
+        const grow = fxSec('frostNova', 'expandMs');
+        this.ring(s.x, s.z, 0x7fd8ff, 0.5, r, grow, 0.08, 1);
+        this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.8, grow * 0.75, 0.09, 0.8);
         for (let i = 0; i < 28; i++) {
           const a = Math.random() * Math.PI * 2;
           const sp = rnd(r * 1.1, r * 1.8);
@@ -2389,22 +2357,13 @@ export class Effects {
           if (!n) return;
           this.burst(n.x, n.y + 1.1, n.z, 0xe0c2ff, 22, 5, 0.4, 0.6, 0);
           this.ring(n.x, n.z, 0xc58bff, 0.3, 2.2, 0.4);
-          this.beam(s.x, s.y + 1.1, s.z, n.x, n.y + 1.1, n.z, 0xc58bff, 0.3, 0.05);
+          this.beam(s.x, s.y + 1.1, s.z, n.x, n.y + 1.1, n.z, 0xc58bff, fxSec('blink', 'streakMs'), 0.05);
         });
         break;
       }
       case 'charge': {
-        const ox = s.x;
-        const oz = s.z;
-        this.puff(ox, s.y + 0.4, oz, 0xb59a7a, 8, 1.4);
-        this.later(0.05, () => {
-          const n = this.pos(unit);
-          if (!n) return;
-          const steps = 14;
-          for (let i = 0; i <= steps; i++) {
-            const f = i / steps;
-            this.particle(ox + (n.x - ox) * f, s.y + (n.y - s.y) * f + 1.0 + rnd(-0.4, 0.4), oz + (n.z - oz) * f, { color: 0xffe2b0, s0: 0.9, s1: 0.2, life: 0.35 + f * 0.1, a: 0.7, drag: 0 });
-          }
+        // a streak and dust follow the warrior along the whole run (however long it takes), then an impact where he arrives
+        this.dashRun(unit, 0xffe2b0, (n) => {
           this.burst(n.x, n.y + 0.4, n.z, 0xd9c19a, 10, 4, 0.5, 0.5);
           this.ring(n.x, n.z, 0xffe2b0, 0.4, 2.8, 0.35);
           this.onSwing(unit);
@@ -2449,6 +2408,60 @@ export class Effects {
     }
   }
 
+  /**
+   * A run at a target (Charge, Intercept): from the cast until the unit comes to rest, a streak and kicked-up dust are laid along the
+   * path it really travels (every frame, so the trail is continuous however far or fast), then `onEnd` plays where it stopped.
+   * The unit's drawn position is already smooth (see dashPath.ts), so this never blinks. Amounts come from the Animations page.
+   */
+  private dashRun(unit: number, color: number, onEnd: (at: Pos) => void) {
+    const start = this.pos(unit);
+    if (!start) return;
+    const life = fxSec('charge', 'trailMs');
+    const trail = fxNum('charge', 'trailDensity');
+    const dust = fxNum('charge', 'dustDensity');
+    this.puff(start.x, start.y + 0.4, start.z, 0xb59a7a, Math.round(8 * dust), 1.4);
+    let last = { x: start.x, z: start.z };
+    let t = 0;
+    let moved = false;
+    let still = 0;
+    let accT = 0;
+    let accD = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const n = this.pos(unit);
+        if (!n) return true;
+        const d = Math.hypot(n.x - last.x, n.z - last.z);
+        const speed = d / Math.max(dt, 0.001);
+        if (speed > 8) {
+          moved = true;
+          still = 0;
+          // one puff of streak every ~0.45 yd of path, spread along what was covered this frame (so a long frame leaves no gaps)
+          accT += (d / 0.45) * trail;
+          accD += (d / 2.2) * dust;
+          while (accT >= 1) {
+            accT--;
+            const f = Math.random();
+            this.particle(last.x + (n.x - last.x) * f, n.y + 0.9 + rnd(-0.4, 0.4), last.z + (n.z - last.z) * f, { color, s0: 1.0, s1: 0.15, life, a: 0.6, drag: 0 });
+          }
+          while (accD >= 1) {
+            accD--;
+            const f = Math.random();
+            this.puff(last.x + (n.x - last.x) * f, n.y + 0.2, last.z + (n.z - last.z) * f, 0x8a7a60, 2, 0.7);
+          }
+        } else if (moved) still += dt;
+        else if (t > 0.8) return true; // it never set off (the charge was stopped)
+        last = { x: n.x, z: n.z };
+        if (moved && (still > 0.08 || t > 3)) {
+          onEnd(n);
+          return true;
+        }
+        return false;
+      },
+      dispose: () => {},
+    });
+  }
+
   /** Visuals for any ability without a hand-made effect, chosen from what the ability does. */
   private genericCast(unit: number, def: AbilityDef, s: Pos, t: Pos | null, target: number) {
     const color = SCHOOL_COLOR[def.school];
@@ -2458,18 +2471,7 @@ export class Effects {
 
     if (has('charge') && t) {
       // dust and a streak while the unit runs, then an impact where it lands
-      this.puff(s.x, s.y + 0.4, s.z, 0x8a7a60, 7, 1.4);
-      for (let k = 1; k <= 18; k++) {
-        this.later(k * 0.05, () => {
-          const n = this.pos(unit);
-          if (!n) return;
-          this.particle(n.x + rnd(-0.3, 0.3), n.y + 0.9 + rnd(-0.4, 0.4), n.z + rnd(-0.3, 0.3), { color, s0: 0.7, s1: 0.1, life: 0.35, a: 0.55 });
-          if (k % 3 === 0) this.puff(n.x, n.y + 0.2, n.z, 0x8a7a60, 2, 0.7);
-        });
-      }
-      this.later(0.95, () => {
-        const n = this.pos(unit);
-        if (!n) return;
+      this.dashRun(unit, color, (n) => {
         this.burst(n.x, n.y + 0.5, n.z, color, 10, 4, 0.4, 0.5);
         this.ring(n.x, n.z, color, 0.4, 2.8, 0.3);
         this.onSwing(unit);
@@ -3120,7 +3122,7 @@ export class Effects {
         const left = Math.max(0, zz.end - t);
         const armed = t >= zz.firstAt;
         const prog = armed ? 1 : Math.min(1, (t - zz.start) / Math.max(1, zz.firstAt - zz.start));
-        const fade = Math.min(1, left / 600) * Math.min(1, age / 0.15 + 0.2);
+        const fade = Math.min(1, left / Math.max(1, fxNum('flamestrike', 'fadeOutMs'))) * Math.min(1, age / Math.max(0.001, fxSec('flamestrike', 'popInMs')) * 0.85 + 0.15);
         const idx = armed ? Math.floor((t - zz.firstAt) / zz.pulse) : -1;
         if (idx > lastPulse) {
           lastPulse = idx;
@@ -3253,7 +3255,7 @@ export class Effects {
     let accS = 0, accM = 0;
     return {
       update: (age: number, leftMs: number, dt: number) => {
-        const fade = Math.min(1, leftMs / 700) * Math.min(1, age / 0.25);
+        const fade = Math.min(1, leftMs / Math.max(1, fxNum('blizzard', 'fadeOutMs'))) * Math.min(1, age / Math.max(0.001, fxSec('blizzard', 'popInMs')));
         const ending = leftMs < 600;
         glowM.opacity = (0.2 + 0.06 * Math.sin(age * 3)) * fade;
         ringM.opacity = 0.5 * fade;

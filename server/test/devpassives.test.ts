@@ -51,6 +51,23 @@ describe('committing passives: specs, talents, classes and the game options', ()
     assert.equal(out.split('\n').filter((l, i) => l !== talents.split('\n')[i]).length, now.length);
   });
 
+  it('the animations (fx.json) are patched in place, nothing else moves', () => {
+    const fx = read('fx');
+    const out = patchJsonText(fx, 'fx', [
+      { file: 'fx', id: 'fx', path: ['dragonsBreath', 'sprayMs'], value: 1000 },
+      { file: 'fx', id: 'fx', path: ['heroicLeap', 'arcScale'], value: 1.4 },
+    ]);
+    const j = JSON.parse(out) as Json;
+    assert.equal(j.dragonsBreath.sprayMs, 1000);
+    assert.equal(j.heroicLeap.arcScale, 1.4);
+    assert.equal(j.flamestrike.popInMs, 150);
+    assert.equal(out.split('\n').filter((l, i) => l !== fx.split('\n')[i]).length, 2);
+    // out-of-range and unknown numbers are refused before they get anywhere
+    assert.equal(parseClientMsg(JSON.stringify({ t: 'dev_patch', patches: [{ file: 'fx', id: 'fx', path: ['dragonsBreath', 'sprayMs'], value: 999999 }] })), null);
+    assert.equal(parseClientMsg(JSON.stringify({ t: 'dev_patch', patches: [{ file: 'fx', id: 'fx', path: ['dragonsBreath', 'nonsense'], value: 1 }] })), null);
+    assert.ok(parseClientMsg(JSON.stringify({ t: 'dev_patch', patches: [{ file: 'fx', id: 'fx', path: ['dragonsBreath', 'sprayMs'], value: 800 }] })));
+  });
+
   it('the game options (tuning.json) and the class stats are patched in place', () => {
     const tuning = read('tuning');
     const out = patchJsonText(tuning, 'tuning', [
@@ -147,6 +164,34 @@ describe('committing passives through the dev tools', () => {
     assert.ok(notes.some((l) => /^Warden: Penance: can be cast while moving \(now off\)\.$/.test(l)), notes.join(' | '));
     assert.ok(notes.some((l) => /^Game rules: cauterize: health left 35% to 50%\.$/.test(l)), notes.join(' | '));
     assert.ok(notes.some((l) => /^Mage: mana regenerated per second 24 to 30\.$/.test(l)), notes.join(' | '));
+  });
+
+  it('an animation-only commit writes fx.json, bumps the version but leaves SIM_REVISION (and replays) alone', async () => {
+    const calls: Call[] = [];
+    const dev = new DevTools(new MemoryStore(), { GITHUB_TOKEN: 'tok' }, mkHttp(calls));
+    const r = await dev.commitToBase([
+      { file: 'fx', id: 'fx', path: ['dragonsBreath', 'sprayMs'], value: 900 },
+      { file: 'fx', id: 'fx', path: ['charge', 'trailDensity'], value: 1.5 },
+    ], 'Dee');
+    assert.equal(r.applied, 2, r.skipped.join('; '));
+    const files = tree(calls);
+    assert.deepEqual(files.map((f) => f.path).sort(), ['README.md', 'client/package.json', 'package.json', 'shared/data/fx.json', 'shared/data/patches.json']);
+    const fx = JSON.parse(files.find((f) => f.path === 'shared/data/fx.json')!.content) as Json;
+    assert.equal(fx.dragonsBreath.sprayMs, 900);
+    assert.equal(fx.charge.trailDensity, 1.5);
+    assert.equal(fx.dragonsBreath.fadeMs, 250, 'the rest of the file is as it was');
+    const notes = (JSON.parse(files.find((f) => f.path === 'shared/data/patches.json')!.content) as { changes: string[] }[])[0].changes;
+    assert.ok(notes.some((l) => /^Animations: Dragon's Breath: how long the spray stays 0\.65 s to 0\.9 s\.$/.test(l)), notes.join(' | '));
+  });
+
+  it('an animation commit together with a balance change still raises SIM_REVISION', async () => {
+    const calls: Call[] = [];
+    const dev = new DevTools(new MemoryStore(), { GITHUB_TOKEN: 'tok' }, mkHttp(calls));
+    await dev.commitToBase([
+      { file: 'fx', id: 'fx', path: ['frostNova', 'expandMs'], value: 700 },
+      { file: 'tuning', id: 'game', path: ['gcdMs'], value: 1500 },
+    ], 'Dee');
+    assert.ok(tree(calls).some((f) => f.path === 'shared/src/replay.ts'));
   });
 
   it('a change that does nothing, or no longer fits the files, is left out and said so', async () => {

@@ -1,13 +1,14 @@
-import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING } from './data';
+import { ABILITIES, AURAS, CLASSES, FX, SPECS, TALENTS, TUNING } from './data';
+import { FX_ID, fxField } from './fx';
 
 /**
  * Dev tuning: a change to one number in the game data, e.g. Fireball's damage or Frost Nova's root duration. Dev
  * testers try patches in a match against bots (only in their room), and a saved patch is applied for everyone (and
  * proposed for the data files as a pull request).
  */
-export type PatchFile = 'abilities' | 'auras' | 'specs' | 'talents' | 'classes' | 'tuning';
+export type PatchFile = 'abilities' | 'auras' | 'specs' | 'talents' | 'classes' | 'tuning' | 'fx';
 /** Every data file a patch can name (the game options, shared/data/tuning.json, are one flat object with the id 'game'). */
-export const PATCH_FILES: readonly PatchFile[] = ['abilities', 'auras', 'specs', 'talents', 'classes', 'tuning'];
+export const PATCH_FILES: readonly PatchFile[] = ['abilities', 'auras', 'specs', 'talents', 'classes', 'tuning', 'fx'];
 /** The id of the one object in tuning.json. */
 export const TUNING_ID = 'game';
 
@@ -80,9 +81,9 @@ const NOT_TUNABLE = new Set(['id', 'class', 'school', 'target', 'type', 'name', 
 const MAX_ABS = 1_000_000;
 
 /** The data as the files have it, copied before any patch can be applied (for "the file's value" next to the live one). */
-const PRISTINE = structuredClone({ ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING }) as unknown as { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING };
-type Source = { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING };
-const LIVE: Source = { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING };
+type Source = { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING; FX: typeof FX };
+const PRISTINE = structuredClone({ ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, FX }) as unknown as Source;
+const LIVE: Source = { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, FX };
 
 /** Every object an id names in a data file: one ability or aura, a spec, or a talent (the same talent sits in each spec's tree). */
 function roots(file: DataPatch['file'], id: string, src: Source = LIVE): Record<string, unknown>[] {
@@ -91,6 +92,7 @@ function roots(file: DataPatch['file'], id: string, src: Source = LIVE): Record<
     return Object.hasOwn(table, id) ? [table[id] as Record<string, unknown>] : [];
   }
   if (file === 'tuning') return id === TUNING_ID ? [src.TUNING as unknown as Record<string, unknown>] : [];
+  if (file === 'fx') return id === FX_ID ? [src.FX as unknown as Record<string, unknown>] : [];
   const found = new Set<Record<string, unknown>>();
   if (file === 'classes') {
     return Object.hasOwn(src.CLASSES, id) ? [(src.CLASSES as unknown as Record<string, Record<string, unknown>>)[id]] : [];
@@ -179,6 +181,11 @@ function valueFits(p: DataPatch): boolean {
   if (k && Object.hasOwn(ABILITY_FLAGS, k)) return p.value === 0 || p.value === 1;
   if (k && Object.hasOwn(ABILITY_CHOICES, k)) return typeof p.value === 'string' && ABILITY_CHOICES[k].options.includes(p.value);
   if (isSwitch(p)) return p.value === 0 || p.value === 1;
+  if (p.file === 'fx') {
+    // an animation number stays inside the bounds of its page (a picture cannot be broken from the panel)
+    const b = fxField(p.path);
+    return !!b && typeof p.value === 'number' && Number.isFinite(p.value) && p.value >= b.min && p.value <= b.max;
+  }
   return typeof p.value === 'number' && Number.isFinite(p.value) && Math.abs(p.value) <= MAX_ABS;
 }
 

@@ -1,0 +1,39 @@
+{
+ "dragonsBreath": {
+  "startDelayMs": 0,
+  "sprayMs": 650,
+  "fadeMs": 250,
+  "lengthScale": 1,
+  "widthScale": 1,
+  "density": 1
+ },
+ "flamestrike": {
+  "popInMs": 150,
+  "fadeOutMs": 600
+ },
+ "blizzard": {
+  "popInMs": 250,
+  "fadeOutMs": 700
+ },
+ "frostNova": {
+  "expandMs": 550
+ },
+ "holyNova": {
+  "expandMs": 600
+ },
+ "charge": {
+  "trailMs": 350,
+  "trailDensity": 1,
+  "dustDensity": 1
+ },
+ "heroicLeap": {
+  "arcScale": 1,
+  "landingRingMs": 550
+ },
+ "blink": {
+  "streakMs": 300
+ },
+ "bladestorm": {
+  "spinPerSec": 1.6
+ }
+}
