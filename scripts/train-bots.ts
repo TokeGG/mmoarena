@@ -86,6 +86,13 @@ function evaluate(cls: ClassId, brain: Brain, only?: { foe: ClassId; size: numbe
   return total / n;
 }
 
+/** Plain win rate (draws half) of `cls` with `brain` against every class, in the team sizes being trained, on the same seeds. */
+function winRate(cls: ClassId, brain: Brain): number {
+  const rates: number[] = [];
+  for (const foe of CLASS_IDS) for (const size of SIZES) rates.push(evaluate(cls, brain, { foe, size, wins: true }));
+  return rates.reduce((a, b) => a + b, 0) / rates.length;
+}
+
 if (process.argv.includes('--calibrate')) {
   // simulated 1v1 against player-like opponents next to the bots' real results against people
   console.log('bot class  vs class   simulated  real (games)');
@@ -106,7 +113,9 @@ for (const cls of classes) {
   const rng = mulberry32(1234 + cls.length);
   let champ = brainFor(cls);
   let best = evaluate(cls, champ);
-  console.log(`${cls}: baseline ${best.toFixed(3)}`);
+  const startBrain = champ;
+  const winsBefore = winRate(cls, startBrain);
+  console.log(`${cls}: baseline ${best.toFixed(3)}, win rate ${Math.round(winsBefore * 100)}%`);
   for (let g = 1; g <= GENS && Date.now() < deadline; g++) {
     let improved = false;
     for (let m = 0; m < MUTANTS && Date.now() < deadline; m++) {
@@ -120,6 +129,7 @@ for (const cls of classes) {
     }
     console.log(`${cls}: gen ${g} ${best.toFixed(3)}${improved ? '' : ' (no change)'}`);
   }
+  console.log(`${cls}: win rate ${Math.round(winsBefore * 100)}% -> ${Math.round(winRate(cls, champ) * 100)}% (score ${best.toFixed(3)})`);
   const rounded: Record<string, number> = {};
   for (const k of BRAIN_KEYS) rounded[k] = Math.round(champ[k] * 1000) / 1000;
   // re-read before writing: other classes may be training in parallel processes and writing the same file
