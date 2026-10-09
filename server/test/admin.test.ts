@@ -129,4 +129,25 @@ describe('admin panel actions', () => {
     assert.equal(bobP.ws.closed, true);
     assert.ok((await a.adminRow((await (a as any).get('bob')) ?? bobP.account, false)).banned, 'the account is banned');
   });
+
+  it('match tools: resets and cooldowns off work for the owner in a match and not for a plain player', async () => {
+    const { lobby, owner, bobP, outB } = await world();
+    lobby.handle(bobP, { t: 'join', name: 'Bob', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    const room = bobP.room;
+    lobby.handle(bobP, { t: 'dev_cooldowns', off: true } as ClientMsg);
+    assert.equal(room.sim.noCooldowns, false, 'a plain player cannot');
+    lobby.handle(owner, { t: 'join', name: 'Toke', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    const mine = owner.room;
+    const me = mine.sim.units.get(owner.unitId);
+    me.health = 5;
+    me.cooldowns = { fireball: mine.sim.time + 99999 };
+    lobby.handle(owner, { t: 'dev_reset', what: 'cooldowns' } as ClientMsg);
+    assert.deepEqual(me.cooldowns, {});
+    lobby.handle(owner, { t: 'dev_reset', what: 'health' } as ClientMsg);
+    assert.equal(me.health, me.maxHealth);
+    lobby.handle(owner, { t: 'dev_cooldowns', off: true } as ClientMsg);
+    assert.equal(mine.sim.noCooldowns, true);
+    assert.equal(mine.devTest, true);
+    assert.equal(outB.some((m: any) => m.t === 'notice' && /Cooldowns/.test(m.text)), false, 'another match is not told');
+  });
 });

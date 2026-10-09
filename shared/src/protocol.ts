@@ -189,6 +189,10 @@ export type ClientMsg =
   | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete'; id?: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
+  /** Dev tools, in the match being played or watched: a quick reset of everyone in it (cooldowns, health, resources, buffs and debuffs, positions) or the dead brought back. */
+  | { t: 'dev_reset'; what: 'cooldowns' | 'health' | 'resources' | 'auras' | 'positions' | 'revive' }
+  /** Dev tools: cooldowns off (no skill starts one) or back on. */
+  | { t: 'dev_cooldowns'; off: boolean }
   /** Owner only, in the match being played or watched: kill a unit, kick its player off the server, or ban its account. */
   | { t: 'dev_unit'; unit: number; op: 'kill' | 'kick' | 'ban'; minutes?: number; reason?: string }
   /** Owner, dev test matches: move the running match to another map. */
@@ -265,7 +269,7 @@ export type ServerMsg =
   /** Owner only: what the bots know now against what shipped, and the last reports of what they learned. */
   | { t: 'bot_knowledge'; classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; autoTrain?: boolean; canCommit?: boolean }
   /** Dev tools: the match's pause state and the test numbers in it. */
-  | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean }
+  | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean; /** Cooldowns are switched off in this match. */ noCooldowns?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */
   | { t: 'dev_map'; map: string }
   | { t: 'dev_session'; patches: DataPatch[] }
@@ -562,6 +566,11 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_builds' };
     case 'dev_restart':
       return { t: 'dev_restart' };
+    case 'dev_reset':
+      if (!['cooldowns', 'health', 'resources', 'auras', 'positions', 'revive'].includes(m.what)) return null;
+      return { t: 'dev_reset', what: m.what };
+    case 'dev_cooldowns':
+      return { t: 'dev_cooldowns', off: m.off === true };
     case 'dev_unit': {
       if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || m.unit < 1 || !['kill', 'kick', 'ban'].includes(m.op)) return null;
       const minutes = typeof m.minutes === 'number' && Number.isFinite(m.minutes) ? Math.max(0, Math.min(525600, Math.round(m.minutes))) : undefined;

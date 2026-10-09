@@ -219,7 +219,7 @@ export class Room {
     send(p, { t: 'welcome', protocol: PROTOCOL_VERSION, unitId: u.id, team, classId: p.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs });
     if (!p.account) send(p, { t: 'profile', token: issueProfile({ matches: p.matches, wins: p.wins }), matches: p.matches, wins: p.wins });
     this.onJoin?.(p);
-    if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
+    if (this.devPatches.length || this.paused || this.sim.noCooldowns) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches, noCooldowns: this.sim.noCooldowns });
   }
 
   /** The owner's "train on every match" switch, read when the match ends. */
@@ -338,7 +338,7 @@ export class Room {
     const players = this.roster();
     if (players.length) send(p, { t: 'roster', players });
     send(p, { t: 'builds', units: this.builds() });
-    if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
+    if (this.devPatches.length || this.paused || this.sim.noCooldowns) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches, noCooldowns: this.sim.noCooldowns });
     return null;
   }
 
@@ -1042,7 +1042,7 @@ export class Lobby {
         room.paused = !!msg.on;
         room.devTest = true; // a paused match no longer counts
         for (const q of [...room.players.values(), ...room.spectators]) {
-          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
           if (q !== p) send(q, { t: 'notice', text: room.paused ? 'The owner paused the match (it no longer counts).' : 'The owner resumed the match.' });
         }
         log(msg.on ? 'pause match' : 'resume match', room.id);
@@ -1273,7 +1273,7 @@ export class Lobby {
     withPatches(patches, () => room.sim.refreshMods());
     const by = p.account?.name ?? p.name;
     for (const q of [...room.players.values(), ...room.spectators]) {
-      send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+      send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
       if (q !== p) send(q, { t: 'notice', text: patches.length ? `${by} is testing ${patches.length} changed number${patches.length === 1 ? '' : 's'} in this match (it no longer counts${room.isRanked ? ' for rating' : ''}).` : `${by} put the real numbers back.` });
     }
   }
@@ -1694,7 +1694,7 @@ export class Lobby {
           room.clearInputs(); // whatever was queued before the pause must not move anyone after it
           const by = p.account?.name ?? p.name;
           for (const q of [...room.players.values(), ...room.spectators]) {
-            send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches });
+            send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
             if (q !== p) send(q, { t: 'notice', text: `${by} ${msg.on ? 'paused' : 'resumed'} the match.` });
           }
         } else this.setRoomPatches(room, p, msg.patches);
@@ -1717,10 +1717,35 @@ export class Lobby {
         room.devRestart();
         const by = p.account?.name ?? p.name;
         for (const q of [...room.players.values(), ...room.spectators]) {
-          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, reset: true });
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns, reset: true });
           if (q !== p) send(q, { t: 'notice', text: `${by} restarted the match (it no longer counts).` });
         }
         send(p, { t: 'dev_result', ok: true, text: 'The match started over with the same builds.' });
+        break;
+      }
+      case 'dev_reset':
+      case 'dev_cooldowns': {
+        const room = this.devRoom(p);
+        if (!room || room.closed) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
+        room.devTest = true; // from now on this match counts for nothing
+        const by = p.account?.name ?? p.name;
+        let text = '';
+        if (msg.t === 'dev_cooldowns') {
+          room.sim.noCooldowns = msg.off;
+          if (msg.off) room.sim.resetCooldowns();
+          text = msg.off ? 'Cooldowns are off: no skill starts one.' : 'Cooldowns are back on.';
+        } else if (msg.what === 'cooldowns') {
+          room.sim.resetCooldowns();
+          text = 'Every cooldown was reset.';
+        } else {
+          room.sim.devReset(msg.what);
+          text = { health: 'Everyone alive is at full health.', resources: 'Every resource is full.', auras: 'Every buff and debuff was cleared.', positions: 'Everyone is back at their spawn.', revive: 'The dead are back at their spawns.' }[msg.what];
+        }
+        for (const q of [...room.players.values(), ...room.spectators]) {
+          send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns, ...(msg.t === 'dev_reset' && (msg.what === 'positions' || msg.what === 'revive') ? { reset: true } : {}) });
+          if (q !== p) send(q, { t: 'notice', text: `${by}: ${text}` });
+        }
+        send(p, { t: 'dev_result', ok: true, text });
         break;
       }
       case 'dev_unit': {
