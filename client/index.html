@@ -717,8 +717,10 @@
   @media (max-width:600px) { #killfeed { top:150px; width:180px; font-size:11px; } }
   #damp { position:fixed; top:6px; left:50%; transform:translateX(-50%); padding:2px 10px; border-radius:10px; background:rgba(20,10,30,.7); border:1px solid #7a4bb0; color:#d9b8ff; font-size:12px; letter-spacing:.5px; z-index:5; }
   #damp.hidden { display:none; }
-  #recap { position:fixed; left:50%; bottom:22%; transform:translateX(-50%); z-index:31; width:min(640px, calc(100vw - 24px)); background:rgba(14,16,22,.95); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); color:#e8e2d0; font-size:12px; }
+  #recap { position:fixed; left:50%; top:calc(14% + 72px); transform:translateX(-50%); z-index:31; width:min(640px, calc(100vw - 24px)); background:rgba(14,16,22,.95); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); color:#e8e2d0; font-size:12px; }
   #recap.hidden { display:none; }
+  body.hud-edit #recap.hidden { display:block; min-height:64px; background:rgba(255,210,74,.1); } /* the editor shows an empty frame to move */
+  #recap.hud-sized { max-width:none; } #recap.hud-sized .recap-scroll { max-height:none; }
   .recap-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:14px; }
   .recap-head button { background:none; border:0; color:#ffd24a; font-size:20px; cursor:pointer; line-height:1; }
   .recap-scroll { overflow:auto; max-height:34vh; }

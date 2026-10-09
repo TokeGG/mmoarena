@@ -45,6 +45,7 @@ const TARGETS: [string, string][] = [
   ['autoind', 'Auto-attack'],
   ['log', 'Combat log'],
   ['killfeed', 'Kill feed'],
+  ['recap', 'Match recap'],
   ['help', 'Help text'],
   ['err', 'Error text'],
   ['ccstate', 'Stun text'],

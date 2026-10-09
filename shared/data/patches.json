@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.18",
+  "date": "2026-10-09",
+  "at": "2026-10-09T20:40:00Z",
+  "title": "Match recap near the top",
+  "changes": [
+   "The match recap now sits near the top of the screen, under the Victory banner, and can be moved and resized in Edit HUD."
+  ]
+ },
+ {
   "version": "0.69.17",
   "date": "2026-10-09",
   "at": "2026-10-09T20:15:00Z",
