@@ -611,13 +611,15 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   const unitOf = (id: number) => snap.units.find((u) => u.id === id);
   for (const ev of events) {
     recap.add(ev);
-    killFeed.event(ev, unitOf, spec ? null : team);
+    if (!(ev.t === 'death' && unitOf(ev.unit)?.img !== undefined)) killFeed.event(ev, unitOf, spec ? null : team);
     if (ev.t === 'phase' && ev.phase === 'ended') showRecap(snap);
     // a teleport behind someone turns you round: the camera comes with you
     if (ev.t === 'turn' && ev.unit === you && !spec) controls.yaw = controls.facing = ev.facing;
     hud.event(ev, ctx);
     effects.event(ev);
     if (ev.t === 'cast') scene.cast(ev.unit);
+    // Mirror Image: an enemy that had the caster targeted loses the target (the server cleared its own side)
+    if (ev.t === 'cast' && !spec && ev.unit === targetId && ABILITIES[ev.ability]?.effects.some((e) => e.type === 'dropTargets')) setTarget(null);
     audio.event(ev, you, team, spatial);
   }
 }

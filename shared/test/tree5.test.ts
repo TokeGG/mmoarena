@@ -454,7 +454,7 @@ describe('tier five skills', () => {
     assert.ok(m.auras.some((a) => a.id === 'rune_of_power') && !mate.auras.some((a) => a.id === 'rune_of_power'));
   });
 
-  it('Mirror Image drops targets and wastes some hits; Evocation heals', () => {
+  it('Mirror Image drops targets and summons two images; Evocation heals', () => {
     const sim = live(2);
     const m = unit(sim, 'mage', 0, 0, 0, 'frost', { 4: 'mage_t5a' });
     const foe = unit(sim, 'warrior', 1, 2, 0, 'arms');
@@ -463,14 +463,7 @@ describe('tier five skills', () => {
     foe.autoAttack = true;
     ok(sim.useAbility(m.id, 'mirror_image'));
     assert.equal(foe.target, null, 'the enemy lost its target');
-    let wasted = 0;
-    for (let i = 0; i < 200; i++) {
-      const before = m.health;
-      sim.dealDamage(foe, m, 10, 'physical', 'mortal_strike');
-      if (m.health === before) wasted++;
-      m.health = m.maxHealth;
-    }
-    assert.ok(wasted > 70 && wasted < 130, `${wasted} of 200 hit an image`);
+    assert.equal([...sim.units.values()].filter((u) => u.image).length, 2);
 
     const sim2 = live();
     const e = unit(sim2, 'mage', 0, 0, 0, 'frost', { 4: 'mage_t5b' });

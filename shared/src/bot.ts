@@ -179,7 +179,7 @@ export class Bot {
     while (this.hist.length && sim.time - this.hist[0].t > 2500) this.hist.shift();
     const all = [...sim.units.values()];
     const enemies = all.filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e));
-    const allies = all.filter((a) => a.alive && a.team === u.team);
+    const allies = all.filter((a) => a.alive && a.team === u.team && !a.image);
 
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
@@ -651,7 +651,7 @@ export class Bot {
       return;
     }
     const B = this.brain;
-    const mates = [...sim.units.values()].filter((a) => a.alive && a.team === u.team && a !== u);
+    const mates = [...sim.units.values()].filter((a) => a.alive && a.team === u.team && a !== u && !a.image);
     const fleeing = (e: Unit) => e === cur && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root');
     const score = (e: Unit) =>
       hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? B.stickiness : 0) -

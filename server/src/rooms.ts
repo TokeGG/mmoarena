@@ -3,7 +3,7 @@ import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
 import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
-import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent } from '@arena/shared';
+import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
@@ -242,9 +242,14 @@ export class Room {
       size: this.size,
       elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
       ranked: this.ranked,
-      players: [...this.sim.units.values()].map((u) => ({ name: u.name, classId: u.classId, team: u.team })),
+      players: this.realUnits().map((u) => ({ name: u.name, classId: u.classId, team: u.team })),
       ...(this.botsOnly ? { bots: true } : {}),
     };
+  }
+
+  /** The units that are people, bots and dummies: Mirror Images are copies and never count as part of the roster, scoreboard or result. */
+  private realUnits(): Unit[] {
+    return [...this.sim.units.values()].filter((u) => !u.image);
   }
 
   /** Running damage and healing totals per unit, for the owner's scoreboard. */
@@ -259,8 +264,9 @@ export class Room {
     for (const e of events) {
       if (e.t === 'damage') {
         const n = e.amount + e.absorbed;
-        if (e.src >= 0 && e.src !== e.tgt) row(e.src).dmg += n;
-        row(e.tgt).taken += n;
+        const by = this.sim.units.get(e.src)?.image?.owner ?? e.src; // what an image does counts for its caster
+        if (by >= 0 && by !== e.tgt && !this.sim.units.get(e.tgt)?.image) row(by).dmg += n;
+        if (!this.sim.units.get(e.tgt)?.image) row(e.tgt).taken += n;
       } else if (e.t === 'heal') {
         row(e.src).heal += e.amount;
         row(e.src).overheal += e.overheal;
@@ -270,7 +276,7 @@ export class Room {
   }
 
   statRows(): StatRow[] {
-    return [...this.sim.units.values()].map((u) => {
+    return this.realUnits().map((u) => {
       const t = this.totals.get(u.id);
       return { id: u.id, name: u.name, classId: u.classId, team: u.team, dmg: Math.round(t?.dmg ?? 0), heal: Math.round(t?.heal ?? 0), taken: Math.round(t?.taken ?? 0), healTaken: Math.round(t?.healTaken ?? 0), overheal: Math.round(t?.overheal ?? 0) };
     });
@@ -288,7 +294,7 @@ export class Room {
 
   /** Every unit's spec, talents and bar, for people watching (and a dev in the match). */
   builds(): UnitBuild[] {
-    return [...this.sim.units.values()].map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar, ...(u.controller === 'bot' ? { bot: true } : {}) }));
+    return this.realUnits().map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar, ...(u.controller === 'bot' ? { bot: true } : {}) }));
   }
 
   /** Dev tools: the match starts over with the same units and builds. */
@@ -341,11 +347,11 @@ export class Room {
   /** This match, as the owner's admin panel lists it. */
   adminRow(): AdminRoom {
     const humans = this.players.size;
-    const bots = [...this.sim.units.values()].filter((u) => u.controller === 'bot').length;
+    const bots = this.realUnits().filter((u) => u.controller === 'bot').length;
     const kind: AdminRoom['kind'] = this.botsOnly ? 'bots' : this.ranked ? 'ranked' : humans > 1 && !bots ? 'party' : bots ? 'practice' : 'dummies';
     return {
       id: this.id, map: this.arenaId, size: this.size, kind, elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
-      players: [...this.sim.units.values()].map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player' })),
+      players: this.realUnits().map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player' })),
       watchers: this.spectators.size, devTest: this.devTest, paused: this.paused,
     };
   }
@@ -722,7 +728,7 @@ export class Room {
       }
       if (tooBig) for (const p of this.everyone) send(p, { t: 'notice', text: 'That match was too long to keep a replay of. Your result still counts.' });
     }
-    const players: MatchPlayer[] = [...this.sim.units.values()].map((u) => {
+    const players: MatchPlayer[] = this.realUnits().map((u) => {
       const d = this.deltas.get(u.id);
       return { name: u.name, classId: u.classId, spec: u.spec, team: u.team, human: u.controller === 'player', ...(d ? { rating: d.rating, delta: d.delta } : {}) };
     });

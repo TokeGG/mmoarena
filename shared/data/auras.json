@@ -307,6 +307,15 @@
     "harmful": false,
     "instantFor": "pyroblast"
   },
+  "singed": {
+    "name": "Singed",
+    "kind": "mark",
+    "duration": 10000,
+    "harmful": true,
+    "maxStacks": 2,
+    "stackProc": "hot_streak",
+    "note": "Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant"
+  },
   "cauterized": {
     "name": "Cauterized",
     "kind": "mark",
@@ -500,14 +509,6 @@
       "damageDone": 1.1,
       "damageTaken": 0.9
     }
-  },
-  "mirror_image": {
-    "name": "Mirror Image",
-    "kind": "buff",
-    "duration": 8000,
-    "harmful": false,
-    "decoys": 0.5,
-    "note": "Images stand in for you: half the hits meant for you strike an image instead and do nothing."
   },
   "rune_of_power": {
     "name": "Rune of Power",

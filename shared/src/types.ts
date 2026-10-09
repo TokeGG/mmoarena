@@ -155,8 +155,6 @@ export interface AuraDef {
   note?: string;
   /** A fear that runs away from whoever put it on, as far as it can, instead of anywhere (Psychic Scream's flee form). */
   flee?: boolean;
-  /** Each hit that could land on the holder has this chance (0-1) to strike an image instead and do nothing (Mirror Image). */
-  decoys?: number;
   /** Enemies cannot see or target the holder while it lasts (Ascend to the Heavens). */
   untargetable?: boolean;
   /** Takes no damage or harmful effects while it lasts. */
@@ -173,6 +171,8 @@ export interface AuraDef {
   bleed?: boolean;
   /** Re-applying adds a stack up to this many (Arcane Charge). */
   maxStacks?: number;
+  /** Applying it again at full stacks removes them all and gives the applier this aura instead (Singed -> Hot Streak). */
+  stackProc?: string;
   /** Your next damaging ability of this school does `mult` times damage and uses the aura up (Shatter). */
   empower?: { school: School; mult: number };
   /** Your next cast of this ability is instant and uses this aura up (Hot Streak -> Pyroblast). */
@@ -248,6 +248,8 @@ export type Effect =
   | { type: 'strip'; kinds: AuraKind[] }
   /** Enemies lose their target on the caster, and casts at it stop (Mirror Image, Ascend to the Heavens). */
   | { type: 'dropTargets' }
+  /** Summons `count` copies of the caster (same class, spec and talents) for `duration` ms: 1 health, `damage` times the damage (Mirror Image). */
+  | { type: 'images'; count: number; duration: number; damage: number }
   /** A circle on the ground that gives `aura` to those inside for as long as it stands: `allies` for the caster's team, `self` for the caster alone (Battle Banner, Rune of Power). */
   | { type: 'zoneBuff'; radius: number; duration: number; aura: string; who: 'allies' | 'self' };
 
@@ -472,6 +474,8 @@ export interface Unit {
   owed?: number;
   fearDir: Vec2;
   fearRetargetAt: number;
+  /** A Mirror Image: a copy of `owner` that fights for it until `until`, deals `dmg` times the damage and falls to any hit. Never counts as a player. `removeAt` is set once it has fallen. */
+  image?: { owner: number; until: number; dmg: number; removeAt?: number };
 }
 
 export type SimEvent =
@@ -543,6 +547,8 @@ export interface UnitSnap {
   /** Combo point slots when above the usual five (Deep Pockets). */
   cpMax?: number;
   stealthed: boolean;
+  /** Set on a Mirror Image: the unit id of the caster it copies. Images are left out of party frames, rosters and results. */
+  img?: number;
   /** Damage the unit's shields (Power Word: Shield, Ice Barrier) can still soak; absent when none. */
   absorb?: number;
   /** Height above the ground from a jump (cosmetic). */

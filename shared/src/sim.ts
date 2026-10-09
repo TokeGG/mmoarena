@@ -32,6 +32,8 @@ const MELEE_FLOOR_GAP = 1.6;
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
 const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
 /** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
+/** How long a fallen Mirror Image stays in the snapshots before it is gone. */
+const IMAGE_LINGER_MS = 700;
 const GCD_REFUND = ['moved', 'cancelled', 'switched spell', 'target vanished', 'blinded by smoke'];
 /** A repeat of the spell being cast, pressed this close to the end of the cast, is held and cast right after it. */
 const REPEAT_HOLD_MS = 400;
@@ -154,6 +156,7 @@ export class ArenaSim {
    * and effects cleared, and the fight live at once (no preparation). Only used in test matches, which are never recorded.
    */
   resetMatch(): void {
+    for (const u of [...this.units.values()]) if (u.image) this.removeUnit(u);
     const slots = new Map<number, number>();
     for (const u of this.units.values()) {
       const i = slots.get(u.team) ?? 0;
@@ -193,6 +196,7 @@ export class ArenaSim {
    */
   refreshMods(): void {
     for (const u of this.units.values()) {
+      if (u.image) continue;
       const cls = CLASSES[u.classId];
       const mods = compileMods(u.classId, u.buildRef);
       const maxHealth = Math.round(cls.maxHealth * u.gearMult * mods.maxHealth);
@@ -429,7 +433,8 @@ export class ArenaSim {
       this.phase = 'live';
       this.emit({ t: 'phase', phase: 'live', winner: null });
     }
-    for (const u of this.units.values()) if (u.alive) this.tickUnit(u);
+    for (const u of this.units.values()) if (u.alive) { if (u.image) this.tickImage(u); if (u.alive) this.tickUnit(u); }
+    for (const u of [...this.units.values()]) if (u.image?.removeAt !== undefined && this.time >= u.image.removeAt) this.removeUnit(u);
     if (this.pending.size) this.retryPending();
     this.recordHistory();
     this.tickZones();
@@ -654,6 +659,70 @@ export class ArenaSim {
     this.tryAutoAttack(u);
   }
 
+  // ------------------------------------------------------------------ mirror images
+
+  /**
+   * Mirror Image: `count` copies of the caster appear beside it (same name, class, spec, talents and look). They are made here, not
+   * with a recorded `addUnit`, so a replay does not add them twice: it summons them itself on the same tick, with the same ids.
+   */
+  private summonImages(u: Unit, count: number, duration: number, damage: number): void {
+    for (const old of [...this.units.values()]) if (old.image?.owner === u.id && old.alive) this.die(old, null); // a new cast replaces the old pair
+    const rec = this.onUnit;
+    this.onUnit = null;
+    try {
+      for (let i = 0; i < count; i++) {
+        const img = this.addUnit({ name: u.name, classId: u.classId, team: u.team, controller: 'bot', gearMult: u.gearMult, build: u.buildRef });
+        const side = count > 1 ? (i / (count - 1)) * 2 - 1 : 0;
+        const a = u.facing + Math.PI / 2;
+        img.level = u.level;
+        img.pos = resolveCollisions({ x: u.pos.x + Math.sin(a) * side * 1.8, z: u.pos.z + Math.cos(a) * side * 1.8 }, this.arena, u.level);
+        img.facing = u.facing;
+        img.lastInput = { seq: 0, fwd: 0, strafe: 0, facing: u.facing };
+        img.maxHealth = 1;
+        img.health = 1;
+        img.look = u.look;
+        img.image = { owner: u.id, until: this.time + duration, dmg: damage };
+        img.lastCombatAt = this.time;
+      }
+    } finally {
+      this.onUnit = rec;
+    }
+  }
+
+  private removeUnit(u: Unit): void {
+    this.units.delete(u.id);
+    this.recharge.delete(u.id);
+    this.pending.delete(u.id);
+    for (const e of this.units.values()) if (e.target === u.id) { e.target = null; e.autoAttack = false; }
+  }
+
+  /**
+   * An image's whole mind: it goes when its time is up or its owner falls, otherwise it stands by the enemy its owner
+   * is on (else the nearest one) at the range of its first damaging spell and keeps casting its damaging spells and swinging.
+   */
+  private tickImage(u: Unit): void {
+    const im = u.image!;
+    const owner = this.units.get(im.owner);
+    if (this.time >= im.until || !owner?.alive) return void this.die(u, null);
+    if (this.phase !== 'live') return;
+    const foes = [...this.units.values()].filter((e) => e.alive && e.team !== u.team && this.canSee(u, e));
+    let tgt = owner.target !== null ? foes.find((e) => e.id === owner.target) : undefined;
+    if (!tgt) for (const e of foes) if (!tgt || (!e.image && tgt.image) || (!!e.image === !!tgt.image && dist(u.pos, e.pos) < dist(u.pos, tgt.pos))) tgt = e;
+    u.target = tgt?.id ?? null;
+    const plan = u.bar.map((id) => ABILITIES[id]).filter((d) => d && d.target === 'enemy' && !d.requiresStealth && d.effects.some((e) => e.type === 'damage'));
+    const reach = Math.min(25, plan[0]?.range ?? 3);
+    let fwd = 0;
+    let facing = u.facing;
+    if (tgt) {
+      facing = Math.atan2(tgt.pos.x - u.pos.x, tgt.pos.z - u.pos.z);
+      if (dist(u.pos, tgt.pos) > reach * 0.85) fwd = 1;
+    }
+    u.inputQueue.push({ seq: u.lastSeq + 1, fwd, strafe: 0, facing: Math.round(facing * 1000) / 1000, jump: false });
+    if (!tgt) return;
+    if (autoFor(u.classId, u.spec) && !u.autoAttack && !u.autoDisabled) { u.autoAttack = true; u.autoSince = this.time; }
+    if (!u.cast) for (const d of plan) if (this.tryUse(u.id, d.id, tgt.id, null, false, 0).ok) break;
+  }
+
   /** Training dummies stand up again, at full health, a moment after they fall. */
   private respawnDummies(): void {
     for (const u of this.units.values()) {
@@ -677,7 +746,7 @@ export class ArenaSim {
     let alive0 = 0;
     let alive1 = 0;
     // a dummy that is about to stand up again does not end the match
-    for (const u of this.units.values()) if (u.alive || u.respawnAt !== undefined) (u.team === 0 ? alive0++ : alive1++);
+    for (const u of this.units.values()) if ((u.alive || u.respawnAt !== undefined) && !u.image) (u.team === 0 ? alive0++ : alive1++);
     let winner: TeamId | 'draw' | null = null;
     if (alive0 === 0 && alive1 === 0) winner = 'draw';
     else if (alive0 === 0) winner = 1;
@@ -912,6 +981,9 @@ export class ArenaSim {
       case 'dropTargets':
         for (const e of this.units.values()) if (e.team !== u.team) this.loseTarget(e, u);
         break;
+      case 'images':
+        this.summonImages(u, eff.count, eff.duration, eff.damage);
+        break;
       case 'zoneBuff':
         this.zones.push({
           id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? u.pos.x, z: this.ground?.z ?? u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,
@@ -1140,12 +1212,9 @@ export class ArenaSim {
   dealDamage(src: Unit | null, tgt: Unit, raw: number, school: School, ability: string | null, periodic = false): number {
     if (!tgt.alive) return 0;
     if (tgt.auras.some((a) => AURAS[a.id]?.invulnerable)) return 0; // Ascend to the Heavens: nothing touches you
-    const decoy = !periodic && ability !== null && src && src.team !== tgt.team ? tgt.auras.find((a) => AURAS[a.id]?.decoys) : undefined;
-    if (decoy && this.rng() < AURAS[decoy.id].decoys!) {
-      this.emit({ t: 'miss', src: src!.id, tgt: tgt.id, ability: ability! }); // it struck an image
-      return 0;
-    }
+    if (src?.image) raw *= src.image.dmg; // an image hits for a fraction
     let remaining = Math.max(0, Math.round(raw * this.modsOf(tgt).damageTaken));
+    if (tgt.image && raw > 0) remaining = Math.max(remaining, tgt.health); // any hit at all ends an image
     let absorbed = 0;
     for (const a of [...tgt.auras]) {
       if (a.kind !== 'absorb' || remaining <= 0) continue;
@@ -1237,7 +1306,7 @@ export class ArenaSim {
   }
 
   private canCauterize(u: Unit): boolean {
-    if (!u.spec || (u.cooldowns['cauterize'] ?? 0) > this.time) return false;
+    if (u.image || !u.spec || (u.cooldowns['cauterize'] ?? 0) > this.time) return false;
     return SPECS[u.classId]?.find((s) => s.id === u.spec)?.passive === 'cauterize';
   }
 
@@ -1299,6 +1368,7 @@ export class ArenaSim {
     u.auras = [];
     u.autoAttack = false;
     if (u.controller === 'dummy') u.respawnAt = this.time + 2500;
+    if (u.image) u.image.removeAt = this.time + IMAGE_LINGER_MS;
     this.emit({ t: 'death', unit: u.id, killer });
   }
 
@@ -1394,6 +1464,12 @@ export class ArenaSim {
     } else duration = base * (this.modsOf(src).auraDuration[auraId] ?? 1);
 
     const prior = tgt.auras.find((a) => a.id === auraId && a.sourceId === src.id);
+    if (def.stackProc && def.maxStacks && prior && (prior.stacks ?? 0) >= def.maxStacks) {
+      // the hit that finds it full pops it and pays out
+      this.removeAura(tgt, prior, 'consumed');
+      this.applyAura(src, src, def.stackProc);
+      return { applied: true, duration: 0, dr: drMult };
+    }
     const extend = this.modsOf(src).auraExtend[auraId];
     if (prior && extend && def.duration > 0) duration = Math.min(def.duration * 4, Math.max(0, prior.expiresAt - this.time) + extend);
     tgt.auras = tgt.auras.filter((a) => !(a.id === auraId && a.sourceId === src.id));
@@ -1699,6 +1775,7 @@ export class ArenaSim {
       ...(u.mods.maxCp ? { cpMax: 5 + u.mods.maxCp } : {}),
       ...(Object.values(u.lockouts).some((t) => (t ?? 0) > this.time) ? { lockouts: Object.fromEntries(Object.entries(u.lockouts).filter(([, t]) => (t ?? 0) > this.time)) } : {}),
       stealthed: this.isStealthed(u),
+      ...(u.image ? { img: u.image.owner } : {}),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
       y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
