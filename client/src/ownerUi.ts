@@ -184,7 +184,13 @@ export class OwnerPanel {
         pause.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'pause_match', id: r.id, on: !r.paused }));
         const end = el('button', 'mm-small', 'End');
         end.addEventListener('click', () => window.confirm('End this match for everyone in it?') && this.hooks.send({ t: 'admin_end', id: r.id }));
-        row.append(pause, end);
+        const cdReset = el('button', 'mm-small', 'Reset cooldowns');
+        cdReset.title = 'Clears every cooldown of everyone in this match right now. The match stops counting.';
+        cdReset.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'cooldowns_reset', id: r.id }));
+        const cdOff = el('button', `mm-small${r.noCooldowns ? ' mm-go' : ''}`, r.noCooldowns ? 'Cooldowns: off' : 'Cooldowns: on');
+        cdOff.title = r.noCooldowns ? 'Cooldowns are switched off in this match. Click to turn them back on.' : 'Switch cooldowns off for everyone in this match (the global cooldown stays). The match stops counting.';
+        cdOff.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'cooldowns_off', id: r.id, on: !r.noCooldowns }));
+        row.append(pause, cdReset, cdOff, end);
       }
       wrap.append(row);
       // follow any person in it: you are taken into every match they play

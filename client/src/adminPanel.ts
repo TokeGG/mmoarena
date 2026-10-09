@@ -27,7 +27,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'requests' | 'server' | 'log';
+type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'requests' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
@@ -35,6 +35,7 @@ const TABS: [Tab, string][] = [
   ['matches', 'Live matches'],
   ['replays', 'Replays'],
   ['moderation', 'Moderation'],
+  ['proposals', 'Proposals'],
   ['tuning', 'Tuning'],
   ['requests', 'Requests'],
   ['server', 'Server'],
@@ -42,7 +43,7 @@ const TABS: [Tab, string][] = [
 ];
 
 /** The tabs a dev can use (the rest is account moderation, announcements and maintenance). */
-const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'tuning', 'log'];
+const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'proposals', 'tuning', 'log'];
 
 interface Hooks {
   send(m: ClientMsg): void;
@@ -197,7 +198,7 @@ export class AdminPanel {
     s({ t: 'admin_overview' });
     if (this.tab === 'players' && access === 'owner') s({ t: 'admin_list' });
     if (this.tab === 'time' && access === 'owner') this.time.refresh();
-    if (this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
+    if (this.tab === 'proposals' || this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
@@ -232,7 +233,7 @@ export class AdminPanel {
         for (const id of [...this.picked]) if (!m.rows.some((r) => r.id === id && r.status === 'pending')) this.picked.delete(id);
         break;
       case 'dev_result':
-        if (this.tab === 'tuning') {
+        if (this.tab === 'tuning' || this.tab === 'proposals') {
           this.propMsg = { ok: m.ok, text: m.text, url: m.url };
           this.picked.clear();
         }
@@ -298,7 +299,7 @@ export class AdminPanel {
     const tabs = el('div', 'admp-tabs');
     for (const [id, label] of TABS) {
       if (access === 'dev' && !DEV_TABS.includes(id)) continue;
-      const waiting = id === 'tuning' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
+      const waiting = id === 'proposals' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.addEventListener('click', () => {
         this.tab = id;
@@ -327,8 +328,11 @@ export class AdminPanel {
       case 'moderation':
         body.append(this.moderation());
         break;
+      case 'proposals':
+        body.append(el('h3', '', 'Proposed by devs (newest first)'), this.proposalBox(), el('h3', '', 'Deploy'), this.redeployBox());
+        break;
       case 'tuning':
-        body.append(el('h3', '', 'Skill designer'), this.designerBox(), el('h3', '', 'Proposed by devs'), this.proposalBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
+        body.append(el('h3', '', 'Skill designer'), this.propMsgBox(), this.designerBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
         if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
         break;
       case 'requests':
@@ -393,7 +397,7 @@ export class AdminPanel {
     const ws = this.workspace();
     const left = el('div', 'admp-ds-left');
     const add = el('button', 'mm-small mm-go', `Add my edits to proposals (${ws.set.edits.size})`);
-    add.title = 'Puts the numbers you typed on the proposals list below (old -> new), ready to commit to GitHub.';
+    add.title = 'Puts the numbers you typed on the Proposals tab (old -> new), ready to commit to GitHub.';
     this.dsAddBtn = add;
     add.addEventListener('click', () => {
       const patches = [...ws.set.edits.values()];
@@ -418,7 +422,7 @@ export class AdminPanel {
   private requestsBox(): HTMLElement {
     const box = el('div', 'own-box admp-reqs');
     const rows = designer.requests;
-    box.append(el('p', 'mm-modal-foot', 'Things devs asked Claude for that need a code change (new mechanics, visuals, AI). Each is a complete spec: copy it into a coding session. Number-only changes never land here: they are proposals under Tuning.'));
+    box.append(el('p', 'mm-modal-foot', 'Things devs asked Claude for that need a code change (new mechanics, visuals, AI). Each is a complete spec: copy it into a coding session. Number-only changes never land here: they are proposals under Proposals.'));
     if (!rows.length) box.append(el('p', 'mm-modal-foot', 'No requests yet.'));
     const owner = this.access() === 'owner';
     for (const r of rows) box.append(this.requestCard(r, owner));
@@ -492,7 +496,7 @@ export class AdminPanel {
     const pending = this.proposals?.filter((r) => r.status === 'pending').length ?? 0;
     if (pending) {
       const b = el('button', 'adm-state warn adm-link', `📨 ${pending} dev proposal${pending === 1 ? '' : 's'} waiting for you`);
-      b.addEventListener('click', () => { this.tab = 'tuning'; this.refresh(); this.paint(); });
+      b.addEventListener('click', () => { this.tab = 'proposals'; this.refresh(); this.paint(); });
       box.append(b);
     }
     if (o) box.append(this.prState());
@@ -573,6 +577,39 @@ export class AdminPanel {
    * and new value. Tick the ones you want, then open one pull request with them all, make them live, or dismiss them.
    * Nothing is live until you do.
    */
+  /** Starts a Render deploy of the latest commit (what a commit from the Proposals list needs to go live if auto-deploy is off). */
+  private redeployBox(): HTMLElement {
+    const box = el('div', 'own-box');
+    const b = el('button', 'mm-small', 'Redeploy Render');
+    b.title = 'Starts a deploy of the latest commit on Render. The game restarts when it is ready, so everyone online is disconnected for a moment.';
+    b.addEventListener('click', () => {
+      if (!window.confirm('Start a deploy on Render now? The game restarts when it is ready (a minute or two) and everyone online is disconnected for a moment.')) return;
+      this.hooks.send({ t: 'dev_redeploy' });
+    });
+    box.append(b, el('p', 'mm-modal-foot', 'Starts a deploy of the latest commit. Commits to main deploy on their own; use this when one did not.'));
+    return box;
+  }
+
+  private propMsgBox(): HTMLElement {
+    const wrap = el('div');
+    if (!this.propMsg) return wrap;
+    const m = el('div', `adm-state ${this.propMsg.ok ? 'ok' : 'warn'}`, this.propMsg.text);
+    if (this.propMsg.url) {
+      const a = el('a', '', ' Open the pull request');
+      a.href = this.propMsg.url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      m.append(a);
+    }
+    if (this.tab === 'tuning') {
+      const go = el('button', 'mm-small', ' Open Proposals');
+      go.addEventListener('click', () => { this.tab = 'proposals'; this.refresh(); this.paint(); });
+      m.append(go);
+    }
+    wrap.append(m);
+    return wrap;
+  }
+
   private proposalBox(): HTMLElement {
     const box = el('div', 'own-box admp-props');
     const rows = this.proposals?.filter((r) => r.status === 'pending') ?? [];
@@ -580,17 +617,7 @@ export class AdminPanel {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));
       return box;
     }
-    if (this.propMsg) {
-      const m = el('div', `adm-state ${this.propMsg.ok ? 'ok' : 'warn'}`, this.propMsg.text);
-      if (this.propMsg.url) {
-        const a = el('a', '', ' Open the pull request');
-        a.href = this.propMsg.url;
-        a.target = '_blank';
-        a.rel = 'noopener';
-        m.append(a);
-      }
-      box.append(m);
-    }
+    box.append(this.propMsgBox());
     if (!rows.length) box.append(el('p', 'mm-modal-foot', this.access() === 'dev' ? 'Nothing waiting. Send your number changes from the debug window (F2): "Send to the admin panel". The owner decides what goes live.' : 'Nothing waiting. Devs send their number changes here from the debug window (F2): "Send to the admin panel". Nothing they send is live until you act on it.'));
     for (const r of rows) {
       const card = el('div', 'admp-prop');

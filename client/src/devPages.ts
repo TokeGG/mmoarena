@@ -26,8 +26,23 @@ export interface WorkspaceHost {
 
 /** The files each page edits (for its reset and its change counter). */
 export const PAGE_FILES: Record<DevPageId, DataPatch['file'][]> = {
-  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], auras: ['auras'], options: ['tuning'],
+  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], options: ['tuning'],
 };
+
+const CAULDRON = new Set(['cauterizeHealth', 'cauterizeCooldownMs']);
+/** Whether a change belongs to a page: the Passives page owns every stat bonus and skill change of specs and talents, and Cauterize. */
+export function pageOwns(page: DevPageId, p: DataPatch): boolean {
+  const passive = ((p.file === 'specs' || p.file === 'talents') && p.path[0] === 'mods') || (p.file === 'tuning' && CAULDRON.has(String(p.path[0])));
+  if (page === 'passives') return passive;
+  if (passive) return false;
+  return PAGE_FILES[page].includes(p.file);
+}
+/** The id of a change's entry in a page's navigation. */
+export function navIdOf(page: DevPageId, p: DataPatch): string {
+  if (page !== 'passives') return p.id;
+  if (p.file === 'tuning') return `s:${CLASS_IDS.flatMap((c) => SPECS[c]).find((x) => x.passive === 'cauterize')?.id ?? ''}`;
+  return `${p.file === 'specs' ? 's' : 't'}:${p.id}`;
+}
 
 const classOfSpec = (id: string): ClassId | null => (CLASS_IDS.find((c) => SPECS[c].some((s) => s.id === id)) ?? null);
 const classOfTalent = (id: string): ClassId | null => (CLASS_IDS.find((c) => Object.values(TALENTS[c] ?? {}).some((tiers) => tiers.some((t) => t.some((x) => x.id === id)))) ?? null);
@@ -41,7 +56,7 @@ export class DevWorkspace {
   readonly editor = new SkillEditor();
   page: DevPageId = 'skills';
   private sel: Partial<Record<DevPageId, string>> = {};
-  private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', auras: '', options: '' };
+  private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', passives: '', auras: '', options: '' };
   private navOpen = new Map<string, boolean>();
   private adding = new Map<string, { kind: 'ability' | 'aura'; id: string }>();
   private classCtx: ClassId | null = null;
@@ -65,10 +80,10 @@ export class DevWorkspace {
     const rows = this.set.rows(this.host.inEffect());
     for (const [id, b] of this.tabBtns) {
       b.querySelector('.devp-badge')?.remove();
-      const n = rows.filter((r) => PAGE_FILES[id].includes(r.patch.file)).length;
+      const n = rows.filter((r) => pageOwns(id, r.patch)).length;
       if (n) b.append(el('span', 'devp-badge', String(n)));
     }
-    this.changedIds = new Set(rows.filter((r) => PAGE_FILES[this.page].includes(r.patch.file)).map((r) => r.patch.id));
+    this.changedIds = new Set(rows.filter((r) => pageOwns(this.page, r.patch)).map((r) => navIdOf(this.page, r.patch)));
     if (this.navBox?.isConnected) {
       const top = this.navBox.scrollTop;
       this.drawNav();
@@ -159,7 +174,7 @@ export class DevWorkspace {
   private noteClass(): void {
     const id = this.sel[this.page];
     if (!id) return;
-    const c = this.page === 'classes' ? (id as ClassId) : this.page === 'specs' ? classOfSpec(id) : this.page === 'talents' ? classOfTalent(id) : this.page === 'skills' ? (ABILITIES[id]?.class as ClassId) : null;
+    const c = this.page === 'classes' ? (id as ClassId) : this.page === 'specs' ? classOfSpec(id) : this.page === 'talents' ? classOfTalent(id) : this.page === 'passives' ? (id.startsWith('s:') ? classOfSpec(id.slice(2)) : classOfTalent(id.slice(2))) : this.page === 'skills' ? (ABILITIES[id]?.class as ClassId) : null;
     if (c && CLASSES[c]) this.classCtx = c;
   }
 
@@ -171,9 +186,14 @@ export class DevWorkspace {
     const rows = this.set.rows(this.host.inEffect());
     const tabs = el('div', 'devp-tabs');
     this.tabBtns.clear();
-    this.changedIds = new Set(rows.filter((r) => PAGE_FILES[this.page].includes(r.patch.file)).map((r) => r.patch.id));
+    this.changedIds = new Set(rows.filter((r) => pageOwns(this.page, r.patch)).map((r) => navIdOf(this.page, r.patch)));
+    let step = '';
     for (const p of DEV_PAGES) {
-      const n = rows.filter((r) => PAGE_FILES[p.id].includes(r.patch.file)).length;
+      if (p.step !== step) {
+        step = p.step;
+        tabs.append(el('span', 'devp-step', `${DEV_PAGES.findIndex((x) => x.step === step) === 0 ? '' : '› '}${step}:`));
+      }
+      const n = rows.filter((r) => pageOwns(p.id, r.patch)).length;
       const b = el('button', `devp-tab${p.id === this.page ? ' sel' : ''}`, p.label);
       b.title = p.blurb;
       if (n) b.append(el('span', 'devp-badge', String(n)));
@@ -210,7 +230,7 @@ export class DevWorkspace {
     const reset = el('button', 'mm-small', '↺ Reset this page');
     reset.title = `Put every value on the ${DEV_PAGES.find((p) => p.id === this.page)!.label} page back to the data file's number (typed ones and ones being tried)`;
     reset.addEventListener('click', () => {
-      this.set.resetFiles(PAGE_FILES[this.page], this.host.inEffect(), this.host.canRevert);
+      this.set.resetWhere((p) => pageOwns(this.page, p), this.host.inEffect(), this.host.canRevert);
       this.host.repaint();
       this.host.onEdit();
     });
@@ -320,6 +340,21 @@ export class DevWorkspace {
       for (const [k, v] of entry.facts) facts.append(el('span', 'devp-dim', k), el('span', '', v));
       box.append(facts);
     }
+    if (entry.passivesId && !q) {
+      const pid = entry.passivesId;
+      const row = el('div', 'devp-row devp-links');
+      row.append(el('small', 'devp-dim', 'Passives:'));
+      const b = el('button', 'mm-small devp-link', 'Edit its stat bonuses and skill changes →');
+      b.title = 'Open it on the Passives page';
+      b.addEventListener('click', () => {
+        this.page = 'passives';
+        this.sel.passives = pid;
+        this.host.onSelect?.();
+        this.host.repaint();
+      });
+      row.append(b);
+      box.append(row);
+    }
     if (entry.skillLinks?.length && !q) {
       const links = el('div', 'devp-row devp-links');
       links.append(el('small', 'devp-dim', 'Skills:'));
@@ -372,8 +407,9 @@ export class DevWorkspace {
   private resetEntry(id: string): void {
     const pairs = this.entryPairs(id);
     const hit = (p: Pick<DataPatch, 'file' | 'id'>) => pairs.some((x) => x.file === p.file && x.id === p.id);
-    for (const [k, p] of [...this.set.edits]) if (hit(p)) this.set.edits.delete(k);
-    if (this.host.canRevert) for (const p of this.host.inEffect()) if (hit(p)) this.set.reverted.add(patchKey(p));
+    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p));
+    for (const [k, p] of [...this.set.edits]) if (mine(p)) this.set.edits.delete(k);
+    if (this.host.canRevert) for (const p of this.host.inEffect()) if (mine(p)) this.set.reverted.add(patchKey(p));
   }
 
   /** "Add a change": pick a skill or buff, then every stat change it could get from this spec, talent or buff shows as rows. */

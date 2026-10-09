@@ -768,6 +768,15 @@ export class ArenaSim {
     if (!u.cast) for (const d of plan) if (this.tryUse(u.id, d.id, tgt.id, null, false, 0).ok) break;
   }
 
+  /** Dev test: every unit's cooldowns, charges and recharge timers are cleared at once. */
+  resetCooldowns(): void {
+    for (const u of this.units.values()) {
+      u.cooldowns = {};
+      u.chargesUsed = {};
+    }
+    this.recharge.clear();
+  }
+
   /** Training dummies stand up again, at full health, a moment after they fall. */
   private respawnDummies(): void {
     for (const u of this.units.values()) {
@@ -874,7 +883,7 @@ export class ArenaSim {
 
   /** Start an ability's cooldown; a use made while it is already running spends an extra charge instead of restarting it. */
   private startCooldown(u: Unit, def: AbilityDef): void {
-    if (def.cooldown <= 0) return;
+    if (def.cooldown <= 0 || this.noCooldowns) return;
     // a buff that makes the next use free of cooldown (Mind Blast's Plague Ready) is used up by it
     const free = u.auras.find((a) => AURAS[a.id]?.freeCooldownFor === def.id);
     if (free) {
@@ -918,6 +927,8 @@ export class ArenaSim {
     if (u.level === 1 && !onRaised(this.arena, u.pos.x, u.pos.z)) u.level = 0;
   }
   private recharge = new Map<number, Record<string, number[]>>();
+  /** Dev test: abilities start no cooldown (the global cooldown still applies). */
+  noCooldowns = false;
   private storedFull(u: Unit, def: AbilityDef): boolean {
     const stored = this.modsOf(u).ability[def.id]?.stored ?? 0;
     if (!stored) return false;

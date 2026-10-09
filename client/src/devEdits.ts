@@ -26,7 +26,9 @@ export interface ChangeRow {
 export const showValue = (p: Pick<DataPatch, 'file' | 'id' | 'path'>, v: number | string): string => {
   if (isSwitch(p)) return Number(v) === 1 ? 'on' : 'off';
   if (typeof v !== 'number') return String(v);
-  const hint = valueHint(plainPath(p.file, p.id, p.path).unit, v);
+  const unit = plainPath(p.file, p.id, p.path).unit;
+  if (unit === 'ms') return `${Math.round(v) / 1000} s`;
+  const hint = valueHint(unit, v);
   return hint ? `${Math.round(v * 10000) / 10000} (${hint})` : String(Math.round(v * 10000) / 10000);
 };
 
@@ -120,6 +122,12 @@ export class EditSet {
   resetFiles(files: readonly DataPatch['file'][], inEffect: readonly DataPatch[], canRevert = true): void {
     for (const [k, p] of [...this.edits]) if (files.includes(p.file)) this.edits.delete(k);
     if (canRevert) for (const p of inEffect) if (files.includes(p.file)) this.reverted.add(patchKey(p));
+  }
+
+  /** Put back everything (typed or being tried) that `owns` accepts. */
+  resetWhere(owns: (p: DataPatch) => boolean, inEffect: readonly DataPatch[], canRevert = true): void {
+    for (const [k, p] of [...this.edits]) if (owns(p)) this.edits.delete(k);
+    if (canRevert) for (const p of inEffect) if (owns(p)) this.reverted.add(patchKey(p));
   }
 
   /** Put back every value. */
