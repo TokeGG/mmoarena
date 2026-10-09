@@ -2,7 +2,6 @@ import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatche
 import type { Build, DevCommitRow, DevPageId, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
 import { refreshIcons } from './iconArt';
 import { invalidateTip } from './tooltip';
-import { makeResizable } from './resizable';
 import { cycleArena } from './mapCycle';
 import { DevWorkspace } from './devPages';
 import { tours } from './tour';
@@ -85,7 +84,15 @@ interface Hooks {
  * everyone in it gets the same test numbers and is told, and the match stops counting.
  */
 export class DevPanel {
-  readonly root = el('div', 'devp hidden');
+  readonly root = el('div', 'devp embed');
+  /** The tools window shows this tab (set by the window; the panel pauses and polls only while it does). */
+  private shown = false;
+  /** Set by the tools window: the pause button, the status and the title bar follow the panel. */
+  onChrome?: () => void;
+  /** Set by the tools window: the match went away under an open window (close it). */
+  onGone?: () => void;
+  /** Set by the tools window: the 🛠 button was pressed. */
+  onButton?: () => void;
   readonly button = el('button', 'devp-btn hidden', '🛠');
   private paused = false;
   /** The pages and number editor (shared with the admin panel's Tuning tab). */
@@ -119,10 +126,10 @@ export class DevPanel {
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.id = 'devbtn'; // a HUD element: movable in the HUD editor
-    this.button.title = 'Dev tools (F2)';
+    this.button.title = 'Dev and admin tools (F2 opens and closes, Shift+F2 switches tab)';
     this.button.setAttribute('aria-label', 'Dev tools');
-    this.button.addEventListener('click', () => this.toggle());
-    document.body.append(this.root, this.button);
+    this.button.addEventListener('click', () => this.onButton?.());
+    document.body.append(this.button);
     this.ws = new DevWorkspace({
       testing: () => new Map(this.inEffect().map((p) => [this.key(p), p])),
       inEffect: () => this.inEffect(),
@@ -141,8 +148,6 @@ export class DevPanel {
       onSelect: () => (this.section === 'ask' || this.drawerOpen ? this.paint() : undefined),
     });
     designer.onChange(() => this.open && this.paint());
-    makeResizable(this.root, { key: 'dev2', corner: 'br', minW: 300, minH: 260, z: 32 });
-    this.draggable();
   }
 
   /** Every event of the match, for the meter (the time is the match clock in ms). */
@@ -409,54 +414,15 @@ export class DevPanel {
     return box;
   }
 
-  /** Drag the window by its title bar; where you leave it is remembered. */
-  private draggable() {
-    const KEY = 'arena.pos.dev';
-    const place = (x: number, y: number) => {
-      const w = this.root.offsetWidth || 300;
-      this.root.style.left = `${Math.max(0, Math.min(x, window.innerWidth - Math.min(w, 120)))}px`;
-      this.root.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 40))}px`;
-    };
-    try {
-      const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') as [number, number] | null;
-      if (Array.isArray(saved) && saved.every((n) => Number.isFinite(n))) place(saved[0], saved[1]);
-    } catch {
-      /* default spot */
-    }
-    let drag: { dx: number; dy: number } | null = null;
-    this.root.addEventListener('pointerdown', (e) => {
-      const head = (e.target as HTMLElement).closest('.devp-head');
-      if (!head || (e.target as HTMLElement).closest('button')) return;
-      const r = this.root.getBoundingClientRect();
-      drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
-      this.root.setPointerCapture(e.pointerId);
-      e.preventDefault();
-    });
-    this.root.addEventListener('pointermove', (e) => {
-      if (drag) place(e.clientX - drag.dx, e.clientY - drag.dy);
-    });
-    const end = () => {
-      if (!drag) return;
-      drag = null;
-      try {
-        localStorage.setItem(KEY, JSON.stringify([parseInt(this.root.style.left, 10), parseInt(this.root.style.top, 10)]));
-      } catch {
-        /* not remembered */
-      }
-    };
-    this.root.addEventListener('pointerup', end);
-    this.root.addEventListener('pointercancel', end);
-  }
-
   get open(): boolean {
-    return !this.root.classList.contains('hidden');
+    return this.shown;
   }
 
   /** In a match as a dev: the tools act on that match. Out of it the test numbers go (the menu mode may stay). */
   setAvailable(on: boolean) {
     this.inMatch = on;
-    if (on) this.button.classList.remove('hidden');
     if (!on) {
+      const was = this.shown;
       this.autoPaused = false;
       this.noCooldowns = false;
       this.meter.clear();
@@ -464,23 +430,41 @@ export class DevPanel {
       this.edits.clear();
       this.result = null;
       this.layers.setRoom([]);
-      this.button.classList.add('hidden');
-      this.root.classList.add('hidden');
-    }
+      if (was) this.onGone?.(); // a window left open over the old match closes
+    } else if (this.shown) this.paint();
+    this.onChrome?.();
   }
 
-  /** Out of a match: whether a dev may open the panel from the menu (called every frame; cheap when nothing changes). */
-  menuAvailable(on: boolean) {
-    if (this.inMatch) return;
-    const was = !this.button.classList.contains('hidden');
-    if (was === on) return;
+  /** Whether the tools act on a match being played (or watched by the owner) right now. */
+  get matchMode(): boolean {
+    return this.inMatch;
+  }
+
+  /** The 🛠 button: shown for anyone with dev or owner access, wherever they are. */
+  setButton(on: boolean) {
     this.button.classList.toggle('hidden', !on);
-    if (!on) this.root.classList.add('hidden');
   }
 
-  toggle(on = !this.open) {
-    if (this.button.classList.contains('hidden')) return;
-    this.root.classList.toggle('hidden', !on);
+  /** The status line of the title bar: the test numbers in this match, or where the numbers go. */
+  statusText(): string {
+    const room = this.layers.roomPatches.length;
+    return this.inMatch ? (room ? `${room} test number${room === 1 ? '' : 's'} in this match` : 'Real numbers') : 'Menu';
+  }
+
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** The pause button of the title bar (only in a match). */
+  togglePause() {
+    this.autoPaused = false; // your own choice from now on
+    this.hooks.send({ t: 'dev_pause', on: !this.paused });
+  }
+
+  /** The window shows the Dev tab (on) or stops showing it (off). */
+  setShown(on: boolean) {
+    if (on === this.shown) return;
+    this.shown = on;
     if (!on) this.watchDeploy();
     if (on) {
       this.hooks.send({ t: 'dev_builds' });
@@ -574,6 +558,7 @@ export class DevPanel {
       this.meter.clear();
     } else if (m.t === 'dev_state') {
       this.paused = m.paused;
+      this.onChrome?.();
       this.noCooldowns = !!m.noCooldowns;
       // what was typed stays when only the pause changed; new numbers in the match replace it
       const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
@@ -730,11 +715,6 @@ export class DevPanel {
     const keep = { body: this.scrollOf('.devp-body'), nav: this.scrollOf('.devp-nav'), detail: this.scrollOf('.devp-detail'), drawer: this.scrollOf('.devp-drawer') };
     r.replaceChildren();
     const head = el('div', 'devp-head');
-    const title = el('div', 'devp-title-row');
-    title.append(el('b', '', '🛠 Dev tools'));
-    const room = this.layers.roomPatches.length;
-    title.append(el('small', 'devp-dim', this.inMatch ? (room ? `${room} test number${room === 1 ? '' : 's'} in this match` : 'Real numbers') : 'Menu'));
-    head.append(title);
     const secs = el('div', 'devp-sections');
     secs.dataset.tour = 'dev-sections'; // the guided tours point at these (tourData.ts)
     for (const [id, label] of [['values', 'Edit values'], ['match', 'Match tools'], ['ask', 'Ask Claude']] as const) {
@@ -746,19 +726,6 @@ export class DevPanel {
       secs.append(b);
     }
     head.append(secs);
-    const hr = el('div', 'devp-row');
-    if (this.inMatch) {
-      const pause = el('button', `mm-small${this.paused ? ' mm-go' : ''}`, this.paused ? '▶ Resume' : '⏸ Pause');
-      pause.addEventListener('click', () => {
-        this.autoPaused = false; // your own choice from now on
-        this.hooks.send({ t: 'dev_pause', on: !this.paused });
-      });
-      hr.append(pause);
-    }
-    const close = el('button', 'mm-small', '✕');
-    close.addEventListener('click', () => this.toggle(false));
-    hr.append(close);
-    head.append(hr);
     r.append(head, this.toolbar());
     if (this.result) {
       const res = el('div', `devp-result ${this.result.ok ? 'ok' : 'bad'}`, this.result.text);
@@ -785,6 +752,7 @@ export class DevPanel {
     if (detail) detail.scrollTop = keep.detail;
     const drawer = r.querySelector<HTMLElement>('.devp-drawer');
     if (drawer) drawer.scrollTop = keep.drawer;
+    this.onChrome?.();
   }
 
   /** The actions, always in view: try the changes, keep them, send them, put everything back. */
