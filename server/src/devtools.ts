@@ -1,9 +1,11 @@
+import type { DevCommitRow } from '@arena/shared';
 import { ABILITIES, ABILITY_CHOICES, ABILITY_FLAGS, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
 import type { ClassId, DataPatch, ProposalRow } from '@arena/shared';
 import type { Store } from './store';
 
 const KEY = 'devoverrides';
 const PROPOSALS = 'devproposals';
+const COMMITS = 'devcommits';
 const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
@@ -30,6 +32,7 @@ export interface DevToolsEnv {
  */
 export class DevTools {
   private list: DataPatch[] = [];
+  private commitRows: DevCommitRow[] = [];
   private undo: (() => void) | null = null;
   private ready: Promise<void>;
   private webhook: string | null;
@@ -49,6 +52,7 @@ export class DevTools {
 
   /** A dev's changes go to the owner's admin panel, stacked with the others; nothing changes in the game. */
   async propose(by: string, patches: DataPatch[], note?: string): Promise<ProposalRow> {
+    await this.ready; // the stored list is read first, or it would overwrite this one
     const row: ProposalRow = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       by, at: Date.now(), ...(note ? { note } : {}), patches,
@@ -88,10 +92,10 @@ export class DevTools {
       // straight onto the main branch (the owner's choice), credited to whoever pressed the button
       const notes = [...rows.filter((r) => r.note).map((r) => `${r.by}: ${r.note}`), ...(note ? [note] : [])].join('\n');
       try {
-        const url = await this.commitToBase(merged, by, notes || undefined);
-        for (const r of rows) { r.status = 'committed'; r.url = url; }
+        const r1 = await this.commitToBase(merged, by, notes || undefined);
+        for (const r of rows) { r.status = 'committed'; r.url = r1.url; }
         await this.persistProposals();
-        return { ok: true, text: `Committed ${rows.length} proposal${rows.length === 1 ? '' : 's'} (${merged.length} number${merged.length === 1 ? '' : 's'}) to the main branch on GitHub. The game updates when the next deploy finishes.`, url };
+        return { ok: true, text: `Committed ${r1.applied} number${r1.applied === 1 ? '' : 's'} from ${rows.length} proposal${rows.length === 1 ? '' : 's'} to the main branch on GitHub as patch ${r1.version}. The game updates when the next deploy finishes.${r1.skipped.length ? ` Left out: ${r1.skipped.join('; ')}.` : ''}`, url: r1.url };
       } catch (e) {
         return { ok: false, text: (e as Error).message };
       }
@@ -109,6 +113,13 @@ export class DevTools {
   }
 
   private async load(): Promise<void> {
+    try {
+      const rawC = await this.store.get(COMMITS);
+      const vc = rawC ? (JSON.parse(rawC) as unknown) : [];
+      if (Array.isArray(vc)) this.commitRows = (vc as DevCommitRow[]).filter((r) => r && typeof r.version === 'string' && Array.isArray(r.lines)).slice(0, 30);
+    } catch {
+      /* none */
+    }
     try {
       const rawP = await this.store.get(PROPOSALS);
       const vp = rawP ? (JSON.parse(rawP) as unknown) : [];
@@ -208,46 +219,77 @@ export class DevTools {
 
   /**
    * A dev commits their numbers straight to the base branch (the owner's choice: no pull request, no review). Only the
-   * JSON data files' numbers can change this way (the patches are validated first), one commit per file. Resolves to the
-   * URL of the last commit, or throws a message fit to show.
+   * JSON data files' numbers change, and the same single commit is a patch: a new patch-notes entry (one short line per
+   * number), the version bumped in package.json, client/package.json and the README, and SIM_REVISION raised. One commit
+   * means one deploy and never a half-updated repository. Each number is judged against the repository's own files, so
+   * one that no longer exists there (an update changed it) or already has that value is left out and reported.
    */
-  async commitToBase(patches: DataPatch[], by: string, note?: string): Promise<string> {
+  async commitToBase(patches: DataPatch[], by: string, note?: string): Promise<{ url: string; applied: number; skipped: string[]; version: string }> {
     const token = this.env.GITHUB_TOKEN;
     if (!token) throw new Error('No GITHUB_TOKEN on the server: nothing was committed.');
-    if (!patches.length || !patches.every((p) => validPatch(p))) throw new Error('Those changes are not valid numbers.');
+    const sane = (p: DataPatch) => !!p && typeof p.id === 'string' && Array.isArray(p.path) && p.path.length > 0 && p.path.every((k) => typeof k === 'string' || typeof k === 'number')
+      && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= 40) && ['abilities', 'auras', 'specs', 'talents', 'classes'].includes(p.file);
+    if (!patches.length || !patches.every(sane)) throw new Error('Those changes are not numbers the data files can take.');
     const { api, base } = this.github(token);
-    let url = '';
-    let n = 0;
+    const read = async (path: string): Promise<string> => {
+      const got = (await api(`/contents/${path}?ref=${base}`)) as { content: string };
+      return Buffer.from(got.content, 'base64').toString('utf8');
+    };
     try {
-      for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
-        const mine = patches.filter((p) => p.file === file);
-        if (!mine.length) continue;
-        // someone else may commit the same file between our read and our write: read again and retry a few times
-        for (let attempt = 1; ; attempt++) {
-          const got = (await api(`/contents/${FILES[file]}?ref=${base}`)) as { content: string; sha: string };
-          const text = Buffer.from(got.content, 'base64').toString('utf8');
-          const next = patchJsonText(text, file, mine);
-          if (next === text) break;
-          const lines = mine.map((p) => `${label(p)}: ${fileValue(text, file, p) ?? '?'} -> ${p.value}`);
-          try {
-            const res = (await api(`/contents/${FILES[file]}`, {
-              method: 'PUT',
-              body: JSON.stringify({ message: `Dev tuning by ${by}: ${lines.slice(0, 3).join('; ')}${lines.length > 3 ? ` and ${lines.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: got.sha, branch: base }),
-            })) as { commit?: { html_url?: string } };
-            url = res.commit?.html_url ?? url;
-            n++;
-            break;
-          } catch (e) {
-            if (attempt < 3 && /does not match|409|422/.test((e as Error).message)) continue;
-            throw e;
+      for (let attempt = 1; ; attempt++) {
+        const ref = (await api(`/git/ref/heads/${base}`)) as { object: { sha: string } };
+        const head = (await api(`/git/commits/${ref.object.sha}`)) as { tree: { sha: string } };
+        const files: { path: string; content: string }[] = [];
+        const skipped: string[] = [];
+        const lines: string[] = [];
+        const notes: string[] = [];
+        for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
+          const mine = patches.filter((p) => p.file === file);
+          if (!mine.length) continue;
+          const text = await read(FILES[file]);
+          const todo: DataPatch[] = [];
+          for (const p of mine) {
+            const was = fileValue(text, file, p);
+            if (was === undefined) skipped.push(`${label(p)} (no longer in the data files)`);
+            else if (String(was) === String(p.value)) skipped.push(`${label(p)} (already ${p.value})`);
+            else {
+              todo.push(p);
+              notes.push(`${label(p)}: ${was} -> ${p.value}`);
+              lines.push(playerLine(text, file, p, was));
+            }
           }
+          if (todo.length) files.push({ path: FILES[file], content: patchJsonText(text, file, todo) });
         }
+        if (!files.length) throw new Error(`Nothing was committed: ${skipped.length ? skipped.join('; ') : 'those numbers are already what the files have'}.`);
+        // the patch: notes entry, version, README, SIM_REVISION
+        const patchesText = await read('shared/data/patches.json');
+        const list = JSON.parse(patchesText) as { version: string; date: string; at?: string; title: string; changes: string[] }[];
+        const version = nextPatchVersion(list[0]?.version ?? '0.0.0');
+        const now = new Date();
+        const at = now.toISOString().replace(/\.\d+Z$/, 'Z');
+        list.unshift({ version, date: at.slice(0, 10), at, title: 'Balance changes', changes: [...new Set(lines)] });
+        files.push({ path: 'shared/data/patches.json', content: JSON.stringify(list, null, 1) + (patchesText.endsWith('\n') ? '\n' : '') });
+        for (const path of ['package.json', 'client/package.json']) files.push({ path, content: (await read(path)).replace(/("version":\s*")[^"]+(")/, `$1${version}$2`) });
+        files.push({ path: 'README.md', content: (await read('README.md')).replace(/^([^\n]*?v)\d+\.\d+\.\d+/, `$1${version}`) });
+        files.push({ path: 'shared/src/replay.ts', content: (await read('shared/src/replay.ts')).replace(/(SIM_REVISION\s*=\s*)(\d+)/, (_m, a: string, n: string) => `${a}${Number(n) + 1}`) });
+        const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
+        const message = `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`;
+        const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string; html_url?: string };
+        try {
+          await api(`/git/refs/heads/${base}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
+        } catch (e) {
+          // someone pushed to the branch since we read it: start again from the new head
+          if (attempt < 3 && /not a fast.?forward|422|409/i.test((e as Error).message)) continue;
+          throw e;
+        }
+        const url = commit.html_url ?? `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commit/${commit.sha}`;
+        await this.recordCommit({ version, by, at: Date.now(), url, lines: [...new Set(lines)] });
+        return { url, applied: notes.length, skipped, version };
       }
     } catch (e) {
-      throw new Error(friendlyGithubError((e as Error).message, base));
+      const m = (e as Error).message;
+      throw new Error(m.startsWith('Nothing was committed') ? m : friendlyGithubError(m, base));
     }
-    if (!n) throw new Error('Nothing changed: those numbers are already what the files have.');
-    return url || `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commits/${base}`;
   }
 
   private lastRedeploy = 0;
@@ -284,6 +326,21 @@ export class DevTools {
     return 'Deploy started on Render. The game restarts when it is ready (a minute or two), so everyone online is disconnected for a moment.';
   }
 
+  /** Recent commits to GitHub, newest first. */
+  get commits(): DevCommitRow[] {
+    return this.commitRows;
+  }
+
+  private async recordCommit(row: DevCommitRow): Promise<void> {
+    await this.ready;
+    this.commitRows = [row, ...this.commitRows].slice(0, 30);
+    try {
+      await this.store.set(COMMITS, JSON.stringify(this.commitRows));
+    } catch {
+      /* the commit stands even if the list is not kept */
+    }
+  }
+
   get notifies(): boolean {
     return !!this.webhook;
   }
@@ -305,6 +362,44 @@ export class DevTools {
       return false;
     }
   }
+}
+
+/** Always the last number only: 0.69.7 -> 0.69.8, 0.69.9 -> 0.69.10 (never the minor or major one). */
+export function nextPatchVersion(v: string): string {
+  const [a, b, c] = v.split('.').map((x) => Number(x) || 0);
+  return `${a}.${b}.${c + 1}`;
+}
+
+const MS_KEYS = new Set(['cooldown', 'castTime', 'duration', 'interval', 'lockout', 'maxDuration']);
+const NOUN: Record<string, string> = { cooldown: 'cooldown', castTime: 'cast time', duration: 'duration', cost: 'cost', range: 'range', radius: 'radius', interval: 'tick time', maxDuration: 'longest duration', lockout: 'lockout', absorb: 'shield', absorbPct: 'shield', charges: 'charges' };
+
+/** One short, player-facing patch-notes line for a number: "Fireball: cooldown 8 s to 7 s". */
+function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: number | string): string {
+  let name = p.id;
+  let parent: Record<string, unknown> | undefined;
+  try {
+    const data = JSON.parse(text) as unknown;
+    const target = file === 'classes' ? (data as Record<string, unknown>)[p.id] : targetsIn(data, file, p.id)[0];
+    const t = target as { name?: string } | undefined;
+    if (t?.name) name = t.name;
+    let o: unknown = target;
+    for (let i = 0; i < p.path.length - 1; i++) o = o && typeof o === 'object' ? (o as Record<string | number, unknown>)[p.path[i]] : undefined;
+    if (o && typeof o === 'object') parent = o as Record<string, unknown>;
+  } catch {
+    /* keep the id */
+  }
+  const key = String(p.path[p.path.length - 1]);
+  let noun = NOUN[key];
+  if (!noun && (key === 'amount' || key === 'dmg')) {
+    const type = parent?.type;
+    noun = type === 'damage' ? 'damage' : type === 'heal' ? 'healing' : type === 'absorb' ? 'shield' : 'strength';
+  }
+  noun ??= key.replace(/([A-Z])/g, ' $1').toLowerCase();
+  const show = (v: number | string) => {
+    if (typeof v === 'number' && MS_KEYS.has(key)) return `${Math.round((v / 1000) * 100) / 100} s`;
+    return String(v);
+  };
+  return `${name}: ${noun} ${show(was)} to ${show(p.value)}.`;
 }
 
 /** GitHub's message in plain words, with what to change when the commit was refused. */

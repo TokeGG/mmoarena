@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { TUNING, parseClientMsg } from '@arena/shared';
+import { PATCHES, TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
 import { Accounts } from './accounts';
 import { createStore } from './store';
@@ -103,7 +103,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
       return;
     }
     if (url.pathname === '/api/status') {
-      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary(), tick: lobby.tickReport() }));
+      res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ persistent: accounts.persistent, bots: botLearner.summary(), tick: lobby.tickReport(), version: PATCHES[0]?.version }));
       return;
     }
     // the owner's offline study of how people beat the bots (scripts/study-replays.ts --server URL --code CODE)

@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { ABILITIES, parseClientMsg } from '@arena/shared';
+import { ABILITIES, PATCHES, parseClientMsg } from '@arena/shared';
 import type { ClientMsg, ServerMsg } from '@arena/shared';
 import { MemoryStore } from '../src/store';
 import { Accounts } from '../src/accounts';
 import { Lobby } from '../src/rooms';
-import { DevTools, patchJsonText } from '../src/devtools';
+import { DevTools, nextPatchVersion, patchJsonText } from '../src/devtools';
 
 const CODE = 'dev-code';
 const mkP = (name: string, out: ServerMsg[], account: any) => ({ ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 } as any, name, classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', account, ownerOk: false } as any);
@@ -31,50 +31,102 @@ async function world(http?: typeof fetch) {
 }
 
 describe('dev commits to GitHub', () => {
-  const abilitiesText = fs.readFileSync(new URL('../../shared/data/abilities.json', import.meta.url), 'utf8');
-  const mkHttp = (calls: { url: string; method: string; body?: any }[]) => (async (url: string, init?: RequestInit) => {
-    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-    calls.push({ url, method: init?.method ?? 'GET', body });
-    const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
-    if (url.includes('/contents/') && (init?.method ?? 'GET') === 'GET') return ok({ content: Buffer.from(abilitiesText).toString('base64'), sha: 'f1' });
-    if (url.includes('/contents/')) return ok({ commit: { html_url: 'https://github.com/TokeGG/mmoarena/commit/abc123' } });
-    return new Response('{}', { status: 404 });
-  }) as typeof fetch;
+  type Call = { url: string; method: string; body?: any };
+  /** A fake GitHub: the repository's real files, one tree and one commit, and a branch pointer. */
+  const mkHttp = (calls: Call[], opts: { refFails?: number; readError?: string } = {}) => {
+    let refFails = opts.refFails ?? 0;
+    return (async (url: string, init?: RequestInit) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      const method = init?.method ?? 'GET';
+      calls.push({ url, method, body });
+      const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+      if (url.includes('/git/ref/heads/')) return ok({ object: { sha: 'head' + calls.length } });
+      if (url.includes('/git/commits/')) return ok({ tree: { sha: 'tree1' } });
+      if (url.endsWith('/git/trees')) return ok({ sha: 'tree2' });
+      if (url.endsWith('/git/commits') && method === 'POST') return ok({ sha: 'abc123', html_url: 'https://github.com/TokeGG/mmoarena/commit/abc123' });
+      if (url.includes('/git/refs/heads/') && method === 'PATCH') {
+        if (refFails-- > 0) return new Response(JSON.stringify({ message: 'Update is not a fast forward' }), { status: 422 });
+        return ok({});
+      }
+      const m = /\/contents\/([^?]+)/.exec(url);
+      if (m && method === 'GET') {
+        if (opts.readError) return new Response(JSON.stringify({ message: opts.readError }), { status: 403 });
+        return ok({ content: fs.readFileSync(new URL('../../' + m[1], import.meta.url)).toString('base64'), sha: 'f' });
+      }
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+  };
+  const tree = (calls: Call[]) => (calls.find((c) => c.url.endsWith('/git/trees'))!.body.tree as { path: string; content: string }[]);
 
-  it('a dev commits numbers straight to the main branch: the data file only, no branch, no pull request', async () => {
-    const calls: { url: string; method: string; body?: any }[] = [];
+  it('a dev commits numbers straight to main as ONE commit that is also a patch: notes entry, version, README, SIM_REVISION', async () => {
+    const calls: Call[] = [];
     const { lobby, devP, outD } = await world(mkHttp(calls));
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
-    await new Promise((r) => setTimeout(r, 30));
-    const put = calls.find((c) => c.method === 'PUT');
-    assert.ok(put, 'one commit');
-    assert.equal(put!.body.branch, 'main');
-    assert.match(put!.url, /shared\/data\/abilities\.json$/);
-    assert.ok(!calls.some((c) => c.url.endsWith('/git/refs') || c.url.endsWith('/pulls')), 'no branch and no pull request');
-    assert.match(String(put!.body.message), /Dee/);
+    await new Promise((r) => setTimeout(r, 80));
+    assert.ok(!calls.some((c) => c.url.endsWith('/git/refs') || c.url.endsWith('/pulls') || c.method === 'PUT'), 'no branch, no pull request, no per-file commits');
+    assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 1, 'one commit');
+    const files = tree(calls);
+    const paths = files.map((f) => f.path).sort();
+    assert.deepEqual(paths, ['README.md', 'client/package.json', 'package.json', 'shared/data/abilities.json', 'shared/data/patches.json', 'shared/src/replay.ts']);
+    const patches = JSON.parse(files.find((f) => f.path === 'shared/data/patches.json')!.content) as { version: string; title: string; changes: string[]; at: string }[];
+    const prev = JSON.parse(fs.readFileSync(new URL('../../shared/data/patches.json', import.meta.url), 'utf8')) as { version: string }[];
+    const [a, b, c] = prev[0].version.split('.').map(Number);
+    const next = `${a}.${b}.${c + 1}`;
+    assert.equal(patches[0].version, next);
+    assert.equal(patches[1].version, prev[0].version, 'the old entries stay');
+    assert.match(patches[0].changes[0], /^Fireball: cooldown [\d.]+ s to 7 s\.$/);
+    assert.match(patches[0].at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+    assert.equal(JSON.parse(files.find((f) => f.path === 'package.json')!.content).version, next);
+    assert.equal(JSON.parse(files.find((f) => f.path === 'client/package.json')!.content).version, next);
+    assert.ok(files.find((f) => f.path === 'README.md')!.content.startsWith(`# WoW-style Arena · v${next}`));
+    const rev = /SIM_REVISION = (\d+)/.exec(fs.readFileSync(new URL('../../shared/src/replay.ts', import.meta.url), 'utf8'))![1];
+    assert.match(files.find((f) => f.path === 'shared/src/replay.ts')!.content, new RegExp(`SIM_REVISION = ${Number(rev) + 1}\\b`));
+    assert.equal(calls.find((c) => c.url.endsWith('/git/commits') && c.method === 'POST')!.body.message.includes('Dee'), true);
     const res = last(outD, 'dev_result')!;
     assert.equal(res.ok, true);
+    assert.match(res.text, new RegExp(`patch ${next.replace(/\./g, '\\.')}`));
     assert.match(String((res as any).url), /commit\/abc123/);
+    // the dev can see it: the commit is listed, and it is live once the server runs that version
+    const listed = last(outD, 'dev_commits')!;
+    assert.equal(listed.rows[0].version, next);
+    assert.equal(listed.rows[0].by, 'Dee');
+    assert.equal(listed.running, PATCHES[0].version, 'the server still runs the old patch: deploying');
+    assert.notEqual(listed.running, next);
+    lobby.handle(devP, { t: 'dev_commits' } as ClientMsg);
+    assert.equal(last(outD, 'dev_commits')!.rows.length, 1);
+    // the notes are fit for players
+    assert.ok(!/\b(owner|admin|debug|dev|devs|pull request)\b/i.test(patches[0].changes.join(' ')));
   });
 
-  it('a dev commits the ticked proposals from the admin panel straight to main, and they show as committed', async () => {
-    const calls: { url: string; method: string; body?: any }[] = [];
+  it('the patch line reads in seconds for times and names the thing that changed', async () => {
+    const calls: Call[] = [];
+    const { dev } = await world(mkHttp(calls));
+    const r = await dev.commitToBase([
+      { file: 'abilities', id: 'fireball', path: ['effects', '0', 'amount'], value: 999 },
+      { file: 'abilities', id: 'fireball', path: ['castTime'], value: 1234 },
+    ], 'Dee');
+    assert.equal(r.applied, 2);
+    const patches = JSON.parse(tree(calls).find((f) => f.path === 'shared/data/patches.json')!.content) as { changes: string[] }[];
+    assert.ok(patches[0].changes.some((l) => /^Fireball: damage \d+ to 999\.$/.test(l)), patches[0].changes.join(' | '));
+    assert.ok(patches[0].changes.some((l) => /^Fireball: cast time [\d.]+ s to 1\.23 s\.$/.test(l)), patches[0].changes.join(' | '));
+  });
+
+  it('a dev commits the ticked proposals from the admin panel the same way, and they show as committed', async () => {
+    const calls: Call[] = [];
     const { lobby, devP, outD, dev } = await world(mkHttp(calls));
     lobby.handle(devP, { t: 'dev_save', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
     await new Promise((r) => setTimeout(r, 30));
     const id = dev.proposals[0].id;
     lobby.handle(devP, { t: 'admin_proposals', op: 'commit', ids: [id], note: 'ship it' } as ClientMsg);
-    await new Promise((r) => setTimeout(r, 60));
-    const put = calls.find((c) => c.method === 'PUT');
-    assert.ok(put, 'one commit');
-    assert.equal(put!.body.branch, 'main');
-    assert.ok(!calls.some((c) => c.url.endsWith('/pulls')), 'no pull request');
+    await new Promise((r) => setTimeout(r, 80));
+    assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 1);
+    assert.ok(tree(calls).some((f) => f.path === 'shared/data/patches.json'));
     assert.equal(dev.proposals.find((r) => r.id === id)!.status, 'committed');
     assert.equal(last(outD, 'dev_result')?.ok, true);
   });
 
   it('only devs can; a normal account, a guest, and nonsense numbers are refused', async () => {
-    const calls: { url: string; method: string; body?: any }[] = [];
+    const calls: Call[] = [];
     const { lobby, bobP, devP, outB, outD } = await world(mkHttp(calls));
     lobby.handle(bobP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
     await new Promise((r) => setTimeout(r, 30));
@@ -87,37 +139,42 @@ describe('dev commits to GitHub', () => {
     assert.equal(calls.length, 0);
   });
 
-  it('a commit that races another one on the same file is read again and retried', async () => {
-    const calls: { url: string; method: string; body?: any }[] = [];
-    let puts = 0;
-    const http = (async (url: string, init?: RequestInit) => {
-      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
-      calls.push({ url, method: init?.method ?? 'GET', body });
-      const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
-      if (url.includes('/contents/') && (init?.method ?? 'GET') === 'GET') return ok({ content: Buffer.from(abilitiesText).toString('base64'), sha: 'f' + calls.length });
-      if (url.includes('/contents/')) {
-        puts++;
-        if (puts === 1) return new Response(JSON.stringify({ message: 'shared/data/abilities.json does not match f1' }), { status: 409 });
-        return ok({ commit: { html_url: 'https://github.com/TokeGG/mmoarena/commit/def456' } });
-      }
-      return new Response('{}', { status: 404 });
-    }) as typeof fetch;
-    const { lobby, devP, outD } = await world(http);
+  it('a number that no longer exists in the files is left out and reported, the rest is committed; all stale means nothing is committed', async () => {
+    const calls: Call[] = [];
+    const { dev } = await world(mkHttp(calls));
+    const r = await dev.commitToBase([
+      { file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7001 },
+      { file: 'abilities', id: 'removed_skill_from_old_patch', path: ['cooldown'], value: 5 },
+    ], 'Dee');
+    assert.equal(r.applied, 1);
+    assert.equal(r.skipped.length, 1);
+    assert.match(r.skipped[0], /no longer in the data files/);
+    const before = calls.length;
+    await assert.rejects(dev.commitToBase([{ file: 'abilities', id: 'removed_skill_from_old_patch', path: ['cooldown'], value: 5 }], 'Dee'), /Nothing was committed/);
+    assert.ok(!calls.slice(before).some((c) => c.url.endsWith('/git/commits') && c.method === 'POST'), 'no commit for nothing');
+  });
+
+  it('a commit that races another push is built again on the new head', async () => {
+    const calls: Call[] = [];
+    const { lobby, devP, outD } = await world(mkHttp(calls, { refFails: 1 }));
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
-    await new Promise((r) => setTimeout(r, 60));
-    assert.equal(puts, 2, 'tried again');
+    await new Promise((r) => setTimeout(r, 120));
+    assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 2, 'built twice');
     assert.equal(last(outD, 'dev_result')?.ok, true);
   });
 
   it('a protected main branch or a token without write access is explained in plain words', async () => {
     const mk = (message: string) => (async (url: string, init?: RequestInit) => {
-      if (url.includes('/contents/') && (init?.method ?? 'GET') === 'GET') return new Response(JSON.stringify({ content: Buffer.from(abilitiesText).toString('base64'), sha: 'f1' }), { status: 200 });
+      const method = init?.method ?? 'GET';
+      if (url.includes('/git/ref/heads/')) return new Response(JSON.stringify({ object: { sha: 'h' } }), { status: 200 });
+      if (url.includes('/git/commits/')) return new Response(JSON.stringify({ tree: { sha: 't' } }), { status: 200 });
+      if (url.includes('/contents/') && method === 'GET') return new Response(JSON.stringify({ content: fs.readFileSync(new URL('../../' + /\/contents\/([^?]+)/.exec(url)![1], import.meta.url)).toString('base64') }), { status: 200 });
       return new Response(JSON.stringify({ message }), { status: 403 });
     }) as typeof fetch;
     for (const [message, want] of [['Protected branch update failed for refs/heads/main', /protected/], ['Resource not accessible by personal access token', /Contents/]] as const) {
       const { lobby, devP, outD } = await world(mk(message));
       lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
-      await new Promise((r) => setTimeout(r, 40));
+      await new Promise((r) => setTimeout(r, 60));
       const res = last(outD, 'dev_result')!;
       assert.equal(res.ok, false);
       assert.match(res.text, want);
@@ -391,5 +448,30 @@ describe('redeploy on Render from the dev panel', () => {
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(calls.length, 1);
     assert.equal(last(outD, 'dev_result')?.ok, true);
+  });
+});
+
+describe('patch versions from dev commits', () => {
+  it('only the last number goes up, never the minor or major one', () => {
+    assert.equal(nextPatchVersion('0.69.7'), '0.69.8');
+    assert.equal(nextPatchVersion('0.69.9'), '0.69.10');
+    assert.equal(nextPatchVersion('0.70.0'), '0.70.1');
+    assert.equal(nextPatchVersion('0.99.99'), '0.99.100');
+  });
+  it('a bot or guest asking for the commit list gets nothing', async () => {
+    const { lobby, bobP, outB } = await world();
+    lobby.handle(bobP, { t: 'dev_commits' } as ClientMsg);
+    assert.equal(last(outB, 'dev_commits'), undefined);
+  });
+  it('the list survives a restart', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    void calls;
+    const store = new MemoryStore();
+    const a = new DevTools(store, {});
+    await a.whenReady();
+    await (a as any).recordCommit({ version: '0.69.8', by: 'Dee', at: 1, lines: ['Fireball: cooldown 8 s to 7 s.'] });
+    const b = new DevTools(store, {});
+    await b.whenReady();
+    assert.equal(b.commits[0].version, '0.69.8');
   });
 });
