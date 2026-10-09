@@ -228,7 +228,7 @@ describe('the catalogue behind the pages', () => {
   });
 
   it('the Warden page names its passives in words and the Pyromancy page has Cauterize', () => {
-    const w = entryFor('specs', 'discipline')!;
+    const w = entryFor('passives', 's:discipline')!;
     const fields = w.groups.flatMap((g) => g.fields);
     const pws = fields.find((f) => f.path.join('.') === 'mods.ability.power_word_shield.heal') as DevField;
     assert.match(pws.label, /Power Word: Shield/);
@@ -238,10 +238,10 @@ describe('the catalogue behind the pages', () => {
     assert.equal(moving.kind, 'switch');
     assert.equal(moving.value, 1);
     assert.ok(w.lines.some((l) => /shield strength/i.test(l)));
-    const fire = entryFor('specs', 'fire')!.groups.flatMap((g) => g.fields).map((f) => f.path.join('.'));
+    const fire = entryFor('passives', 's:fire')!.groups.flatMap((g) => g.fields).map((f) => f.path.join('.'));
     assert.ok(fire.includes('cauterizeHealth') && fire.includes('cauterizeCooldownMs'));
     // a spec without a stat gets every stat offered, flagged as new
-    const holy = entryFor('specs', 'holy')!.groups.flatMap((g) => g.fields);
+    const holy = entryFor('passives', 's:holy')!.groups.flatMap((g) => g.fields);
     assert.ok(holy.filter((f) => f.added).length >= 12);
     assert.ok(!entryFor('options', 'game')!.groups.flatMap((g) => g.fields).some((f) => f.path[0] === 'tickMs'));
   });

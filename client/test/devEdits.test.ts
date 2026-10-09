@@ -1,3 +1,4 @@
+import { navIdOf, pageOwns } from '../src/devPages';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { entryFor } from '@arena/shared';
@@ -8,7 +9,7 @@ const field = (page: 'specs' | 'options' | 'classes', id: string, path: string):
   entryFor(page, id)!.groups.flatMap((g) => g.fields).find((f) => f.path.join('.') === path)!;
 
 describe('what a dev has typed in the panel', () => {
-  const pws = field('specs', 'discipline', 'mods.ability.power_word_shield.heal');
+  const pws = field('passives', 's:discipline', 'mods.ability.power_word_shield.heal');
   const gcd = field('options', 'game', 'gcdMs');
   const none = new Map<string, DataPatch>();
 
@@ -93,3 +94,17 @@ describe('what a dev has typed in the panel', () => {
 function patchOfField(f: DevField, value: number): DataPatch {
   return { file: f.file, id: f.id, path: f.path, value };
 }
+
+describe('which page owns a change', () => {
+  it('stat bonuses, skill changes and Cauterize are Passives; the rest stays on its own page', () => {
+    const mod = { file: 'specs', id: 'discipline', path: ['mods', 'ability', 'penance', 'castWhileMoving'], value: 1 } as const;
+    assert.ok(pageOwns('passives', mod) && !pageOwns('specs', mod));
+    const auto = { file: 'specs', id: 'fire', path: ['auto', 'damage'], value: 9 } as const;
+    assert.ok(pageOwns('specs', auto) && !pageOwns('passives', auto));
+    const caut = { file: 'tuning', id: 'game', path: ['cauterizeHealth'], value: 0.3 } as const;
+    assert.ok(pageOwns('passives', caut) && !pageOwns('options', caut));
+    assert.ok(pageOwns('options', { file: 'tuning', id: 'game', path: ['gcdMs'], value: 1200 }));
+    assert.equal(navIdOf('passives', mod), 's:discipline');
+    assert.equal(navIdOf('passives', { file: 'talents', id: 'x', path: ['mods', 'a'], value: 1 }), 't:x');
+  });
+});

@@ -53,6 +53,8 @@ export interface DevEntry {
   addTargets?: ModTarget[];
   /** The skills it uses, to open on the Skills page. */
   skillLinks?: string[];
+  /** The id of this entry on the Passives page, when it has passives to edit there. */
+  passivesId?: string;
 }
 
 // ------------------------------------------------------------------ labels
@@ -414,16 +416,18 @@ export function modGroups(file: 'specs' | 'talents' | 'auras', id: string, scope
 
 // ------------------------------------------------------------------ the pages
 
-export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'auras' | 'options';
+export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'options';
 
-export const DEV_PAGES: { id: DevPageId; label: string; blurb: string }[] = [
-  { id: 'classes', label: 'Classes', blurb: 'Health, resource and auto-attack of each class.' },
-  { id: 'specs', label: 'Specs', blurb: 'What each spec gives without a button: passives, stat bonuses, auto-attack, built-in effects.' },
-  { id: 'talents', label: 'Talents', blurb: 'The effects of every talent, by class and tier.' },
-  { id: 'skills', label: 'Skills', blurb: 'Every ability: numbers, options, effects and the buffs and debuffs it applies.' },
-  { id: 'auras', label: 'Auras', blurb: 'Every buff and debuff: duration, ticks, stacks, stat changes.' },
-  { id: 'options', label: 'Game options', blurb: 'Global rules: cooldowns, speeds, dampening, match length.' },
+export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The tab row is read left to right in these steps. */ step: string }[] = [
+  { id: 'classes', label: 'Classes', step: 'Who', blurb: 'Health, resource and auto-attack of each class.' },
+  { id: 'specs', label: 'Specs', step: 'Who', blurb: 'What each spec is: role, weapon and auto-attack. Its bonuses are on the Passives page.' },
+  { id: 'talents', label: 'Talents', step: 'Who', blurb: 'What each talent does and where it sits. Its bonuses are on the Passives page.' },
+  { id: 'skills', label: 'Skills', step: 'What they do', blurb: 'Every ability: numbers, options, effects and the buffs and debuffs it applies.' },
+  { id: 'passives', label: 'Passives', step: 'What they do', blurb: 'What a spec or talent gives without a button: stat bonuses, changes to skills, Cauterize.' },
+  { id: 'auras', label: 'Buffs & debuffs', step: 'What they do', blurb: 'Every buff and debuff (the icons on a unit): duration, ticks, stacks, stat changes.' },
+  { id: 'options', label: 'Game options', step: 'Rules', blurb: 'Global rules: cooldowns, speeds, dampening, match length.' },
 ];
+
 
 /** One line of the navigation. */
 export interface NavEntry { id: string; name: string; sub?: string; icon?: string }
@@ -457,6 +461,17 @@ export function navFor(page: DevPageId): NavGroup[] {
         }
         return { title: className(c), entries: [], groups: tiers };
       });
+    case 'passives': {
+      const talents = navFor('talents');
+      return CLASS_IDS_LIST.map((c, i) => ({
+        title: className(c),
+        entries: [],
+        groups: [
+          { title: 'Spec passives', entries: SPECS[c].map((sp) => ({ id: `s:${sp.id}`, name: sp.name, sub: sp.passive ? `${sp.role} · has Cauterize` : sp.role, icon: sp.icon })) },
+          { title: 'Talent passives', entries: [], groups: (talents[i].groups ?? []).map((g) => ({ ...g, entries: g.entries.map((e) => ({ ...e, id: `t:${e.id}` })) })) },
+        ],
+      }));
+    }
     case 'skills': {
       const used = new Set<string>();
       const out: NavGroup[] = [];
@@ -501,6 +516,7 @@ export function entryFor(page: DevPageId, id: string): DevEntry | null {
     case 'classes': return classEntry(id as ClassId);
     case 'specs': return specEntry(id);
     case 'talents': return talentEntry(id);
+    case 'passives': return id.startsWith('s:') ? specEntry(id.slice(2), true) : id.startsWith('t:') ? talentEntry(id.slice(2), true) : null;
     case 'auras': return auraEntry(id);
     case 'options': return optionsEntry();
     default: return null;
@@ -530,41 +546,43 @@ function classEntry(c: ClassId): DevEntry | null {
   };
 }
 
-function specEntry(id: string): DevEntry | null {
+function specEntry(id: string, passives = false): DevEntry | null {
   const f = specInfo(id);
   if (!f) return null;
   const { cls, spec } = f;
   const groups: FieldGroup[] = [];
-  if (spec.passive === 'cauterize') {
+  if (passives && spec.passive === 'cauterize') {
     groups.push({ id: 'passive', title: 'Passive: Cauterize', sub: 'a killing blow leaves you alive (the numbers are game options)', open: true, fields: some([fieldAt('tuning', TUNING_ID, ['cauterizeHealth']), fieldAt('tuning', TUNING_ID, ['cauterizeCooldownMs'])]) });
   }
   const auto = autoGroup('specs', id, !!spec.auto);
-  if (auto) groups.push(auto);
-  groups.push(...modGroups('specs', id));
+  if (auto && !passives) groups.push(auto);
+  if (passives) groups.push(...modGroups('specs', id));
   const facts: [string, string][] = [['Class', className(cls)], ['Role', spec.role]];
   if (spec.weapon) facts.push(['Weapon', spec.weapon.name]);
   if (spec.passive) facts.push(['Built-in effect', spec.passive]);
   if (!spec.auto && CLASSES[cls].auto) facts.push(['Auto-attack', "uses the class's (see Classes)"]);
   const targets: ModTarget[] = [...new Set([...spec.bar, ...CLASSES[cls].bar])].filter((a) => ABILITIES[a]).map((a) => ({ kind: 'ability', id: a, name: abilityName(a) }));
-  return { file: 'specs', id, name: spec.name, sub: `${className(cls)} · ${spec.role}`, lines: [spec.desc, ...specPassives(cls, id)].filter(Boolean), facts, groups, addTargets: [...targets, ...auraTargets()], skillLinks: spec.bar };
+  if (!passives) return { file: 'specs', id, name: spec.name, sub: `${className(cls)} · ${spec.role}`, lines: [spec.desc].filter(Boolean), facts, groups, skillLinks: spec.bar, passivesId: `s:${id}` };
+  return { file: 'specs', id, name: `${spec.name} passives`, sub: `${className(cls)} · what it gives without a button`, lines: specPassives(cls, id), facts: [], groups, addTargets: [...targets, ...auraTargets()] };
 }
 
 function auraTargets(): ModTarget[] {
   return Object.entries(AURAS).map(([id, a]) => ({ kind: 'aura' as const, id, name: a.name }));
 }
 
-function talentEntry(id: string): DevEntry | null {
+function talentEntry(id: string, passives = false): DevEntry | null {
   const f = findTalent(id);
   if (!f) return null;
   const { cls, tier, t } = f;
   const where = SPECS[cls].filter((s) => TALENTS[cls][s.id]?.[tier]?.some((x) => x.id === id));
   const d = describeTalent(t);
-  const groups = modGroups('talents', id);
+  const groups = passives ? modGroups('talents', id) : [];
   const facts: [string, string][] = [['Class', className(cls)], ['Tier', TIER[tier]], ['In specs', where.length === SPECS[cls].length ? 'every spec (one change covers all copies)' : where.map((s) => s.name).join(', ')]];
   if (t.swap) facts.push(['Swaps in', `${abilityName(t.swap.to)} instead of ${abilityName(t.swap.from)}${t.swap.alt?.length ? ` (or ${t.swap.alt.map(abilityName).join(', ')})` : ''}${t.swap.stealth ? ', while stealthed' : ''}`]);
   if (t.trinket) facts.push(['Trinket', abilityName(t.trinket)]);
   const targets: ModTarget[] = Object.keys(ABILITIES).filter((a) => !ABILITIES[a].retired && (ABILITIES[a].class === cls || ABILITIES[a].class === 'trinket')).map((a) => ({ kind: 'ability', id: a, name: abilityName(a) }));
-  return { file: 'talents', id, name: t.name, sub: `${className(cls)} · tier ${TIER[tier]}`, lines: [t.desc, ...d.mods].filter(Boolean), facts, groups, addTargets: [...targets, ...auraTargets()], skillLinks: [t.swap?.to, t.trinket].filter((x): x is string => !!x) };
+  if (!passives) return { file: 'talents', id, name: t.name, sub: `${className(cls)} · tier ${TIER[tier]}`, lines: [t.desc].filter(Boolean), facts, groups, skillLinks: [t.swap?.to, t.trinket].filter((x): x is string => !!x), passivesId: d.mods.length || modGroups('talents', id).length ? `t:${id}` : undefined };
+  return { file: 'talents', id, name: `${t.name} passives`, sub: `${className(cls)} · tier ${TIER[tier]}`, lines: d.mods, facts: [['In specs', facts[2][1]]], groups, addTargets: [...targets, ...auraTargets()] };
 }
 
 const AURA_OPTION_FIELDS = (id: string): DevField[] => some(Object.keys(AURA_FLAGS).map((k) => fieldAt('auras', id, [k])));

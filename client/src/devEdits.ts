@@ -122,6 +122,12 @@ export class EditSet {
     if (canRevert) for (const p of inEffect) if (files.includes(p.file)) this.reverted.add(patchKey(p));
   }
 
+  /** Put back everything (typed or being tried) that `owns` accepts. */
+  resetWhere(owns: (p: DataPatch) => boolean, inEffect: readonly DataPatch[], canRevert = true): void {
+    for (const [k, p] of [...this.edits]) if (owns(p)) this.edits.delete(k);
+    if (canRevert) for (const p of inEffect) if (owns(p)) this.reverted.add(patchKey(p));
+  }
+
   /** Put back every value. */
   resetAll(inEffect: readonly DataPatch[], canRevert = true): void {
     this.edits.clear();
