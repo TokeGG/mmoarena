@@ -1269,6 +1269,58 @@ export class Effects {
   }
 
   /**
+   * Slice and Dice: the real cone on the ground (as Sweep draws it) stays under the warrior for the whole channel and turns with him,
+   * and the blade flashes back and forth across the wedge instead of spinning all round. Ends with stop().
+   */
+  private sliceCone(unit: number, range: number, half: number, dur: number): Fx & { stop(): void } {
+    const geo = new THREE.CircleGeometry(1, Math.max(8, Math.ceil(half * 14)), -Math.PI / 2 - half, half * 2);
+    const mat = this.flatMat(0xdfe6f2, 0, this.getFanTex());
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.scale.set(range, range, 1);
+    const grp = new THREE.Group();
+    grp.add(mesh);
+    this.scene.add(grp);
+    let t = 0;
+    let off = 0;
+    let stopped = false;
+    let cut = 0;
+    const fx = {
+      stop: () => {
+        stopped = true;
+      },
+      update: (dt: number) => {
+        t += dt;
+        const p = this.pos(unit);
+        if (!p) return true;
+        if (stopped) off += dt;
+        const k = Math.min(1, t / 0.12) * (stopped ? Math.max(0, 1 - off / 0.2) : Math.min(1, Math.max(0, (dur - t) / 0.2)));
+        grp.position.set(p.x, 0.07 + this.groundY(p.x, p.z), p.z);
+        grp.rotation.y = p.facing;
+        mat.opacity = 0.32 * k * (0.9 + 0.1 * Math.sin(t * 30));
+        cut -= dt;
+        if (cut <= 0 && k > 0.5) {
+          // a flash of steel across a different part of the wedge every few frames
+          cut = 0.12;
+          const a = p.facing + Math.sin(t * 17) * half * 0.8;
+          const px = p.x + Math.sin(a) * range * 0.7;
+          const pz = p.z + Math.cos(a) * range * 0.7;
+          this.slash(p.x, p.z, px, pz, 0xe9eef7, 1.1, CHEST, Math.sin(t * 17) * 0.9);
+          this.particle(px, 1.0 + rnd(-0.3, 0.3), pz, { color: 0xfff1d0, s0: 0.2, s1: 0.04, life: 0.3, vx: Math.sin(a) * 2, vz: Math.cos(a) * 2 });
+        }
+        return stopped ? off >= 0.2 : t >= dur;
+      },
+      dispose: () => {
+        this.scene.remove(grp);
+        geo.dispose();
+        mat.dispose();
+      },
+    };
+    this.addFx(fx);
+    return fx;
+  }
+
+  /**
    * A true cone of flame (Dragon's Breath, Dragon Roar): a jet of billowing fire sprites (the flipbook, or the canvas teardrop) leaves the
    * caster's mouth and fans out to the spell's real range and width, with a white-hot core, dark smoke and rising embers at the far end,
    * a flickering glow at the mouth and a scorched ground sector showing exactly what is hit. Follows the caster while it burns.
@@ -1834,10 +1886,16 @@ export class Effects {
       this.addFx(fx);
       return;
     }
-    if (ability === 'bladestorm' || ability === 'slice_and_dice') {
+    if (ability === 'slice_and_dice') {
+      // a flurry of cuts across the cone in front of the warrior, drawn on the real wedge, until the channel ends
+      const cone = coneShape(def);
+      this.casting.set(unit, this.sliceCone(unit, cone?.range ?? 5, cone?.half ?? Math.PI / 4, (def.castTime || 4000) / 1000));
+      return;
+    }
+    if (ability === 'bladestorm') {
       // a warrior whirling steel, not a caster gathering a spell: blades spin round him until the channel ends
       const dur = (def.castTime || 4000) / 1000;
-      this.casting.set(unit, this.spinBlades(unit, ability === 'bladestorm' ? def.radius ?? 6 : Math.min(3, def.radius ?? 3), 0xdfe6f2, dur, dur * (ability === 'bladestorm' ? 1.6 : 2.4)));
+      this.casting.set(unit, this.spinBlades(unit, def.radius ?? 6, 0xdfe6f2, dur, dur * 1.6));
       return;
     }
     const orb = this.sprite('glow', color);
@@ -2183,6 +2241,8 @@ export class Effects {
         break;
       }
       case 'slice_and_dice':
+        this.onSwing(unit); // the cone itself is drawn by the channel
+        break;
       case 'bladestorm':
         this.onSwing(unit);
         this.ring(s.x, s.z, 0xdfe6f2, 0.3, def.radius ?? 6, 0.3, 0.08, 0.9);
@@ -2212,10 +2272,11 @@ export class Effects {
         this.burst(s.x, s.y + 1.1, s.z, 0x9a8ac0, 18, 4, 0.3, 0.7, 0);
         break;
       case 'mirror_image':
-        for (let i = 0; i < 3; i++) {
-          const a = s.facing + (i / 3) * Math.PI * 2 + 0.6;
-          const x = s.x + Math.sin(a) * 1.8;
-          const z = s.z + Math.cos(a) * 1.8;
+        for (let i = 0; i < 2; i++) {
+          // the two images stand behind the mage to either side, the three of them making a triangle
+          const side = i === 0 ? -1.2 : 1.2;
+          const x = s.x + Math.cos(s.facing) * side - Math.sin(s.facing) * 2.08;
+          const z = s.z - Math.sin(s.facing) * side - Math.cos(s.facing) * 2.08;
           this.later(i * 0.08, () => {
             this.puff(x, s.y + 1.0, z, 0xe6d8ff, 6, 1.3);
             this.burst(x, s.y + 1.1, z, 0xc58bff, 10, 3.5, 0.3, 0.6, 0);

@@ -130,7 +130,7 @@
         {
           "id": "warrior_arms_t3c",
           "name": "Rage Engine",
-          "desc": "Slam generates 8 rage.",
+          "desc": "Slam generates 8 more rage.",
           "icon": "😡",
           "mods": {
             "ability": {
@@ -921,7 +921,7 @@
         {
           "id": "mage_fire_t3b",
           "name": "Streaking",
-          "desc": "Singed lasts 50% (5 seconds) longer.",
+          "desc": "Singed lasts 50% longer.",
           "icon": "🔥",
           "mods": {
             "auraDuration": {

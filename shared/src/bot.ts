@@ -873,7 +873,9 @@ export class Bot {
     if (d > 4 && d <= 10 && this.use(u, 'axe_throw', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
     if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.useFirst(u, ['recklessness', 'bladestorm']); // not into a shield wall
-    if (!stunned && d <= 8 && this.useFirst(u, ['concussion_blow', 'slice_and_dice'], tgt.id)) return;
+    if (!stunned && d <= 8 && this.use(u, 'concussion_blow', tgt.id)) return;
+    // Slice and Dice stuns the 90 degree cone in front (5 yards): the bot already faces its target
+    if (!stunned && d <= (ABILITIES.slice_and_dice.radius ?? 5) - 0.5 && this.use(u, 'slice_and_dice', tgt.id)) return;
     if (d <= 6 && this.use(u, 'recklessness')) return; // damage and double rage for 12 seconds: not saved for a finishing blow
     // a rage payoff waits for a full bar; builders and the other strikes fill the gaps
     if (u.resource >= 70 && this.use(u, 'mortal_strike', tgt.id)) return;
@@ -962,6 +964,13 @@ export class Bot {
     // every spec's nukes in priority order; instants and cooldown spells first, the filler that is on this bar last
     if (u.auras.some((a) => a.id === 'hot_streak') && this.use(u, 'pyroblast', tgt.id)) return; // the free instant 550 first
     if (this.use(u, 'deep_freeze', tgt.id)) return;
+    // Starweaving: spend a stack of Arcane Charge on Arcane Missiles (one more missile per charge) once it is worth the stand-still
+    if ((u.auras.find((a) => a.id === 'arcane_charge')?.stacks ?? 0) >= 3 && !meleeNear.length && this.use(u, 'arcane_missiles', tgt.id)) return;
+    // Pyromancy: when the next Fireball (2 stacks) would take Singed past full, it pops into Hot Streak
+    {
+      const singed = tgt.auras.find((a) => a.id === 'singed' && a.sourceId === u.id);
+      if (singed && (singed.stacks ?? 0) + 2 > (AURAS.singed.maxStacks ?? 2) && this.use(u, 'fireball', tgt.id)) return;
+    }
     this.rotate(u, tgt, ['fireball', 'pyroblast', 'arcane_barrage', 'ice_lance', 'arcane_blast', 'frostbolt', 'scorch', 'arcane_missiles']);
   }
 
