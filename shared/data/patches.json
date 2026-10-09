@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.31",
+  "date": "2026-10-10",
+  "at": "2026-10-10T07:00:00Z",
+  "title": "New arena layouts to test",
+  "changes": [
+   "Every arena has three test layouts: A (Lighter), B (Open) and C (Arena), with fewer pillars, no half walls and nothing under the walkways. Random picks among them.",
+   "Flamestrike now rains many small fireballs from the sky onto its circle, like a fire blizzard, and no longer draws flames on the ground."
+  ]
+ },
+ {
   "version": "0.69.30",
   "date": "2026-10-09",
   "at": "2026-10-09T21:05:41Z",

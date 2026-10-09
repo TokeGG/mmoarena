@@ -223,7 +223,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 
 *Physical* · 30 rage · 7 yd radius · 5s channel · 60s cooldown
 
-- Strikes every enemy in range 10 times, once every 0.5s, for 100 physical damage each (1000 total).
+- Strikes every enemy in range 10 times, once every 0.5s, for 90 physical damage each (900 total).
 - *Can be cast while moving.*
 - *Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.*
 
@@ -246,7 +246,7 @@ On the bar: [Rampager](#warrior-fury) (key 2).
 
 *Physical* · Instant · 45s cooldown · 12s buff
 
-- +40% damage dealt. +100% rage from all sources.
+- +30% damage dealt. +100% rage from all sources.
 - *Does not trigger the global cooldown.*
 
 On the bar: [Rampager](#warrior-fury) (key 3).
@@ -1258,7 +1258,7 @@ Tier IV of every class gives an extra button beside the action bar (bind it to a
 <a id="skill-trinket-cleanse"></a>
 #### Cleansing Charm
 
-*Holy* · Instant · 60s cooldown
+*Holy* · Instant · 120s cooldown
 
 - Removes every harmful effect from you.
 - *Usable while locked out.*
@@ -1270,7 +1270,7 @@ Talent: tier IV *Cleansing Charm*.
 <a id="skill-trinket-shield"></a>
 #### Warding Charm
 
-*Holy* · Instant · 60s cooldown · 8s shield
+*Holy* · Instant · 120s cooldown · 8s shield
 
 - Absorbs 20% of your max health.
 - *Usable while locked out.*
@@ -1282,7 +1282,7 @@ Talent: tier IV *Warding Charm*.
 <a id="skill-trinket-heal"></a>
 #### Healing Charm
 
-*Holy* · Instant · 60s cooldown
+*Holy* · Instant · 120s cooldown
 
 - Heals you for 25% of your maximum health.
 - *Usable while locked out.*
@@ -1335,7 +1335,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 250 damage. | [Power Word: Shield](#skill-power-word-shield) |
 | <a id="effect-psychic-scream"></a>**Psychic Scream** | Debuff (fear), magic | 6s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Psychic Scream](#skill-psychic-scream) |
 | <a id="effect-purified"></a>**Purified** | Buff | 4s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
-| <a id="effect-recklessness"></a>**Recklessness** | Buff | 12s | +40% damage dealt. +100% rage from all sources. | [Recklessness](#skill-recklessness) |
+| <a id="effect-recklessness"></a>**Recklessness** | Buff | 12s | +30% damage dealt. +100% rage from all sources. | [Recklessness](#skill-recklessness) |
 | <a id="effect-renew"></a>**Renew** | Buff, magic | 5s | Heals 1% of maximum health every 1s. | talent *Renewing Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |
 | <a id="effect-protective-vanish"></a>**Shadow Shroud** | Buff | 2s | Immune to damage and crowd control. Lost when you leave stealth. | talent *Protective Vanish* ([Vanish](#skill-vanish)) |
