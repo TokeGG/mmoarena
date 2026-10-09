@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 const store = new Map<string, string>();
 (globalThis as any).localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
 const { EDIT_IDLE, EDIT_BODY_CLASSES, openEditor, closeEditor, gameInputEnabled, leavesEditor } = await import('../src/hudEditState');
+const { HUD_IDS } = await import('@arena/shared');
 const { HUD_ELEMENTS, parseLayout } = await import('../src/hudLayout');
 const { LOOK_OPTIONS, look, resetLook, setLook } = await import('../src/hudLook');
 const { textVars, NET_AUTO, TEXT_COLORS } = await import('../src/hudText');
@@ -33,6 +34,16 @@ describe('HUD editor open / close state', () => {
     assert.equal(closeEditor(s, false).restoreMenu, true);
     assert.equal(closeEditor(s, true).restoreMenu, false);
     assert.equal(closeEditor(EDIT_IDLE, false).restoreMenu, false);
+  });
+});
+
+describe('every other overlay is a HUD element too', () => {
+  it('the announcement, update notice, match banner, dampening, ready choice, spectator pieces, panels, chips and notices are registered', () => {
+    for (const id of ['banner', 'damp', 'endchoice', 'announce', 'update-notice', 'spec-bar', 'spec-top', 'spec-nav', 'spec-replay', 'scoreboard', 'builds', 'follow-box', 'takeover-chip', 'fr-toasts', 'fr-invites']) assert.ok(HUD_ELEMENTS.includes(id), id);
+  });
+
+  it('the editor and the server agree on the list of ids', () => {
+    assert.deepEqual([...HUD_ELEMENTS].sort(), [...HUD_IDS].sort());
   });
 });
 

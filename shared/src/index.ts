@@ -26,3 +26,4 @@ export * from './devrequest';
 export * from './snapslim';
 export * from './playtime';
 export * from './brainwords';
+export * from './hudDefault';

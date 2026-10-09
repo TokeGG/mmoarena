@@ -2,8 +2,8 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics } from '@arena/shared';
-import type { StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
+import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
+import type { HudLayoutMap, StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
 import type { QEntry } from './matchmaking';
@@ -881,6 +881,11 @@ export class Lobby {
     void this.adminLog?.maintenance().then((m) => {
       if (!this.maintSet) this.maint = m;
     });
+    void this.adminLog?.hudDefault().then((d) => {
+      if (this.hudSet || !d) return;
+      this.hudDef = { t: 'hud_default', layout: d.layout, at: d.at, by: d.by };
+      for (const q of this.conns) send(q, this.hudDef);
+    });
     void this.adminLog?.autoTrain().then((on) => {
       if (!this.autoTrainSet) this.autoTrain = on;
     });
@@ -891,6 +896,10 @@ export class Lobby {
   /** The owner's switch: the bots train on every finished match (player matches and bot matches too). */
   private autoTrain = false;
   private autoTrainSet = false;
+
+  /** The owner's default HUD layout (what every client is sent), or null. */
+  private hudDef: Extract<ServerMsg, { t: 'hud_default' }> | null = null;
+  private hudSet = false;
 
   /** Maintenance mode: while set, nobody but the owner starts a match; the text says why. */
   private maint: string | null = null;
@@ -1389,9 +1398,26 @@ export class Lobby {
     out.country = country;
     // numbers a dev saved for everyone: the client applies them over its own copy of the data
     if (this.dev?.overrides.length) send(out, { t: 'overrides', patches: this.dev.overrides });
+    // the owner's default HUD layout, for everyone (guests and spectators too)
+    if (this.hudDef) send(out, this.hudDef);
     // a recent announcement greets people who come online just after it
     if (this.lastAnnounce && Date.now() - this.lastAnnounce.at < ANNOUNCE_KEEP_MS) send(out, this.lastAnnounce);
     return out;
+  }
+
+  /** Save (or, with null, remove) the default HUD layout, tell everyone connected, and write the admin log. */
+  private async setHudDefault(p: Player, layout: HudLayoutMap | null): Promise<void> {
+    const who = p.account?.name ?? p.name;
+    const at = Date.now();
+    const count = layout ? Object.keys(layout).length : 0;
+    if (layout && !packHudDefault(layout)) return void send(p, { t: 'dev_result', ok: false, text: 'That HUD layout is too big to keep.' });
+    this.hudSet = true;
+    this.hudDef = layout ? { t: 'hud_default', layout, at, by: who } : null;
+    const ok = await this.adminLog?.setHudDefault(layout ? { layout, at, by: who } : null).catch(() => false);
+    if (this.adminLog && !ok) return void send(p, { t: 'dev_result', ok: false, text: 'The HUD default could not be saved. Try again.' });
+    const out: ServerMsg = this.hudDef ?? { t: 'hud_default', layout: null, at };
+    for (const q of this.conns) send(q, out);
+    void this.adminLog?.add(who, layout ? 'hud default saved' : 'hud default removed', undefined, layout ? `${count} elements` : undefined);
   }
 
   /** The owner's last announcement. */
@@ -2027,6 +2053,12 @@ export class Lobby {
         this.lastAnnounce = { t: 'announce', text: msg.text, by: p.account?.name ?? p.name, at: Date.now() };
         for (const q of this.conns) send(q, this.lastAnnounce);
         void this.adminLog?.add(p.account?.name ?? p.name, 'announce', undefined, msg.text);
+        break;
+      }
+      case 'admin_hud_default': {
+        if (this.ownerOnly(p, 'The HUD default for everyone')) return;
+        if (!p.ownerOk) return;
+        void this.setHudDefault(p, msg.layout);
         break;
       }
       case 'admin_end': {

@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.23",
+  "date": "2026-10-10",
+  "at": "2026-10-10T00:20:00Z",
+  "title": "Move every part of the HUD",
+  "changes": [
+   "Edit HUD now moves nearly everything on screen: the match banner, announcements, the scoreboard and spectator bar, the builds panel, notices, invites and more.",
+   "The spectating follow box is now a small chip in the corner so it no longer covers the builds panel."
+  ]
+ },
+ {
   "version": "0.69.22",
   "date": "2026-10-09",
   "at": "2026-10-09T23:40:00Z",

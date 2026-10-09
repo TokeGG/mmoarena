@@ -1,6 +1,8 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS } from './data';
 import { PATCH_FILES, validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
+import { HUD_DEFAULT_MAX_CHARS, parseHudDefault } from './hudDefault';
+import type { HudLayoutMap } from './hudDefault';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { HealthHour, TimeGlobal, TimeRecord, TimeRow } from './playtime';
 import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
@@ -204,6 +206,8 @@ export type ClientMsg =
   /** Owner admin panel. */
   | { t: 'admin_overview' }
   | { t: 'admin_announce'; text: string }
+  /** Owner only: save this HUD layout as the default for everyone (null removes the default). */
+  | { t: 'admin_hud_default'; layout: HudLayoutMap | null }
   | { t: 'admin_end'; id: string }
   /** Owner only, silent: play this bot's unit in a live match (`id` is the match), and give it back to a fresh bot. */
   | { t: 'admin_takeover'; id: string; unit: number }
@@ -318,6 +322,8 @@ export type ServerMsg =
   | { t: 'marks'; marks: [number, number][] }
   /** The owner's announcement: a big banner for everyone online (and anyone joining in the next few minutes). */
   | { t: 'announce'; text: string; by: string; at: number }
+  /** The owner's default HUD layout for everyone (sent when you connect and whenever it changes); `layout` is null when there is none. */
+  | { t: 'hud_default'; layout: HudLayoutMap | null; at: number; by?: string }
   | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
@@ -590,6 +596,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'admin_announce':
       if (typeof m.text !== 'string' || !m.text.trim()) return null;
       return { t: 'admin_announce', text: m.text.trim().slice(0, 200) };
+    case 'admin_hud_default': {
+      if (m.layout === null) return { t: 'admin_hud_default', layout: null };
+      if (!m.layout || typeof m.layout !== 'object' || JSON.stringify(m.layout).length > HUD_DEFAULT_MAX_CHARS * 2) return null;
+      const layout = parseHudDefault(m.layout);
+      return layout ? { t: 'admin_hud_default', layout } : null;
+    }
     case 'admin_end':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
       return { t: 'admin_end', id: m.id };
