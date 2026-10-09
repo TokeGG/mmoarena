@@ -494,8 +494,7 @@
     "type": "aura",
     "aura": "recklessness"
    }
-  ],
-  "retired": true
+  ]
  },
  {
   "id": "intimidating_shout",
@@ -521,8 +520,8 @@
   "name": "Bloodthirst",
   "class": "warrior",
   "school": "physical",
-  "target": "enemy",
-  "range": 3,
+  "target": "aoe_enemy",
+  "range": 0,
   "castTime": 0,
   "cooldown": 4500,
   "gcd": true,
@@ -540,7 +539,8 @@
     "type": "gain",
     "amount": 8
    }
-  ]
+  ],
+  "radius": 3
  },
  {
   "id": "whirlwind",
@@ -563,7 +563,8 @@
     "amount": 8
    }
   ],
-  "radius": 8
+  "radius": 8,
+  "retired": true
  },
  {
   "id": "enraged_regeneration",
@@ -1735,6 +1736,26 @@
   ]
  },
  {
+  "id": "sweep",
+  "name": "Sweep",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 5,
+  "coneDeg": 90,
+  "castTime": 0,
+  "cooldown": 4000,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 300
+   }
+  ]
+ },
+ {
   "id": "reel_in",
   "name": "Reel In",
   "class": "warrior",
@@ -1940,7 +1961,8 @@
     "type": "damage",
     "amount": 230
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "battle_banner",

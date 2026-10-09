@@ -7,7 +7,7 @@
       "desc": "Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice stuns the cone ahead.",
       "icon": "\u2694\ufe0f",
       "bar": [
-        "whirlwind",
+        "slam",
         "mortal_strike",
         "execute",
         "slice_and_dice",
@@ -31,13 +31,13 @@
       "id": "fury",
       "name": "Rampager",
       "role": "Two-handed sword",
-      "desc": "Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.",
+      "desc": "Slow swings with long reach. Bloodthirst cleaves everything around you and heals per enemy hit; Sweep slices the arc ahead.",
       "icon": "\ud83d\udde1\ufe0f",
       "bar": [
         "bladestorm",
         "bloodthirst",
-        "enraged_regeneration",
-        "slam",
+        "recklessness",
+        "sweep",
         "charge",
         "pummel",
         "hamstring",
@@ -46,9 +46,6 @@
       "mods": {
         "ability": {
           "bloodthirst": {
-            "range": 1.5
-          },
-          "slam": {
             "range": 1.5
           }
         }

@@ -128,8 +128,8 @@ describe('layer lifetime', () => {
 });
 
 describe('cones of flame match the real cone', () => {
-  it('Dragon\'s Breath and Dragon Roar are cones of their own range and width', () => {
-    for (const id of ['dragons_breath', 'dragon_roar', 'reel_in']) {
+  it('Dragon\'s Breath and Sweep are cones of their own range and width', () => {
+    for (const id of ['dragons_breath', 'sweep', 'reel_in']) {
       const def = ABILITIES[id];
       const c = coneShape(def)!;
       assert.ok(c, id);
@@ -139,10 +139,10 @@ describe('cones of flame match the real cone', () => {
     }
   });
   it('full circles are no cones', () => {
-    for (const id of ['frost_nova', 'holy_nova', 'intimidating_shout', 'psychic_scream', 'whirlwind']) assert.equal(coneShape(ABILITIES[id]), null, id);
+    for (const id of ['frost_nova', 'holy_nova', 'intimidating_shout', 'psychic_scream', 'bloodthirst']) assert.equal(coneShape(ABILITIES[id]), null, id);
   });
   it('every flame is spawned inside the cone', () => {
-    for (const id of ['dragons_breath', 'dragon_roar']) {
+    for (const id of ['dragons_breath', 'sweep']) {
       const { half } = coneShape(ABILITIES[id])!;
       for (let i = -20; i <= 20; i++) assert.ok(Math.abs(coneSpawnAngle(i / 20, half)) <= half * CONE_EDGE + 1e-9);
       assert.ok(Math.abs(coneSpawnAngle(5, half)) <= half, 'out of range input is clamped');
@@ -388,7 +388,7 @@ describe('every fire skill shares one flame look', () => {
   const src = readFileSync(new URL('../src/effects.ts', import.meta.url), 'utf8');
 
   it('every fire ability and burning aura is drawn through the shared fire helpers', () => {
-    assert.ok(fire.length >= 6);
+    assert.ok(fire.length >= 5);
     for (const a of fire) assert.ok(fireFormFor(a.id), `${a.id} has a fire form`);
     assert.deepEqual(Object.keys(FIRE_LOOK).filter((id) => !ABILITIES[id]), [], 'no stale rows');
     assert.equal(fireFormFor('flamestrike'), 'zone');
@@ -397,7 +397,6 @@ describe('every fire skill shares one flame look', () => {
     assert.equal(ABILITY_VISUAL.scorch.hit?.kind, 'fire');
     assert.equal(ABILITY_VISUAL.scorch.hit?.style, 'eruption');
     assert.equal(fireFormFor('dragons_breath'), 'cone');
-    assert.equal(fireFormFor('dragon_roar'), 'cone');
     for (const id of ['fireball', 'pyroblast']) assert.equal(ABILITY_VISUAL[id].proj?.look, 'fireball');
     for (const [id, aura] of Object.entries(AURA_VISUAL)) if (aura.style === 'burn') assert.ok(AURAS[id], id);
     // the renderer builds each form from the shared pieces

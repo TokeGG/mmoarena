@@ -1090,7 +1090,7 @@ export class ArenaSim {
         });
         break;
       case 'gain':
-        u.resource = Math.min(u.resourceMax, u.resource + eff.amount * (this.modsOf(u).ability[def.id]?.gain ?? 1));
+        u.resource = Math.min(u.resourceMax, u.resource + eff.amount * (this.modsOf(u).ability[def.id]?.gain ?? 1) * this.modsOf(u).rage);
         break;
     }
   }
@@ -1171,8 +1171,11 @@ export class ArenaSim {
 
     // a rage spender (Mortal Strike, Execute...) does not refund rage off its own hit
     const spender = ability !== null && !!ABILITIES[ability]?.cost && src?.resourceType === 'rage';
-    if (src?.resourceType === 'rage' && !spender) src.resource = Math.min(src.resourceMax, src.resource + remaining * TUNING.rageFromDealt);
-    if (tgt.resourceType === 'rage') tgt.resource = Math.min(tgt.resourceMax, tgt.resource + remaining * TUNING.rageFromTaken);
+    if (src?.resourceType === 'rage' && !spender) src.resource = Math.min(src.resourceMax, src.resource + remaining * TUNING.rageFromDealt * this.modsOf(src).rage);
+    if (tgt.resourceType === 'rage') tgt.resource = Math.min(tgt.resourceMax, tgt.resource + remaining * TUNING.rageFromTaken * this.modsOf(tgt).rage);
+
+    const steal = src && src.alive ? this.modsOf(src).lifesteal : 0;
+    if (steal > 0 && remaining > 0) this.heal(src!, src!, remaining * steal, 'enraged_regeneration');
 
     if (remaining + absorbed > 0) {
       if (tgt.charge && !periodic) this.endCharge(tgt, false); // a direct hit stops a charge (a damage-over-time tick does not)
