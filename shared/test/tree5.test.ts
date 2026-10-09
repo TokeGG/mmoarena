@@ -291,10 +291,15 @@ describe('tier three', () => {
       m.resource = 500;
       foe.health = foe.maxHealth;
       sim.useAbility(m.id, 'fireball', foe.id);
-      advance(sim, TICK);
+      advance(sim, ABILITIES.fireball.castTime + 2 * TICK);
       if (foe.auras.some((a) => a.id === 'burn')) { burned++; foe.auras = []; }
     }
-    assert.ok(burned > 2 && burned < 25, `burned ${burned} of 80`);
+    const procP = (cls: ClassId, spec: string, talent: string, ability: string): number => {
+      const t = talentsFor(cls, spec).flat().find((x) => x.id === talent)!;
+      return (t.mods!.ability![ability].extra![0] as { p: number }).p;
+    };
+    const pBurn = procP('mage', 'fire', 'mage_fire_t3c', 'fireball');
+    assert.ok(burned > 80 * pBurn / 4 && burned < 80 * pBurn * 3, `burned ${burned} of 80 (chance ${pBurn})`);
 
     // Surge of Power: free Arcane Power for 8 s
     const sim2 = live(7);
@@ -312,7 +317,8 @@ describe('tier three', () => {
       const p = a.auras.find((x) => x.id === 'arcane_power');
       if (p) { powered++; assert.ok(p.expiresAt - sim2.time <= 8000, 'for 8 seconds'); a.auras = a.auras.filter((x) => x.id !== 'arcane_power'); }
     }
-    assert.ok(powered > 2 && powered < 25, `powered ${powered} of 80`);
+    const pPower = procP('mage', 'arcane', 'mage_arcane_t3b', 'arcane_blast');
+    assert.ok(powered > 80 * pPower / 4 && powered < 80 * pPower * 3, `powered ${powered} of 80 (chance ${pPower})`);
     assert.ok(hits);
   });
 

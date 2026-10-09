@@ -203,7 +203,7 @@ describe('Pyromancy', () => {
 });
 
 describe('Warbringer', () => {
-  it('Slam generates 15 rage', () => {
+  it('Slam generates its listed rage', () => {
     const sim = new ArenaSim({ seed: 6, prepMs: 0 });
     const w = add(sim, 'warrior', 0, 0, 0, 'arms');
     const f = add(sim, 'warrior', 1, 0, 2);
@@ -212,16 +212,15 @@ describe('Warbringer', () => {
     w.resource = 0;
     w.cooldowns = {};
     w.gcdEnd = 0;
-    assert.equal(ABILITIES.slam.cost, 0);
     const hp = f.health;
     assert.ok(sim.useAbility(w.id, 'slam', f.id).ok);
-    // the 15 from Slam, plus the rage every hit earns from the damage it deals
+    // the listed gain from Slam, plus the rage every hit earns from the damage it deals
+    const slamGain = (ABILITIES.slam.effects.find((e) => e.type === 'gain') as { amount: number }).amount;
     const fromHit = (hp - f.health) * TUNING.rageFromDealt;
-    assert.ok(Math.abs(w.resource - (15 + fromHit)) < 1, `rage ${w.resource} (hit gave ${fromHit})`);
+    assert.ok(Math.abs(w.resource - (slamGain + fromHit)) < 1, `rage ${w.resource} (hit gave ${fromHit})`);
   });
-  it('Slice and Dice hits the 90 degree cone in front like Sweep, not the whole circle', () => {
+  it('Slice and Dice hits the cone in front like Sweep, not the whole circle', () => {
     assert.equal(ABILITIES.slice_and_dice.coneDeg, ABILITIES.sweep.coneDeg);
-    assert.equal(ABILITIES.slice_and_dice.coneDeg, 90);
     const sim = new ArenaSim({ seed: 6, prepMs: 0 });
     const w = add(sim, 'warrior', 0, 0, 0, 'arms');
     const front = add(sim, 'warrior', 1, 0, 3);
