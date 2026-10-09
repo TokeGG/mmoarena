@@ -19,6 +19,8 @@ export interface DevToolsEnv {
   /** Discord webhook for dev notes (else the suggestion box's). */
   DEV_NOTES_WEBHOOK_URL?: string;
   SUGGESTION_WEBHOOK_URL?: string;
+  /** Render's deploy hook for this service (Dashboard, Settings, Deploy Hook): a request to it starts a deploy. */
+  RENDER_DEPLOY_HOOK_URL?: string;
 }
 
 /**
@@ -216,23 +218,70 @@ export class DevTools {
     const { api, base } = this.github(token);
     let url = '';
     let n = 0;
-    for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
-      const mine = patches.filter((p) => p.file === file);
-      if (!mine.length) continue;
-      const got = (await api(`/contents/${FILES[file]}?ref=${base}`)) as { content: string; sha: string };
-      const text = Buffer.from(got.content, 'base64').toString('utf8');
-      const next = patchJsonText(text, file, mine);
-      if (next === text) continue;
-      const lines = mine.map((p) => `${label(p)}: ${fileValue(text, file, p) ?? '?'} -> ${p.value}`);
-      const res = (await api(`/contents/${FILES[file]}`, {
-        method: 'PUT',
-        body: JSON.stringify({ message: `Dev tuning by ${by}: ${lines.slice(0, 3).join('; ')}${lines.length > 3 ? ` and ${lines.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: got.sha, branch: base }),
-      })) as { commit?: { html_url?: string } };
-      url = res.commit?.html_url ?? url;
-      n++;
+    try {
+      for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
+        const mine = patches.filter((p) => p.file === file);
+        if (!mine.length) continue;
+        // someone else may commit the same file between our read and our write: read again and retry a few times
+        for (let attempt = 1; ; attempt++) {
+          const got = (await api(`/contents/${FILES[file]}?ref=${base}`)) as { content: string; sha: string };
+          const text = Buffer.from(got.content, 'base64').toString('utf8');
+          const next = patchJsonText(text, file, mine);
+          if (next === text) break;
+          const lines = mine.map((p) => `${label(p)}: ${fileValue(text, file, p) ?? '?'} -> ${p.value}`);
+          try {
+            const res = (await api(`/contents/${FILES[file]}`, {
+              method: 'PUT',
+              body: JSON.stringify({ message: `Dev tuning by ${by}: ${lines.slice(0, 3).join('; ')}${lines.length > 3 ? ` and ${lines.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: got.sha, branch: base }),
+            })) as { commit?: { html_url?: string } };
+            url = res.commit?.html_url ?? url;
+            n++;
+            break;
+          } catch (e) {
+            if (attempt < 3 && /does not match|409|422/.test((e as Error).message)) continue;
+            throw e;
+          }
+        }
+      }
+    } catch (e) {
+      throw new Error(friendlyGithubError((e as Error).message, base));
     }
     if (!n) throw new Error('Nothing changed: those numbers are already what the files have.');
     return url || `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commits/${base}`;
+  }
+
+  private lastRedeploy = 0;
+
+  /** Is a Render deploy hook set? */
+  get canRedeploy(): boolean {
+    return !!this.env.RENDER_DEPLOY_HOOK_URL;
+  }
+
+  /** Starts a deploy of the latest commit on Render through its deploy hook (at most one every two minutes). */
+  async redeploy(): Promise<string> {
+    const hook = this.env.RENDER_DEPLOY_HOOK_URL;
+    if (!hook) throw new Error('No Render deploy hook on the server. In Render open the service, Settings, Deploy Hook, copy the URL and add it as RENDER_DEPLOY_HOOK_URL in the server environment.');
+    let url: URL;
+    try {
+      url = new URL(hook);
+    } catch {
+      throw new Error('RENDER_DEPLOY_HOOK_URL is not a web address.');
+    }
+    if (url.protocol !== 'https:' || !/(^|\.)render\.com$/.test(url.hostname)) throw new Error('RENDER_DEPLOY_HOOK_URL must be the https deploy hook address from Render.');
+    const wait = this.lastRedeploy + 120000 - Date.now();
+    if (wait > 0) throw new Error(`A deploy was just started. Try again in ${Math.ceil(wait / 1000)} seconds.`);
+    this.lastRedeploy = Date.now();
+    try {
+      const r = await this.http(url.toString(), { method: 'POST' });
+      if (!r.ok) {
+        this.lastRedeploy = 0;
+        throw new Error(`Render refused the deploy (${r.status}). Check the deploy hook URL.`);
+      }
+    } catch (e) {
+      this.lastRedeploy = 0;
+      throw e instanceof Error && e.message.startsWith('Render') ? e : new Error('Could not reach Render to start the deploy.');
+    }
+    return 'Deploy started on Render. The game restarts when it is ready (a minute or two), so everyone online is disconnected for a moment.';
   }
 
   get notifies(): boolean {
@@ -256,6 +305,13 @@ export class DevTools {
       return false;
     }
   }
+}
+
+/** GitHub's message in plain words, with what to change when the commit was refused. */
+function friendlyGithubError(msg: string, base: string): string {
+  if (/protected branch|required status|review required|pull request is required|repository rule/i.test(msg)) return `GitHub refused it: the ${base} branch is protected, so nothing can be committed straight to it. In GitHub open Settings, Branches (or Rules), and allow the token's account to push to ${base} (or turn off "Require a pull request"). ${msg}`;
+  if (/resource not accessible|bad credentials|requires authentication|not found/i.test(msg)) return `GitHub refused it: the server's GITHUB_TOKEN cannot write to this repository. It needs the Contents "Read and write" permission on the repository. ${msg}`;
+  return msg;
 }
 
 /** "Fireball · effects.0.amount" */

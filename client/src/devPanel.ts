@@ -648,6 +648,12 @@ export class DevPanel {
       if (!window.confirm(`Commit ${all.length} changed number${all.length === 1 ? '' : 's'} straight to the main branch on GitHub? There is no review and the live game updates on the next deploy.`)) return;
       this.hooks.send({ t: 'dev_commit', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
+    const redeploy = el('button', 'mm-small', 'Redeploy Render');
+    redeploy.title = 'Starts a deploy of the latest commit on Render. The game restarts when it is ready, so everyone online is disconnected for a moment.';
+    redeploy.addEventListener('click', () => {
+      if (!window.confirm('Start a deploy on Render now? The game restarts when it is ready (a minute or two) and everyone online is disconnected for a moment.')) return;
+      this.hooks.send({ t: 'dev_redeploy' });
+    });
     const keep = el('button', 'mm-small mm-go', 'Keep for my session');
     keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
     keep.addEventListener('click', () => {
@@ -658,8 +664,8 @@ export class DevPanel {
       }
       this.hooks.send({ t: 'dev_session', patches: all });
     });
-    if (this.inMatch) acts.append(tryIt, keep, reset, save, commit);
-    else acts.append(keep, save, commit);
+    if (this.inMatch) acts.append(tryIt, keep, reset, save, commit, redeploy);
+    else acts.append(keep, save, commit, redeploy);
     r.append(acts);
     if (this.session.length) {
       const srow = el('div', 'devp-row');

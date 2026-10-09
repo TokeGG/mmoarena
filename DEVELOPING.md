@@ -269,6 +269,7 @@ The **🛡 Admin** button (top right, founder account only, the name `Toke`) ope
 - Owner and dev tools are never listed in the patch notes.
 - **Suggestions:** the owner sees every suggestion under the 💡 Suggest box (with any attached .txt note, up to 10,000 characters) and can delete them.
 - **Dev commits:** a dev's **Commit to GitHub** button (`dev_commit`, `DevTools.commitToBase`) puts the numbers straight on the main branch (needs `GITHUB_TOKEN`): only the five JSON data files change, one commit per file, no review; the next deploy makes them live, and the commit is in the admin log under the dev's name. The admin panel's Tuning tab lists proposals with **Commit the ticked ones to GitHub** (`admin_proposals` op `commit`, `DevTools.actOn`) and **Delete ticked**, both open to devs; *Make live* and *One pull request* stay the owner's.
+- **Redeploy:** the dev tools' **Redeploy Render** button (`dev_redeploy`, `DevTools.redeploy`) posts to the service's Render deploy hook (`RENDER_DEPLOY_HOOK_URL`, only https `*.render.com` addresses, at most one deploy every two minutes); everyone online is disconnected while the server restarts. Commits to GitHub retry if someone else changed the same file, and a protected branch or a token without Contents write access is explained in the message.
 - The dev tag opens the tuning tools and the read/training part of the admin panel (no account moderation, maintenance or announcements: those stay the owner's). Password reset is the only account recovery.
 
 ## Security measures

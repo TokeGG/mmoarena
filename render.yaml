@@ -15,3 +15,7 @@ services:
       # service, add ARENA_TICK_MS there by hand (a blueprint sync does not overwrite dashboard values). See README "Running at 62.5 Hz".
       - key: ARENA_TICK_MS
         value: "16"
+      # The dev panel's Redeploy button: Render, this service, Settings, Deploy Hook (copy the URL). Paste it into the dashboard;
+      # it is a secret, so it is not stored in this file.
+      - key: RENDER_DEPLOY_HOOK_URL
+        sync: false
