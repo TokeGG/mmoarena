@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.35",
+  "date": "2026-10-09",
+  "at": "2026-10-09T22:46:00Z",
+  "title": "Duelist auto-attack",
+  "changes": [
+   "Duelist: auto-attack damage 50 to 75 (the other Rogue specs keep 50)."
+  ]
+ },
+ {
   "version": "0.69.34",
   "date": "2026-10-09",
   "at": "2026-10-09T22:30:05Z",

@@ -58,9 +58,9 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Slam](#skill-slam) | 3 yd range · Instant · 3s cooldown |
-| 2 | [Mortal Strike](#skill-mortal-strike) | 30 rage · 3 yd range · Instant · 6s cooldown |
+| 2 | [Mortal Strike](#skill-mortal-strike) | 30 rage · 3 yd range · Instant · 8s cooldown |
 | 3 | [Execute](#skill-execute) | 40 rage · 3 yd range · Instant · 5s cooldown |
-| 4 | [Slice and Dice](#skill-slice-and-dice) | 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun |
+| 4 | [Slice and Dice](#skill-slice-and-dice) | 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 10s cooldown |
 | 7 | [Hamstring](#skill-hamstring) | 10 rage · 3 yd range · Instant · 8s slow |
@@ -85,7 +85,7 @@ Slow swings with long reach. Bloodthirst cleaves everything around you and heals
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
-| 1 | [Bladestorm](#skill-bladestorm) | 30 rage · 7 yd radius · 5s channel · 60s cooldown |
+| 1 | [Bladestorm](#skill-bladestorm) | 30 rage · 7 yd radius · 7s channel · 80s cooldown |
 | 2 | [Bloodthirst](#skill-bloodthirst) | **4.5** (base 3) yd radius · Instant · 3.5s cooldown |
 | 3 | [Recklessness](#skill-recklessness) | Instant · 45s cooldown · 12s buff |
 | 4 | [Sweep](#skill-sweep) | 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown |
@@ -116,7 +116,7 @@ Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps ene
 | 1 | [Reel In](#skill-reel-in) | 15 rage · 10 yd range, 90° cone in front of you · Instant · 25s cooldown |
 | 2 | [Deep Cuts](#skill-deep-cuts) | **5** (base 3) yd range · Instant · 4s cooldown · 6s bleed |
 | 3 | [Axe Throw](#skill-axe-throw) | 50 rage · 10 yd range · Instant · 2s cooldown |
-| 4 | [You're Not Going Anywhere](#skill-not-going-anywhere) | 20 rage · 15 yd range · Aimed at the cursor · Instant · 60s cooldown · 8s banner |
+| 4 | [You're Not Going Anywhere](#skill-not-going-anywhere) | 20 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · **5** (base 3) yd range · Instant · 10s cooldown |
 | 7 | [Hamstring](#skill-hamstring) | 10 rage · **5** (base 3) yd range · Instant · 8s slow |
@@ -148,9 +148,9 @@ On the bar: [Warbringer](#warrior-arms) (key 1).
 <a id="skill-mortal-strike"></a>
 #### Mortal Strike
 
-*Physical* · 30 rage · 3 yd range · Instant · 6s cooldown
+*Physical* · 30 rage · 3 yd range · Instant · 8s cooldown
 
-- Deals 400 physical damage.
+- Deals 370 physical damage.
 - Applies Mortal Wounds for 8s: −40% healing received.
 - Effects: [Mortal Wounds](#effect-mortal-wounds)
 
@@ -169,7 +169,7 @@ On the bar: [Warbringer](#warrior-arms) (key 3).
 <a id="skill-slice-and-dice"></a>
 #### Slice and Dice
 
-*Physical* · 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun
+*Physical* · 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun
 
 - Strikes every enemy in range 16 times, once every 0.3s (the first at once), for 25 physical damage each (400 total). You stand still while it lasts, and being interrupted stops it.
 - Cannot move, cast or act.
@@ -193,7 +193,7 @@ On the bar: [Warbringer](#warrior-arms) (key 5), [Rampager](#warrior-fury) (key 
 
 *Physical* · 10 rage · 3 yd range · Instant · 10s cooldown
 
-- Interrupts the target's spellcasting and locks out that school for 4s.
+- Interrupts the target's spellcasting and locks out that school for 5s.
 - *Does not trigger the global cooldown.*
 
 On the bar: [Warbringer](#warrior-arms) (key 6), [Rampager](#warrior-fury) (key 6), [Barbarian](#warrior-protection) (key 6).
@@ -221,9 +221,9 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 <a id="skill-bladestorm"></a>
 #### Bladestorm
 
-*Physical* · 30 rage · 7 yd radius · 5s channel · 60s cooldown
+*Physical* · 30 rage · 7 yd radius · 7s channel · 80s cooldown
 
-- Strikes every enemy in range 10 times, once every 0.5s, for 90 physical damage each (900 total).
+- Strikes every enemy in range 10 times, once every 0.7s, for 90 physical damage each (900 total).
 - *Can be cast while moving.*
 - *Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.*
 
@@ -294,7 +294,7 @@ On the bar: [Barbarian](#warrior-protection) (key 3).
 <a id="skill-not-going-anywhere"></a>
 #### You're Not Going Anywhere
 
-*Physical* · 20 rage · 15 yd range · Aimed at the cursor · Instant · 60s cooldown · 8s banner
+*Physical* · 20 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner
 
 - Plants a banner at the chosen spot. Enemies inside its 5-yard circle cannot leave it.
 
@@ -387,13 +387,13 @@ Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance i
 Big fire damage with Pyroblast, Fireball and Flamestrike. Scorch and Fireball sear the target with Singed (1 and 2 stacks), and when it is full the next hit brings Hot Streak, which makes Pyroblast instant; Fireball can also bring Hot Streak by itself. Cauterize saves you from one killing blow.
 
 - **Weapon:** Fire staff
-- **Passive, Cauterize:** a killing blow leaves you at 35% health instead, once every 3 minutes
+- **Passive, Cauterize:** a killing blow leaves you at 45% health instead, once every 3.3333333333333335 minutes
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Fireball](#skill-fireball) | 60 mana · 30 yd range · 1.8s cast |
 | 2 | [Pyroblast](#skill-pyroblast) | 90 mana · 30 yd range · 4s cast |
-| 3 | [Flamestrike](#skill-flamestrike) | 70 mana · 30 yd range · Aimed at the cursor · 2.8s cast · 45s cooldown · 8s ground effect |
+| 3 | [Flamestrike](#skill-flamestrike) | 70 mana · 30 yd range · Aimed at the cursor · 2.8s cast · 40s cooldown · 8s ground effect |
 | 4 | [Blink](#skill-blink) | Instant · 15s cooldown |
 | 5 | [Counterspell](#skill-counterspell) | 30 yd range · Instant · 24s cooldown |
 | 6 | [Polymorph](#skill-polymorph) | 70 mana · 30 yd range · 1.7s cast · 8s incapacitate |
@@ -473,7 +473,7 @@ On the bar: [Cryomancy](#mage-frost) (key 3), [Pyromancy](#mage-fire) (key 6), [
 
 *Arcane* · 30 yd range · Instant · 24s cooldown
 
-- Interrupts the target's spellcasting and locks out that school for 4s.
+- Interrupts the target's spellcasting and locks out that school for 5s.
 - *Usable while locked out.*
 - *Does not trigger the global cooldown.*
 
@@ -547,7 +547,7 @@ On the bar: [Pyromancy](#mage-fire) (key 2).
 <a id="skill-flamestrike"></a>
 #### Flamestrike
 
-*Fire* · 70 mana · 30 yd range · Aimed at the cursor · 2.8s cast · 45s cooldown · 8s ground effect
+*Fire* · 70 mana · 30 yd range · Aimed at the cursor · 2.8s cast · 40s cooldown · 8s ground effect
 
 - Enemies in the area take 600 fire damage the moment the cast lands. Marks a 5-yard circle at the chosen spot. Enemies still inside take 70 fire damage every 1s. Jump to avoid a pulse (one dodging jump every 1.5s). If the opening hit lands on an enemy you always gain Hot Streak.
 
@@ -692,12 +692,12 @@ Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a 
 |---|---|---|
 | 1 | [Flash Heal](#skill-flash-heal) | 70 mana · 40 yd range · 1.5s cast |
 | 2 | [Power Word: Shield](#skill-power-word-shield) | 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield |
-| 3 | [Pain Suppression](#skill-pain-suppression) | 40 yd range · Instant · 45s cooldown · 8s buff |
+| 3 | [Pain Suppression](#skill-pain-suppression) | 40 yd range · Instant · 80s cooldown · 8s buff |
 | 4 | [Smite](#skill-smite) | 25 mana · 30 yd range · 1.5s cast |
 | 5 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 8s cooldown |
 | 6 | [Psychic Scream](#skill-psychic-scream) | 50 mana · 8 yd radius · Instant · 30s cooldown · 6s fear |
 | 7 | [Penance](#skill-penance) | 45 mana · 30 yd range · 1.5s channel · 10s cooldown |
-| 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 90s cooldown |
+| 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 60s cooldown |
 
 **Talents** (one per tier; tiers I and II and IV are under [Priest](#priest)):
 
@@ -720,13 +720,13 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Flash Heal](#skill-flash-heal) | 70 mana · 40 yd range · 1.5s cast |
-| 2 | [Greater Heal](#skill-greater-heal) | 90 mana · 40 yd range · 2.6s cast |
+| 2 | [Greater Heal](#skill-greater-heal) | 90 mana · 40 yd range · 2.8s cast |
 | 3 | [Power Word: Shield](#skill-power-word-shield) | 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield |
 | 4 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 8s cooldown |
 | 5 | [Psychic Scream](#skill-psychic-scream) | 50 mana · 8 yd radius · Instant · 30s cooldown · 6s fear |
-| 6 | [Holy Nova](#skill-holy-nova) | 70 mana · 12 yd radius · Instant · 12s cooldown |
+| 6 | [Holy Nova](#skill-holy-nova) | 70 mana · 15 yd radius · Instant · 12s cooldown |
 | 7 | [Smite](#skill-smite) | 25 mana · 30 yd range · 1.5s cast |
-| 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 90s cooldown |
+| 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 60s cooldown |
 
 **Talents** (one per tier; tiers I and II and IV are under [Priest](#priest)):
 
@@ -786,14 +786,14 @@ On the bar: [Warden](#priest-discipline) (key 1), [Lightbearer](#priest-holy) (k
 
 *Holy* · 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield
 
-- Absorbs 250 damage.
+- Absorbs 275 damage.
 
 On the bar: [Warden](#priest-discipline) (key 2), [Lightbearer](#priest-holy) (key 3), [Gloomweaver](#priest-shadow) (key 8).
 
 <a id="skill-pain-suppression"></a>
 #### Pain Suppression
 
-*Holy* · 40 yd range · Instant · 45s cooldown · 8s buff
+*Holy* · 40 yd range · Instant · 80s cooldown · 8s buff
 
 - −40% damage taken.
 - *Does not trigger the global cooldown.*
@@ -840,7 +840,7 @@ On the bar: [Warden](#priest-discipline) (key 7).
 <a id="skill-desperate-prayer"></a>
 #### Desperate Prayer
 
-*Holy* · Instant · 90s cooldown
+*Holy* · Instant · 60s cooldown
 
 - Heals for 650.
 - *Does not trigger the global cooldown.*
@@ -850,19 +850,19 @@ On the bar: [Warden](#priest-discipline) (key 8), [Lightbearer](#priest-holy) (k
 <a id="skill-greater-heal"></a>
 #### Greater Heal
 
-*Holy* · 90 mana · 40 yd range · 2.6s cast
+*Holy* · 90 mana · 40 yd range · 2.8s cast
 
-- Heals for 580.
+- Heals for 630.
 
 On the bar: [Lightbearer](#priest-holy) (key 2).
 
 <a id="skill-holy-nova"></a>
 #### Holy Nova
 
-*Holy* · 70 mana · 12 yd radius · Instant · 12s cooldown
+*Holy* · 70 mana · 15 yd radius · Instant · 12s cooldown
 
-- Deals 80 holy damage to all enemies in range.
-- Heals you and every ally in range for 130.
+- Deals 140 holy damage to all enemies in range.
+- Heals you and every ally in range for 285.
 
 On the bar: [Lightbearer](#priest-holy) (key 6).
 
@@ -889,8 +889,8 @@ On the bar: [Gloomweaver](#priest-shadow) (key 2).
 
 *Shadow* · 55 mana · 30 yd range · Instant · 15s cooldown · 10s damage over time
 
-- Deals 300 shadow damage.
-- Takes 42 shadow damage every 1s (420 total).
+- Deals 250 shadow damage.
+- Takes 45 shadow damage every 1s (450 total).
 
 On the bar: [Gloomweaver](#priest-shadow) (key 3).
 
@@ -1009,7 +1009,7 @@ Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate
 Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swings, energy and healing.
 
 - **Weapon:** Twin Daggers
-- **Auto-attack:** 50 damage every 1.8s, 3 yd reach
+- **Auto-attack:** 75 damage every 1.8s, 3 yd reach
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
@@ -1017,7 +1017,7 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 | 2 | [Sinister Strike](#skill-sinister-strike) | 40 energy · 3 yd range · Instant |
 | 3 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s) |
 | 4 | [Kick](#skill-kick) | 3 yd range · Instant · 15s cooldown |
-| 5 | [Adrenaline Rush](#skill-adrenaline-rush) | Instant · 15s cooldown · 4s buff (+1.5s per combo point) |
+| 5 | [Adrenaline Rush](#skill-adrenaline-rush) | Instant · 15s cooldown · 5s buff (+1.5s per combo point) |
 | 6 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
 | 7 | [Sprint](#skill-sprint) | Instant · 60s cooldown · 8s speed boost |
 | 8 | [Gouge](#skill-gouge) | 25 energy · 3 yd range · Instant · 20s cooldown · 4s incapacitate |
@@ -1161,9 +1161,9 @@ On the bar: [Duelist](#rogue-combat) (key 2).
 <a id="skill-adrenaline-rush"></a>
 #### Adrenaline Rush
 
-*Physical* · Instant · 15s cooldown · 4s buff (+1.5s per combo point)
+*Physical* · Instant · 15s cooldown · 5s buff (+1.5s per combo point)
 
-- +60% energy regeneration. +42.9% auto attack speed. Heals 2% of maximum health every 1s.
+- +60% energy regeneration. +81.8% auto attack speed. Heals 2% of maximum health every 3s.
 - *Spends all combo points (needs at least 1).*
 - *Does not trigger the global cooldown.*
 
@@ -1298,7 +1298,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 
 | Effect | Kind | Lasts | What it does | From |
 |---|---|---|---|---|
-| <a id="effect-adrenaline-rush"></a>**Adrenaline Rush** | Buff | 4s | +60% energy regeneration. +42.9% auto attack speed. Heals 2% of maximum health every 1s. | [Adrenaline Rush](#skill-adrenaline-rush) |
+| <a id="effect-adrenaline-rush"></a>**Adrenaline Rush** | Buff | 5s | +60% energy regeneration. +81.8% auto attack speed. Heals 2% of maximum health every 3s. | [Adrenaline Rush](#skill-adrenaline-rush) |
 | <a id="effect-arcane-charge"></a>**Arcane Charge** | Buff | 12s | Stacks up to 5 times. | [Arcane Blast](#skill-arcane-blast), [Arcane Missiles](#skill-arcane-missiles) |
 | <a id="effect-arcane-slow"></a>**Arcane Explosion** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Arcane Explosion](#skill-arcane-explosion) |
 | <a id="effect-arcane-power"></a>**Arcane Power** | Buff, magic | 15s | +25% damage dealt. −30% cast time. | [Arcane Power](#skill-arcane-power) |
@@ -1309,7 +1309,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-cheap-shot-stun"></a>**Cheap Shot** | Debuff (stun) | 4s | Cannot move, cast or act. | [Cheap Shot](#skill-cheap-shot) |
 | <a id="effect-deep-cuts-bleed"></a>**Deep Cuts** | Debuff (dot) | 6s | Bleeding: takes 14 physical damage every 1s (84 total). | [Deep Cuts](#skill-deep-cuts) |
 | <a id="effect-deep-freeze-stun"></a>**Deep Freeze** | Debuff (stun) | 4s | Cannot move, cast or act. | [Deep Freeze](#skill-deep-freeze) |
-| <a id="effect-plague-bloom"></a>**Devouring Plague** | Debuff (dot), magic | 10s | Takes 42 shadow damage every 1s (420 total). | [Devouring Plague](#skill-plague-bloom) |
+| <a id="effect-plague-bloom"></a>**Devouring Plague** | Debuff (dot), magic | 10s | Takes 45 shadow damage every 1s (450 total). | [Devouring Plague](#skill-plague-bloom) |
 | <a id="effect-dispersion"></a>**Dispersion** | Buff | 6s | −90% damage taken. You cannot use any ability while it lasts. | [Dispersion](#skill-dispersion) |
 | <a id="effect-dragons-breath"></a>**Dragon's Breath** | Debuff (fear), magic | 4s | Runs around in fear at 35% speed. Cannot cast or act, not even Blink. | [Dragon's Breath](#skill-dragons-breath) |
 | <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | Heals you for 100% of the damage you deal. | [Enraged Regeneration](#skill-enraged-regeneration) |
@@ -1332,7 +1332,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-mutilate-bleed"></a>**Mutilate** | Debuff (dot) | 6s | Bleeding: takes 14 physical damage every 1s (84 total). | [Mutilate](#skill-mutilate) |
 | <a id="effect-pain-suppression"></a>**Pain Suppression** | Buff | 8s | −40% damage taken. | [Pain Suppression](#skill-pain-suppression) |
 | <a id="effect-polymorph"></a>**Polymorph** | Debuff (incapacitate), magic | 8s | Cannot move, cast or act (can still turn), not even Blink. Breaks on damage. Heals 10% of maximum health every 1s. | [Polymorph](#skill-polymorph) |
-| <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 250 damage. | [Power Word: Shield](#skill-power-word-shield) |
+| <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 275 damage. | [Power Word: Shield](#skill-power-word-shield) |
 | <a id="effect-psychic-scream"></a>**Psychic Scream** | Debuff (fear), magic | 6s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Psychic Scream](#skill-psychic-scream) |
 | <a id="effect-purified"></a>**Purified** | Buff | 4s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
 | <a id="effect-recklessness"></a>**Recklessness** | Buff | 12s | +30% damage dealt. +100% rage from all sources. | [Recklessness](#skill-recklessness) |

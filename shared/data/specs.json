@@ -294,6 +294,11 @@
       "weapon": {
         "id": "daggers",
         "name": "Twin Daggers"
+      },
+      "auto": {
+        "interval": 1800,
+        "damage": 75,
+        "range": 3
       }
     },
     {
