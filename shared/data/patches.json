@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.34",
+  "date": "2026-10-09",
+  "at": "2026-10-09T22:30:05Z",
+  "title": "Balance changes",
+  "changes": [
+   "Adrenaline Rush: tick time 1 s to 3 s.",
+   "Adrenaline Rush: duration 4 s to 5 s.",
+   "Adrenaline Rush: auto-attack swing time -30% to -45%."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.33",
   "date": "2026-10-09",
   "at": "2026-10-09T22:22:33Z",

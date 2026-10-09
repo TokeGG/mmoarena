@@ -159,15 +159,15 @@
   "adrenaline_rush": {
     "name": "Adrenaline Rush",
     "kind": "buff",
-    "duration": 4000,
+    "duration": 5000,
     "harmful": false,
     "mods": {
       "regen": 1.6,
-      "autoSpeed": 0.7
+      "autoSpeed": 0.55
     },
     "hot": {
       "pct": 2,
-      "interval": 1000
+      "interval": 3000
     }
   },
   "evasion": {
