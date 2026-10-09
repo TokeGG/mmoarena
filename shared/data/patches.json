@@ -1,5 +1,25 @@
 [
  {
+  "version": "0.69.7",
+  "date": "2026-10-09",
+  "at": "2026-10-09T04:19:38Z",
+  "title": "Class changes: mage, rogue, priest and warrior",
+  "changes": [
+   "Mage: Pyroblast no longer gives Hot Streak. Fireball now leaves Singed (10 seconds, stacks twice) and the third Fireball removes it and gives you Hot Streak.",
+   "Mage: Streaking makes Singed last 50% longer.",
+   "Mage: Mirror Image summons two images of you (same class, spec and talents, 1 health, 80% less damage) and enemies lose their target on you.",
+   "Rogue: Eviscerate is now Weak Point: it silences and disarms for 1 second per combo point (up to 5) and deals its damage one hit per second.",
+   "Priest: Purifying Light shows a circle of light on the ground, and Shadow Might also gives +10% healing.",
+   "Warden: Power Word: Shield is 50% stronger and Penance can be cast while moving.",
+   "Warrior: Dragon's Fury is replaced by Savage Mending, which teaches Enraged Regeneration; it now lasts 8 seconds and heals you for 300% of the damage you deal.",
+   "Rampager: Bloodthirst hits every enemy around you and heals 3% of your health per hit; Slam becomes Sweep (a 90 degree slice, 5 yards, 300 damage, 4 second cooldown); Enraged Regeneration becomes Recklessness (12 seconds, 40% more damage, double rage).",
+   "Warbringer: Cleave is replaced by Slam, and its Cleave talents now improve Slam.",
+   "Cleansing Charm now also removes Polymorph and Dragon's Breath, and works while you are under either.",
+   "Nameplates now show your mana, energy or rage bar under the health bar (a setting in the HUD look options).",
+   "Bots were retrained for all of these changes."
+  ]
+ },
+ {
   "version": "0.69.6",
   "date": "2026-10-09",
   "at": "2026-10-09T01:30:00Z",

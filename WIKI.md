@@ -44,7 +44,7 @@ Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
 |  | 💚 **Healing Charm** | A trinket button beside your bar: heals you for 25% of your maximum health. 60 second cooldown, no global cooldown, works while stunned. |
 | V | 📢 **Terrifying Roar** | Learn Intimidating Shout: a fear in 8 yards that breaks on damage. Replaces Heroic Leap. → [Intimidating Shout](#skill-intimidating-shout) |
-|  | 🐉 **Dragon's Fury** | Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap. → [Dragon Roar](#skill-dragon-roar) |
+|  | 💖 **Savage Mending** | Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap. → [Enraged Regeneration](#skill-enraged-regeneration) |
 |  | 🚩 **Rallying Banner** | Learn Battle Banner: plant a banner for 12 seconds; you and your allies near it deal 10% more damage and take 10% less. Replaces Heroic Leap. → [Battle Banner](#skill-battle-banner) |
 
 <a id="warrior-arms"></a>
@@ -57,7 +57,7 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
-| 1 | [Cleave](#skill-whirlwind) | 8 yd radius · Instant · 2.5s cooldown |
+| 1 | [Slam](#skill-slam) | 40 rage · 3 yd range · Instant · 3s cooldown |
 | 2 | [Mortal Strike](#skill-mortal-strike) | 30 rage · 3 yd range · Instant · 6s cooldown |
 | 3 | [Execute](#skill-execute) | 40 rage · 3 yd range · Instant · 5s cooldown |
 | 4 | [Slice and Dice](#skill-slice-and-dice) | 30 rage · 6 yd range, 90° cone in front of you · 4s channel · 30s cooldown · 1.1s stun |
@@ -70,25 +70,25 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 
 | Tier | Talent | What it does |
 |---|---|---|
-| III | ⚔️ **Harder Cleave** | Cleave does 10% more damage. |
-|  | 🦵 **Crippling Strikes** | Cleave has a 30% chance to Hamstring the target. |
-|  | 😡 **Rage Engine** | Cleave generates 50% more rage. |
+| III | ⚔️ **Harder Slam** | Slam does 10% more damage. |
+|  | 🦵 **Crippling Strikes** | Slam has a 30% chance to Hamstring the target. |
+|  | 😡 **Rage Engine** | Slam generates 8 rage. |
 
 <a id="warrior-fury"></a>
 ### 🗡️ Rampager · Two-handed sword
 
-Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.
+Slow swings with long reach. Bloodthirst cleaves everything around you and heals per enemy hit; Sweep slices the arc ahead.
 
 - **Weapon:** Greatsword
 - **Auto-attack:** 85 damage every 3s, 4.5 yd reach
-- **Spec bonuses:** Bloodthirst: +1.5 yd range, Slam: +1.5 yd range
+- **Spec bonuses:** Bloodthirst: +1.5 yd range
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Bladestorm](#skill-bladestorm) | 30 rage · 7 yd radius · 5s channel · 60s cooldown |
-| 2 | [Bloodthirst](#skill-bloodthirst) | 20 rage · **4.5** (base 3) yd range · Instant · 4.5s cooldown |
-| 3 | [Enraged Regeneration](#skill-enraged-regeneration) | 10 rage · Instant · 60s cooldown · 8s buff |
-| 4 | [Slam](#skill-slam) | 40 rage · **4.5** (base 3) yd range · Instant · 3s cooldown |
+| 2 | [Bloodthirst](#skill-bloodthirst) | 20 rage · **4.5** (base 3) yd radius · Instant · 4.5s cooldown |
+| 3 | [Recklessness](#skill-recklessness) | Instant · 45s cooldown · 12s buff |
+| 4 | [Sweep](#skill-sweep) | 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 8 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 10s cooldown |
 | 7 | [Hamstring](#skill-hamstring) | 10 rage · 3 yd range · Instant · 8s slow |
@@ -134,14 +134,12 @@ Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps ene
 
 Base numbers, before spec and talent changes (in game, hover a skill to see yours).
 
-<a id="skill-whirlwind"></a>
-#### Cleave
+<a id="skill-slam"></a>
+#### Slam
 
-*Physical* · 8 yd radius · Instant · 2.5s cooldown
+*Physical* · 40 rage · 3 yd range · Instant · 3s cooldown
 
-- Deals 75 physical damage to all enemies in range.
-- Generates 8 rage.
-- *Its damage builds rage: 15% of the damage dealt (11 per enemy hit).*
+- Deals 160 physical damage.
 
 On the bar: [Warbringer](#warrior-arms) (key 1).
 
@@ -232,30 +230,30 @@ On the bar: [Rampager](#warrior-fury) (key 1).
 <a id="skill-bloodthirst"></a>
 #### Bloodthirst
 
-*Physical* · 20 rage · 3 yd range · Instant · 4.5s cooldown
+*Physical* · 20 rage · 3 yd radius · Instant · 4.5s cooldown
 
-- Deals 150 physical damage.
+- Deals 150 physical damage to all enemies in range.
 - Heals you for 3% of your maximum health.
 - Generates 8 rage.
 
 On the bar: [Rampager](#warrior-fury) (key 2).
 
-<a id="skill-enraged-regeneration"></a>
-#### Enraged Regeneration
+<a id="skill-recklessness"></a>
+#### Recklessness
 
-*Physical* · 10 rage · Instant · 60s cooldown · 8s buff
+*Physical* · Instant · 45s cooldown · 12s buff
 
-- −30% damage taken. Bloodthirst: also heals you for 20% of your maximum health.
+- +40% damage dealt. +100% rage from all sources.
 - *Does not trigger the global cooldown.*
 
 On the bar: [Rampager](#warrior-fury) (key 3).
 
-<a id="skill-slam"></a>
-#### Slam
+<a id="skill-sweep"></a>
+#### Sweep
 
-*Physical* · 40 rage · 3 yd range · Instant · 3s cooldown
+*Physical* · 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown
 
-- Deals 160 physical damage.
+- Deals 300 physical damage to all enemies in range.
 
 On the bar: [Rampager](#warrior-fury) (key 4).
 
@@ -308,14 +306,15 @@ On the bar: [Barbarian](#warrior-protection) (key 4).
 
 Talent: Warbringer tier V *Terrifying Roar* (replaces Heroic Leap); Rampager tier V *Terrifying Roar* (replaces Heroic Leap); Barbarian tier V *Terrifying Roar* (replaces Heroic Leap).
 
-<a id="skill-dragon-roar"></a>
-#### Dragon Roar
+<a id="skill-enraged-regeneration"></a>
+#### Enraged Regeneration
 
-*Fire* · 25 rage · 12 yd range, 100° cone in front of you · Instant · 30s cooldown
+*Physical* · 10 rage · Instant · 60s cooldown · 8s buff
 
-- Deals 230 fire damage to all enemies in range.
+- Heals you for 300% of the damage you deal.
+- *Does not trigger the global cooldown.*
 
-Talent: Warbringer tier V *Dragon's Fury* (replaces Heroic Leap); Rampager tier V *Dragon's Fury* (replaces Heroic Leap); Barbarian tier V *Dragon's Fury* (replaces Heroic Leap).
+Talent: Warbringer tier V *Savage Mending* (replaces Heroic Leap); Rampager tier V *Savage Mending* (replaces Heroic Leap); Barbarian tier V *Savage Mending* (replaces Heroic Leap).
 
 <a id="skill-battle-banner"></a>
 #### Battle Banner
@@ -348,7 +347,7 @@ Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.
 | IV | 🧿 **Cleansing Charm** | A trinket button beside your bar: removes every harmful effect from you (stuns and fears included). 60 second cooldown, no global cooldown, works while stunned. |
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
 |  | 💚 **Healing Charm** | A trinket button beside your bar: heals you for 25% of your maximum health. 60 second cooldown, no global cooldown, works while stunned. |
-| V | 🪞 **Illusionist** | Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose). → [Mirror Image](#skill-mirror-image) |
+| V | 🪞 **Illusionist** | Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose). → [Mirror Image](#skill-mirror-image) |
 |  | 🧘 **Arcane Recovery** | Learn Evocation: for 6 seconds you heal 2% of your maximum health every second, regain mana 4 times as fast and take 15% less damage. Replaces Polymorph or Counterspell (you choose). → [Evocation](#skill-evocation) |
 |  | 🌠 **Runecaster** | Learn Rune of Power: a rune at your feet for 12 seconds; while you stand in it you deal 15% more damage and your casts are 15% shorter. Replaces Polymorph or Counterspell (you choose). → [Rune of Power](#skill-rune-of-power) |
 
@@ -382,7 +381,7 @@ Slows and roots keep enemies away. Fingers of Frost and Shatter turn Ice Lance i
 <a id="mage-fire"></a>
 ### 🔥 Pyromancy · Burst damage
 
-Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Cauterize saves you from one killing blow.
+Big fire damage with Pyroblast, Fireball and Flamestrike. Fireball sears the target with Singed, and the third hit brings Hot Streak, which makes Pyroblast instant. Cauterize saves you from one killing blow.
 
 - **Weapon:** Fire staff
 - **Passive, Cauterize:** a killing blow leaves you at 35% health instead, once every 3 minutes
@@ -403,7 +402,7 @@ Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyrob
 | Tier | Talent | What it does |
 |---|---|---|
 | III | ☄️ **Hotter Fireball** | Fireball does 10% more damage. |
-|  | 🔥 **Streaking** | Fireball has an extra 5% chance to give Hot Streak. |
+|  | 🔥 **Streaking** | Singed lasts 50% (5 seconds) longer. |
 |  | 🌋 **Searing Touch** | Fireball has a 10% chance to set the target burning for 4 seconds, dealing 25 damage every second. |
 
 <a id="mage-arcane"></a>
@@ -527,8 +526,8 @@ On the bar: [Cryomancy](#mage-frost) (key 8).
 *Fire* · 60 mana · 30 yd range · Instant · 8s cooldown
 
 - Deals 210 fire damage.
-- 15% chance: You gain Hot Streak for 10s: Your next Pyroblast is instant.
-- Effects: [Hot Streak](#effect-hot-streak)
+- Applies Singed for 10s: Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant.
+- Effects: [Singed](#effect-singed)
 
 On the bar: [Pyromancy](#mage-fire) (key 1).
 
@@ -538,8 +537,6 @@ On the bar: [Pyromancy](#mage-fire) (key 1).
 *Fire* · 90 mana · 30 yd range · 3s cast
 
 - Deals 550 fire damage.
-- You gain Hot Streak for 10s (only from a full-length cast): Your next Pyroblast is instant.
-- Effects: [Hot Streak](#effect-hot-streak)
 
 On the bar: [Pyromancy](#mage-fire) (key 2).
 
@@ -630,10 +627,10 @@ On the bar: [Starweaving](#mage-arcane) (key 8).
 <a id="skill-mirror-image"></a>
 #### Mirror Image
 
-*Arcane* · 40 mana · Instant · 90s cooldown · 8s buff
+*Arcane* · 40 mana · Instant · 90s cooldown
 
 - Enemies lose their target on you and spells aimed at you are cancelled.
-- Images stand in for you: half the hits meant for you strike an image instead and do nothing.
+- Summons 2 images of you for 8s: same class, spec and talents, 1 health and 80% less damage. They fight at your side.
 - *Does not trigger the global cooldown.*
 
 Talent: Cryomancy tier V *Illusionist* (replaces Polymorph); Pyromancy tier V *Illusionist* (replaces Polymorph); Starweaving tier V *Illusionist* (replaces Polymorph).
@@ -675,7 +672,7 @@ Healer and support. Shields, heals, dispels and fears. Mana-hungry.
 |  | 🏃 **Fleeing Scream** | Psychic Scream makes enemies run as far from you as they can instead of running at random. |
 | II | ⏩ **Quickened Prayer** | Casting time and the global cooldown are 10% shorter. |
 |  | ✨ **Healing Light** | +10% healing. |
-|  | 💥 **Shadow Might** | +10% damage. |
+|  | 💥 **Shadow Might** | +10% damage and healing. |
 | IV | 🧿 **Cleansing Charm** | A trinket button beside your bar: removes every harmful effect from you (stuns and fears included). 60 second cooldown, no global cooldown, works while stunned. |
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
 |  | 💚 **Healing Charm** | A trinket button beside your bar: heals you for 25% of your maximum health. 60 second cooldown, no global cooldown, works while stunned. |
@@ -686,6 +683,7 @@ Healer and support. Shields, heals, dispels and fears. Mana-hungry.
 Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a foe.
 
 - **Weapon:** Holy Staff
+- **Spec bonuses:** Power Word: Shield: +50% shield strength, Penance: can be cast while moving
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
@@ -1032,7 +1030,7 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 <a id="rogue-subtlety"></a>
 ### 👤 Shade · Control / mobility
 
-Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes.
+Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Weak Point finishes.
 
 - **Weapon:** Twin Daggers
 - **Auto-attack:** 50 damage every 1.8s, 3 yd reach
@@ -1046,7 +1044,7 @@ Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard f
 | 5 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
 | 6 | [Sprint](#skill-sprint) | Instant · 60s cooldown · 8s speed boost |
 | 7 | [Backstab](#skill-backstab) | 40 energy · 3 yd range · Instant |
-| 8 | [Eviscerate](#skill-eviscerate) | 35 energy · 3 yd range · Instant |
+| 8 | [Weak Point](#skill-eviscerate) | 35 energy · 3 yd range · Instant · +1s per combo point, up to 5s damage over time |
 
 **Talents** (one per tier; tiers I and II and IV and V are under [Rogue](#rogue)):
 
@@ -1200,11 +1198,11 @@ On the bar: [Shade](#rogue-subtlety) (key 4).
 On the bar: [Shade](#rogue-subtlety) (key 7).
 
 <a id="skill-eviscerate"></a>
-#### Eviscerate
+#### Weak Point
 
-*Physical* · 35 energy · 3 yd range · Instant
+*Physical* · 35 energy · 3 yd range · Instant · +1s per combo point, up to 5s damage over time
 
-- Deals 110 physical damage. Damage is multiplied by the combo points spent.
+- Takes 110 physical damage every 1s for each combo point spent. Silenced and disarmed: cannot cast spells, auto attack or use physical abilities.
 - *Spends all combo points (needs at least 1).*
 
 On the bar: [Shade](#rogue-subtlety) (key 8).
@@ -1261,7 +1259,7 @@ Tier IV of every class gives an extra button beside the action bar (bind it to a
 
 - Removes every harmful effect from you.
 - *Usable while locked out.*
-- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
+- *Works even while polymorphed or disoriented.*
 - *Does not trigger the global cooldown.*
 
 Talent: tier IV *Cleansing Charm*.
@@ -1311,7 +1309,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-plague-bloom"></a>**Devouring Plague** | Debuff (dot), magic | 10s | Takes 42 shadow damage every 1s (420 total). | [Devouring Plague](#skill-plague-bloom) |
 | <a id="effect-dispersion"></a>**Dispersion** | Buff | 6s | −90% damage taken. You cannot use any ability while it lasts. | [Dispersion](#skill-dispersion) |
 | <a id="effect-dragons-breath"></a>**Dragon's Breath** | Debuff (fear), magic | 4s | Runs around in fear at 35% speed. Cannot cast or act, not even Blink. | [Dragon's Breath](#skill-dragons-breath) |
-| <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | −30% damage taken. Bloodthirst: also heals you for 20% of your maximum health. | [Enraged Regeneration](#skill-enraged-regeneration) |
+| <a id="effect-enraged-regeneration"></a>**Enraged Regeneration** | Buff | 8s | Heals you for 300% of the damage you deal. | [Enraged Regeneration](#skill-enraged-regeneration) |
 | <a id="effect-evasion"></a>**Evasion** | Buff | 6s | −45% damage taken. | [Evasion](#skill-evasion) |
 | <a id="effect-evocation"></a>**Evocation** | Buff, magic | 6s | −15% damage taken. +300% mana regeneration. Heals 2% of maximum health every 1s. | [Evocation](#skill-evocation) |
 | <a id="effect-fingers-of-frost"></a>**Fingers of Frost** | Debuff (mark) | 15s | Ice Lance treats it as Shatter and uses it up. | [Frostbolt](#skill-frostbolt), [Frost Nova](#skill-frost-nova), talent *Fingers Crossed* ([Frostbolt](#skill-frostbolt)) |
@@ -1321,13 +1319,12 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-gouge"></a>**Gouge** | Debuff (incapacitate) | 4s | Cannot move, cast or act. Breaks on damage. | [Gouge](#skill-gouge) |
 | <a id="effect-hamstring-slow"></a>**Hamstring** | Debuff (slow) | 8s | Movement speed reduced by 50%. | [Hamstring](#skill-hamstring) |
 | <a id="effect-rogue-slow"></a>**Hobbled** | Debuff (slow) | 3s | Movement speed reduced by 10%. | talent *Crippling Cuts* ([Mutilate](#skill-mutilate)), talent *Hobbling Strikes* ([Sinister Strike](#skill-sinister-strike)), talent *Hobbling Backstab* ([Backstab](#skill-backstab)) |
-| <a id="effect-hot-streak"></a>**Hot Streak** | Buff | 10s | Your next Pyroblast is instant. | [Fireball](#skill-fireball), [Pyroblast](#skill-pyroblast), [Scorch](#skill-scorch), [Dragon's Breath](#skill-dragons-breath), talent *Streaking* ([Fireball](#skill-fireball)) |
+| <a id="effect-hot-streak"></a>**Hot Streak** | Buff | 10s | Your next Pyroblast is instant. | [Scorch](#skill-scorch), [Dragon's Breath](#skill-dragons-breath) |
 | <a id="effect-ice-barrier"></a>**Ice Barrier** | Buff (absorb), magic | 12s | Absorbs damage equal to 25% of max health. | [Ice Barrier](#skill-ice-barrier) |
 | <a id="effect-intercept-guard"></a>**Intercepted** | Buff | 4s | −20% damage taken. | talent *Intercept* ([Charge](#skill-charge)) |
 | <a id="effect-intimidating-shout"></a>**Intimidating Shout** | Debuff (fear) | 5s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Intimidating Shout](#skill-intimidating-shout) |
 | <a id="effect-kidney-shot"></a>**Kidney Shot** | Debuff (stun) | 2s | Cannot move, cast or act. | [Kidney Shot](#skill-kidney-shot) |
 | <a id="effect-mind-flay-slow"></a>**Mind Flay** | Debuff (slow) | 1.5s | Movement speed reduced by 30%. | [Mind Flay](#skill-mind-flay) |
-| <a id="effect-mirror-image"></a>**Mirror Image** | Buff | 8s | Images stand in for you: half the hits meant for you strike an image instead and do nothing. | [Mirror Image](#skill-mirror-image) |
 | <a id="effect-mortal-wounds"></a>**Mortal Wounds** | Debuff (mark) | 8s | −40% healing received. | [Mortal Strike](#skill-mortal-strike) |
 | <a id="effect-mutilate-bleed"></a>**Mutilate** | Debuff (dot) | 6s | Bleeding: takes 14 physical damage every 1s (84 total). | [Mutilate](#skill-mutilate) |
 | <a id="effect-pain-suppression"></a>**Pain Suppression** | Buff | 8s | −40% damage taken. | [Pain Suppression](#skill-pain-suppression) |
@@ -1335,14 +1332,17 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 250 damage. | [Power Word: Shield](#skill-power-word-shield) |
 | <a id="effect-psychic-scream"></a>**Psychic Scream** | Debuff (fear), magic | 6s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Psychic Scream](#skill-psychic-scream) |
 | <a id="effect-purified"></a>**Purified** | Buff | 4s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
+| <a id="effect-recklessness"></a>**Recklessness** | Buff | 12s | +40% damage dealt. +100% rage from all sources. | [Recklessness](#skill-recklessness) |
 | <a id="effect-renew"></a>**Renew** | Buff, magic | 5s | Heals 1% of maximum health every 1s. | talent *Renewing Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |
 | <a id="effect-protective-vanish"></a>**Shadow Shroud** | Buff | 2s | Immune to damage and crowd control. Lost when you leave stealth. | talent *Protective Vanish* ([Vanish](#skill-vanish)) |
 | <a id="effect-creeping-rot"></a>**Shadow Word: Pain** | Debuff (dot), magic | 10s | Takes 30 shadow damage every 1s (300 total). | [Shadow Word: Pain](#skill-shadow-word-death) |
 | <a id="effect-shatter"></a>**Shatter** | Debuff (mark) | 4s or 6s | Takes 5x damage from frost abilities. Lost when damaged, unless Deep Freeze is active. | [Frost Nova](#skill-frost-nova), [Deep Freeze](#skill-deep-freeze) |
+| <a id="effect-singed"></a>**Singed** | Debuff (mark) | 10s | Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant. | [Fireball](#skill-fireball) |
 | <a id="effect-slice-hold"></a>**Slice and Dice** | Debuff (stun) | 1.1s | Cannot move, cast or act. | [Slice and Dice](#skill-slice-and-dice) |
 | <a id="effect-sprint"></a>**Sprint** | Buff (speed) | 8s | Movement speed increased by 70%. | [Sprint](#skill-sprint) |
 | <a id="effect-stealth"></a>**Stealth** | Buff (stealth) | until broken | Hidden from enemies farther than 2 yards. Broken by damage or attacking. | [Stealth](#skill-stealth), [Vanish](#skill-vanish) |
 | <a id="effect-trinket-shield"></a>**Warding Charm** | Buff (absorb) | 8s | Absorbs damage equal to 20% of max health. | [Warding Charm](#skill-trinket-shield) |
+| <a id="effect-weak-point"></a>**Weak Point** | Debuff (dot) | 1s | Takes 110 physical damage every 1s for each combo point spent. Silenced and disarmed: cannot cast spells, auto attack or use physical abilities. | [Weak Point](#skill-eviscerate) |
 
 *Magic* effects can be removed with Dispel Magic.
