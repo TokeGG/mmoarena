@@ -389,7 +389,6 @@ export class ArenaSim {
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks: this.abilityMod(u, def).ticks ?? def.channel.ticks, done: 0 };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
-      this.breakHealChain(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       if (def.channel.immediate) this.tickChannel(u); // the first strike (and its stun) lands the moment the channel starts, not a tick later
       return ok;
@@ -407,7 +406,6 @@ export class ArenaSim {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z, ...(ground.lv === 1 ? { gl: 1 as const } : {}) } : {}) };
       if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
-      this.breakHealChain(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
@@ -846,7 +844,6 @@ export class ArenaSim {
     } else u.resource -= this.costOf(u, def);
     this.startCooldown(u, def);
     if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
-    this.breakHealChain(u, def.id);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
 
     const abMod = this.modsOf(u).ability[def.id];
@@ -965,7 +962,7 @@ export class ArenaSim {
         if (eff.only === 'enemy' && t.team === u.team) break;
         if (eff.only === 'ally' && t.team !== u.team) break;
       {
-        const healed = this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1) * this.healSpam(u, def), def.id);
+        const healed = this.heal(u, t, eff.amount * u.gearMult * this.variance() * this.modsOf(u).healingDone * (this.modsOf(u).ability[def.id]?.heal ?? 1), def.id);
         const echo = this.abilityMod(u, def).echo;
         if (echo && healed > 0) {
           // the same heal arrives on the other side of the pair: your ally if you healed yourself, you if you healed an ally
@@ -1231,28 +1228,25 @@ export class ArenaSim {
   }
 
   /**
-   * Heal spam: pressing the same heal again and again weakens it (each repeat in a row is `healSpamStep` weaker, down to
-   * `healSpamFloor`), while casting anything else in between (another heal or any other skill) keeps each heal at full strength. A pause longer than
-   * `healSpamWindowMs` starts fresh. One cast (several targets, an echo) counts once.
+   * Dampening, as in arena matches elsewhere: in a match with a healer, from `dampenStartMs` into the fight healing and new
+   * shields get weaker by `dampenPerSec` every second (up to `dampenMax`), so two healers cannot out-heal each other forever.
    */
-  /** Any cast other than the heal being chained starts the heal-spam count again. */
-  private breakHealChain(u: Unit, abilityId: string): void {
-    if (u.lastHeal && u.lastHeal.ability !== abilityId) u.lastHeal = undefined;
+  dampening(): number {
+    if (this.phase !== 'live' && this.phase !== 'ended') return 0;
+    const t = (this.time - this.prepEndsAt - TUNING.dampenStartMs) / 1000;
+    if (t <= 0 || !this.hasHealer()) return 0;
+    return Math.min(TUNING.dampenMax, t * TUNING.dampenPerSec);
   }
 
-  private healSpam(u: Unit, def: { id: string }): number {
-    const st = u.lastHeal;
-    if (st && st.ability === def.id && st.at === this.time) return st.mult;
-    const chained = !!st && st.ability === def.id && this.time - st.at <= TUNING.healSpamWindowMs;
-    const stacks = chained ? st!.stacks + 1 : 0;
-    const mult = Math.max(TUNING.healSpamFloor, 1 - stacks * TUNING.healSpamStep);
-    u.lastHeal = { ability: def.id, stacks, at: this.time, mult };
-    return mult;
+  /** Is anyone in this match a healer (a spec whose role says so)? */
+  private hasHealer(): boolean {
+    for (const u of this.units.values()) if (SPECS[u.classId]?.find((s) => s.id === u.spec)?.role.toLowerCase().includes('healer')) return true;
+    return false;
   }
 
   heal(src: Unit, tgt: Unit, raw: number, ability: string): number {
     if (!tgt.alive) return 0;
-    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken));
+    const want = Math.max(0, Math.round(raw * this.modsOf(tgt).healingTaken * (1 - this.dampening())));
     const amount = Math.min(want, tgt.maxHealth - tgt.health);
     tgt.health += amount;
     src.lastCombatAt = this.time;
@@ -1393,7 +1387,7 @@ export class ArenaSim {
     const inst: AuraInst = {
       id: auraId, kind: def.kind, sourceId: src.id,
       expiresAt: def.duration > 0 ? this.time + duration : Infinity,
-      absorbLeft: Math.round(((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone),
+      absorbLeft: Math.round(((def.absorb ?? 0) + (def.absorbPct ?? 0) * tgt.maxHealth) * src.gearMult * this.modsOf(src).healingDone * (1 - this.dampening())),
       ...(def.maxStacks ? { stacks: Math.min(def.maxStacks, (prior?.stacks ?? 0) + 1) } : {}),
       ...(def.dot ? { nextTick: this.time + def.dot.interval } : def.hot ? { nextTick: this.time + def.hot.interval } : {}),
     };
@@ -1660,6 +1654,7 @@ export class ArenaSim {
       tick: this.tickNo, time: this.time, phase: this.phase,
       phaseEndsAt: this.phase === 'prep' ? this.prepEndsAt : this.matchEndsAt,
       winner: this.winner, units,
+      ...(this.dampening() > 0 ? { damp: Math.round(this.dampening() * 100) / 100 } : {}),
       zones: this.zones.map((z) => ({ id: z.id, owner: z.owner, team: z.team, x: Math.round(z.x * 100) / 100, z: Math.round(z.z * 100) / 100, r: z.r, school: z.school, ability: z.ability, start: z.start, firstAt: z.firstAt, pulse: z.pulse, end: z.end, ...(z.smoke ? { smoke: true } : {}), ...(z.flag ? { flag: true } : {}), ...(z.buff ? { buff: z.buff.who } : {}), ...(z.h > 0.05 ? { y: Math.round(z.h * 100) / 100 } : {}) })),
     };
   }
