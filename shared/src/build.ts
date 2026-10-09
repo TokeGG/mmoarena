@@ -4,19 +4,20 @@ import type { AbilityMod, AutoDef, Build, ClassId, CosmeticItem, Mods, ModsInput
 /** Everything a build changes in combat is expressed as `Mods`; this file is the only place that turns picks into numbers. */
 
 export const NEUTRAL_MODS: Mods = Object.freeze({
-  damageDone: 1, healingDone: 1, healingTaken: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, maxCp: 0, cpPower: 1, ability: {}, auraDuration: {}, auraExtend: {},
+  damageDone: 1, healingDone: 1, healingTaken: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, maxCp: 0, cpPower: 1, rage: 1, lifesteal: 0, ability: {}, auraDuration: {}, auraExtend: {},
 }) as Mods;
 
 export function newMods(): Mods {
-  return { damageDone: 1, healingDone: 1, healingTaken: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, maxCp: 0, cpPower: 1, ability: {}, auraDuration: {}, auraExtend: {} };
+  return { damageDone: 1, healingDone: 1, healingTaken: 1, damageTaken: 1, maxHealth: 1, castTime: 1, gcd: 1, regen: 1, moveSpeed: 1, autoSpeed: 1, maxCp: 0, cpPower: 1, rage: 1, lifesteal: 0, ability: {}, auraDuration: {}, auraExtend: {} };
 }
 
-const SCALARS = ['damageDone', 'healingDone', 'healingTaken', 'damageTaken', 'maxHealth', 'castTime', 'gcd', 'regen', 'moveSpeed', 'autoSpeed', 'cpPower'] as const;
+const SCALARS = ['damageDone', 'healingDone', 'healingTaken', 'damageTaken', 'maxHealth', 'castTime', 'gcd', 'regen', 'moveSpeed', 'autoSpeed', 'cpPower', 'rage'] as const;
 
 /** Multiplies `into` by `add` (mutates and returns `into`). */
 export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
   if (!add) return into;
   if (add.maxCp) into.maxCp += add.maxCp;
+  if (add.lifesteal) into.lifesteal += add.lifesteal;
   if (add.auraExtend) for (const [id, v] of Object.entries(add.auraExtend)) into.auraExtend[id] = (into.auraExtend[id] ?? 0) + v;
   for (const k of SCALARS) if (add[k] !== undefined) into[k] *= add[k]!;
   if (add.ability) {
@@ -31,6 +32,7 @@ export function applyMods(into: Mods, add: ModsInput | undefined): Mods {
       if (m.charges !== undefined) cur.charges = (cur.charges ?? 0) + m.charges;
       if (m.after) cur.after = [...(cur.after ?? []), ...m.after];
       if (m.free) cur.free = true;
+      if (m.castWhileMoving) cur.castWhileMoving = true;
       if (m.castDuring) cur.castDuring = true;
       if (m.allyOk) cur.allyOk = true;
       if (m.before) cur.before = [...(cur.before ?? []), ...m.before];

@@ -443,7 +443,7 @@ export class AccountUi {
 
   private history(a: AccountInfo): HTMLElement {
     const box = el('div', 'hist-list');
-    if (a.ownerOk && this.hooks.openAdmin) {
+    if ((a.ownerOk || a.grants.includes('dev')) && this.hooks.openAdmin) {
       // the owner sees every match on the server (bot matches too), with replays and training, in the admin panel
       const all = el('button', 'mm-small mm-go', '🛡 Every match on the server (replays, train bots)');
       all.addEventListener('click', () => {

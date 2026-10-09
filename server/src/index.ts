@@ -143,7 +143,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
         if (dead) return;
         try {
           const a = await accounts.accountForToken(token);
-          if (!a || !(await accounts.isOwnerSession(token, a))) return void fail(403, 'Only the owner can train the bots on a file.');
+          if (!a || !((await accounts.isOwnerSession(token, a)) || a.grants?.includes('dev'))) return void fail(403, 'Only the owner or a dev can train the bots on a file.');
           const id = `up${Date.now().toString(36)}${crypto.randomBytes(3).toString('hex')}`;
           const r = await lobby.trainOnReplay(a.name, Buffer.concat(chunks), id);
           res.writeHead(r.ok ? 200 : 400, { 'content-type': 'application/json' }).end(JSON.stringify(r));

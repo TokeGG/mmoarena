@@ -263,6 +263,9 @@
   body[data-hud-plate-bar=huge] .plate > .bar.thin { height:16px; } body[data-hud-plate-bar=huge] .plate > .bar.thin .blabel { line-height:16px; font-size:11px; }
   body[data-hud-plate-name=hide] .plate .pname, body[data-hud-plate-name=hide] .plate .ptitle { display:none !important; }
   body[data-hud-plate-text=sm] .plate { font-size:9px; } body[data-hud-plate-text=lg] .plate { font-size:14px; }
+  .plate > .bar.pres { height:4px; margin-top:1px; } .plate > .bar.pres .blabel { display:none; }
+  body[data-hud-plate-bar=thin] .plate > .bar.pres { height:3px; } body[data-hud-plate-bar=thick] .plate > .bar.pres { height:6px; } body[data-hud-plate-bar=huge] .plate > .bar.pres { height:8px; }
+  body[data-hud-plate-res=hide] .plate .pres { display:none !important; }
   body[data-hud-plate-cast=hide] .plate .pcast { display:none !important; }
   body[data-hud-plate-debuffs=hide] .plate .pdebuffs { display:none !important; }
   .he-group { grid-column:1/-1; margin:8px 0 2px; font-size:12px; color:#ffd24a; border-bottom:1px solid #ffffff22; }
@@ -621,6 +624,8 @@
   body.hud-edit #killfeed:empty { display:flex; }
   body.hud-edit #killfeed { min-width:200px; min-height:44px; background:rgba(255,210,74,.1); }
   @media (max-width:600px) { #killfeed { top:150px; width:180px; font-size:11px; } }
+  #damp { position:fixed; top:6px; left:50%; transform:translateX(-50%); padding:2px 10px; border-radius:10px; background:rgba(20,10,30,.7); border:1px solid #7a4bb0; color:#d9b8ff; font-size:12px; letter-spacing:.5px; z-index:5; }
+  #damp.hidden { display:none; }
   #recap { position:fixed; left:50%; bottom:22%; transform:translateX(-50%); z-index:31; width:min(640px, calc(100vw - 24px)); background:rgba(14,16,22,.95); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); color:#e8e2d0; font-size:12px; }
   #recap.hidden { display:none; }
   .recap-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:14px; }
@@ -910,6 +915,7 @@
   <div id="help">RMB-drag: steer · LMB-drag: orbit camera · wheel: zoom · click: target<br />Esc: clear target, then menu · keys can be changed in the menu</div>
 </div>
 
+  <div id="damp" class="hidden" data-tip="text:" data-tip-title="Dampening" data-tip-text="Healing and shields get weaker the longer a fight lasts, so two healers cannot out-heal each other forever."></div>
 <div id="recap" class="hidden"></div>
 <div id="join"></div>
 <button id="mute-btn" title="Sound on/off" aria-label="Sound on/off">🔊</button>

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TUNING, arenaById, parseClientMsg, talentsFor } from '../src/index';
+import { ABILITIES, ArenaSim, AURAS, CLASSES, SPECS, TALENTS, TUNING, arenaById, parseClientMsg, talentsFor } from '../src/index';
 import type { ClassId, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = TUNING.tickMs;
@@ -506,8 +506,8 @@ describe('stealth', () => {
     assert.ok(procs >= 45 && procs <= 110, `procs ${procs}/300 (25%)`);
   });
 
-  it('Fireball and Dragon\'s Breath each have a 15% chance per cast to grant Hot Streak', () => {
-    for (const ab of ['fireball', 'dragons_breath']) {
+  it('Dragon\'s Breath has a 15% chance per cast to grant Hot Streak', () => {
+    for (const ab of ['dragons_breath']) {
       const sim = live(9);
       const mage = add(sim, 'mage', 0, 0, 0);
       mage.bar = [...mage.bar.slice(0, 7), ab];
@@ -631,7 +631,7 @@ describe('stealth', () => {
     assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'used up');
   });
 
-  it('a fully cast Pyroblast hits for 550 and always grants Hot Streak; the instant one does not chain', () => {
+  it('a fully cast Pyroblast hits for 550 and no longer grants Hot Streak', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);
     mage.bar = [...mage.bar.slice(0, 7), 'pyroblast'];
@@ -640,12 +640,47 @@ describe('stealth', () => {
     advance(sim, TICK);
     assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
     advance(sim, 3200);
-    assert.ok(mage.auras.some((x) => x.id === 'hot_streak'), 'full cast gives Hot Streak');
+    assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'a full cast gives no Hot Streak');
     const hits = foe.maxHealth - foe.health;
     assert.ok(hits >= 500 && hits <= 600, `first hit ${hits}`);
-    mage.gcdEnd = 0;
-    assert.ok(sim.useAbility(mage.id, 'pyroblast', foe.id).ok);
-    assert.ok(!mage.auras.some((x) => x.id === 'hot_streak'), 'the instant cast used it up and did not refresh it');
+  });
+
+  it('Fireball gives Singed (10 s, 2 stacks); the third hit pops it into Hot Streak for the caster', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'fireball'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.maxHealth = foe.health = 1e9;
+    advance(sim, TICK);
+    const singed = () => foe.auras.find((x) => x.id === 'singed');
+    const hot = () => mage.auras.some((x) => x.id === 'hot_streak');
+    const fire = () => { mage.cooldowns = {}; mage.gcdEnd = 0; mage.resource = mage.resourceMax; assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok); advance(sim, TICK); };
+    fire();
+    assert.equal(singed()?.stacks, 1);
+    assert.ok(!hot());
+    assert.ok(Math.abs((singed()!.expiresAt - sim.time) - 10000) <= TICK * 2, 'lasts 10 s');
+    fire();
+    assert.equal(singed()?.stacks, 2);
+    assert.ok(!hot());
+    fire();
+    assert.equal(singed(), undefined, 'all stacks removed');
+    assert.ok(hot(), 'Hot Streak on the caster');
+    assert.ok(!foe.auras.some((x) => x.id === 'hot_streak'));
+    fire();
+    assert.equal(singed()?.stacks, 1, 'starts over');
+  });
+
+  it('Singed falls off after 10 seconds and Pyroblast never gives Hot Streak', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    mage.bar = [...mage.bar.slice(0, 7), 'fireball'];
+    const foe = add(sim, 'warrior', 1, 0, 10);
+    foe.maxHealth = foe.health = 1e9;
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'fireball', foe.id).ok);
+    advance(sim, 10200);
+    assert.ok(!foe.auras.some((x) => x.id === 'singed'));
+    assert.ok(!ABILITIES.pyroblast.effects.some((e) => e.type === 'aura'), 'Pyroblast has no aura effect');
   });
 
   it("dragon's breath is a 14 yd, 80 degree cone that disorients for 4 s", () => {
@@ -740,10 +775,11 @@ describe('stealth', () => {
     go('sinister_strike'); assert.equal(rg.cp, 2);
     for (let i = 0; i < 6; i++) go('sinister_strike');
     assert.equal(rg.cp, 5, 'capped at 5');
-    const five = go('eviscerate');
+    const wp = (id: string) => { rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; const h = foe.health; assert.ok(sim.useAbility(rg.id, id, foe.id).ok, id); advance(sim, 6500); return h - foe.health; };
+    const five = wp('eviscerate');
     assert.equal(rg.cp, 0, 'spent');
     go('sinister_strike');
-    const one = go('eviscerate');
+    const one = wp('eviscerate');
     assert.ok(five - one > 300, `${five} vs ${one}`);
     go('sinister_strike'); assert.equal(rg.cp, 1);
     rg.autoAttack = false;
@@ -759,6 +795,99 @@ describe('stealth', () => {
       assert.equal(Math.round((st.expiresAt - sim.time) / 100) / 10, secs, `${cp} cp stun`);
       assert.equal(rg.cp, 0);
     }
+  });
+
+  it('Weak Point (eviscerate): a debuff of one second and one tick per combo point, up to 5 s, that silences and disarms and deals the old hit per point', () => {
+    const sim = live();
+    const rg = sim.addUnit({ name: 'r', classId: 'rogue', team: 0, build: { spec: 'assassination', talents: [], gear: {} } });
+    rg.pos = { x: 0, z: 0 };
+    const foe = add(sim, 'mage', 1, 0, 2);
+    foe.maxHealth = foe.health = 1e6;
+    foe.gearMult = 1; rg.gearMult = 1;
+    rg.bar = [...rg.bar.slice(0, 5), 'eviscerate'];
+    advance(sim, TICK);
+    assert.equal(ABILITIES.eviscerate.name, 'Weak Point');
+    const hits: number[] = [];
+    const run = (cp: number) => {
+      foe.auras = []; foe.health = 1e6; rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax; rg.cp = cp; sim.drainEvents();
+      assert.ok(sim.useAbility(rg.id, 'eviscerate', foe.id).ok);
+      const a = foe.auras.find((x) => x.id === 'weak_point')!;
+      assert.ok(a, 'debuff applied');
+      assert.equal(foe.health, 1e6, 'no instant damage');
+      rg.autoAttack = false;
+      const left = Math.round((a.expiresAt - sim.time) / 1000);
+      const ticks = advance(sim, 6500).filter((e) => e.t === 'damage' && e.ability === 'eviscerate');
+      return { left, ticks: ticks.length, total: ticks.reduce((n, e) => n + (e.t === 'damage' ? e.amount : 0), 0), cp: rg.cp, gone: !foe.auras.some((x) => x.id === 'weak_point') };
+    };
+    for (const cp of [1, 3, 5]) {
+      const r = run(cp);
+      hits.push(r.total);
+      assert.equal(r.left, cp, `${cp} cp lasts ${cp} s`);
+      assert.equal(r.ticks, cp, `${cp} ticks, one per second`);
+      assert.equal(r.cp, 0);
+      assert.ok(r.gone);
+    }
+    assert.ok(Math.abs(hits[1] / hits[0] - 3) < 0.3 && Math.abs(hits[2] / hits[0] - 5) < 0.5, `scales with points: ${hits}`);
+    // past five points the debuff stops at 5 s with the damage squeezed into those five ticks
+    const six = run(8);
+    assert.equal(six.left, 5); assert.equal(six.ticks, 5);
+    assert.ok(Math.abs(six.total / hits[0] - 8) < 0.8, `8 points deal 8x: ${six.total} vs ${hits[0]}`);
+    // silence stops spells, disarm stops physical abilities and auto attacks
+    foe.auras = []; rg.cp = 3; rg.cooldowns = {}; rg.gcdEnd = 0; rg.resource = rg.resourceMax;
+    sim.useAbility(rg.id, 'eviscerate', foe.id);
+    foe.cooldowns = {}; foe.gcdEnd = 0; foe.resource = foe.resourceMax;
+    const r1 = sim.useAbility(foe.id, 'frostbolt', rg.id);
+    assert.ok(!r1.ok && /silenced/.test(String((r1 as { reason?: string }).reason)), 'cannot cast spells');
+    foe.cast = null;
+    const phys = Object.keys(ABILITIES).find((id) => ABILITIES[id].school === 'physical' && ABILITIES[id].class === 'mage');
+    if (phys) assert.ok(!sim.useAbility(foe.id, phys, rg.id).ok);
+    const war = sim.addUnit({ name: 'w', classId: 'warrior', team: 1, build: { spec: 'arms', talents: [], gear: {} } });
+    war.pos = { x: 0, z: 2 };
+    war.auras.push({ id: 'weak_point', kind: 'dot', sourceId: rg.id, expiresAt: sim.time + 3000, absorbLeft: 0 });
+    war.autoAttack = true; war.target = rg.id; war.nextSwing = 0;
+    const before = rg.health;
+    advance(sim, 2500);
+    assert.equal(rg.health, before, 'a disarmed warrior does not auto attack');
+  });
+
+  it('Warden passive: Power Word: Shield is 50% stronger and Penance keeps channelling while moving; other priests get neither', () => {
+    const shield = (spec: string) => {
+      const sim = live();
+      const pr = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec, talents: [], gear: {} } });
+      pr.pos = { x: 0, z: 0 }; pr.gearMult = 1;
+      add(sim, 'warrior', 1, 0, 40);
+      advance(sim, TICK);
+      pr.resource = pr.resourceMax;
+      assert.ok(sim.useAbility(pr.id, 'power_word_shield', pr.id).ok);
+      return { sim, pr, absorb: pr.auras.find((a) => a.id === 'pw_shield')!.absorbLeft };
+    };
+    const w = shield('discipline'), l = shield('holy');
+    assert.equal(l.absorb, AURAS.pw_shield.absorb);
+    assert.equal(w.absorb, Math.round(AURAS.pw_shield.absorb! * 1.5));
+    const penance = (spec: string) => {
+      const sim = live();
+      const pr = sim.addUnit({ name: 'p', classId: 'priest', team: 0, build: { spec, talents: [], gear: {} } });
+      pr.pos = { x: 0, z: 0 };
+      const foe = add(sim, 'warrior', 1, 0, 6);
+      foe.maxHealth = foe.health = 1e6;
+      pr.bar = [...pr.bar.slice(0, 7), 'penance'];
+      advance(sim, TICK);
+      assert.ok(sim.useAbility(pr.id, 'penance', foe.id).ok);
+      sim.queueInput(pr.id, { seq: 1, fwd: 0, strafe: 1, facing: 0 });
+      const ev = advance(sim, 600);
+      return { moved: Math.abs(pr.pos.x) > 0.5, channelling: !!pr.cast, hits: ev.filter((e) => e.t === 'damage' && e.ability === 'penance').length };
+    };
+    const a = penance('discipline');
+    assert.ok(a.moved && a.channelling && a.hits >= 1, `warden ${JSON.stringify(a)}`);
+    const b = penance('holy');
+    assert.ok(b.moved && !b.channelling, 'others are stopped by moving');
+  });
+
+  it('Shadow Might adds 10% healing as well as damage', () => {
+    const t = Object.values(TALENTS.priest).flat(2).find((x) => x.id === 'priest_t2c')!;
+    assert.equal(t.mods?.damageDone, 1.1);
+    assert.equal(t.mods?.healingDone, 1.1);
+    assert.match(t.desc, /damage and healing/);
   });
 
   it('exsanguinate adds damage from the target\'s bleeds and then triples them; adrenaline rush lasts longer per combo point', () => {
@@ -1561,71 +1690,42 @@ describe('auto-attack persistence', () => {
   });
 });
 
-describe('heal spam', () => {
-  const setup = () => {
+describe('dampening', () => {
+  const mk = (classes: [string, string | null][]) => {
     const sim = new ArenaSim({ seed: 1, prepMs: 0 });
-    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, controller: 'player' });
-    sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    classes.forEach(([c, spec], i) => { const u = sim.addUnit({ name: 'u' + i, classId: c as any, team: (i % 2) as 0 | 1, controller: 'dummy' }); if (spec) u.spec = spec; });
     sim.step();
-    return { sim, p };
+    return sim;
   };
-  const cast = (sim: ArenaSim, p: ReturnType<typeof setup>['p'], ability: string): number => {
-    p.health = 1;
-    p.resource = p.resourceMax;
-    p.cooldowns = {};
-    p.gcdEnd = 0;
-    p.cast = null;
-    const before = sim.drainEvents().length;
-    void before;
-    assert.ok(sim.useAbility(p.id, ability, p.id).ok, `${ability} goes off`);
-    for (let t = 0; t < 3000; t += TUNING.tickMs) { sim.step(); if (!p.cast) break; }
-    const heal = sim.drainEvents().filter((e) => e.t === 'heal' && e.src === p.id && e.ability === ability);
-    return heal.reduce((a, e) => a + (e as { amount: number; overheal: number }).amount + (e as { overheal: number }).overheal, 0);
-  };
-  it('the same heal pressed again and again is weaker each time, down to the floor', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    const first = cast(sim, p, 'flash_heal');
-    const second = cast(sim, p, 'flash_heal');
-    const third = cast(sim, p, 'flash_heal');
-    assert.ok(second < first * (1 - TUNING.healSpamStep) * 1.02 && second > first * (1 - TUNING.healSpamStep) * 0.9, `second ${second} vs first ${first}`);
-    assert.ok(third < second, 'weaker again');
-    let last = third;
-    for (let i = 0; i < 8; i++) last = cast(sim, p, 'flash_heal');
-    assert.ok(last >= first * TUNING.healSpamFloor * 0.9 && last <= first * TUNING.healSpamFloor * 1.1, `floor ${last} vs ${first * TUNING.healSpamFloor}`);
-  });
-  it('rotating between heals keeps each at full strength', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    p.bar = [...p.bar, 'greater_heal'];
-    const a = cast(sim, p, 'flash_heal');
-    const b = cast(sim, p, 'greater_heal');
-    const a2 = cast(sim, p, 'flash_heal');
-    assert.ok(a2 >= a * 0.8, `flash heal back at full after a different heal: ${a2} vs ${a}`);
-    assert.ok(b > 0);
-  });
-  it('heal, another skill, heal: casting anything else in between keeps the heal at full strength', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    const other = 'power_word_shield';
-    const first = cast(sim, p, 'flash_heal');
-    cast(sim, p, other);
-    const again = cast(sim, p, 'flash_heal');
-    assert.ok(again >= first * 0.8, `back at full after another skill: ${again} vs ${first}`);
-    const third = cast(sim, p, 'flash_heal');
-    assert.ok(third < again * 0.95, 'pressing it twice in a row still weakens it');
-  });
-  it('a long pause starts the count again, and there is no dampening any more', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    const first = cast(sim, p, 'flash_heal');
-    cast(sim, p, 'flash_heal');
-    for (let t = 0; t < TUNING.healSpamWindowMs + 1000; t += TUNING.tickMs) sim.step();
-    const again = cast(sim, p, 'flash_heal');
-    assert.ok(again >= first * 0.8, `fresh after a pause: ${again} vs ${first}`);
-    for (let t = 0; t < 200000; t += TUNING.tickMs) sim.step(); // far past the old dampening start
-    const late = cast(sim, p, 'flash_heal');
-    assert.ok(late >= first * 0.8, 'no time-based weakening');
+  const advanceMs = (sim: ArenaSim, ms: number) => { for (let t = 0; t < ms; t += TUNING.tickMs) sim.step(); };
+  it('starts late, grows slowly and is capped, in a match with a healer', () => {
+    const sim = mk([['priest', 'holy'], ['warrior', 'arms']]);
+    advanceMs(sim, TUNING.dampenStartMs - 2000);
+    assert.equal(sim.dampening(), 0, 'nothing before it starts');
     assert.equal((sim.snapshot() as { damp?: number }).damp, undefined);
+    advanceMs(sim, 12000);
+    const d = sim.dampening();
+    assert.ok(d > 0 && d < 0.1, `a gentle start: ${d}`);
+    assert.equal((sim.snapshot() as { damp?: number }).damp, Math.round(d * 100) / 100);
+    advanceMs(sim, 600000);
+    assert.equal(sim.dampening(), TUNING.dampenMax, 'capped');
+  });
+  it('is off in a match without a healer', () => {
+    const sim = mk([['warrior', 'arms'], ['mage', 'fire']]);
+    advanceMs(sim, TUNING.dampenStartMs + 60000);
+    assert.equal(sim.dampening(), 0);
+  });
+  it('weakens heals and new shields by its amount', () => {
+    const sim = mk([['priest', 'holy'], ['warrior', 'arms']]);
+    const p = [...sim.units.values()][0];
+    p.maxHealth = p.health = 1e6;
+    p.health = 1;
+    const fresh = sim.heal(p, p, 10000, 'flash_heal');
+    advanceMs(sim, TUNING.dampenStartMs + 60000);
+    const d = sim.dampening();
+    assert.ok(d > 0.1);
+    p.health = 1;
+    const weak = sim.heal(p, p, 10000, 'flash_heal');
+    assert.ok(Math.abs(weak - fresh * (1 - d)) <= 2, `${weak} vs ${fresh} * ${1 - d}`);
   });
 });

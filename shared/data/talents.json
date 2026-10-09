@@ -92,12 +92,12 @@
       [
         {
           "id": "warrior_arms_t3a",
-          "name": "Harder Cleave",
-          "desc": "Cleave does 10% more damage.",
+          "name": "Harder Slam",
+          "desc": "Slam does 10% more damage.",
           "icon": "⚔️",
           "mods": {
             "ability": {
-              "whirlwind": {
+              "slam": {
                 "damage": 1.1
               }
             }
@@ -106,11 +106,11 @@
         {
           "id": "warrior_arms_t3b",
           "name": "Crippling Strikes",
-          "desc": "Cleave has a 30% chance to Hamstring the target.",
+          "desc": "Slam has a 30% chance to Hamstring the target.",
           "icon": "🦵",
           "mods": {
             "ability": {
-              "whirlwind": {
+              "slam": {
                 "extra": [
                   {
                     "type": "proc",
@@ -130,12 +130,17 @@
         {
           "id": "warrior_arms_t3c",
           "name": "Rage Engine",
-          "desc": "Cleave generates 50% more rage.",
+          "desc": "Slam generates 8 rage.",
           "icon": "😡",
           "mods": {
             "ability": {
-              "whirlwind": {
-                "gain": 1.5
+              "slam": {
+                "extra": [
+                  {
+                    "type": "gain",
+                    "amount": 8
+                  }
+                ]
               }
             }
           }
@@ -181,12 +186,12 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon's Fury",
-          "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
-          "icon": "🐉",
+          "name": "Savage Mending",
+          "desc": "Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap.",
+          "icon": "💖",
           "mods": {},
           "swap": {
-            "to": "dragon_roar",
+            "to": "enraged_regeneration",
             "from": "heroic_leap"
           }
         },
@@ -384,12 +389,12 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon's Fury",
-          "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
-          "icon": "🐉",
+          "name": "Savage Mending",
+          "desc": "Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap.",
+          "icon": "💖",
           "mods": {},
           "swap": {
-            "to": "dragon_roar",
+            "to": "enraged_regeneration",
             "from": "heroic_leap"
           }
         },
@@ -587,12 +592,12 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon's Fury",
-          "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
-          "icon": "🐉",
+          "name": "Savage Mending",
+          "desc": "Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap.",
+          "icon": "💖",
           "mods": {},
           "swap": {
-            "to": "dragon_roar",
+            "to": "enraged_regeneration",
             "from": "heroic_leap"
           }
         },
@@ -781,7 +786,7 @@
         {
           "id": "mage_t5a",
           "name": "Illusionist",
-          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
           "swap": {
@@ -916,20 +921,11 @@
         {
           "id": "mage_fire_t3b",
           "name": "Streaking",
-          "desc": "Fireball has an extra 5% chance to give Hot Streak.",
+          "desc": "Singed lasts 50% (5 seconds) longer.",
           "icon": "🔥",
           "mods": {
-            "ability": {
-              "fireball": {
-                "extra": [
-                  {
-                    "type": "aura",
-                    "aura": "hot_streak",
-                    "chance": 0.05,
-                    "self": true
-                  }
-                ]
-              }
+            "auraDuration": {
+              "singed": 1.5
             }
           }
         },
@@ -988,7 +984,7 @@
         {
           "id": "mage_t5a",
           "name": "Illusionist",
-          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
           "swap": {
@@ -1202,7 +1198,7 @@
         {
           "id": "mage_t5a",
           "name": "Illusionist",
-          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds half the hits meant for you strike an image instead. Replaces Polymorph or Counterspell (you choose).",
+          "desc": "Learn Mirror Image: enemies lose their target on you, and for 8 seconds two images of you (1 health, 80% less damage) fight at your side. Replaces Polymorph or Counterspell (you choose).",
           "icon": "🪞",
           "mods": {},
           "swap": {
@@ -1313,10 +1309,11 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage.",
+          "desc": "+10% damage and healing.",
           "icon": "💥",
           "mods": {
-            "damageDone": 1.1
+            "damageDone": 1.1,
+            "healingDone": 1.1
           }
         }
       ],
@@ -1495,10 +1492,11 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage.",
+          "desc": "+10% damage and healing.",
           "icon": "💥",
           "mods": {
-            "damageDone": 1.1
+            "damageDone": 1.1,
+            "healingDone": 1.1
           }
         }
       ],
@@ -1678,10 +1676,11 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage.",
+          "desc": "+10% damage and healing.",
           "icon": "💥",
           "mods": {
-            "damageDone": 1.1
+            "damageDone": 1.1,
+            "healingDone": 1.1
           }
         }
       ],

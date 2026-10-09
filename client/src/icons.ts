@@ -5,9 +5,9 @@ export const ABILITY_ICON: Record<string, string> = {
   // trinkets
   trinket_cleanse: '🧼', trinket_shield: '🔰', trinket_heal: '🧪',
   // warrior
-  mortal_strike: '⚔️', charge: '🐗', pummel: '👊', hamstring: '🥾', execute: '💀', intimidating_shout: '📢', bloodthirst: '💢', whirlwind: '🌪️',
-  enraged_regeneration: '💖', heroic_leap: '🦘', slice_and_dice: '🌀', bladestorm: '🪚', slam: '🔨', reel_in: '⛓️', deep_cuts: '✂️', axe_throw: '🪓',
-  not_going_anywhere: '🚩', dragon_roar: '🦖', battle_banner: '🏴',
+  mortal_strike: '⚔️', charge: '🐗', pummel: '👊', hamstring: '🥾', execute: '💀', intimidating_shout: '📢', bloodthirst: '💢',
+  enraged_regeneration: '💖', recklessness: '💪', heroic_leap: '🦘', slice_and_dice: '🌀', bladestorm: '🪚', slam: '🔨', sweep: '🧹', reel_in: '⛓️', deep_cuts: '✂️', axe_throw: '🪓',
+  not_going_anywhere: '🚩', battle_banner: '🏴',
   // mage
   frostbolt: '❄️', fireball: '🔥', polymorph: '🐑', counterspell: '🚫', frost_nova: '🧊', blink: '✨', ice_barrier: '🥶', pyroblast: '☄️', flamestrike: '🌋',
   arcane_blast: '🔮', arcane_barrage: '🌟', arcane_power: '⚡', arcane_missiles: '🌠', arcane_explosion: '💥', ice_lance: '🔱', scorch: '🧨', deep_freeze: '⛄',
@@ -28,10 +28,10 @@ export const AURA_ICON: Record<string, string> = {
   recklessness: '😡', shield_wall: '🧱', enraged_regeneration: '💖', deep_cuts_bleed: '✂️', slice_hold: '🌀', intimidating_shout: '📢', concussion_stun: '🪨',
   ice_barrier: '🥶', arcane_power: '⚡', pain_suppression: '🙏', dispersion: '🌫️', adrenaline_rush: '💉', evasion: '🤺',
   shockwave_stun: '💥', howl_slow: '📯', die_by_the_sword: '🗡️', power_infusion: '🙌', blind: '😵', crippling_slow: '🦂', rogue_slow: '🕸️',
-  blink_speed: '👟', blink_haste: '🚀', arcane_slow: '💠', garrote_bleed: '🪢', mutilate_bleed: '🥩', shatter: '💎', fingers_of_frost: '🖐️',
-  arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', cauterized: '🧯', burn: '♨️', deep_freeze_stun: '⛄',
+  blink_speed: '👟', blink_haste: '🚀', arcane_slow: '💠', garrote_bleed: '🪢', weak_point: '🎯', mutilate_bleed: '🥩', shatter: '💎', fingers_of_frost: '🖐️',
+  arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', singed: '🕯️', cauterized: '🧯', burn: '♨️', deep_freeze_stun: '⛄',
   mortal_wounds: '🩸', mind_flay_slow: '🧿', mind_slow: '💭', hammer_stun: '🌩️', judgment_stun: '⚖️', creeping_rot: '☠️', plague_bloom: '🦠', plague_ready: '🧫',
-  trinket_shield: '🔰', gouge: '👁️', sap: '🪵', banner_buff: '🏴', mirror_image: '👥', rune_of_power: '🔯', purified: '🕊️', ascended: '☁️', protective_vanish: '🌑',
+  trinket_shield: '🔰', gouge: '👁️', sap: '🪵', banner_buff: '🏴', rune_of_power: '🔯', purified: '🕊️', ascended: '☁️', protective_vanish: '🌑',
   intercept_guard: '🤝', renew: '🌿', penance_barrier: '🔆',
 };
 

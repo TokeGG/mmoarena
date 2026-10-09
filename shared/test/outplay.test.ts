@@ -20,7 +20,7 @@ function match(person: ClassId, bot: ClassId, seed = 3, difficulty: Difficulty =
 }
 
 /** Bots against bots (an owner's bot match). */
-function botMatch(a: ClassId, b: ClassId, seed = 3): ReplayData {
+function botMatch(a: ClassId, b: ClassId, seed = 5): ReplayData {
   const arena = ARENAS[1];
   const sim = new ArenaSim({ seed, prepMs: 3000, arena });
   const rec = new ReplayRecorder(sim, { arena: arena.id, seed, prepMs: 3000 });

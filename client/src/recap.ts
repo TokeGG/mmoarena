@@ -6,6 +6,8 @@ export interface RecapUnit {
   name: string;
   team: TeamId;
   classId: ClassId;
+  /** A Mirror Image: the unit id of the caster it copies. Images never get a row; what they do counts for their caster. */
+  img?: number;
 }
 
 export interface RecapRow extends RecapUnit {
@@ -36,15 +38,20 @@ const blank = (): Tally => ({ damage: 0, healing: 0, taken: 0, kills: 0, deaths:
 export class Recap {
   private tally = new Map<number, Tally>();
   private units = new Map<number, RecapUnit>();
+  private owners = new Map<number, number>();
 
   reset() {
     this.tally.clear();
     this.units.clear();
+    this.owners.clear();
   }
 
   /** Remember who the units are (call with each snapshot's units; later calls refresh names). */
   setUnits(units: RecapUnit[]) {
-    for (const u of units) this.units.set(u.id, { id: u.id, name: u.name, team: u.team, classId: u.classId });
+    for (const u of units) {
+      if (u.img !== undefined) this.owners.set(u.id, u.img);
+      else this.units.set(u.id, { id: u.id, name: u.name, team: u.team, classId: u.classId });
+    }
   }
 
   private of(id: number): Tally {
@@ -57,19 +64,20 @@ export class Recap {
     switch (ev.t) {
       case 'damage':
         if (ev.amount <= 0) break;
-        if (ev.tgt > 0) this.of(ev.tgt).taken += ev.amount;
+        if (ev.tgt > 0 && !this.owners.has(ev.tgt)) this.of(ev.tgt).taken += ev.amount;
         if (ev.src > 0) {
-          const s = this.of(ev.src);
+          const s = this.of(this.owners.get(ev.src) ?? ev.src);
           s.damage += ev.amount;
           if (!s.best || ev.amount > s.best.amount) s.best = { ability: ev.ability, amount: ev.amount };
         }
         break;
       case 'heal':
-        if (ev.amount > 0 && ev.src > 0) this.of(ev.src).healing += ev.amount;
+        if (ev.amount > 0 && ev.src > 0) this.of(this.owners.get(ev.src) ?? ev.src).healing += ev.amount;
         break;
       case 'death':
+        if (this.owners.has(ev.unit)) break; // an image falling is not a death
         if (ev.unit > 0) this.of(ev.unit).deaths++;
-        if (ev.killer !== null && ev.killer > 0 && ev.killer !== ev.unit) this.of(ev.killer).kills++;
+        if (ev.killer !== null && ev.killer > 0 && ev.killer !== ev.unit) this.of(this.owners.get(ev.killer) ?? ev.killer).kills++;
         break;
       default:
         break;

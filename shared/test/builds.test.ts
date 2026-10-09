@@ -61,7 +61,7 @@ describe('content data is consistent', () => {
       for (const sp of SPECS[cls]) for (const t of specTalents(cls, sp.id).flat()) check(t.mods, t.id);
       for (const s of SPECS[cls]) check(s.mods, s.id);
     }
-    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor || a.empower || a.maxStacks || a.hot || a.decoys || a.untargetable || a.invulnerable || a.blocksDebuffs || a.resetsCooldown || a.freeCooldownFor || a.flee, `${id} buff has mods`);
+    for (const [id, a] of Object.entries(AURAS)) if (a.kind === 'buff') assert.ok(a.mods || a.instantFor || a.empower || a.maxStacks || a.hot || a.untargetable || a.invulnerable || a.blocksDebuffs || a.resetsCooldown || a.freeCooldownFor || a.flee, `${id} buff has mods`);
   });
 
   it('descriptions never contain NaN or undefined', () => {
@@ -287,8 +287,10 @@ describe('specs and talents in the sim', () => {
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
     war.resource = 100;
     assert.ok(sim.useAbility(war.id, 'recklessness').ok);
-    assert.ok(Math.abs(sim.modsOf(war).damageDone - war.mods.damageDone * 1.3) < 1e-9);
-    assert.ok(Math.abs(sim.modsOf(war).damageTaken - 1.15) < 1e-9);
+    assert.ok(Math.abs(sim.modsOf(war).damageDone - war.mods.damageDone * 1.4) < 1e-9);
+    assert.equal(sim.modsOf(war).damageTaken, war.mods.damageTaken, 'no downside');
+    assert.equal(sim.modsOf(war).rage, 2);
+    assert.equal(AURAS.recklessness.duration, 12000);
     advance(sim, AURAS.recklessness.duration + TICK * 2);
     assert.equal(sim.modsOf(war).damageDone, war.mods.damageDone);
     // base mods must never be mutated by buffs
@@ -724,16 +726,21 @@ describe('warrior rework', () => {
   it('every spec shares Charge, Pummel, Hamstring and Heroic Leap, and has its own four', () => {
     for (const sp of SPECS.warrior) for (const a of ['charge', 'pummel', 'hamstring', 'heroic_leap']) assert.ok(sp.bar.includes(a), `${sp.id} ${a}`);
     const own = (id: string) => SPECS.warrior.find((s) => s.id === id)!.bar.filter((a) => !['charge', 'pummel', 'hamstring', 'heroic_leap'].includes(a)).sort();
-    assert.deepEqual(own('arms'), ['execute', 'mortal_strike', 'slice_and_dice', 'whirlwind']);
-    assert.deepEqual(own('fury'), ['bladestorm', 'bloodthirst', 'enraged_regeneration', 'slam']);
+    assert.deepEqual(own('arms'), ['execute', 'mortal_strike', 'slam', 'slice_and_dice']);
+    assert.deepEqual(own('fury'), ['bladestorm', 'bloodthirst', 'recklessness', 'sweep']);
     assert.deepEqual(own('protection'), ['axe_throw', 'deep_cuts', 'not_going_anywhere', 'reel_in']);
-    assert.equal(ABILITIES.whirlwind.name, 'Cleave');
+    assert.ok(ABILITIES.whirlwind.retired, 'Cleave is off every bar');
     assert.equal(SPECS.warrior.find((s) => s.id === 'protection')!.name, 'Barbarian');
   });
   it('the two-hander reaches further than a sword', () => {
     assert.ok(autoForTest('warrior', 'fury')!.range > autoForTest('warrior', 'arms')!.range);
     const { sim, w, f } = war('fury', 4.2);
-    assert.ok(sim.useAbility(w.id, 'slam', f.id).ok, 'Slam from 4.2 yards');
+    const hp = f.health;
+    assert.ok(sim.useAbility(w.id, 'bloodthirst').ok);
+    advance(sim, TICK);
+    assert.ok(f.health < hp, 'Bloodthirst reaches 4.2 yards');
+    const near = war('arms', 4.2);
+    assert.ok(near.f.health === near.f.maxHealth && near.sim.useAbility(near.w.id, 'slam', near.f.id).ok === false, 'a sword Slam does not');
   });
   it('Hamstring slows but does no damage; Heroic Leap jumps to the spot on a 60 s cooldown', () => {
     const { sim, w, f } = war('arms');
@@ -770,15 +777,11 @@ describe('warrior rework', () => {
     w.resource = 20;
     assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs 30 rage');
   });
-  it('Cleave costs no rage, builds 15 and recasts every 2.5 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
-    assert.equal(ABILITIES.whirlwind.cost, 0);
-    assert.equal(ABILITIES.whirlwind.cooldown, 2500);
+  it('Slam costs 40 rage and recasts every 3 s; Mortal Strike hits for about 400 and applies Mortal Wounds (-40% healing taken)', () => {
+    assert.equal(ABILITIES.slam.cost, 40);
+    assert.equal(ABILITIES.slam.cooldown, 3000);
     const { sim, w, f } = war('arms');
-    w.resource = 0;
     f.maxHealth = f.health = 1e6;
-    assert.ok(sim.useAbility(w.id, 'whirlwind').ok);
-    advance(sim, TICK);
-    assert.ok(w.resource >= 15, `rage ${w.resource}`);
     const priest = add(sim, 'priest', 0, 0, -3);
     priest.maxHealth = 3000; priest.health = 1000;
     w.resource = 30; w.cooldowns = {}; w.gcdEnd = 0;
@@ -851,23 +854,72 @@ describe('warrior rework', () => {
     advance(sim, 4500);
     assert.ok(hp - f.health > 150, `dealt ${hp - f.health}`);
   });
-  it('Bloodthirst heals 3% and builds rage; Enraged Regeneration cuts damage by 30% and lifts the heal to 23%', () => {
-    const { sim, w, f } = war('fury');
+  it('Bloodthirst hits every enemy around the warrior and heals 3% of maximum health per enemy hit', () => {
+    const { sim, w, f } = war('fury', 2);
+    const g = add(sim, 'mage', 1, 0, -3);
+    const far = add(sim, 'mage', 1, 0, 9);
     w.health = Math.round(w.maxHealth * 0.5);
     const before = w.health;
+    const [hp, hpG, hpFar] = [f.health, g.health, far.health];
     w.resource = 40;
-    sim.useAbility(w.id, 'bloodthirst', f.id);
+    assert.ok(sim.useAbility(w.id, 'bloodthirst').ok, 'needs no target');
     advance(sim, TICK);
-    assert.ok(Math.abs(w.health - before - Math.round(w.maxHealth * 0.03)) <= 2, `healed ${w.health - before}`);
-    assert.ok(w.resource > 40 - 20, 'rage generated');
+    assert.ok(f.health < hp && g.health < hpG, 'both in reach, one in front and one behind');
+    assert.equal(far.health, hpFar, 'the far one is not hit');
+    assert.ok(Math.abs(w.health - before - 2 * Math.round(w.maxHealth * 0.03)) <= 3, `healed ${w.health - before}`);
     assert.equal(ABILITIES.bloodthirst.cooldown, 4500);
-    advance(sim, 5000);
-    assert.ok(sim.useAbility(w.id, 'enraged_regeneration').ok);
-    assert.ok(Math.abs(sim.modsOf(w).damageTaken - w.mods.damageTaken * 0.7) < 1e-9);
-    const h2 = w.health;
-    sim.useAbility(w.id, 'bloodthirst', f.id);
+    assert.equal(ABILITIES.bloodthirst.target, 'aoe_enemy');
+  });
+  it('Sweep is a 90 degree, 5 yard slice ahead for 300 damage on a 4 s cooldown', () => {
+    const d = ABILITIES.sweep;
+    assert.deepEqual([d.coneDeg, d.radius, d.cooldown, d.effects[0]], [90, 5, 4000, { type: 'damage', amount: 300 }]);
+    const { sim, w, f } = war('fury', 4.5);
+    w.facing = Math.PI / 2; // +x
+    const behind = add(sim, 'mage', 1, -3, 0);
+    const side = add(sim, 'mage', 1, 0, 3);
+    const out = add(sim, 'mage', 1, 6, 0);
+    const [h0, hb, hs, ho] = [f.health, behind.health, side.health, out.health];
+    assert.ok(sim.useAbility(w.id, 'sweep').ok);
     advance(sim, TICK);
-    assert.ok(Math.abs(w.health - h2 - Math.round(w.maxHealth * 0.23)) <= 2, `healed ${w.health - h2}`);
+    assert.ok(h0 - f.health > 200, `dealt ${h0 - f.health}`);
+    assert.ok(behind.health === hb && side.health === hs && out.health === ho, 'behind, beside and past 5 yards are safe');
+    advance(sim, TICK);
+    assert.ok(!sim.useAbility(w.id, 'sweep').ok, 'on cooldown');
+  });
+  it('Recklessness gives 40% more damage and doubles every rage gain for 12 seconds', () => {
+    const gain = (reckless: boolean) => {
+      const { sim, w, f } = war('fury', 2);
+      w.resource = 40;
+      if (reckless) assert.ok(sim.useAbility(w.id, 'recklessness').ok);
+      sim.useAbility(w.id, 'bloodthirst');
+      advance(sim, TICK);
+      return { rage: w.resource - (40 - ABILITIES.bloodthirst.cost), dealt: f.maxHealth - f.health };
+    };
+    const a = gain(false), b = gain(true);
+    assert.ok(b.rage > a.rage * 1.9, `rage ${a.rage} -> ${b.rage}`);
+    assert.ok(b.dealt > a.dealt * 1.3, `damage ${a.dealt} -> ${b.dealt}`);
+  });
+  it('Enraged Regeneration lasts 8 seconds and heals 300% of the damage you deal, and does nothing once it ends', () => {
+    const { sim, w, f } = war('arms', 2);
+    const sim0 = sim;
+    w.bar = [...w.bar.slice(0, 7), 'enraged_regeneration'];
+    assert.equal(AURAS.enraged_regeneration.duration, 8000);
+    assert.equal(AURAS.enraged_regeneration.mods?.lifesteal, 3);
+    w.maxHealth = 100000; w.health = 10000;
+    f.maxHealth = f.health = 1e6;
+    assert.ok(sim0.useAbility(w.id, 'enraged_regeneration').ok);
+    const hp = f.health, mine = w.health;
+    assert.ok(sim0.useAbility(w.id, 'mortal_strike', f.id).ok);
+    advance(sim0, TICK);
+    const dealt = hp - f.health;
+    assert.ok(dealt > 300);
+    assert.ok(Math.abs(w.health - mine - dealt * 3) <= 3, `dealt ${dealt}, healed ${w.health - mine}`);
+    advance(sim0, 8500);
+    const h2 = w.health, f2 = f.health;
+    w.cooldowns = {}; w.gcdEnd = 0; w.resource = 100;
+    sim0.useAbility(w.id, 'mortal_strike', f.id);
+    advance(sim0, TICK);
+    assert.ok(f.health < f2 && w.health <= h2, 'no healing after it ends');
   });
   it('Deep Cuts stacks its bleed up to three times; Axe Throw reaches 10 yards and costs rage', () => {
     const { sim, w, f } = war('protection');

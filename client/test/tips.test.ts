@@ -61,10 +61,10 @@ describe('tooltips follow the build', () => {
 
   it('picking a talent changes the numbers at once, marked against the base value', () => {
     setTipBuild('warrior', { spec: 'arms', talents: [], gear: {} });
-    const before = resolveTip('ability:whirlwind', {})!;
+    const before = resolveTip('ability:slam', {})!;
     assert.ok(marks(before).length === 0);
     setTipBuild('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} });
-    const after = resolveTip('ability:whirlwind', {})!;
+    const after = resolveTip('ability:slam', {})!;
     assert.ok(marks(after).some((p) => 'base' in p && p.better), [...after.stats!, ...after.lines!].join(' · '));
   });
 
@@ -88,8 +88,8 @@ describe('tooltips follow the build', () => {
     setTipBuild('warrior', { spec: 'arms', talents: [], gear: {} });
     const key = tipBuildKey('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} });
     const plain = (c: ReturnType<typeof resolveTip>) => (c?.lines ?? []).map(plainText).join(' ');
-    assert.notEqual(plain(resolveTip('ability:whirlwind', { tipBuild: key })), plain(resolveTip('ability:whirlwind', {})));
-    assert.equal(marks(resolveTip('ability:whirlwind', {})!).length, 0, 'the current build is untouched');
+    assert.notEqual(plain(resolveTip('ability:slam', { tipBuild: key })), plain(resolveTip('ability:slam', {})));
+    assert.equal(marks(resolveTip('ability:slam', {})!).length, 0, 'the current build is untouched');
     setTipBuild('mage', undefined);
   });
 });

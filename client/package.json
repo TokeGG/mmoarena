@@ -1,6 +1,6 @@
 {
   "name": "@arena/client",
-  "version": "0.69.5",
+  "version": "0.69.7",
   "private": true,
   "type": "module",
   "scripts": {

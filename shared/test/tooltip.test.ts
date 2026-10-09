@@ -75,6 +75,7 @@ describe('tooltips say each thing once', () => {
     assert.ok(!explainAbility(ABILITIES.frostbolt, newMods(), []).some((l) => l.startsWith('Damage:')));
     // combo point scaling and Consumes are explained in the short view only
     assert.ok(!explainAbility(ABILITIES.eviscerate, newMods(), []).some((l) => /combo point/i.test(l)));
+    assert.equal(ABILITIES.eviscerate.name, 'Weak Point');
     assert.ok(!explainAbility(ABILITIES.arcane_barrage, newMods(), []).some((l) => l.startsWith('Consumes')));
     // a buff that boosts both damage and healing is named once
     const penance = explainAbility(ABILITIES.penance, newMods(), []).find((l) => l.startsWith('Boosted by'));
@@ -173,8 +174,8 @@ describe('tooltips state durations, costs and resource gains', () => {
       }
     }
     assert.ok(marks > 50, 'talents and specs do mark numbers');
-    const ww = describeAbility(ABILITIES.whirlwind, compileMods('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} }), undefined, { mark: true });
-    assert.ok([...ww.stats, ...ww.lines].some((s) => s.includes('⟦') && s.includes('|+⟧')), `stronger Cleave is marked: ${ww.lines.join(' ')}`);
+    const ww = describeAbility(ABILITIES.slam, compileMods('warrior', { spec: 'arms', talents: ['', '', 'warrior_arms_t3a'], gear: {} }), undefined, { mark: true });
+    assert.ok([...ww.stats, ...ww.lines].some((s) => s.includes('⟦') && s.includes('|+⟧')), `stronger Slam is marked: ${ww.lines.join(' ')}`);
     assert.deepEqual(markedParts('Deals ⟦156|120|+⟧ damage.'), [{ text: 'Deals ' }, { value: '156', base: '120', better: true }, { text: ' damage.' }]);
   });
 });

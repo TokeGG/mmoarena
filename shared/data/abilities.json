@@ -133,9 +133,7 @@
    },
    {
     "type": "aura",
-    "aura": "hot_streak",
-    "chance": 0.15,
-    "self": true
+    "aura": "singed"
    }
   ]
  },
@@ -494,8 +492,7 @@
     "type": "aura",
     "aura": "recklessness"
    }
-  ],
-  "retired": true
+  ]
  },
  {
   "id": "intimidating_shout",
@@ -521,8 +518,8 @@
   "name": "Bloodthirst",
   "class": "warrior",
   "school": "physical",
-  "target": "enemy",
-  "range": 3,
+  "target": "aoe_enemy",
+  "range": 0,
   "castTime": 0,
   "cooldown": 4500,
   "gcd": true,
@@ -540,7 +537,8 @@
     "type": "gain",
     "amount": 8
    }
-  ]
+  ],
+  "radius": 3
  },
  {
   "id": "whirlwind",
@@ -563,7 +561,8 @@
     "amount": 8
    }
   ],
-  "radius": 8
+  "radius": 8,
+  "retired": true
  },
  {
   "id": "enraged_regeneration",
@@ -654,12 +653,6 @@
    {
     "type": "damage",
     "amount": 550
-   },
-   {
-    "type": "aura",
-    "aura": "hot_streak",
-    "self": true,
-    "fullCast": true
    }
   ]
  },
@@ -1136,19 +1129,20 @@
   "gcd": true,
   "range": 3,
   "id": "eviscerate",
-  "name": "Eviscerate",
+  "name": "Weak Point",
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
   "cost": 35,
   "effects": [
    {
-    "type": "damage",
-    "amount": 110
+    "type": "aura",
+    "aura": "weak_point",
+    "extraPerCp": 1000,
+    "cpDot": true
    }
   ],
-  "cpSpend": true,
-  "cpScale": true
+  "cpSpend": true
  },
  {
   "castTime": 0,
@@ -1734,6 +1728,26 @@
   ]
  },
  {
+  "id": "sweep",
+  "name": "Sweep",
+  "class": "warrior",
+  "school": "physical",
+  "target": "aoe_enemy",
+  "range": 0,
+  "radius": 5,
+  "coneDeg": 90,
+  "castTime": 0,
+  "cooldown": 4000,
+  "gcd": true,
+  "cost": 40,
+  "effects": [
+   {
+    "type": "damage",
+    "amount": 300
+   }
+  ]
+ },
+ {
   "id": "reel_in",
   "name": "Reel In",
   "class": "warrior",
@@ -1939,7 +1953,8 @@
     "type": "damage",
     "amount": 230
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "battle_banner",
@@ -1978,8 +1993,10 @@
     "type": "dropTargets"
    },
    {
-    "type": "aura",
-    "aura": "mirror_image"
+    "type": "images",
+    "count": 2,
+    "duration": 8000,
+    "damage": 0.2
    }
   ]
  },

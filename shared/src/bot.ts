@@ -179,7 +179,7 @@ export class Bot {
     while (this.hist.length && sim.time - this.hist[0].t > 2500) this.hist.shift();
     const all = [...sim.units.values()];
     const enemies = all.filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e));
-    const allies = all.filter((a) => a.alive && a.team === u.team);
+    const allies = all.filter((a) => a.alive && a.team === u.team && !a.image);
 
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
@@ -316,8 +316,13 @@ export class Bot {
    * A cast that keeps the bot standing still. Spells cast on the move (Bladestorm, Scorch) do not: while one runs the
    * bot keeps chasing, kiting, sidestepping and dodging like any player would.
    */
+  /** Moving does not cancel this ability: it says so itself, or the unit's spec or talents allow it (the Warden's Penance). */
+  private movesWhileCasting(u: Unit, ability: string): boolean {
+    return !!ABILITIES[ability]?.castWhileMoving || !!u.mods.ability[ability]?.castWhileMoving;
+  }
+
   private castHolds(u: Unit): boolean {
-    return !!u.cast && !ABILITIES[u.cast.ability]?.castWhileMoving;
+    return !!u.cast && !this.movesWhileCasting(u, u.cast.ability);
   }
 
   /** The melee enemy a caster is running from this tick, if any. */
@@ -337,7 +342,7 @@ export class Bot {
     // running from a melee that is not slowed only pays while there is an instant to throw on the way (it keeps up)
     const instant = u.bar.some((id) => {
       const a = ABILITIES[id];
-      return !!a && (a.castTime === 0 || !!a.castWhileMoving) && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
+      return !!a && (a.castTime === 0 || this.movesWhileCasting(u, id)) && a.target === 'enemy' && a.effects.some((e) => e.type === 'damage') && this.ready(u, id) && u.resource >= a.cost;
     });
     const slowReady = u.bar.some((id) => {
       const a = ABILITIES[id];
@@ -461,7 +466,7 @@ export class Bot {
   private use(u: Unit, ability: string, target?: number, ground?: Vec2 & { lv?: 1 }): boolean {
     const def = ABILITIES[ability];
     // on the run (to cover, out of a cast's sight) a cast would only be cancelled by the next step
-    if (this.moving && def && def.castTime > 0 && !def.castWhileMoving) return false;
+    if (this.moving && def && def.castTime > 0 && !this.movesWhileCasting(u, ability)) return false;
     if (this.wastesCC(u, ability, target)) return false;
     // a cast started at the very edge of its range fails when the target takes a step back
     if (def && def.castTime > 0 && !def.channel && def.target === 'enemy' && def.range > 0 && this.brain.rangeBuffer > 0 && target !== undefined) {
@@ -594,18 +599,10 @@ export class Bot {
   private useFirst(u: Unit, abilities: string[], target?: number): boolean {
     // with an enemy interrupt ready and in reach, instants go first: a cast is only started when there is nothing else (and may be a fake)
     const list = this.kickRisk ? [...abilities].sort((a, b) => Number((ABILITIES[a]?.castTime ?? 0) > 0) - Number((ABILITIES[b]?.castTime ?? 0) > 0)) : abilities;
-    for (const a of this.rotateHeals(u, list)) if (this.use(u, a, target)) return true;
+    for (const a of list) if (this.use(u, a, target)) return true;
     return false;
   }
   private kickRisk = false;
-
-  /** Heal spam is weaker each repeat (see Sim.healSpam): from the second repeat on, a different heal on the list goes first so the heals are rotated. */
-  private rotateHeals(u: Unit, list: string[]): string[] {
-    const last = u.lastHeal;
-    if (!last || last.stacks < 1 || this.sim.time - last.at > TUNING.healSpamWindowMs || list.length < 2 || list[0] !== last.ability) return list;
-    if (!list.every((a) => ABILITIES[a]?.effects.some((e) => e.type === 'heal'))) return list;
-    return [...list.slice(1), list[0]];
-  }
 
   /**
    * The spec's damage rotation (learned offline: the order that deals the most damage with the real cooldowns and costs),
@@ -654,7 +651,7 @@ export class Bot {
       return;
     }
     const B = this.brain;
-    const mates = [...sim.units.values()].filter((a) => a.alive && a.team === u.team && a !== u);
+    const mates = [...sim.units.values()].filter((a) => a.alive && a.team === u.team && a !== u && !a.image);
     const fleeing = (e: Unit) => e === cur && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root');
     const score = (e: Unit) =>
       hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? B.stickiness : 0) -
@@ -863,7 +860,6 @@ export class Bot {
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
     // the banner goes down once the fight is near, at its own feet (its circle buffs the team standing in it)
     if (d <= 20 && this.use(u, 'battle_banner', undefined, { x: u.pos.x, z: u.pos.z, ...(u.level === 1 ? { lv: 1 as const } : {}) })) return;
-    if (d <= 10 && this.use(u, 'dragon_roar')) return; // a cone ahead: the bot already faces its target
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
     // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach): a warrior never walks in
     if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !hasLOS(u.pos, tgt.pos, this.sim.arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
@@ -878,10 +874,10 @@ export class Bot {
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
     if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.useFirst(u, ['recklessness', 'bladestorm']); // not into a shield wall
     if (!stunned && d <= 8 && this.useFirst(u, ['concussion_blow', 'slice_and_dice'], tgt.id)) return;
-    if (d <= 8 && near.length >= 2 && this.use(u, 'whirlwind')) return;
+    if (d <= 6 && this.use(u, 'recklessness')) return; // damage and double rage for 12 seconds: not saved for a finishing blow
     // a rage payoff waits for a full bar; builders and the other strikes fill the gaps
     if (u.resource >= 70 && this.use(u, 'mortal_strike', tgt.id)) return;
-    if (this.rotate(u, tgt, ['bloodthirst', 'slam', 'deep_cuts', 'whirlwind', 'axe_throw'])) return;
+    if (this.rotate(u, tgt, ['bloodthirst', 'sweep', 'slam', 'deep_cuts', 'axe_throw'])) return;
     if (u.resource >= 30 && this.use(u, 'mortal_strike', tgt.id)) return;
     if (!slowed && u.resource >= 40) this.use(u, 'hamstring', tgt.id);
   }
@@ -908,11 +904,11 @@ export class Bot {
     // Fan of Knives whenever someone is within its 8 yards; Crippling Strike keeps a runner slowed
     if (enemies.some((e) => dist(u.pos, e.pos) <= 7.5) && this.use(u, 'fan_of_knives')) return;
     if (!tgt.auras.some((a) => a.kind === 'slow' || a.kind === 'root') && this.use(u, 'crippling_strike', tgt.id)) return;
-    // finishers: spend at 4 (at 3 on a target about to die); Kidney Shot only with 4 or more, and only while its stun
+    // finishers (Weak Point silences and disarms for a second per point while it bleeds them): spend at 4 (at 3 on a target about to die); Kidney Shot only with 4 or more, and only while its stun
     // still lands for long (not on a target that is already diminished), so points are not thrown away on 1-point stuns
     const stunDr = tgt.dr.stun && this.sim.time < tgt.dr.stun.resetAt ? tgt.dr.stun.count : 0;
     if (u.cp >= 4 && !stunned && stunDr === 0 && this.use(u, 'kidney_shot', tgt.id)) return;
-    if ((u.cp >= 4 || (u.cp >= 3 && hpFrac(tgt) < 0.25)) && this.useFirst(u, ['eviscerate', 'exsanguinate'], tgt.id)) return;
+    if ((u.cp >= 4 || (u.cp >= 3 && hpFrac(tgt) < 0.25)) && this.useFirst(u, tgt.auras.some((a) => a.id === 'weak_point') ? ['exsanguinate'] : ['eviscerate', 'exsanguinate'], tgt.id)) return;
     if (!tgt.auras.some((a) => a.id === 'garrote_bleed') && this.use(u, 'garrote', tgt.id)) return;
     this.rotate(u, tgt, ['mutilate', 'backstab', 'sinister_strike', 'garrote', 'crippling_strike', 'fan_of_knives']);
   }

@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
@@ -29,7 +29,7 @@ import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { DataLayers, DevPanel } from './devPanel';
-import { AdminPanel } from './adminPanel';
+import { AdminPanel, adminAccessOf } from './adminPanel';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
 import { Recap } from './recap';
@@ -611,13 +611,15 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   const unitOf = (id: number) => snap.units.find((u) => u.id === id);
   for (const ev of events) {
     recap.add(ev);
-    killFeed.event(ev, unitOf, spec ? null : team);
+    if (!(ev.t === 'death' && unitOf(ev.unit)?.img !== undefined)) killFeed.event(ev, unitOf, spec ? null : team);
     if (ev.t === 'phase' && ev.phase === 'ended') showRecap(snap);
     // a teleport behind someone turns you round: the camera comes with you
     if (ev.t === 'turn' && ev.unit === you && !spec) controls.yaw = controls.facing = ev.facing;
     hud.event(ev, ctx);
     effects.event(ev);
     if (ev.t === 'cast') scene.cast(ev.unit);
+    // Mirror Image: an enemy that had the caster targeted loses the target (the server cleared its own side)
+    if (ev.t === 'cast' && !spec && ev.unit === targetId && ABILITIES[ev.ability]?.effects.some((e) => e.type === 'dropTargets')) setTarget(null);
     audio.event(ev, you, team, spatial);
   }
 }
@@ -875,7 +877,7 @@ function groundBlocked(ability: string): string | null {
   const now = estimatedNow();
   if (groundCooldownLeft(ability) > GROUND_SLACK_MS) return 'That is not ready yet';
   if (me.resource < def.cost) return `Not enough ${me.resourceType}`;
-  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities))) return 'You cannot act right now';
+  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (def.class !== 'trinket' && !!silencedBy(me.auras, def)) || (me.controlled && !def.ignoresControl) || lockedByAura(def, me.auras)) return 'You cannot act right now';
   if (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now) return `${def.school} is locked out`;
   return null;
 }
@@ -1295,7 +1297,7 @@ function frame(now: number) {
     units.map((u) => {
       const s = scene.project(u.x, 2.7 + u.y, u.z);
       const meta = snap.units.find((x) => x.id === u.id)!;
-      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
+      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, resource: meta.resource, resourceMax: meta.resourceMax, resourceType: meta.resourceType, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
     }),
     estNow,
   );
@@ -1501,7 +1503,7 @@ function setBadge(b: HTMLElement, n: number) {
 const pollBadges = () => {
   if (!accountUi.account || !mainMenu.visible || document.hidden) return;
   send({ t: 'live' });
-  if (accountUi.account.ownerOk) send({ t: 'admin_proposals', op: 'list' });
+  if (adminAccessOf(accountUi.account)) send({ t: 'admin_proposals', op: 'list' });
 };
 window.setInterval(pollBadges, 20000);
 window.setTimeout(pollBadges, 4000);
@@ -1640,7 +1642,7 @@ const accountUi = new AccountUi({
     // the admin panel follows the account (unlocking the owner code there opens the rest of it)
     queueMicrotask(() => {
       if (adminPanel.isOpen) {
-        if (a?.role === 'owner') adminPanel.open();
+        if (a?.role === 'owner' || adminAccessOf(a)) adminPanel.open();
         else adminPanel.close();
       }
     });
@@ -1704,7 +1706,7 @@ const paintHeader = () => {
   const b = header.buttons.profile;
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
-  header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner'); // only the founder account sees the admin button
+  header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner' && !adminAccessOf(a)); // the founder account and accounts with the dev tag see the admin button
   header.buttons.bots.classList.toggle('hidden', a?.role !== 'owner'); // and the bot battle button
 };
 paintHeader();

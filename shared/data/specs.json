@@ -7,7 +7,7 @@
       "desc": "Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice stuns the cone ahead.",
       "icon": "\u2694\ufe0f",
       "bar": [
-        "whirlwind",
+        "slam",
         "mortal_strike",
         "execute",
         "slice_and_dice",
@@ -31,13 +31,13 @@
       "id": "fury",
       "name": "Rampager",
       "role": "Two-handed sword",
-      "desc": "Slow swings with long reach. Bloodthirst heals as it hits; Bladestorm shreds everything near you.",
+      "desc": "Slow swings with long reach. Bloodthirst cleaves everything around you and heals per enemy hit; Sweep slices the arc ahead.",
       "icon": "\ud83d\udde1\ufe0f",
       "bar": [
         "bladestorm",
         "bloodthirst",
-        "enraged_regeneration",
-        "slam",
+        "recklessness",
+        "sweep",
         "charge",
         "pummel",
         "hamstring",
@@ -46,9 +46,6 @@
       "mods": {
         "ability": {
           "bloodthirst": {
-            "range": 1.5
-          },
-          "slam": {
             "range": 1.5
           }
         }
@@ -139,7 +136,7 @@
         "id": "fire_staff",
         "name": "Fire staff"
       },
-      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Hot Streak makes Pyroblast instant. Cauterize saves you from one killing blow.",
+      "desc": "Big fire damage with Pyroblast, Fireball and Flamestrike. Fireball sears the target with Singed, and the third hit brings Hot Streak, which makes Pyroblast instant. Cauterize saves you from one killing blow.",
       "icon": "\ud83d\udd25",
       "bar": [
         "fireball",
@@ -194,7 +191,16 @@
         "penance",
         "desperate_prayer"
       ],
-      "mods": {},
+      "mods": {
+        "ability": {
+          "power_word_shield": {
+            "heal": 1.5
+          },
+          "penance": {
+            "castWhileMoving": true
+          }
+        }
+      },
       "weapon": {
         "id": "holy_staff",
         "name": "Holy Staff"
@@ -294,7 +300,7 @@
       "id": "subtlety",
       "name": "Shade",
       "role": "Control / mobility",
-      "desc": "Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Eviscerate finishes.",
+      "desc": "Slippery repositioning with Shadowstep and Sprint. Backstab hits twice as hard from behind; Weak Point finishes.",
       "icon": "\ud83d\udc64",
       "bar": [
         "stealth",

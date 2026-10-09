@@ -87,11 +87,11 @@
   "recklessness": {
     "name": "Recklessness",
     "kind": "buff",
-    "duration": 10000,
+    "duration": 12000,
     "harmful": false,
     "mods": {
-      "damageDone": 1.3,
-      "damageTaken": 1.15
+      "damageDone": 1.4,
+      "rage": 2
     }
   },
   "shield_wall": {
@@ -307,6 +307,15 @@
     "harmful": false,
     "instantFor": "pyroblast"
   },
+  "singed": {
+    "name": "Singed",
+    "kind": "mark",
+    "duration": 10000,
+    "harmful": true,
+    "maxStacks": 2,
+    "stackProc": "hot_streak",
+    "note": "Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant"
+  },
   "cauterized": {
     "name": "Cauterized",
     "kind": "mark",
@@ -345,6 +354,22 @@
     "harmful": true,
     "slowPct": 40,
     "dispellable": true
+  },
+  "weak_point": {
+    "name": "Weak Point",
+    "kind": "dot",
+    "duration": 1000,
+    "harmful": true,
+    "silence": true,
+    "disarm": true,
+    "perCp": true,
+    "maxDuration": 5000,
+    "dot": {
+      "amount": 110,
+      "interval": 1000,
+      "school": "physical",
+      "ability": "eviscerate"
+    }
   },
   "garrote_bleed": {
     "name": "Garrote",
@@ -404,17 +429,7 @@
     "duration": 8000,
     "harmful": false,
     "mods": {
-      "damageTaken": 0.7,
-      "ability": {
-        "bloodthirst": {
-          "extra": [
-            {
-              "type": "healMax",
-              "pct": 0.2
-            }
-          ]
-        }
-      }
+      "lifesteal": 3
     }
   },
   "deep_cuts_bleed": {
@@ -494,14 +509,6 @@
       "damageDone": 1.1,
       "damageTaken": 0.9
     }
-  },
-  "mirror_image": {
-    "name": "Mirror Image",
-    "kind": "buff",
-    "duration": 8000,
-    "harmful": false,
-    "decoys": 0.5,
-    "note": "Images stand in for you: half the hits meant for you strike an image instead and do nothing."
   },
   "rune_of_power": {
     "name": "Rune of Power",

@@ -39,7 +39,7 @@ export function spendPayoff(sim: ArenaSim, u: Unit, target: number): boolean {
   for (const id of u.bar) {
     const d = ABILITIES[id];
     if (!d) continue;
-    const dealsDamage = d.effects.some((e) => e.type === 'damage' || e.type === 'exsanguinate');
+    const dealsDamage = d.effects.some((e) => e.type === 'damage' || e.type === 'exsanguinate' || (e.type === 'aura' && !!e.cpDot));
     if (d.cpSpend && dealsDamage && u.cp >= 4 && sim.useAbility(u.id, id, target).ok) return true;
     if (d.rageSpend && u.resource >= 70 && sim.useAbility(u.id, id, target).ok) return true;
   }

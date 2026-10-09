@@ -8,7 +8,7 @@ import { BotLearner } from '../src/botlearn';
 import { AdminLog } from '../src/adminlog';
 import { Lobby } from '../src/rooms';
 
-function botMatch(seed = 3): ReplayData {
+function botMatch(seed = 5): ReplayData {
   const arena = ARENAS[1];
   const sim = new ArenaSim({ seed, prepMs: 3000, arena });
   const rec = new ReplayRecorder(sim, { arena: arena.id, seed, prepMs: 3000 });

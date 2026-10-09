@@ -511,29 +511,33 @@ export class BotLearner {
         const m = b.won ? 0.5 : 1;
         for (const n of b.nudges) {
           let applied = false;
-          for (const k of n.keys) {
-            const [bl, bh] = BRAIN_BOUNDS[k];
-            const span = bh - bl;
-            const step = NUDGE_STEP * span * n.strength * m * Math.min(3, passes) * n.sign;
-            for (let attempt = 0; attempt < 2 && !applied; attempt++) {
-              const r = room[k] ?? DRIFT_LIMIT;
-              const allowLo = Math.max(bl, shipped[k] - r * span);
-              const allowHi = Math.min(bh, shipped[k] + r * span);
-              const next = Math.min(allowHi, Math.max(allowLo, brain[k] + step));
-              if (Math.abs(next - brain[k]) > 1e-9) {
-                nudge[k] = (nudge[k] ?? 0) + (next - brain[k]);
-                brain[k] = next;
-                const list = why.get(k) ?? [];
-                list.push(`${n.metric}: ${n.why}`);
-                why.set(k, list);
-                applied = true;
-              } else if (r < ROOM_MAX && ((n.sign > 0 && allowHi < bh) || (n.sign < 0 && allowLo > bl))) {
-                room[k] = Math.min(ROOM_MAX, r + ROOM_WIDEN);
-                notes.push(`${k} reached its limit (${Math.round(r * 100)}% of its range from what shipped), so the room was widened to ${Math.round(room[k]! * 100)}%.`);
-              } else {
-                notes.push(`${k} is at its hard bound ${n.sign > 0 ? bh : bl}, so ${n.metric} moved ${n.keys.filter((x) => x !== k)[0] ?? 'nothing else'} instead.`);
-                break;
+          // first the number with room for most of the step; if every number on the list is nearly at a bound, whichever has any
+          for (const need of [0.5, 0]) {
+            for (const k of n.keys) {
+              const [bl, bh] = BRAIN_BOUNDS[k];
+              const span = bh - bl;
+              const step = NUDGE_STEP * span * n.strength * m * Math.min(3, passes) * n.sign;
+              for (let attempt = 0; attempt < 2 && !applied; attempt++) {
+                const r = room[k] ?? DRIFT_LIMIT;
+                const allowLo = Math.max(bl, shipped[k] - r * span);
+                const allowHi = Math.min(bh, shipped[k] + r * span);
+                const next = Math.min(allowHi, Math.max(allowLo, brain[k] + step));
+                if (Math.abs(next - brain[k]) > 1e-9 && Math.abs(next - brain[k]) >= need * Math.abs(step)) {
+                  nudge[k] = (nudge[k] ?? 0) + (next - brain[k]);
+                  brain[k] = next;
+                  const list = why.get(k) ?? [];
+                  list.push(`${n.metric}: ${n.why}`);
+                  why.set(k, list);
+                  applied = true;
+                } else if (r < ROOM_MAX && ((n.sign > 0 && allowHi < bh) || (n.sign < 0 && allowLo > bl))) {
+                  room[k] = Math.min(ROOM_MAX, r + ROOM_WIDEN);
+                  notes.push(`${k} reached its limit (${Math.round(r * 100)}% of its range from what shipped), so the room was widened to ${Math.round(room[k]! * 100)}%.`);
+                } else {
+                  if (need === 0 || Math.abs(next - brain[k]) <= 1e-9) notes.push(`${k} is at its bound ${n.sign > 0 ? bh : bl}, so ${n.metric} moves the next number on its list.`);
+                  break;
+                }
               }
+              if (applied) break;
             }
             if (applied) break;
           }
@@ -541,7 +545,7 @@ export class BotLearner {
       }
       if (mine) mine.brain = brain;
       else if (Object.keys(merged).length || Object.keys(nudge).length) pop.variants.push({ id: 'lesson', brain, wins: 0, games: 0 });
-      const moved = brainDiff(before, brain).map((mv) => ({ ...mv, why: (why.get(mv.key) ?? ['graded signals']).join('; ') }));
+      const moved = brainDiff(before, brain, 0.0005).map((mv) => ({ ...mv, why: (why.get(mv.key) ?? ['graded signals']).join('; ') }));
       out.push({ classId, moved, notes, replays: stat.replays });
       this.persist(classId, () => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(LESSON_KEY(classId), JSON.stringify(merged)), this.store.set(STAT_KEY(classId), JSON.stringify(stat))]));
     }

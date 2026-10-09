@@ -89,6 +89,19 @@ describe('trinkets', () => {
     assert.equal(p.health, 1000 + Math.round(p.maxHealth * 0.25));
   });
 
+  it('Cleansing Charm clears Polymorph and Dragon\'s Breath, which lock other skills that ignore control', () => {
+    for (const aura of ['polymorph', 'dragons_breath']) {
+      const sim = live();
+      const mage = unit(sim, 'mage', 0, 0, 0, 'frost', { 3: 'trinket_cleanse' });
+      const foe = unit(sim, 'mage', 1, 4, 0, 'fire');
+      advance(sim, TICK);
+      sim.applyAura(foe, mage, aura);
+      assert.ok(mage.auras.some((a) => a.id === aura), `${aura} applied`);
+      ok(sim.useAbility(mage.id, 'trinket_cleanse'));
+      assert.ok(!mage.auras.some((a) => a.id === aura), `${aura} removed`);
+    }
+  });
+
   it('a trinket you did not pick cannot be used', () => {
     const sim = live();
     const m = unit(sim, 'mage', 0, 0, 0, 'frost');
@@ -409,16 +422,13 @@ describe('tier three', () => {
 });
 
 describe('tier five skills', () => {
-  it('Dragon Roar hits a cone; Battle Banner buffs allies in the circle; Rune of Power buffs only you', () => {
-    const sim = live();
-    const w = unit(sim, 'warrior', 0, 0, 0, 'arms', { 4: 'warrior_t5b' });
-    const front = unit(sim, 'mage', 1, 6, 0, 'frost');
-    const behind = unit(sim, 'mage', 1, -6, 0, 'frost');
-    advance(sim, TICK);
-    w.facing = Math.PI / 2;
-    w.resource = 100;
-    ok(sim.useAbility(w.id, 'dragon_roar'));
-    assert.ok(front.health < front.maxHealth && behind.health === behind.maxHealth);
+  it('Enraged Regeneration is a tier five choice of every warrior spec; Battle Banner buffs allies in the circle; Rune of Power buffs only you', () => {
+    for (const spec of ['arms', 'fury', 'protection']) {
+      const sim0 = live();
+      const x = unit(sim0, 'warrior', 0, 0, 0, spec, { 4: 'warrior_t5b' });
+      assert.ok(x.bar.includes('enraged_regeneration') && !x.bar.includes('heroic_leap'), `${spec}: learns it in place of Heroic Leap`);
+    }
+    assert.ok(ABILITIES.dragon_roar.retired);
 
     const sim2 = live();
     const b = unit(sim2, 'warrior', 0, 0, 0, 'arms', { 4: 'warrior_t5c' });
@@ -444,7 +454,7 @@ describe('tier five skills', () => {
     assert.ok(m.auras.some((a) => a.id === 'rune_of_power') && !mate.auras.some((a) => a.id === 'rune_of_power'));
   });
 
-  it('Mirror Image drops targets and wastes some hits; Evocation heals', () => {
+  it('Mirror Image drops targets and summons two images; Evocation heals', () => {
     const sim = live(2);
     const m = unit(sim, 'mage', 0, 0, 0, 'frost', { 4: 'mage_t5a' });
     const foe = unit(sim, 'warrior', 1, 2, 0, 'arms');
@@ -453,14 +463,7 @@ describe('tier five skills', () => {
     foe.autoAttack = true;
     ok(sim.useAbility(m.id, 'mirror_image'));
     assert.equal(foe.target, null, 'the enemy lost its target');
-    let wasted = 0;
-    for (let i = 0; i < 200; i++) {
-      const before = m.health;
-      sim.dealDamage(foe, m, 10, 'physical', 'mortal_strike');
-      if (m.health === before) wasted++;
-      m.health = m.maxHealth;
-    }
-    assert.ok(wasted > 70 && wasted < 130, `${wasted} of 200 hit an image`);
+    assert.equal([...sim.units.values()].filter((u) => u.image).length, 2);
 
     const sim2 = live();
     const e = unit(sim2, 'mage', 0, 0, 0, 'frost', { 4: 'mage_t5b' });

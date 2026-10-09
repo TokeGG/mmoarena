@@ -2111,6 +2111,32 @@ export class Effects {
         melee(0xffaa40, 1.7);
         if (t) this.ring(t.x, t.z, 0xffaa40, 0.3, 2.2, 0.3);
         break;
+      case 'sweep': {
+        // a 90 degree slice of the blade across the real arc in front of the warrior: three cuts fan across the wedge
+        const cone = coneShape(def);
+        const r = cone?.range ?? 5;
+        const half = cone?.half ?? Math.PI / 4;
+        this.onSwing(unit);
+        this.sector(s.x, s.z, s.facing, r, half, 0xffaa40, 0.35, 0.5, unit);
+        [-0.6, 0, 0.6].forEach((k, i) => {
+          const a = s.facing + k * half;
+          const px = s.x + Math.sin(a) * r * 0.7;
+          const pz = s.z + Math.cos(a) * r * 0.7;
+          this.later(i * 0.05, () => {
+            this.slash(s.x, s.z, px, pz, 0xffaa40, 1.5, CHEST, k * 0.9);
+            this.burst(px, CHEST, pz, 0xffaa40, 5, 3.5, 0.25, 0.35);
+          });
+        });
+        break;
+      }
+      case 'bloodthirst': {
+        // a red turn of the blade round the warrior, out to the real reach
+        this.onSwing(unit);
+        this.later(0.1, () => this.onSwing(unit, true));
+        this.spinBlades(unit, (def.radius ?? 3) + 1, 0xd02a3a, 0.4, 1.1);
+        this.ring(s.x, s.z, 0xd02a3a, 0.4, (def.radius ?? 3) + 1, 0.4, 0.08, 0.7);
+        break;
+      }
       case 'deep_cuts':
         melee(0xc0202a, 1.2);
         break;
@@ -2152,18 +2178,6 @@ export class Effects {
       case 'intimidating_shout':
         this.shout(unit, s, def.radius ?? 8, 0xffd9a0, { count: 4 });
         break;
-      case 'dragon_roar': {
-        // a roar of fire: the head goes back, then waves and a cone of flame leave the mouth
-        const cone = coneShape(def);
-        this.onShout(unit);
-        this.later(SHOUT_RELEASE, () => {
-          const p = this.pos(unit) ?? s;
-          this.soundWaves(unit, (cone?.range ?? 12) * 0.8, 0xffb060, { count: 3, half: cone?.half, opacity: 0.55 });
-          this.fireCone(unit, cone?.range ?? 12, cone?.half ?? 0.87, 0.8, { density: 0.8 });
-          this.shockwave(p.x, p.z, 6, 0xff9a40, true);
-        });
-        break;
-      }
       case 'dragons_breath': {
         // the mage breathes fire: head back, then a jet that fans out to the spell's real cone
         const cone = coneShape(def);
@@ -2200,6 +2214,14 @@ export class Effects {
           const d = rnd(0.5, r * 0.85);
           this.particle(s.x + Math.cos(a) * d * 0.3, rnd(0.2, 0.8), s.z + Math.sin(a) * d * 0.3, { tex: 'star', color: 0xfff1a8, vx: Math.cos(a) * d * 1.3, vz: Math.sin(a) * d * 1.3, vy: rnd(0.8, 2.4), s0: rnd(0.3, 0.5), s1: 0.08, life: rnd(0.6, 0.9), drag: 1.8 });
         }
+        break;
+      }
+      case 'purifying_light': {
+        // the sanctified ground: a circle of light at the real radius that stays as long as the Purified aura it gives lasts
+        const r = def.radius ?? 12;
+        this.ring(s.x, s.z, 0xfff1a8, 0.5, r, 0.55, 0.08, 1);
+        this.column(s.x, s.z, 0xfff1a8, 0.6, 1.1, 6, 0.45);
+        this.holyCircle(s.x, s.z, r, (AURAS.purified?.duration ?? 4000) / 1000);
         break;
       }
       case 'evocation':
@@ -2900,6 +2922,42 @@ export class Effects {
         rm.dispose();
       },
     };
+  }
+
+  /** A lasting ring of holy light with a slowly turning rune disc and a soft glow on the ground over `r` yards (Purifying Light): it fades in, holds, then fades out over the last moments of `dur` seconds. */
+  private holyCircle(x: number, z: number, r: number, dur: number) {
+    const group = new THREE.Group();
+    group.position.set(x, this.groundY(x, z), z);
+    const ringM = this.flatMat(0xffe98a, 0);
+    const runeM = this.flatMat(0xfff1c0, 0, this.getRuneTex());
+    const glowM = this.flatMat(0xffe27a, 0);
+    this.flat(group, this.discGeo, glowM, 0.06, r);
+    this.flat(group, this.ringGeo, ringM, 0.07, r);
+    const rune = this.flat(group, this.discGeo, runeM, 0.08, r * 1.02);
+    this.scene.add(group);
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const fade = Math.min(1, t / 0.25) * Math.min(1, Math.max(0, (dur - t) / 0.8));
+        ringM.opacity = (0.7 + 0.15 * Math.sin(t * 5)) * fade;
+        runeM.opacity = 0.3 * fade;
+        glowM.opacity = 0.13 * fade;
+        rune.rotation.z = t * 0.5;
+        if (fade > 0.5 && Math.random() < dt * r * 0.6) {
+          const a = Math.random() * Math.PI * 2;
+          const d = Math.sqrt(Math.random()) * r * 0.95;
+          this.particle(x + Math.cos(a) * d, 0.1, z + Math.sin(a) * d, { tex: 'star', color: 0xfff1a8, vy: rnd(0.8, 1.8), s0: rnd(0.2, 0.35), s1: 0.05, life: rnd(0.7, 1.1), drag: 0.4 });
+        }
+        return t >= dur;
+      },
+      dispose: () => {
+        this.scene.remove(group);
+        ringM.dispose();
+        runeM.dispose();
+        glowM.dispose();
+      },
+    });
   }
 
   /**

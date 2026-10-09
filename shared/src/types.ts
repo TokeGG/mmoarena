@@ -44,6 +44,8 @@ export interface AbilityMod {
   swapAura?: Record<string, string>;
   /** Share of the healing this ability does that also arrives as a barrier on the target (Penance). */
   shieldPct?: number;
+  /** Can be cast while moving (a channel keeps going when the caster walks: the Warden's Penance). */
+  castWhileMoving?: boolean;
   /** Share of a heal that is also sent to the other side of the pair: an ally if you healed yourself, you if you healed an ally (Greater Heal). */
   echo?: number;
 }
@@ -66,18 +68,23 @@ export interface Mods {
   maxCp: number;
   /** Multiplies the per-point scaling of combo point payoffs. */
   cpPower: number;
+  /** Multiplies all rage this unit gains (from its hits, from damage taken and from abilities). */
+  rage: number;
+  /** Share of the damage this unit deals that heals it (1 = 100%). Added, not multiplied. */
+  lifesteal: number;
   ability: Record<string, AbilityMod>;
   auraDuration: Record<string, number>;
   /** Milliseconds a re-applied aura (a bleed) adds to its remaining time instead of restarting. */
   auraExtend: Record<string, number>;
 }
 /** Partial form used in data files (specs, talents, auras). */
-export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExtend' | 'maxCp'>> & {
+export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExtend' | 'maxCp' | 'lifesteal'>> & {
   ability?: Record<string, AbilityMod>;
   auraDuration?: Record<string, number>;
   auraExtend?: Record<string, number>;
   /** Added, not multiplied. */
   maxCp?: number;
+  lifesteal?: number;
 };
 
 /** A weapon a spec is built around: it sets the auto-attack and how the character is drawn. */
@@ -148,8 +155,6 @@ export interface AuraDef {
   note?: string;
   /** A fear that runs away from whoever put it on, as far as it can, instead of anywhere (Psychic Scream's flee form). */
   flee?: boolean;
-  /** Each hit that could land on the holder has this chance (0-1) to strike an image instead and do nothing (Mirror Image). */
-  decoys?: number;
   /** Enemies cannot see or target the holder while it lasts (Ascend to the Heavens). */
   untargetable?: boolean;
   /** Takes no damage or harmful effects while it lasts. */
@@ -166,6 +171,8 @@ export interface AuraDef {
   bleed?: boolean;
   /** Re-applying adds a stack up to this many (Arcane Charge). */
   maxStacks?: number;
+  /** Applying it again at full stacks removes them all and gives the applier this aura instead (Singed -> Hot Streak). */
+  stackProc?: string;
   /** Your next damaging ability of this school does `mult` times damage and uses the aura up (Shatter). */
   empower?: { school: School; mult: number };
   /** Your next cast of this ability is instant and uses this aura up (Hot Streak -> Pyroblast). */
@@ -176,6 +183,12 @@ export interface AuraDef {
   locksAbilities?: boolean;
   /** While this is on you, you cannot use any ability at all (Dispersion). */
   noCast?: boolean;
+  /** Put on by a combo point payoff that ticks once per point spent (Weak Point): the tooltip does not total it. */
+  perCp?: boolean;
+  /** The holder cannot cast spells (any ability that is not physical) while it lasts (Weak Point). */
+  silence?: boolean;
+  /** The holder cannot auto attack or use physical abilities while it lasts (Weak Point). */
+  disarm?: boolean;
   /** Heals the holder this percent of maximum health every interval. */
   hot?: { pct: number; interval: number };
   dispellable?: boolean;
@@ -198,7 +211,7 @@ export type Effect =
   | { type: 'heal'; amount: number; only?: 'ally' | 'enemy' }
   /** Heals a fraction of the target's missing health. */
   | { type: 'healMissing'; pct: number }
-  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
+  | { type: 'aura'; aura: string; /** Limits the effect to allies (and yourself) or enemies of the caster. */ only?: 'ally' | 'enemy'; /** Chance (0-1) that it applies. */ chance?: number; /** Apply to the caster instead of the target. */ self?: boolean; /** Extra duration in ms per combo point spent. */ extraPerCp?: number; /** A damage-over-time payoff (Weak Point): lasts `extraPerCp` ms per combo point spent (one tick each), and the ticks together deal the aura's damage once for every combo point. */ cpDot?: boolean; /** Lasts this long (ms) instead of the aura's own duration (Deep Freeze applies Shatter for 4 s). */ duration?: number; /** Only when the cast ran its full time, not when a proc made it instant (Pyroblast -> Hot Streak). */ fullCast?: boolean }
   /** Combo point payoff: damage from points plus a share of the bleeds on the target, then those bleeds are multiplied. */
   | { type: 'exsanguinate'; perCp: number; bleedFraction: number; bleedMult: number }
   | { type: 'interrupt'; lockout: number }
@@ -235,6 +248,8 @@ export type Effect =
   | { type: 'strip'; kinds: AuraKind[] }
   /** Enemies lose their target on the caster, and casts at it stop (Mirror Image, Ascend to the Heavens). */
   | { type: 'dropTargets' }
+  /** Summons `count` copies of the caster (same class, spec and talents) for `duration` ms: 1 health, `damage` times the damage (Mirror Image). */
+  | { type: 'images'; count: number; duration: number; damage: number }
   /** A circle on the ground that gives `aura` to those inside for as long as it stands: `allies` for the caster's team, `self` for the caster alone (Battle Banner, Rune of Power). */
   | { type: 'zoneBuff'; radius: number; duration: number; aura: string; who: 'allies' | 'self' };
 
@@ -363,10 +378,10 @@ export interface Tuning {
   fearSpeed: number;
   prepMs: number;
   maxMatchMs: number;
-  /** Heal spam: each repeat of the same heal in a row is this much weaker (0.15 = 15%), down to this fraction of full, and the pause (ms) after which the count starts again. */
-  healSpamStep: number;
-  healSpamFloor: number;
-  healSpamWindowMs: number;
+  /** Dampening: when it starts (ms into a fight with a healer), how much weaker healing gets each second, and its cap. */
+  dampenStartMs: number;
+  dampenPerSec: number;
+  dampenMax: number;
   damageVariance: number;
   stealthDetect: number;
   outOfCombatMs: number;
@@ -444,8 +459,6 @@ export interface Unit {
   lastCombatAt: number;
   /** When standing in lava burns this unit next. */
   lavaAt?: number;
-  /** The last heal this unit cast, how many times in a row (0 = first), when, and the strength it had (see Sim.healSpam). */
-  lastHeal?: { ability: string; stacks: number; at: number; mult: number };
   inputQueue: MoveInput[];
   /** Sim time (ms) the current/last jump began. */
   jumpStart: number;
@@ -461,6 +474,8 @@ export interface Unit {
   owed?: number;
   fearDir: Vec2;
   fearRetargetAt: number;
+  /** A Mirror Image: a copy of `owner` that fights for it until `until`, deals `dmg` times the damage and falls to any hit. Never counts as a player. `removeAt` is set once it has fallen. */
+  image?: { owner: number; until: number; dmg: number; removeAt?: number };
 }
 
 export type SimEvent =
@@ -532,6 +547,8 @@ export interface UnitSnap {
   /** Combo point slots when above the usual five (Deep Pockets). */
   cpMax?: number;
   stealthed: boolean;
+  /** Set on a Mirror Image: the unit id of the caster it copies. Images are left out of party frames, rosters and results. */
+  img?: number;
   /** Damage the unit's shields (Power Word: Shield, Ice Barrier) can still soak; absent when none. */
   absorb?: number;
   /** Height above the ground from a jump (cosmetic). */
@@ -552,6 +569,8 @@ export interface Snapshot {
   phaseEndsAt: number;
   winner: TeamId | 'draw' | null;
   units: UnitSnap[];
+  /** Dampening: how much weaker healing and shields are right now (0.35 = 35% weaker). Absent until it starts. */
+  damp?: number;
   /** Ground effects currently on the floor. */
   zones: ZoneSnap[];
   /** A dev paused this match (dev tools, against bots only): nothing moves until it resumes. */

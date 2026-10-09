@@ -1,20 +1,17 @@
 {
  "warrior:arms": [
   "mortal_strike",
-  "whirlwind",
   "slice_and_dice",
-  "dragon_roar"
+  "slam"
  ],
  "warrior:fury": [
   "bloodthirst",
   "bladestorm",
-  "slam",
-  "dragon_roar"
+  "sweep"
  ],
  "warrior:protection": [
   "deep_cuts",
-  "axe_throw",
-  "dragon_roar"
+  "axe_throw"
  ],
  "mage:frost": [
   "pyroblast",
@@ -24,12 +21,9 @@
   "arcane_barrage"
  ],
  "mage:fire": [
-  "pyroblast",
-  "scorch",
-  "ice_lance",
   "fireball",
-  "arcane_barrage",
-  "arcane_explosion"
+  "pyroblast",
+  "scorch"
  ],
  "mage:arcane": [
   "pyroblast",

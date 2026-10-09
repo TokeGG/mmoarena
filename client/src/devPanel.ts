@@ -637,6 +637,17 @@ export class DevPanel {
       if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
+    const commit = el('button', 'mm-small', 'Commit to GitHub');
+    commit.title = 'Commits these numbers straight to the main branch on GitHub (the data files only). There is no review: the game updates when the next deploy finishes.';
+    commit.addEventListener('click', () => {
+      const all = mergePatches(this.inMatch ? this.layers.roomPatches : this.session, [...this.edits.values()]);
+      if (!all.length) {
+        this.result = { ok: false, text: 'Change a number first.' };
+        return this.paint();
+      }
+      if (!window.confirm(`Commit ${all.length} changed number${all.length === 1 ? '' : 's'} straight to the main branch on GitHub? There is no review and the live game updates on the next deploy.`)) return;
+      this.hooks.send({ t: 'dev_commit', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
+    });
     const keep = el('button', 'mm-small mm-go', 'Keep for my session');
     keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
     keep.addEventListener('click', () => {
@@ -647,8 +658,8 @@ export class DevPanel {
       }
       this.hooks.send({ t: 'dev_session', patches: all });
     });
-    if (this.inMatch) acts.append(tryIt, keep, reset, save);
-    else acts.append(keep, save);
+    if (this.inMatch) acts.append(tryIt, keep, reset, save, commit);
+    else acts.append(keep, save, commit);
     r.append(acts);
     if (this.session.length) {
       const srow = el('div', 'devp-row');

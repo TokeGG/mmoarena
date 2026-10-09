@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor, lockedByAura, silencedBy } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
@@ -225,7 +225,7 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string; badge: HTMLElement }[] = [];
   private castBar = new Bar('#f1c40f');
-  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string; mark: HTMLElement; arrow: HTMLElement; mk: number }>();
+  private plates = new Map<number, { root: HTMLElement; name: HTMLElement; title: HTMLElement; bar: Bar; res: Bar; cast: Bar; icon: HTMLElement; av: string; debuffs: HTMLElement; dkey: string; mark: HTMLElement; arrow: HTMLElement; mk: number }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
   private errTimer = 0;
@@ -377,8 +377,8 @@ export class Hud {
     $('target-frame').classList.toggle('hidden', !tgt);
     if (tgt) this.target.update(tgt, now, tgt.team !== me.team);
 
-    this.syncFrames($('party'), this.partyFrames, snap.units.filter((u) => u.team === me.team && u.id !== you), now, false, targetId);
-    this.syncFrames($('enemies'), this.enemyFrames, snap.units.filter((u) => u.team !== me.team), now, true, targetId);
+    this.syncFrames($('party'), this.partyFrames, snap.units.filter((u) => u.team === me.team && u.id !== you && u.img === undefined), now, false, targetId);
+    this.syncFrames($('enemies'), this.enemyFrames, snap.units.filter((u) => u.team !== me.team && u.img === undefined), now, true, targetId);
 
     // action bar
     const gcdLeft = Math.max(0, me.gcdEnd - now);
@@ -396,13 +396,14 @@ export class Hud {
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
       // a proc (Hot Streak) makes this slot glow while it is active
       s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability) || (!!def.exploit && !!tgt && tgt.team !== me.team && !!tgt.auras?.some((a) => a.id === def.exploit!.aura))); // Ice Lance glows while the target has Fingers of Frost
-      const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
+      const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (def.class !== 'trinket' && !!silencedBy(me.auras, def)) || (me.controlled && !def.ignoresControl) || lockedByAura(def, me.auras) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
       const blocked = me.alive && blockedByCondition(def, me, tgt);
       s.root.classList.toggle('locked', locked);
       s.root.classList.toggle('blocked', blocked && !locked);
       if (locked) {
         const ccAura = me.auras.find((a) => ['stun', 'fear', 'incapacitate'].includes(a.kind) || AURAS[a.id]?.locksAbilities);
-        const end = me.controlled || def.ignoresControl ? ccAura?.expiresAt ?? 0 : me.lockouts?.[def.school] ?? 0;
+        const mute = me.auras.find((a) => AURAS[a.id]?.silence || AURAS[a.id]?.disarm);
+        const end = me.controlled || def.ignoresControl ? ccAura?.expiresAt ?? 0 : silencedBy(me.auras, def) ? mute?.expiresAt ?? 0 : me.lockouts?.[def.school] ?? 0;
         s.root.dataset.lock = end > now ? ((end - now) / 1000).toFixed(1) : '';
       } else delete s.root.dataset.lock;
       s.root.classList.toggle('unusable', me.resource < def.cost || !me.alive);
@@ -444,6 +445,11 @@ export class Hud {
     }
 
     this.updateBanner(snap, now, me.team);
+    // Dampening: shown once it starts, with how much weaker healing is
+    const dp = $('damp');
+    const damp = snap.phase === 'live' ? snap.damp ?? 0 : 0;
+    dp.classList.toggle('hidden', damp <= 0);
+    if (damp > 0) dp.textContent = `Dampening ${Math.round(damp * 100)}%`;
   }
 
   setRoster(players: RosterEntry[]) {
@@ -520,11 +526,12 @@ export class Hud {
   clearLabels() {
     this.nameplates([], 0);
     $('labels').replaceChildren();
+    $('damp').classList.add('hidden');
   }
 
   /** Nameplates over each visible unit. `units` come with screen positions already projected. */
   nameplates(
-    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; target?: boolean; mark?: number; classId?: ClassId }[],
+    units: { id: number; x: number; y: number; visible: boolean; name: string; health: number; maxHealth: number; enemy: boolean; alive: boolean; cast: { ability: string; start: number; end: number } | null; auras?: { id: string; expiresAt: number }[]; absorb?: number; resource?: number; resourceMax?: number; resourceType?: keyof typeof RES_COLOR; target?: boolean; mark?: number; classId?: ClassId }[],
     now: number,
   ) {
     const seen = new Set<number>();
@@ -535,6 +542,8 @@ export class Hud {
         const root = el('div', 'plate');
         const name = el('div', 'pname');
         const bar = new Bar(HP_ALLY, true);
+        const res = new Bar(RES_COLOR.mana, true);
+        res.root.classList.add('pres');
         const cast = new Bar('linear-gradient(#ffd966,#d9962a)', true);
         cast.root.classList.add('pcast', 'hidden');
         const title = el('div', 'ptitle');
@@ -545,9 +554,9 @@ export class Hud {
         const mark = el('div', 'pmark hidden');
         const arrow = el('div', 'parrow hidden', '▼');
         top.append(mark, arrow);
-        root.append(top, icon, name, title, bar.root, cast.root, debuffs);
+        root.append(top, icon, name, title, bar.root, res.root, cast.root, debuffs);
         $('labels').append(root);
-        p = { root, name, title, bar, cast, icon, av: '', debuffs, dkey: '', mark, arrow, mk: 0 };
+        p = { root, name, title, bar, res, cast, icon, av: '', debuffs, dkey: '', mark, arrow, mk: 0 };
         this.plates.set(u.id, p);
       }
       p.root.classList.toggle('hidden', !u.visible || !u.alive || !plateShown(u.enemy));
@@ -580,6 +589,12 @@ export class Hud {
       p.title.classList.toggle('hidden', !who?.title);
       p.bar.setColor(plateFill(u.enemy, u.maxHealth > 0 ? u.health / u.maxHealth : 0, u.classId ? CLASSES[u.classId].color : u.enemy ? HP_ENEMY : HP_ALLY));
       p.bar.set(u.health, u.maxHealth, plateHpText(u.health, u.maxHealth), u.absorb ?? 0);
+      // the class resource right under the health bar, in the colour the HUD uses for it
+      p.res.root.classList.toggle('hidden', !u.resourceType || !(u.resourceMax && u.resourceMax > 0));
+      if (u.resourceType) {
+        p.res.setColor(RES_COLOR[u.resourceType]);
+        p.res.set(u.resource ?? 0, u.resourceMax ?? 0, '');
+      }
       // harmful effects on the unit (stuns, roots, slows, DoTs), each with its time left; rebuilt only when the set or a second changes
       const bad = (u.auras ?? []).filter((a) => AURAS[a.id]?.harmful).slice(0, 6);
       const dkey = bad.map((a) => `${a.id}:${a.expiresAt > 0 ? Math.ceil((a.expiresAt - now) / 1000) : ''}`).join();
