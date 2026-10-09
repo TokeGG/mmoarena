@@ -1,4 +1,4 @@
-import { packHudDefault, parseHudDefault } from '@arena/shared';
+import { packHudDefault, parseHudDefault, validateBotNames } from '@arena/shared';
 import type { AdminLogRow, HudLayoutMap } from '@arena/shared';
 import type { Store } from './store';
 
@@ -77,6 +77,22 @@ export class AdminLog {
   async setAutoTrain(on: boolean): Promise<void> {
     if (on) await this.store.set('autotrain', '1');
     else await this.store.del('autotrain');
+  }
+
+  /** The owner's list of bot names (store key `botnames`), or null while the built-in list is in use. */
+  async botNames(): Promise<string[] | null> {
+    try {
+      const raw = await this.store.get('botnames');
+      const v = raw ? validateBotNames(JSON.parse(raw)) : null;
+      return v?.ok ? v.names : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async setBotNames(names: string[] | null): Promise<void> {
+    if (names) await this.store.set('botnames', JSON.stringify(names));
+    else await this.store.del('botnames');
   }
 
   add(by: string, action: string, target?: string, detail?: string): Promise<void> {

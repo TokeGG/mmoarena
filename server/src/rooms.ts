@@ -11,7 +11,7 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { DEFAULT_BOT_NAMES, pickBotName, validateBotNames, currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import { whereIs } from './geoip';
 import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import { TickMeter } from './tickmeter';
@@ -232,10 +232,18 @@ export class Room {
 
   /** Tell everyone in the room how the signed-in players want to be shown (emblem, title, name colour). */
   roster(): RosterEntry[] {
-    return [...this.players.entries()]
+    const people = [...this.players.entries()]
       .filter(([, p]) => p.account)
       .map(([unitId, p]) => ({ unitId, rating: p.account!.rating, ...resolveCosmetics(p.account!.cosmetics), avatarUrl: p.account!.avatar ? `/avatar/${p.account!.key}?v=${p.account!.avatar}` : undefined }));
+    // bots wear their spec as the title (their name is "Bot <Name>"), so it stays clear what each one is; no colour of their own
+    const bots = this.realUnits()
+      .filter((u) => u.controller === 'bot')
+      .map((u) => ({ unitId: u.id, rating: 0, emblem: '🤖', title: specOf(u.classId, u.spec ?? '')?.name ?? CLASSES[u.classId].name, color: '' }));
+    return [...people, ...bots];
   }
+
+  /** The names bots may take ("Bot <Name>"); the lobby points this at the owner's list. */
+  botNames: () => readonly string[] = () => DEFAULT_BOT_NAMES;
 
   broadcastRoster(): void {
     const players = this.roster();
@@ -402,9 +410,10 @@ export class Room {
     // a bot, or the dev's own unit
     if (!(u.controller === 'bot' && i >= 0) && !(own && u.controller === 'player')) return false;
     this.devTest = true;
-    const name = u.controller === 'bot' ? `Bot ${specOf(classId, build.spec)?.name ?? CLASSES[classId].name}` : undefined;
-    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build, name));
+    // a rebuilt bot keeps its name; its title (the spec) follows in the roster
+    withPatches(this.devPatches, () => this.sim.rebuildUnit(unitId, classId, build));
     if (i >= 0) this.bots[i] = new Bot(this.sim, unitId, this.bots[i].difficulty, Math.floor(Math.random() * 2 ** 31));
+    this.broadcastRoster();
     return true;
   }
 
@@ -451,8 +460,9 @@ export class Room {
     }
     const seed = Math.floor(Math.random() * 2 ** 31);
     const build = botBuild(classId, seed, true, spec);
-    // named after its spec (Bot Rampager, Bot Pyromancy), so you can see what you are up against
-    const u = this.sim.addUnit({ name: `Bot ${specOf(classId, build.spec)?.name ?? label}`, classId, team, controller: 'bot', build });
+    // "Bot <Name>" from the owner's list, unique in this match; the roster gives it the spec as its title
+    const taken = new Set([...this.sim.units.values()].map((x) => x.name));
+    const u = this.sim.addUnit({ name: pickBotName(this.botNames(), taken), classId, team, controller: 'bot', build });
     const learned = this.learner?.pick(classId);
     this.bots.push(new Bot(this.sim, u.id, difficulty as Difficulty, seed, learned?.brain));
     if (learned) this.botMeta.push({ unitId: u.id, classId, variantId: learned.variantId, difficulty });
@@ -886,6 +896,9 @@ export class Lobby {
       this.hudDef = { t: 'hud_default', layout: d.layout, at: d.at, by: d.by };
       for (const q of this.conns) send(q, this.hudDef);
     });
+    void this.adminLog?.botNames().then((n) => {
+      if (!this.botNamesSet && n) this.botNames = n;
+    });
     void this.adminLog?.autoTrain().then((on) => {
       if (!this.autoTrainSet) this.autoTrain = on;
     });
@@ -896,6 +909,10 @@ export class Lobby {
   /** The owner's switch: the bots train on every finished match (player matches and bot matches too). */
   private autoTrain = false;
   private autoTrainSet = false;
+
+  /** The names bots take: the owner's saved list, or the built-in one. Only the owner is ever sent it. */
+  private botNames: readonly string[] = DEFAULT_BOT_NAMES;
+  private botNamesSet = false;
 
   /** The owner's default HUD layout (what every client is sent), or null. */
   private hudDef: Extract<ServerMsg, { t: 'hud_default' }> | null = null;
@@ -2061,6 +2078,23 @@ export class Lobby {
         void this.setHudDefault(p, msg.layout);
         break;
       }
+      case 'admin_botnames': {
+        if (this.ownerOnly(p, 'The bot names')) return;
+        if (!p.ownerOk) return;
+        let error: string | undefined;
+        if (msg.names !== undefined) {
+          const v = msg.names === null ? null : validateBotNames(msg.names);
+          if (v && !v.ok) error = v.error;
+          else {
+            this.botNames = v ? v.names : DEFAULT_BOT_NAMES;
+            this.botNamesSet = true;
+            void this.adminLog?.setBotNames(v ? v.names : null);
+            void this.adminLog?.add(p.account?.name ?? p.name, v ? 'bot names changed' : 'bot names reset', undefined, v ? v.names.join(', ') : undefined);
+          }
+        }
+        send(p, { t: 'botnames', names: [...this.botNames], custom: this.botNames !== DEFAULT_BOT_NAMES, ...(error ? { error } : {}) });
+        break;
+      }
       case 'admin_end': {
         if (this.ownerOnly(p, 'Ending a match')) return;
         const room = [...this.rooms].find((r) => r.id === msg.id);
@@ -2418,6 +2452,7 @@ export class Lobby {
     room.learner = this.learner;
     room.onJoin = (q) => this.bringSession(room, q);
     room.autoTrain = () => this.autoTrain;
+    room.botNames = () => this.botNames;
     room.onRematch = (old) => this.rematch(old);
     room.onAbort = (r, leaver) => this.abortRanked(r, leaver);
     room.onRequeue = (r, q) => this.requeueAfterRanked(r, q);

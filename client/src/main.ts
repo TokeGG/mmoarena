@@ -397,6 +397,7 @@ function onMessage(raw: MessageEvent) {
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
+    case 'botnames':
     case 'admin_log':
     case 'admin_history':
     case 'admin_feed':

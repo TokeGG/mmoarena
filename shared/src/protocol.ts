@@ -208,6 +208,8 @@ export type ClientMsg =
   | { t: 'admin_announce'; text: string }
   /** Owner only: save this HUD layout as the default for everyone (null removes the default). */
   | { t: 'admin_hud_default'; layout: HudLayoutMap | null }
+  /** Owner only: read (no `names`), save or reset (null) the list bots take their names from. */
+  | { t: 'admin_botnames'; names?: string[] | null }
   | { t: 'admin_end'; id: string }
   /** Owner only, silent: play this bot's unit in a live match (`id` is the match), and give it back to a fresh bot. */
   | { t: 'admin_takeover'; id: string; unit: number }
@@ -324,6 +326,8 @@ export type ServerMsg =
   | { t: 'announce'; text: string; by: string; at: number }
   /** The owner's default HUD layout for everyone (sent when you connect and whenever it changes); `layout` is null when there is none. */
   | { t: 'hud_default'; layout: HudLayoutMap | null; at: number; by?: string }
+  /** The owner's list of bot names (sent to the owner only). `error` is why a save was refused. */
+  | { t: 'botnames'; names: string[]; custom: boolean; error?: string }
   | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
@@ -601,6 +605,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (!m.layout || typeof m.layout !== 'object' || JSON.stringify(m.layout).length > HUD_DEFAULT_MAX_CHARS * 2) return null;
       const layout = parseHudDefault(m.layout);
       return layout ? { t: 'admin_hud_default', layout } : null;
+    }
+    case 'admin_botnames': {
+      if (m.names === undefined) return { t: 'admin_botnames' };
+      if (m.names === null) return { t: 'admin_botnames', names: null };
+      if (!Array.isArray(m.names) || m.names.length > 100 || m.names.some((n: unknown) => typeof n !== 'string')) return null;
+      return { t: 'admin_botnames', names: m.names.map((n: string) => n.slice(0, 40)) };
     }
     case 'admin_end':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;

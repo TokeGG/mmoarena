@@ -1,4 +1,4 @@
-import { CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText } from '@arena/shared';
+import { BOT_NAMES_MAX, BOT_NAME_MAX_LEN, BOT_NAME_MIN_LEN, CLASSES, CLASS_IDS, formatReport, mergePatches, moveText, requestText, validateBotNames } from '@arena/shared';
 import type { DataPatch, DevRequestRow } from '@arena/shared';
 import { DevWorkspace } from './devPages';
 import { patchKey } from './devEdits';
@@ -82,6 +82,9 @@ export class AdminPanel {
   private log: AdminLogRow[] | null = null;
   private suggestions: { at: number; name: string; text: string; note?: string }[] | null = null;
   private maintText = '';
+  /** Owner only: the text box of bot names (one per line) and what the server said about the last save. */
+  private botNamesText: string | null = null;
+  private botNamesMsg: { ok: boolean; text: string } | null = null;
   /** Every match played on the server (newest first), with its replay. */
   private feed: MatchRecord[] | null = null;
   private feedFilter: 'all' | 'people' | 'bots' | 'ranked' = 'all';
@@ -218,6 +221,7 @@ export class AdminPanel {
     if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
+    if (this.tab === 'server' && access === 'owner' && this.botNamesText === null) s({ t: 'admin_botnames' });
     if (this.tab === 'replays') {
       s({ t: 'admin_act', act: 'feed' });
       s({ t: 'admin_act', act: 'train_status' });
@@ -264,6 +268,12 @@ export class AdminPanel {
         break;
       case 'owner':
         if (m.ok) this.refresh();
+        break;
+      case 'botnames':
+        if (m.error) this.botNamesMsg = { ok: false, text: m.error };
+        else {
+          this.botNamesText = m.names.join('\n');
+        }
         break;
     }
     this.op.handle(m);
@@ -371,7 +381,7 @@ export class AdminPanel {
         body.append(this.requestsBox());
         break;
       case 'server':
-        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
+        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), ...(access === 'owner' ? [el('h3', '', 'Bot names'), this.botNamesBox()] : []), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
         break;
       case 'log':
         body.append(this.logList(this.log ?? [], 300));
@@ -1047,6 +1057,38 @@ export class AdminPanel {
       this.trainMsg = { ok: false, text: 'Could not reach the server.' };
     }
     this.paint();
+  }
+
+  /** The names bots take in matches ("Bot <Name>"): one per line. Owner only; the server checks the list again. */
+  private botNamesBox(): HTMLElement {
+    const box = el('div', 'own-box');
+    box.append(el('p', 'mm-modal-foot', `One name per line, 1 to ${BOT_NAMES_MAX} names, ${BOT_NAME_MIN_LEN} to ${BOT_NAME_MAX_LEN} letters, digits, _ or -. Each bot in a match gets a different one.`));
+    const area = el('textarea');
+    area.rows = 8;
+    area.value = this.botNamesText ?? '';
+    area.addEventListener('input', () => (this.botNamesText = area.value));
+    const msg = el('p', this.botNamesMsg?.ok ? 'adm-state ok' : 'adm-state bad', this.botNamesMsg?.text ?? '');
+    msg.classList.toggle('hidden', !this.botNamesMsg);
+    const row = el('div', 'own-row');
+    const save = el('button', 'mm-small', 'Save');
+    save.addEventListener('click', () => {
+      const names = area.value.split('\n');
+      const v = validateBotNames(names);
+      if (!v.ok) {
+        this.botNamesMsg = { ok: false, text: v.error };
+        return this.paint();
+      }
+      this.botNamesMsg = { ok: true, text: 'Saved.' };
+      this.hooks.send({ t: 'admin_botnames', names: v.names });
+    });
+    const reset = el('button', 'mm-small', 'Reset to default');
+    reset.addEventListener('click', () => {
+      this.botNamesMsg = { ok: true, text: 'Back to the built-in list.' };
+      this.hooks.send({ t: 'admin_botnames', names: null });
+    });
+    row.append(save, reset);
+    box.append(area, msg, row);
+    return box;
   }
 
   /** While on, only the owner can start matches; everyone online is told, and new players see the message. */
