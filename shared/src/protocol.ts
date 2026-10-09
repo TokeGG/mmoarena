@@ -13,13 +13,13 @@ export const PROTOCOL_VERSION = 10;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel (a dev gets only the read and training ones: see DEV_ADMIN_ACTS in the server). */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset' | 'time' | 'bot_commit';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset', 'time', 'bot_commit'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset' | 'time' | 'bot_commit' | 'cooldowns_reset' | 'cooldowns_off';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset', 'time', 'bot_commit', 'cooldowns_reset', 'cooldowns_off'];
 /** A running match in the owner's admin panel. */
 /** One connection on the owner's "Online now" list (guests included). */
 /** `ip` and `where` are only sent to the owner: a dev sees names, status and time. */
 export interface AdminOnline { name: string; guest: boolean; ip?: string; where?: string; status: string; sinceMs: number }
-export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean; /** Listed for watching (a dev can only watch these; the owner can watch any). */ watchable: boolean }
+export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean; /** Cooldowns are switched off in it (dev test). */ noCooldowns?: boolean; /** Listed for watching (a dev can only watch these; the owner can watch any). */ watchable: boolean }
 /** One replay the bots are training on (or just trained on), for the admin panel's progress bars. */
 export interface TrainJobRow {
   id: string;
@@ -607,7 +607,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.on !== undefined) out.on = m.on === true;
       // the acts on a player need a name, the ones on a match an id
       if (['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'history', 'kill'].includes(out.act) && !out.name) return null;
-      if ((out.act === 'pause_match' || out.act === 'train' || out.act === 'train_passes') && !out.id) return null;
+      if ((out.act === 'pause_match' || out.act === 'cooldowns_reset' || out.act === 'cooldowns_off' || out.act === 'train' || out.act === 'train_passes') && !out.id) return null;
       if (out.act === 'train_passes' && !(out.value !== undefined && Number.isInteger(out.value) && out.value >= 1 && out.value <= 5)) return null;
       return out;
     }

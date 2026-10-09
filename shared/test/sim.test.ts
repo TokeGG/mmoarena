@@ -49,6 +49,25 @@ describe('global cooldown and resources', () => {
   });
 });
 
+describe('dev test cooldown switches', () => {
+  it('reset clears every cooldown at once; off stops new ones from starting', () => {
+    const sim = live();
+    const rogue = add(sim, 'rogue', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 2, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(rogue.id, 'kick', war.id).ok);
+    assert.ok((rogue.cooldowns.kick ?? 0) > sim.time);
+    sim.resetCooldowns();
+    assert.deepEqual(rogue.cooldowns, {});
+    sim.noCooldowns = true;
+    advance(sim, TUNING.gcdMs);
+    assert.ok(sim.useAbility(rogue.id, 'kick', war.id).ok);
+    assert.ok((rogue.cooldowns.kick ?? 0) <= sim.time, 'no cooldown started');
+    advance(sim, TUNING.gcdMs);
+    assert.ok(sim.useAbility(rogue.id, 'kick', war.id).ok, 'and it can be used again at once');
+  });
+});
+
 describe('casting, interrupts and school lockouts', () => {
   it('interrupts a cast, locks only that school, and kick on an idle target just misses', () => {
     const sim = live();

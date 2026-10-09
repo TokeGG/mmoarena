@@ -379,11 +379,12 @@ export class DevTools {
       const r = await this.http(url.toString(), { method: 'POST' });
       if (!r.ok) {
         this.lastRedeploy = 0;
-        throw new Error(`Render refused the deploy (${r.status}). Check the deploy hook URL.`);
+        const body = await r.text().then((t) => t.replace(/\s+/g, ' ').trim().slice(0, 160), () => '');
+        throw new Error(`Render refused the deploy (${r.status}${body ? `: ${body}` : ''}). Check that RENDER_DEPLOY_HOOK_URL is the full deploy hook URL, with its key, from the service's Settings.`);
       }
     } catch (e) {
       this.lastRedeploy = 0;
-      throw e instanceof Error && e.message.startsWith('Render') ? e : new Error('Could not reach Render to start the deploy.');
+      throw e instanceof Error && e.message.startsWith('Render') ? e : new Error(`Could not reach Render to start the deploy (${e instanceof Error ? e.message : 'network error'}). If the server cannot make outside web requests, allow api.render.com.`);
     }
     return 'Deploy started on Render. The game restarts when it is ready (a minute or two), so everyone online is disconnected for a moment.';
   }

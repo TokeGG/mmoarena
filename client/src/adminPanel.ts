@@ -249,6 +249,11 @@ export class AdminPanel {
         for (const id of [...this.picked]) if (!m.rows.some((r) => r.id === id && r.status === 'pending')) this.picked.delete(id);
         break;
       case 'dev_result':
+        if (this.redeployWait) {
+          this.redeployWait = false;
+          this.redeployMsg = { ok: m.ok, text: m.text };
+          break;
+        }
         if (this.tab === 'tuning' || this.tab === 'proposals') {
           this.propMsg = { ok: m.ok, text: m.text, url: m.url };
           this.picked.clear();
@@ -356,7 +361,7 @@ export class AdminPanel {
         body.append(this.moderation());
         break;
       case 'proposals':
-        body.append(el('h3', '', 'Proposed by devs (newest first)'), this.proposalBox());
+        body.append(el('h3', '', 'Proposed by devs (newest first)'), this.proposalBox(), el('h3', '', 'Deploy'), this.redeployBox());
         break;
       case 'tuning':
         body.append(el('h3', '', 'Skill designer'), this.propMsgBox(), this.designerBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
@@ -605,6 +610,25 @@ export class AdminPanel {
    * and new value. Tick the ones you want, then open one pull request with them all, make them live, or dismiss them.
    * Nothing is live until you do.
    */
+  /** Starts a Render deploy of the latest commit (what a commit from the Proposals list needs to go live if auto-deploy is off). */
+  private redeployWait = false;
+  private redeployMsg: { ok: boolean; text: string } | null = null;
+  private redeployBox(): HTMLElement {
+    const box = el('div', 'own-box');
+    const b = el('button', 'mm-small', 'Redeploy Render');
+    b.title = 'Starts a deploy of the latest commit on Render. The game restarts when it is ready, so everyone online is disconnected for a moment.';
+    b.addEventListener('click', () => {
+      if (!window.confirm('Start a deploy on Render now? The game restarts when it is ready (a minute or two) and everyone online is disconnected for a moment.')) return;
+      this.redeployWait = true;
+      this.redeployMsg = { ok: true, text: 'Asking Render…' };
+      this.hooks.send({ t: 'dev_redeploy' });
+      this.paint();
+    });
+    if (this.redeployMsg) box.append(el('div', `adm-state ${this.redeployMsg.ok ? 'ok' : 'warn'}`, this.redeployMsg.text));
+    box.append(b, el('p', 'mm-modal-foot', 'Starts a deploy of the latest commit. Commits to main deploy on their own; use this when one did not.'));
+    return box;
+  }
+
   private propMsgBox(): HTMLElement {
     const wrap = el('div');
     if (!this.propMsg) return wrap;
