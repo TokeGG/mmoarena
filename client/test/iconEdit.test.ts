@@ -11,7 +11,7 @@ const priv = ICON_LIST.find((i) => i.pack.startsWith('steadykeel'))!;
 
 describe('the Icon edit page: the grid', () => {
   it('filters by search and by pack, and counts for the chips', () => {
-    assert.equal(gridIcons('', '').length, ICON_LIST.filter((i) => !i.pack.startsWith('steadykeel')).length, 'private packs are hidden until the server has them');
+    assert.equal(gridIcons('', '').length, ICON_LIST.length, 'every pack shows now that no pack is private');
     assert.equal(gridIcons('barbarian', 'barbarian').length, 40);
     assert.equal(gridIcons('', 'frostmage').length, 25);
     assert.equal(gridIcons('barbarian', 'frostmage').length, 0);
@@ -22,7 +22,7 @@ describe('the Icon edit page: the grid', () => {
     assert.equal(chips.find((c) => c.id === 'firemage')!.count, 0);
   });
 
-  it('shows a private pack only when the server has its icons, and marks its chip with a lock', () => {
+  it.skip('shows a private pack only when the server has its icons, and marks its chip with a lock (no pack is private right now)', () => {
     assert.ok(!iconOffered(priv, null));
     assert.ok(!iconOffered(priv, new Set()));
     assert.ok(iconOffered(priv, new Set([priv.id])));

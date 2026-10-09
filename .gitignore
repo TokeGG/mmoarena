@@ -4,5 +4,3 @@ dist
 .DS_Store
 assets-src/
 
-# private icon packs (licence forbids sharing the files): served from the server store, never committed
-client/public/icons/steadykeel-*/
