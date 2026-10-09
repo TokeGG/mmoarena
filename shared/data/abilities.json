@@ -28,7 +28,7 @@
   "school": "physical",
   "target": "enemy",
   "range": 25,
-  "minRange": 8,
+  "minRange": 6,
   "castTime": 0,
   "cooldown": 15000,
   "gcd": false,
@@ -122,14 +122,14 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 0,
-  "cooldown": 8000,
+  "castTime": 1800,
+  "cooldown": 0,
   "gcd": true,
   "cost": 60,
   "effects": [
    {
     "type": "damage",
-    "amount": 210
+    "amount": 280
    },
    {
     "type": "aura",
@@ -521,13 +521,13 @@
   "target": "aoe_enemy",
   "range": 0,
   "castTime": 0,
-  "cooldown": 4500,
+  "cooldown": 3500,
   "gcd": true,
-  "cost": 20,
+  "cost": 0,
   "effects": [
    {
     "type": "damage",
-    "amount": 150
+    "amount": 200
    },
    {
     "type": "healMax",
@@ -645,14 +645,14 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 3000,
+  "castTime": 4000,
   "cooldown": 0,
   "gcd": true,
   "cost": 90,
   "effects": [
    {
     "type": "damage",
-    "amount": 550
+    "amount": 450
    }
   ]
  },
@@ -911,7 +911,7 @@
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
-  "range": 25,
+  "range": 15,
   "castTime": 0,
   "cooldown": 20000,
   "gcd": false,
@@ -923,7 +923,7 @@
     "behind": true
    }
   ],
-  "minRange": 5,
+  "minRange": 0,
   "keepsStealth": true,
   "cpGain": 3
  },
@@ -953,8 +953,8 @@
   "school": "fire",
   "target": "ground",
   "range": 30,
-  "castTime": 3000,
-  "cooldown": 12000,
+  "castTime": 2750,
+  "cooldown": 45000,
   "gcd": true,
   "cost": 70,
   "effects": [
@@ -964,7 +964,7 @@
     "duration": 8000,
     "pulse": 1000,
     "amount": 70,
-    "initial": 420,
+    "initial": 600,
     "delay": 800,
     "procOnHit": "hot_streak"
    }
@@ -1047,12 +1047,12 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 60,
+    "amount": 85,
     "only": "enemy"
    },
    {
     "type": "heal",
-    "amount": 75,
+    "amount": 125,
     "only": "ally"
    }
   ],
@@ -1219,14 +1219,14 @@
   "school": "fire",
   "target": "enemy",
   "range": 30,
-  "castTime": 600,
+  "castTime": 1000,
   "cooldown": 0,
   "gcd": true,
   "cost": 20,
   "effects": [
    {
     "type": "damage",
-    "amount": 70
+    "amount": 110
    },
    {
     "type": "aura",
@@ -1427,7 +1427,7 @@
  },
  {
   "castTime": 0,
-  "cooldown": 30000,
+  "cooldown": 45000,
   "gcd": true,
   "range": 0,
   "id": "dragons_breath",
@@ -1441,7 +1441,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 50
+    "amount": 80
    },
    {
     "type": "aura",
@@ -1481,13 +1481,13 @@
   "target": "enemy",
   "range": 30,
   "castTime": 2000,
-  "cooldown": 6000,
+  "cooldown": 15000,
   "gcd": true,
   "cost": 35,
   "effects": [
    {
     "type": "damage",
-    "amount": 34
+    "amount": 85
    },
    {
     "type": "aura",
