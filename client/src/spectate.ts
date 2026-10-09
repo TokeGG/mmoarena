@@ -42,6 +42,8 @@ export interface SpectateHandlers {
   onBuilds?(): void;
   /** The settings button (the Esc menu on a keyboard). */
   onSettings?(): void;
+  /** Owner only: the "Play as…" button (shown by `setPlayAs`). */
+  onPlayAs?(anchor: HTMLElement): void;
 }
 
 /** The replay speeds, slowest first. */
@@ -224,6 +226,7 @@ export class SpectateBar {
   readonly board = new Scoreboard();
   private scoreBtn = el('button', 'mm-small hidden', 'Scores');
   private fold = el('button', 'mm-small sb-fold', '▴');
+  private playAs = el('button', 'mm-small sb-playas hidden', 'Play as…');
 
   constructor(private h: SpectateHandlers) {
     const top = el('div', 'sb-row sb-top');
@@ -244,7 +247,9 @@ export class SpectateBar {
       const on = this.root.classList.toggle('folded');
       this.fold.textContent = on ? '▾' : '▴';
     });
-    top.append(this.title, this.scoreBtn, builds, cog, exit, this.fold);
+    this.playAs.title = 'Take over one of the bots in this match (nobody is told)';
+    this.playAs.addEventListener('click', () => h.onPlayAs?.(this.playAs));
+    top.append(this.title, this.scoreBtn, this.playAs, builds, cog, exit, this.fold);
     const nav = el('div', 'sb-row sb-nav');
     const prev = el('button', 'mm-small sb-prev', '◀');
     prev.title = 'Previous player';
@@ -292,6 +297,11 @@ export class SpectateBar {
     this.paused = p;
     this.play.textContent = p ? '▶' : '⏸';
     if (notify) this.h.onPause(p);
+  }
+
+  /** Owner only: show the "Play as…" button (a live match with bots in it). */
+  setPlayAs(on: boolean) {
+    this.playAs.classList.toggle('hidden', !on);
   }
 
   showLive() {

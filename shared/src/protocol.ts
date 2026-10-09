@@ -19,7 +19,7 @@ const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute
 /** One connection on the owner's "Online now" list (guests included). */
 /** `ip` and `where` are only sent to the owner: a dev sees names, status and time. */
 export interface AdminOnline { name: string; guest: boolean; ip?: string; where?: string; status: string; sinceMs: number }
-export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean }[]; watchers: number; devTest: boolean; paused: boolean; /** Cooldowns are switched off in it (dev test). */ noCooldowns?: boolean; /** Listed for watching (a dev can only watch these; the owner can watch any). */ watchable: boolean }
+export interface AdminRoom { id: string; map: string; size: number; kind: 'ranked' | 'practice' | 'party' | 'bots' | 'dummies'; elapsedMs: number; players: { name: string; classId: ClassId; team: TeamId; human: boolean; /** Owner panel only: the unit id and whether it is a bot (to take over). */ id?: number; bot?: boolean }[]; /** Owner panel only: the unit this owner plays right now. */ youControl?: number; watchers: number; devTest: boolean; paused: boolean; /** Cooldowns are switched off in it (dev test). */ noCooldowns?: boolean; /** Listed for watching (a dev can only watch these; the owner can watch any). */ watchable: boolean }
 /** One replay the bots are training on (or just trained on), for the admin panel's progress bars. */
 export interface TrainJobRow {
   id: string;
@@ -189,6 +189,8 @@ export type ClientMsg =
   | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete'; id?: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
+  /** Owner only, in the match being played or watched: kill a unit, kick its player off the server, or ban its account. */
+  | { t: 'dev_unit'; unit: number; op: 'kill' | 'kick' | 'ban'; minutes?: number; reason?: string }
   /** Owner, dev test matches: move the running match to another map. */
   | { t: 'dev_map'; id: string }
   /** Dev tools: give a bot in the dev's match another class and build, on the fly. */
@@ -199,6 +201,9 @@ export type ClientMsg =
   | { t: 'admin_overview' }
   | { t: 'admin_announce'; text: string }
   | { t: 'admin_end'; id: string }
+  /** Owner only, silent: play this bot's unit in a live match (`id` is the match), and give it back to a fresh bot. */
+  | { t: 'admin_takeover'; id: string; unit: number }
+  | { t: 'admin_release' }
   | { t: 'overrides_clear' }
   /** Owner: open a GitHub pull request with every live number change, for the data files. */
   | { t: 'overrides_pr'; note?: string }
@@ -312,6 +317,8 @@ export type ServerMsg =
   | { t: 'live'; rows: LiveMatch[]; signIn?: boolean }
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
+  /** Owner only: you now play this unit like a normal player slot (the same fields as `welcome`, which is what the client does with it). */
+  | { t: 'controlling'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string; tickMs?: number }
   | { t: 'admin_accounts'; rows: AdminRow[] }
   /** Result of an admin_set; `tempPassword` is shown once when a password was reset. */
   | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };
@@ -555,6 +562,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_builds' };
     case 'dev_restart':
       return { t: 'dev_restart' };
+    case 'dev_unit': {
+      if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || m.unit < 1 || !['kill', 'kick', 'ban'].includes(m.op)) return null;
+      const minutes = typeof m.minutes === 'number' && Number.isFinite(m.minutes) ? Math.max(0, Math.min(525600, Math.round(m.minutes))) : undefined;
+      const reason = typeof m.reason === 'string' ? m.reason.trim().slice(0, 200) : '';
+      return { t: 'dev_unit', unit: m.unit, op: m.op, ...(minutes !== undefined ? { minutes } : {}), ...(reason ? { reason } : {}) };
+    }
     case 'dev_map':
       return typeof m.id === 'string' && ARENAS.some((a) => a.id === m.id) ? { t: 'dev_map', id: m.id } : null;
     case 'dev_bot': {
@@ -571,6 +584,11 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'admin_end':
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id)) return null;
       return { t: 'admin_end', id: m.id };
+    case 'admin_takeover':
+      if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id) || !Number.isInteger(m.unit) || m.unit < 0) return null;
+      return { t: 'admin_takeover', id: m.id, unit: m.unit };
+    case 'admin_release':
+      return { t: 'admin_release' };
     case 'overrides_clear':
       return { t: 'overrides_clear' };
     case 'admin_proposals': {

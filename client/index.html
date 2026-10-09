@@ -257,7 +257,7 @@
   #party.hud-sized .frame, #enemies.hud-sized .frame { width:100% !important; flex:1 1 0; min-height:0; }
   #actionbar.hud-sized { flex-wrap:wrap; justify-content:center; align-content:center; }
   #cast.hud-sized .bar { height:100% !important; margin:0; }
-  #log.hud-sized { max-width:none; }
+  #log.hud-sized { max-width:none; max-height:none; }
   /* health bars (Edit HUD > Health bars) */
   body[data-hud-bar-height=thin] .frame .bar:not(.thin) { height:9px; } body[data-hud-bar-height=thin] .frame .bar:not(.thin) .blabel { font-size:8px; line-height:9px; }
   body[data-hud-bar-height=thick] .frame .bar:not(.thin) { height:22px; } body[data-hud-bar-height=thick] .frame .bar:not(.thin) .blabel { line-height:22px; }
@@ -379,7 +379,7 @@
   #banner small { color:#e9dcc0; -webkit-text-fill-color:#e9dcc0; -webkit-text-stroke:0; }
   #err { font-family:var(--serif); }
 
-  #log { padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:min(380px, calc(50vw - 360px)); bottom:12px; left:60px; color:#cfc6b2; } /* clear of the sound button in the corner */
+  #log { pointer-events:auto; overflow-y:auto; max-height:136px; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:#6b5a2e transparent; padding:6px 8px; background:rgba(8,8,10,.45); border-left:2px solid var(--gold-d); border-radius:0 6px 6px 0; width:min(380px, calc(50vw - 360px)); bottom:12px; left:60px; color:#cfc6b2; } /* clear of the sound button in the corner */
   /* small screens: the log and the help text keep clear of the action bar (about 570 px wide, centred) */
   @media (max-width:1000px) { #help { display:none; } #log { width:300px; bottom:100px; } }
   #log:empty { display:none; }
@@ -717,8 +717,10 @@
   @media (max-width:600px) { #killfeed { top:150px; width:180px; font-size:11px; } }
   #damp { position:fixed; top:6px; left:50%; transform:translateX(-50%); padding:2px 10px; border-radius:10px; background:rgba(20,10,30,.7); border:1px solid #7a4bb0; color:#d9b8ff; font-size:12px; letter-spacing:.5px; z-index:5; }
   #damp.hidden { display:none; }
-  #recap { position:fixed; left:50%; bottom:22%; transform:translateX(-50%); z-index:31; width:min(640px, calc(100vw - 24px)); background:rgba(14,16,22,.95); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); color:#e8e2d0; font-size:12px; }
+  #recap { position:fixed; left:50%; top:calc(14% + 72px); transform:translateX(-50%); z-index:31; width:min(640px, calc(100vw - 24px)); background:rgba(14,16,22,.95); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); color:#e8e2d0; font-size:12px; }
   #recap.hidden { display:none; }
+  body.hud-edit #recap.hidden { display:block; min-height:64px; background:rgba(255,210,74,.1); } /* the editor shows an empty frame to move */
+  #recap.hud-sized { max-width:none; } #recap.hud-sized .recap-scroll { max-height:none; }
   .recap-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:14px; }
   .recap-head button { background:none; border:0; color:#ffd24a; font-size:20px; cursor:pointer; line-height:1; }
   .recap-scroll { overflow:auto; max-height:34vh; }
@@ -730,6 +732,11 @@
   #recap tr.recap-mvp { background:rgba(255,210,74,.14); }
   .recap-badge { margin-left:6px; padding:0 5px; border-radius:4px; background:#ffd24a; color:#1a1405; font-size:10px; font-weight:800; }
   .follow-box { position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:70; display:flex; align-items:center; gap:10px; padding:6px 12px; background:rgba(20,18,25,.92); border:1px solid #7a4bb0; border-radius:10px; color:#e9e4f2; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.6); }
+  .takeover-chip { position:fixed; top:8px; right:8px; z-index:70; display:flex; align-items:center; gap:8px; padding:5px 10px; background:rgba(20,18,25,.92); border:1px solid #7a4bb0; border-radius:10px; color:#e9e4f2; font-size:12px; }
+  .takeover-chip button, .takeover-list button { background:#2c2638; color:#e9e4f2; border:1px solid #7a4bb0; border-radius:6px; padding:4px 9px; cursor:pointer; font-size:12px; }
+  .takeover-list { position:fixed; z-index:71; display:grid; gap:4px; width:240px; padding:6px; background:rgba(20,18,25,.96); border:1px solid #7a4bb0; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.6); color:#e9e4f2; }
+  .takeover-list button { text-align:left; }
+  .takeover-chip.hidden, .takeover-list.hidden { display:none; }
   .follow-box button { background:#2c2638; color:#e9e4f2; border:1px solid #7a4bb0; border-radius:6px; padding:3px 9px; cursor:pointer; font-size:12px; }
   .admp-prop { border:1px solid #2c2638; border-radius:8px; padding:8px 10px; margin-bottom:8px; background:#1a1722; }
   .admp-prop-head { display:flex; align-items:baseline; gap:4px; cursor:pointer; }

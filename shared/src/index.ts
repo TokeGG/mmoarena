@@ -20,6 +20,7 @@ export * from './learnreport';
 export * from './devpatch';
 export * from './devinfo';
 export * from './devfields';
+export * from './fx';
 export * from './devrequest';
 export * from './snapslim';
 export * from './playtime';

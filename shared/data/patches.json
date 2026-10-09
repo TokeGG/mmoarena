@@ -1,5 +1,44 @@
 [
  {
+  "version": "0.69.20",
+  "date": "2026-10-09",
+  "at": "2026-10-09T22:00:00Z",
+  "title": "Upper floors and smarter bot pathing",
+  "changes": [
+   "Arcane Missiles, Mind Flay and Penance no longer keep hitting a target through the floor when it drops from a deck to the ground below.",
+   "Bots now walk up ramps properly instead of pushing into the ramp's side, and casters no longer stand just out of range of a target on a deck.",
+   "Bots no longer Charge at a target on another floor, and no longer dodge fire zones that are on a different floor."
+  ]
+ },
+ {
+  "version": "0.69.19",
+  "date": "2026-10-09",
+  "at": "2026-10-09T21:10:00Z",
+  "title": "Dragon's Breath spray and smoother Charge",
+  "changes": [
+   "Dragon's Breath now sprays fire out of the mage at once along its cone, instead of a long build-up.",
+   "Charge and Heroic Leap now play as one smooth run or arc instead of blinking forward in jumps, and Charge leaves a dust and streak trail along its path."
+  ]
+ },
+ {
+  "version": "0.69.18",
+  "date": "2026-10-09",
+  "at": "2026-10-09T20:40:00Z",
+  "title": "Match recap near the top",
+  "changes": [
+   "The match recap now sits near the top of the screen, under the Victory banner, and can be moved and resized in Edit HUD."
+  ]
+ },
+ {
+  "version": "0.69.17",
+  "date": "2026-10-09",
+  "at": "2026-10-09T20:15:00Z",
+  "title": "Scrollable combat log",
+  "changes": [
+   "The combat log keeps the whole match and scrolls with the mouse wheel, so you can look back at all the damage."
+  ]
+ },
+ {
   "version": "0.69.16",
   "date": "2026-10-09",
   "at": "2026-10-09T19:00:00Z",

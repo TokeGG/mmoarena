@@ -1,5 +1,5 @@
 import { ABILITIES, AURAS, TUNING } from './data';
-import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, heightAt, navStep, stepMovementL } from './geometry';
+import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, heightAt, navStep, onRaised, stepMovementL } from './geometry';
 import { coverSpot, highSpot, navRoute, needsNavGrid } from './nav';
 import { JUMP_HEIGHT, canStartJump } from './jump';
 import { mulberry32 } from './sim';
@@ -260,7 +260,7 @@ export class Bot {
 
     // standing in an enemy's Flamestrike or Blizzard: step out (a bot with a long cast to protect only leaves when it is hurting)
     if (this.brain.dodge > 0.15 && sim.canMove(u)) {
-      const hz = sim.hazardsFor(u.team).find((z) => dist(u.pos, z) < z.r + 0.6);
+      const hz = sim.hazardsFor(u.team, heightAt(sim.arena, u.pos.x, u.pos.z, u.level)).find((z) => dist(u.pos, z) < z.r + 0.6);
       if (hz && (!this.castHolds(u) || hpFrac(u) < this.brain.dodge * 0.9) && this.noticed(`zone:${hz.id}`)) {
         this.send(u, { facing: dist(u.pos, hz) < 0.2 ? u.facing : angleTo(hz, u.pos), fwd: 1, strafe: 0, guard: true });
         return;
@@ -371,6 +371,7 @@ export class Bot {
   private popShot(u: Unit, tgt: Unit): boolean {
     const sim = this.sim;
     if (!sim.arena.lows?.length || u.level !== 0) return false;
+    if (Math.abs(heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level)) > 1.6) return false; // the floor is what is in the way, not a barricade
     const theirAir = sim.airOf(tgt);
     if (hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level, 0, theirAir)) return false; // nothing in the way
     const d = dist(u.pos, tgt.pos);
@@ -860,9 +861,14 @@ export class Bot {
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
     // the banner goes down once the fight is near, at its own feet (its circle buffs the team standing in it)
     if (d <= 20 && this.use(u, 'battle_banner', undefined, { x: u.pos.x, z: u.pos.z, ...(u.level === 1 ? { lv: 1 as const } : {}) })) return;
-    if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
-    // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach): a warrior never walks in
-    if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !hasLOS(u.pos, tgt.pos, this.sim.arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
+    // a charge runs in a straight line and ends under (or over) someone on another floor without the strike: only on the same floor,
+    // or down onto ground that is not under the deck; Heroic Leap flies up onto the deck instead
+    const arena = this.sim.arena;
+    const above = heightAt(arena, u.pos.x, u.pos.z, u.level) - heightAt(arena, tgt.pos.x, tgt.pos.z, tgt.level);
+    const chargeable = Math.abs(above) <= 1.6 || (above > 0 && !onRaised(arena, tgt.pos.x, tgt.pos.z));
+    if (d >= 8 && d <= 25 && chargeable && this.use(u, 'charge', tgt.id)) return;
+    // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach, on another floor): a warrior never walks in
+    if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !chargeable || !hasLOS(u.pos, tgt.pos, arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
     if (hpFrac(u) < this.brain.defHp && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
@@ -1240,7 +1246,9 @@ export class Bot {
       if (this.rng() < 0.006 * this.brain.mobility) this.hop(u);
       return { facing: toT, fwd: d > reach * 0.75 ? 0.45 : 0, strafe: this.strafeSign * circle };
     }
-    if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d > range.max) {
+    // spells reach in 3D: a target up on the deck at the edge of the range is out of reach even when the plan view says it is not
+    const d3 = Math.hypot(d, heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));
+    if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d3 > range.max) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
     }
     // Walking away from a melee enemy only helps while it is slowed or rooted; otherwise stand and cast.
@@ -1257,7 +1265,7 @@ export class Bot {
     // effect (stepping out and back every tick looks like a spinning top): try this way, then the other, else stand
     const okSide = (sign: number) => {
       const end = this.probe(u, { facing: toT, fwd: 0, strafe: sign * sway });
-      return Math.hypot(end.x - u.pos.x, end.z - u.pos.z) >= TUNING.runSpeed * 1.2 * sway * 0.5 && hasLOS(end, tgt.pos, sim.arena, u.level, tgt.level) && !sim.hazardsFor(u.team).some((z) => dist(end, z) < z.r + 1);
+      return Math.hypot(end.x - u.pos.x, end.z - u.pos.z) >= TUNING.runSpeed * 1.2 * sway * 0.5 && hasLOS(end, tgt.pos, sim.arena, u.level, tgt.level) && !sim.hazardsFor(u.team, heightAt(sim.arena, end.x, end.z, u.level)).some((z) => dist(end, z) < z.r + 1);
     };
     if (!okSide(this.strafeSign)) {
       if (!okSide(-this.strafeSign)) return { facing: toT, fwd: 0, strafe: 0 };

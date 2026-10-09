@@ -199,7 +199,7 @@ export function coneShape(def: AbilityDef): { range: number; half: number; deg: 
 export const coneSpawnAngle = (u: number, half: number): number => Math.max(-1, Math.min(1, u)) * half * CONE_EDGE;
 
 /** Abilities whose caster throws his head back and shouts / breathes (see shoutPose.ts); the effect leaves the mouth when the pose releases. */
-export const SHOUT_ABILITIES: readonly string[] = ['intimidating_shout', 'psychic_scream', 'dragons_breath'];
+export const SHOUT_ABILITIES: readonly string[] = ['intimidating_shout', 'psychic_scream'];
 
 const SCHOOL_KIND: Record<School, ImpactKind> = {
   physical: 'dust', fire: 'fire', frost: 'frost', arcane: 'arcane', holy: 'holy', shadow: 'shadow', nature: 'nature',

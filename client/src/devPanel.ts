@@ -65,6 +65,8 @@ interface Hooks {
   myBar(): string[];
   /** The dev's own unit in the match (it can be rebuilt like a bot). */
   youId(): number;
+  /** Watching a match (not playing in it): opening the window must not pause it. */
+  spectating?(): boolean;
   /** The map of the match being played or watched. */
   mapId(): string;
   /** In the menu: the class picked there, whose skills the panel opens on. */
@@ -208,6 +210,36 @@ export class DevPanel {
     return row;
   }
 
+  /** Owner only: kill, kick or ban someone in the match being played or watched. */
+  private unitTools(): HTMLElement {
+    const box = el('div', 'devp-sec');
+    box.append(el('b', '', 'Players in this match'));
+    for (const b of this.hooks.builds()) {
+      const row = el('div', 'devp-row');
+      row.append(el('span', '', `${b.bot ? '🤖 ' : ''}${b.name} · ${CLASSES[b.classId].name} · team ${b.team + 1}`));
+      const kill = el('button', 'mm-small', 'Kill');
+      kill.title = 'Kills this unit now. The match stops counting.';
+      kill.addEventListener('click', () => this.hooks.send({ t: 'dev_unit', unit: b.id, op: 'kill' }));
+      row.append(kill);
+      if (!b.bot && b.id !== this.hooks.youId()) {
+        const kick = el('button', 'mm-small adm-danger', 'Kick');
+        kick.title = 'Removes them from the server (they can come back).';
+        kick.addEventListener('click', () => window.confirm(`Kick ${b.name} off the server?`) && this.hooks.send({ t: 'dev_unit', unit: b.id, op: 'kick' }));
+        const ban = el('button', 'mm-small adm-danger', 'Ban');
+        ban.title = 'Bans their account and disconnects them. Guests have no account: kick them.';
+        ban.addEventListener('click', () => {
+          const m = window.prompt(`Ban ${b.name} for how many minutes? (0 = for good)`, '60');
+          if (m === null || m.trim() === '' || !Number.isFinite(Number(m))) return;
+          const reason = window.prompt('Reason (optional)', '') ?? '';
+          this.hooks.send({ t: 'dev_unit', unit: b.id, op: 'ban', minutes: Math.max(0, Math.round(Number(m))), ...(reason.trim() ? { reason: reason.trim() } : {}) });
+        });
+        row.append(kick, ban);
+      }
+      box.append(row);
+    }
+    return box;
+  }
+
   /** The meter, the match restart and saved setups (numbers and builds you want back later). */
   private matchTools(): HTMLElement {
     const wrap = el('div', 'devp-sec tools');
@@ -226,6 +258,7 @@ export class DevPanel {
       });
       row.append(restart, meter);
       wrap.append(this.mapPicker());
+      if (this.hooks.isOwner()) wrap.append(this.unitTools());
     }
     const setups = el('button', `mm-small${this.setupsOpen ? ' mm-go' : ''}`, '💾 Setups');
     setups.addEventListener('click', () => {
@@ -401,8 +434,8 @@ export class DevPanel {
       this.hooks.send({ t: 'dev_builds' });
       this.hooks.send({ t: 'dev_commits' });
       this.hooks.send({ t: 'dev_requests', op: 'list' });
-      // opening the window in your own match pauses it, so you can read and edit in peace; closing it resumes
-      if (this.inMatch && !this.paused && this.hooks.youId() > 0) {
+      // opening the window in your own match pauses it, so you can read and edit in peace; closing it resumes. Watching a match never pauses it.
+      if (this.inMatch && !this.paused && this.hooks.youId() > 0 && !this.hooks.spectating?.()) {
         this.autoPaused = true;
         this.hooks.send({ t: 'dev_pause', on: true });
       }

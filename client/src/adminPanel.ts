@@ -152,7 +152,7 @@ export class AdminPanel {
     this.op = new OwnerPanel({ limited: () => this.access() === 'dev', send: hooks.send, token: hooks.token, rerender: () => {
         this.paint();
         this.paintBotBattle(); // the bot battle window from the main menu redraws too (more bots when the size changes)
-      }, watch: (id) => { this.close(); hooks.watch(id); }, follow: (n) => hooks.follow(n) });
+      }, watch: (id) => { this.close(); hooks.watch(id); }, follow: (n) => hooks.follow(n), play: (id, unit) => { this.close(); hooks.send({ t: 'admin_takeover', id, unit }); }, release: () => hooks.send({ t: 'admin_release' }) });
   }
 
   /** What the signed-in account may do here: the owner (code entered) everything, the dev tag the read and training part. The server checks again. */

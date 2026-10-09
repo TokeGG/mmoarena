@@ -104,6 +104,9 @@ describe('which page owns a change', () => {
     const caut = { file: 'tuning', id: 'game', path: ['cauterizeHealth'], value: 0.3 } as const;
     assert.ok(pageOwns('passives', caut) && !pageOwns('options', caut));
     assert.ok(pageOwns('options', { file: 'tuning', id: 'game', path: ['gcdMs'], value: 1200 }));
+    const fx = { file: 'fx', id: 'fx', path: ['dragonsBreath', 'sprayMs'], value: 900 } as const;
+    assert.ok(pageOwns('animations', fx) && !pageOwns('options', fx) && !pageOwns('passives', fx));
+    assert.equal(navIdOf('animations', fx), 'dragonsBreath');
     assert.equal(navIdOf('passives', mod), 's:discipline');
     assert.equal(navIdOf('passives', { file: 'talents', id: 'x', path: ['mods', 'a'], value: 1 }), 't:x');
   });
