@@ -1,9 +1,9 @@
 [
  {
   "id": "colosseum",
-  "name": "Dusk Colosseum",
+  "name": "Dusk Colosseum · A (Lighter)",
   "theme": "colosseum",
-  "desc": "Four great columns frame an open centre, and an emperor's box rises against the north and south walls with a ramp at each end. Classic and easy to read, with a little high ground to fight over.",
+  "desc": "Four great columns frame an open centre, and an emperor's box rises against the north and south walls with a ramp at each end. Nothing stands under the boxes, so you can see straight through.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -112,14 +112,224 @@
      "z1": -16,
      "rise": "-x"
     }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "colosseum-b",
+  "name": "Dusk Colosseum · B (Open)",
+  "theme": "colosseum",
+  "desc": "Two great columns on the diagonal, an open centre and an emperor's box on the north and south walls with a ramp at each end. Wide open, with room to run.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": -10,
+    "z": -7,
+    "r": 2.2
+   },
+   {
+    "x": 10,
+    "z": 7,
+    "r": 2.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
    ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -5,
+     "x1": 5,
+     "z0": 14,
+     "z1": 20
+    },
+    {
+     "x0": -5,
+     "x1": 5,
+     "z0": -20,
+     "z1": -14
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -11,
+     "x1": -5,
+     "z0": 16,
+     "z1": 20,
+     "rise": "+x"
+    },
+    {
+     "x0": 5,
+     "x1": 11,
+     "z0": 16,
+     "z1": 20,
+     "rise": "-x"
+    },
+    {
+     "x0": -11,
+     "x1": -5,
+     "z0": -20,
+     "z1": -16,
+     "rise": "+x"
+    },
+    {
+     "x0": 5,
+     "x1": 11,
+     "z0": -20,
+     "z1": -16,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "colosseum-c",
+  "name": "Dusk Colosseum · C (Arena)",
+  "theme": "colosseum",
+  "desc": "One great column in the middle of an empty sand floor, with the emperor's boxes and their ramps on the north and south walls. Almost nowhere to hide.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 2.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -5,
+     "x1": 5,
+     "z0": 14,
+     "z1": 20
+    },
+    {
+     "x0": -5,
+     "x1": 5,
+     "z0": -20,
+     "z1": -14
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -11,
+     "x1": -5,
+     "z0": 16,
+     "z1": 20,
+     "rise": "+x"
+    },
+    {
+     "x0": 5,
+     "x1": 11,
+     "z0": 16,
+     "z1": 20,
+     "rise": "-x"
+    },
+    {
+     "x0": -11,
+     "x1": -5,
+     "z0": -20,
+     "z1": -16,
+     "rise": "+x"
+    },
+    {
+     "x0": 5,
+     "x1": 11,
+     "z0": -20,
+     "z1": -16,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
   }
  },
  {
   "id": "ruins",
-  "name": "Sunken Ruins",
+  "name": "Sunken Ruins · A (Lighter)",
   "theme": "ruins",
-  "desc": "A fallen tower splits the middle and broken columns hide the corners. Two crumbling stone platforms climb out of the rubble, one on each side, and broken walls give cover you can vault. Lots of line of sight to break.",
+  "desc": "A fallen tower splits the middle and two broken columns hide the corners. Two crumbling stone platforms climb out of the rubble, with nothing under them. Lighter on line-of-sight breaks.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -134,16 +344,6 @@
    },
    {
     "x": -12,
-    "z": -8.5,
-    "r": 1.8
-   },
-   {
-    "x": -12,
-    "z": 8.5,
-    "r": 1.8
-   },
-   {
-    "x": 12,
     "z": -8.5,
     "r": 1.8
    },
@@ -219,28 +419,15 @@
      "z1": -13,
      "rise": "+x"
     }
-   ]
-  },
-  "lows": [
-   {
-    "x0": -6.4,
-    "x1": -5.6,
-    "z0": 3,
-    "z1": 9
-   },
-   {
-    "x0": 5.6,
-    "x1": 6.4,
-    "z0": -9,
-    "z1": -3
-   }
-  ]
+   ],
+   "piers": []
+  }
  },
  {
-  "id": "frost",
-  "name": "Frostkeep Pit",
-  "theme": "frost",
-  "desc": "A ring of ice spires around an open pit, with a frozen bridge spanning the pit from north to south. Fight around the ring, over it on the bridge, or under it; snowdrift walls guard the flanks.",
+  "id": "ruins-b",
+  "name": "Sunken Ruins · B (Open)",
+  "theme": "ruins",
+  "desc": "Two broken columns on the diagonal, and where the tower used to be there is nothing. Two crumbling stone platforms climb out of the rubble. Open ground.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -249,10 +436,186 @@
   },
   "pillars": [
    {
-    "x": 9,
-    "z": 0,
-    "r": 1.7
+    "x": -12,
+    "z": 8.5,
+    "r": 1.8
    },
+   {
+    "x": 12,
+    "z": -8.5,
+    "r": 1.8
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -14,
+     "x1": -6,
+     "z0": 12,
+     "z1": 18
+    },
+    {
+     "x0": 6,
+     "x1": 14,
+     "z0": -18,
+     "z1": -12
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -6,
+     "x1": 2,
+     "z0": 13,
+     "z1": 17,
+     "rise": "-x"
+    },
+    {
+     "x0": -2,
+     "x1": 6,
+     "z0": -17,
+     "z1": -13,
+     "rise": "+x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "ruins-c",
+  "name": "Sunken Ruins · C (Arena)",
+  "theme": "ruins",
+  "desc": "Only the fallen tower is left in the middle of the ruins, plus two crumbling stone platforms with ramps. The most open Sunken Ruins.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 3.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -14,
+     "x1": -6,
+     "z0": 12,
+     "z1": 18
+    },
+    {
+     "x0": 6,
+     "x1": 14,
+     "z0": -18,
+     "z1": -12
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -6,
+     "x1": 2,
+     "z0": 13,
+     "z1": 17,
+     "rise": "-x"
+    },
+    {
+     "x0": -2,
+     "x1": 6,
+     "z0": -17,
+     "z1": -13,
+     "rise": "+x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "frost",
+  "name": "Frostkeep Pit · A (Lighter)",
+  "theme": "frost",
+  "desc": "Four ice spires around an open pit, with a frozen bridge spanning the pit from north to south. Nothing holds the bridge up, so you can see under it.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
    {
     "x": 4.5,
     "z": 7.79,
@@ -261,11 +624,6 @@
    {
     "x": -4.5,
     "z": 7.79,
-    "r": 1.7
-   },
-   {
-    "x": -9,
-    "z": 0,
     "r": 1.7
    },
    {
@@ -339,28 +697,178 @@
      "z1": -9,
      "rise": "+z"
     }
-   ]
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "frost-b",
+  "name": "Frostkeep Pit · B (Open)",
+  "theme": "frost",
+  "desc": "Two ice spires at the ends of the pit and a frozen bridge from north to south. Wide open, with the bridge as the main landmark.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
   },
-  "lows": [
+  "pillars": [
    {
-    "x0": -15.4,
-    "x1": -14.6,
-    "z0": 6,
-    "z1": 13
+    "x": 9,
+    "z": 0,
+    "r": 1.7
    },
    {
-    "x0": 14.6,
-    "x1": 15.4,
-    "z0": -13,
-    "z1": -6
+    "x": -9,
+    "z": 0,
+    "r": 1.7
    }
-  ]
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": -9,
+     "z1": 9
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": 9,
+     "z1": 17,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": -17,
+     "z1": -9,
+     "rise": "+z"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "frost-c",
+  "name": "Frostkeep Pit · C (Arena)",
+  "theme": "frost",
+  "desc": "A bare frozen pit with only the bridge across it and its ramps. No spires, no cover but the ramps.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": -9,
+     "z1": 9
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": 9,
+     "z1": 17,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.2,
+     "x1": 2.2,
+     "z0": -17,
+     "z1": -9,
+     "rise": "+z"
+    }
+   ],
+   "piers": []
+  }
  },
  {
   "id": "serpent",
-  "name": "The Serpent",
+  "name": "The Serpent · A (Lighter)",
   "theme": "colosseum",
-  "desc": "Two start yards and one wide wooden walkway between them: a ramp up from your side, a long run across the middle, a turn, and a ramp down on theirs. Hold the walkway, jump off it to cut someone off, or fight underneath among the pillars.",
+  "desc": "Two start yards and one wide wooden walkway between them: a ramp up from your side, a long run across the middle and a ramp down on theirs. Four pillars stand beside it; none hold it up, so the ground underneath is open.",
   "bounds": {
    "minX": -21,
    "maxX": 21,
@@ -461,14 +969,202 @@
      "z1": -10,
      "rise": "-x"
     }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "serpent-b",
+  "name": "The Serpent · B (Open)",
+  "theme": "colosseum",
+  "desc": "Two start yards and one wide wooden walkway with a ramp at each end. Two pillars on the diagonal and an open floor underneath.",
+  "bounds": {
+   "minX": -21,
+   "maxX": 21,
+   "minZ": -26,
+   "maxZ": 26
+  },
+  "pillars": [
+   {
+    "x": -9.5,
+    "z": -7,
+    "r": 1.4
+   },
+   {
+    "x": 9.5,
+    "z": 7,
+    "r": 1.4
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -17,
+     "z": -3
+    },
+    {
+     "x": -17,
+     "z": 3
+    },
+    {
+     "x": -19,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 17,
+     "z": 3
+    },
+    {
+     "x": 17,
+     "z": -3
+    },
+    {
+     "x": 19,
+     "z": 0
+    }
    ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 12.5,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -9,
+     "x1": -3,
+     "z0": 10,
+     "z1": 16
+    },
+    {
+     "x0": -3,
+     "x1": 3,
+     "z0": -16,
+     "z1": 16
+    },
+    {
+     "x0": 3,
+     "x1": 9,
+     "z0": -16,
+     "z1": -10
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -17,
+     "x1": -9,
+     "z0": 10,
+     "z1": 16,
+     "rise": "+x"
+    },
+    {
+     "x0": 9,
+     "x1": 17,
+     "z0": -16,
+     "z1": -10,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "serpent-c",
+  "name": "The Serpent · C (Arena)",
+  "theme": "colosseum",
+  "desc": "Two start yards and the long wooden walkway between them, with nothing else on the field. Fight on it, under it or off it.",
+  "bounds": {
+   "minX": -21,
+   "maxX": 21,
+   "minZ": -26,
+   "maxZ": 26
+  },
+  "pillars": [],
+  "spawns": [
+   [
+    {
+     "x": -17,
+     "z": -3
+    },
+    {
+     "x": -17,
+     "z": 3
+    },
+    {
+     "x": -19,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 17,
+     "z": 3
+    },
+    {
+     "x": 17,
+     "z": -3
+    },
+    {
+     "x": 19,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 12.5,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -9,
+     "x1": -3,
+     "z0": 10,
+     "z1": 16
+    },
+    {
+     "x0": -3,
+     "x1": 3,
+     "z0": -16,
+     "z1": 16
+    },
+    {
+     "x0": 3,
+     "x1": 9,
+     "z0": -16,
+     "z1": -10
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -17,
+     "x1": -9,
+     "z0": 10,
+     "z1": 16,
+     "rise": "+x"
+    },
+    {
+     "x0": 9,
+     "x1": 17,
+     "z0": -16,
+     "z1": -10,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
   }
  },
  {
   "id": "overlook",
-  "name": "The Overlook",
+  "name": "The Overlook · A (Lighter)",
   "theme": "ruins",
-  "desc": "A raised stone plateau in the middle with a ramp up from the north and the south and a shaded hall underneath. Take the high ground, drop off it onto someone, or fight in the dark below. Low barricades guard both start yards. Every duel is played here.",
+  "desc": "A raised stone plateau in the middle with a ramp up from the north and the south, and an open hall underneath. Four columns stand in the corners. Every duel is played here.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -557,28 +1253,178 @@
      "z1": -5,
      "rise": "+z"
     }
-   ]
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "overlook-b",
+  "name": "The Overlook · B (Open)",
+  "theme": "ruins",
+  "desc": "A raised stone plateau with ramps north and south, an open hall underneath and two columns on the diagonal.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
   },
-  "lows": [
+  "pillars": [
    {
-    "x0": -16.4,
-    "x1": -15.6,
-    "z0": -5,
-    "z1": 5
+    "x": -14,
+    "z": -9,
+    "r": 1.8
    },
    {
-    "x0": 15.6,
-    "x1": 16.4,
-    "z0": -5,
-    "z1": 5
+    "x": 14,
+    "z": 9,
+    "r": 1.8
    }
-  ]
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -5,
+     "z1": 5
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": 5,
+     "z1": 13,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": -13,
+     "z1": -5,
+     "rise": "+z"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "overlook-c",
+  "name": "The Overlook · C (Arena)",
+  "theme": "ruins",
+  "desc": "Just the raised plateau and its two ramps on an open floor. See the whole field from up there; nothing else to hide behind.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -5,
+     "z1": 5
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": 5,
+     "z1": 13,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": -13,
+     "z1": -5,
+     "rise": "+z"
+    }
+   ],
+   "piers": []
+  }
  },
  {
   "id": "ring",
-  "name": "Icebound Ring",
+  "name": "Icebound Ring · A (Lighter)",
   "theme": "frost",
-  "desc": "A raised square walkway rings an open courtyard with an ice spire at its heart. A ramp climbs to the ring from each start yard; walk under it to reach the courtyard, or jump down into it from above. Barricades cut the long lanes outside.",
+  "desc": "A raised square walkway rings an open courtyard with an ice spire at its heart. A ramp climbs to the ring from each start yard; nothing holds it up, so the courtyard is open from all sides. Two spires outside.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -593,16 +1439,6 @@
    },
    {
     "x": -17,
-    "z": -11,
-    "r": 1.6
-   },
-   {
-    "x": -17,
-    "z": 11,
-    "r": 1.6
-   },
-   {
-    "x": 17,
     "z": -11,
     "r": 1.6
    },
@@ -690,28 +1526,220 @@
      "z1": 3,
      "rise": "-x"
     }
-   ]
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "ring-b",
+  "name": "Icebound Ring · B (Open)",
+  "theme": "frost",
+  "desc": "A raised square walkway rings an empty courtyard, with a ramp from each start yard and two ice spires out on the diagonal.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
   },
-  "lows": [
+  "pillars": [
    {
-    "x0": -5,
-    "x1": 5,
-    "z0": 15.6,
-    "z1": 16.4
+    "x": -17,
+    "z": 11,
+    "r": 1.6
    },
    {
-    "x0": -5,
-    "x1": 5,
-    "z0": -16.4,
-    "z1": -15.6
+    "x": 17,
+    "z": -11,
+    "r": 1.6
    }
-  ]
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": 6,
+     "z1": 12
+    },
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": -12,
+     "z1": -6
+    },
+    {
+     "x0": -12,
+     "x1": -6,
+     "z0": -6,
+     "z1": 6
+    },
+    {
+     "x0": 6,
+     "x1": 12,
+     "z0": -6,
+     "z1": 6
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": -3,
+     "z1": 3,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": -3,
+     "z1": 3,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "ring-c",
+  "name": "Icebound Ring · C (Arena)",
+  "theme": "frost",
+  "desc": "A raised square walkway around an open courtyard with a single ice spire at its heart and a ramp from each start yard.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": 6,
+     "z1": 12
+    },
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": -12,
+     "z1": -6
+    },
+    {
+     "x0": -12,
+     "x1": -6,
+     "z0": -6,
+     "z1": 6
+    },
+    {
+     "x0": 6,
+     "x1": 12,
+     "z0": -6,
+     "z1": 6
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": -3,
+     "z1": 3,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": -3,
+     "z1": 3,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
+  }
  },
  {
   "id": "terraces",
-  "name": "Sun Terraces",
+  "name": "Sun Terraces · A (Lighter)",
   "theme": "colosseum",
-  "desc": "Two long raised terraces run along the north and south walls, each with a ramp at both ends. Casters love the view from up there; melee takes the ramps or waits below. An obelisk and low barricades hold the middle.",
+  "desc": "Two long raised terraces run along the north and south walls, each with a ramp at both ends, with nothing under them. An obelisk holds the middle and two columns the diagonal.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -726,16 +1754,6 @@
    },
    {
     "x": -14,
-    "z": -6,
-    "r": 1.5
-   },
-   {
-    "x": -14,
-    "z": 6,
-    "r": 1.5
-   },
-   {
-    "x": 14,
     "z": -6,
     "r": 1.5
    },
@@ -825,28 +1843,224 @@
      "z1": -15,
      "rise": "-x"
     }
-   ]
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "terraces-b",
+  "name": "Sun Terraces · B (Open)",
+  "theme": "colosseum",
+  "desc": "Two long raised terraces along the north and south walls with a ramp at both ends, and two columns on the diagonal. The middle is wide open.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
   },
-  "lows": [
+  "pillars": [
    {
-    "x0": -9.4,
-    "x1": -8.6,
-    "z0": -5,
-    "z1": 5
+    "x": -14,
+    "z": 6,
+    "r": 1.5
    },
    {
-    "x0": 8.6,
-    "x1": 9.4,
-    "z0": -5,
-    "z1": 5
+    "x": 14,
+    "z": -6,
+    "r": 1.5
    }
-  ]
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": 13,
+     "z1": 20
+    },
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": -20,
+     "z1": -13
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": 15,
+     "z1": 20,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": 15,
+     "z1": 20,
+     "rise": "-x"
+    },
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": -20,
+     "z1": -15,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": -20,
+     "z1": -15,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
+  "id": "terraces-c",
+  "name": "Sun Terraces · C (Arena)",
+  "theme": "colosseum",
+  "desc": "Two long raised terraces and a single obelisk in the middle of an open floor.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": 0,
+    "r": 2.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": 13,
+     "z1": 20
+    },
+    {
+     "x0": -12,
+     "x1": 12,
+     "z0": -20,
+     "z1": -13
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": 15,
+     "z1": 20,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": 15,
+     "z1": 20,
+     "rise": "-x"
+    },
+    {
+     "x0": -20,
+     "x1": -12,
+     "z0": -20,
+     "z1": -15,
+     "rise": "+x"
+    },
+    {
+     "x0": 12,
+     "x1": 20,
+     "z0": -20,
+     "z1": -15,
+     "rise": "-x"
+    }
+   ],
+   "piers": []
+  }
  },
  {
   "id": "cinder",
-  "name": "Cinder Crater",
+  "name": "Cinder Crater · A (Lighter)",
   "theme": "cinder",
-  "desc": "A basalt crater split by glowing lava cracks. Obsidian spires stand in the open, jagged rock walls guard the lanes out of both start yards, and a ledge in each corner of the crater rim gives casters the high ground. Plenty of corners to break line of sight, nowhere to stand and watch the whole pit.",
+  "desc": "A basalt crater split by glowing lava cracks. Obsidian spires stand in the open, jagged rock walls guard the lanes out of both start yards and a ledge in two corners of the rim gives casters the high ground. Fewer spires and no low rocks.",
   "bounds": {
    "minX": -30,
    "maxX": 30,
@@ -873,16 +2087,6 @@
     "x": -8,
     "z": -9,
     "r": 1.7
-   },
-   {
-    "x": 0,
-    "z": 11,
-    "r": 2
-   },
-   {
-    "x": 0,
-    "z": -11,
-    "r": 2
    },
    {
     "x": 0,
@@ -966,59 +2170,10 @@
      "z1": -15,
      "rise": "+x"
     }
-   ]
+   ],
+   "piers": []
   },
-  "lows": [
-   {
-    "x0": 9,
-    "x1": 12,
-    "z0": -1.2,
-    "z1": -0.4
-   },
-   {
-    "x0": -12,
-    "x1": -9,
-    "z0": 0.4,
-    "z1": 1.2
-   },
-   {
-    "x0": -1.2,
-    "x1": -0.4,
-    "z0": 7,
-    "z1": 10
-   },
-   {
-    "x0": 0.4,
-    "x1": 1.2,
-    "z0": -10,
-    "z1": -7
-   },
-   {
-    "x0": -8,
-    "x1": -5.5,
-    "z0": -14,
-    "z1": -13.2
-   },
-   {
-    "x0": 5.5,
-    "x1": 8,
-    "z0": 13.2,
-    "z1": 14
-   }
-  ],
   "walls": [
-   {
-    "x0": -6,
-    "x1": -2,
-    "z0": 2.4,
-    "z1": 4.2
-   },
-   {
-    "x0": 2,
-    "x1": 6,
-    "z0": -4.2,
-    "z1": -2.4
-   },
    {
     "x0": 17,
     "x1": 18,
@@ -1088,10 +2243,257 @@
   ]
  },
  {
+  "id": "cinder-b",
+  "name": "Cinder Crater · B (Open)",
+  "theme": "cinder",
+  "desc": "A basalt crater with three obsidian spires, two jagged rock walls on the lanes out of the start yards and a ledge in two corners of the rim. Open ground in between.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 8,
+    "z": 9,
+    "r": 1.7
+   },
+   {
+    "x": -8,
+    "z": -9,
+    "r": 1.7
+   },
+   {
+    "x": 0,
+    "z": 0,
+    "r": 1.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": -4,
+     "z0": 13,
+     "z1": 20
+    },
+    {
+     "x0": 4,
+     "x1": 12,
+     "z0": -20,
+     "z1": -13
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -4,
+     "x1": 2,
+     "z0": 15,
+     "z1": 19,
+     "rise": "-x"
+    },
+    {
+     "x0": -2,
+     "x1": 4,
+     "z0": -19,
+     "z1": -15,
+     "rise": "+x"
+    }
+   ],
+   "piers": []
+  },
+  "walls": [
+   {
+    "x0": 17,
+    "x1": 18,
+    "z0": 5,
+    "z1": 11
+   },
+   {
+    "x0": -18,
+    "x1": -17,
+    "z0": -11,
+    "z1": -5
+   }
+  ],
+  "nav": [
+   {
+    "x": -14,
+    "z": -6
+   },
+   {
+    "x": -14,
+    "z": 6
+   },
+   {
+    "x": 14,
+    "z": -6
+   },
+   {
+    "x": 14,
+    "z": 6
+   },
+   {
+    "x": 0,
+    "z": 5.5
+   },
+   {
+    "x": 0,
+    "z": -5.5
+   },
+   {
+    "x": -5,
+    "z": -8
+   },
+   {
+    "x": 5,
+    "z": 8
+   },
+   {
+    "x": -22,
+    "z": 0
+   },
+   {
+    "x": 22,
+    "z": 0
+   }
+  ]
+ },
+ {
+  "id": "cinder-c",
+  "name": "Cinder Crater · C (Arena)",
+  "theme": "cinder",
+  "desc": "A basalt crater with two obsidian spires on the diagonal and a ledge in two corners of the rim. Nothing else to break line of sight.",
+  "bounds": {
+   "minX": -30,
+   "maxX": 30,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": -8,
+    "z": 9,
+    "r": 1.7
+   },
+   {
+    "x": 8,
+    "z": -9,
+    "r": 1.7
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -24,
+     "z": -3
+    },
+    {
+     "x": -24,
+     "z": 3
+    },
+    {
+     "x": -26,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 24,
+     "z": 3
+    },
+    {
+     "x": 24,
+     "z": -3
+    },
+    {
+     "x": 26,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 20,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -12,
+     "x1": -4,
+     "z0": 13,
+     "z1": 20
+    },
+    {
+     "x0": 4,
+     "x1": 12,
+     "z0": -20,
+     "z1": -13
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -4,
+     "x1": 2,
+     "z0": 15,
+     "z1": 19,
+     "rise": "-x"
+    },
+    {
+     "x0": -2,
+     "x1": 4,
+     "z0": -19,
+     "z1": -15,
+     "rise": "+x"
+    }
+   ],
+   "piers": []
+  }
+ },
+ {
   "id": "forge",
-  "name": "Lava Forge",
+  "name": "Lava Forge · A (Lighter)",
   "theme": "forge",
-  "desc": "A ring of grey brick around a raised forging plinth, with a ramp up from the north and the south. Four basins of molten rock stand person-high in the corners of the hall, brick chimneys and slabs of rim rock break the long lanes, and the plinth is the only high ground. Jump to see over a basin; walk round it and you give up the angle.",
+  "desc": "A ring of grey brick around a raised forging plinth, with a ramp up from the north and the south. Four basins of molten rock stand in the corners of the hall, chimneys and slabs of rim rock break the lanes. No low slabs.",
   "bounds": {
    "minX": -28,
    "maxX": 28,
@@ -1122,16 +2524,6 @@
    {
     "x": 21,
     "z": 11,
-    "r": 1.4
-   },
-   {
-    "x": -21,
-    "z": 11,
-    "r": 1.4
-   },
-   {
-    "x": 21,
-    "z": -11,
     "r": 1.4
    },
    {
@@ -1238,18 +2630,6 @@
     "z0": -11,
     "z1": -6.5,
     "lava": true
-   },
-   {
-    "x0": -8,
-    "x1": -5.5,
-    "z0": -1,
-    "z1": -0.2
-   },
-   {
-    "x0": 5.5,
-    "x1": 8,
-    "z0": 0.2,
-    "z1": 1
    }
   ],
   "walls": [
@@ -1276,18 +2656,6 @@
     "x1": -20.6,
     "z0": -7,
     "z1": -3
-   },
-   {
-    "x0": -6,
-    "x1": -2,
-    "z0": 15.5,
-    "z1": 16.7
-   },
-   {
-    "x0": 2,
-    "x1": 6,
-    "z0": -16.7,
-    "z1": -15.5
    }
   ],
   "nav": [
@@ -1334,10 +2702,254 @@
   ]
  },
  {
+  "id": "forge-b",
+  "name": "Lava Forge · B (Open)",
+  "theme": "forge",
+  "desc": "A grey-brick hall with a raised forging plinth, ramps north and south, four basins of molten rock and four brick chimneys. The lane slabs are gone.",
+  "bounds": {
+   "minX": -28,
+   "maxX": 28,
+   "minZ": -22,
+   "maxZ": 22
+  },
+  "pillars": [
+   {
+    "x": -14,
+    "z": 0,
+    "r": 1.6
+   },
+   {
+    "x": 14,
+    "z": 0,
+    "r": 1.6
+   },
+   {
+    "x": 0,
+    "z": -14.5,
+    "r": 1.8
+   },
+   {
+    "x": 0,
+    "z": 14.5,
+    "r": 1.8
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -23,
+     "z": -3
+    },
+    {
+     "x": -23,
+     "z": 3
+    },
+    {
+     "x": -25,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 23,
+     "z": 3
+    },
+    {
+     "x": 23,
+     "z": -3
+    },
+    {
+     "x": 25,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 19,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -4,
+     "x1": 4,
+     "z0": -4,
+     "z1": 4
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": 4,
+     "z1": 10,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": -10,
+     "z1": -4,
+     "rise": "+z"
+    }
+   ],
+   "piers": [
+    {
+     "x0": -4,
+     "x1": 4,
+     "z0": -4,
+     "z1": 4
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": 9.5,
+    "x1": 14,
+    "z0": 6.5,
+    "z1": 11,
+    "lava": true
+   },
+   {
+    "x0": -14,
+    "x1": -9.5,
+    "z0": 6.5,
+    "z1": 11,
+    "lava": true
+   },
+   {
+    "x0": 9.5,
+    "x1": 14,
+    "z0": -11,
+    "z1": -6.5,
+    "lava": true
+   },
+   {
+    "x0": -14,
+    "x1": -9.5,
+    "z0": -11,
+    "z1": -6.5,
+    "lava": true
+   }
+  ]
+ },
+ {
+  "id": "forge-c",
+  "name": "Lava Forge · C (Arena)",
+  "theme": "forge",
+  "desc": "A grey-brick hall with the forging plinth in the middle, two chimneys north and south and two basins of molten rock in opposite corners. Wide open.",
+  "bounds": {
+   "minX": -28,
+   "maxX": 28,
+   "minZ": -22,
+   "maxZ": 22
+  },
+  "pillars": [
+   {
+    "x": 0,
+    "z": -14.5,
+    "r": 1.8
+   },
+   {
+    "x": 0,
+    "z": 14.5,
+    "r": 1.8
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -23,
+     "z": -3
+    },
+    {
+     "x": -23,
+     "z": 3
+    },
+    {
+     "x": -25,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 23,
+     "z": 3
+    },
+    {
+     "x": 23,
+     "z": -3
+    },
+    {
+     "x": 25,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 19,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -4,
+     "x1": 4,
+     "z0": -4,
+     "z1": 4
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": 4,
+     "z1": 10,
+     "rise": "-z"
+    },
+    {
+     "x0": -2.5,
+     "x1": 2.5,
+     "z0": -10,
+     "z1": -4,
+     "rise": "+z"
+    }
+   ],
+   "piers": [
+    {
+     "x0": -4,
+     "x1": 4,
+     "z0": -4,
+     "z1": 4
+    }
+   ]
+  },
+  "lows": [
+   {
+    "x0": 9.5,
+    "x1": 14,
+    "z0": 6.5,
+    "z1": 11,
+    "lava": true
+   },
+   {
+    "x0": -14,
+    "x1": -9.5,
+    "z0": -11,
+    "z1": -6.5,
+    "lava": true
+   }
+  ]
+ },
+ {
   "id": "sandstone",
-  "name": "Sandstone Yard",
+  "name": "Sandstone Yard · A (Lighter)",
   "theme": "sandstone",
-  "desc": "A sand-floored stadium yard with a stepped sandstone plinth in the middle, a ramp up from each end, carved cover blocks stacked in the open and tall grey obelisks marking the corners. Players fight round the blocks and obelisks, hold the plinth, or jump the low sandbag rows to cut across.",
+  "desc": "A sand-floored stadium yard with a stepped sandstone plinth in the middle, a ramp up from each end, four carved cover blocks near the starts and tall grey obelisks marking the corners. The low rows of sand are gone.",
   "bounds": {
    "minX": -26,
    "maxX": 26,
@@ -1446,56 +3058,6 @@
     }
    ]
   },
-  "lows": [
-   {
-    "x0": 15.5,
-    "x1": 19,
-    "z0": 9.2,
-    "z1": 10
-   },
-   {
-    "x0": -19,
-    "x1": -15.5,
-    "z0": 9.2,
-    "z1": 10
-   },
-   {
-    "x0": 15.5,
-    "x1": 19,
-    "z0": -10,
-    "z1": -9.2
-   },
-   {
-    "x0": -19,
-    "x1": -15.5,
-    "z0": -10,
-    "z1": -9.2
-   },
-   {
-    "x0": 3,
-    "x1": 5.8,
-    "z0": 10.6,
-    "z1": 11.4
-   },
-   {
-    "x0": -5.8,
-    "x1": -3,
-    "z0": 10.6,
-    "z1": 11.4
-   },
-   {
-    "x0": 3,
-    "x1": 5.8,
-    "z0": -11.4,
-    "z1": -10.6
-   },
-   {
-    "x0": -5.8,
-    "x1": -3,
-    "z0": -11.4,
-    "z1": -10.6
-   }
-  ],
   "walls": [
    {
     "x0": 13.8,
@@ -1520,31 +3082,155 @@
     "x1": -13.8,
     "z0": -5.7,
     "z1": -3.3
+   }
+  ],
+  "nav": [
+   {
+    "x": -14,
+    "z": -7
    },
    {
-    "x0": 6.8,
-    "x1": 9.2,
-    "z0": 14.8,
-    "z1": 17.2
+    "x": -14,
+    "z": 7
    },
    {
-    "x0": -9.2,
-    "x1": -6.8,
-    "z0": 14.8,
-    "z1": 17.2
+    "x": 14,
+    "z": -7
    },
    {
-    "x0": 6.8,
-    "x1": 9.2,
-    "z0": -17.2,
-    "z1": -14.8
+    "x": 14,
+    "z": 7
    },
    {
-    "x0": -9.2,
-    "x1": -6.8,
-    "z0": -17.2,
-    "z1": -14.8
+    "x": 0,
+    "z": 6
    },
+   {
+    "x": 0,
+    "z": -6
+   },
+   {
+    "x": -15,
+    "z": 0
+   },
+   {
+    "x": 15,
+    "z": 0
+   },
+   {
+    "x": -21,
+    "z": 0
+   },
+   {
+    "x": 21,
+    "z": 0
+   }
+  ]
+ },
+ {
+  "id": "sandstone-b",
+  "name": "Sandstone Yard · B (Open)",
+  "theme": "sandstone",
+  "desc": "A sand-floored stadium yard with a stepped plinth in the middle, four obelisks in the corners and two carved blocks flanking the plinth. Open lanes.",
+  "bounds": {
+   "minX": -26,
+   "maxX": 26,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 9,
+    "z": 9,
+    "r": 1.2
+   },
+   {
+    "x": -9,
+    "z": 9,
+    "r": 1.2
+   },
+   {
+    "x": 9,
+    "z": -9,
+    "r": 1.2
+   },
+   {
+    "x": -9,
+    "z": -9,
+    "r": 1.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -22,
+     "z": -3
+    },
+    {
+     "x": -22,
+     "z": 3
+    },
+    {
+     "x": -24,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 22,
+     "z": 3
+    },
+    {
+     "x": 22,
+     "z": -3
+    },
+    {
+     "x": 24,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 17,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -4,
+     "z1": 4
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -12,
+     "x1": -6,
+     "z0": -2.5,
+     "z1": 2.5,
+     "rise": "+x"
+    },
+    {
+     "x0": 6,
+     "x1": 12,
+     "z0": -2.5,
+     "z1": 2.5,
+     "rise": "-x"
+    }
+   ],
+   "piers": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -4,
+     "z1": 4
+    }
+   ]
+  },
+  "walls": [
    {
     "x0": -1,
     "x1": 1,
@@ -1600,5 +3286,99 @@
     "z": 0
    }
   ]
+ },
+ {
+  "id": "sandstone-c",
+  "name": "Sandstone Yard · C (Arena)",
+  "theme": "sandstone",
+  "desc": "A sand-floored stadium yard with the stepped plinth in the middle and two obelisks on the diagonal. Almost nothing else.",
+  "bounds": {
+   "minX": -26,
+   "maxX": 26,
+   "minZ": -20,
+   "maxZ": 20
+  },
+  "pillars": [
+   {
+    "x": 9,
+    "z": 9,
+    "r": 1.2
+   },
+   {
+    "x": -9,
+    "z": -9,
+    "r": 1.2
+   }
+  ],
+  "spawns": [
+   [
+    {
+     "x": -22,
+     "z": -3
+    },
+    {
+     "x": -22,
+     "z": 3
+    },
+    {
+     "x": -24,
+     "z": 0
+    }
+   ],
+   [
+    {
+     "x": 22,
+     "z": 3
+    },
+    {
+     "x": 22,
+     "z": -3
+    },
+    {
+     "x": 24,
+     "z": 0
+    }
+   ]
+  ],
+  "spawnFacing": [
+   1.5707963267948966,
+   -1.5707963267948966
+  ],
+  "gateX": 17,
+  "deck": {
+   "height": 3.2,
+   "flats": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -4,
+     "z1": 4
+    }
+   ],
+   "ramps": [
+    {
+     "x0": -12,
+     "x1": -6,
+     "z0": -2.5,
+     "z1": 2.5,
+     "rise": "+x"
+    },
+    {
+     "x0": 6,
+     "x1": 12,
+     "z0": -2.5,
+     "z1": 2.5,
+     "rise": "-x"
+    }
+   ],
+   "piers": [
+    {
+     "x0": -6,
+     "x1": 6,
+     "z0": -4,
+     "z1": 4
+    }
+   ]
+  }
  }
 ]

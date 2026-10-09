@@ -4,7 +4,7 @@ import {
   ABILITIES, ArenaSim, AURAS, Bot, CLASS_IDS, SPECS, TUNING, arenaById, botBuild, brainFor, clampBrain, compileMods, freshenPopulation, isRotationAbility,
   newPopulation, rotationDamage, rotationFor, talentsFor, validateBuild, withAuraMods,
 } from '../src/index';
-import type { Brain, ClassId, SimEvent, TeamId, Unit } from '../src/index';
+import type { ArenaDef, Brain, ClassId, SimEvent, TeamId, Unit } from '../src/index';
 import { navRoute } from '../src/nav';
 
 /** Regression tests for the 0.67 audit (bots and balance) and the bot behaviour asked for alongside it. */
@@ -253,7 +253,7 @@ describe('0.67 bots: line of sight and movement', () => {
   });
 
   it('a route over a barricade aims at the far side, not into the barricade', () => {
-    const arena = [...['overlook', 'ruins', 'frost', 'serpent', 'ring', 'terraces', 'colosseum']].map(arenaById).find((a) => a.lows?.length)!;
+    const arena: ArenaDef = { ...arenaById('overlook'), lows: [{ x0: -16.4, x1: -15.6, z0: -5, z1: 5 }, { x0: 15.6, x1: 16.4, z0: -5, z1: 5 }] }; // no shipped map has a barricade any more
     const low = arena.lows![0];
     const horizontal = low.x1 - low.x0 > low.z1 - low.z0;
     const mid = { x: (low.x0 + low.x1) / 2, z: (low.z0 + low.z1) / 2 };
