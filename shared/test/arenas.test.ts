@@ -36,8 +36,7 @@ describe('arenas', () => {
       sim.addUnit({ name: 'B', classId: 'warrior', team: 1, controller: 'player' });
       for (let i = 0; i < 40; i++) sim.step();
       assert.equal(sim.arena.id, a.id);
-      const p = a.pillars[0];
-      assert.equal(hasLOS({ x: p.x - p.r - 2, z: p.z }, { x: p.x + p.r + 2, z: p.z }, a), false, `${a.id}: pillar blocks sight`);
+      for (const p of a.pillars) assert.equal(hasLOS({ x: p.x - p.r - 2, z: p.z }, { x: p.x + p.r + 2, z: p.z }, a), false, `${a.id}: pillar blocks sight`);
     }
   });
 
@@ -331,8 +330,11 @@ describe('above and below a walkway', () => {
   });
 });
 
+/** The engine still knows low barricades (no shipped map has one any more): a fixture layout carries the old Overlook ones. */
+const BARRICADED: ArenaDef = { ...arenaById('overlook'), lows: [{ x0: -16.4, x1: -15.6, z0: -5, z1: 5 }, { x0: 15.6, x1: 16.4, z0: -5, z1: 5 }] };
+
 describe('low barricades', () => {
-  const a = arenaById('overlook');
+  const a = BARRICADED;
   it('in a match: an instant spell across one fails standing, and lands from the top of a jump', () => {
     const lw = a.lows![0];
     const c = { x: (lw.x0 + lw.x1) / 2, z: (lw.z0 + lw.z1) / 2 };
@@ -376,7 +378,7 @@ describe('low barricades', () => {
 
 describe('bots and low barricades', () => {
   it('a bot hops and throws an instant over a barricade it cannot see past standing', () => {
-    const a = arenaById('overlook');
+    const a = BARRICADED;
     const lw = a.lows![0];
     const c = { x: (lw.x0 + lw.x1) / 2, z: (lw.z0 + lw.z1) / 2 };
     const sim = new ArenaSim({ seed: 2, prepMs: 0, arena: a });

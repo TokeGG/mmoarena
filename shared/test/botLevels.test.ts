@@ -237,7 +237,9 @@ describe('bots on a deck: whole matches', () => {
           if (t % per === per - 1) units.forEach((u, i) => {
             const m = Math.hypot(u.pos.x - last[i].x, u.pos.z - last[i].z);
             last[i] = { ...u.pos };
-            if (u.alive && u.classId !== 'priest' && m < 0.2 && !u.cast) idle[i]++; else idle[i] = 0;
+            // held in place by a stun, polymorph, fear or root is not stuck
+            const held = u.auras.some((x) => ['stun', 'incapacitate', 'fear', 'root'].includes(x.kind));
+            if (u.alive && u.classId !== 'priest' && m < 0.2 && !u.cast && !held) idle[i]++; else idle[i] = 0;
             stuck = Math.max(stuck, idle[i]);
           });
         }

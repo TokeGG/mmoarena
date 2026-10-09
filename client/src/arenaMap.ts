@@ -770,8 +770,10 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       root.add(m);
       return m;
     };
+    // a walkway without piers (open ground, clear sight underneath) is drawn as a thicker stone slab so it reads as a viaduct rather than a board in the air
+    const slab = deckPiers(ARENA).length ? 0.6 : 1.1;
     for (const f of dk.flats) {
-      box(f.x0, f.x1, H - 0.6, H, f.z0, f.z1, topMat, 3);
+      box(f.x0, f.x1, H - slab, H, f.z0, f.z1, topMat, 3);
       const sh = new THREE.Mesh(new THREE.PlaneGeometry(f.x1 - f.x0, f.z1 - f.z0), shadeMat);
       sh.rotation.x = -Math.PI / 2;
       sh.position.set((f.x0 + f.x1) / 2, 0.03, (f.z0 + f.z1) / 2);
@@ -779,7 +781,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       if (th.extras === 'lava') {
         // a glowing seam under the lip of the slab
         const g = new THREE.Mesh(new THREE.BoxGeometry(f.x1 - f.x0 + 0.06, 0.12, f.z1 - f.z0 + 0.06), new THREE.MeshBasicMaterial({ color: th.accent }));
-        g.position.set((f.x0 + f.x1) / 2, H - 0.62, (f.z0 + f.z1) / 2);
+        g.position.set((f.x0 + f.x1) / 2, H - slab - 0.02, (f.z0 + f.z1) / 2);
         root.add(g);
       }
     }
