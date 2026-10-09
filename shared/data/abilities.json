@@ -43,7 +43,7 @@
    },
    {
     "type": "gain",
-    "amount": 10
+    "amount": 20
    },
    {
     "type": "aura",
@@ -249,7 +249,7 @@
   "effects": [
    {
     "type": "heal",
-    "amount": 350
+    "amount": 375
    }
   ]
  },
@@ -380,7 +380,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 150
+    "amount": 140
    }
   ],
   "stealthSwap": "cheap_shot",

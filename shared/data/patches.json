@@ -1,5 +1,28 @@
 [
  {
+  "version": "0.69.38",
+  "date": "2026-10-09",
+  "at": "2026-10-09T23:20:17Z",
+  "title": "Balance changes",
+  "changes": [
+   "Sinister Strike: damage 150 to 140.",
+   "Flash Heal: healing 350 to 375.",
+   "Charge: strength 10 to 20.",
+   "Adrenaline Rush: auto-attack swing time -42% to -41%.",
+   "Adrenaline Rush: pct 2.5 to 2.",
+   "Deep Cuts: strength 14 to 16.",
+   "Hardy Mage: maximum health +10% to +20%.",
+   "Quickened Casting: cast times -10% to -15%.",
+   "Quickened Casting: global cooldown length -10% to -15%.",
+   "Iron Constitution: maximum health +10% to +15%.",
+   "Quickened Prayer: cast times -10% to -20%.",
+   "Quickened Prayer: global cooldown length -10% to -20%.",
+   "Healing Light: healing done +10% to +15%.",
+   "Shadow Might: healing done +10% to normal."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.37",
   "date": "2026-10-09",
   "at": "2026-10-09T22:56:01Z",
