@@ -1,4 +1,4 @@
-/** The Cursor settings panel (style, size, tint, click ripple, trail and a live preview of your style plus the three fixed cursors), used in the Esc menu and the profile's Customize tab. */
+/** The Cursor settings panel (style, size, tint, click ripple, trail and a live preview of your style plus the three fixed cursors); it lives in the Look window. */
 import { CURSORS, unlockText } from '@arena/shared';
 import { SIZE_MAX, SIZE_MIN, TINT_CHOICES, TRAIL_MAX, TRAIL_MIN, cursorClassColor, cursorDeclarations, getCursorSettings, glowFor, isCursorOpen, onCursorChange, tintColor, updateCursorSettings } from './cursors';
 import { cursorArt } from './cursorArt';
