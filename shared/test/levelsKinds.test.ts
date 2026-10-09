@@ -395,3 +395,33 @@ describe('melee, auto-attacks and stealth across floors', () => {
     assert.equal(sim.canSee(near, r), true, 'a unit on the same floor does spot it');
   });
 });
+
+describe('Heroic Leap onto a walkway', () => {
+  it('lands on the walkway wherever on it the leap is aimed, rim included', () => {
+    for (const id of ['colosseum', 'forge', 'sandstone', 'serpent']) {
+      const arena = arenaById(id);
+      const b = arena.bounds;
+      let leaps = 0;
+      for (let x = b.minX + 2; x < b.maxX - 2; x += 3) {
+        for (let z = b.minZ + 2; z < b.maxZ - 2; z += 3) {
+          if (!onRaised(arena, x, z)) continue;
+          let start = { x: x - 8, z };
+          if (onRaised(arena, start.x, start.z) || start.x < b.minX + 1) start = { x: x + 8, z };
+          if (onRaised(arena, start.x, start.z)) continue;
+          const sim = new ArenaSim({ seed: 1, prepMs: 0, arena });
+          const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0 });
+          const e = sim.addUnit({ name: 'e', classId: 'mage', team: 1 });
+          w.bar = [...w.bar, 'heroic_leap'];
+          w.pos = start;
+          e.pos = { x: b.maxX - 1, z: b.maxZ - 1 };
+          sim.step();
+          if (!sim.useAbility(w.id, 'heroic_leap', undefined, { x, z, lv: 1 }).ok) continue;
+          leaps++;
+          for (let t = 0; t < 2500; t += TUNING.tickMs) sim.step();
+          assert.equal(w.level, 1, `${id} (${x},${z}) landed on the floor below`);
+        }
+      }
+      assert.ok(leaps > 3, id);
+    }
+  });
+});

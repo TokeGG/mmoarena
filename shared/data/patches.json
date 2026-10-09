@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.26",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:30:00Z",
+  "title": "Heroic Leap lands on the platform",
+  "changes": [
+   "Heroic Leap aimed at a platform now lands on the platform instead of the floor below it, including near its edge. This fixes bots landing under the platform."
+  ]
+ },
+ {
   "version": "0.69.25",
   "date": "2026-10-10",
   "at": "2026-10-10T03:00:00Z",
