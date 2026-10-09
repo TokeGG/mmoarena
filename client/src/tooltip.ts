@@ -30,6 +30,9 @@ let my = 0;
 let shownKey = '';
 let timer = 0;
 let detailHeld: () => boolean = () => false;
+/** When a finger last touched down: a tap shows the tooltip of what it hit (above the finger) and it stays until the next tap. */
+let touchAt = -1e9;
+let touchMode = false;
 
 /** The tooltip shows its `more` lines while this returns true (the Detailed tooltips key). */
 export function setDetailKey(held: () => boolean) {
@@ -142,9 +145,10 @@ function place() {
   const pad = 14;
   const w = el.offsetWidth;
   const h = el.offsetHeight;
-  let x = mx + pad;
-  let y = my + pad;
-  if (x + w > window.innerWidth - 6) x = mx - w - pad;
+  let x = touchMode ? mx - w / 2 : mx + pad;
+  let y = touchMode ? my - h - 28 : my + pad;
+  if (touchMode && y < 6) y = my + 28; // no room above the finger: below it
+  if (x + w > window.innerWidth - 6) x = touchMode ? window.innerWidth - w - 6 : mx - w - pad;
   if (y + h > window.innerHeight - 6) y = my - h - pad;
   el.style.left = `${Math.max(6, x)}px`;
   el.style.top = `${Math.max(6, y)}px`;
@@ -181,11 +185,27 @@ function refresh() {
 export function initTooltips() {
   ensure();
   window.addEventListener('mousemove', (e) => {
+    if (performance.now() - touchAt < 800) return;
+    touchMode = false;
     mx = e.clientX;
     my = e.clientY;
     refresh();
   });
+  window.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'touch') {
+      touchMode = false;
+      return;
+    }
+    // a tap on something with a tooltip shows it; a tap anywhere else puts it away
+    touchAt = performance.now();
+    touchMode = true;
+    mx = e.clientX;
+    my = e.clientY;
+    shownKey = '';
+    refresh();
+  }, true);
   window.addEventListener('mousedown', () => {
+    if (performance.now() - touchAt < 800) return; // the mouse event a browser makes up after a tap
     ensure().classList.add('hidden');
     shownKey = '';
   });

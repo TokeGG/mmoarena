@@ -1,5 +1,6 @@
 import { clamp } from '@arena/shared';
 import { zoomStep } from './camera';
+import { TouchGestures, orbitBy, pinchZoom } from './touch';
 import type { Action, Keybinds } from './keybinds';
 import { isTyping } from './popups';
 
@@ -43,6 +44,11 @@ export class Controls {
   /** A right-button click that did not turn the camera (WoW: target and auto-attack). */
   onRightClick: (x: number, y: number) => void = () => {};
   onKey: (code: string, e: KeyboardEvent) => void = () => {};
+  /** Two quick taps on the scene (touch): when watching, the next unit to follow. */
+  onDoubleTap: (x: number, y: number) => void = () => {};
+  private touch = new TouchGestures();
+  /** When a finger last touched the scene: the mouse events a browser makes up after a tap are ignored for a moment. */
+  private touchAt = -1e9;
   /** True while playing or watching a match: then every bound key is the game's, not the browser's. */
   inMatch: () => boolean = () => false;
 
@@ -69,6 +75,7 @@ export class Controls {
     });
 
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+    this.bindTouch(canvas);
     // Mouse state is read from `e.buttons` on every event, so a second button pressed while the first is held
     // (or over a HUD element, or while the pointer is locked) is never missed, and a lost mouseup cannot stick.
     const sync = (e: MouseEvent) => {
@@ -81,7 +88,7 @@ export class Controls {
     window.addEventListener(
       'mousedown',
       (e) => {
-        if (!this.enabled) return;
+        if (!this.enabled || this.fromTouch()) return;
         const other = this.lmb || this.rmb;
         // a press counts when it starts on the scene, or joins a button that is already steering
         if (e.target !== canvas && !other) return;
@@ -107,6 +114,7 @@ export class Controls {
       true,
     );
     window.addEventListener('mouseup', (e) => {
+      if (this.fromTouch()) return;
       if (e.button === 0 && this.swallowUp) {
         this.swallowUp = false;
         sync(e);
@@ -146,6 +154,55 @@ export class Controls {
       },
       { passive: false },
     );
+  }
+
+  private fromTouch(): boolean {
+    return performance.now() - this.touchAt < 800;
+  }
+
+  /**
+   * Fingers on the scene: one finger drags the camera around, two pinch to zoom, a tap picks a unit and a double tap
+   * is the "next" gesture. Nothing here needs a mouse, a keyboard or pointer lock, so watching works on a phone.
+   */
+  private bindTouch(canvas: HTMLCanvasElement) {
+    const run = (gs: ReturnType<TouchGestures['move']>) => {
+      for (const g of gs) {
+        if (!this.enabled) continue;
+        if (g.kind === 'orbit') {
+          const o = orbitBy(this.yaw, this.pitch, g.dx, g.dy, this.sens);
+          this.yaw = o.yaw;
+          this.pitch = o.pitch;
+        } else if (g.kind === 'pinch') this.dist = pinchZoom(this.dist, g.scale);
+        else if (g.kind === 'tap') {
+          if (this.aimActive()) this.onAimPress();
+          else this.onClick(g.x, g.y);
+        } else if (g.kind === 'doubletap') this.onDoubleTap(g.x, g.y);
+      }
+    };
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.pointerType !== 'touch') return;
+      this.touchAt = performance.now();
+      try {
+        canvas.setPointerCapture(e.pointerId);
+      } catch {
+        /* a finger that is already gone */
+      }
+      run(this.touch.down(e.pointerId, e.clientX, e.clientY, e.timeStamp));
+    });
+    canvas.addEventListener('pointermove', (e) => {
+      if (e.pointerType !== 'touch') return;
+      this.touchAt = performance.now();
+      run(this.touch.move(e.pointerId, e.clientX, e.clientY, e.timeStamp));
+    });
+    const end = (e: PointerEvent) => {
+      if (e.pointerType !== 'touch') return;
+      this.touchAt = performance.now();
+      run(this.touch.up(e.pointerId, e.timeStamp));
+    };
+    canvas.addEventListener('pointerup', end);
+    canvas.addEventListener('pointercancel', (e) => {
+      if (e.pointerType === 'touch') this.touch.cancel(e.pointerId);
+    });
   }
 
   /** A click is a tap: a button held longer than this was steering or turning the camera, even without moving the mouse. */

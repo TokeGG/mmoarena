@@ -55,6 +55,9 @@ interface Hooks {
   onPending?(n: number): void;
 }
 
+/** Server pushes that arrive on a timer while the panel is open (not an answer to something the person just did). */
+const PERIODIC = new Set<string>(['admin_overview', 'admin_feed', 'train_status', 'bot_knowledge']);
+
 const ago = (t: number) => {
   const s = Math.max(0, Math.round((Date.now() - t) / 1000));
   return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.floor(s / 60)}m ago` : s < 86400 ? `${Math.floor(s / 3600)}h ago` : `${Math.floor(s / 86400)}d ago`;
@@ -171,6 +174,7 @@ export class AdminPanel {
     if (!this.root) {
       this.root = el('div', 'admp');
       this.root.addEventListener('mousedown', (e) => e.target === this.root && this.close());
+      this.root.addEventListener('focusout', () => window.setTimeout(() => this.repaintLater && !this.typing() && this.paint(), 150));
       document.body.append(this.root);
     }
     this.refresh();
@@ -241,15 +245,30 @@ export class AdminPanel {
     }
     this.op.handle(m);
     if (m.t === 'admin_overview' && m.maintenance && !this.maintText) this.maintText = m.maintenance;
-    if (this.root) this.paint();
+    // the lists refresh themselves every few seconds: a redraw must not close the phone keyboard on a box being typed in
+    if (this.root && PERIODIC.has(m.t) && this.typing()) this.repaintLater = true;
+    else if (this.root) this.paint();
     if (this.bb) this.paintBotBattle();
+  }
+
+  /** A periodic update arrived while a box was being typed in: the redraw waits until the person leaves it. */
+  private repaintLater = false;
+  private typing(): boolean {
+    const a = document.activeElement;
+    return !!this.root && !!a && this.root.contains(a) && (a instanceof HTMLTextAreaElement || (a instanceof HTMLInputElement && !['checkbox', 'radio', 'range', 'button', 'file'].includes(a.type)));
   }
 
   private paint() {
     const r = this.root;
     if (!r) return;
+    this.repaintLater = false;
     const a = this.hooks.account();
     const card = this.card;
+    // a redraw keeps the place in the list and in the tab row (the lists refresh while someone scrolls them)
+    const prevBody = card.querySelector<HTMLElement>('.admp-body');
+    const prevTabs = card.querySelector<HTMLElement>('.admp-tabs');
+    const keep = prevBody && card.dataset.tab === this.tab ? { top: prevBody.scrollTop, tabs: prevTabs?.scrollLeft ?? 0 } : { top: 0, tabs: prevTabs?.scrollLeft ?? 0 };
+    card.dataset.tab = this.tab;
     card.replaceChildren();
     const head = el('div', 'admp-head');
     const o = this.op.overview;
@@ -323,6 +342,9 @@ export class AdminPanel {
     }
     card.append(tabs, body);
     r.replaceChildren(card);
+    tabs.scrollLeft = keep.tabs;
+    body.scrollTop = keep.top;
+    if (!keep.top) tabs.querySelector('.sel')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   /** The designer's state: the class and skill on show and what was typed. */
