@@ -1560,6 +1560,21 @@ export class Lobby {
         })();
         break;
       }
+      case 'dev_redeploy': {
+        if (!this.isDev(p) || !this.dev) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        const by = p.account?.name ?? p.name;
+        const dev = this.dev;
+        void (async () => {
+          try {
+            const text = await dev.redeploy();
+            void this.adminLog?.add(by, 'redeploy on Render');
+            send(p, { t: 'dev_result', ok: true, text });
+          } catch (e) {
+            send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
+          }
+        })();
+        break;
+      }
       case 'dev_commit': {
         if (!this.isDev(p) || !this.dev) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         const by = p.account?.name ?? p.name;

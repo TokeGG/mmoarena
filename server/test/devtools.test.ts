@@ -87,6 +87,43 @@ describe('dev commits to GitHub', () => {
     assert.equal(calls.length, 0);
   });
 
+  it('a commit that races another one on the same file is read again and retried', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    let puts = 0;
+    const http = (async (url: string, init?: RequestInit) => {
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      calls.push({ url, method: init?.method ?? 'GET', body });
+      const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+      if (url.includes('/contents/') && (init?.method ?? 'GET') === 'GET') return ok({ content: Buffer.from(abilitiesText).toString('base64'), sha: 'f' + calls.length });
+      if (url.includes('/contents/')) {
+        puts++;
+        if (puts === 1) return new Response(JSON.stringify({ message: 'shared/data/abilities.json does not match f1' }), { status: 409 });
+        return ok({ commit: { html_url: 'https://github.com/TokeGG/mmoarena/commit/def456' } });
+      }
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+    const { lobby, devP, outD } = await world(http);
+    lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 60));
+    assert.equal(puts, 2, 'tried again');
+    assert.equal(last(outD, 'dev_result')?.ok, true);
+  });
+
+  it('a protected main branch or a token without write access is explained in plain words', async () => {
+    const mk = (message: string) => (async (url: string, init?: RequestInit) => {
+      if (url.includes('/contents/') && (init?.method ?? 'GET') === 'GET') return new Response(JSON.stringify({ content: Buffer.from(abilitiesText).toString('base64'), sha: 'f1' }), { status: 200 });
+      return new Response(JSON.stringify({ message }), { status: 403 });
+    }) as typeof fetch;
+    for (const [message, want] of [['Protected branch update failed for refs/heads/main', /protected/], ['Resource not accessible by personal access token', /Contents/]] as const) {
+      const { lobby, devP, outD } = await world(mk(message));
+      lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
+      await new Promise((r) => setTimeout(r, 40));
+      const res = last(outD, 'dev_result')!;
+      assert.equal(res.ok, false);
+      assert.match(res.text, want);
+    }
+  });
+
   it('without a GitHub token it says so and commits nothing', async () => {
     const { lobby, devP, outD } = await world();
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
@@ -305,5 +342,54 @@ describe('owner tuning a watched match', () => {
     assert.ok(outB.some((m) => m.t === 'notice' && /for rating/.test(m.text)), 'players are told it no longer counts for rating');
     for (let i = 0; i < 6; i++) lobby.tick();
     assert.ok(outO.some((m) => m.t === 'snapshot' && m.snap.paused), 'the watching owner sees it paused');
+  });
+});
+
+describe('redeploy on Render from the dev panel', () => {
+  const mk = (env: Record<string, string>, http: typeof fetch) => {
+    const store = new MemoryStore();
+    return new DevTools(store, env, http);
+  };
+  it('starts a deploy through the deploy hook, at most one every two minutes', async () => {
+    const calls: string[] = [];
+    const dev = mk({ RENDER_DEPLOY_HOOK_URL: 'https://api.render.com/deploy/srv-abc?key=k' }, (async (url: string) => { calls.push(String(url)); return new Response('{}', { status: 200 }); }) as typeof fetch);
+    assert.equal(dev.canRedeploy, true);
+    assert.match(await dev.redeploy(), /Deploy started/);
+    assert.equal(calls.length, 1);
+    await assert.rejects(dev.redeploy(), /Try again in/);
+    assert.equal(calls.length, 1, 'no second request');
+  });
+  it('says how to set it up when there is no hook, and refuses addresses that are not Render', async () => {
+    await assert.rejects(mk({}, (async () => new Response('{}')) as typeof fetch).redeploy(), /RENDER_DEPLOY_HOOK_URL/);
+    await assert.rejects(mk({ RENDER_DEPLOY_HOOK_URL: 'https://evil.example.com/hook' }, (async () => new Response('{}')) as typeof fetch).redeploy(), /deploy hook/);
+    await assert.rejects(mk({ RENDER_DEPLOY_HOOK_URL: 'http://api.render.com/deploy/x' }, (async () => new Response('{}')) as typeof fetch).redeploy(), /https/);
+  });
+  it('a refused deploy does not start the two-minute wait', async () => {
+    let n = 0;
+    const dev = mk({ RENDER_DEPLOY_HOOK_URL: 'https://api.render.com/deploy/srv-abc?key=k' }, (async () => (n++ === 0 ? new Response('no', { status: 401 }) : new Response('{}', { status: 200 }))) as typeof fetch);
+    await assert.rejects(dev.redeploy(), /refused/);
+    assert.match(await dev.redeploy(), /Deploy started/);
+  });
+  it('only devs can press it, and it is logged', async () => {
+    const calls: string[] = [];
+    const store = new MemoryStore();
+    const a = new Accounts(store, CODE);
+    const dee = (await a.register('Dee', 'hunter22', '2.2.2.2')) as any;
+    const bob = (await a.register('Bob', 'hunter22', '3.3.3.3')) as any;
+    const dev = new DevTools(store, { RENDER_DEPLOY_HOOK_URL: 'https://api.render.com/deploy/srv-abc?key=k' }, (async (url: string) => { calls.push(String(url)); return new Response('{}', { status: 200 }); }) as typeof fetch);
+    const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 }, a, undefined, undefined, dev);
+    const outD: ServerMsg[] = [];
+    const outB: ServerMsg[] = [];
+    const devP = mkP('Dee', outD, { ...dee.account, grants: ['dev'] });
+    const bobP = mkP('Bob', outB, bob.account);
+    for (const p of [devP, bobP]) (lobby as any).conns.add(p);
+    lobby.handle(bobP, { t: 'dev_redeploy' } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(calls.length, 0);
+    assert.equal(last(outB, 'dev_result')?.ok, false);
+    lobby.handle(devP, { t: 'dev_redeploy' } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(calls.length, 1);
+    assert.equal(last(outD, 'dev_result')?.ok, true);
   });
 });

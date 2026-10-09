@@ -120,6 +120,8 @@ export type ClientMsg =
   | { t: 'dev_save'; patches: DataPatch[]; note?: string }
   /** Dev tools: commit these numbers straight to the main branch on GitHub. */
   | { t: 'dev_commit'; patches: DataPatch[]; note?: string }
+  /** Dev tools: start a deploy of the latest commit on Render. */
+  | { t: 'dev_redeploy' }
   /** Dev tools: a note on a skill, sent to the owner. */
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
@@ -444,6 +446,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'spectate', id: m.id };
     case 'dev_pause':
       return { t: 'dev_pause', on: m.on === true };
+    case 'dev_redeploy':
+      return { t: 'dev_redeploy' };
     case 'dev_patch':
     case 'dev_session':
     case 'dev_commit':
