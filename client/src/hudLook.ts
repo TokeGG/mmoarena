@@ -40,6 +40,7 @@ export const LOOK_OPTIONS: LookOption[] = [
   { id: 'plateColor', label: 'Nameplate colour', group: 'Nameplates', choices: [['team', 'Ally / enemy colours'], ['class', 'Class colour'], ['health', 'By health left']] },
   { id: 'plateName', label: 'Names on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'plateText', label: 'Nameplate text size', group: 'Nameplates', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] },
+  { id: 'plateRes', label: 'Mana / energy / rage on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'plateCast', label: 'Cast bars on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'plateDebuffs', label: 'Debuffs on nameplates', group: 'Nameplates', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   // how your current target is marked: the arrow over its head, the circle under its feet, its health bars
@@ -78,7 +79,7 @@ const DEFAULTS: Record<string, string> = {
   errSize: 'lg', errColor: 'auto', errBold: 'bold', errOutline: 'strong', errPlate: 'none', errTime: '1.8', errAnim: 'pop', errRepeat: 'hold',
   ccSize: 'lg', ccColor: 'auto', ccBold: 'bold', ccOutline: 'soft', ccPlate: 'pill', ccAnim: 'pulse',
   netSize: 'md', netColor: 'auto', netPlate: 'plate',
-  plates: 'all', plateWidth: 'normal', plateBar: 'normal', plateHp: 'none', plateColor: 'team', plateName: 'show', plateText: 'md', plateCast: 'show', plateDebuffs: 'show',
+  plates: 'all', plateWidth: 'normal', plateBar: 'normal', plateHp: 'none', plateColor: 'team', plateName: 'show', plateText: 'md', plateRes: 'show', plateCast: 'show', plateDebuffs: 'show',
 };
 
 /** Fill gradients for the ally and enemy health colours. */

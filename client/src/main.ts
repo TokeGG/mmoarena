@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, ARENAS, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, lockedByAura, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
@@ -875,7 +875,7 @@ function groundBlocked(ability: string): string | null {
   const now = estimatedNow();
   if (groundCooldownLeft(ability) > GROUND_SLACK_MS) return 'That is not ready yet';
   if (me.resource < def.cost) return `Not enough ${me.resourceType}`;
-  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities))) return 'You cannot act right now';
+  if (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || lockedByAura(def, me.auras)) return 'You cannot act right now';
   if (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now) return `${def.school} is locked out`;
   return null;
 }
@@ -1295,7 +1295,7 @@ function frame(now: number) {
     units.map((u) => {
       const s = scene.project(u.x, 2.7 + u.y, u.z);
       const meta = snap.units.find((x) => x.id === u.id)!;
-      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
+      return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, resource: meta.resource, resourceMax: meta.resourceMax, resourceType: meta.resourceType, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
     }),
     estNow,
   );
