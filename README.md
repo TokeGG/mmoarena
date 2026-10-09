@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.69.35
+# WoW-style Arena · v0.69.36
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -120,7 +120,7 @@ The Forge and Sandstone plinths are solid blocks, not bridges, so they stay in e
 - **Line of sight:** a body, not a single thread: a unit whose edge shows past a pillar or wall end (about a third of a yard) is in sight and can be targeted.
 - **Dampening:** in a match with a healer, 90 seconds into the fight healing and new shields start getting weaker, 0.3% more every second (up to 90% weaker), so two healers cannot out-heal each other forever. The Dampening banner at the top shows how much.
 - **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind, Gouge, Sap and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.
-- **Blink** frees you from stuns, roots and slows and works while stunned, but not while polymorphed or under Dragon's Breath.
+- **Blink** frees you from stuns (and nothing else: roots and slows stay on you) and works while stunned, but not while polymorphed or under Dragon's Breath.
 - **Auto-attack:** warriors and rogues deal steady damage (and warriors build rage) with auto-attack. It starts with a right-click on an enemy, R or any melee skill, stays on while you have an enemy targeted (so it is ready when you close in), and stops when you clear your target, or 5 seconds after combat if nothing hostile is targeted.
 - **Resources:** mana and energy refill over time. Rage starts empty, builds from damage you deal with free skills and auto-attacks and from damage you take, and drains out of combat. Rogue builders award combo points that finishers spend (Kidney Shot, Eviscerate, Exsanguinate, Adrenaline Rush); while stealthed, the builder slot becomes Cheap Shot.
 - **Stealth:** a stealthed rogue is seen only within 2 yards. Damage or attacking breaks it, and enemies you cannot see are never sent to your browser.

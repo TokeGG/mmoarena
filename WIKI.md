@@ -497,7 +497,7 @@ On the bar: [Cryomancy](#mage-frost) (key 5).
 
 *Arcane* · Instant · 15s cooldown
 
-- Teleports you 20 yards forward and frees you from stuns, roots and slows. Works while stunned.
+- Teleports you 20 yards forward and frees you from stuns (not roots or slows). Works while stunned.
 - *Usable while locked out.*
 - *Does not trigger the global cooldown.*
 

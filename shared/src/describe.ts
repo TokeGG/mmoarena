@@ -345,7 +345,7 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
       case 'flag':
         return `Plants a banner at the chosen spot${e === main ? '' : ` for ${fmtS(e.duration / 1000)}`}. Enemies inside its ${e.radius}-yard circle cannot leave it.`;
       case 'blink':
-        return `Teleports you ${e.distance} yards forward and frees you from stuns, roots and slows. Works while stunned.`;
+        return `Teleports you ${e.distance} yards forward and frees you from stuns (not roots or slows). Works while stunned.`;
       case 'gain':
         return `Generates ${e.amount} ${res}.`;
       case 'freeMove':

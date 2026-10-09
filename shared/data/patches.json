@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.36",
+  "date": "2026-10-09",
+  "at": "2026-10-09T22:56:00Z",
+  "title": "Blink",
+  "changes": [
+   "Blink now only frees you from stuns. Roots and slows stay on you after you blink."
+  ]
+ },
+ {
   "version": "0.69.35",
   "date": "2026-10-09",
   "at": "2026-10-09T22:46:00Z",

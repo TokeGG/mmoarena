@@ -1225,8 +1225,8 @@ export class ArenaSim {
         break;
       case 'blink':
         this.place(u, blinkDestination(u.pos, u.facing, eff.distance, this.arena, u.level));
-        // blinking out breaks you free of stuns, roots and slows
-        for (const a of [...u.auras]) if (a.kind === 'stun' || a.kind === 'root' || a.kind === 'slow') this.removeAura(u, a, 'blinked');
+        // blinking out breaks you free of stuns, and of nothing else (roots and slows stay on you)
+        for (const a of [...u.auras]) if (a.kind === 'stun') this.removeAura(u, a, 'blinked');
         break;
       case 'zone':
         this.zones.push({
