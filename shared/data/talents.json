@@ -92,12 +92,12 @@
       [
         {
           "id": "warrior_arms_t3a",
-          "name": "Harder Cleave",
-          "desc": "Cleave does 10% more damage.",
+          "name": "Harder Slam",
+          "desc": "Slam does 10% more damage.",
           "icon": "⚔️",
           "mods": {
             "ability": {
-              "whirlwind": {
+              "slam": {
                 "damage": 1.1
               }
             }
@@ -106,11 +106,11 @@
         {
           "id": "warrior_arms_t3b",
           "name": "Crippling Strikes",
-          "desc": "Cleave has a 30% chance to Hamstring the target.",
+          "desc": "Slam has a 30% chance to Hamstring the target.",
           "icon": "🦵",
           "mods": {
             "ability": {
-              "whirlwind": {
+              "slam": {
                 "extra": [
                   {
                     "type": "proc",
@@ -130,12 +130,17 @@
         {
           "id": "warrior_arms_t3c",
           "name": "Rage Engine",
-          "desc": "Cleave generates 50% more rage.",
+          "desc": "Slam generates 8 rage.",
           "icon": "😡",
           "mods": {
             "ability": {
-              "whirlwind": {
-                "gain": 1.5
+              "slam": {
+                "extra": [
+                  {
+                    "type": "gain",
+                    "amount": 8
+                  }
+                ]
               }
             }
           }
@@ -181,12 +186,12 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon's Fury",
-          "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
-          "icon": "🐉",
+          "name": "Savage Mending",
+          "desc": "Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap.",
+          "icon": "💖",
           "mods": {},
           "swap": {
-            "to": "dragon_roar",
+            "to": "enraged_regeneration",
             "from": "heroic_leap"
           }
         },
@@ -384,12 +389,12 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon's Fury",
-          "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
-          "icon": "🐉",
+          "name": "Savage Mending",
+          "desc": "Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap.",
+          "icon": "💖",
           "mods": {},
           "swap": {
-            "to": "dragon_roar",
+            "to": "enraged_regeneration",
             "from": "heroic_leap"
           }
         },
@@ -587,12 +592,12 @@
         },
         {
           "id": "warrior_t5b",
-          "name": "Dragon's Fury",
-          "desc": "Learn Dragon Roar: a blast of dragon fire in a cone ahead of you for 230 damage. Replaces Heroic Leap.",
-          "icon": "🐉",
+          "name": "Savage Mending",
+          "desc": "Learn Enraged Regeneration: for 8 seconds you heal for 300% of the damage you deal. Replaces Heroic Leap.",
+          "icon": "💖",
           "mods": {},
           "swap": {
-            "to": "dragon_roar",
+            "to": "enraged_regeneration",
             "from": "heroic_leap"
           }
         },

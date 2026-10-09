@@ -863,7 +863,6 @@ export class Bot {
     const near = enemies.filter((e) => dist(u.pos, e.pos) <= 6);
     // the banner goes down once the fight is near, at its own feet (its circle buffs the team standing in it)
     if (d <= 20 && this.use(u, 'battle_banner', undefined, { x: u.pos.x, z: u.pos.z, ...(u.level === 1 ? { lv: 1 as const } : {}) })) return;
-    if (d <= 10 && this.use(u, 'dragon_roar')) return; // a cone ahead: the bot already faces its target
     if (d >= 8 && d <= 25 && this.use(u, 'charge', tgt.id)) return;
     // Heroic Leap closes the gap Charge cannot (on cooldown, no line of sight, past its reach): a warrior never walks in
     if (d > 9 && (d > 25 || !this.ready(u, 'charge') || !hasLOS(u.pos, tgt.pos, this.sim.arena, u.level, tgt.level)) && this.use(u, 'heroic_leap', undefined, feetOf(tgt))) return;
@@ -878,10 +877,10 @@ export class Bot {
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
     if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.useFirst(u, ['recklessness', 'bladestorm']); // not into a shield wall
     if (!stunned && d <= 8 && this.useFirst(u, ['concussion_blow', 'slice_and_dice'], tgt.id)) return;
-    if (d <= 8 && near.length >= 2 && this.use(u, 'whirlwind')) return;
+    if (d <= 6 && this.use(u, 'recklessness')) return; // damage and double rage for 12 seconds: not saved for a finishing blow
     // a rage payoff waits for a full bar; builders and the other strikes fill the gaps
     if (u.resource >= 70 && this.use(u, 'mortal_strike', tgt.id)) return;
-    if (this.rotate(u, tgt, ['bloodthirst', 'slam', 'deep_cuts', 'whirlwind', 'axe_throw'])) return;
+    if (this.rotate(u, tgt, ['bloodthirst', 'sweep', 'slam', 'deep_cuts', 'axe_throw'])) return;
     if (u.resource >= 30 && this.use(u, 'mortal_strike', tgt.id)) return;
     if (!slowed && u.resource >= 40) this.use(u, 'hamstring', tgt.id);
   }

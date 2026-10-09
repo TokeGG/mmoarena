@@ -66,18 +66,23 @@ export interface Mods {
   maxCp: number;
   /** Multiplies the per-point scaling of combo point payoffs. */
   cpPower: number;
+  /** Multiplies all rage this unit gains (from its hits, from damage taken and from abilities). */
+  rage: number;
+  /** Share of the damage this unit deals that heals it (1 = 100%). Added, not multiplied. */
+  lifesteal: number;
   ability: Record<string, AbilityMod>;
   auraDuration: Record<string, number>;
   /** Milliseconds a re-applied aura (a bleed) adds to its remaining time instead of restarting. */
   auraExtend: Record<string, number>;
 }
 /** Partial form used in data files (specs, talents, auras). */
-export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExtend' | 'maxCp'>> & {
+export type ModsInput = Partial<Omit<Mods, 'ability' | 'auraDuration' | 'auraExtend' | 'maxCp' | 'lifesteal'>> & {
   ability?: Record<string, AbilityMod>;
   auraDuration?: Record<string, number>;
   auraExtend?: Record<string, number>;
   /** Added, not multiplied. */
   maxCp?: number;
+  lifesteal?: number;
 };
 
 /** A weapon a spec is built around: it sets the auto-attack and how the character is drawn. */

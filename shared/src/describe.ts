@@ -61,6 +61,8 @@ function modFacts(m: ModsInput | undefined, res = 'resource'): ModFact[] {
   up(m.castTime, 'cast time', K.cast);
   up(m.gcd, 'global cooldown', K.gcd);
   up(m.regen, `${res} regeneration`, K.regen);
+  up(m.rage, 'rage from all sources', K.regen);
+  if (m.lifesteal) { const n = Math.round(m.lifesteal * 100); out.push({ text: `Heals you for ${n}% of the damage you deal`, amount: `${n}%`, kind: /heal|damage/ }); }
   up(m.moveSpeed, 'movement speed', K.move);
   if (m.autoSpeed !== undefined && m.autoSpeed !== 1) add(m.autoSpeed < 1 ? '+' : '−', 1 / m.autoSpeed, 'auto attack speed', K.swing);
   for (const [id, a] of Object.entries(m.ability ?? {})) {

@@ -49,10 +49,9 @@ const fireball = (size: number, heat: number): AbilityVisual => ({ cls: 'project
 export const ABILITY_VISUAL: Record<string, AbilityVisual> = {
   // warrior
   mortal_strike: c('melee'), charge: c('movement'), pummel: c('melee'), hamstring: c('melee'), execute: c('melee'),
-  intimidating_shout: c('burst'), bloodthirst: c('melee'), whirlwind: c('burst'), enraged_regeneration: c('support'),
+  intimidating_shout: c('burst'), bloodthirst: c('burst'), sweep: c('burst'), enraged_regeneration: c('support'), recklessness: c('support'),
   slice_and_dice: c('channel'), bladestorm: c('burst'), slam: c('melee'), reel_in: c('burst'), deep_cuts: c('melee'),
   axe_throw: c('projectile'), heroic_leap: c('movement'), not_going_anywhere: c('zone'), battle_banner: c('zone'),
-  dragon_roar: c('burst'),
   // mage
   frostbolt: c('projectile'), fireball: fireball(1, 0), pyroblast: fireball(1.7, 1), arcane_blast: c('projectile'),
   arcane_missiles: c('channel'),
@@ -125,12 +124,12 @@ export function fireballShape(size: number, heat: number): FireballShape {
 /**
  * The shared flame look of every fire skill (see fireFx.ts and the helpers in effects.ts): which of its forms each fire ability uses.
  * `fireball` = the flying ball (Fireball, Pyroblast: `ABILITY_VISUAL.proj`), `zone` = a field of tongues over a ground circle
- * (Flamestrike), `burst` = fire erupting at a target's feet (Scorch), `cone` = a jet of flame (Dragon's Breath, Dragon Roar). The burning
+ * (Flamestrike), `burst` = fire erupting at a target's feet (Scorch), `cone` = a jet of flame (Dragon's Breath). The burning
  * aura is a `body` field (AURA_VISUAL style 'burn'). Every ability of the fire school must be listed (tested).
  */
 export type FireForm = 'fireball' | 'zone' | 'burst' | 'cone';
 export const FIRE_LOOK: Record<string, FireForm> = {
-  fireball: 'fireball', pyroblast: 'fireball', flamestrike: 'zone', scorch: 'burst', dragons_breath: 'cone', dragon_roar: 'cone',
+  fireball: 'fireball', pyroblast: 'fireball', flamestrike: 'zone', scorch: 'burst', dragons_breath: 'cone',
 };
 export const fireFormFor = (ability: string | null | undefined): FireForm | null => (ability && FIRE_LOOK[ability]) || null;
 
@@ -200,7 +199,7 @@ export function coneShape(def: AbilityDef): { range: number; half: number; deg: 
 export const coneSpawnAngle = (u: number, half: number): number => Math.max(-1, Math.min(1, u)) * half * CONE_EDGE;
 
 /** Abilities whose caster throws his head back and shouts / breathes (see shoutPose.ts); the effect leaves the mouth when the pose releases. */
-export const SHOUT_ABILITIES: readonly string[] = ['intimidating_shout', 'dragon_roar', 'psychic_scream', 'dragons_breath'];
+export const SHOUT_ABILITIES: readonly string[] = ['intimidating_shout', 'psychic_scream', 'dragons_breath'];
 
 const SCHOOL_KIND: Record<School, ImpactKind> = {
   physical: 'dust', fire: 'fire', frost: 'frost', arcane: 'arcane', holy: 'holy', shadow: 'shadow', nature: 'nature',

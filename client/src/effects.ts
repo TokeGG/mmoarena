@@ -2111,6 +2111,32 @@ export class Effects {
         melee(0xffaa40, 1.7);
         if (t) this.ring(t.x, t.z, 0xffaa40, 0.3, 2.2, 0.3);
         break;
+      case 'sweep': {
+        // a 90 degree slice of the blade across the real arc in front of the warrior: three cuts fan across the wedge
+        const cone = coneShape(def);
+        const r = cone?.range ?? 5;
+        const half = cone?.half ?? Math.PI / 4;
+        this.onSwing(unit);
+        this.sector(s.x, s.z, s.facing, r, half, 0xffaa40, 0.35, 0.5, unit);
+        [-0.6, 0, 0.6].forEach((k, i) => {
+          const a = s.facing + k * half;
+          const px = s.x + Math.sin(a) * r * 0.7;
+          const pz = s.z + Math.cos(a) * r * 0.7;
+          this.later(i * 0.05, () => {
+            this.slash(s.x, s.z, px, pz, 0xffaa40, 1.5, CHEST, k * 0.9);
+            this.burst(px, CHEST, pz, 0xffaa40, 5, 3.5, 0.25, 0.35);
+          });
+        });
+        break;
+      }
+      case 'bloodthirst': {
+        // a red turn of the blade round the warrior, out to the real reach
+        this.onSwing(unit);
+        this.later(0.1, () => this.onSwing(unit, true));
+        this.spinBlades(unit, (def.radius ?? 3) + 1, 0xd02a3a, 0.4, 1.1);
+        this.ring(s.x, s.z, 0xd02a3a, 0.4, (def.radius ?? 3) + 1, 0.4, 0.08, 0.7);
+        break;
+      }
       case 'deep_cuts':
         melee(0xc0202a, 1.2);
         break;
@@ -2152,18 +2178,6 @@ export class Effects {
       case 'intimidating_shout':
         this.shout(unit, s, def.radius ?? 8, 0xffd9a0, { count: 4 });
         break;
-      case 'dragon_roar': {
-        // a roar of fire: the head goes back, then waves and a cone of flame leave the mouth
-        const cone = coneShape(def);
-        this.onShout(unit);
-        this.later(SHOUT_RELEASE, () => {
-          const p = this.pos(unit) ?? s;
-          this.soundWaves(unit, (cone?.range ?? 12) * 0.8, 0xffb060, { count: 3, half: cone?.half, opacity: 0.55 });
-          this.fireCone(unit, cone?.range ?? 12, cone?.half ?? 0.87, 0.8, { density: 0.8 });
-          this.shockwave(p.x, p.z, 6, 0xff9a40, true);
-        });
-        break;
-      }
       case 'dragons_breath': {
         // the mage breathes fire: head back, then a jet that fans out to the spell's real cone
         const cone = coneShape(def);

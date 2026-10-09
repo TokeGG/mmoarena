@@ -448,6 +448,7 @@ describe('movement numbers change what a bot does', () => {
       const healer = unit(sim, 'priest', 0, -33, 0, 'dummy');
       const foe = unit(sim, 'warrior', 1, 5, 0, 'dummy');
       foe.maxHealth = foe.health = 1e6;
+      me.cooldowns.heroic_leap = 1e9; // a leap back to the fight would hide the walk
       const b = new Bot(sim, me.id, 'hard', 3, brainWith({ stayNear }));
       go(sim, [b], 3000);
       return Math.hypot(me.pos.x - healer.pos.x, me.pos.z - healer.pos.z);

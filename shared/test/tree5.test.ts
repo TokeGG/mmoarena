@@ -409,16 +409,13 @@ describe('tier three', () => {
 });
 
 describe('tier five skills', () => {
-  it('Dragon Roar hits a cone; Battle Banner buffs allies in the circle; Rune of Power buffs only you', () => {
-    const sim = live();
-    const w = unit(sim, 'warrior', 0, 0, 0, 'arms', { 4: 'warrior_t5b' });
-    const front = unit(sim, 'mage', 1, 6, 0, 'frost');
-    const behind = unit(sim, 'mage', 1, -6, 0, 'frost');
-    advance(sim, TICK);
-    w.facing = Math.PI / 2;
-    w.resource = 100;
-    ok(sim.useAbility(w.id, 'dragon_roar'));
-    assert.ok(front.health < front.maxHealth && behind.health === behind.maxHealth);
+  it('Enraged Regeneration is a tier five choice of every warrior spec; Battle Banner buffs allies in the circle; Rune of Power buffs only you', () => {
+    for (const spec of ['arms', 'fury', 'protection']) {
+      const sim0 = live();
+      const x = unit(sim0, 'warrior', 0, 0, 0, spec, { 4: 'warrior_t5b' });
+      assert.ok(x.bar.includes('enraged_regeneration') && !x.bar.includes('heroic_leap'), `${spec}: learns it in place of Heroic Leap`);
+    }
+    assert.ok(ABILITIES.dragon_roar.retired);
 
     const sim2 = live();
     const b = unit(sim2, 'warrior', 0, 0, 0, 'arms', { 4: 'warrior_t5c' });
