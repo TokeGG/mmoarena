@@ -19,3 +19,4 @@ export * from './learnreport';
 export * from './devpatch';
 export * from './devinfo';
 export * from './snapslim';
+export * from './playtime';

@@ -18,6 +18,9 @@ import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
 import type { AiTune } from './aitune';
+import { PlayTime } from './playtime';
+import type { TimeSample } from './playtime';
+import { TIME_IDLE_MS } from '@arena/shared';
 
 import type { Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
@@ -75,6 +78,8 @@ export interface Player {
   pending?: number;
   /** The socket has closed: queued account work for it is skipped. */
   gone?: boolean;
+  /** When the player last did something (any message but background polling), for play time: an idle menu stops counting. */
+  activeAt?: number;
 }
 
 export interface Party {
@@ -355,6 +360,9 @@ export class Room {
       watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable,
     };
   }
+
+  /** A one-on-one between two friends (a duel), for play time. */
+  duel = false;
 
   /** An owner's private bot match: nobody plays in it, and it closes once nobody is watching. */
   botsOnly = false;
@@ -769,12 +777,14 @@ export interface LobbyConfig {
   minCountedMatchMs?: number;
   /** Milliseconds per tick for every room (default TUNING.tickMs; the server reads ARENA_TICK_MS). */
   tickMs?: number;
+  /** The clock for play time and idle detection (tests inject a fake one). */
+  now?: () => number;
 }
 
 /** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
-const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain' };
+const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain' };
 
 export class Lobby {
   private rooms = new Set<Room>();
@@ -785,7 +795,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune) {
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private time?: PlayTime) {
     this.tickMs = Math.max(1, Math.round(cfg.tickMs ?? TUNING.tickMs));
     this.meter = new TickMeter(this.tickMs);
     // the saved state, unless the owner already changed it while it loaded
@@ -833,6 +843,41 @@ export class Lobby {
   /** Every connection signed in to this account. */
   private connsOf(key: string): Player[] {
     return [...this.conns].filter((q) => q.account?.key === key);
+  }
+
+  private clock(): number {
+    return this.cfg.now ? this.cfg.now() : Date.now();
+  }
+  private lastTimeAt = 0;
+
+  /** What a connection is doing, for play time. */
+  private timeSample(q: Player, now: number): TimeSample {
+    const base = { ...(q.account ? { key: q.account.key, name: q.account.name } : { conn: q.id }) };
+    const room = q.room && !q.room.closed ? q.room : undefined;
+    if (room && room.sim.phase !== 'ended') {
+      const u = q.unitId !== undefined ? room.sim.units.get(q.unitId) : undefined;
+      const humans = room.players.size;
+      const cat = room.devTest ? 'dev' : room.isRanked ? 'ranked' : room.duel ? 'duel' : humans > 1 ? 'party' : 'practice';
+      return { ...base, cat, active: true, classId: u?.classId ?? q.classId, spec: u?.spec ?? q.build?.spec ?? emptyBuild(q.classId).spec, map: room.arenaId, size: room.size };
+    }
+    if (q.watching && !q.watching.closed) return { ...base, cat: 'spectate', active: true };
+    if (this.inQueue(q) || q.duelWith !== undefined) return { ...base, cat: 'queue', active: true };
+    // the menu (and the end screen of a match) stops counting when nobody has touched anything for a while
+    return { ...base, cat: 'menu', active: now - (q.activeAt ?? q.since ?? now) < TIME_IDLE_MS };
+  }
+
+  /** Hand every connection's state to the play time counter. */
+  private sampleTime(): void {
+    if (!this.time) return;
+    const now = this.clock();
+    this.lastTimeAt = now;
+    this.time.tick([...this.conns].map((q) => this.timeSample(q, now)), now);
+  }
+
+  /** Count the last seconds and write every record (shutdown). */
+  async saveTime(): Promise<void> {
+    this.sampleTime();
+    await this.time?.flush().catch(() => undefined);
   }
 
   /** The owner's moderation and server actions (admin panel). Everything is logged. */
@@ -925,6 +970,12 @@ export class Lobby {
       case 'history': {
         if (!acc) return;
         send(p, { t: 'admin_history', name: msg.name!, rows: await acc.history(key) });
+        break;
+      }
+      case 'time': {
+        if (!this.time) return void send(p, { t: 'dev_result', ok: false, text: 'Play time tracking is off on this server.' });
+        if (msg.name) send(p, { t: 'admin_time_player', name: msg.name, rec: await this.time.player(msg.name) });
+        else send(p, { t: 'admin_time', ...(await this.time.overview(this.onlineKeys())) });
         break;
       }
       case 'log':
@@ -1386,6 +1437,8 @@ export class Lobby {
   }
 
   handle(p: Player, msg: ClientMsg): void {
+    // background polling (pings, the live-match badge) is not the player doing something
+    if (msg.t !== 'ping' && msg.t !== 'live' && msg.t !== 'admin_overview' && !(msg.t === 'admin_proposals' && msg.op === 'list')) p.activeAt = this.clock();
     switch (msg.t) {
       case 'ping':
         send(p, { t: 'pong', n: msg.n, load: this.meter.report().load }); // answered at once, in any state
@@ -1785,11 +1838,13 @@ export class Lobby {
 
   disconnect(p: Player): void {
     p.gone = true;
+    this.sampleTime(); // the time up to now still counts
     this.conns.delete(p);
     this.leave(p);
     this.leaveParty(p);
     this.dropInvites(p);
     this.changed(p);
+    this.sampleTime(); // writes the account's record if this was its last connection
   }
 
   private leave(p: Player): void {
@@ -1997,6 +2052,7 @@ export class Lobby {
     void first; // duels never use anyone's map pick: they always play on The Overlook
     const room = this.makeRoom(this.cfg.queuePrepMs, true, false, DUEL_MAP);
     room.size = 1;
+    room.duel = true;
     p.duelWith = mate.duelWith = undefined;
     room.addPlayer(mate, 0);
     room.addPlayer(p, 1);
@@ -2301,6 +2357,7 @@ export class Lobby {
       }
     }
     if (now - this.lastSweep >= 60000) { this.lastSweep = now; this.sweep(now); } // once a minute
+    if (this.time && this.clock() - this.lastTimeAt >= 1000) this.sampleTime(); // play time: once a second
     for (const q of this.conns) {
       if (q.duelWith !== undefined && now - (q.duelAt ?? 0) > DUEL_WAIT_MS) {
         q.duelWith = undefined;

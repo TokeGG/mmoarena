@@ -2,6 +2,7 @@ import { CLASSES, formatReport, moveText } from '@arena/shared';
 import { pendingProposals } from './counts';
 import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
+import { TimeView } from './timeUi';
 import { mapName } from './spectate';
 import { makeResizable } from './resizable';
 import type { Popup } from './popups';
@@ -20,10 +21,11 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-type Tab = 'dashboard' | 'players' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'server' | 'log';
+type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'tuning' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
+  ['time', 'Play time'],
   ['matches', 'Live matches'],
   ['replays', 'Replays'],
   ['moderation', 'Moderation'],
@@ -87,6 +89,8 @@ export class AdminPanel {
   private passes = 1;
   /** The same tools as the profile's Owner tab (players, matches, tuning), drawn here. */
   private op: OwnerPanel;
+  /** Play time per player (owner only). */
+  private time: TimeView;
   readonly popup: Popup = { isOpen: () => !!this.root, close: () => this.close(), el: () => this.root };
 
   /** The bot battle window, started from the main menu (owner only). */
@@ -130,6 +134,7 @@ export class AdminPanel {
   private card = el('div', 'admp-card');
 
   constructor(private hooks: Hooks) {
+    this.time = new TimeView((m) => hooks.send(m), () => this.paint());
     makeResizable(this.card, { key: 'admin', corner: 'br', minW: 480, minH: 320, z: 61 });
     this.op = new OwnerPanel({ limited: () => this.access() === 'dev', send: hooks.send, token: hooks.token, rerender: () => {
         this.paint();
@@ -180,6 +185,7 @@ export class AdminPanel {
     const s = this.hooks.send;
     s({ t: 'admin_overview' });
     if (this.tab === 'players' && access === 'owner') s({ t: 'admin_list' });
+    if (this.tab === 'time' && access === 'owner') this.time.refresh();
     if (this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
@@ -191,6 +197,7 @@ export class AdminPanel {
   }
 
   handle(m: ServerMsg) {
+    this.time.handle(m);
     switch (m.t) {
       case 'admin_log':
         this.log = m.rows;
@@ -280,6 +287,9 @@ export class AdminPanel {
         break;
       case 'players':
         body.append(el('p', 'mm-modal-foot', 'Click a player for moderation (kick, ban, mute), rating and stats, unlocks and the dev tag, a private note and their recent matches.'), this.op.adminList());
+        break;
+      case 'time':
+        body.append(this.time.render());
         break;
       case 'matches':
         body.append(el('p', 'mm-modal-foot', access === 'dev' ? 'Every match running now. You can watch the ones open for watching (the same slightly delayed view as everyone). Pausing and ending matches is the owner\u2019s.' : 'Every match running now, bot matches included. Watch one, pause it to change numbers (F2 while watching), or end it.'), this.op.serverBox());
