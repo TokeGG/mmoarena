@@ -429,7 +429,7 @@
     "duration": 8000,
     "harmful": false,
     "mods": {
-      "lifesteal": 3
+      "lifesteal": 1
     }
   },
   "deep_cuts_bleed": {

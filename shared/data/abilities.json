@@ -468,7 +468,7 @@
   "cooldown": 5000,
   "gcd": true,
   "cost": 40,
-  "maxTargetHealthPct": 20,
+  "maxTargetHealthPct": 25,
   "effects": [
    {
     "type": "damage",
@@ -1663,8 +1663,8 @@
   "school": "physical",
   "target": "aoe_enemy",
   "range": 0,
-  "radius": 6,
-  "coneDeg": 90,
+  "radius": 5,
+  "coneDeg": 45,
   "castTime": 4000,
   "cooldown": 30000,
   "gcd": true,
@@ -1719,7 +1719,7 @@
   "castTime": 0,
   "cooldown": 3000,
   "gcd": true,
-  "cost": 40,
+  "cost": 0,
   "effects": [
    {
     "type": "damage",

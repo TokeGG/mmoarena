@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.69.8",
+  "date": "2026-10-09",
+  "at": "2026-10-09T05:49:47Z",
+  "title": "Balance changes",
+  "changes": [
+   "Slam: cost 40 to 0.",
+   "Execute: max target health pct 20 to 25.",
+   "Slice and Dice: radius 6 to 5.",
+   "Slice and Dice: cone deg 90 to 45.",
+   "Enraged Regeneration: lifesteal 3 to 1."
+  ]
+ },
+ {
   "version": "0.69.7",
   "date": "2026-10-09",
   "at": "2026-10-09T04:19:38Z",
