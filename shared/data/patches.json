@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.69.20",
+  "date": "2026-10-09",
+  "at": "2026-10-09T22:00:00Z",
+  "title": "Upper floors and smarter bot pathing",
+  "changes": [
+   "Arcane Missiles, Mind Flay and Penance no longer keep hitting a target through the floor when it drops from a deck to the ground below.",
+   "Bots now walk up ramps properly instead of pushing into the ramp's side, and casters no longer stand just out of range of a target on a deck.",
+   "Bots no longer Charge at a target on another floor, and no longer dodge fire zones that are on a different floor."
+  ]
+ },
+ {
   "version": "0.69.19",
   "date": "2026-10-09",
   "at": "2026-10-09T21:10:00Z",
