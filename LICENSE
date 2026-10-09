@@ -1,0 +1,38 @@
+Copyright (c) 2026 TokeGG. All rights reserved.
+
+This source code, game data, text and every other file in this repository
+that TokeGG wrote or made (together, the "Software") are the exclusive property
+of TokeGG. The third-party models, textures and sounds listed in CREDITS.md are
+NOT covered by this licence: each stays under its author's own licence, and
+nothing here grants or removes any right in them.
+The Software is made visible on GitHub so that people can read it. Being able to
+see it does not give you a licence to use it.
+
+You MAY:
+  - read the Software and run your own local copy for the sole purpose of
+    reporting a bug or security problem to the owner;
+  - use the GitHub features that GitHub's Terms of Service grant every user of a
+    public repository (viewing it and forking it on GitHub for the purpose of
+    proposing a change back to this repository).
+
+You MAY NOT, without the owner's prior written permission:
+  - copy, reproduce, modify, translate or create derivative works of the
+    Software or any part of it, including its game design, rules, ability and
+    class data, balance numbers, tooltips, bot behaviour, models, textures,
+    sounds, interface and names;
+  - host, run, publish or distribute the Software or a derivative of it
+    (modified or not), as a game, a service, a mod or in any other form, free
+    or paid;
+  - use the Software, its name, or its assets to train, fine-tune or build
+    another game, product or machine learning model;
+  - remove or alter this notice or any copyright notice.
+
+Third-party components and assets keep their own licences (see CREDITS.md and
+the licence files of the packages in node_modules).
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND. TO THE FULLEST
+EXTENT PERMITTED BY LAW THE OWNER IS NOT LIABLE FOR ANY CLAIM OR DAMAGE ARISING
+FROM IT.
+
+To ask for permission, contact the owner through the game's Suggest button or
+the GitHub repository TokeGG/mmoarena.

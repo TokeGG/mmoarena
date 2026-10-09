@@ -1,8 +1,8 @@
-# WoW-style Arena · v0.69.15
+# WoW-style Arena · v0.69.16
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
-**Contents:** [Play now](#play-now) · [Controls](#controls) · [Modes](#modes) · [Classes and specs](#classes-and-specs) · [Arenas](#arenas) · [Rules worth knowing](#rules-worth-knowing) · [Practice bots](#practice-bots) · [Accounts, rating and looks](#accounts-rating-and-looks) · [Friends, parties and duels](#friends-parties-and-duels) · [Watching and replays](#watching-and-replays) · [Skills and talents](#skills-and-talents) · [Credits](#credits)
+**Contents:** [Play now](#play-now) · [Controls](#controls) · [Modes](#modes) · [Classes and specs](#classes-and-specs) · [Arenas](#arenas) · [Rules worth knowing](#rules-worth-knowing) · [Practice bots](#practice-bots) · [Accounts, rating and looks](#accounts-rating-and-looks) · [Friends, parties and duels](#friends-parties-and-duels) · [Watching and replays](#watching-and-replays) · [Skills and talents](#skills-and-talents) · [Credits](#credits) · [Licence](#licence)
 
 ## Play now
 
@@ -171,3 +171,7 @@ The game server runs the match 20 times a second by default. Set the environment
 ## Credits
 
 The characters, weapons, cape, wings and arena scenery (for example the dual sabers by Shadow Models 3D, the greatsword by denisdezmand, the Tyra Polearm by zenkuri, the Old Wizard by JuanCarlosOsanteHernandez, the Hooded Shadow Assassin by iRahulRajput and the Abyssal Sentinel by Rignu) and one recorded sound are third-party art used under their licences: see [CREDITS.md](CREDITS.md), or **Credits** in the main menu.
+
+## Licence
+
+Copyright (c) 2026 TokeGG. All rights reserved. The code is public so it can be read, not so it can be copied, hosted or reused: see [LICENSE](LICENSE). Third-party art keeps its own licence ([CREDITS.md](CREDITS.md)).
