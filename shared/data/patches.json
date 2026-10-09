@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.69.32",
+  "date": "2026-10-09",
+  "at": "2026-10-09T21:44:49Z",
+  "title": "Balance changes",
+  "changes": [
+   "Flamestrike: cooldown 45 s to 40 s.",
+   "Searing Touch: Fireball: added effect 1 (extra), p 0.1 to 0.4.",
+   "Game rules: cauterize: health left 35% to 45%.",
+   "Game rules: cauterize: cooldown 180 s to 200 s.",
+   "Devouring Plague has a new icon.",
+   "Psychic Scream has a new icon."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.31",
   "date": "2026-10-10",
   "at": "2026-10-10T07:00:00Z",

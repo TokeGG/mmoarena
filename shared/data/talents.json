@@ -940,7 +940,7 @@
                 "extra": [
                   {
                     "type": "proc",
-                    "p": 0.1,
+                    "p": 0.4,
                     "effects": [
                       {
                         "type": "aura",

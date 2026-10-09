@@ -965,7 +965,7 @@
   "target": "ground",
   "range": 30,
   "castTime": 2750,
-  "cooldown": 45000,
+  "cooldown": 40000,
   "gcd": true,
   "cost": 70,
   "effects": [
