@@ -1,6 +1,7 @@
 import { clamp } from '@arena/shared';
 import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
 import { loadLook } from './hudLook';
+import { nameplateEditorOpen, openNameplateEditor } from './nameplateEditor';
 
 /**
  * HUD layout editor. Every movable element gets a saved offset and scale applied through the CSS `translate` and
@@ -239,7 +240,7 @@ export class HudLayout {
    * it runs before the game's handler, which must not also open the menu on the same press.
    */
   private escHandler = (ev: KeyboardEvent) => {
-    if (!leavesEditor(this.st, ev.code, ev.repeat)) return;
+    if (nameplateEditorOpen() || !leavesEditor(this.st, ev.code, ev.repeat)) return; // the nameplate editor over this one takes Escape first
     ev.preventDefault();
     ev.stopImmediatePropagation();
     this.stop();
@@ -348,7 +349,13 @@ export class HudLayout {
     // the look options (bars, nameplates, target marks, text styles) live in the Look window now
     const moved = mk('div', 'he-moved', 'Health bar, nameplate, target mark and text looks moved to Look (main menu). This editor is for where things sit and how big they are.');
 
-    panel.append(head, row1, row2, moved);
+    // nameplates have their own editor (profiles for you, allies and enemies; see nameplateEditor.ts)
+    const plateRow = mk('div', 'he-row');
+    const plateBtn = mk('button', '', 'Edit nameplates…');
+    plateBtn.title = 'Size, place and style the nameplates: separate looks for you, allies and enemies';
+    plateBtn.addEventListener('click', () => openNameplateEditor());
+    plateRow.append(plateBtn);
+    panel.append(head, row1, row2, plateRow, moved);
     return panel;
   }
 
