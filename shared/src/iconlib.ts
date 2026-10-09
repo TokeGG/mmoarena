@@ -8,7 +8,9 @@ import type { IconDef, IconPack, IconTable } from './data';
  * dev panel's "Icon edit" page changes them with the same patches as every other number.
  */
 
-export type IconKind = 'ability' | 'aura';
+export type IconKind = 'ability' | 'aura' | 'class' | 'spec';
+/** The table of icons.json each kind lives in. */
+export const ICON_TABLE: Record<IconKind, keyof IconTable> = { ability: 'abilities', aura: 'auras', class: 'classes', spec: 'specs' };
 
 export const ICON_PACKS: readonly IconPack[] = ICONLIB.packs;
 export const ICON_LIST: readonly IconDef[] = ICONLIB.icons;
@@ -39,7 +41,8 @@ export function auraSource(auraId: string): string | undefined {
 
 /** The icon id a skill or buff wears in `table`: its own entry, else (a buff) the icon of the skill that applies it. Null when there is none. */
 export function resolveIcon(table: IconTable, kind: IconKind, id: string): string | null {
-  const own = Object.hasOwn(kind === 'ability' ? table.abilities : table.auras, id) ? (kind === 'ability' ? table.abilities : table.auras)[id] : undefined;
+  const t = table[ICON_TABLE[kind]] ?? {};
+  const own = Object.hasOwn(t, id) ? t[id] : undefined;
   if (own) return own;
   if (kind === 'aura') {
     const src = auraSource(id);
@@ -54,7 +57,7 @@ export const iconIdFor = (kind: IconKind, id: string): string | null => resolveI
 export const fileIconIdFor = (kind: IconKind, id: string): string | null => resolveIcon(PRISTINE_ICONS, kind, id);
 
 /** Whether the icon a buff wears is its own (set for it) or only borrowed from the skill that applies it. */
-export const hasOwnIcon = (kind: IconKind, id: string): boolean => Object.hasOwn(kind === 'ability' ? ICONS.abilities : ICONS.auras, id);
+export const hasOwnIcon = (kind: IconKind, id: string): boolean => Object.hasOwn(ICONS[ICON_TABLE[kind]], id);
 
 // ------------------------------------------------------------------ the library picker
 

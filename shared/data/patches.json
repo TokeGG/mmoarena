@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.25",
+  "date": "2026-10-10",
+  "at": "2026-10-10T03:00:00Z",
+  "title": "Class and spec emblems",
+  "changes": [
+   "Classes and specs now have round emblem art on the menu cards, frames, recap and spectator panels, in place of the emoji."
+  ]
+ },
+ {
   "version": "0.69.24",
   "date": "2026-10-10",
   "at": "2026-10-10T01:10:00Z",

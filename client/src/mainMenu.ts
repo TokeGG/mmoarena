@@ -3,7 +3,6 @@ import {
   ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
-import { CLASS_ICON } from './icons';
 import { iconEl } from './iconArt';
 import { partyReadiness } from './partyState';
 import { LAST_SEEN_KEY, markSeen, missedText, compareVersions, unseenPatchCount } from './patchSeen';
@@ -220,7 +219,7 @@ export class MainMenu {
       const cls = m.classId ? CLASSES[m.classId as ClassId] : undefined;
       const spec = m.classId ? SPECS[m.classId as ClassId]?.find((x) => x.id === m.spec) : undefined;
       row.append(
-        el('span', 'pr-ico', m.classId ? (CLASS_ICON[m.classId as ClassId] ?? '✦') : '…'),
+        (() => { const i = el('span', 'pr-ico'); if (m.classId) i.append(iconEl('class', m.classId, 'ic-class')); else i.textContent = '…'; return i; })(),
         el('span', 'pr-name', `${lead ? '👑 ' : ''}${m.name}${m.name === me ? ' (you)' : ''}`),
         el('small', 'pr-kit', cls ? `${cls.name}${spec ? ` · ${spec.name}` : ''}` : 'choosing…'),
       );
@@ -432,7 +431,9 @@ export class MainMenu {
       ...CLASS_IDS.map((id) => {
         const b = el('button', `mm-class${id === this.classId ? ' sel' : ''}`);
         b.style.setProperty('--c', CLASSES[id].color);
-        b.append(el('span', 'ci', CLASS_ICON[id]), el('span', '', CLASSES[id].name));
+        const ci = el('span', 'ci');
+        ci.append(iconEl('class', id));
+        b.append(ci, el('span', '', CLASSES[id].name));
         tip(b, `class:${id}`, { tipText: CLASS_BLURB[id] });
         b.addEventListener('click', () => {
           if (id === this.classId) return;
@@ -460,7 +461,9 @@ export class MainMenu {
       ...SPECS[this.classId].map((spec) => {
         const card = el('button', `mm-spec${spec.id === this.build.spec ? ' sel' : ''}`);
         card.dataset.spec = spec.id;
-        card.append(el('span', 'ci', spec.icon), el('b', '', spec.name));
+        const sci = el('span', 'ci');
+        sci.append(iconEl('spec', spec.id));
+        card.append(sci, el('b', '', spec.name));
         card.addEventListener('mouseenter', () => this.showSpecPop(card, spec));
         // leaving a spec you only looked at (not into its card) puts the card back on the spec you have picked
         card.addEventListener('mouseleave', (e) => {
@@ -507,7 +510,8 @@ export class MainMenu {
     pop.replaceChildren();
     pop.dataset.spec = spec.id;
     const head = el('div', 'sp-head');
-    const ico = el('span', 'sp-bigico', spec.icon);
+    const ico = el('span', 'sp-bigico');
+    ico.append(iconEl('spec', spec.id));
     const title = el('div', 'sp-title');
     title.append(el('b', '', spec.name), el('span', 'role', spec.role));
     head.append(ico, title);

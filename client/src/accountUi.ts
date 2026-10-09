@@ -3,7 +3,8 @@ import { OwnerPanel } from './ownerUi';
 import { applyName, avatarImg, avatarUrl } from './nameStyle';
 import { EMBLEMS, NAME_COLORS, NAME_RE, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, RANKS, TITLES, isUnlocked, rankProgress, resolveCosmetics, unlockText } from '@arena/shared';
 import type { AccountInfo, ClientMsg, CosmeticDef, Cosmetics, LeaderRow, MatchRecord, ServerMsg } from '@arena/shared';
-import { classIcon, mapName } from './spectate';
+import { mapName } from './spectate';
+import { teamLine } from './iconArt';
 
 /**
  * Account chip, sign-in/register dialog and the profile screen (overview, cosmetics, leaderboard). All data comes from
@@ -508,9 +509,9 @@ export class AccountUi {
       const row = el('div', `hist-row ${res}`);
       row.append(el('div', 'hist-res', res === 'win' ? 'WIN' : res === 'loss' ? 'LOSS' : 'DRAW'));
       const mid = el('div', 'hist-mid');
-      const team = (t: number) => r.players.filter((p) => p.team === t).map((p) => `${classIcon(p.classId)} ${p.name}`).join(', ');
+      const team = (t: number) => teamLine(r.players.filter((p) => p.team === t));
       const myTeam = me?.team ?? 0;
-      mid.append(el('div', '', `${r.size}v${r.size} · ${mapName(r.map)}${r.ranked ? ' · Ranked' : ' · Practice'}`), el('div', 'hist-sub', `${team(myTeam)}  vs  ${team(1 - myTeam)}`), el('div', 'hist-sub', `${ago(r.at)} · ${Math.floor(r.durationMs / 60000)}:${String(Math.floor(r.durationMs / 1000) % 60).padStart(2, '0')}`));
+      mid.append(el('div', '', `${r.size}v${r.size} · ${mapName(r.map)}${r.ranked ? ' · Ranked' : ' · Practice'}`), (() => { const d = el('div', 'hist-sub'); d.append(team(myTeam), document.createTextNode('  vs  '), team(1 - myTeam)); return d; })(), el('div', 'hist-sub', `${ago(r.at)} · ${Math.floor(r.durationMs / 60000)}:${String(Math.floor(r.durationMs / 1000) % 60).padStart(2, '0')}`));
       const right = el('div');
       if (me?.delta !== undefined) right.append(el('div', `hist-d ${me.delta >= 0 ? 'up' : 'down'}`, `${me.delta >= 0 ? '+' : ''}${me.delta}`));
       if (r.replay) {

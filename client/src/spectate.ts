@@ -3,6 +3,7 @@ import { makeResizable } from './resizable';
 import { ABILITIES, ARENAS, CLASSES, contentHash, specOf, talentsFor } from '@arena/shared';
 import type { LiveMatch, ReplayData, StatRow, UnitBuild } from '@arena/shared';
 import { CLASS_ICON } from './icons';
+import { classLine, teamLine } from './iconArt';
 import { iconEl } from './iconArt';
 import { tipBuildKey } from './tips';
 import { botTestBadge } from './botTestIcon';
@@ -125,7 +126,7 @@ export class BuildsPanel {
         const card = el('div', 'bd-unit');
         const spec = u.spec ? specOf(u.classId, u.spec) : undefined;
         const name = el('div', 'bd-name');
-        name.append(el('span', '', `${CLASS_ICON[u.classId] ?? ''} ${u.name}`), el('small', '', spec ? `${spec.name} ${CLASSES[u.classId].name}` : CLASSES[u.classId].name));
+        name.append(classLine(u.classId, u.name), el('small', '', spec ? `${spec.name} ${CLASSES[u.classId].name}` : CLASSES[u.classId].name));
         name.style.color = CLASSES[u.classId].color;
         const test = botTestBadge(u.id); // owner and devs only: this bot plays an experimental brain
         if (test) name.append(test);
@@ -196,7 +197,9 @@ export class Scoreboard {
       table.append(tr);
       for (const r of members) {
         const row = el('tr', 'sb-row2');
-        row.append(el('td', '', `${classIcon(r.classId)} ${r.name}`));
+        const wc = el('td');
+        wc.append(classLine(r.classId, r.name));
+        row.append(wc);
         for (const k of ['dmg', 'heal', 'taken', 'healTaken'] as const) row.append(el('td', r[k] > 0 && r[k] === best(k) ? 'top' : '', n(r[k])));
         row.append(el('td', '', n(r.overheal)));
         table.append(row);
@@ -450,8 +453,8 @@ export class LivePicker {
       const list = el('div', 'live-list');
       for (const m of rows) {
         const row = el('button', 'live-row');
-        const teams = [0, 1].map((t) => m.players.filter((p) => p.team === t).map((p) => `${classIcon(p.classId)} ${p.name}`).join(', '));
-        row.append(el('b', '', `${m.ranked ? '🏆 Ranked ' : m.bots ? '🤖 Bot match ' : ''}${m.size}v${m.size} · ${mapName(m.map)}`), el('span', '', `${teams[0]}  vs  ${teams[1]}`), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
+        const teams = [0, 1].map((t) => teamLine(m.players.filter((p) => p.team === t)));
+        row.append(el('b', '', `${m.ranked ? '🏆 Ranked ' : m.bots ? '🤖 Bot match ' : ''}${m.size}v${m.size} · ${mapName(m.map)}`), (() => { const s = el('span'); s.append(teams[0], document.createTextNode('  vs  '), teams[1]); return s; })(), el('small', '', `${Math.floor(m.elapsedMs / 60000)}:${String(Math.floor(m.elapsedMs / 1000) % 60).padStart(2, '0')} in`));
         if (this.follow?.isOwner()) {
           // a follow button for each person in the match (bots have nobody to follow)
           const people = el('span', 'live-people');

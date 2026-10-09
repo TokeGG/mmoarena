@@ -210,6 +210,10 @@ describe('committing passives through the dev tools', () => {
     assert.ok(msg({ file: 'icons', id: 'fireball', path: ['ability'], value: 'steadykeel-framed/fire-0' }), 'ids of 24 characters fit');
     assert.equal(msg({ file: 'icons', id: 'fireball', path: ['ability'], value: 'nowhere/none' }), null, 'an icon the library lacks');
     assert.equal(msg({ file: 'icons', id: 'nothing', path: ['ability'], value: 'icons151/icon-9' }), null, 'a skill that does not exist');
+    const cls = patchJsonText(text, 'icons', [{ file: 'icons', id: 'warrior', path: ['class'], value: 'classart/warrior-1' }, { file: 'icons', id: 'assassination', path: ['spec'], value: 'specart/cutthroat-2' }]);
+    assert.equal((JSON.parse(cls) as Json).classes.warrior, 'classart/warrior-1');
+    assert.equal((JSON.parse(cls) as Json).specs.assassination, 'specart/cutthroat-2');
+    assert.equal(msg({ file: 'icons', id: 'warrior', path: ['spec'], value: 'classart/warrior-1' }), null, 'a class is not a spec');
     assert.equal(msg({ file: 'icons', id: 'fireball', path: ['aura'], value: 'icons151/icon-9' }), null, 'fireball is not a buff');
   });
 
@@ -229,6 +233,14 @@ describe('committing passives through the dev tools', () => {
     const notes = (JSON.parse(files.find((f) => f.path === 'shared/data/patches.json')!.content) as { changes: string[] }[])[0].changes;
     assert.ok(notes.includes('Fireball has a new icon.'), notes.join(' | '));
     assert.ok(notes.includes('The Polymorph debuff has a new icon.'), notes.join(' | '));
+    const calls2: Call[] = [];
+    await new DevTools(new MemoryStore(), { GITHUB_TOKEN: 'tok' }, mkHttp(calls2)).commitToBase([
+      { file: 'icons', id: 'warrior', path: ['class'], value: 'classart/warrior-1' },
+      { file: 'icons', id: 'assassination', path: ['spec'], value: 'specart/cutthroat-2' },
+    ], 'Dee');
+    const notes2 = (JSON.parse(tree(calls2).find((f) => f.path === 'shared/data/patches.json')!.content) as { changes: string[] }[])[0].changes;
+    assert.ok(notes2.includes('The Warrior class has a new icon.') && notes2.includes('Cutthroat has a new icon.'), notes2.join(' | '));
+    assert.ok(!tree(calls2).some((f) => f.path === 'shared/src/replay.ts'), 'SIM_REVISION untouched');
   });
 
   it('a change that does nothing, or no longer fits the files, is left out and said so', async () => {

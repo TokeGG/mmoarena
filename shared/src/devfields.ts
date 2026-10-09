@@ -168,7 +168,7 @@ const specInfo = (id: string) => {
 /** The thing's own name: an ability, aura, class, spec or talent (the game options are "Game options"). */
 export function nameOf(file: PatchFile, id: string, path: readonly (string | number)[] = []): string {
   switch (file) {
-    case 'icons': return path[0] === 'aura' ? `${auraName(id)} (${AURAS[id]?.harmful ? 'debuff' : 'buff'})` : abilityName(id);
+    case 'icons': return path[0] === 'aura' ? `${auraName(id)} (${AURAS[id]?.harmful ? 'debuff' : 'buff'})` : path[0] === 'class' ? `${className(id)} class` : path[0] === 'spec' ? specInfo(id)?.spec.name ?? id : abilityName(id);
     case 'abilities': return abilityName(id);
     case 'auras': return auraName(id);
     case 'classes': return className(id);
@@ -628,7 +628,11 @@ function auraEntry(id: string): DevEntry | null {
 /** The Icon edit page's list: every skill as on the Skills page (ids "a:fireball"), then the buffs and debuffs (ids "u:polymorph"). */
 function iconNav(): NavGroup[] {
   const mark = (g: NavGroup): NavGroup => ({ ...g, entries: g.entries.map((e) => ({ ...e, id: `a:${e.id}` })), groups: g.groups?.map(mark) });
-  const out = navFor('skills').map(mark);
+  const out: NavGroup[] = [
+    { title: 'Classes', entries: CLASS_IDS_LIST.map((c) => ({ id: `c:${c}`, name: CLASSES[c].name, sub: 'class' })) },
+    { title: 'Specs', entries: [], groups: CLASS_IDS_LIST.map((c) => ({ title: className(c), entries: SPECS[c].map((s) => ({ id: `p:${s.id}`, name: s.name, sub: s.role })) })) },
+    ...navFor('skills').map(mark),
+  ];
   const buffs: NavEntry[] = [];
   const debuffs: NavEntry[] = [];
   for (const [id, a] of Object.entries(AURAS)) (a.harmful ? debuffs : buffs).push({ id: `u:${id}`, name: a.name, sub: a.kind });
@@ -640,6 +644,8 @@ function iconNav(): NavGroup[] {
 function iconEntry(id: string): DevEntry | null {
   const aura = id.startsWith('u:');
   const raw = id.slice(2);
+  if (id.startsWith('c:')) return CLASSES[raw as ClassId] ? { file: 'icons', id: raw, name: className(raw), sub: 'class', lines: [], facts: [], groups: [] } : null;
+  if (id.startsWith('p:')) return specInfo(raw) ? { file: 'icons', id: raw, name: specInfo(raw)!.spec.name, sub: `${className(specInfo(raw)!.cls)} spec`, lines: [], facts: [], groups: [] } : null;
   if (!id.startsWith('a:') && !aura) return null;
   if (aura ? !AURAS[raw] : !ABILITIES[raw]) return null;
   return {
@@ -649,7 +655,7 @@ function iconEntry(id: string): DevEntry | null {
 }
 
 /** The patch that gives a skill (`a:id`) or buff (`u:id`) of the Icon edit page an icon. */
-export const iconPatch = (navId: string, icon: string): DataPatch => ({ file: 'icons', id: navId.slice(2), path: [navId.startsWith('u:') ? 'aura' : 'ability'], value: icon });
+export const iconPatch = (navId: string, icon: string): DataPatch => ({ file: 'icons', id: navId.slice(2), path: [navId.startsWith('u:') ? 'aura' : navId.startsWith('c:') ? 'class' : navId.startsWith('p:') ? 'spec' : 'ability'], value: icon });
 /** Words for an icon in a change list: "fire-mage-3" style ids are shown as the library names them. */
 export const iconLabel = (id: string | number | undefined): string => (typeof id === 'string' && id ? iconTitle(id) : 'none');
 

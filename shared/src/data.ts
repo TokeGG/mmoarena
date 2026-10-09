@@ -38,7 +38,7 @@ export const TUNING = tuningJson as unknown as Tuning;
 export const FX = fxJson as unknown as Record<string, Record<string, number>>;
 
 /** Which icon each skill and buff wears (shared/data/icons.json): visual only, not part of the simulation or its content hash. */
-export interface IconTable { abilities: Record<string, string>; auras: Record<string, string> }
+export interface IconTable { abilities: Record<string, string>; auras: Record<string, string>; classes: Record<string, string>; specs: Record<string, string> }
 export const ICONS = iconsJson as unknown as IconTable;
 export interface IconPack { id: string; name: string; count: number; license: string; /** The files are not in the repository (the licence forbids sharing them): the server hands them out. */ private?: boolean }
 export interface IconDef { id: string; pack: string; name: string; file: string; tags: string[] }

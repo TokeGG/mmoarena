@@ -1,5 +1,5 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor, lockedByAura, silencedBy } from '@arena/shared';
-import { CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { SCHOOL_GRADIENT } from './icons';
 import { iconEl } from './iconArt';
 import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
@@ -107,7 +107,7 @@ class UnitFrame {
     if (this.classShown !== u.classId) {
       this.classShown = u.classId;
       const c = CLASSES[u.classId].color;
-      this.portrait.textContent = CLASS_ICON[u.classId];
+      this.portrait.replaceChildren(iconEl('class', u.classId, 'ic-portrait'));
       this.portrait.style.background = `radial-gradient(circle at 35% 30%, ${c}, #14161c 85%)`;
     }
     this.portrait.classList.toggle('enemy', enemy);

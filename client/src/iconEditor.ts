@@ -1,7 +1,7 @@
-import { ABILITIES, AURAS, ICON_LIST, fileIconIdFor, iconDef, iconTitle, iconUrl } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, ICON_LIST, SPECS, fileIconIdFor, iconDef, iconTitle, iconUrl } from '@arena/shared';
 import type { DataPatch, IconKind } from '@arena/shared';
 import type { EditSet } from './devEdits';
-import { chooseIcon, gridIcons, iconChanged, iconTarget, iconOffered, packChips, previewOf, putBackIcon } from './iconEditLogic';
+import { chooseIcon, suggestedIcons, gridIcons, iconChanged, iconTarget, iconOffered, packChips, previewOf, putBackIcon } from './iconEditLogic';
 import { iconEl, setIconPreview, shownIconId } from './iconArt';
 import { loadPrivateIcons, privateIconsNow } from './iconPrivate';
 import { SCHOOL_GRADIENT } from './icons';
@@ -37,6 +37,7 @@ export class IconEditor {
   private box: HTMLElement | null = null;
   private navId = '';
   private availKey = -1;
+  private sugTiles = new Map<string, HTMLButtonElement>();
   private paint: (() => void) | null = null;
 
   constructor(private host: IconEditorHost) {}
@@ -47,7 +48,7 @@ export class IconEditor {
     this.navId = navId;
     const t = iconTarget(navId);
     if (!t) return void box.append(el('small', 'devp-dim', 'Pick a skill or buff on the left.'));
-    const name = t.kind === 'ability' ? ABILITIES[t.id]?.name : AURAS[t.id]?.name;
+    const name = t.kind === 'ability' ? ABILITIES[t.id]?.name : t.kind === 'aura' ? AURAS[t.id]?.name : t.kind === 'class' ? CLASSES[t.id as keyof typeof CLASSES]?.name : Object.values(SPECS).flat().find((s) => s.id === t.id)?.name;
     if (!name) return void box.append(el('small', 'devp-dim', 'That one is gone.'));
     // the icons of a private pack are offered once the server says it has them
     void loadPrivateIcons().then((s) => {
@@ -58,9 +59,10 @@ export class IconEditor {
       }
     });
     this.availKey = privateIconsNow()?.size ?? 0;
+    this.sugTiles.clear();
 
     const top = el('div', 'ie-top');
-    const big = el('div', 'ie-big');
+    const big = el('div', `ie-big${t.kind === 'class' || t.kind === 'spec' ? ' round' : ''}`);
     const info = el('div', 'ie-info');
     const nameEl = el('div', 'devp-title', name);
     const wears = el('small', 'devp-dim');
@@ -88,7 +90,7 @@ export class IconEditor {
       save.disabled = this.host.set.edits.size === 0;
       prev.replaceChildren(this.preview(t.kind, t.id, name));
       const def = fileIconIdFor(t.kind, t.id);
-      for (const [id, b] of this.tiles) {
+      for (const [id, b] of [...this.tiles, ...this.sugTiles]) {
         b.classList.toggle('cur', id === cur);
         b.classList.toggle('def', id === def);
         b.setAttribute('aria-pressed', String(id === cur));
@@ -130,7 +132,19 @@ export class IconEditor {
     });
     find.append(input, count);
 
-    box.append(top, find, chips, grid, el('small', 'devp-dim ie-foot', 'Looks only: an icon never changes a match. The one with the corner dot is the default.'));
+    const sug = suggestedIcons(navId, privateIconsNow());
+    const sugRow = el('div', 'ie-sug');
+    if (sug.length) {
+      sugRow.append(el('small', 'devp-dim', 'Suggested (made for it)'));
+      const row = el('div', 'ie-grid ie-sugrow');
+      for (const i of sug) {
+        const b = this.tile(i.id);
+        this.sugTiles.set(i.id, b);
+        row.append(b);
+      }
+      sugRow.append(row);
+    }
+    box.append(top, sugRow, find, chips, grid, el('small', 'devp-dim ie-foot', 'Looks only: an icon never changes a match. The one with the corner dot is the default.'));
     this.paint();
     filter();
   }
@@ -138,7 +152,13 @@ export class IconEditor {
   /** The skill as it looks on the bar (or the buff as it looks on a unit). */
   private preview(kind: IconKind, id: string, name: string): HTMLElement {
     const wrap = el('div', 'ie-previews');
-    if (kind === 'ability') {
+    if (kind === 'class' || kind === 'spec') {
+      const a = el('div', 'ie-round');
+      a.append(iconEl(kind, id, '', false, name));
+      const b = el('div', 'ie-round small');
+      b.append(iconEl(kind, id));
+      wrap.append(a, b);
+    } else if (kind === 'ability') {
       const slot = el('div', 'slot ie-slot');
       slot.style.background = SCHOOL_GRADIENT[ABILITIES[id].school];
       const ico = el('span', 'ico');
@@ -163,28 +183,33 @@ export class IconEditor {
     const avail = privateIconsNow();
     for (const i of ICON_LIST) {
       if (!iconOffered(i, avail)) continue;
-      const b = el('button', 'ie-tile');
-      b.type = 'button';
-      b.dataset.icon = i.id;
-      b.title = `${i.name} · ${iconTitle(i.id).split(':')[0]}`;
-      b.setAttribute('aria-label', b.title);
-      const img = document.createElement('img');
-      img.src = iconUrl(i.id);
-      img.alt = '';
-      img.loading = 'lazy';
-      img.decoding = 'async';
-      img.draggable = false;
-      b.append(img);
-      b.addEventListener('click', () => {
-        if (!iconDef(i.id)) return;
-        chooseIcon(this.host.set, this.navId, i.id, this.host.testing(), this.host.canRevert);
-        this.changed();
-      });
+      const b = this.tile(i.id);
       this.tiles.set(i.id, b);
       grid.append(b);
     }
     this.grid = grid;
     return grid;
+  }
+
+  private tile(id: string): HTMLButtonElement {
+    const i = iconDef(id)!;
+    const b = el('button', 'ie-tile');
+    b.type = 'button';
+    b.dataset.icon = i.id;
+    b.title = `${i.name} · ${iconTitle(i.id).split(':')[0]}`;
+    b.setAttribute('aria-label', b.title);
+    const img = document.createElement('img');
+    img.src = iconUrl(i.id);
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    img.draggable = false;
+    b.append(img);
+    b.addEventListener('click', () => {
+      chooseIcon(this.host.set, this.navId, i.id, this.host.testing(), this.host.canRevert);
+      this.changed();
+    });
+    return b;
   }
 
   /** A pick or put-back: the screen follows at once, then the panel's counters and list. */

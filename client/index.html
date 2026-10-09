@@ -365,6 +365,17 @@
   .ie-tile img { display:block; width:100%; height:100%; object-fit:cover; background:#0f0d16; }
   .ie-tile:hover { border-color:#ffd24a; } .ie-tile.cur { border-color:#ffd24a; box-shadow:0 0 0 2px #ffd24a66, 0 0 10px #ffd24a88; }
   .ie-tile.def::after { content:''; position:absolute; right:3px; top:3px; width:8px; height:8px; border-radius:50%; background:#5fd36f; border:1px solid #0008; }
+  /* class and spec art: round, shown as it is (the art has its own ring) */
+  .ic-class { display:inline-block; width:1.35em; height:1.35em; vertical-align:-.3em; border-radius:50%; margin-right:.15em; }
+  .portrait > .ic-portrait { width:100%; height:100%; border-radius:50%; }
+  .mm-class .ci > .ic, .mm-spec .ci > .ic { width:1.7em; height:1.7em; border-radius:50%; }
+  .mm-class .ci, .mm-spec .ci { display:inline-flex; align-items:center; }
+  .sp-bigico { display:inline-flex; width:44px; height:44px; } .sp-bigico > .ic { border-radius:50%; }
+  .pr-ico > .ic-class { width:1.5em; height:1.5em; vertical-align:middle; }
+  .devp-navicon .ic[data-ic^="class:"], .devp-navicon .ic[data-ic^="spec:"] { border-radius:50%; }
+  .ie-round { width:64px; height:64px; border-radius:50%; } .ie-round.small { width:30px; height:30px; } .ie-round .ic { border-radius:50%; }
+  .ie-big.round { border-radius:50%; }
+  .ie-sug { margin-top:8px; } .ie-sugrow { margin-top:3px; }
   .ie-foot { display:block; margin-top:8px; }
   @container (max-width: 560px) { .ie-grid { grid-template-columns:repeat(auto-fill, minmax(48px, 1fr)); } .ie-top { position:static; } }
   .devp-note { width:100%; box-sizing:border-box; min-height:52px; margin:6px 0 4px; background:#0f0d16; color:#fff; border:1px solid #3d3550; border-radius:6px; padding:4px; resize:vertical; }
