@@ -13,6 +13,10 @@ export const ABILITIES: Record<string, AbilityDef> = Object.fromEntries(
   (abilitiesJson as unknown as AbilityDef[]).map((a) => [a.id, a]),
 );
 export const AURAS = aurasJson as unknown as Record<string, AuraDef>;
+/** An ability that ignores control is still locked by Polymorph and Dragon's Breath, except the one that clears them (Cleansing Charm). */
+export const lockedByAura = (def: AbilityDef, auras: { id: string }[]): boolean =>
+  !!def.ignoresControl && !def.effects.some((e) => e.type === 'cleanse') && auras.some((a) => AURAS[a.id]?.locksAbilities);
+
 export const CLASSES = classesJson as unknown as Record<ClassId, ClassDef>;
 /** Every arena the server can play on. The first is the default. */
 export const ARENAS = arenasJson as unknown as ArenaDef[];

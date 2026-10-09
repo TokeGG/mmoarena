@@ -412,7 +412,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
   if (def.maxTargetHealthPct !== undefined) notes.push(`Only usable on targets below ${def.maxTargetHealthPct}% health.`);
   if (def.outOfCombatOnly) notes.push('Cannot be used in combat.');
   if (def.ignoresLockout) notes.push('Usable while locked out.');
-  if (def.ignoresControl && !lines.some((l) => /while stunned/i.test(l))) {
+  if (def.ignoresControl && def.effects.some((e) => e.type === 'cleanse')) notes.push('Works even while polymorphed or disoriented.');
+  else if (def.ignoresControl && !lines.some((l) => /while stunned/i.test(l))) {
     const locks = Object.values(AURAS).filter((a) => a.locksAbilities).map((a) => a.name);
     notes.push(`Works while stunned, feared or rooted${locks.length ? `, but not while ${locks.join(' or ')} holds you` : ''}.`);
   }

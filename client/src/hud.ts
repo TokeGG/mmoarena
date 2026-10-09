@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor, lockedByAura } from '@arena/shared';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
 import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
@@ -396,7 +396,7 @@ export class Hud {
       (s.cd.firstChild as HTMLElement).textContent = cd > gcdTotal ? String(Math.ceil(cd / 1000)) : cd > 50 && total > gcdTotal ? (cd / 1000).toFixed(1) : '';
       // a proc (Hot Streak) makes this slot glow while it is active
       s.root.classList.toggle('proc', me.auras.some((a) => AURAS[a.id]?.instantFor === s.ability) || (!!def.exploit && !!tgt && tgt.team !== me.team && !!tgt.auras?.some((a) => a.id === def.exploit!.aura))); // Ice Lance glows while the target has Fingers of Frost
-      const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || (!!def.ignoresControl && me.auras.some((a) => AURAS[a.id]?.locksAbilities)) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
+      const locked = me.alive && (me.auras.some((a) => AURAS[a.id]?.noCast) || (me.controlled && !def.ignoresControl) || lockedByAura(def, me.auras) || (!def.ignoresLockout && (me.lockouts?.[def.school] ?? 0) > now));
       const blocked = me.alive && blockedByCondition(def, me, tgt);
       s.root.classList.toggle('locked', locked);
       s.root.classList.toggle('blocked', blocked && !locked);
