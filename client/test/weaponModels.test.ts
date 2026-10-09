@@ -61,7 +61,9 @@ describe('real weapon models', () => {
     const rest = createCharacter('warrior', '', 'dual');
     const axe = createCharacter('warrior', '', 'polearm');
     for (const ch of [rest, axe]) for (let i = 0; i < 40; i++) ch.pose({ phase: 0, move: 0, casting: false, time: i * 0.05, dt: 0.05 });
-    assert.ok(bonesOf(rest).upperarm_l.quaternion.angleTo(bonesOf(axe).upperarm_l.quaternion) > 0.5, 'off hand is on the axe');
+    // (the polearm's left arm stays in front of the shoulder, so the shoulder turns less than the bent elbow: see the hold comment in weaponModels.ts)
+    assert.ok(bonesOf(rest).upperarm_l.quaternion.angleTo(bonesOf(axe).upperarm_l.quaternion) > 0.3, 'off shoulder is on the axe');
+    assert.ok(bonesOf(rest).forearm_l.quaternion.angleTo(bonesOf(axe).forearm_l.quaternion) > 0.8, 'off elbow is on the axe');
   });
 
   const GRIP = new THREE.Vector3(0, -0.62, 0.05);
@@ -147,6 +149,42 @@ describe('real weapon models', () => {
     assert.ok(p.x < -0.15 && p.y < 1.4 && p.y > 0.8, 'lower hand on the right hip side');
     assert.ok(axis.x > 0.5 && axis.y > 0.5 && Math.abs(axis.z) < 0.4, `haft runs across the chest (${axis.x.toFixed(2)}, ${axis.y.toFixed(2)}, ${axis.z.toFixed(2)})`);
     assert.equal(driverOf(ch).grip, 1, 'always two-handed');
+  });
+
+  /** Skinned edges that stretched past `factor` times their bind length (and are longer than 5 cm): torn-looking triangles. */
+  const stretched = (ch: ReturnType<typeof createCharacter>, factor = 2.5) => {
+    let bad = 0, longest = 0;
+    const a = new THREE.Vector3(), b = new THREE.Vector3(), pa = new THREE.Vector3(), pb = new THREE.Vector3();
+    ch.root.updateMatrixWorld(true);
+    ch.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh || !m.geometry.index) return;
+      const pos = m.geometry.attributes.position, idx = m.geometry.index;
+      for (let i = 0; i < idx.count; i += 3) {
+        for (let k = 0; k < 3; k++) {
+          const u = idx.getX(i + k), v = idx.getX(i + ((k + 1) % 3));
+          a.fromBufferAttribute(pos, u); b.fromBufferAttribute(pos, v);
+          const bl = a.distanceTo(b);
+          if (bl < 0.004) continue;
+          m.getVertexPosition(u, pa); m.getVertexPosition(v, pb);
+          const pl = pa.distanceTo(pb);
+          if (pl > 0.05 && pl / bl > factor) { bad++; longest = Math.max(longest, pl); }
+        }
+      }
+    });
+    return { bad, longest };
+  };
+
+  it('the polearm hold does not tear the knight\'s shoulder skin (the old pose swung the left arm 68 degrees across the chest: 320 stretched edges, up to 0.4 yd long)', () => {
+    const ch = createCharacter('warrior', '', 'polearm');
+    settled(ch, 90);
+    const idle = stretched(ch);
+    assert.ok(idle.bad < 100, `${idle.bad} stretched edges at idle`);
+    assert.ok(idle.longest < 0.25, `longest stretched edge ${idle.longest.toFixed(2)} yd`);
+    // the rest pose of the greatsword and the free arms stay clean as well
+    const gs = createCharacter('warrior', '', 'twohand');
+    settled(gs, 90);
+    assert.ok(stretched(gs).bad < 40, 'greatsword at rest');
   });
 
   it('the left saber is a true mirror of the right one', () => {
