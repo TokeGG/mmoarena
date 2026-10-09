@@ -189,7 +189,7 @@ describe('change requests', () => {
       return new Response(JSON.stringify({ html_url: 'https://github.com/TokeGG/mmoarena/issues/7', number: 7 }), { status: 201 });
     }) as typeof fetch;
 
-  it('is stored and posted to Discord with the full spec and the tested numbers, no GitHub issue by default', async () => {
+  it('is stored and posted to Discord with the full spec and the tested numbers, a GitHub issue without the label by default', async () => {
     const calls: Call[] = [];
     const w = await world([filing], { GITHUB_TOKEN: 'tok' }, ghHttp(calls));
     send(w.lobby, w.devP, { t: 'dev_ai', ability: 'fireball', text: 'split it' });
@@ -199,8 +199,9 @@ describe('change requests', () => {
     assert.match(t.text, /code change/);
     assert.match(t.text, /saved it as a request for the owner/);
     assert.equal(t.request!.title, REQ.title);
-    assert.equal(t.request!.issueUrl, undefined);
-    assert.equal(calls.length, 0, 'no GitHub call unless ARENA_DEV_REQUEST_ISSUES=1');
+    assert.equal(t.request!.issueUrl, 'https://github.com/TokeGG/mmoarena/issues/7');
+    assert.deepEqual(calls.map((c) => c.url.replace(/.*mmoarena/, '')), ['/issues'], 'an issue, and no label: Claude starts only when the owner presses Build');
+    assert.equal(calls[0].body.labels, undefined);
     const row = w.requests.list[0];
     assert.equal(row.by, 'Dee');
     assert.equal(row.status, 'open');
@@ -211,15 +212,13 @@ describe('change requests', () => {
     assert.match(w.posts[0], /Change request/);
   });
 
-  it('opens a labelled GitHub issue when asked to, and a refused issue still keeps the request and says why', async () => {
+  it('opens an unlabelled GitHub issue, and a refused issue still keeps the request and says why', async () => {
     const calls: Call[] = [];
     const w = await world([], { GITHUB_TOKEN: 'tok', ARENA_DEV_REQUEST_ISSUES: '1' }, ghHttp(calls));
     const r = await w.requests.file('Dee', 'Fireball', REQ as any, []);
     assert.equal(r.row!.issueUrl, 'https://github.com/TokeGG/mmoarena/issues/7');
-    const label = calls.find((c) => c.url.endsWith('/labels'))!;
-    assert.equal(label.body.name, 'dev-request');
     const issue = calls.find((c) => c.url.endsWith('/issues'))!;
-    assert.deepEqual(issue.body.labels, ['dev-request']);
+    assert.equal(issue.body.labels, undefined);
     assert.match(issue.body.body, /Requested by Dee/);
     assert.match(issue.body.body, /Acceptance criteria/);
 

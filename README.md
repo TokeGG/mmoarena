@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.69.30
+# WoW-style Arena · v0.69.31
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -89,28 +89,34 @@ Every class has three specs, each with its own eight-skill action bar (and each 
 
 ## Arenas
 
-Pick one on the menu or leave it on Random.
+Pick one on the menu or leave it on Random. Every arena comes in **three test layouts** (A, B and C) with less line-of-sight blocking than before: there are no half walls (low barricades) anywhere, nothing holds a walkway up that you could hide behind (the ground under every deck, bridge and terrace is open), and fewer pillars. They are listed one by one in the arena picker (the menu, the debug panel's map switch and the owner's bot match), Random picks among all of them, and the old layouts are gone: these three are here to be played and compared, so say which you like.
 
-| Arena | Layout |
+- **A (Lighter):** the map's own look with every half wall and everything under the walkways removed and about a third of the cover taken out (the arena's plain id, e.g. `ruins`, so saved choices and queue picks keep working).
+- **B (Open):** the same, with only about a third of the original cover left, a handful of well-placed pillars (`ruins-b`).
+- **C (Arena):** the most open: at most a few pillars or one central feature; walkways, ramps and lava stay (`ruins-c`).
+
+| Arena | Layout (shared by A, B and C; each option keeps fewer pillars) |
 |---|---|
-| Dusk Colosseum | Four columns around an open centre, with an emperor's box (a small raised balcony with a ramp at each end) on the north and south walls. |
-| Sunken Ruins | A fallen tower and broken columns: lots of line-of-sight play. Two crumbling stone platforms climb out of the rubble, and broken walls give cover you can vault. |
-| Frostkeep Pit | A ring of ice spires with a frozen bridge spanning the pit from north to south, and snowdrift walls on the flanks. |
-| The Serpent | An S-shaped raised wooden walkway between two start yards, with a ramp up from each yard and four pillars underneath for cover. |
-| The Overlook | A central raised plateau with ramps north and south, a shaded hall underneath and low barricades. Every duel is played here. |
-| Icebound Ring | A raised square walkway around an open courtyard with an ice spire, with ramps down towards each team. |
-| Sun Terraces | Two long raised terraces along the north and south walls with a ramp at each end, plus a centre obelisk and barricades. |
-| Cinder Crater | A basalt crater cracked with lava: obsidian spires, jagged rock walls in front of each start yard, low rock barricades and a raised ledge in two corners. |
-| Lava Forge | A grey-brick hall with a raised forging plinth in the middle (ramps north and south), four person-high basins of molten rock, brick chimneys and slabs of rim rock. |
-| Sandstone Yard | A sand-floored stadium yard with a stepped plinth in the middle (ramps east and west), stacked carved blocks, tall obelisks and low sandbag-style barricades. |
+| Dusk Colosseum | Columns around an open centre (4 / 2 / 1), with an emperor's box (a small raised balcony with a ramp at each end) on the north and south walls. |
+| Sunken Ruins | A fallen tower and broken columns (3 / 2 / 1). Two crumbling stone platforms climb out of the rubble. |
+| Frostkeep Pit | Ice spires (4 / 2 / 0) around a pit with a frozen bridge spanning it from north to south. |
+| The Serpent | An S-shaped raised wooden walkway between two start yards, with a ramp up from each yard and pillars beside it (4 / 2 / 0). |
+| The Overlook | A central raised plateau with ramps north and south and an open hall underneath, with corner columns (4 / 2 / 0). Option A is where every duel is played. |
+| Icebound Ring | A raised square walkway around an open courtyard, with ramps down towards each team and ice spires (3 / 2 / 1; C keeps the one in the heart). |
+| Sun Terraces | Two long raised terraces along the north and south walls with a ramp at each end, with an obelisk and columns (3 / 2 / 1). |
+| Cinder Crater | A basalt crater cracked with lava: obsidian spires and jagged rock walls in front of each start yard (7 spires and 4 walls / 3 and 2 / 2 and none), and a raised ledge in two corners. |
+| Lava Forge | A grey-brick hall with a raised forging plinth in the middle (ramps north and south), basins of molten rock (4 / 4 / 2), brick chimneys and slabs of rim rock (6 chimneys and 4 slabs / 4 and none / 2 and none). |
+| Sandstone Yard | A sand-floored stadium yard with a stepped plinth in the middle (ramps east and west), carved cover blocks and tall obelisks (6 obelisks and 4 blocks / 4 and 2 / 2 and none). |
 
-**Getting around:** you can jump over deck rails and low barricades, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, the banners, Rune of Power, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground. Barricades are as tall as a person: on the ground they block walking and sight, and a jump clears them and lifts your sight line over them for a moment, long enough for an instant spell (and for them to hit you back).
+The Forge and Sandstone plinths are solid blocks, not bridges, so they stay in every option.
+
+**Getting around:** you can jump over deck rails, jump off any walkway to drop to the ground, and jump onto the lower part of a ramp from the side. Heroic Leap aimed on top of a walkway lands up there. A raised deck is a floor between levels: someone above you is hidden while the deck is between you, and visible once you can see past its edge. Ground spells (Flamestrike, the banners, Rune of Power, smoke) only reach the floor they were placed on. Charge and Heroic Leap clear rails and barricades too (Charge can take you off a walkway onto someone below), and Shadowstep lands you on your target's level. Ramps and piers block sight on the ground. Barricades are as tall as a person: on the ground they block walking and sight, and a jump clears them and lifts your sight line over them for a moment, long enough for an instant spell (and for them to hit you back).
 
 ## Rules worth knowing
 
 - **Casting:** most skills trigger a 1 second global cooldown. Starting another spell cancels the one you are casting. A spell you press while casting or on the global cooldown is queued and goes off as soon as you are free (the newest press wins).
 - **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, and a blade never reaches between floors, so someone up on a walkway is out of melee reach from the ground below (and the other way round). Ground spells (Flamestrike, Battle Banner, Not Going Anywhere, Rune of Power) are aimed at the cursor: press the key, then click to place; one still on its cooldown does not bring the ring up.
-- **Lava:** the four basins on Lava Forge are lava. Jump in and you are no longer pushed out, but you burn for 5% of your health every half second until you climb out; on foot you cannot walk in.
+- **Lava:** the basins on Lava Forge (four in options A and B, two in C) are lava. Jump in and you are no longer pushed out, but you burn for 5% of your health every half second until you climb out; on foot you cannot walk in.
 - **Line of sight:** a body, not a single thread: a unit whose edge shows past a pillar or wall end (about a third of a yard) is in sight and can be targeted.
 - **Dampening:** in a match with a healer, 90 seconds into the fight healing and new shields start getting weaker, 0.3% more every second (up to 90% weaker), so two healers cannot out-heal each other forever. The Dampening banner at the top shows how much.
 - **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind, Gouge, Sap and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.

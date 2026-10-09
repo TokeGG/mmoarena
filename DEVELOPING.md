@@ -76,6 +76,8 @@ The sim runs at any tick length (`tickMs`, whole milliseconds): 50 ms (20 Hz) is
 | Path | Role |
 |---|---|
 | `shared/data/*.json` | Classes, abilities, auras, specs, talents, cosmetics, arenas, tuning, bot brain, patch notes. All game content lives here. |
+
+**Maps are test layouts.** `shared/data/arenas.json` has three options of every arena: the plain id (`ruins`, option A "Lighter"), `ruins-b` ("Open") and `ruins-c` ("Arena"), 30 entries in all, each a separate arena id in every list (menu picker, debug panel map switch and prev/next, owner bot match, Watch labels, Random pool, the minimap art in `client/src/arenaMap.ts`). No layout has a half wall (`lows` is only used for Lava Forge's lava basins; the engine still supports barricades) and no pier or pillar under a walkway (`deck.piers: []` makes the scene draw a thicker slab instead; Forge and Sandstone list their solid plinth as the one pier). `shared/test/arenaMaps.test.ts` checks every option: no half walls, nothing under a deck, pillar counts falling from A to B to C, point-symmetric spawns and features, and a route to every spot. Keep new layouts in that shape (and point-symmetric: the two teams are mirrored through the centre).
 | `shared/src/sim.ts` | Headless, deterministic simulation. No rendering, no I/O, no wall clock. Same seed and inputs give the same result. |
 | `shared/src/replay.ts` | Recorder and runner that re-simulate a match from its commands. |
 | `shared/src/build.ts` | The only place that turns specs and talents (including ability swaps) into numbers; cosmetics only decide the look. |

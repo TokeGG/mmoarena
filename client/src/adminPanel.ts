@@ -518,6 +518,30 @@ export class AdminPanel {
       row.append(a);
     }
     if (r.issueError) row.append(el('small', 'devp-dim', ` (no GitHub issue: ${r.issueError})`));
+    if (r.prUrl) {
+      const a = el('a', '', ` Pull request #${r.prNumber} (${r.prState})`);
+      a.href = r.prUrl;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      row.append(a);
+    } else if (r.build) row.append(el('small', 'devp-dim', ` Claude is building it (asked by ${r.build.by} ${ago(r.build.at)}). The pull request shows here when it is ready.`));
+    if (owner && r.prUrl && r.prState === 'open') {
+      const mg = el('button', 'mm-small mm-go', '✅ Merge it');
+      mg.title = 'Merges the pull request into main (only if its checks have all passed). The game redeploys with the change.';
+      mg.addEventListener('click', () => window.confirm(`Merge pull request #${r.prNumber} into main now? The live game updates when it deploys.`) && this.hooks.send({ t: 'dev_requests', op: 'merge', id: r.id }));
+      row.append(mg);
+    }
+    if (r.build && !r.prUrl) {
+      const chk = el('button', 'mm-small', 'Check for the pull request');
+      chk.addEventListener('click', () => this.hooks.send({ t: 'dev_requests', op: 'check', id: r.id }));
+      row.append(chk);
+    }
+    if (owner && !r.build && r.status !== 'done') {
+      const bld = el('button', 'mm-small mm-go', '🤖 Build it with Claude');
+      bld.title = 'Claude changes the code on GitHub, runs the checks and opens a pull request for you to review and merge. Nothing goes live until you merge it.';
+      bld.addEventListener('click', () => window.confirm(`Ask Claude to build "${r.title}"? It opens a pull request on GitHub (this uses your Anthropic API key on GitHub).`) && this.hooks.send({ t: 'dev_requests', op: 'build', id: r.id }));
+      row.append(bld);
+    }
     if (owner) {
       const done = el('button', 'mm-small mm-go', r.status === 'done' ? 'Reopen' : 'Mark done');
       done.addEventListener('click', () => this.hooks.send({ t: 'dev_requests', op: r.status === 'done' ? 'reopen' : 'done', id: r.id }));

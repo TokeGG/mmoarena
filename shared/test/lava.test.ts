@@ -7,9 +7,11 @@ const pit = forge.lows!.find((r) => r.lava)!;
 const mid = { x: (pit.x0 + pit.x1) / 2, z: (pit.z0 + pit.z1) / 2 };
 
 describe('lava pits', () => {
-  it('the Lava Forge basins are lava, and only they', () => {
+  it('the Lava Forge basins are lava, and only they (option A has four; B four; C two)', () => {
     assert.equal(forge.lows!.filter((r) => r.lava).length, 4);
-    for (const a of ARENAS) if (a.id !== 'forge') assert.equal(a.lows?.some((r) => r.lava) ?? false, false, a.id);
+    assert.equal(arenaById('forge-b').lows!.filter((r) => r.lava).length, 4);
+    assert.equal(arenaById('forge-c').lows!.filter((r) => r.lava).length, 2);
+    for (const a of ARENAS) if (!a.id.startsWith('forge')) assert.equal(a.lows?.some((r) => r.lava) ?? false, false, a.id);
   });
   it('walking into a pit is blocked, a jump can land in it and nobody is pushed out of it', () => {
     const outside = { x: pit.x0 - 1.5, z: mid.z };
