@@ -42,5 +42,6 @@ export const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
 
 /** Patch notes, newest first. The top entry's version is always the game's version (a test checks it). */
 /** `at`: when it went out, in UTC (ISO 8601); shown in each viewer's own time zone. */
-export interface PatchNote { version: string; date: string; at?: string; title: string; changes: string[] }
+/** `by`: who pushed it when it came from a commit made in the game's dev tools (shown in the patch list). */
+export interface PatchNote { version: string; date: string; at?: string; title: string; changes: string[]; by?: string }
 export const PATCHES = patchesJson as PatchNote[];

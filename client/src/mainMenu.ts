@@ -894,7 +894,7 @@ export class MainMenu {
       const fresh = !!lastSeen && compareVersions(p.version, lastSeen) > 0;
       const box = el('section', `mm-patch${i === 0 ? ' latest' : ''}${fresh ? ' fresh' : ''}`);
       const h = el('h3', '');
-      h.append(el('span', 'pv', `v${p.version}`), el('span', 'pt', p.title), el('span', 'pd', patchTime(p)));
+      h.append(el('span', 'pv', `v${p.version}`), el('span', 'pt', p.title), ...(p.by ? [el('span', 'pby', `by ${p.by}`)] : []), el('span', 'pd', patchTime(p)));
       if (fresh) h.append(el('span', 'pnew seen-new', 'NEW'));
       else if (i === 0) h.append(el('span', 'pnew', 'Latest'));
       const ul = el('ul', '');

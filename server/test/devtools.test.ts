@@ -75,6 +75,7 @@ describe('dev commits to GitHub', () => {
     assert.equal(patches[0].version, next);
     assert.equal(patches[1].version, prev[0].version, 'the old entries stay');
     assert.match(patches[0].changes[0], /^Fireball: cooldown [\d.]+ s to 7 s\.$/);
+    assert.equal((patches[0] as { by?: string }).by, 'Dee', 'the patch note says who pushed it');
     assert.match(patches[0].at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
     assert.equal(JSON.parse(files.find((f) => f.path === 'package.json')!.content).version, next);
     assert.equal(JSON.parse(files.find((f) => f.path === 'client/package.json')!.content).version, next);

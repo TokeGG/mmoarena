@@ -30,7 +30,8 @@
    "Singed: max stacks 2 to 4.",
    "Barbarian: damage 45 to 80.",
    "Warbringer: damage 60 to 45."
-  ]
+  ],
+  "by": "scrandy"
  },
  {
   "version": "0.69.8",
@@ -43,7 +44,8 @@
    "Slice and Dice: radius 6 to 5.",
    "Slice and Dice: cone deg 90 to 45.",
    "Enraged Regeneration: lifesteal 3 to 1."
-  ]
+  ],
+  "by": "scrandy"
  },
  {
   "version": "0.69.7",

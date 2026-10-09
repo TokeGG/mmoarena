@@ -14,6 +14,7 @@ describe('patch notes', () => {
       assert.match(p.version, /^\d+\.\d+\.\d+$/);
       assert.match(p.date, /^\d{4}-\d{2}-\d{2}$/);
       assert.ok(p.at === undefined || /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(p.at), `${p.version}: at is a UTC time like 2026-10-07T21:24:05Z`);
+      assert.ok(p.by === undefined || (typeof p.by === 'string' && p.by.trim().length > 0 && p.by.length <= 40), `${p.version}: by is a short name`);
       assert.ok(p.title && p.changes.length > 0 && p.changes.every((c) => c.trim()), `${p.version} needs a title and changes`);
       if (i > 0) {
         const [a, b] = [key(PATCHES[i - 1].version), key(p.version)];
