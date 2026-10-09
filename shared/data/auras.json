@@ -217,7 +217,7 @@
   "blind": {
     "name": "Blind",
     "kind": "incapacitate",
-    "duration": 5000,
+    "duration": 8000,
     "harmful": true,
     "dr": "incapacitate",
     "breaksOnDamage": true,
@@ -310,9 +310,9 @@
   "singed": {
     "name": "Singed",
     "kind": "mark",
-    "duration": 10000,
+    "duration": 20000,
     "harmful": true,
-    "maxStacks": 2,
+    "maxStacks": 4,
     "stackProc": "hot_streak",
     "note": "Stacks up to 2 times; the third Fireball removes the stacks and gives you Hot Streak, making your next Pyroblast instant"
   },
@@ -365,7 +365,7 @@
     "perCp": true,
     "maxDuration": 5000,
     "dot": {
-      "amount": 110,
+      "amount": 60,
       "interval": 1000,
       "school": "physical",
       "ability": "eviscerate"
@@ -429,7 +429,7 @@
     "duration": 8000,
     "harmful": false,
     "mods": {
-      "lifesteal": 3
+      "lifesteal": 1
     }
   },
   "deep_cuts_bleed": {
