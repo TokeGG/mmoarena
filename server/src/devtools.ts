@@ -150,17 +150,7 @@ export class DevTools {
   async openPullRequest(patches: DataPatch[], by: string, note?: string): Promise<string> {
     const token = this.env.GITHUB_TOKEN;
     if (!token) throw new Error('No GITHUB_TOKEN on the server: the numbers are live, but no pull request was opened.');
-    const repo = this.env.GITHUB_REPO || 'TokeGG/mmoarena';
-    const base = this.env.GITHUB_BASE || 'main';
-    const api = (path: string, init: RequestInit = {}) =>
-      this.http(`https://api.github.com/repos/${repo}${path}`, {
-        ...init,
-        headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'content-type': 'application/json', 'user-agent': 'arena-devtools', ...(init.headers ?? {}) },
-      }).then(async (r) => {
-        const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
-        if (!r.ok) throw new Error(`GitHub: ${String(body.message ?? r.status)}`);
-        return body;
-      });
+    const { api, base } = this.github(token);
     const ref = (await api(`/git/ref/heads/${base}`)) as { object: { sha: string } };
     const branch = `dev-tuning/${Date.now().toString(36)}`;
     await api('/git/refs', { method: 'POST', body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: ref.object.sha }) });
@@ -184,6 +174,53 @@ export class DevTools {
       }),
     })) as { html_url: string };
     return pr.html_url;
+  }
+
+  /** A GitHub API caller for the repository (token in the header), and the base branch. */
+  private github(token: string) {
+    const repo = this.env.GITHUB_REPO || 'TokeGG/mmoarena';
+    const base = this.env.GITHUB_BASE || 'main';
+    const api = (path: string, init: RequestInit = {}) =>
+      this.http(`https://api.github.com/repos/${repo}${path}`, {
+        ...init,
+        headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'content-type': 'application/json', 'user-agent': 'arena-devtools', ...(init.headers ?? {}) },
+      }).then(async (r) => {
+        const body = (await r.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!r.ok) throw new Error(`GitHub: ${String(body.message ?? r.status)}`);
+        return body;
+      });
+    return { api, base, repo };
+  }
+
+  /**
+   * A dev commits their numbers straight to the base branch (the owner's choice: no pull request, no review). Only the
+   * JSON data files' numbers can change this way (the patches are validated first), one commit per file. Resolves to the
+   * URL of the last commit, or throws a message fit to show.
+   */
+  async commitToBase(patches: DataPatch[], by: string, note?: string): Promise<string> {
+    const token = this.env.GITHUB_TOKEN;
+    if (!token) throw new Error('No GITHUB_TOKEN on the server: nothing was committed.');
+    if (!patches.length || !patches.every((p) => validPatch(p))) throw new Error('Those changes are not valid numbers.');
+    const { api, base } = this.github(token);
+    let url = '';
+    let n = 0;
+    for (const file of ['abilities', 'auras', 'specs', 'talents', 'classes'] as const) {
+      const mine = patches.filter((p) => p.file === file);
+      if (!mine.length) continue;
+      const got = (await api(`/contents/${FILES[file]}?ref=${base}`)) as { content: string; sha: string };
+      const text = Buffer.from(got.content, 'base64').toString('utf8');
+      const next = patchJsonText(text, file, mine);
+      if (next === text) continue;
+      const lines = mine.map((p) => `${label(p)}: ${fileValue(text, file, p) ?? '?'} -> ${p.value}`);
+      const res = (await api(`/contents/${FILES[file]}`, {
+        method: 'PUT',
+        body: JSON.stringify({ message: `Dev tuning by ${by}: ${lines.slice(0, 3).join('; ')}${lines.length > 3 ? ` and ${lines.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: got.sha, branch: base }),
+      })) as { commit?: { html_url?: string } };
+      url = res.commit?.html_url ?? url;
+      n++;
+    }
+    if (!n) throw new Error('Nothing changed: those numbers are already what the files have.');
+    return url || `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commits/${base}`;
   }
 
   get notifies(): boolean {

@@ -118,6 +118,8 @@ export type ClientMsg =
   | { t: 'dev_session'; patches: DataPatch[] }
   /** Dev tools: keep these numbers for everyone (live at once, and proposed for the data files). */
   | { t: 'dev_save'; patches: DataPatch[]; note?: string }
+  /** Dev tools: commit these numbers straight to the main branch on GitHub. */
+  | { t: 'dev_commit'; patches: DataPatch[]; note?: string }
   /** Dev tools: a note on a skill, sent to the owner. */
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
@@ -444,12 +446,13 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_pause', on: m.on === true };
     case 'dev_patch':
     case 'dev_session':
+    case 'dev_commit':
     case 'dev_save': {
       const patches = parsePatches(m.patches);
       if (!patches) return null;
       if (m.t === 'dev_patch' || m.t === 'dev_session') return { t: m.t, patches };
       const note = typeof m.note === 'string' ? m.note.slice(0, 600) : undefined;
-      return { t: 'dev_save', patches, ...(note ? { note } : {}) };
+      return { t: m.t === 'dev_commit' ? 'dev_commit' : 'dev_save', patches, ...(note ? { note } : {}) } as ClientMsg;
     }
     case 'dev_note':
     case 'dev_ai':

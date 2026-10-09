@@ -30,6 +30,57 @@ async function world(http?: typeof fetch) {
   return { lobby, dev, devP, bobP, owner, outD, outB, outO, store };
 }
 
+describe('dev commits to GitHub', () => {
+  const abilitiesText = fs.readFileSync(new URL('../../shared/data/abilities.json', import.meta.url), 'utf8');
+  const mkHttp = (calls: { url: string; method: string; body?: any }[]) => (async (url: string, init?: RequestInit) => {
+    const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+    calls.push({ url, method: init?.method ?? 'GET', body });
+    const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+    if (url.includes('/contents/') && (init?.method ?? 'GET') === 'GET') return ok({ content: Buffer.from(abilitiesText).toString('base64'), sha: 'f1' });
+    if (url.includes('/contents/')) return ok({ commit: { html_url: 'https://github.com/TokeGG/mmoarena/commit/abc123' } });
+    return new Response('{}', { status: 404 });
+  }) as typeof fetch;
+
+  it('a dev commits numbers straight to the main branch: the data file only, no branch, no pull request', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    const { lobby, devP, outD } = await world(mkHttp(calls));
+    lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    const put = calls.find((c) => c.method === 'PUT');
+    assert.ok(put, 'one commit');
+    assert.equal(put!.body.branch, 'main');
+    assert.match(put!.url, /shared\/data\/abilities\.json$/);
+    assert.ok(!calls.some((c) => c.url.endsWith('/git/refs') || c.url.endsWith('/pulls')), 'no branch and no pull request');
+    assert.match(String(put!.body.message), /Dee/);
+    const res = last(outD, 'dev_result')!;
+    assert.equal(res.ok, true);
+    assert.match(String((res as any).url), /commit\/abc123/);
+  });
+
+  it('only devs can; a normal account, a guest, and nonsense numbers are refused', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    const { lobby, bobP, devP, outB, outD } = await world(mkHttp(calls));
+    lobby.handle(bobP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(last(outB, 'dev_result')?.ok, false);
+    assert.equal(calls.length, 0, 'nothing reaches GitHub');
+    assert.equal(parseClientMsg(JSON.stringify({ t: 'dev_commit', patches: [{ file: 'server', id: 'x', path: ['a'], value: 1 }] })), null, 'only the data files');
+    lobby.handle(devP, { t: 'dev_commit', patches: [] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(last(outD, 'dev_result')?.ok, false);
+    assert.equal(calls.length, 0);
+  });
+
+  it('without a GitHub token it says so and commits nothing', async () => {
+    const { lobby, devP, outD } = await world();
+    lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 30));
+    const res = last(outD, 'dev_result')!;
+    assert.equal(res.ok, false);
+    assert.match(res.text, /GITHUB_TOKEN/);
+  });
+});
+
 describe('dev tools', () => {
   it('a dev pauses their own match against bots and tries numbers that hold only in it', async () => {
     const { lobby, devP, bobP, outD, outB } = await world();

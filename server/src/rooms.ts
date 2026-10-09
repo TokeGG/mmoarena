@@ -1560,6 +1560,22 @@ export class Lobby {
         })();
         break;
       }
+      case 'dev_commit': {
+        if (!this.isDev(p) || !this.dev) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        const by = p.account?.name ?? p.name;
+        const dev = this.dev;
+        // the owner's choice: a dev's numbers go straight to the main branch (data files only, one commit per file)
+        void (async () => {
+          try {
+            const url = await dev.commitToBase(msg.patches, by, msg.note);
+            void this.adminLog?.add(by, 'committed numbers to GitHub', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
+            send(p, { t: 'dev_result', ok: true, text: `Committed ${msg.patches.length} change${msg.patches.length === 1 ? '' : 's'} to the main branch on GitHub. The game updates when the next deploy finishes.`, url });
+          } catch (e) {
+            send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
+          }
+        })();
+        break;
+      }
       case 'admin_proposals': {
         const access = this.adminAccess(p);
         if (!access || !this.dev) return;
