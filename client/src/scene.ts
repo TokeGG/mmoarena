@@ -10,7 +10,7 @@ import { arenaById, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
-import { modelVersion } from './riggedModels';
+import { modelVersion, modelsSettled } from './riggedModels';
 import { buildArenaEnvironment } from './arenaMap';
 import type { ArenaEnvironment } from './arenaMap';
 import type { Character } from './models';
@@ -279,7 +279,7 @@ export class ArenaScene {
       m.targetRing.position.y = 0.05 - u.y;
       m.group.rotation.y = u.facing;
       const active = u.sheep ? m.sheep : m.character;
-      m.character.root.visible = !u.sheep;
+      m.character.root.visible = !u.sheep && modelsSettled(); // stand-in models stay hidden while the real ones load (no flash after a refresh)
       m.sheep.root.visible = u.sheep;
       active.setState(u.alive, u.stealthed);
       active.pose({ phase: m.phase, move: m.move, casting: u.alive && u.casting, time: nowS + u.id, dt, vf: m.vf, vs: m.vs, air: u.y });
