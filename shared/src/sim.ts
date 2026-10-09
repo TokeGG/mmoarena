@@ -832,6 +832,8 @@ export class ArenaSim {
         if (def.range > 0 && this.gap(u, tgt.pos, tgt.level) > this.reachOf(u, def)) return this.cancelCast(u, 'out of range');
         // a channel that has started keeps ticking when the target steps behind a pillar or wall
         if (!this.canSee(u, tgt)) return this.cancelCast(u, 'target not visible');
+        // but not when it drops to the other side of a floor: nothing ticks through a deck
+        if (def.range > 0 && !this.sees(u, tgt) && this.floorsApart(u, tgt.pos, tgt.level)) return this.cancelCast(u, 'no line of sight');
       }
       c.done = (c.done ?? 0) + 1;
       this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
@@ -1324,9 +1326,9 @@ export class ArenaSim {
   private onZoneFloor(v: Unit, z: { h: number }): boolean {
     return Math.abs(heightAt(this.arena, v.pos.x, v.pos.z, v.level) - z.h) <= 1.6;
   }
-  /** Ground zones that hurt `team`'s units (Flamestrike and the like), for bots to step out of. */
-  hazardsFor(team: TeamId): { x: number; z: number; r: number; id: number; firstAt: number }[] {
-    return this.zones.filter((z) => z.team !== team && z.amount > 0 && !z.smoke && !z.flag && this.time < z.end).map((z) => ({ x: z.x, z: z.z, r: z.r, id: z.id, firstAt: z.firstAt }));
+  /** Ground zones that hurt `team`'s units (Flamestrike and the like), for bots to step out of. With `floor` (a standing height) only the zones on that floor: a Flamestrike below the deck is no danger up on it. */
+  hazardsFor(team: TeamId, floor?: number): { x: number; z: number; r: number; id: number; firstAt: number }[] {
+    return this.zones.filter((z) => z.team !== team && z.amount > 0 && !z.smoke && !z.flag && this.time < z.end && (floor === undefined || Math.abs(floor - z.h) <= 1.6)).map((z) => ({ x: z.x, z: z.z, r: z.r, id: z.id, firstAt: z.firstAt }));
   }
 
   /** Put a unit at a raw position: settles its walkway level, then pushes it out of anything solid at that level. */

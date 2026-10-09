@@ -95,7 +95,7 @@ function gridOf(arena: ArenaDef): Grid {
         if (len > HOP) continue;
         const clearOfDeck = pieces.every((r) => rectDist(q.x, q.z, r) >= R + 0.1);
         if (!clearOfDeck) continue;
-        if (onRamp && h <= STEP_HEIGHT + 0.3) {
+        if (onRamp && h <= STEP_HEIGHT) {
           // the low end of a ramp: walk on and off
           out[gi].push({ to: up, cost: len, jump: false });
           out[up].push({ to: gi, cost: len, jump: false });
