@@ -82,6 +82,12 @@ export interface DevRequestRow {
   issueUrl?: string;
   issueNumber?: number;
   issueError?: string;
+  /** Claude was asked on GitHub to build it (the label was added), by whom and when. */
+  build?: { at: number; by: string };
+  /** The pull request Claude opened for it, and where it stands. */
+  prUrl?: string;
+  prNumber?: number;
+  prState?: 'open' | 'merged' | 'closed';
 }
 /** One answer of the dev panel's Ask Claude chat. */
 export interface ChatTurn {
@@ -190,7 +196,7 @@ export type ClientMsg =
   | { t: 'dev_ai_undo'; turn: string }
   | { t: 'dev_ai_clear'; scope: string }
   /** Dev tools: change requests. `list` shows your own (the owner sees all); done, reopen and delete are the owner's. */
-  | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete'; id?: string }
+  | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete' | 'build' | 'check'; id?: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
   /** Owner or dev: a note for the bots about a match (a live one, or a finished one by its match id); see botnote.ts. */
@@ -573,7 +579,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'dev_ai_clear':
       return typeof m.scope === 'string' && m.scope.length <= 40 ? { t: 'dev_ai_clear', scope: m.scope } : null;
     case 'dev_requests': {
-      if (!['list', 'done', 'reopen', 'delete'].includes(m.op)) return null;
+      if (!['list', 'done', 'reopen', 'delete', 'build', 'check'].includes(m.op)) return null;
       if (m.op !== 'list' && !(typeof m.id === 'string' && /^[0-9a-z]{4,20}$/.test(m.id))) return null;
       return { t: 'dev_requests', op: m.op, ...(typeof m.id === 'string' ? { id: m.id } : {}) };
     }

@@ -98,24 +98,79 @@ export class DevRequests {
       acceptance: d.acceptance, affects: d.affects, needsCode: d.needsCode, tested: tested.slice(0, 40), status: 'open',
     };
     const body = requestText(row);
-    if (this.env.ARENA_DEV_REQUEST_ISSUES === '1' && this.env.GITHUB_TOKEN) {
-      try {
-        // the label first (it starts Claude Code on GitHub); an existing one answers 422
-        await this.api('/labels', { method: 'POST', body: JSON.stringify({ name: REQUEST_LABEL, color: 'a371f7', description: 'Asked for in the game by a dev' }) }).catch(() => undefined);
-        const issue = (await this.api('/issues', { method: 'POST', body: JSON.stringify({ title: `Dev request: ${row.title}`.slice(0, 200), body: body.slice(0, 60000), labels: [REQUEST_LABEL] }) })) as { html_url?: string; number?: number };
-        row.issueUrl = issue.html_url;
-        row.issueNumber = issue.number;
-      } catch (e) {
-        const m = (e as Error).message;
-        row.issueError = /resource not accessible|bad credentials|forbidden|not found|requires authentication/i.test(m)
-          ? `GitHub refused to open the issue: the server's GITHUB_TOKEN needs the Issues "Read and write" permission on the repository. ${m}`
-          : m;
-      }
-    } else if (this.env.ARENA_DEV_REQUEST_ISSUES === '1') row.issueError = 'No GITHUB_TOKEN on the server, so no GitHub issue was opened. The request is saved here.';
+    // an issue is opened for every request (without the label: Claude only starts when the owner presses "Build it with Claude")
+    if (this.env.ARENA_DEV_REQUEST_ISSUES !== '0') await this.openIssue(row);
     this.rows = [row, ...this.rows].slice(0, MAX_ROWS);
     await this.persist();
     void this.post(`📋 **Change request** from **${by}**: ${row.title}\n${row.proposed}\n${row.issueUrl ? `Issue: ${row.issueUrl}` : '(no GitHub issue)'}\n${requestText(row).slice(0, 1200)}`).catch(() => false);
     return { ok: true, row, text: '' };
+  }
+
+  private async openIssue(row: DevRequestRow, labelled = false): Promise<void> {
+    if (!this.env.GITHUB_TOKEN) {
+      row.issueError = 'No GITHUB_TOKEN on the server, so no GitHub issue was opened. The request is saved here.';
+      return;
+    }
+    try {
+      const issue = (await this.api('/issues', { method: 'POST', body: JSON.stringify({ title: `Dev request: ${row.title}`.slice(0, 200), body: requestText(row).slice(0, 60000), ...(labelled ? { labels: [REQUEST_LABEL] } : {}) }) })) as { html_url?: string; number?: number };
+      row.issueUrl = issue.html_url;
+      row.issueNumber = issue.number;
+      delete row.issueError;
+    } catch (e) {
+      const m = (e as Error).message;
+      row.issueError = /resource not accessible|bad credentials|forbidden|not found|requires authentication/i.test(m)
+        ? `GitHub refused to open the issue: the server's GITHUB_TOKEN needs the Issues "Read and write" permission on the repository. ${m}`
+        : m;
+    }
+  }
+
+  /**
+   * Owner: ask Claude on GitHub to build a request. The issue gets the dev-request label, which starts the workflow
+   * (.github/workflows/dev-request.yml): Claude changes the code, runs the checks and opens a pull request the owner merges.
+   */
+  async build(id: string, by: string): Promise<{ ok: boolean; text: string }> {
+    await this.ready;
+    const r = this.rows.find((x) => x.id === id);
+    if (!r) return { ok: false, text: 'That request is gone.' };
+    if (r.build) return { ok: false, text: 'Claude was already asked to build this one.' };
+    if (!r.issueNumber) await this.openIssue(r);
+    if (!r.issueNumber) {
+      await this.persist();
+      return { ok: false, text: r.issueError ?? 'No GitHub issue could be opened.' };
+    }
+    try {
+      await this.api('/labels', { method: 'POST', body: JSON.stringify({ name: REQUEST_LABEL, color: 'a371f7', description: 'Asked for in the game by a dev' }) }).catch(() => undefined);
+      await this.api(`/issues/${r.issueNumber}/labels`, { method: 'POST', body: JSON.stringify({ labels: [REQUEST_LABEL] }) });
+    } catch (e) {
+      return { ok: false, text: `Could not ask Claude on GitHub: ${(e as Error).message}` };
+    }
+    r.build = { at: Date.now(), by };
+    await this.persist();
+    return { ok: true, text: 'Claude was asked to build it on GitHub. A pull request appears here when it is ready (a few minutes).' };
+  }
+
+  /** Look for the pull request Claude opened for a request (by its issue number) and keep where it stands. */
+  async checkPr(id: string): Promise<boolean> {
+    await this.ready;
+    const r = this.rows.find((x) => x.id === id);
+    if (!r || !r.issueNumber || !this.env.GITHUB_TOKEN) return false;
+    try {
+      const list = (await this.api('/pulls?state=all&per_page=50&sort=created&direction=desc')) as { html_url: string; number: number; state: string; merged_at?: string | null; body?: string | null; head?: { ref?: string } }[];
+      const n = r.issueNumber;
+      const pr = list.find((p) => new RegExp(`(^|[^0-9])#${n}([^0-9]|$)`).test(p.body ?? '') || new RegExp(`issue-${n}(\\D|$)`).test(p.head?.ref ?? ''));
+      if (!pr) return false;
+      r.prUrl = pr.html_url;
+      r.prNumber = pr.number;
+      r.prState = pr.merged_at ? 'merged' : pr.state === 'open' ? 'open' : 'closed';
+      if (r.prState === 'merged' && r.status !== 'done') {
+        r.status = 'done';
+        r.doneAt = Date.now();
+      }
+      await this.persist();
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   /** Owner: mark done or open again, or delete. Returns false when there is no such request. */

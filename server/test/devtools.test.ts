@@ -476,3 +476,31 @@ describe('patch versions from dev commits', () => {
     assert.equal(b.commits[0].version, '0.69.8');
   });
 });
+
+import { DevRequests } from '../src/devrequests';
+describe('building a request with Claude on GitHub', () => {
+  it('opens an issue without the label, then labels it on build, and finds the pull request', async () => {
+    const calls: { path: string; method: string; body: any }[] = [];
+    const http = (async (url: string, init: any = {}) => {
+      const path = String(url).replace('https://api.github.com/repos/TokeGG/mmoarena', '');
+      calls.push({ path, method: init.method ?? 'GET', body: init.body ? JSON.parse(init.body) : null });
+      const ok = (b: unknown) => ({ ok: true, status: 200, json: async () => b });
+      if (path === '/issues' && init.method === 'POST') return ok({ html_url: 'https://github.com/x/y/issues/7', number: 7 });
+      if (path.startsWith('/pulls')) return ok([{ html_url: 'https://github.com/x/y/pull/9', number: 9, state: 'open', merged_at: null, body: 'Closes #7', head: { ref: 'claude/issue-7-thing' } }]);
+      return ok({});
+    }) as any;
+    const reqs = new DevRequests(new MemoryStore(), { GITHUB_TOKEN: 't' }, http);
+    const draft = { title: 'Bigger fireball', wants: 'w', current: 'c', proposed: 'p', acceptance: ['a'], affects: ['fireball'], needsCode: 'n' };
+    const { row } = await reqs.file('Dee', 'Fireball', draft as any, []);
+    assert.equal(row!.issueNumber, 7);
+    assert.ok(!calls.find((c) => c.path === '/issues')!.body.labels, 'no label yet: Claude does not start by itself');
+    const r = await reqs.build(row!.id, 'Toke');
+    assert.equal(r.ok, true);
+    assert.ok(calls.some((c) => c.path === '/issues/7/labels' && c.body.labels[0] === 'dev-request'));
+    assert.equal((await reqs.build(row!.id, 'Toke')).ok, false, 'only once');
+    assert.equal(await reqs.checkPr(row!.id), true);
+    const saved = reqs.visible('Toke', true)[0];
+    assert.equal(saved.prNumber, 9);
+    assert.equal(saved.prState, 'open');
+  });
+});

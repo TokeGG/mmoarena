@@ -2136,7 +2136,21 @@ export class Lobby {
           send(p, { t: 'dev_requests', rows: reqs.visible(by, access === 'owner'), all: access === 'owner' });
           break;
         }
+        if (msg.op === 'check' && msg.id) {
+          void reqs.checkPr(msg.id).then(() => this.sendRequests());
+          break;
+        }
+        if (msg.op === 'build') {
+          if (this.ownerOnly(p, 'Asking Claude to build a request') || !msg.id) return;
+          void reqs.build(msg.id, by).then((r) => {
+            send(p, { t: 'dev_result', ok: r.ok, text: r.text });
+            if (r.ok) void this.adminLog?.add(by, 'request: build with Claude', undefined, msg.id);
+            this.sendRequests();
+          });
+          break;
+        }
         if (this.ownerOnly(p, 'Marking or deleting requests') || !msg.id) return;
+        if (msg.op !== 'done' && msg.op !== 'reopen' && msg.op !== 'delete') return;
         void reqs.mark(msg.id, msg.op).then((ok) => {
           if (!ok) return void send(p, { t: 'dev_result', ok: false, text: 'That request is gone.' });
           void this.adminLog?.add(by, `request: ${msg.op}`, undefined, msg.id);
