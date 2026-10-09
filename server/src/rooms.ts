@@ -11,13 +11,15 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import { whereIs } from './geoip';
-import type { AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
+import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
 import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
-import type { AiTune } from './aitune';
+import type { AiTune, StoredTurn } from './aitune';
+import type { DevRequests } from './devrequests';
+import { label as patchLabel } from './devtools';
 import { PlayTime } from './playtime';
 import type { TimeSample } from './playtime';
 import { TIME_IDLE_MS } from '@arena/shared';
@@ -795,7 +797,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private time?: PlayTime) {
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private requests?: DevRequests, private time?: PlayTime) {
     this.tickMs = Math.max(1, Math.round(cfg.tickMs ?? TUNING.tickMs));
     this.meter = new TickMeter(this.tickMs);
     // the saved state, unless the owner already changed it while it loaded
@@ -1166,6 +1168,49 @@ export class Lobby {
   private bringSession(room: Room, p: Player): void {
     if (!p.devSession?.length || !this.isDev(p) || room.isRanked) return; // ranked never silently stops counting
     this.setRoomPatches(room, p, mergePatches(room.devPatches, p.devSession));
+  }
+
+  /** The dev's test numbers now: the match's, or the session's when not in one; in the Tuning tab, what they have proposed and nobody has handled yet. */
+  private testingOf(p: Player, propose = false): DataPatch[] {
+    if (propose) {
+      const by = p.account?.name ?? p.name;
+      return [...(this.dev?.proposals ?? [])].reverse().filter((r) => r.status === 'pending' && r.by === by).reduce<DataPatch[]>((acc, r) => mergePatches(acc, r.patches), []);
+    }
+    return this.devRoom(p)?.devPatches ?? p.devSession ?? [];
+  }
+
+  private setTesting(p: Player, list: DataPatch[]): void {
+    const room = this.devRoom(p);
+    if (room && !room.closed) this.setRoomPatches(room, p, list);
+    else {
+      p.devSession = list;
+      send(p, { t: 'dev_session', patches: list });
+    }
+  }
+
+  /** Claude's changes: tried in the dev's match (or kept for their session), or, in the Tuning tab, added to the proposals list. */
+  private async applyAi(p: Player, rec: StoredTurn): Promise<boolean> {
+    if (rec.propose) {
+      if (!this.dev) return false;
+      const row = await this.dev.propose(p.account?.name ?? p.name, rec.patches, 'Ask Claude');
+      rec.proposalId = row.id;
+      for (const q of this.panelViewers()) send(q, { t: 'proposals', rows: this.dev.proposals });
+    } else {
+      rec.before = this.testingOf(p);
+      this.setTesting(p, mergePatches(rec.before, rec.patches));
+    }
+    rec.applied = true;
+    return true;
+  }
+
+  /** Every dev gets their change requests (the owner all of them). */
+  private sendRequests(): void {
+    if (!this.requests) return;
+    for (const q of this.conns) {
+      if (!this.isDev(q)) continue;
+      const all = this.adminAccess(q) === 'owner';
+      send(q, { t: 'dev_requests', rows: this.requests.visible(q.account?.name ?? q.name, all), all });
+    }
   }
 
   /** The owner (with the code entered this session) or an account the owner gave the 'dev' tag. */
@@ -1672,17 +1717,89 @@ export class Lobby {
       case 'dev_ai': {
         if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         if (!this.ai) return void send(p, { t: 'dev_result', ok: false, text: 'Ask Claude is off on this server.' });
-        // in a match the answer is tried in it; from the menu it goes into the dev's session numbers
-        const room = this.devRoom(p);
+        const who = p.account?.key ?? p.ip;
         const by = p.account?.name ?? p.name;
-        void this.ai.suggest(p.account?.key ?? p.ip, msg.ability, msg.text, room ? room.devPatches : p.devSession ?? []).then((r) => {
-          if (r.ok && room && !room.closed) this.setRoomPatches(room, p, mergePatches(room.devPatches, r.patches));
-          else if (r.ok && !room) {
-            p.devSession = mergePatches(p.devSession ?? [], r.patches);
-            send(p, { t: 'dev_session', patches: p.devSession });
+        const scope = msg.classId ? `class:${msg.classId}` : msg.ability;
+        const scopeName = msg.classId ? CLASSES[msg.classId].name : ABILITIES[msg.ability]?.name ?? msg.ability;
+        const propose = !!msg.propose;
+        void this.ai.chat(who, msg.ability, msg.classId, msg.text, this.testingOf(p, propose)).then(async (a) => {
+          const rec = this.ai?.turn(who, a.turn);
+          const changes: ChatChange[] = a.patches.map((x) => ({ label: patchLabel(x), from: currentValue(x) ?? null, to: x.value }));
+          let applied = false;
+          if (rec && a.patches.length) rec.propose = propose;
+          if (rec && a.patches.length && a.confident) applied = await this.applyAi(p, rec);
+          const turn: ChatTurn = { id: a.turn, kind: a.kind, scope, text: a.text, ...(a.questions.length ? { questions: a.questions } : {}), ...(changes.length ? { changes, applied, patches: a.patches, ...(rec?.proposalId ? { proposalId: rec.proposalId } : {}) } : {}), ...(a.dropped.length ? { dropped: a.dropped } : {}) };
+          if (a.ok && a.kind === 'request' && a.request) {
+            if (!this.requests) {
+              turn.kind = 'error';
+              turn.text = `${a.text} (Requests are not set up on this server, so nothing was filed.)`;
+            } else {
+              const tested: ChatChange[] = this.testingOf(p, propose).slice(0, 40).map((x) => ({ label: patchLabel(x), from: currentValue(x) ?? null, to: x.value }));
+              const r = await this.requests.file(by, scopeName, a.request, tested);
+              if (!r.ok || !r.row) {
+                turn.kind = 'error';
+                turn.text = r.text;
+              } else {
+                const row = r.row;
+                turn.request = { id: row.id, title: row.title, ...(row.issueUrl ? { issueUrl: row.issueUrl, issueNumber: row.issueNumber } : {}), ...(row.issueError ? { issueError: row.issueError } : {}) };
+                turn.text = `${a.text}\n\nThat needs a code change. I have saved it as a request for the owner with the full details ("${row.title}"); you can follow its status in the dev panel.${row.issueUrl ? ` A GitHub issue was opened too: ${row.issueUrl}` : ''}${row.issueError ? `\n\nThe GitHub issue could not be opened (${row.issueError}). The request is saved for the owner anyway.` : ''}`;
+                this.sendRequests();
+              }
+            }
           }
-          void this.adminLog?.add(by, 'ask Claude', ABILITIES[msg.ability]?.name ?? msg.ability, `${msg.text} → ${r.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', ') || 'no change'}`);
-          send(p, { t: 'dev_result', ok: r.ok, text: !r.ok ? `🤖 ${r.text}` : room ? `🤖 ${r.text} (trying it in this match now; "Keep for my session" or "Save for everyone" to keep it)` : `🤖 ${r.text} (kept for your session: every match you start uses it)` });
+          if (rec) rec.view = turn;
+          void this.adminLog?.add(by, 'ask Claude', scopeName, `${msg.text} → ${turn.kind}${a.patches.length ? `: ${a.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', ')}` : ''}${turn.request ? ` (request ${turn.request.id})` : ''}`);
+          send(p, { t: 'dev_chat', turn });
+        });
+        break;
+      }
+      case 'dev_ai_apply':
+      case 'dev_ai_undo': {
+        if (!this.isDev(p) || !this.ai) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        const rec = this.ai.turn(p.account?.key ?? p.ip, msg.turn);
+        if (!rec?.view) return void send(p, { t: 'dev_result', ok: false, text: 'That answer is too old to change. Ask again.' });
+        const view = rec.view;
+        void (async () => {
+          if (msg.t === 'dev_ai_apply') {
+            if (!rec.applied) await this.applyAi(p, rec);
+          } else if (rec.applied) {
+            if (rec.propose) {
+              // the proposal it made is taken off the list
+              if (rec.proposalId && this.dev) {
+                await this.dev.actOn('dismiss', [rec.proposalId], p.account?.name ?? p.name);
+                for (const q of this.panelViewers()) send(q, { t: 'proposals', rows: this.dev.proposals });
+              }
+              rec.proposalId = undefined;
+            } else {
+              const k = (x: DataPatch) => `${x.file}:${x.id}:${x.path.join('.')}`;
+              const keys = new Set(rec.patches.map(k));
+              this.setTesting(p, [...this.testingOf(p).filter((x) => !keys.has(k(x))), ...(rec.before ?? []).filter((x) => keys.has(k(x)))]);
+            }
+            rec.applied = false;
+          }
+          const { proposalId: _drop, ...rest } = view;
+          rec.view = { ...rest, applied: rec.applied, ...(rec.proposalId ? { proposalId: rec.proposalId } : {}) };
+          send(p, { t: 'dev_chat', turn: rec.view });
+        })();
+        break;
+      }
+      case 'dev_ai_clear':
+        if (this.isDev(p)) this.ai?.clear(p.account?.key ?? p.ip, msg.scope);
+        break;
+      case 'dev_requests': {
+        const access = this.adminAccess(p);
+        if (!this.isDev(p) || !this.requests) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        const reqs = this.requests;
+        const by = p.account?.name ?? p.name;
+        if (msg.op === 'list') {
+          send(p, { t: 'dev_requests', rows: reqs.visible(by, access === 'owner'), all: access === 'owner' });
+          break;
+        }
+        if (this.ownerOnly(p, 'Marking or deleting requests') || !msg.id) return;
+        void reqs.mark(msg.id, msg.op).then((ok) => {
+          if (!ok) return void send(p, { t: 'dev_result', ok: false, text: 'That request is gone.' });
+          void this.adminLog?.add(by, `request: ${msg.op}`, undefined, msg.id);
+          this.sendRequests();
         });
         break;
       }

@@ -19,7 +19,7 @@ async function world(store = new MemoryStore(), clock = { t: T0 }) {
     return r.ok ? r.account : (await accounts.get(n))!;
   };
   const time = new PlayTime(store, () => clock.t);
-  const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0, now: () => clock.t }, accounts, undefined, undefined, undefined, undefined, undefined, time);
+  const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0, now: () => clock.t }, accounts, undefined, undefined, undefined, undefined, undefined, undefined, time);
   const outs = new Map<string, ServerMsg[]>();
   const connect = (name: string, account?: any, ownerOk = false) => {
     const out: ServerMsg[] = [];

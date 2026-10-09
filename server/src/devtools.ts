@@ -347,16 +347,21 @@ export class DevTools {
 
   /** A dev's note on a skill, posted to the owner's Discord with the skill's numbers as they are now. */
   async note(by: string, abilityId: string, text: string, testing: DataPatch[] = []): Promise<boolean> {
-    if (!this.webhook) return false;
     const def = ABILITIES[abilityId];
     const mine = testing.filter((p) => p.id === abilityId || def?.effects.some((e) => e.type === 'aura' && e.aura === p.id));
     const content = [
       `📝 **Skill note** on **${def?.name ?? abilityId}** from **${by}**`,
       text,
       ...(mine.length ? ['Testing with: ' + mine.map((p) => `${label(p)} ${currentValue(p) ?? '?'} → ${p.value}`).join(', ')] : []),
-    ].join('\n').slice(0, 1900);
+    ].join('\n');
+    return this.post(content);
+  }
+
+  /** A line to the owner's Discord (dev notes webhook); false when there is none or it failed. */
+  async post(text: string): Promise<boolean> {
+    if (!this.webhook) return false;
     try {
-      const r = await this.http(this.webhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content, allowed_mentions: { parse: [] } }) });
+      const r = await this.http(this.webhook, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ content: text.slice(0, 1900), allowed_mentions: { parse: [] } }) });
       return r.ok;
     } catch {
       return false;

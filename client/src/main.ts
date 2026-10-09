@@ -30,6 +30,7 @@ import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel, adminAccessOf } from './adminPanel';
+import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
 import { Recap } from './recap';
@@ -430,9 +431,15 @@ function onMessage(raw: MessageEvent) {
     case 'dev_commits':
       devPanel.handle(m);
       break;
+    case 'dev_chat':
+    case 'dev_requests':
+      designer.handle(m);
+      adminPanel.handle(m);
+      break;
     case 'dev_result':
       if (!m.ok && latest) hud.error(m.text); // a refusal is said where it is seen, not only in the panel
       devPanel.handle(m);
+      designer.handle(m);
       accountUi.handle(m);
       adminPanel.handle(m);
       break;
