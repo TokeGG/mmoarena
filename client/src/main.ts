@@ -3,6 +3,7 @@ import { helpWindow } from './tourUi';
 import { ABILITIES, AURAS, ARENAS, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
+import { UpdateNotice } from './updateNotice';
 import { ArenaScene, fallToward } from './scene';
 import { menuSpots } from './lobbySpot';
 import { preloadRiggedModels } from './riggedModels';
@@ -1338,7 +1339,7 @@ let lastBuilds: UnitBuild[] = [];
 let buildsAsked = false;
 /** The numbers this client plays with: data files, then saved dev changes, then a dev's test numbers. */
 const dataLayers = new DataLayers();
-const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass }, dataLayers);
+const devPanel = new DevPanel({ send: (m) => accountUi.sendRaw(m), builds: () => lastBuilds, myBar: () => bar, youId: () => you, spectating: () => !!spec, mapId: () => arena.id, isOwner: () => !!accountUi.account?.ownerOk, menuClass: () => mainMenu.selectedClass }, dataLayers);
 /** The owner (unlocked this session) or an account with the dev tag. */
 const isDev = () => !!accountUi.account && (!!accountUi.account.ownerOk || accountUi.account.grants.includes('dev'));
 const spectateBar = new SpectateBar({
@@ -1560,6 +1561,7 @@ function joinMsg(text: string) {
 
 /** Open the socket (once) and resolve true when it is usable. A saved session is resumed on every open. */
 let connecting: Promise<boolean> | null = null;
+const updateNotice = new UpdateNotice(pkg.version);
 /**
  * Signed in, you stay connected even at the menu: friends see you online and can invite you. Leaving a match closes the
  * socket, so without this a friend who just finished a match showed as offline until they refreshed.
@@ -1590,6 +1592,7 @@ function connect(): Promise<boolean> {
     sock.onmessage = onMessage;
     sock.onclose = () => {
       resolve(false);
+      updateNotice.afterDrop();
       if (ws !== sock) return;
       ws = null;
       audio.stopAmbience();
@@ -1856,3 +1859,4 @@ tours.setHost({
 if (accountUi.token) waitForTourSync();
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;
+updateNotice.watch();

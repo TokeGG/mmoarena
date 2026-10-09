@@ -189,6 +189,8 @@ export type ClientMsg =
   | { t: 'dev_requests'; op: 'list' | 'done' | 'reopen' | 'delete'; id?: string }
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
+  /** Owner only, in the match being played or watched: kill a unit, kick its player off the server, or ban its account. */
+  | { t: 'dev_unit'; unit: number; op: 'kill' | 'kick' | 'ban'; minutes?: number; reason?: string }
   /** Owner, dev test matches: move the running match to another map. */
   | { t: 'dev_map'; id: string }
   /** Dev tools: give a bot in the dev's match another class and build, on the fly. */
@@ -555,6 +557,12 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_builds' };
     case 'dev_restart':
       return { t: 'dev_restart' };
+    case 'dev_unit': {
+      if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || m.unit < 1 || !['kill', 'kick', 'ban'].includes(m.op)) return null;
+      const minutes = typeof m.minutes === 'number' && Number.isFinite(m.minutes) ? Math.max(0, Math.min(525600, Math.round(m.minutes))) : undefined;
+      const reason = typeof m.reason === 'string' ? m.reason.trim().slice(0, 200) : '';
+      return { t: 'dev_unit', unit: m.unit, op: m.op, ...(minutes !== undefined ? { minutes } : {}), ...(reason ? { reason } : {}) };
+    }
     case 'dev_map':
       return typeof m.id === 'string' && ARENAS.some((a) => a.id === m.id) ? { t: 'dev_map', id: m.id } : null;
     case 'dev_bot': {
