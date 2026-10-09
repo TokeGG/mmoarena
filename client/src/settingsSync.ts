@@ -9,6 +9,7 @@
  * elsewhere since, and two accounts on one browser each keep their own base.
  */
 import { MAX_SETTINGS } from '@arena/shared';
+import { TOURS_KEY, unionSeen } from './tourLogic';
 
 /** Never synced: credentials, per-browser guest progress, the signed-in name, the one-off login prompt flag and the bases. */
 const BASE_PREFIX = 'arena.syncBase';
@@ -73,7 +74,8 @@ export function mergeSettings(base: Snapshot | null, local: Snapshot, theirs: Sn
     const l = local[k];
     const t = theirs[k];
     let v: string | undefined;
-    if (!base) v = t ?? l; // first time on this browser for this account: the account's copy, plus anything only kept here
+    if (k === TOURS_KEY && l !== undefined && t !== undefined && l !== t && (!base || (l !== b && t !== b))) v = unionSeen(l, t); // a tour seen on either device stays seen
+    else if (!base) v = t ?? l; // first time on this browser for this account: the account's copy, plus anything only kept here
     else if (l === b) v = t; // unchanged here: whatever the server has (changed or removed on another device)
     else v = l; // changed here (whether or not it also changed elsewhere): this browser's value
     if (v !== undefined) out[k] = v;

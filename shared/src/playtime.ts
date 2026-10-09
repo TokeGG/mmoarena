@@ -31,6 +31,23 @@ export interface TimeRecord {
   days: TimeBuckets;
 }
 
+/** Hours of server health kept. */
+export const HEALTH_HOURS = 72;
+
+/** How the server loop coped during one UTC hour (`h` is the hour counted from 1970, so it sorts and never repeats). */
+export interface HealthHour {
+  h: number;
+  /** Ticks run, milliseconds spent running them, and the ones that were late (took over a step or started over two steps late). */
+  ticks: number;
+  busyMs: number;
+  late: number;
+  /** The slowest single tick, and the most people online. */
+  maxMs: number;
+  peakOnline: number;
+  /** Milliseconds per tick the server ran at. */
+  stepMs: number;
+}
+
 /** The whole server: accounts and guests together, with the guests also on their own. */
 export interface TimeGlobal {
   since: number;

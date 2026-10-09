@@ -1,10 +1,11 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
-import type { Build, DevCommitRow, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
+import type { Build, DevCommitRow, DevPageId, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
 import { cycleArena } from './mapCycle';
 import { DevWorkspace } from './devPages';
+import { tours } from './tour';
 import { designer } from './designer';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -406,6 +407,7 @@ export class DevPanel {
         this.hooks.send({ t: 'dev_pause', on: true });
       }
       this.paint();
+      tours.autoRun('devpanel', true); // the first time ever: how the window works
     } else if (this.autoPaused) {
       this.autoPaused = false;
       if (this.paused) this.hooks.send({ t: 'dev_pause', on: false });
@@ -609,6 +611,15 @@ export class DevPanel {
     return ids;
   }
 
+  /** The guided tour shows a part of the window: a section, a page of the Edit values section, the Changes list, the setups box. */
+  tourShow(o: { section?: 'values' | 'match' | 'ask'; page?: DevPageId; drawer?: boolean; setups?: boolean }) {
+    if (o.section) this.section = o.section;
+    if (o.page) this.ws.page = o.page;
+    if (o.drawer !== undefined) this.drawerOpen = o.drawer;
+    if (o.setups !== undefined) this.setupsOpen = o.setups;
+    if (this.open) this.paint();
+  }
+
   /** Everything to send with "Keep", "Send" and "Commit": what is in effect, minus what was put back, plus what was typed. */
   private toSend(): DataPatch[] {
     return this.edits.patches(this.inEffect());
@@ -639,6 +650,7 @@ export class DevPanel {
     title.append(el('small', 'devp-dim', this.inMatch ? (room ? `${room} test number${room === 1 ? '' : 's'} in this match` : 'Real numbers') : 'Menu'));
     head.append(title);
     const secs = el('div', 'devp-sections');
+    secs.dataset.tour = 'dev-sections'; // the guided tours point at these (tourData.ts)
     for (const [id, label] of [['values', 'Edit values'], ['match', 'Match tools'], ['ask', 'Ask Claude']] as const) {
       const b = el('button', `devp-sec-tab${this.section === id ? ' sel' : ''}`, label);
       b.addEventListener('click', () => {
@@ -689,7 +701,7 @@ export class DevPanel {
     if (drawer) drawer.scrollTop = keep.drawer;
   }
 
-  /** The actions, always in view: try the changes, keep them, send them, commit them, redeploy, put everything back. */
+  /** The actions, always in view: try the changes, keep them, send them, put everything back. */
   private toolbar(): HTMLElement {
     const acts = el('div', 'devp-toolbar');
     const tryIt = el('button', 'mm-small mm-go', 'Try in this match');
@@ -731,6 +743,7 @@ export class DevPanel {
       this.paint();
     });
     this.changesBtn = changes;
+    for (const [b, id] of [[tryIt, 'try'], [keep, 'keep'], [save, 'send'], [reset, 'reset'], [changes, 'changes']] as const) b.dataset.tour = `dev-${id}`;
     if (this.inMatch) acts.append(tryIt, keep, save, reset, changes);
     else acts.append(keep, save, reset, changes);
     return acts;
@@ -739,6 +752,7 @@ export class DevPanel {
   /** The "changes so far" list with the session's numbers and the recent commits. */
   private drawer(): HTMLElement {
     const box = el('div', 'devp-drawer');
+    box.dataset.tour = 'dev-drawer';
     box.append(el('b', '', 'Changes so far'));
     const list = el('div');
     list.append(this.ws.changesList());

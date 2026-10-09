@@ -2,7 +2,7 @@ import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS } from './data';
 import { PATCH_FILES, validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
-import type { TimeGlobal, TimeRecord, TimeRow } from './playtime';
+import type { HealthHour, TimeGlobal, TimeRecord, TimeRow } from './playtime';
 import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
 import type { ClassKnowledge, LearnReport, LiveLearning } from './learnreport';
 import type { SlimSnapshot, UnitInfo } from './snapslim';
@@ -273,7 +273,7 @@ export type ServerMsg =
   | { t: 'admin_overview'; /** How the server loop copes (owner only). */ tick?: { ms: number; avgMs: number; maxMs: number; load: number; late: number; worstMs: number; rooms: number }; online: number; /** Everyone connected, guests too (owner only). */ players?: AdminOnline[]; queued: number; rooms: AdminRoom[]; uptimeMs?: number; version?: string; accounts?: number; overrides?: number; maintenance?: string | null; /** Saving numbers also opens a GitHub pull request (GITHUB_TOKEN is set). */ pullRequests?: boolean; /** Skill notes reach Discord. */ notes?: boolean; /** The dev panel's Ask Claude box works (ANTHROPIC_API_KEY is set). */ ai?: boolean; /** The bots train on every finished match (the owner's switch). */ autoTrain?: boolean }
   | { t: 'admin_log'; rows: AdminLogRow[] }
   /** Owner only: play time of the whole server (summary and a table, most time first), or of one player. */
-  | { t: 'admin_time'; global: TimeGlobal; rows: TimeRow[] }
+  | { t: 'admin_time'; global: TimeGlobal; rows: TimeRow[]; health?: HealthHour[] }
   | { t: 'admin_time_player'; name: string; rec: TimeRecord | null }
   | { t: 'admin_history'; name: string; rows: MatchRecord[] }
   /** Every match played on the server (the owner's match list). */

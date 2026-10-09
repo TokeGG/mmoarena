@@ -1,8 +1,8 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { emptyCats } from '@arena/shared';
-import type { TimeRow } from '@arena/shared';
-import { colValue, lastDays, sortRows, span, topBars } from '../src/timeUi';
+import type { HealthHour, TimeRow } from '@arena/shared';
+import { busiestHours, colValue, healthSummary, hourLoad, lastDays, sortRows, span, topBars } from '../src/timeUi';
 
 const row = (name: string, o: Partial<ReturnType<typeof emptyCats>>, last = 0): TimeRow => {
   const cat = { ...emptyCats(), ...o };
@@ -44,5 +44,33 @@ describe('play time view helpers', () => {
     assert.equal(d.at(-1)!.ms, 5);
     assert.equal(d[0].key, '20260910');
     assert.equal(d.reduce((a, b) => a + b.ms, 0), 5, 'older days fall off');
+  });
+});
+
+describe('busiest hours and server health helpers', () => {
+  it('lists the three busiest hours with their share', () => {
+    const hours = Array(24).fill(0);
+    hours[16] = 600;
+    hours[14] = 300;
+    hours[9] = 100;
+    hours[3] = 50;
+    const top = busiestHours(hours);
+    assert.deepEqual(top.map((x) => x.hour), [16, 14, 9]);
+    assert.ok(Math.abs(top[0].share - 600 / 1050) < 1e-9);
+    assert.deepEqual(busiestHours(Array(24).fill(0)), []);
+  });
+
+  it('summarises load, late ticks and the worst hour', () => {
+    const h = (n: number, busy: number, late: number, maxMs = 5, peakOnline = 2): HealthHour => ({ h: 100 + n, ticks: 1000, busyMs: busy * 1000 * 50, late, maxMs, peakOnline, stepMs: 50 });
+    const list = [h(0, 0.2, 0), h(1, 0.8, 30, 90, 6), h(2, 0.4, 0)];
+    assert.ok(Math.abs(hourLoad(list[1]) - 0.8) < 1e-9);
+    const s = healthSummary(list);
+    assert.ok(Math.abs(s.avgLoad - 0.4667) < 1e-3);
+    assert.equal(s.peakHour, 101);
+    assert.equal(s.late, 30);
+    assert.equal(s.maxMs, 90);
+    assert.equal(s.peakOnline, 6);
+    assert.ok(Math.abs(s.lateShare - 0.01) < 1e-9);
+    assert.deepEqual(healthSummary([]).peakHour, null);
   });
 });

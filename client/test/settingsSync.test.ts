@@ -135,3 +135,27 @@ describe('settings sync', () => {
     assert.equal(sent.length, 1, 'retried once the connection is back');
   });
 });
+
+describe('seen tours follow the account', () => {
+  const K = 'arena.tours.v1';
+  it('is synced like every arena.* key and survives parsing', () => {
+    store.clear();
+    store.set(K, '{"menu":5}');
+    assert.deepEqual(snapshotSettings(), { [K]: '{"menu":5}' });
+    assert.deepEqual(parseSettings(JSON.stringify({ [K]: '{"menu":5}' })), { [K]: '{"menu":5}' });
+  });
+
+  it('merges the lists of two devices: a tour seen on either stays seen', () => {
+    const base = { [K]: '{"menu":1}' };
+    const local = { [K]: '{"menu":1,"hud":9}' };
+    const theirs = { [K]: '{"menu":1,"build":4}' };
+    const both = JSON.parse(mergeSettings(base, local, theirs)[K]);
+    assert.equal(both.hud, 9);
+    assert.equal(both.build, 4);
+    // a first sync on this browser: tours seen here as a guest are kept next to the account's
+    const first = mergeSettings(null, { [K]: '{"watch":2}' }, { [K]: '{"menu":3}' });
+    assert.deepEqual(JSON.parse(first[K]), { menu: 3, watch: 2 });
+    // changed only on the other device: taken as it is
+    assert.equal(mergeSettings(base, base, theirs)[K], theirs[K]);
+  });
+});

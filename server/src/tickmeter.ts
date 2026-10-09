@@ -32,6 +32,10 @@ export class TickMeter {
   private highSince = -1;
   private lastWarn = -1e12;
   private warnedSec = -1;
+  private ticks = 0;
+  private lateTicks = 0;
+  private busyMs = 0;
+  private slowest = 0;
 
   constructor(readonly tickMs: number, private clock: () => number = () => performance.now()) {}
 
@@ -39,6 +43,10 @@ export class TickMeter {
   record(startedAt: number, spent: number): boolean {
     const late = spent > this.tickMs || (this.lastStart >= 0 && startedAt - this.lastStart > this.tickMs * 2);
     this.lastStart = startedAt;
+    this.ticks++;
+    this.busyMs += spent;
+    if (late) this.lateTicks++;
+    if (spent > this.slowest) this.slowest = spent;
     if (spent > this.worst) this.worst = spent;
     const sec = Math.floor(startedAt / 1000);
     let b = this.buckets[this.buckets.length - 1];
@@ -64,6 +72,13 @@ export class TickMeter {
       }
     }
     return false;
+  }
+
+  /** Everything counted since the last call (for the hourly health record); the slowest tick starts over too. */
+  drain(): { ticks: number; late: number; busyMs: number; maxMs: number } {
+    const out = { ticks: this.ticks, late: this.lateTicks, busyMs: this.busyMs, maxMs: this.slowest };
+    this.ticks = this.lateTicks = this.busyMs = this.slowest = 0;
+    return out;
   }
 
   report(): TickReport {

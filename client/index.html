@@ -761,6 +761,17 @@
   .tm-line { display:grid; grid-template-columns:minmax(80px, 34%) 1fr auto; gap:8px; align-items:center; font-size:12px; padding:2px 0; } .tm-lbl { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; } .tm-val { color:#a99cc4; white-space:nowrap; }
   .tm-bar { height:10px; background:#2a2240; border-radius:5px; overflow:hidden; } .tm-bar i { display:block; height:100%; background:#8f6cf0; border-radius:5px; } .tm-none { color:#8f84a8; display:block; margin-top:4px; }
   .tm-days, .tm-hours { display:flex; align-items:flex-end; gap:2px; height:64px; } .tm-day, .tm-hour { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; position:relative; } .tm-day i, .tm-hour i { display:block; width:100%; background:#8f6cf0; border-radius:2px 2px 0 0; min-height:2px; } .tm-hour small { position:absolute; bottom:-14px; left:0; right:0; text-align:center; font-size:9px; color:#8f84a8; } .tm-hours { margin-bottom:16px; }
+  .tm-hhead { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:4px; } .tm-hhead h4 { margin:0; }
+  .tm-hbest { color:#ffd24a; font-size:13px; margin:2px 0 18px; }
+  .tm-hours .tm-hour { background:linear-gradient(#2a2240,#2a2240) bottom/100% 1px no-repeat; }
+  .tm-hours { height:96px; } .tm-hours.tm-long { height:80px; gap:1px; margin-bottom:22px; }
+  .tm-hours.tm-long .tm-hour small { left:50%; right:auto; transform:translateX(-50%); white-space:nowrap; }
+  .tm-hour i { background:#5d4a92; } .tm-hour.top0 i { background:#ffd24a; } .tm-hour.top1 i, .tm-hour.top2 i { background:#b79bff; }
+  .tm-hour em { position:absolute; top:-15px; left:50%; transform:translateX(-50%); font-style:normal; font-size:10px; color:#ffd24a; white-space:nowrap; } .tm-hour.top1 em, .tm-hour.top2 em { color:#d3c2ff; }
+  .tm-hour small { color:#a79cc0; }
+  .tm-hour.cool i { background:#4cc38a; } .tm-hour.warm i { background:#e0b341; } .tm-hour.hot i { background:#ef5b5b; } .tm-hour.gap i { background:#2a2240; }
+  .tm-hchart { margin-top:16px; } .tm-hlabel { display:block; color:#a79cc0; margin-bottom:6px; }
+  .admp-stat.bad b { color:#ff7a6b; } .admp-stat.warn b { color:#e0b341; }
   .tm-table { width:100%; border-collapse:collapse; font-size:12px; margin-top:6px; } .tm-table th, .tm-table td { padding:5px 6px; border-top:1px solid #241f30; text-align:right; white-space:nowrap; } .tm-table th:first-child, .tm-table td:first-child { text-align:left; } .tm-table th { color:#a99cc4; font-weight:600; } .tm-sortable { cursor:pointer; } .tm-sortable.sel { color:#fff; } .tm-table tbody tr { cursor:pointer; } .tm-table tbody tr:hover, .tm-table tr.sel { background:#241f30; } .tm-ago { color:#8f84a8; }
   .tm-dhead { display:flex; align-items:center; justify-content:space-between; } .tm-dhead h3 { margin:0; } .tm-detail { border:1px solid #5a43a8; border-radius:10px; padding:10px; margin:10px 0; }
   .adm-state { margin:6px 0; padding:6px 8px; border-radius:8px; font-size:12px; } .adm-state.bad { background:#3a1414; color:#ffb0a8; } .adm-state.warn { background:#3a3012; color:#ffd98a; } .adm-state.ok { background:#123a1e; color:#a8f0b8; } .admp-win { color:#ffd98a; } .admp-upload { position:relative; cursor:pointer; } .admp-upload input { display:none; } a.mm-small { text-decoration:none; display:inline-block; }
@@ -1169,6 +1180,49 @@ input, textarea, select, [contenteditable] { -webkit-user-select:text; user-sele
   body.spectating .rot-hint { display:block; position:fixed; top:calc(68px + var(--sat)); left:50%; transform:translateX(-50%); z-index:39; padding:6px 12px; border-radius:999px; background:rgba(14,17,24,.9); border:1px solid #3a4258; font-size:12px; color:#cfd6e6; pointer-events:none; white-space:nowrap; animation:rotHint 7s forwards; }
 }
 @keyframes rotHint { 0%,75% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
+
+/* ---- guided tours (tour.ts): above every panel and menu; the match tour (.hint) leaves the match clickable ---- */
+.tour { position:fixed; inset:0; z-index:9800; opacity:0; transition:opacity .15s; }
+.tour.shown { opacity:1; }
+.tour.hint { pointer-events:none; }
+.tour-dim { position:absolute; inset:0; background:rgba(4,3,8,.74); display:none; }
+.tour.modal.nospot .tour-dim { display:block; }
+.tour-spot { position:absolute; border-radius:8px; border:2px solid #ffd24a; box-shadow:0 0 0 100vmax rgba(4,3,8,.74), 0 0 18px 2px rgba(255,210,74,.55); pointer-events:none; }
+.tour.hint .tour-spot { box-shadow:0 0 18px 2px rgba(255,210,74,.65); animation:tourPulse 1.4s ease-in-out infinite alternate; }
+.tour.nospot .tour-spot { display:none; }
+@keyframes tourPulse { from { border-color:#ffd24a; } to { border-color:#fff1b0; } }
+.tour-card { position:fixed; box-sizing:border-box; width:340px; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px); max-height:calc(100dvh - 16px); overflow:auto; padding:14px 16px 12px; border:2px solid var(--gold); border-radius:12px; background:linear-gradient(180deg,rgba(40,34,28,.99),rgba(14,12,10,.99)); color:#e9dcc0; box-shadow:0 14px 44px rgba(0,0,0,.8); pointer-events:auto; font:14px/1.45 system-ui,sans-serif; }
+.tour-head { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+.tour-title { flex:1; font:700 16px var(--serif); color:#f0c260; letter-spacing:.5px; }
+.tour-count { font-size:12px; color:#a79d88; white-space:nowrap; }
+.tour-text { margin-bottom:12px; }
+.tour-btns { display:flex; gap:8px; align-items:center; }
+.tour-gap { flex:1; }
+.tour-btns button { min-height:36px; padding:6px 14px; border-radius:8px; border:1px solid var(--gold-d); background:#1d1b20; color:#e9dcc0; cursor:pointer; font:600 13px system-ui,sans-serif; }
+.tour-btns button:hover, .tour-btns button:focus-visible { border-color:var(--gold); outline:none; }
+.tour-btns .tour-next { background:linear-gradient(#f0c260,#b0781c); border-color:#5c3d08; color:#2a1900; }
+.tour-btns .tour-skip { background:none; border-color:transparent; color:#a79d88; text-decoration:underline; padding-left:0; }
+.tour-btns [hidden] { display:none; }
+/* a phone: the card is docked to the bottom (or the top, when what it points at is low on the screen) with big buttons */
+@media (max-width:600px) {
+  .tour-card.dock { left:calc(8px + var(--sal)); right:calc(8px + var(--sar)); width:auto; bottom:calc(8px + var(--sab)); max-height:calc(50vh - 8px); max-height:calc(50dvh - 8px); font-size:15px; }
+  .tour-card.dock-top { bottom:auto; top:calc(8px + var(--sat)); }
+  .tour-btns button { min-height:48px; padding:8px 16px; font-size:15px; }
+}
+@media (pointer:coarse) { .tour-btns button { min-height:48px; } }
+body.tour-open { overscroll-behavior:none; }
+.tour-help { position:fixed; inset:0; z-index:9700; background:rgba(4,3,6,.78); display:flex; align-items:center; justify-content:center; padding:8px; }
+.tour-help-card { width:min(560px,100%); max-height:90vh; max-height:90dvh; overflow:auto; box-sizing:border-box; background:var(--panel2); border:2px solid var(--gold); border-radius:14px; padding:18px 20px; box-shadow:0 24px 70px rgba(0,0,0,.85); color:#e9dcc0; }
+.tour-list { display:grid; gap:8px; }
+.tour-group { margin:10px 0 0; font:700 12px var(--serif); letter-spacing:2px; text-transform:uppercase; color:#a79d88; }
+.tour-row { display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid #2b2830; border-radius:10px; background:#15141a; }
+.tour-info { flex:1; min-width:0; }
+.tour-blurb { font-size:12px; color:#a79d88; }
+.tour-new, .tour-seen { margin-left:8px; font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.tour-new { color:#ffd24a; } .tour-seen { color:#6f6a5c; }
+.tour-say { min-height:1em; font-size:12px; color:#ffb0a8; }
+#menu-tours { grid-column:1 / -1; }
+.mm-esc .tour-help-link { display:inline; margin:0; font-size:inherit; }
 </style>
 </head>
 <body>
@@ -1211,6 +1265,7 @@ input, textarea, select, [contenteditable] { -webkit-user-select:text; user-sele
         <div class="m-tiles">
           <button id="menu-controls" class="tile"><span class="bi">⌨</span>Controls &amp; keys</button>
           <button id="menu-hud" class="tile"><span class="bi">▦</span>Edit HUD layout</button>
+          <button id="menu-tours" class="tile"><span class="bi">?</span>Help &amp; tours</button>
         </div>
         <div class="m-settings">
           <div class="srow"><span class="sl">Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /><b class="sw"></b> <span id="auto-toggle-val">On</span></label></div>
