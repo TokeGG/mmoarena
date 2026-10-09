@@ -10,6 +10,8 @@ import { TimeView } from './timeUi';
 import { mapName } from './spectate';
 import { makeResizable } from './resizable';
 import type { Popup } from './popups';
+import { tours } from './tour';
+import { toursList } from './tourUi';
 
 /** The panel's access for an account (the server decides for real; this only shapes what is shown). */
 export function adminAccessOf(a: AccountInfo | null): 'owner' | 'dev' | null {
@@ -27,7 +29,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'requests' | 'server' | 'log';
+export type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'requests' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
@@ -181,7 +183,21 @@ export class AdminPanel {
     }
     this.refresh();
     this.paint();
+    this.tourMoment();
   }
+
+  /** The first time ever on the panel (or on its Tuning tab) a dev is walked through it. */
+  private tourMoment() {
+    tours.autoRun(this.tab === 'tuning' ? 'tuning' : 'admin', true);
+  }
+
+  /** Show a tab (the tours open the panel on the tab they talk about). */
+  showTab(tab: Tab) {
+    this.open(tab);
+  }
+
+  /** The "?" button's list: every tour, each with a replay button. */
+  private toursOpen = false;
 
   close() {
     window.clearInterval(this.timer);
@@ -280,7 +296,14 @@ export class AdminPanel {
     refresh.addEventListener('click', () => this.refresh());
     const close = el('button', 'mm-small', 'Close');
     close.addEventListener('click', () => this.close());
-    head.append(refresh, close);
+    const help = el('button', `mm-small${this.toursOpen ? ' mm-go' : ''}`, '? Tours');
+    help.title = 'Guided tours: replay the walkthroughs of the Dev tools, this panel and the game';
+    help.dataset.tour = 'admin-tours';
+    help.addEventListener('click', () => {
+      this.toursOpen = !this.toursOpen;
+      this.paint();
+    });
+    head.append(help, refresh, close);
     card.append(head);
 
     const access = this.access();
@@ -297,18 +320,22 @@ export class AdminPanel {
     }
 
     const tabs = el('div', 'admp-tabs');
+    tabs.dataset.tour = 'admin-tabs'; // the guided tours point at these (tourData.ts)
     for (const [id, label] of TABS) {
       if (access === 'dev' && !DEV_TABS.includes(id)) continue;
       const waiting = id === 'proposals' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
+      b.dataset.tour = `admin-tab-${id}`;
       b.addEventListener('click', () => {
         this.tab = id;
         this.refresh();
         this.paint();
+        this.tourMoment();
       });
       tabs.append(b);
     }
     const body = el('div', 'admp-body');
+    if (this.toursOpen) body.append(el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
     switch (this.tab) {
       case 'dashboard':
         body.append(this.dashboard());
@@ -339,7 +366,7 @@ export class AdminPanel {
         body.append(this.requestsBox());
         break;
       case 'server':
-        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance());
+        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
         break;
       case 'log':
         body.append(this.logList(this.log ?? [], 300));
@@ -398,6 +425,7 @@ export class AdminPanel {
     const left = el('div', 'admp-ds-left');
     const add = el('button', 'mm-small mm-go', `Add my edits to proposals (${ws.set.edits.size})`);
     add.title = 'Puts the numbers you typed on the Proposals tab (old -> new), ready to commit to GitHub.';
+    add.dataset.tour = 'admin-add';
     this.dsAddBtn = add;
     add.addEventListener('click', () => {
       const patches = [...ws.set.edits.values()];

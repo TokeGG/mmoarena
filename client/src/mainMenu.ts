@@ -15,6 +15,7 @@ const PARTY_BTN_TIP = 'A friendly match with your whole party: pick sides, bots 
 import { flags, loadBuild, loadSpecTalents, progress, saveBuild, saveSpecTalents } from './profile';
 import { CLASS_BLURB, tipBuildKey } from './tips';
 import { patchTime } from './patchTime';
+import { helpWindow } from './tourUi';
 import { CREDITS } from './credits';
 import { applyOrder, loadOrder, saveOrder, swapSlots } from './barOrder';
 import { LOOK_OPTIONS } from './hudLook';
@@ -383,6 +384,9 @@ export class MainMenu {
     const creditsLink = el('button', 'mm-link', 'Credits');
     creditsLink.addEventListener('click', () => this.openCredits());
     hint.append(' · ', creditsLink);
+    const helpLink = el('button', 'mm-link tour-help-link', 'Help & tours');
+    helpLink.addEventListener('click', () => helpWindow.open());
+    hint.append(' · ', helpLink);
     // guests pick the name they play under (signed in, the account name is used and this row is hidden)
     this.nameRow.append(el('span', '', 'NAME'), this.nameInput);
     this.nameInput.addEventListener('change', () => store.set('arena.name', this.nameInput.value.trim()));

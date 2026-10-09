@@ -1,5 +1,7 @@
+import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
+import { helpWindow } from './tourUi';
 import { ABILITIES, AURAS, ARENAS, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, } from '@arena/shared';
-import type { ArenaDef, Build, ClassId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
+import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { ArenaScene, fallToward } from './scene';
 import { menuSpots } from './lobbySpot';
@@ -30,6 +32,7 @@ import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel, adminAccessOf } from './adminPanel';
+import type { Tab as AdminTab } from './adminPanel';
 import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
@@ -235,6 +238,7 @@ const menu = new Menu(binds, {
   },
   onNetStats: (on) => (showNetStats = on),
   onEditHud: () => (latest ? hudLayout.start() : editHudFromMenu()),
+  onHelp: () => helpWindow.open(),
 });
 const hudLayout = new HudLayout();
 // the HUD editor opened from the main menu (over a pretend fight) is tracked by the editor itself (hudEditState.ts)
@@ -371,6 +375,7 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'settings':
       if (!latest) settingsSync.onServer(m.data, accountUi.account?.name ?? 'default');
+      tours.setSyncPending(false); // the seen-tours list rides along with the account's settings
       break;
     case 'roster':
       hud.setRoster(m.players);
@@ -806,7 +811,7 @@ function shownBar(): string[] {
 let shownKey = '';
 
 function castSlot(i: number) {
-  if (spec) return;
+  if (spec || tours.blocking) return; // a tour that dims the page never casts
   const ability = shownBar()[i];
   if (!ability) return;
   const def = ABILITIES[ability];
@@ -1045,6 +1050,7 @@ let acc = 0;
 
 function frame(now: number) {
   devPanel.menuAvailable(isDev() && mainMenu.visible && !spec); // a dev can open the tools from the menu too
+  tours.setContext(spec ? (latest ? 'watch' : 'other') : latest ? 'match' : mainMenu.visible ? 'menu' : 'other');
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - lastT) / 1000);
   lastT = now;
@@ -1670,8 +1676,11 @@ const accountUi = new AccountUi({
         else adminPanel.close();
       }
     });
-    if (a) applyAccountProgress(a.matches, a.wins);
-    else {
+    if (a) {
+      applyAccountProgress(a.matches, a.wins);
+      waitForTourSync();
+    } else {
+      tours.setSyncPending(false);
       restoreGuestProgress();
       settingsSync.stop();
     }
@@ -1820,5 +1829,30 @@ initCursors({
 });
 // dev server only (stripped from the build): lets a test read the camera and the followed unit
 if ((import.meta as unknown as { env?: { DEV?: boolean } }).env?.DEV) (window as unknown as Record<string, unknown>).__cam = () => ({ yaw: controls.yaw, pitch: controls.pitch, dist: controls.dist, you, spec: !!spec, rate: spec?.rate, paused: spec?.paused, tick: latest?.tick });
+// guided tours (tour.ts): what they may open, and the wait for the account's settings (they carry the list of tours already seen)
+let tourSyncTimer = 0;
+function waitForTourSync() {
+  tours.setSyncPending(true);
+  window.clearTimeout(tourSyncTimer);
+  tourSyncTimer = window.setTimeout(() => tours.setSyncPending(false), 8000); // no settings came: go on with this browser's list
+}
+tours.setHost({
+  releaseInput: () => controls.releaseAll(),
+  openDevPanel: () => {
+    devPanel.menuAvailable(isDev() && mainMenu.visible && !spec);
+    if (devPanel.button.classList.contains('hidden')) return false;
+    devPanel.toggle(true);
+    return true;
+  },
+  devShow: (o) => devPanel.tourShow({ ...o, page: o.page as DevPageId | undefined }),
+  openAdmin: (tab) => adminPanel.showTab(tab as AdminTab),
+  closeAdmin: () => adminPanel.close(),
+  closeMenus: () => {
+    menu.close();
+    helpWindow.close();
+  },
+  access: () => adminAccessOf(accountUi.account),
+});
+if (accountUi.token) waitForTourSync();
 const verEl = document.getElementById('ver');
 if (verEl) verEl.textContent = `v${pkg.version}`;

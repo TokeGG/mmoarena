@@ -206,9 +206,7 @@ export interface TourHost {
   /** The admin panel on a tab. */
   openAdmin(tab: string): void;
   closeAdmin(): void;
-  /** The Look window of the main menu, and the Esc / settings menu. */
-  openLook(): void;
-  closeLook(): void;
+  /** Close the Esc / settings menu and the Help window. */
   closeMenus(): void;
   /** Whether the person is a dev or the owner. */
   access(): Access;

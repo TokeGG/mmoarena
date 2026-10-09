@@ -1169,6 +1169,49 @@ input, textarea, select, [contenteditable] { -webkit-user-select:text; user-sele
   body.spectating .rot-hint { display:block; position:fixed; top:calc(68px + var(--sat)); left:50%; transform:translateX(-50%); z-index:39; padding:6px 12px; border-radius:999px; background:rgba(14,17,24,.9); border:1px solid #3a4258; font-size:12px; color:#cfd6e6; pointer-events:none; white-space:nowrap; animation:rotHint 7s forwards; }
 }
 @keyframes rotHint { 0%,75% { opacity:1; } 100% { opacity:0; visibility:hidden; } }
+
+/* ---- guided tours (tour.ts): above every panel and menu; the match tour (.hint) leaves the match clickable ---- */
+.tour { position:fixed; inset:0; z-index:9800; opacity:0; transition:opacity .15s; }
+.tour.shown { opacity:1; }
+.tour.hint { pointer-events:none; }
+.tour-dim { position:absolute; inset:0; background:rgba(4,3,8,.74); display:none; }
+.tour.modal.nospot .tour-dim { display:block; }
+.tour-spot { position:absolute; border-radius:8px; border:2px solid #ffd24a; box-shadow:0 0 0 100vmax rgba(4,3,8,.74), 0 0 18px 2px rgba(255,210,74,.55); pointer-events:none; transition:left .18s, top .18s, width .18s, height .18s; }
+.tour.hint .tour-spot { box-shadow:0 0 18px 2px rgba(255,210,74,.65); animation:tourPulse 1.4s ease-in-out infinite alternate; }
+.tour.nospot .tour-spot { display:none; }
+@keyframes tourPulse { from { border-color:#ffd24a; } to { border-color:#fff1b0; } }
+.tour-card { position:fixed; box-sizing:border-box; width:340px; max-width:calc(100vw - 16px); max-height:calc(100vh - 16px); max-height:calc(100dvh - 16px); overflow:auto; padding:14px 16px 12px; border:2px solid var(--gold); border-radius:12px; background:linear-gradient(180deg,rgba(40,34,28,.99),rgba(14,12,10,.99)); color:#e9dcc0; box-shadow:0 14px 44px rgba(0,0,0,.8); pointer-events:auto; font:14px/1.45 system-ui,sans-serif; }
+.tour-head { display:flex; align-items:baseline; gap:10px; margin-bottom:6px; }
+.tour-title { flex:1; font:700 16px var(--serif); color:#f0c260; letter-spacing:.5px; }
+.tour-count { font-size:12px; color:#a79d88; white-space:nowrap; }
+.tour-text { margin-bottom:12px; }
+.tour-btns { display:flex; gap:8px; align-items:center; }
+.tour-gap { flex:1; }
+.tour-btns button { min-height:36px; padding:6px 14px; border-radius:8px; border:1px solid var(--gold-d); background:#1d1b20; color:#e9dcc0; cursor:pointer; font:600 13px system-ui,sans-serif; }
+.tour-btns button:hover, .tour-btns button:focus-visible { border-color:var(--gold); outline:none; }
+.tour-btns .tour-next { background:linear-gradient(#f0c260,#b0781c); border-color:#5c3d08; color:#2a1900; }
+.tour-btns .tour-skip { background:none; border-color:transparent; color:#a79d88; text-decoration:underline; padding-left:0; }
+.tour-btns [hidden] { display:none; }
+/* a phone: the card is docked to the bottom (or the top, when what it points at is low on the screen) with big buttons */
+@media (max-width:600px) {
+  .tour-card.dock { left:calc(8px + var(--sal)); right:calc(8px + var(--sar)); width:auto; bottom:calc(8px + var(--sab)); max-height:calc(50vh - 8px); max-height:calc(50dvh - 8px); font-size:15px; }
+  .tour-card.dock-top { bottom:auto; top:calc(8px + var(--sat)); }
+  .tour-btns button { min-height:48px; padding:8px 16px; font-size:15px; }
+}
+@media (pointer:coarse) { .tour-btns button { min-height:48px; } }
+body.tour-open { overscroll-behavior:none; }
+.tour-help { position:fixed; inset:0; z-index:9700; background:rgba(4,3,6,.78); display:flex; align-items:center; justify-content:center; padding:8px; }
+.tour-help-card { width:min(560px,100%); max-height:90vh; max-height:90dvh; overflow:auto; box-sizing:border-box; background:var(--panel2); border:2px solid var(--gold); border-radius:14px; padding:18px 20px; box-shadow:0 24px 70px rgba(0,0,0,.85); color:#e9dcc0; }
+.tour-list { display:grid; gap:8px; }
+.tour-group { margin:10px 0 0; font:700 12px var(--serif); letter-spacing:2px; text-transform:uppercase; color:#a79d88; }
+.tour-row { display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid #2b2830; border-radius:10px; background:#15141a; }
+.tour-info { flex:1; min-width:0; }
+.tour-blurb { font-size:12px; color:#a79d88; }
+.tour-new, .tour-seen { margin-left:8px; font-size:10px; letter-spacing:1px; text-transform:uppercase; }
+.tour-new { color:#ffd24a; } .tour-seen { color:#6f6a5c; }
+.tour-say { min-height:1em; font-size:12px; color:#ffb0a8; }
+#menu-tours { grid-column:1 / -1; }
+.mm-esc .tour-help-link { display:inline; margin:0; font-size:inherit; }
 </style>
 </head>
 <body>
@@ -1211,6 +1254,7 @@ input, textarea, select, [contenteditable] { -webkit-user-select:text; user-sele
         <div class="m-tiles">
           <button id="menu-controls" class="tile"><span class="bi">⌨</span>Controls &amp; keys</button>
           <button id="menu-hud" class="tile"><span class="bi">▦</span>Edit HUD layout</button>
+          <button id="menu-tours" class="tile"><span class="bi">?</span>Help &amp; tours</button>
         </div>
         <div class="m-settings">
           <div class="srow"><span class="sl">Auto-attack</span><label class="tgl"><input id="auto-toggle" type="checkbox" checked /><b class="sw"></b> <span id="auto-toggle-val">On</span></label></div>

@@ -9,7 +9,7 @@
  * Import this file before anything that listens for keys in `main.ts`: its key listener must run first.
  */
 import { TOURS } from './tourData';
-import { CARD_W, NARROW, TOURS_KEY, canStartIn, counterText, isLastStep, keyAction, markSeenIn, parseSeen, pickAutoTour, placeCard, serializeSeen, spotRect, stepBack, stepForward, textFor, unionRect } from './tourLogic';
+import { CARD_W, TOURS_KEY, canStartIn, counterText, isLastStep, keyAction, markSeenIn, parseSeen, pickAutoTour, placeCard, serializeSeen, spotRect, stepBack, stepForward, textFor, unionRect } from './tourLogic';
 import type { Rect, SeenMap, TourContext, TourDef, TourHost, TourId, TourStep, TourTrigger } from './tourLogic';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -31,7 +31,7 @@ const touchScreen = () => {
 };
 
 /** Something is already open that a tour must not stack on (a sign-in window, the Esc menu, the HUD editor, a dev window). */
-const busy = () => !!document.querySelector('.mm-modal:not(.hidden), .mm-specpop:not(.hidden), #menu:not(.hidden), .admp, .tour-help, .devp:not(.hidden), .announce.show') || document.body.classList.contains('hud-edit') || document.body.classList.contains('hud-demo');
+const busy = () => !!document.querySelector('.mm-modal:not(.hidden), .mm-specpop:not(.hidden), #menu:not(.hidden), .admp, .tour-help, .devp:not(.hidden)') || document.body.classList.contains('hud-edit') || document.body.classList.contains('hud-demo');
 
 interface Run {
   def: TourDef;
@@ -67,6 +67,10 @@ class TourRunner {
   /** A tour is open. The game checks this before it casts or moves anything on a key or click. */
   get active(): boolean {
     return !!this.run;
+  }
+  /** A tour that dims the page is open: the game takes no input at all. */
+  get blocking(): boolean {
+    return this.run?.def.mode === 'modal';
   }
   get activeId(): TourId | null {
     return this.run?.def.id ?? null;
@@ -168,6 +172,31 @@ class TourRunner {
     this.onChange();
     void this.goTo(0);
     return true;
+  }
+
+  /**
+   * A replay button: open whatever the tour needs (the Dev tools window, the admin panel on a tab), then start it. Returns
+   * a sentence for the person when it cannot start from here (for instance a menu tour while a match is on).
+   */
+  launch(id: TourId): string | null {
+    const def = TOURS[id];
+    const h = this.host;
+    if (!def || !h) return 'Tours are not ready yet.';
+    if (this.run) this.end(false);
+    if (id === 'devtools') {
+      h.closeAdmin();
+      h.closeMenus();
+      if (!h.openDevPanel()) return 'The Dev tools open from the main menu or a match (the 🛠 button, or F2). Open them there, then replay this tour.';
+    } else if (id === 'tuning' || id === 'admin') {
+      h.closeMenus();
+      h.openAdmin(id === 'tuning' ? 'tuning' : 'dashboard');
+    } else {
+      if (!canStartIn(def.needs, this.ctx)) return def.needs === 'menu' ? 'Go to the main menu first (leave the match), then replay this tour.' : def.needs === 'match' ? 'Start a match first (Practice works); this tour runs in your first seconds of one.' : 'Watch a live match or a replay first, then replay this tour.';
+      h.closeAdmin();
+      h.closeMenus();
+    }
+    window.setTimeout(() => this.start(id), 400);
+    return null;
   }
 
   private async goTo(index: number) {
@@ -369,4 +398,3 @@ class TourRunner {
 
 export const tours = new TourRunner();
 
-void NARROW;

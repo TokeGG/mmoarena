@@ -52,6 +52,7 @@ if (typeof window !== 'undefined') {
     'keydown',
     (e) => {
       if (e.code !== 'Escape' || e.repeat) return;
+      if (document.body.classList.contains('tour-open')) return; // Esc skips a guided tour, not the window under it
       // a focused slider or checkbox keeps its focus otherwise, and the game's keys would go to it
       if (document.activeElement instanceof HTMLInputElement && !isTyping(document.activeElement)) document.activeElement.blur();
       if (closeTopPopup()) {

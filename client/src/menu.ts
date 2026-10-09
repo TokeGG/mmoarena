@@ -17,6 +17,8 @@ export interface MenuHandlers {
   onNetStats: (on: boolean) => void;
   /** Open the HUD layout editor (only offered while in a match). */
   onEditHud: () => void;
+  /** Open the Help & tours window. */
+  onHelp: () => void;
 }
 
 /**
@@ -55,6 +57,9 @@ export class Menu {
     $('menu-leave').addEventListener('click', () => {
       this.close();
       handlers.onLeave();
+    });
+    $('menu-tours').addEventListener('click', () => {
+      handlers.onHelp();
     });
     $('keys-back').addEventListener('click', () => this.back());
     $('keys-reset').addEventListener('click', () => {
