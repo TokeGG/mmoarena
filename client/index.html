@@ -214,6 +214,8 @@
   .devp-skills { display:flex; flex-wrap:wrap; gap:3px; margin:6px 0; }
   .devp-skill { width:28px; height:28px; display:grid; place-items:center; background:#1c1a26; border:1px solid #3d3550; border-radius:6px; cursor:pointer; font-size:15px; }
   .devp-skill.sel { border-color:#c9a24a; background:#2a2238; }
+  .update-notice { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:9100; display:flex; align-items:center; gap:12px; max-width:calc(100vw - 24px); padding:10px 14px; background:linear-gradient(#1d2a17f2,#10180cf2); border:2px solid #7ed068; border-radius:12px; box-shadow:0 10px 40px #000a; color:#fff; font-size:14px; } .update-notice button.big { padding:8px 18px; font-size:14px; font-weight:700; color:#10180c; background:linear-gradient(#a6ee8f,#6fc255); border:1px solid #3d7a2c; border-radius:8px; cursor:pointer; } .update-x { background:none; border:0; color:#9fb093; font-size:16px; cursor:pointer; }
+  @media (max-width:600px) { .update-notice { flex-wrap:wrap; justify-content:center; text-align:center; bottom:calc(12px + env(safe-area-inset-bottom, 0px)); } }
   .announce { position:fixed; top:70px; left:50%; transform:translate(-50%,-30px); opacity:0; z-index:9000; width:min(720px, calc(100vw - 32px)); background:linear-gradient(#2a2110f2,#17120af2); border:2px solid #e8b84a; border-radius:14px; box-shadow:0 10px 40px #000a, 0 0 24px #e8b84a55; padding:14px 44px 16px 18px; color:#fff; transition:transform .3s ease, opacity .3s ease; pointer-events:auto; }
   .announce.in { transform:translate(-50%,0); opacity:1; }
   .announce-head { font-size:13px; font-weight:700; color:#ffd24a; text-transform:uppercase; letter-spacing:.06em; display:flex; gap:10px; align-items:baseline; }
