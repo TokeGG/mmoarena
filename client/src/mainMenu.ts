@@ -539,7 +539,7 @@ export class MainMenu {
       });
       list.append(slot);
     });
-    // the spec's passives: what it gives without a button (a built-in effect, its weapon, its bonuses)
+    // the spec's passives: what it gives without a button (a built-in effect, its auto-attack, its bonuses)
     const passives = specPassives(this.classId, spec.id);
     const pas = el('div', 'sp-passives');
     pas.append(el('div', 'sp-sub', 'Passives'));

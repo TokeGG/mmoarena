@@ -192,6 +192,7 @@ function describeBase(id: string, mods: Mods | undefined, opts: DescribeOptions)
       if (a.empower) parts.push(`Your next ${a.empower.school} damage ability deals ${Math.round((a.empower.mult - 1) * 100)}% more damage and uses this up`);
       if (a.hot) parts.push(`Heals ${a.hot.pct}% of maximum health every ${a.hot.interval / 1000}s`);
       if (a.noCast) parts.push('You cannot use any ability while it lasts');
+      if (a.hover) parts.push('You cannot move while it lasts');
       if (a.maxStacks) parts.push(`Stacks up to ${a.maxStacks} times`);
       if (a.note) parts.unshift(a.note.replace(/\.$/, ''));
       return parts.join('. ') + '.';
@@ -515,7 +516,7 @@ export function explainAbility(def: AbilityDef, mods: Mods = newMods(), sources:
 }
 
 /**
- * A spec's passives: what it gives without a button. Its built-in effect (Cauterize), its weapon and auto-attack, and
+ * A spec's passives: what it gives without a button. Its built-in effect (Cauterize), its auto-attack, and
  * every bonus its stat modifiers carry, one line each. Shown on the spec card and in the spec tooltip.
  */
 export function specPassives(classId: ClassId, specId: string): string[] {
@@ -526,8 +527,9 @@ export function specPassives(classId: ClassId, specId: string): string[] {
     out.push(`Cauterize: a blow that would kill you leaves you at ${Math.round(TUNING.cauterizeHealth * 100)}% health instead (once every ${Math.round(TUNING.cauterizeCooldownMs / 60000)} minutes).`);
   }
   if (spec.weapon) {
+    // the auto-attack, not the weapon model's name (a polearm is how it looks, not something the spec does)
     const auto = spec.auto ?? CLASSES[classId].auto;
-    out.push(`${spec.weapon.name}${auto ? `: auto-attacks for ${auto.damage} every ${(auto.interval / 1000).toFixed(1)}s at ${auto.range} yd` : ''}.`);
+    if (auto) out.push(`Auto-attacks for ${auto.damage} every ${(auto.interval / 1000).toFixed(1)}s at ${auto.range} yd.`);
   }
   out.push(...describeMods(spec.mods, CLASSES[classId].resource.type).map(cap));
   return out;

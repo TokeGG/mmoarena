@@ -112,7 +112,7 @@ export function resolveTip(key: string, data: DOMStringMap | Record<string, stri
         titleColor: CLASSES[a as ClassId].color,
         tag: spec.role,
         lines: [spec.desc],
-        // its passives: the built-in effect, its weapon, and every bonus it carries (no button needed)
+        // its passives: the built-in effect, its auto-attack, and every bonus it carries (no button needed)
         good: specPassives(a as ClassId, spec.id).map((p) => `Passive: ${p}`),
         stats: ['Abilities: ' + spec.bar.map((id) => ABILITIES[id].name).join(', ')],
       };

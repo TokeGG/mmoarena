@@ -181,7 +181,8 @@ let jumpTicks = 1e6;
 /** The camera's floor height, smoothed like the character's (it falls with you off a walkway). */
 const camFloor: { y?: number; fallV?: number } = {};
 
-const renderPos = new Map<number, { x: number; z: number; facing: number }>();
+/** Where each model is drawn: ground position, the height of its feet (floor plus jump or levitation) and facing. */
+const renderPos = new Map<number, { x: number; y: number; z: number; facing: number }>();
 const effects = new Effects(scene.scene, (id) => renderPos.get(id) ?? null);
 effects.groundY = (x, z) => heightAt(arena, x, z, predLevel);
 effects.camera = scene.camera;
@@ -592,7 +593,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     project: (id: number) => {
       const p = renderPos.get(id);
       if (!p) return null;
-      const s = scene.project(p.x, 2.2, p.z);
+      const s = scene.project(p.x, p.y + 2.2, p.z);
       return s.visible ? s : null;
     },
   };
@@ -631,7 +632,7 @@ function spatial(id: number): Spatial | null {
   if (!p) return { gain: 0.6, pan: 0 };
   const dist = Math.hypot(p.x - vis.x, p.z - vis.z);
   if (dist > 60) return null;
-  const s = scene.project(p.x, 1.5, p.z);
+  const s = scene.project(p.x, p.y + 1.5, p.z);
   const pan = s.visible ? Math.max(-1, Math.min(1, (s.x / window.innerWidth - 0.5) * 2)) * 0.7 : 0;
   return { gain: Math.max(0.12, 1 - dist / 55) * (s.visible ? 1 : 0.6) * (id === you ? 1.1 : 1), pan };
 }
@@ -1210,19 +1211,18 @@ function frame(now: number) {
     return { id: u.id, classId: u.classId, look: u.look, weapon: weaponFor(u.classId, u.spec), team: u.team, x, z, y, lv: u.id === you && !spec ? predLevel : (u.lv ?? 0), facing, alive: u.alive, stealthed: u.stealthed, casting: !!snap.units.find((x) => x.id === u.id)?.cast && !ABILITIES[snap.units.find((x) => x.id === u.id)!.cast!.ability]?.channel?.hold, sheep: !!snap.units.find((x) => x.id === u.id)?.auras.some((a) => a.id === 'polymorph') };
   });
 
-  renderPos.clear();
-  for (const u of units) renderPos.set(u.id, { x: u.x, z: u.z, facing: u.facing });
-
   scene.setPhase(snap.phase);
   scene.followId = spec ? -99 : you;
   scene.teamRings = snap.units.length > 2;
   scene.update(units, team, targetId);
+  renderPos.clear();
+  for (const u of units) renderPos.set(u.id, { x: u.x, y: scene.unitY(u.id) ?? u.y, z: u.z, facing: u.facing });
   effects.setZones(snap.zones ?? [], estNow);
   effects.update(
     dt,
     snap.units.map((s) => {
       const p = renderPos.get(s.id)!;
-      return { id: s.id, x: p.x, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
+      return { id: s.id, x: p.x, y: p.y, z: p.z, facing: p.facing, alive: s.alive, auras: s.auras.map((a) => a.id) };
     }),
   );
   scene.setCamera(vis.x, vis.z, vis.yaw, vis.pitch, vis.dist < 0.3 ? 0 : vis.dist, ((spec ? interp.get(you)?.y ?? 0 : ownHeight(latest?.units.find((x) => x.id === you), interp.get(you)?.y)) * 0.45) + (camFloor.y = fallToward(camFloor.y, heightAt(arena, vis.x, vis.z, predLevel), dt, camFloor)));
@@ -1296,7 +1296,7 @@ function frame(now: number) {
   hud.update({ snap, now: estNow, you, targetId });
   hud.nameplates(
     units.map((u) => {
-      const s = scene.project(u.x, 2.7 + u.y, u.z);
+      const s = scene.project(u.x, 2.7 + (scene.unitY(u.id) ?? u.y), u.z); // follows the model up decks, ramps and jumps
       const meta = snap.units.find((x) => x.id === u.id)!;
       return { id: u.id, x: s.x, y: s.y, visible: s.visible, name: meta.name, health: meta.health, maxHealth: meta.maxHealth, enemy: u.team !== team, alive: u.alive, cast: meta.cast ? { ability: meta.cast.ability, start: meta.cast.start, end: meta.cast.end } : null, auras: meta.auras, absorb: meta.absorb, resource: meta.resource, resourceMax: meta.resourceMax, resourceType: meta.resourceType, target: !spec && u.id === targetId && u.id !== you, mark: spec ? 0 : teamMarks.get(u.id) ?? 0, classId: u.classId };
     }),
