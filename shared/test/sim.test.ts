@@ -1561,60 +1561,42 @@ describe('auto-attack persistence', () => {
   });
 });
 
-describe('heal spam', () => {
-  const setup = () => {
+describe('dampening', () => {
+  const mk = (classes: [string, string | null][]) => {
     const sim = new ArenaSim({ seed: 1, prepMs: 0 });
-    const p = sim.addUnit({ name: 'p', classId: 'priest', team: 0, controller: 'player' });
-    sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    classes.forEach(([c, spec], i) => { const u = sim.addUnit({ name: 'u' + i, classId: c as any, team: (i % 2) as 0 | 1, controller: 'dummy' }); if (spec) u.spec = spec; });
     sim.step();
-    return { sim, p };
+    return sim;
   };
-  const cast = (sim: ArenaSim, p: ReturnType<typeof setup>['p'], ability: string): number => {
-    p.health = 1;
-    p.resource = p.resourceMax;
-    p.cooldowns = {};
-    p.gcdEnd = 0;
-    p.cast = null;
-    const before = sim.drainEvents().length;
-    void before;
-    assert.ok(sim.useAbility(p.id, ability, p.id).ok, `${ability} goes off`);
-    for (let t = 0; t < 3000; t += TUNING.tickMs) { sim.step(); if (!p.cast) break; }
-    const heal = sim.drainEvents().filter((e) => e.t === 'heal' && e.src === p.id && e.ability === ability);
-    return heal.reduce((a, e) => a + (e as { amount: number; overheal: number }).amount + (e as { overheal: number }).overheal, 0);
-  };
-  it('the same heal pressed again and again is weaker each time, down to the floor', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    const first = cast(sim, p, 'flash_heal');
-    const second = cast(sim, p, 'flash_heal');
-    const third = cast(sim, p, 'flash_heal');
-    assert.ok(second < first * (1 - TUNING.healSpamStep) * 1.02 && second > first * (1 - TUNING.healSpamStep) * 0.9, `second ${second} vs first ${first}`);
-    assert.ok(third < second, 'weaker again');
-    let last = third;
-    for (let i = 0; i < 8; i++) last = cast(sim, p, 'flash_heal');
-    assert.ok(last >= first * TUNING.healSpamFloor * 0.9 && last <= first * TUNING.healSpamFloor * 1.1, `floor ${last} vs ${first * TUNING.healSpamFloor}`);
-  });
-  it('rotating between heals keeps each at full strength', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    p.bar = [...p.bar, 'greater_heal'];
-    const a = cast(sim, p, 'flash_heal');
-    const b = cast(sim, p, 'greater_heal');
-    const a2 = cast(sim, p, 'flash_heal');
-    assert.ok(a2 >= a * 0.8, `flash heal back at full after a different heal: ${a2} vs ${a}`);
-    assert.ok(b > 0);
-  });
-  it('a long pause starts the count again, and there is no dampening any more', () => {
-    const { sim, p } = setup();
-    p.maxHealth = p.health = 1e6;
-    const first = cast(sim, p, 'flash_heal');
-    cast(sim, p, 'flash_heal');
-    for (let t = 0; t < TUNING.healSpamWindowMs + 1000; t += TUNING.tickMs) sim.step();
-    const again = cast(sim, p, 'flash_heal');
-    assert.ok(again >= first * 0.8, `fresh after a pause: ${again} vs ${first}`);
-    for (let t = 0; t < 200000; t += TUNING.tickMs) sim.step(); // far past the old dampening start
-    const late = cast(sim, p, 'flash_heal');
-    assert.ok(late >= first * 0.8, 'no time-based weakening');
+  const advanceMs = (sim: ArenaSim, ms: number) => { for (let t = 0; t < ms; t += TUNING.tickMs) sim.step(); };
+  it('starts late, grows slowly and is capped, in a match with a healer', () => {
+    const sim = mk([['priest', 'holy'], ['warrior', 'arms']]);
+    advanceMs(sim, TUNING.dampenStartMs - 2000);
+    assert.equal(sim.dampening(), 0, 'nothing before it starts');
     assert.equal((sim.snapshot() as { damp?: number }).damp, undefined);
+    advanceMs(sim, 12000);
+    const d = sim.dampening();
+    assert.ok(d > 0 && d < 0.1, `a gentle start: ${d}`);
+    assert.equal((sim.snapshot() as { damp?: number }).damp, Math.round(d * 100) / 100);
+    advanceMs(sim, 600000);
+    assert.equal(sim.dampening(), TUNING.dampenMax, 'capped');
+  });
+  it('is off in a match without a healer', () => {
+    const sim = mk([['warrior', 'arms'], ['mage', 'fire']]);
+    advanceMs(sim, TUNING.dampenStartMs + 60000);
+    assert.equal(sim.dampening(), 0);
+  });
+  it('weakens heals and new shields by its amount', () => {
+    const sim = mk([['priest', 'holy'], ['warrior', 'arms']]);
+    const p = [...sim.units.values()][0];
+    p.maxHealth = p.health = 1e6;
+    p.health = 1;
+    const fresh = sim.heal(p, p, 10000, 'flash_heal');
+    advanceMs(sim, TUNING.dampenStartMs + 60000);
+    const d = sim.dampening();
+    assert.ok(d > 0.1);
+    p.health = 1;
+    const weak = sim.heal(p, p, 10000, 'flash_heal');
+    assert.ok(Math.abs(weak - fresh * (1 - d)) <= 2, `${weak} vs ${fresh} * ${1 - d}`);
   });
 });

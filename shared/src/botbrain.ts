@@ -49,6 +49,32 @@ export interface Brain {
   losUse: number;
   /** 0..1 how much it keeps moving while it fights: strafing between casts, circling in melee, hopping. */
   mobility: number;
+  /** 0..1 how readily it spends the trinket (heal, shield, cleanse): higher heals earlier and breaks out of a stun, fear or sheep at once. */
+  trinketAt: number;
+  /** 0..1 how early it pops its offensive cooldowns when it is losing (Recklessness, Adrenaline Rush, Arcane Power...): the health it starts at. */
+  burstUse: number;
+  /** 0..1 how soon a caster pushes melee off itself (Frost Nova, Dragon's Breath, Psychic Scream) instead of standing and casting. */
+  peelAt: number;
+  /** Health fraction of an ally below which the healer puts a shield or Pain Suppression on them. */
+  shieldAt: number;
+  /** Health fraction above which the healer does not heal an ally (casting a heal at nearly full health is wasted). */
+  healCap: number;
+  /** Enemy health fraction at or below which it finishes its target instead of switching away. */
+  switchHp: number;
+  /** Score bonus for staying on the current target; low also means it leaves a target it cannot hit (out of sight, immune) sooner. */
+  stickiness: number;
+  /** 0..1 how quickly it stops a cast whose target stepped out of sight (1 = at once). */
+  losCheck: number;
+  /** Yards kept inside the maximum range before it starts a cast (a target at the edge walks out of range mid-cast). */
+  rangeBuffer: number;
+  /** 0..1 how strictly it keeps crowd control off targets whose diminishing returns have already cut it down. */
+  drRespect: number;
+  /** 0..1 how soon it saves mana (Evocation, no filler spells at low mana) so it is never empty at the key moment. */
+  spendBias: number;
+  /** 0..1 how closely a fighter keeps to its healer partner: higher turns back sooner when it has wandered out of the healer's reach (0 = never). */
+  stayNear: number;
+  /** 0..1 how far from a lava pit it keeps before it hops (a hop near the rim can end in the lava). */
+  edgeCare: number;
 }
 
 export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
@@ -73,6 +99,19 @@ export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
   kickAt: [0, 0.85],
   losUse: [0, 1],
   mobility: [0, 1],
+  trinketAt: [0, 1],
+  burstUse: [0, 1],
+  peelAt: [0, 1],
+  shieldAt: [0.2, 0.9],
+  healCap: [0.5, 0.99],
+  switchHp: [0, 0.5],
+  stickiness: [0, 40],
+  losCheck: [0, 1],
+  rangeBuffer: [0, 3],
+  drRespect: [0, 1],
+  spendBias: [0, 1],
+  stayNear: [0, 1],
+  edgeCare: [0, 1],
 };
 
 export const DEFAULT_BRAIN: Brain = {
@@ -80,7 +119,11 @@ export const DEFAULT_BRAIN: Brain = {
   rangeBias: 0, healAt: 1, burstHp: 1, strafeFlip: 1.5, chase: 0.5,
   panicHp: 0.3, dangerAt: 0.35, ccEarly: 0.6, dodge: 0.7, preShield: 0.9,
   jukeChance: 0.35, jukeAt: 0.4, kickAt: 0.45, losUse: 0.6, mobility: 0.7,
+  trinketAt: 0.5, burstUse: 0.3, peelAt: 0.5, shieldAt: 0.45, healCap: 0.99, switchHp: 0, stickiness: 10, losCheck: 0.5, rangeBuffer: 0, drRespect: 0, spendBias: 0.5, stayNear: 0, edgeCare: 0.5,
 };
+
+/** The numbers a lesson pushes down (the fix is lower): earlier fake stops, smaller bursts treated as danger, no heals on full health, less loyalty to a target. */
+export const LOWER_KEYS: ReadonlySet<keyof Brain> = new Set<keyof Brain>(['jukeAt', 'dangerAt', 'healCap', 'stickiness']);
 
 export const BRAIN_KEYS = Object.keys(DEFAULT_BRAIN) as (keyof Brain)[];
 
@@ -201,7 +244,7 @@ export function evolve(pop: Population, rng: () => number, guide?: Guide): void 
       const g = guide[k];
       if (!g || g.weight < 30 || !Number.isFinite(g.value)) continue;
       // lessons point one way (see lessonBrain): only move when the guide is on the side it points to
-      const lower = k === 'jukeAt' || k === 'dangerAt';
+      const lower = LOWER_KEYS.has(k);
       if (lower ? g.value >= brain[k] : g.value <= brain[k]) continue;
       pulled[k] = brain[k] + (g.value - brain[k]) * 0.5 * Math.min(1, g.weight / 150);
     }

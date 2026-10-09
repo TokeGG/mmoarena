@@ -283,6 +283,8 @@ export interface AbilityDef {
   maxTargetHealthPct?: number;
   outOfCombatOnly?: boolean;
   keepsStealth?: boolean;
+  /** A successful use on an enemy turns the caster's auto attack off (Gouge: you would break the incapacitate by swinging). */
+  stopsAuto?: boolean;
   /** While the caster is stealthed this ability's slot becomes the named ability (Sinister Strike turns into Cheap Shot). */
   stealthSwap?: string;
   prepOk?: boolean;
@@ -361,10 +363,10 @@ export interface Tuning {
   fearSpeed: number;
   prepMs: number;
   maxMatchMs: number;
-  /** Heal spam: each repeat of the same heal in a row is this much weaker (0.15 = 15%), down to this fraction of full, and the pause (ms) after which the count starts again. */
-  healSpamStep: number;
-  healSpamFloor: number;
-  healSpamWindowMs: number;
+  /** Dampening: when it starts (ms into a fight with a healer), how much weaker healing gets each second, and its cap. */
+  dampenStartMs: number;
+  dampenPerSec: number;
+  dampenMax: number;
   damageVariance: number;
   stealthDetect: number;
   outOfCombatMs: number;
@@ -442,8 +444,6 @@ export interface Unit {
   lastCombatAt: number;
   /** When standing in lava burns this unit next. */
   lavaAt?: number;
-  /** The last heal this unit cast, how many times in a row (0 = first), when, and the strength it had (see Sim.healSpam). */
-  lastHeal?: { ability: string; stacks: number; at: number; mult: number };
   inputQueue: MoveInput[];
   /** Sim time (ms) the current/last jump began. */
   jumpStart: number;
@@ -550,6 +550,8 @@ export interface Snapshot {
   phaseEndsAt: number;
   winner: TeamId | 'draw' | null;
   units: UnitSnap[];
+  /** Dampening: how much weaker healing and shields are right now (0.35 = 35% weaker). Absent until it starts. */
+  damp?: number;
   /** Ground effects currently on the floor. */
   zones: ZoneSnap[];
   /** A dev paused this match (dev tools, against bots only): nothing moves until it resumes. */

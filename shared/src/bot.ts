@@ -62,6 +62,8 @@ export const RANGED: Partial<Record<ClassId, { min: number; max: number }>> = {
   priest: { min: 15, max: 30 },
 };
 const MELEE = new Set<ClassId>(['warrior', 'rogue']);
+/** The offensive cooldowns the bots hold for a fight (and the study looks for dying with one unused). */
+export const BURST_IDS = ['recklessness', 'adrenaline_rush', 'arcane_power', 'power_infusion', 'bladestorm'] as const;
 const HARD_CC = ['incapacitate', 'fear', 'stun', 'root'];
 /** Control that takes a unit out of the fight entirely (a root still lets it cast). */
 const LOCKED_DOWN = ['incapacitate', 'fear', 'stun'];
@@ -85,6 +87,8 @@ export class Bot {
   private nextThink = 0;
   private target: number | null = null;
   private retargetAt = 0;
+  /** Since when the current target could not be hit (out of sight, invulnerable). */
+  private badSince: number | undefined;
   private castSeen = new Map<number, { start: number; at: number; will: boolean; wait: number }>();
   private auraSeen = new Map<string, number>();
   private strafeSign = 1;
@@ -198,7 +202,7 @@ export class Bot {
     const castTgt = u.cast && castDef && castDef.castTime > 0 && !castDef.channel ? sim.units.get(u.cast.target) : undefined;
     if (castTgt && castTgt !== u && u.cast!.gx === undefined && !hasLOS(u.pos, castTgt.pos, sim.arena, u.level, castTgt.level, sim.airOf(u), sim.airOf(castTgt))) {
       this.hiddenSince ??= sim.time;
-      if (sim.time - this.hiddenSince >= Math.max(150, this.P.react * 0.6) && u.cast!.end - sim.time > 200) {
+      if (sim.time - this.hiddenSince >= Math.max(150, this.P.react * 0.6 * (1.5 - this.brain.losCheck)) && u.cast!.end - sim.time > 200) {
         sim.stopCast(u.id);
         this.hiddenSince = undefined;
       }
@@ -297,6 +301,17 @@ export class Bot {
   private lastWalk = false;
   /** The route says jump now (a rail to clear, a barricade, the side of a ramp). */
   private jumpNow = false;
+  /** A hop for its own sake (not one that gets over something): not near a lava pit's rim, which is how far away depends on edgeCare. */
+  private hop(u: Unit): void {
+    const room = 2 + 6 * this.brain.edgeCare;
+    for (const r of this.sim.arena.lows ?? []) {
+      if (!r.lava) continue;
+      const dx = Math.max(r.x0 - u.pos.x, 0, u.pos.x - r.x1);
+      const dz = Math.max(r.z0 - u.pos.z, 0, u.pos.z - r.z1);
+      if (Math.hypot(dx, dz) < room) return;
+    }
+    this.jumpNow = true;
+  }
   /**
    * A cast that keeps the bot standing still. Spells cast on the move (Bladestorm, Scorch) do not: while one runs the
    * bot keeps chasing, kiting, sidestepping and dodging like any player would.
@@ -448,6 +463,11 @@ export class Bot {
     // on the run (to cover, out of a cast's sight) a cast would only be cancelled by the next step
     if (this.moving && def && def.castTime > 0 && !def.castWhileMoving) return false;
     if (this.wastesCC(u, ability, target)) return false;
+    // a cast started at the very edge of its range fails when the target takes a step back
+    if (def && def.castTime > 0 && !def.channel && def.target === 'enemy' && def.range > 0 && this.brain.rangeBuffer > 0 && target !== undefined) {
+      const t = this.sim.units.get(target);
+      if (t && t.team !== u.team && dist(u.pos, t.pos) > def.range - this.brain.rangeBuffer) return false;
+    }
     const ok = this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
     if (ok && def && def.castTime > 0 && !def.channel && u.cast?.ability === ability) this.maybeJuke(u, def, target);
     return ok;
@@ -557,7 +577,7 @@ export class Bot {
       if (!e || e.team === u.team) return true;
       const st = e.dr[cat as 'stun'];
       const used = st && sim.time < st.resetAt ? st.count : 0;
-      if ((TUNING.drSteps[Math.min(used, TUNING.drSteps.length - 1)] ?? 1) <= 0) return false; // immune
+      if ((TUNING.drSteps[Math.min(used, TUNING.drSteps.length - 1)] ?? 1) <= 0.6 * this.brain.drRespect + 1e-9) return false; // immune (or, for a careful bot, cut down too far)
       return !e.auras.some((a) => a.kind === 'stun' || a.kind === 'fear' || a.kind === 'incapacitate'); // already out of the fight
     };
     return foes.length > 0 && !foes.some(worth);
@@ -574,18 +594,10 @@ export class Bot {
   private useFirst(u: Unit, abilities: string[], target?: number): boolean {
     // with an enemy interrupt ready and in reach, instants go first: a cast is only started when there is nothing else (and may be a fake)
     const list = this.kickRisk ? [...abilities].sort((a, b) => Number((ABILITIES[a]?.castTime ?? 0) > 0) - Number((ABILITIES[b]?.castTime ?? 0) > 0)) : abilities;
-    for (const a of this.rotateHeals(u, list)) if (this.use(u, a, target)) return true;
+    for (const a of list) if (this.use(u, a, target)) return true;
     return false;
   }
   private kickRisk = false;
-
-  /** Heal spam is weaker each repeat (see Sim.healSpam): from the second repeat on, a different heal on the list goes first so the heals are rotated. */
-  private rotateHeals(u: Unit, list: string[]): string[] {
-    const last = u.lastHeal;
-    if (!last || last.stacks < 1 || this.sim.time - last.at > TUNING.healSpamWindowMs || list.length < 2 || list[0] !== last.ability) return list;
-    if (!list.every((a) => ABILITIES[a]?.effects.some((e) => e.type === 'heal'))) return list;
-    return [...list.slice(1), list[0]];
-  }
 
   /**
    * The spec's damage rotation (learned offline: the order that deals the most damage with the real cooldowns and costs),
@@ -615,7 +627,17 @@ export class Bot {
   private pickTarget(u: Unit, enemies: Unit[]): void {
     const sim = this.sim;
     const cur = this.target !== null ? sim.units.get(this.target) : undefined;
-    if (cur && cur.alive && enemies.includes(cur) && sim.time < this.retargetAt) return;
+    const B0 = this.brain;
+    // a target it cannot hit (out of sight, invulnerable) is let go of sooner the lower stickiness is
+    const unhittable = !!cur && cur.alive && (!hasLOS(u.pos, cur.pos, sim.arena, u.level, cur.level) || cur.auras.some((a) => AURAS[a.id]?.invulnerable));
+    this.badSince = unhittable ? this.badSince ?? sim.time : undefined;
+    const letGo = unhittable && sim.time - (this.badSince ?? sim.time) >= 400 + B0.stickiness * 100;
+    if (cur && cur.alive && enemies.includes(cur) && sim.time < this.retargetAt && !letGo) return;
+    // nearly dead: finish it rather than switch
+    if (cur && cur.alive && enemies.includes(cur) && !unhittable && hpFrac(cur) <= B0.switchHp && !cur.auras.some((x) => x.kind === 'incapacitate' && AURAS[x.id]?.breaksOnDamage) && this.reduction(cur) > 0.65) {
+      this.retargetAt = sim.time + 500;
+      return;
+    }
     const pool = enemies.filter((e) => !this.isPolymorphed(e));
     const list = pool.length ? pool : enemies;
     if (!list.length) {
@@ -627,8 +649,9 @@ export class Bot {
     const mates = [...sim.units.values()].filter((a) => a.alive && a.team === u.team && a !== u);
     const fleeing = (e: Unit) => e === cur && e.auras.some((a) => a.kind === 'slow' || a.kind === 'root');
     const score = (e: Unit) =>
-      hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? 10 : 0) -
+      hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? B.stickiness : 0) -
       (mates.some((a) => a.target === e.id) ? B.focus : 0) - (fleeing(e) ? B.chase * 15 : 0) +
+      (e.auras.some((a) => AURAS[a.id]?.invulnerable) ? 80 : 0) + (hasLOS(u.pos, e.pos, sim.arena, u.level, e.level) ? 0 : 25) +
       (this.reduction(e) < 0.65 ? 40 : 0); // someone behind a shield wall or evasion: hit the other one while it lasts
     list.sort((a, b) => score(a) - score(b));
     this.target = list[0].id;
@@ -680,10 +703,10 @@ export class Bot {
     return !!victim && victim.team !== e.team && hpFrac(victim) < 0.85; // a hit on someone already hurt
   }
 
-  private noticed(key: string): boolean {
+  private noticed(key: string, scale = 1): boolean {
     const at = this.auraSeen.get(key) ?? this.sim.time;
     this.auraSeen.set(key, at);
-    return this.sim.time - at >= this.P.react;
+    return this.sim.time - at >= this.P.react * scale;
   }
 
   // ------------------------------------------------------------------ decisions
@@ -693,7 +716,9 @@ export class Bot {
     if (tgt && this.isPolymorphed(tgt) && enemies.length === 1) tgt = undefined;
     this.kickRisk = (u.classId === 'mage' || u.classId === 'priest') && this.brain.jukeChance > 0 && this.kickThreat(u, enemies);
     // the trinket's cleanse frees it from a stun, fear or sheep (it works while locked down), whatever its health
-    if (u.trinket === 'trinket_cleanse' && enemies.length && u.auras.some((a) => AURAS[a.id]?.harmful && ['stun', 'fear', 'incapacitate'].includes(a.kind)) && this.noticed(`cleanse:${u.auras.map((a) => a.id).join()}`) && this.use(u, 'trinket_cleanse')) return;
+    if (u.trinket === 'trinket_cleanse' && enemies.length && u.auras.some((a) => AURAS[a.id]?.harmful && ['stun', 'fear', 'incapacitate'].includes(a.kind)) && this.noticed(`cleanse:${u.auras.map((a) => a.id).join()}`, Math.max(0, 2 * (1 - this.brain.trinketAt))) && this.use(u, 'trinket_cleanse')) return;
+    // losing: the offensive cooldowns go off now, not with the target still at full health
+    if (enemies.length && !u.cast && hpFrac(u) < 0.1 + 0.7 * this.brain.burstUse) this.popBurst(u, enemies);
     if (this.survive(u, enemies, allies, tgt)) return;
     switch (u.classId) {
       case 'warrior':
@@ -705,6 +730,13 @@ export class Bot {
       case 'priest':
         return this.priest(u, enemies, allies, tgt);
     }
+  }
+
+  /** Offensive cooldowns on this bar: used as soon as the bot is losing, whatever the target's health. */
+  private popBurst(u: Unit, enemies: Unit[]): void {
+    const reach = RANGED[u.classId] ? 30 : 9;
+    if (!enemies.some((e) => dist(u.pos, e.pos) <= reach)) return;
+    for (const id of BURST_IDS) if (u.bar.includes(id) && this.use(u, id, ABILITIES[id].target === 'ally_or_self' ? u.id : undefined)) return;
   }
 
   /** Net health lost over the last couple of seconds, as a fraction of max health (healing offsets it). */
@@ -724,7 +756,9 @@ export class Bot {
     const f = hpFrac(u);
     const loss = this.recentLoss(u);
     const emergency = f < B.panicHp || (loss > B.dangerAt && f < 0.8);
-    const hurting = f < B.defHp + 0.25 * B.ccEarly || loss > B.dangerAt * 0.6;
+    // a caster with melee on it pushes them off (nova, scream) before it is hurt, the sooner the higher peelAt is
+    const pinned = !!RANGED[u.classId] && enemies.some((e) => MELEE.has(e.classId) && e.target === u.id && dist(u.pos, e.pos) <= 7);
+    const hurting = f < B.defHp + 0.25 * B.ccEarly || loss > B.dangerAt * 0.6 || (pinned && f <= 0.45 + 0.55 * B.peelAt);
     if (!emergency && !hurting) return false;
     const sim = this.sim;
     const byDist = [...enemies].sort((a, b) => dist(u.pos, a.pos) - dist(u.pos, b.pos));
@@ -733,7 +767,7 @@ export class Bot {
     const disabled = (e: Unit) => e.auras.some((a) => HARD_CC.includes(a.kind));
     const stuck = u.auras.some((a) => HARD_CC.includes(a.kind) && a.kind !== 'root') || u.auras.some((a) => a.kind === 'root');
     // the trinket: a shield when it is being hit, a heal when low
-    if (u.trinket === 'trinket_heal' && (emergency || f < B.panicHp * 1.4) && this.use(u, 'trinket_heal')) return true;
+    if (u.trinket === 'trinket_heal' && (emergency || f < B.panicHp * (0.4 + 2 * B.trinketAt)) && this.use(u, 'trinket_heal')) return true;
     if (u.trinket === 'trinket_shield' && hurting && attacker && this.use(u, 'trinket_shield')) return true;
     if (u.trinket === 'trinket_cleanse' && stuck && enemies.length && this.use(u, 'trinket_cleanse')) return true;
     switch (u.classId) {
@@ -899,7 +933,7 @@ export class Bot {
     const poly = this.polyTarget(u, enemies, tgt);
     if (poly && this.use(u, 'polymorph', poly.id)) return;
     // out of mana and nobody on top of us: Evocation
-    if (u.resource < u.resourceMax * 0.55 && !meleeNear.length && this.use(u, 'evocation')) return;
+    if (u.resource < u.resourceMax * (0.4 + 0.3 * this.brain.spendBias) && !meleeNear.length && this.use(u, 'evocation')) return;
     // a rune under our feet while we cast at range
     if (tgt && !meleeNear.length && dist(u.pos, tgt.pos) <= 32 && !u.auras.some((a) => a.id === 'rune_of_power') && this.use(u, 'rune_of_power')) return;
 
@@ -991,15 +1025,15 @@ export class Bot {
     // on its own the priest has to win the fight too: it heals later and spends the rest of its time on Smite
     const solo = allies.length <= 1;
     const H = this.brain.healAt;
-    const th = (x: number) => Math.min(0.99, x * H);
+    const th = (x: number) => Math.min(this.brain.healCap, x * H);
     if (lowest) {
       const f = hpFrac(lowest);
-      if (f < (lowest === u ? 0.3 : Math.min(0.45, 0.35 * Math.max(1, H))) && this.use(u, 'pain_suppression', lowest.id)) return; // a priest that heals early still saves an ally on the edge, and itself when it is the one dying
+      if (f < (lowest === u ? 0.3 : Math.min(this.brain.shieldAt, (this.brain.shieldAt - 0.1) * Math.max(1, H))) && this.use(u, 'pain_suppression', lowest.id)) return; // a priest that heals early still saves an ally on the edge, and itself when it is the one dying
       if (f < th(0.55) && this.use(u, 'holy_word', lowest.id)) return; // the instant heal first, then the casts
       // someone is beating on the low ally: stun them
       const onLow = enemies.find((e) => e.target === lowest.id && dist(e.pos, lowest.pos) <= 8 && !e.auras.some((a) => HARD_CC.includes(a.kind)));
       if (f < th(0.5) && onLow && this.use(u, 'judgment_hammer', onLow.id)) return;
-      if (f < th(0.45) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
+      if (f < th(this.brain.shieldAt) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
       if (f < th(solo ? 0.6 : 0.8) && this.useFirst(u, f < th(0.5) ? ['flash_heal', 'greater_heal'] : ['greater_heal', 'flash_heal'], lowest.id)) return;
       if (f < th(solo ? 0.75 : 0.95) && !hasShield(lowest) && this.use(u, 'power_word_shield', lowest.id)) return;
     }
@@ -1018,7 +1052,7 @@ export class Bot {
     const dotted = tgt?.auras.some((a) => a.id === 'creeping_rot' && a.sourceId === u.id);
     if (tgt && (!lowest || hpFrac(lowest) > (solo ? 0.6 : 0.9))) {
       if (!dotted && this.use(u, 'shadow_word_death', tgt.id)) return; // a damage-over-time now: refreshing it early wastes a global cooldown
-      this.rotate(u, tgt, ['mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay']);
+      if (u.resource >= u.resourceMax * 0.3 * this.brain.spendBias) this.rotate(u, tgt, ['mind_blast', 'penance', 'plague_bloom', 'smite', 'mind_flay']); // not the filler on an empty bar: the heals need the mana
     }
     // a stun on a casting enemy that nothing else stopped
     const caster = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.castTime >= 1500 && dist(u.pos, e.pos) <= 28);
@@ -1120,7 +1154,7 @@ export class Bot {
       // along the most open line away from it (the same search Blink uses), now and then a hop
       if (!this.kiteAngle || sim.time >= this.kiteAngle.until) this.kiteAngle = { angle: this.blinkAngle(u, this.kite.pos) ?? angleTo(this.kite.pos, u.pos), until: sim.time + 600 };
       const away = this.kiteAngle.angle;
-      if (this.rng() < 0.01 * this.brain.mobility) this.jumpNow = true;
+      if (this.rng() < 0.01 * this.brain.mobility) this.hop(u);
       return { facing: away, fwd: 1, strafe: 0, guard: true };
     }
 
@@ -1140,6 +1174,13 @@ export class Bot {
       this.climbSince ??= sim.time;
       if (sim.time - this.climbSince > 8000) this.wasUp = true;
       else return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, 1)), fwd: 1, strafe: 0 };
+    }
+    // out of its healer's reach (too far, or out of its sight): turn back to it instead of fighting on alone
+    if (this.brain.stayNear >= 0.1 && u.classId !== 'priest') {
+      const healer = allies.find((x) => x !== u && x.alive && x.classId === 'priest');
+      if (healer && (dist(u.pos, healer.pos) > 44 - 24 * this.brain.stayNear || (this.brain.stayNear > 0.5 && !hasLOS(u.pos, healer.pos, sim.arena, u.level, healer.level)))) {
+        return { facing: angleTo(u.pos, this.waypoint(u.pos, healer.pos, u.level, healer.level)), fwd: 1, strafe: 0 };
+      }
     }
     const d = dist(u.pos, tgt.pos);
     const toT = d < 0.8 ? u.facing : angleTo(u.pos, tgt.pos); // standing on top of someone: do not whip round
@@ -1176,7 +1217,7 @@ export class Bot {
       // in melee range: circle the target like a player does (strafing round it, stepping in when it drifts out, now and
       // then a hop), never a standing target. The step in keeps the circle tight enough to stay in reach.
       const circle = 0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility); // faster than this, the orbit itself spins the bot round
-      if (this.rng() < 0.006 * this.brain.mobility) this.jumpNow = true;
+      if (this.rng() < 0.006 * this.brain.mobility) this.hop(u);
       return { facing: toT, fwd: d > reach * 0.75 ? 0.45 : 0, strafe: this.strafeSign * circle };
     }
     if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d > range.max) {
@@ -1191,7 +1232,7 @@ export class Bot {
     // standing target. Decisions run before movement, so a cast that just started has already stopped this.
     const sway = Math.max(this.brain.strafe, this.brain.mobility * 0.8);
     if (sway < 0.15) return { facing: toT, fwd: 0, strafe: 0 };
-    if (this.rng() < 0.004 * this.brain.mobility) this.jumpNow = true;
+    if (this.rng() < 0.004 * this.brain.mobility) this.hop(u);
     // sidestep, but never into a wall or pillar, out of the target's sight round a pillar edge, or back into an enemy ground
     // effect (stepping out and back every tick looks like a spinning top): try this way, then the other, else stand
     const okSide = (sign: number) => {

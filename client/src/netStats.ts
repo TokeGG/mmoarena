@@ -80,14 +80,18 @@ export class NetStats {
   }
 }
 
-/** The small readout in the corner of the screen. */
+export const SAMPLE = ['server 50 ms ticks (20.0 Hz)', 'ping 42 ms  jitter 3 ms', 'loss 0.0%  ticks 50±2 ms', 'view delay 100 ms  stalls 0.0%'].join('\n');
+
+/** The small readout. A HUD element (`#netstats`, see hudLayout.ts): the stylesheet places and styles it, the HUD editor moves it. */
 export class NetStatsView {
   private root = document.createElement('div');
   private shown = false;
   private paintedAt = 0;
 
   constructor() {
-    this.root.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:20;padding:4px 8px;border-radius:6px;background:rgba(10,9,12,.62);color:#cfc6ae;font:11px/1.35 ui-monospace,Menlo,Consolas,monospace;white-space:pre;pointer-events:none;display:none';
+    this.root.id = 'netstats';
+    this.root.className = 'hidden';
+    this.root.textContent = SAMPLE; // what the HUD editor shows until real numbers come in
     this.root.setAttribute('aria-hidden', 'true');
     document.body.append(this.root);
   }
@@ -95,7 +99,7 @@ export class NetStatsView {
   show(on: boolean): void {
     if (on === this.shown) return;
     this.shown = on;
-    this.root.style.display = on ? 'block' : 'none';
+    this.root.classList.toggle('hidden', !on);
   }
 
   update(stats: NetStats, now: number): void {

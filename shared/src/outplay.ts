@@ -1,7 +1,11 @@
 import { ABILITIES } from './data';
 import { hasLOS } from './geometry';
 import { RANGED, interruptsOf } from './bot';
-import { BRAIN_BOUNDS } from './botbrain';
+import { BRAIN_BOUNDS, LOWER_KEYS } from './botbrain';
+import { MistakeWatch, mistakeLessons } from './mistakes';
+import type { MistakeCounts } from './mistakes';
+import { GradedWatch, averageGraded, gradedNudges } from './graded';
+import type { Graded, Nudge } from './graded';
 import type { Brain } from './botbrain';
 import { isDefensive, measureHumans } from './humanstyle';
 import type { Measure } from './humanstyle';
@@ -36,8 +40,12 @@ export interface BotStudy {
   foes: ClassId[];
   won: boolean;
   lessons: Lessons;
+  /** How it played against how the people who fought it played, as rates (see graded.ts), and the small adjustments that asks for. */
+  graded: Graded;
+  people: Graded | null;
+  nudges: Nudge[];
   /** What the replay saw, for reports. */
-  facts: { castsUnderThreat: number; kicked: number; juked: number; kicksLanded: number; diedWithDefensive: number; burstDeaths: number; bigCastsTaken: number; zoneHits: number; engagedSec: number; kitedFrac: number; pinnedFrac: number };
+  facts: { castsUnderThreat: number; kicked: number; juked: number; kicksLanded: number; diedWithDefensive: number; burstDeaths: number; bigCastsTaken: number; zoneHits: number; engagedSec: number; kitedFrac: number; pinnedFrac: number; /** The newer mistakes (see mistakes.ts). */ mistakes: MistakeCounts };
 }
 
 export interface PlayerHabits {
@@ -89,6 +97,8 @@ export function studyMatch(data: ReplayData, opts: StudyOptions = {}): MatchStud
   const hacc = new Map<number, HumanAcc>(humans.map((id) => [id, { kickFracs: [], fakeFracs: [], castsUnderThreat: 0, fakesUnderThreat: 0 }]));
 
   const runner = new ReplayRunner(data);
+  const watch = new MistakeWatch(kinds, bots);
+  const gwatch = new GradedWatch([...bots, ...humans]);
   /** The cast each unit had going before this tick, and whether a kick was ready on it when it started. */
   const casts = new Map<number, { ability: string; start: number; end: number; threat: boolean }>();
   /** When each human last stopped a cast short (for "the bot's kick hit nothing after a fake"). */
@@ -128,6 +138,12 @@ export function studyMatch(data: ReplayData, opts: StudyOptions = {}): MatchStud
     const events = runner.step();
     if (!live) continue;
     const now = sim.time;
+    for (const ev of events) {
+      watch.event(sim, ev);
+      gwatch.event(sim, ev);
+    }
+    watch.tick(sim);
+    gwatch.tick(sim);
     for (const ev of events) {
       switch (ev.t) {
         case 'interrupt': {
@@ -243,11 +259,17 @@ export function studyMatch(data: ReplayData, opts: StudyOptions = {}): MatchStud
       }
     }
     if (a.zoneHits >= 2) put('dodge', 0.6 + 0.04 * a.zoneHits, a.zoneHits * 4 * m);
+    const mistakes = watch.counts(id);
+    // the newer mistakes: a bot that was never in a position to make them (a short match) teaches nothing
+    if (sec >= 8) for (const [k, v] of Object.entries(mistakeLessons(mistakes, me.classId, m)) as [keyof Brain, Measure][]) L[k] = L[k] ? { value: L[k]!.weight >= v.weight ? L[k]!.value : v.value, weight: L[k]!.weight + v.weight } : v;
+    const graded = gwatch.graded(id);
+    const people = averageGraded(humans.filter((h) => sim.units.get(h)!.team !== me.team).map((h) => gwatch.graded(h)));
+    const nudges = people ? gradedNudges(graded, people, me.classId) : [];
     out.bots.push({
-      unitId: id, classId: me.classId, foes, won, lessons: L,
+      unitId: id, classId: me.classId, foes, won, lessons: L, graded, people, nudges,
       facts: {
         castsUnderThreat: a.castsUnderThreat, kicked: a.kicked, juked: a.juked, kicksLanded: a.kicksLanded, diedWithDefensive: a.diedWithDefensive, burstDeaths: a.burstDeaths,
-        bigCastsTaken: a.bigCastsTaken, zoneHits: a.zoneHits, engagedSec: Math.round(sec), kitedFrac: a.engaged ? a.kited / a.engaged : 0, pinnedFrac: a.engaged ? a.pinned / a.engaged : 0,
+        bigCastsTaken: a.bigCastsTaken, zoneHits: a.zoneHits, engagedSec: Math.round(sec), kitedFrac: a.engaged ? a.kited / a.engaged : 0, pinnedFrac: a.engaged ? a.pinned / a.engaged : 0, mistakes,
       },
     });
   }
@@ -268,17 +290,59 @@ type ArenaSimLike = ReplayRunner['sim'];
  * Which way each lesson may move a brain: a lesson says "at least this" (kick later, defend earlier, use pillars more)
  * or, for the numbers where lower is the fix, "at most this". A bot already past the mark is left alone.
  */
-const LOWER: ReadonlySet<keyof Brain> = new Set(['jukeAt', 'dangerAt']);
+const LOWER: ReadonlySet<keyof Brain> = LOWER_KEYS;
 
-/** `base` moved towards the lessons, only in the direction each one points; `pull` and `full` as in styledBrain. */
+/** Evidence below this weight (after adding up over replays) moves nothing yet. */
+export const LESSON_MIN_WEIGHT = 20;
+/** Old evidence counts this much of its weight when new evidence arrives, so the bots follow how people play now. */
+export const LESSON_DECAY = 0.92;
+
+/**
+ * `base` moved towards the lessons, only in the direction each one points. The step grows with the evidence: `pull` is
+ * how far full evidence moves a number and `full` the weight at which it counts in full, so ten mistakes move a number
+ * further than one, never past the lesson's value or the number's bounds.
+ */
 export function lessonBrain(base: Brain, lessons: Lessons, pull = 0.8, full = 150): Brain {
   const out = { ...base };
   for (const k of Object.keys(lessons) as (keyof Brain)[]) {
     const m = lessons[k];
-    if (!m || m.weight < 30 || !(k in base) || !Number.isFinite(m.value)) continue;
+    if (!m || m.weight < LESSON_MIN_WEIGHT || !(k in base) || !Number.isFinite(m.value)) continue;
     const wants = LOWER.has(k) ? m.value < base[k] : m.value > base[k];
     if (!wants) continue;
     out[k] = clampK(k, base[k] + (m.value - base[k]) * pull * Math.min(1, m.weight / full));
+  }
+  return out;
+}
+
+/** Running lessons with the older evidence faded a little first (`decay`), then the new added as a weighted average. */
+export function mergeLessons(old: Lessons, add: Lessons, decay = LESSON_DECAY, cap = 1200): Lessons {
+  const out: Lessons = {};
+  for (const k of Object.keys(old) as (keyof Brain)[]) if (old[k]) out[k] = { value: old[k]!.value, weight: old[k]!.weight * (k in add ? decay : 1) };
+  for (const k of Object.keys(add) as (keyof Brain)[]) {
+    const n = add[k]!;
+    const o = out[k];
+    const w = (o?.weight ?? 0) + n.weight;
+    out[k] = { value: o ? (o.value * o.weight + n.value * n.weight) / w : n.value, weight: Math.min(cap, w) };
+  }
+  return out;
+}
+
+/** `next` kept within `frac` of each number's range from `prev`: one replay never swings a brain far. */
+export function limitChange(prev: Brain, next: Brain, frac = 0.2): Brain {
+  const out = { ...next };
+  for (const k of Object.keys(next) as (keyof Brain)[]) {
+    const lim = frac * (BRAIN_BOUNDS[k][1] - BRAIN_BOUNDS[k][0]);
+    out[k] = clampK(k, Math.min(prev[k] + lim, Math.max(prev[k] - lim, next[k])));
+  }
+  return out;
+}
+
+/** The global sanity clamp: however much is learned, no number ends up further than `frac` of its range (or its own entry in `room`) from what shipped. */
+export function sanityClamp(brain: Brain, shipped: Brain, frac = 0.6, room: Partial<Record<keyof Brain, number>> = {}): Brain {
+  const out = { ...brain };
+  for (const k of Object.keys(brain) as (keyof Brain)[]) {
+    const lim = (room[k] ?? frac) * (BRAIN_BOUNDS[k][1] - BRAIN_BOUNDS[k][0]);
+    out[k] = clampK(k, Math.min(shipped[k] + lim, Math.max(shipped[k] - lim, brain[k])));
   }
   return out;
 }

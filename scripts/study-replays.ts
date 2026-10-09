@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { BRAIN_KEYS, CLASS_IDS, brainFor, contentHash, measureHumans, lessonBrain, mergeStyle, studyMatch, forcedStudy } from '../shared/src/index';
+import { BRAIN_KEYS, CLASS_IDS, brainFor, brainDiff, buildReport, contentHash, formatReport, measureHumans, lessonBrain, limitChange, mergeLessons, mergeStyle, mistakeLines, sanityClamp, studyMatch, forcedStudy } from '../shared/src/index';
 import type { BotStudy, ClassId, HumanStyle, Lessons, ReplayData } from '../shared/src/index';
 import { createStore } from '../server/src/store';
 
@@ -100,7 +100,7 @@ for await (const replay of source()) {
   const st = studyMatch(replay, opts);
   for (const b of st.bots) {
     studies.push(b);
-    lessons.set(b.classId, mergeStyle(lessons.get(b.classId) ?? {}, b.lessons));
+    lessons.set(b.classId, mergeLessons(lessons.get(b.classId) ?? {}, b.lessons));
     if (botsOnly) continue; // the bot-against-person tally is for matches with people
     const row = real.get(b.classId) ?? new Map();
     real.set(b.classId, row);
@@ -134,11 +134,26 @@ for (const c of CLASS_IDS) {
   }
   const sec = sum((s) => s.facts.engagedSec);
   if (sec) console.log(`    long casts taken per minute: ${(sum((s) => s.facts.bigCastsTaken) / (sec / 60)).toFixed(1)}, ground-effect hits per minute: ${(sum((s) => s.facts.zoneHits) / (sec / 60)).toFixed(1)}`);
+  // the newer mistakes (trinkets, cooldowns, peeling, healer timing, target switching, casts lost, crowd control, mana)
+  const merged = mine.map((s) => ({ ...s.facts, mistakes: s.facts.mistakes }));
+  const totals = new Map<string, number>();
+  for (const f of merged) for (const l of mistakeLines({ ...f, kicked: 0, juked: 0, diedWithDefensive: 0, burstDeaths: 0, bigCastsTaken: 0, zoneHits: 0, kitedFrac: 0, pinnedFrac: 0 })) totals.set(l.label, (totals.get(l.label) ?? 0) + l.count);
+  if (totals.size) console.log(`    other mistakes: ${[...totals].map(([l, n]) => `${n} ${l}`).join(', ')}`);
   const L = lessons.get(c) ?? {};
   const base = brainFor(c);
-  const next = lessonBrain(base, L);
-  const moved = BRAIN_KEYS.filter((k) => Math.abs(next[k] - base[k]) > 1e-3).map((k) => `${k} ${base[k].toFixed(2)}→${next[k].toFixed(2)}`);
+  const next = sanityClamp(limitChange(base, lessonBrain(base, L), 0.6), base);
+  const moved = brainDiff(base, next).map((m) => `${m.key} ${m.before.toFixed(2)} -> ${m.after.toFixed(2)}`);
   console.log(`  lessons: ${moved.length ? moved.join(', ') : 'not enough evidence yet'}\n`);
+}
+
+{
+  // the same report the admin panel's queue shows, for everything read
+  const classes = CLASS_IDS.filter((c) => lessons.has(c)).map((c) => {
+    const base = brainFor(c);
+    return { classId: c, moved: brainDiff(base, sanityClamp(limitChange(base, lessonBrain(base, lessons.get(c) ?? {}), 0.6), base)), replays: studies.filter((s) => s.classId === c).length };
+  });
+  const report = buildReport({ id: 'script', replayId: `${read - stale} replays`, at: Date.now(), source: 'script', passes: 1, study: { bots: studies, players: [] }, classes, habits: 0, replaysRead: read - stale, skipped: stale });
+  console.log(formatReport(report).join('\n') + '\n');
 }
 
 if (read - stale === 0) {
@@ -163,7 +178,7 @@ if (has('apply')) {
   for (const c of CLASS_IDS) {
     const L = lessons.get(c);
     if (!L) continue;
-    const b = lessonBrain(brainFor(c), L);
+    const b = sanityClamp(limitChange(brainFor(c), lessonBrain(brainFor(c), L), 0.6), brainFor(c));
     now[c] = Object.fromEntries(BRAIN_KEYS.map((k) => [k, Math.round(b[k] * 1000) / 1000]));
   }
   fs.writeFileSync(file, JSON.stringify(now, null, 1) + '\n');
