@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ICONS, ICON_LIST, applyPatches, fileIconIdFor, iconIdFor } from '@arena/shared';
 import type { DataPatch } from '@arena/shared';
 import { EditSet, patchKey } from '../src/devEdits';
-import { chooseIcon, chosenIcon, gridIcons, iconChanged, iconOffered, iconPick, iconTarget, packChips, previewOf, putBackIcon } from '../src/iconEditLogic';
+import { suggestedIcons, chooseIcon, chosenIcon, gridIcons, iconChanged, iconOffered, iconPick, iconTarget, packChips, previewOf, putBackIcon } from '../src/iconEditLogic';
 import { setIconPreview, shownIconId, emojiFor } from '../src/iconArt';
 
 const none = new Map<string, DataPatch>();
@@ -12,12 +12,12 @@ const priv = ICON_LIST.find((i) => i.pack.startsWith('steadykeel'))!;
 describe('the Icon edit page: the grid', () => {
   it('filters by search and by pack, and counts for the chips', () => {
     assert.equal(gridIcons('', '').length, ICON_LIST.filter((i) => !i.pack.startsWith('steadykeel')).length, 'private packs are hidden until the server has them');
-    assert.equal(gridIcons('barbarian', '').length, 40);
+    assert.equal(gridIcons('barbarian', 'barbarian').length, 40);
     assert.equal(gridIcons('', 'frostmage').length, 25);
     assert.equal(gridIcons('barbarian', 'frostmage').length, 0);
     const chips = packChips('barbarian');
     assert.equal(chips[0].id, '');
-    assert.equal(chips[0].count, 40);
+    assert.equal(chips[0].count, 45, 'the 40 icons and the 5 of the Barbarian spec art');
     assert.equal(chips.find((c) => c.id === 'barbarian')!.count, 40);
     assert.equal(chips.find((c) => c.id === 'firemage')!.count, 0);
   });
@@ -91,5 +91,22 @@ describe('the Icon edit page: picking', () => {
     assert.deepEqual([...set.edits.keys()], ['icons:frost_nova_root:aura']);
     assert.equal(set.rows([])[0].owner, 'Frost Nova (debuff)');
     assert.equal(chosenIcon(set, 'a:frost_nova', none), fileIconIdFor('ability', 'frost_nova'), 'the skill itself is not touched');
+  });
+});
+
+describe('class and spec icons in the editor', () => {
+  it('a class or spec is a target, is picked like a skill, and has its five options suggested', () => {
+    assert.deepEqual(iconTarget('c:warrior'), { kind: 'class', id: 'warrior' });
+    assert.deepEqual(iconTarget('p:assassination'), { kind: 'spec', id: 'assassination' });
+    assert.deepEqual(suggestedIcons('c:mage').map((i) => i.id), [1, 2, 3, 4, 5].map((n) => `classart/mage-${n}`));
+    assert.deepEqual(suggestedIcons('p:discipline').map((i) => i.id), [1, 2, 3, 4, 5].map((n) => `specart/warden-${n}`));
+    assert.deepEqual(suggestedIcons('a:fireball'), []);
+    const set = new EditSet();
+    assert.ok(chooseIcon(set, 'p:discipline', 'specart/warden-4', none));
+    assert.equal(chosenIcon(set, 'p:discipline', none), 'specart/warden-4');
+    assert.deepEqual([...previewOf(set)], [['spec:discipline', 'specart/warden-4']]);
+    assert.equal(set.rows([])[0].owner, 'Warden');
+    putBackIcon(set, 'p:discipline', none);
+    assert.equal(set.edits.size, 0);
   });
 });

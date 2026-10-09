@@ -31,7 +31,7 @@ const touchScreen = () => {
 };
 
 /** Something is already open that a tour must not stack on (a sign-in window, the Esc menu, the HUD editor, a dev window). */
-const busy = () => !!document.querySelector('.mm-modal:not(.hidden), .mm-specpop:not(.hidden), #menu:not(.hidden), .admp, .tour-help, .devp:not(.hidden)') || document.body.classList.contains('hud-edit') || document.body.classList.contains('hud-demo');
+const busy = () => !!document.querySelector('.mm-modal:not(.hidden), .mm-specpop:not(.hidden), #menu:not(.hidden), .admp:not(.embed), .tw:not(.hidden), .tour-help') || document.body.classList.contains('hud-edit') || document.body.classList.contains('hud-demo');
 
 interface Run {
   def: TourDef;

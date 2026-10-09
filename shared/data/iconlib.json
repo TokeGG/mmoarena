@@ -41,8 +41,38 @@
   {
    "id": "spellset",
    "name": "Spell set (2011)",
-   "count": 53,
+   "count": 12,
    "license": "Supplied by the owner (no licence file in the download)"
+  },
+  {
+   "id": "batareya-mage",
+   "name": "Mage icons (Batareya)",
+   "count": 250,
+   "license": "Batareya mage icon pack supplied by the owner (licence not stated in the download: check the source page before keeping it)"
+  },
+  {
+   "id": "rpg-spells",
+   "name": "RPG spell icons (elements)",
+   "count": 40,
+   "license": "Supplied by the owner (licence not stated in the download: check the source page before keeping it)"
+  },
+  {
+   "id": "card-skills",
+   "name": "Card game skill icons",
+   "count": 300,
+   "license": "Supplied by the owner (licence not stated in the download: check the source page before keeping it)"
+  },
+  {
+   "id": "classart",
+   "name": "Class emblems",
+   "count": 20,
+   "license": "Made for this game by combining the other packs (their terms apply to the parts used)"
+  },
+  {
+   "id": "specart",
+   "name": "Spec emblems",
+   "count": 60,
+   "license": "Made for this game by combining the other packs (their terms apply to the parts used)"
   }
  ],
  "icons": [
@@ -2940,416 +2970,6 @@
    ]
   },
   {
-   "id": "spellset/revive-rev1",
-   "pack": "spellset",
-   "name": "revive rev1",
-   "file": "/icons/spellset/revive-rev1.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev10",
-   "pack": "spellset",
-   "name": "revive rev10",
-   "file": "/icons/spellset/revive-rev10.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev11",
-   "pack": "spellset",
-   "name": "revive rev11",
-   "file": "/icons/spellset/revive-rev11.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev12",
-   "pack": "spellset",
-   "name": "revive rev12",
-   "file": "/icons/spellset/revive-rev12.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev13",
-   "pack": "spellset",
-   "name": "revive rev13",
-   "file": "/icons/spellset/revive-rev13.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev14",
-   "pack": "spellset",
-   "name": "revive rev14",
-   "file": "/icons/spellset/revive-rev14.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev15",
-   "pack": "spellset",
-   "name": "revive rev15",
-   "file": "/icons/spellset/revive-rev15.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev16",
-   "pack": "spellset",
-   "name": "revive rev16",
-   "file": "/icons/spellset/revive-rev16.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev17",
-   "pack": "spellset",
-   "name": "revive rev17",
-   "file": "/icons/spellset/revive-rev17.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev18",
-   "pack": "spellset",
-   "name": "revive rev18",
-   "file": "/icons/spellset/revive-rev18.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev19",
-   "pack": "spellset",
-   "name": "revive rev19",
-   "file": "/icons/spellset/revive-rev19.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev2",
-   "pack": "spellset",
-   "name": "revive rev2",
-   "file": "/icons/spellset/revive-rev2.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev20",
-   "pack": "spellset",
-   "name": "revive rev20",
-   "file": "/icons/spellset/revive-rev20.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev21",
-   "pack": "spellset",
-   "name": "revive rev21",
-   "file": "/icons/spellset/revive-rev21.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev22",
-   "pack": "spellset",
-   "name": "revive rev22",
-   "file": "/icons/spellset/revive-rev22.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev23",
-   "pack": "spellset",
-   "name": "revive rev23",
-   "file": "/icons/spellset/revive-rev23.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev24",
-   "pack": "spellset",
-   "name": "revive rev24",
-   "file": "/icons/spellset/revive-rev24.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev25",
-   "pack": "spellset",
-   "name": "revive rev25",
-   "file": "/icons/spellset/revive-rev25.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev26",
-   "pack": "spellset",
-   "name": "revive rev26",
-   "file": "/icons/spellset/revive-rev26.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev27",
-   "pack": "spellset",
-   "name": "revive rev27",
-   "file": "/icons/spellset/revive-rev27.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev28",
-   "pack": "spellset",
-   "name": "revive rev28",
-   "file": "/icons/spellset/revive-rev28.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev29",
-   "pack": "spellset",
-   "name": "revive rev29",
-   "file": "/icons/spellset/revive-rev29.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev3",
-   "pack": "spellset",
-   "name": "revive rev3",
-   "file": "/icons/spellset/revive-rev3.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev30",
-   "pack": "spellset",
-   "name": "revive rev30",
-   "file": "/icons/spellset/revive-rev30.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev31",
-   "pack": "spellset",
-   "name": "revive rev31",
-   "file": "/icons/spellset/revive-rev31.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev32",
-   "pack": "spellset",
-   "name": "revive rev32",
-   "file": "/icons/spellset/revive-rev32.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev33",
-   "pack": "spellset",
-   "name": "revive rev33",
-   "file": "/icons/spellset/revive-rev33.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev34",
-   "pack": "spellset",
-   "name": "revive rev34",
-   "file": "/icons/spellset/revive-rev34.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev35",
-   "pack": "spellset",
-   "name": "revive rev35",
-   "file": "/icons/spellset/revive-rev35.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev36",
-   "pack": "spellset",
-   "name": "revive rev36",
-   "file": "/icons/spellset/revive-rev36.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev37",
-   "pack": "spellset",
-   "name": "revive rev37",
-   "file": "/icons/spellset/revive-rev37.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev38",
-   "pack": "spellset",
-   "name": "revive rev38",
-   "file": "/icons/spellset/revive-rev38.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev39",
-   "pack": "spellset",
-   "name": "revive rev39",
-   "file": "/icons/spellset/revive-rev39.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev4",
-   "pack": "spellset",
-   "name": "revive rev4",
-   "file": "/icons/spellset/revive-rev4.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev40",
-   "pack": "spellset",
-   "name": "revive rev40",
-   "file": "/icons/spellset/revive-rev40.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev41",
-   "pack": "spellset",
-   "name": "revive rev41",
-   "file": "/icons/spellset/revive-rev41.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev5",
-   "pack": "spellset",
-   "name": "revive rev5",
-   "file": "/icons/spellset/revive-rev5.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev6",
-   "pack": "spellset",
-   "name": "revive rev6",
-   "file": "/icons/spellset/revive-rev6.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev7",
-   "pack": "spellset",
-   "name": "revive rev7",
-   "file": "/icons/spellset/revive-rev7.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev8",
-   "pack": "spellset",
-   "name": "revive rev8",
-   "file": "/icons/spellset/revive-rev8.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
-   "id": "spellset/revive-rev9",
-   "pack": "spellset",
-   "name": "revive rev9",
-   "file": "/icons/spellset/revive-rev9.webp",
-   "tags": [
-    "idea",
-    "revive"
-   ]
-  },
-  {
    "id": "spellset/revive-revive2",
    "pack": "spellset",
    "name": "revive revive2",
@@ -3392,6 +3012,6176 @@
    "file": "/icons/spellset/weapon-enchant-lightning-sword.webp",
    "tags": [
     "weapon-enchant"
+   ]
+  },
+  {
+   "id": "classart/warrior-1",
+   "pack": "classart",
+   "name": "Warrior 1",
+   "file": "/icons/classart/warrior-1.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-2",
+   "pack": "classart",
+   "name": "Warrior 2",
+   "file": "/icons/classart/warrior-2.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-3",
+   "pack": "classart",
+   "name": "Warrior 3",
+   "file": "/icons/classart/warrior-3.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-4",
+   "pack": "classart",
+   "name": "Warrior 4",
+   "file": "/icons/classart/warrior-4.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/warrior-5",
+   "pack": "classart",
+   "name": "Warrior 5",
+   "file": "/icons/classart/warrior-5.webp",
+   "tags": [
+    "class",
+    "warrior"
+   ]
+  },
+  {
+   "id": "classart/mage-1",
+   "pack": "classart",
+   "name": "Mage 1",
+   "file": "/icons/classart/mage-1.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-2",
+   "pack": "classart",
+   "name": "Mage 2",
+   "file": "/icons/classart/mage-2.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-3",
+   "pack": "classart",
+   "name": "Mage 3",
+   "file": "/icons/classart/mage-3.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-4",
+   "pack": "classart",
+   "name": "Mage 4",
+   "file": "/icons/classart/mage-4.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/mage-5",
+   "pack": "classart",
+   "name": "Mage 5",
+   "file": "/icons/classart/mage-5.webp",
+   "tags": [
+    "class",
+    "mage"
+   ]
+  },
+  {
+   "id": "classart/priest-1",
+   "pack": "classart",
+   "name": "Priest 1",
+   "file": "/icons/classart/priest-1.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-2",
+   "pack": "classart",
+   "name": "Priest 2",
+   "file": "/icons/classart/priest-2.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-3",
+   "pack": "classart",
+   "name": "Priest 3",
+   "file": "/icons/classart/priest-3.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-4",
+   "pack": "classart",
+   "name": "Priest 4",
+   "file": "/icons/classart/priest-4.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/priest-5",
+   "pack": "classart",
+   "name": "Priest 5",
+   "file": "/icons/classart/priest-5.webp",
+   "tags": [
+    "class",
+    "priest"
+   ]
+  },
+  {
+   "id": "classart/rogue-1",
+   "pack": "classart",
+   "name": "Rogue 1",
+   "file": "/icons/classart/rogue-1.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-2",
+   "pack": "classart",
+   "name": "Rogue 2",
+   "file": "/icons/classart/rogue-2.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-3",
+   "pack": "classart",
+   "name": "Rogue 3",
+   "file": "/icons/classart/rogue-3.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-4",
+   "pack": "classart",
+   "name": "Rogue 4",
+   "file": "/icons/classart/rogue-4.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "classart/rogue-5",
+   "pack": "classart",
+   "name": "Rogue 5",
+   "file": "/icons/classart/rogue-5.webp",
+   "tags": [
+    "class",
+    "rogue"
+   ]
+  },
+  {
+   "id": "specart/warbringer-1",
+   "pack": "specart",
+   "name": "Warbringer 1",
+   "file": "/icons/specart/warbringer-1.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-2",
+   "pack": "specart",
+   "name": "Warbringer 2",
+   "file": "/icons/specart/warbringer-2.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-3",
+   "pack": "specart",
+   "name": "Warbringer 3",
+   "file": "/icons/specart/warbringer-3.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-4",
+   "pack": "specart",
+   "name": "Warbringer 4",
+   "file": "/icons/specart/warbringer-4.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/warbringer-5",
+   "pack": "specart",
+   "name": "Warbringer 5",
+   "file": "/icons/specart/warbringer-5.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "warbringer"
+   ]
+  },
+  {
+   "id": "specart/rampager-1",
+   "pack": "specart",
+   "name": "Rampager 1",
+   "file": "/icons/specart/rampager-1.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-2",
+   "pack": "specart",
+   "name": "Rampager 2",
+   "file": "/icons/specart/rampager-2.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-3",
+   "pack": "specart",
+   "name": "Rampager 3",
+   "file": "/icons/specart/rampager-3.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-4",
+   "pack": "specart",
+   "name": "Rampager 4",
+   "file": "/icons/specart/rampager-4.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/rampager-5",
+   "pack": "specart",
+   "name": "Rampager 5",
+   "file": "/icons/specart/rampager-5.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "rampager"
+   ]
+  },
+  {
+   "id": "specart/barbarian-1",
+   "pack": "specart",
+   "name": "Barbarian 1",
+   "file": "/icons/specart/barbarian-1.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-2",
+   "pack": "specart",
+   "name": "Barbarian 2",
+   "file": "/icons/specart/barbarian-2.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-3",
+   "pack": "specart",
+   "name": "Barbarian 3",
+   "file": "/icons/specart/barbarian-3.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-4",
+   "pack": "specart",
+   "name": "Barbarian 4",
+   "file": "/icons/specart/barbarian-4.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/barbarian-5",
+   "pack": "specart",
+   "name": "Barbarian 5",
+   "file": "/icons/specart/barbarian-5.webp",
+   "tags": [
+    "spec",
+    "warrior",
+    "barbarian"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-1",
+   "pack": "specart",
+   "name": "Cryomancy 1",
+   "file": "/icons/specart/cryomancy-1.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-2",
+   "pack": "specart",
+   "name": "Cryomancy 2",
+   "file": "/icons/specart/cryomancy-2.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-3",
+   "pack": "specart",
+   "name": "Cryomancy 3",
+   "file": "/icons/specart/cryomancy-3.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-4",
+   "pack": "specart",
+   "name": "Cryomancy 4",
+   "file": "/icons/specart/cryomancy-4.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/cryomancy-5",
+   "pack": "specart",
+   "name": "Cryomancy 5",
+   "file": "/icons/specart/cryomancy-5.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "cryomancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-1",
+   "pack": "specart",
+   "name": "Pyromancy 1",
+   "file": "/icons/specart/pyromancy-1.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-2",
+   "pack": "specart",
+   "name": "Pyromancy 2",
+   "file": "/icons/specart/pyromancy-2.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-3",
+   "pack": "specart",
+   "name": "Pyromancy 3",
+   "file": "/icons/specart/pyromancy-3.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-4",
+   "pack": "specart",
+   "name": "Pyromancy 4",
+   "file": "/icons/specart/pyromancy-4.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/pyromancy-5",
+   "pack": "specart",
+   "name": "Pyromancy 5",
+   "file": "/icons/specart/pyromancy-5.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "pyromancy"
+   ]
+  },
+  {
+   "id": "specart/starweaving-1",
+   "pack": "specart",
+   "name": "Starweaving 1",
+   "file": "/icons/specart/starweaving-1.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-2",
+   "pack": "specart",
+   "name": "Starweaving 2",
+   "file": "/icons/specart/starweaving-2.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-3",
+   "pack": "specart",
+   "name": "Starweaving 3",
+   "file": "/icons/specart/starweaving-3.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-4",
+   "pack": "specart",
+   "name": "Starweaving 4",
+   "file": "/icons/specart/starweaving-4.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/starweaving-5",
+   "pack": "specart",
+   "name": "Starweaving 5",
+   "file": "/icons/specart/starweaving-5.webp",
+   "tags": [
+    "spec",
+    "mage",
+    "starweaving"
+   ]
+  },
+  {
+   "id": "specart/warden-1",
+   "pack": "specart",
+   "name": "Warden 1",
+   "file": "/icons/specart/warden-1.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-2",
+   "pack": "specart",
+   "name": "Warden 2",
+   "file": "/icons/specart/warden-2.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-3",
+   "pack": "specart",
+   "name": "Warden 3",
+   "file": "/icons/specart/warden-3.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-4",
+   "pack": "specart",
+   "name": "Warden 4",
+   "file": "/icons/specart/warden-4.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/warden-5",
+   "pack": "specart",
+   "name": "Warden 5",
+   "file": "/icons/specart/warden-5.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "warden"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-1",
+   "pack": "specart",
+   "name": "Lightbearer 1",
+   "file": "/icons/specart/lightbearer-1.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-2",
+   "pack": "specart",
+   "name": "Lightbearer 2",
+   "file": "/icons/specart/lightbearer-2.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-3",
+   "pack": "specart",
+   "name": "Lightbearer 3",
+   "file": "/icons/specart/lightbearer-3.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-4",
+   "pack": "specart",
+   "name": "Lightbearer 4",
+   "file": "/icons/specart/lightbearer-4.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/lightbearer-5",
+   "pack": "specart",
+   "name": "Lightbearer 5",
+   "file": "/icons/specart/lightbearer-5.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "lightbearer"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-1",
+   "pack": "specart",
+   "name": "Gloomweaver 1",
+   "file": "/icons/specart/gloomweaver-1.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-2",
+   "pack": "specart",
+   "name": "Gloomweaver 2",
+   "file": "/icons/specart/gloomweaver-2.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-3",
+   "pack": "specart",
+   "name": "Gloomweaver 3",
+   "file": "/icons/specart/gloomweaver-3.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-4",
+   "pack": "specart",
+   "name": "Gloomweaver 4",
+   "file": "/icons/specart/gloomweaver-4.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/gloomweaver-5",
+   "pack": "specart",
+   "name": "Gloomweaver 5",
+   "file": "/icons/specart/gloomweaver-5.webp",
+   "tags": [
+    "spec",
+    "priest",
+    "gloomweaver"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-1",
+   "pack": "specart",
+   "name": "Cutthroat 1",
+   "file": "/icons/specart/cutthroat-1.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-2",
+   "pack": "specart",
+   "name": "Cutthroat 2",
+   "file": "/icons/specart/cutthroat-2.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-3",
+   "pack": "specart",
+   "name": "Cutthroat 3",
+   "file": "/icons/specart/cutthroat-3.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-4",
+   "pack": "specart",
+   "name": "Cutthroat 4",
+   "file": "/icons/specart/cutthroat-4.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/cutthroat-5",
+   "pack": "specart",
+   "name": "Cutthroat 5",
+   "file": "/icons/specart/cutthroat-5.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "cutthroat"
+   ]
+  },
+  {
+   "id": "specart/duelist-1",
+   "pack": "specart",
+   "name": "Duelist 1",
+   "file": "/icons/specart/duelist-1.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-2",
+   "pack": "specart",
+   "name": "Duelist 2",
+   "file": "/icons/specart/duelist-2.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-3",
+   "pack": "specart",
+   "name": "Duelist 3",
+   "file": "/icons/specart/duelist-3.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-4",
+   "pack": "specart",
+   "name": "Duelist 4",
+   "file": "/icons/specart/duelist-4.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/duelist-5",
+   "pack": "specart",
+   "name": "Duelist 5",
+   "file": "/icons/specart/duelist-5.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "duelist"
+   ]
+  },
+  {
+   "id": "specart/shade-1",
+   "pack": "specart",
+   "name": "Shade 1",
+   "file": "/icons/specart/shade-1.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-2",
+   "pack": "specart",
+   "name": "Shade 2",
+   "file": "/icons/specart/shade-2.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-3",
+   "pack": "specart",
+   "name": "Shade 3",
+   "file": "/icons/specart/shade-3.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-4",
+   "pack": "specart",
+   "name": "Shade 4",
+   "file": "/icons/specart/shade-4.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "specart/shade-5",
+   "pack": "specart",
+   "name": "Shade 5",
+   "file": "/icons/specart/shade-5.webp",
+   "tags": [
+    "spec",
+    "rogue",
+    "shade"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-1",
+   "pack": "batareya-mage",
+   "name": "Mage 1",
+   "file": "/icons/batareya-mage/mage-1.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-2",
+   "pack": "batareya-mage",
+   "name": "Mage 2",
+   "file": "/icons/batareya-mage/mage-2.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-3",
+   "pack": "batareya-mage",
+   "name": "Mage 3",
+   "file": "/icons/batareya-mage/mage-3.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-4",
+   "pack": "batareya-mage",
+   "name": "Mage 4",
+   "file": "/icons/batareya-mage/mage-4.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-5",
+   "pack": "batareya-mage",
+   "name": "Mage 5",
+   "file": "/icons/batareya-mage/mage-5.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-6",
+   "pack": "batareya-mage",
+   "name": "Mage 6",
+   "file": "/icons/batareya-mage/mage-6.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-7",
+   "pack": "batareya-mage",
+   "name": "Mage 7",
+   "file": "/icons/batareya-mage/mage-7.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-8",
+   "pack": "batareya-mage",
+   "name": "Mage 8",
+   "file": "/icons/batareya-mage/mage-8.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-9",
+   "pack": "batareya-mage",
+   "name": "Mage 9",
+   "file": "/icons/batareya-mage/mage-9.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-10",
+   "pack": "batareya-mage",
+   "name": "Mage 10",
+   "file": "/icons/batareya-mage/mage-10.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-11",
+   "pack": "batareya-mage",
+   "name": "Mage 11",
+   "file": "/icons/batareya-mage/mage-11.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-12",
+   "pack": "batareya-mage",
+   "name": "Mage 12",
+   "file": "/icons/batareya-mage/mage-12.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-13",
+   "pack": "batareya-mage",
+   "name": "Mage 13",
+   "file": "/icons/batareya-mage/mage-13.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-14",
+   "pack": "batareya-mage",
+   "name": "Mage 14",
+   "file": "/icons/batareya-mage/mage-14.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-15",
+   "pack": "batareya-mage",
+   "name": "Mage 15",
+   "file": "/icons/batareya-mage/mage-15.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-16",
+   "pack": "batareya-mage",
+   "name": "Mage 16",
+   "file": "/icons/batareya-mage/mage-16.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-17",
+   "pack": "batareya-mage",
+   "name": "Mage 17",
+   "file": "/icons/batareya-mage/mage-17.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-18",
+   "pack": "batareya-mage",
+   "name": "Mage 18",
+   "file": "/icons/batareya-mage/mage-18.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-19",
+   "pack": "batareya-mage",
+   "name": "Mage 19",
+   "file": "/icons/batareya-mage/mage-19.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-20",
+   "pack": "batareya-mage",
+   "name": "Mage 20",
+   "file": "/icons/batareya-mage/mage-20.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-21",
+   "pack": "batareya-mage",
+   "name": "Mage 21",
+   "file": "/icons/batareya-mage/mage-21.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-22",
+   "pack": "batareya-mage",
+   "name": "Mage 22",
+   "file": "/icons/batareya-mage/mage-22.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-23",
+   "pack": "batareya-mage",
+   "name": "Mage 23",
+   "file": "/icons/batareya-mage/mage-23.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-24",
+   "pack": "batareya-mage",
+   "name": "Mage 24",
+   "file": "/icons/batareya-mage/mage-24.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-25",
+   "pack": "batareya-mage",
+   "name": "Mage 25",
+   "file": "/icons/batareya-mage/mage-25.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-26",
+   "pack": "batareya-mage",
+   "name": "Mage 26",
+   "file": "/icons/batareya-mage/mage-26.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-27",
+   "pack": "batareya-mage",
+   "name": "Mage 27",
+   "file": "/icons/batareya-mage/mage-27.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-28",
+   "pack": "batareya-mage",
+   "name": "Mage 28",
+   "file": "/icons/batareya-mage/mage-28.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-29",
+   "pack": "batareya-mage",
+   "name": "Mage 29",
+   "file": "/icons/batareya-mage/mage-29.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-30",
+   "pack": "batareya-mage",
+   "name": "Mage 30",
+   "file": "/icons/batareya-mage/mage-30.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-31",
+   "pack": "batareya-mage",
+   "name": "Mage 31",
+   "file": "/icons/batareya-mage/mage-31.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-32",
+   "pack": "batareya-mage",
+   "name": "Mage 32",
+   "file": "/icons/batareya-mage/mage-32.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-33",
+   "pack": "batareya-mage",
+   "name": "Mage 33",
+   "file": "/icons/batareya-mage/mage-33.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-34",
+   "pack": "batareya-mage",
+   "name": "Mage 34",
+   "file": "/icons/batareya-mage/mage-34.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-35",
+   "pack": "batareya-mage",
+   "name": "Mage 35",
+   "file": "/icons/batareya-mage/mage-35.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-36",
+   "pack": "batareya-mage",
+   "name": "Mage 36",
+   "file": "/icons/batareya-mage/mage-36.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-37",
+   "pack": "batareya-mage",
+   "name": "Mage 37",
+   "file": "/icons/batareya-mage/mage-37.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-38",
+   "pack": "batareya-mage",
+   "name": "Mage 38",
+   "file": "/icons/batareya-mage/mage-38.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-39",
+   "pack": "batareya-mage",
+   "name": "Mage 39",
+   "file": "/icons/batareya-mage/mage-39.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-40",
+   "pack": "batareya-mage",
+   "name": "Mage 40",
+   "file": "/icons/batareya-mage/mage-40.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-41",
+   "pack": "batareya-mage",
+   "name": "Mage 41",
+   "file": "/icons/batareya-mage/mage-41.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-42",
+   "pack": "batareya-mage",
+   "name": "Mage 42",
+   "file": "/icons/batareya-mage/mage-42.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-43",
+   "pack": "batareya-mage",
+   "name": "Mage 43",
+   "file": "/icons/batareya-mage/mage-43.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-44",
+   "pack": "batareya-mage",
+   "name": "Mage 44",
+   "file": "/icons/batareya-mage/mage-44.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-45",
+   "pack": "batareya-mage",
+   "name": "Mage 45",
+   "file": "/icons/batareya-mage/mage-45.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-46",
+   "pack": "batareya-mage",
+   "name": "Mage 46",
+   "file": "/icons/batareya-mage/mage-46.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-47",
+   "pack": "batareya-mage",
+   "name": "Mage 47",
+   "file": "/icons/batareya-mage/mage-47.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-48",
+   "pack": "batareya-mage",
+   "name": "Mage 48",
+   "file": "/icons/batareya-mage/mage-48.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-49",
+   "pack": "batareya-mage",
+   "name": "Mage 49",
+   "file": "/icons/batareya-mage/mage-49.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-50",
+   "pack": "batareya-mage",
+   "name": "Mage 50",
+   "file": "/icons/batareya-mage/mage-50.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-51",
+   "pack": "batareya-mage",
+   "name": "Mage 51",
+   "file": "/icons/batareya-mage/mage-51.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-52",
+   "pack": "batareya-mage",
+   "name": "Mage 52",
+   "file": "/icons/batareya-mage/mage-52.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-53",
+   "pack": "batareya-mage",
+   "name": "Mage 53",
+   "file": "/icons/batareya-mage/mage-53.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-54",
+   "pack": "batareya-mage",
+   "name": "Mage 54",
+   "file": "/icons/batareya-mage/mage-54.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-55",
+   "pack": "batareya-mage",
+   "name": "Mage 55",
+   "file": "/icons/batareya-mage/mage-55.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-56",
+   "pack": "batareya-mage",
+   "name": "Mage 56",
+   "file": "/icons/batareya-mage/mage-56.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-57",
+   "pack": "batareya-mage",
+   "name": "Mage 57",
+   "file": "/icons/batareya-mage/mage-57.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-58",
+   "pack": "batareya-mage",
+   "name": "Mage 58",
+   "file": "/icons/batareya-mage/mage-58.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-59",
+   "pack": "batareya-mage",
+   "name": "Mage 59",
+   "file": "/icons/batareya-mage/mage-59.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-60",
+   "pack": "batareya-mage",
+   "name": "Mage 60",
+   "file": "/icons/batareya-mage/mage-60.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-61",
+   "pack": "batareya-mage",
+   "name": "Mage 61",
+   "file": "/icons/batareya-mage/mage-61.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-62",
+   "pack": "batareya-mage",
+   "name": "Mage 62",
+   "file": "/icons/batareya-mage/mage-62.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-63",
+   "pack": "batareya-mage",
+   "name": "Mage 63",
+   "file": "/icons/batareya-mage/mage-63.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-64",
+   "pack": "batareya-mage",
+   "name": "Mage 64",
+   "file": "/icons/batareya-mage/mage-64.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-65",
+   "pack": "batareya-mage",
+   "name": "Mage 65",
+   "file": "/icons/batareya-mage/mage-65.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-66",
+   "pack": "batareya-mage",
+   "name": "Mage 66",
+   "file": "/icons/batareya-mage/mage-66.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-67",
+   "pack": "batareya-mage",
+   "name": "Mage 67",
+   "file": "/icons/batareya-mage/mage-67.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-68",
+   "pack": "batareya-mage",
+   "name": "Mage 68",
+   "file": "/icons/batareya-mage/mage-68.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-69",
+   "pack": "batareya-mage",
+   "name": "Mage 69",
+   "file": "/icons/batareya-mage/mage-69.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-70",
+   "pack": "batareya-mage",
+   "name": "Mage 70",
+   "file": "/icons/batareya-mage/mage-70.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-71",
+   "pack": "batareya-mage",
+   "name": "Mage 71",
+   "file": "/icons/batareya-mage/mage-71.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-72",
+   "pack": "batareya-mage",
+   "name": "Mage 72",
+   "file": "/icons/batareya-mage/mage-72.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-73",
+   "pack": "batareya-mage",
+   "name": "Mage 73",
+   "file": "/icons/batareya-mage/mage-73.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-74",
+   "pack": "batareya-mage",
+   "name": "Mage 74",
+   "file": "/icons/batareya-mage/mage-74.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-75",
+   "pack": "batareya-mage",
+   "name": "Mage 75",
+   "file": "/icons/batareya-mage/mage-75.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-76",
+   "pack": "batareya-mage",
+   "name": "Mage 76",
+   "file": "/icons/batareya-mage/mage-76.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-77",
+   "pack": "batareya-mage",
+   "name": "Mage 77",
+   "file": "/icons/batareya-mage/mage-77.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-78",
+   "pack": "batareya-mage",
+   "name": "Mage 78",
+   "file": "/icons/batareya-mage/mage-78.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-79",
+   "pack": "batareya-mage",
+   "name": "Mage 79",
+   "file": "/icons/batareya-mage/mage-79.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-80",
+   "pack": "batareya-mage",
+   "name": "Mage 80",
+   "file": "/icons/batareya-mage/mage-80.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-81",
+   "pack": "batareya-mage",
+   "name": "Mage 81",
+   "file": "/icons/batareya-mage/mage-81.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-82",
+   "pack": "batareya-mage",
+   "name": "Mage 82",
+   "file": "/icons/batareya-mage/mage-82.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-83",
+   "pack": "batareya-mage",
+   "name": "Mage 83",
+   "file": "/icons/batareya-mage/mage-83.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-84",
+   "pack": "batareya-mage",
+   "name": "Mage 84",
+   "file": "/icons/batareya-mage/mage-84.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-85",
+   "pack": "batareya-mage",
+   "name": "Mage 85",
+   "file": "/icons/batareya-mage/mage-85.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-86",
+   "pack": "batareya-mage",
+   "name": "Mage 86",
+   "file": "/icons/batareya-mage/mage-86.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-87",
+   "pack": "batareya-mage",
+   "name": "Mage 87",
+   "file": "/icons/batareya-mage/mage-87.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-88",
+   "pack": "batareya-mage",
+   "name": "Mage 88",
+   "file": "/icons/batareya-mage/mage-88.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-89",
+   "pack": "batareya-mage",
+   "name": "Mage 89",
+   "file": "/icons/batareya-mage/mage-89.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-90",
+   "pack": "batareya-mage",
+   "name": "Mage 90",
+   "file": "/icons/batareya-mage/mage-90.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-91",
+   "pack": "batareya-mage",
+   "name": "Mage 91",
+   "file": "/icons/batareya-mage/mage-91.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-92",
+   "pack": "batareya-mage",
+   "name": "Mage 92",
+   "file": "/icons/batareya-mage/mage-92.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-93",
+   "pack": "batareya-mage",
+   "name": "Mage 93",
+   "file": "/icons/batareya-mage/mage-93.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-94",
+   "pack": "batareya-mage",
+   "name": "Mage 94",
+   "file": "/icons/batareya-mage/mage-94.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-95",
+   "pack": "batareya-mage",
+   "name": "Mage 95",
+   "file": "/icons/batareya-mage/mage-95.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-96",
+   "pack": "batareya-mage",
+   "name": "Mage 96",
+   "file": "/icons/batareya-mage/mage-96.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-97",
+   "pack": "batareya-mage",
+   "name": "Mage 97",
+   "file": "/icons/batareya-mage/mage-97.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-98",
+   "pack": "batareya-mage",
+   "name": "Mage 98",
+   "file": "/icons/batareya-mage/mage-98.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-99",
+   "pack": "batareya-mage",
+   "name": "Mage 99",
+   "file": "/icons/batareya-mage/mage-99.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-100",
+   "pack": "batareya-mage",
+   "name": "Mage 100",
+   "file": "/icons/batareya-mage/mage-100.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-101",
+   "pack": "batareya-mage",
+   "name": "Mage 101",
+   "file": "/icons/batareya-mage/mage-101.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-102",
+   "pack": "batareya-mage",
+   "name": "Mage 102",
+   "file": "/icons/batareya-mage/mage-102.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-103",
+   "pack": "batareya-mage",
+   "name": "Mage 103",
+   "file": "/icons/batareya-mage/mage-103.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-104",
+   "pack": "batareya-mage",
+   "name": "Mage 104",
+   "file": "/icons/batareya-mage/mage-104.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-105",
+   "pack": "batareya-mage",
+   "name": "Mage 105",
+   "file": "/icons/batareya-mage/mage-105.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-106",
+   "pack": "batareya-mage",
+   "name": "Mage 106",
+   "file": "/icons/batareya-mage/mage-106.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-107",
+   "pack": "batareya-mage",
+   "name": "Mage 107",
+   "file": "/icons/batareya-mage/mage-107.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-108",
+   "pack": "batareya-mage",
+   "name": "Mage 108",
+   "file": "/icons/batareya-mage/mage-108.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-109",
+   "pack": "batareya-mage",
+   "name": "Mage 109",
+   "file": "/icons/batareya-mage/mage-109.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-110",
+   "pack": "batareya-mage",
+   "name": "Mage 110",
+   "file": "/icons/batareya-mage/mage-110.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-111",
+   "pack": "batareya-mage",
+   "name": "Mage 111",
+   "file": "/icons/batareya-mage/mage-111.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-112",
+   "pack": "batareya-mage",
+   "name": "Mage 112",
+   "file": "/icons/batareya-mage/mage-112.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-113",
+   "pack": "batareya-mage",
+   "name": "Mage 113",
+   "file": "/icons/batareya-mage/mage-113.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-114",
+   "pack": "batareya-mage",
+   "name": "Mage 114",
+   "file": "/icons/batareya-mage/mage-114.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-115",
+   "pack": "batareya-mage",
+   "name": "Mage 115",
+   "file": "/icons/batareya-mage/mage-115.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-116",
+   "pack": "batareya-mage",
+   "name": "Mage 116",
+   "file": "/icons/batareya-mage/mage-116.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-117",
+   "pack": "batareya-mage",
+   "name": "Mage 117",
+   "file": "/icons/batareya-mage/mage-117.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-118",
+   "pack": "batareya-mage",
+   "name": "Mage 118",
+   "file": "/icons/batareya-mage/mage-118.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-119",
+   "pack": "batareya-mage",
+   "name": "Mage 119",
+   "file": "/icons/batareya-mage/mage-119.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-120",
+   "pack": "batareya-mage",
+   "name": "Mage 120",
+   "file": "/icons/batareya-mage/mage-120.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-121",
+   "pack": "batareya-mage",
+   "name": "Mage 121",
+   "file": "/icons/batareya-mage/mage-121.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-122",
+   "pack": "batareya-mage",
+   "name": "Mage 122",
+   "file": "/icons/batareya-mage/mage-122.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-123",
+   "pack": "batareya-mage",
+   "name": "Mage 123",
+   "file": "/icons/batareya-mage/mage-123.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-124",
+   "pack": "batareya-mage",
+   "name": "Mage 124",
+   "file": "/icons/batareya-mage/mage-124.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-125",
+   "pack": "batareya-mage",
+   "name": "Mage 125",
+   "file": "/icons/batareya-mage/mage-125.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-126",
+   "pack": "batareya-mage",
+   "name": "Mage 126",
+   "file": "/icons/batareya-mage/mage-126.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-127",
+   "pack": "batareya-mage",
+   "name": "Mage 127",
+   "file": "/icons/batareya-mage/mage-127.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-128",
+   "pack": "batareya-mage",
+   "name": "Mage 128",
+   "file": "/icons/batareya-mage/mage-128.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-129",
+   "pack": "batareya-mage",
+   "name": "Mage 129",
+   "file": "/icons/batareya-mage/mage-129.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-130",
+   "pack": "batareya-mage",
+   "name": "Mage 130",
+   "file": "/icons/batareya-mage/mage-130.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-131",
+   "pack": "batareya-mage",
+   "name": "Mage 131",
+   "file": "/icons/batareya-mage/mage-131.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-132",
+   "pack": "batareya-mage",
+   "name": "Mage 132",
+   "file": "/icons/batareya-mage/mage-132.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-133",
+   "pack": "batareya-mage",
+   "name": "Mage 133",
+   "file": "/icons/batareya-mage/mage-133.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-134",
+   "pack": "batareya-mage",
+   "name": "Mage 134",
+   "file": "/icons/batareya-mage/mage-134.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-135",
+   "pack": "batareya-mage",
+   "name": "Mage 135",
+   "file": "/icons/batareya-mage/mage-135.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-136",
+   "pack": "batareya-mage",
+   "name": "Mage 136",
+   "file": "/icons/batareya-mage/mage-136.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-137",
+   "pack": "batareya-mage",
+   "name": "Mage 137",
+   "file": "/icons/batareya-mage/mage-137.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-138",
+   "pack": "batareya-mage",
+   "name": "Mage 138",
+   "file": "/icons/batareya-mage/mage-138.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-139",
+   "pack": "batareya-mage",
+   "name": "Mage 139",
+   "file": "/icons/batareya-mage/mage-139.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-140",
+   "pack": "batareya-mage",
+   "name": "Mage 140",
+   "file": "/icons/batareya-mage/mage-140.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-141",
+   "pack": "batareya-mage",
+   "name": "Mage 141",
+   "file": "/icons/batareya-mage/mage-141.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-142",
+   "pack": "batareya-mage",
+   "name": "Mage 142",
+   "file": "/icons/batareya-mage/mage-142.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-143",
+   "pack": "batareya-mage",
+   "name": "Mage 143",
+   "file": "/icons/batareya-mage/mage-143.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-144",
+   "pack": "batareya-mage",
+   "name": "Mage 144",
+   "file": "/icons/batareya-mage/mage-144.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-145",
+   "pack": "batareya-mage",
+   "name": "Mage 145",
+   "file": "/icons/batareya-mage/mage-145.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-146",
+   "pack": "batareya-mage",
+   "name": "Mage 146",
+   "file": "/icons/batareya-mage/mage-146.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-147",
+   "pack": "batareya-mage",
+   "name": "Mage 147",
+   "file": "/icons/batareya-mage/mage-147.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-148",
+   "pack": "batareya-mage",
+   "name": "Mage 148",
+   "file": "/icons/batareya-mage/mage-148.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-149",
+   "pack": "batareya-mage",
+   "name": "Mage 149",
+   "file": "/icons/batareya-mage/mage-149.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-150",
+   "pack": "batareya-mage",
+   "name": "Mage 150",
+   "file": "/icons/batareya-mage/mage-150.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-151",
+   "pack": "batareya-mage",
+   "name": "Mage 151",
+   "file": "/icons/batareya-mage/mage-151.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-152",
+   "pack": "batareya-mage",
+   "name": "Mage 152",
+   "file": "/icons/batareya-mage/mage-152.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-153",
+   "pack": "batareya-mage",
+   "name": "Mage 153",
+   "file": "/icons/batareya-mage/mage-153.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-154",
+   "pack": "batareya-mage",
+   "name": "Mage 154",
+   "file": "/icons/batareya-mage/mage-154.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-155",
+   "pack": "batareya-mage",
+   "name": "Mage 155",
+   "file": "/icons/batareya-mage/mage-155.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-156",
+   "pack": "batareya-mage",
+   "name": "Mage 156",
+   "file": "/icons/batareya-mage/mage-156.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-157",
+   "pack": "batareya-mage",
+   "name": "Mage 157",
+   "file": "/icons/batareya-mage/mage-157.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-158",
+   "pack": "batareya-mage",
+   "name": "Mage 158",
+   "file": "/icons/batareya-mage/mage-158.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-159",
+   "pack": "batareya-mage",
+   "name": "Mage 159",
+   "file": "/icons/batareya-mage/mage-159.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-160",
+   "pack": "batareya-mage",
+   "name": "Mage 160",
+   "file": "/icons/batareya-mage/mage-160.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-161",
+   "pack": "batareya-mage",
+   "name": "Mage 161",
+   "file": "/icons/batareya-mage/mage-161.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-162",
+   "pack": "batareya-mage",
+   "name": "Mage 162",
+   "file": "/icons/batareya-mage/mage-162.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-163",
+   "pack": "batareya-mage",
+   "name": "Mage 163",
+   "file": "/icons/batareya-mage/mage-163.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-164",
+   "pack": "batareya-mage",
+   "name": "Mage 164",
+   "file": "/icons/batareya-mage/mage-164.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-165",
+   "pack": "batareya-mage",
+   "name": "Mage 165",
+   "file": "/icons/batareya-mage/mage-165.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-166",
+   "pack": "batareya-mage",
+   "name": "Mage 166",
+   "file": "/icons/batareya-mage/mage-166.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-167",
+   "pack": "batareya-mage",
+   "name": "Mage 167",
+   "file": "/icons/batareya-mage/mage-167.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-168",
+   "pack": "batareya-mage",
+   "name": "Mage 168",
+   "file": "/icons/batareya-mage/mage-168.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-169",
+   "pack": "batareya-mage",
+   "name": "Mage 169",
+   "file": "/icons/batareya-mage/mage-169.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-170",
+   "pack": "batareya-mage",
+   "name": "Mage 170",
+   "file": "/icons/batareya-mage/mage-170.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-171",
+   "pack": "batareya-mage",
+   "name": "Mage 171",
+   "file": "/icons/batareya-mage/mage-171.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-172",
+   "pack": "batareya-mage",
+   "name": "Mage 172",
+   "file": "/icons/batareya-mage/mage-172.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-173",
+   "pack": "batareya-mage",
+   "name": "Mage 173",
+   "file": "/icons/batareya-mage/mage-173.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-174",
+   "pack": "batareya-mage",
+   "name": "Mage 174",
+   "file": "/icons/batareya-mage/mage-174.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-175",
+   "pack": "batareya-mage",
+   "name": "Mage 175",
+   "file": "/icons/batareya-mage/mage-175.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-176",
+   "pack": "batareya-mage",
+   "name": "Mage 176",
+   "file": "/icons/batareya-mage/mage-176.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-177",
+   "pack": "batareya-mage",
+   "name": "Mage 177",
+   "file": "/icons/batareya-mage/mage-177.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-178",
+   "pack": "batareya-mage",
+   "name": "Mage 178",
+   "file": "/icons/batareya-mage/mage-178.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-179",
+   "pack": "batareya-mage",
+   "name": "Mage 179",
+   "file": "/icons/batareya-mage/mage-179.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-180",
+   "pack": "batareya-mage",
+   "name": "Mage 180",
+   "file": "/icons/batareya-mage/mage-180.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-181",
+   "pack": "batareya-mage",
+   "name": "Mage 181",
+   "file": "/icons/batareya-mage/mage-181.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-182",
+   "pack": "batareya-mage",
+   "name": "Mage 182",
+   "file": "/icons/batareya-mage/mage-182.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-183",
+   "pack": "batareya-mage",
+   "name": "Mage 183",
+   "file": "/icons/batareya-mage/mage-183.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-184",
+   "pack": "batareya-mage",
+   "name": "Mage 184",
+   "file": "/icons/batareya-mage/mage-184.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-185",
+   "pack": "batareya-mage",
+   "name": "Mage 185",
+   "file": "/icons/batareya-mage/mage-185.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-186",
+   "pack": "batareya-mage",
+   "name": "Mage 186",
+   "file": "/icons/batareya-mage/mage-186.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-187",
+   "pack": "batareya-mage",
+   "name": "Mage 187",
+   "file": "/icons/batareya-mage/mage-187.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-188",
+   "pack": "batareya-mage",
+   "name": "Mage 188",
+   "file": "/icons/batareya-mage/mage-188.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-189",
+   "pack": "batareya-mage",
+   "name": "Mage 189",
+   "file": "/icons/batareya-mage/mage-189.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-190",
+   "pack": "batareya-mage",
+   "name": "Mage 190",
+   "file": "/icons/batareya-mage/mage-190.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-191",
+   "pack": "batareya-mage",
+   "name": "Mage 191",
+   "file": "/icons/batareya-mage/mage-191.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-192",
+   "pack": "batareya-mage",
+   "name": "Mage 192",
+   "file": "/icons/batareya-mage/mage-192.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-193",
+   "pack": "batareya-mage",
+   "name": "Mage 193",
+   "file": "/icons/batareya-mage/mage-193.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-194",
+   "pack": "batareya-mage",
+   "name": "Mage 194",
+   "file": "/icons/batareya-mage/mage-194.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-195",
+   "pack": "batareya-mage",
+   "name": "Mage 195",
+   "file": "/icons/batareya-mage/mage-195.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-196",
+   "pack": "batareya-mage",
+   "name": "Mage 196",
+   "file": "/icons/batareya-mage/mage-196.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-197",
+   "pack": "batareya-mage",
+   "name": "Mage 197",
+   "file": "/icons/batareya-mage/mage-197.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-198",
+   "pack": "batareya-mage",
+   "name": "Mage 198",
+   "file": "/icons/batareya-mage/mage-198.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-199",
+   "pack": "batareya-mage",
+   "name": "Mage 199",
+   "file": "/icons/batareya-mage/mage-199.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-200",
+   "pack": "batareya-mage",
+   "name": "Mage 200",
+   "file": "/icons/batareya-mage/mage-200.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-201",
+   "pack": "batareya-mage",
+   "name": "Mage 201",
+   "file": "/icons/batareya-mage/mage-201.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-202",
+   "pack": "batareya-mage",
+   "name": "Mage 202",
+   "file": "/icons/batareya-mage/mage-202.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-203",
+   "pack": "batareya-mage",
+   "name": "Mage 203",
+   "file": "/icons/batareya-mage/mage-203.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-204",
+   "pack": "batareya-mage",
+   "name": "Mage 204",
+   "file": "/icons/batareya-mage/mage-204.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-205",
+   "pack": "batareya-mage",
+   "name": "Mage 205",
+   "file": "/icons/batareya-mage/mage-205.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-206",
+   "pack": "batareya-mage",
+   "name": "Mage 206",
+   "file": "/icons/batareya-mage/mage-206.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-207",
+   "pack": "batareya-mage",
+   "name": "Mage 207",
+   "file": "/icons/batareya-mage/mage-207.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-208",
+   "pack": "batareya-mage",
+   "name": "Mage 208",
+   "file": "/icons/batareya-mage/mage-208.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-209",
+   "pack": "batareya-mage",
+   "name": "Mage 209",
+   "file": "/icons/batareya-mage/mage-209.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-210",
+   "pack": "batareya-mage",
+   "name": "Mage 210",
+   "file": "/icons/batareya-mage/mage-210.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-211",
+   "pack": "batareya-mage",
+   "name": "Mage 211",
+   "file": "/icons/batareya-mage/mage-211.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-212",
+   "pack": "batareya-mage",
+   "name": "Mage 212",
+   "file": "/icons/batareya-mage/mage-212.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-213",
+   "pack": "batareya-mage",
+   "name": "Mage 213",
+   "file": "/icons/batareya-mage/mage-213.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-214",
+   "pack": "batareya-mage",
+   "name": "Mage 214",
+   "file": "/icons/batareya-mage/mage-214.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-215",
+   "pack": "batareya-mage",
+   "name": "Mage 215",
+   "file": "/icons/batareya-mage/mage-215.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-216",
+   "pack": "batareya-mage",
+   "name": "Mage 216",
+   "file": "/icons/batareya-mage/mage-216.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-217",
+   "pack": "batareya-mage",
+   "name": "Mage 217",
+   "file": "/icons/batareya-mage/mage-217.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-218",
+   "pack": "batareya-mage",
+   "name": "Mage 218",
+   "file": "/icons/batareya-mage/mage-218.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-219",
+   "pack": "batareya-mage",
+   "name": "Mage 219",
+   "file": "/icons/batareya-mage/mage-219.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-220",
+   "pack": "batareya-mage",
+   "name": "Mage 220",
+   "file": "/icons/batareya-mage/mage-220.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-221",
+   "pack": "batareya-mage",
+   "name": "Mage 221",
+   "file": "/icons/batareya-mage/mage-221.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-222",
+   "pack": "batareya-mage",
+   "name": "Mage 222",
+   "file": "/icons/batareya-mage/mage-222.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-223",
+   "pack": "batareya-mage",
+   "name": "Mage 223",
+   "file": "/icons/batareya-mage/mage-223.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-224",
+   "pack": "batareya-mage",
+   "name": "Mage 224",
+   "file": "/icons/batareya-mage/mage-224.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-225",
+   "pack": "batareya-mage",
+   "name": "Mage 225",
+   "file": "/icons/batareya-mage/mage-225.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-226",
+   "pack": "batareya-mage",
+   "name": "Mage 226",
+   "file": "/icons/batareya-mage/mage-226.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-227",
+   "pack": "batareya-mage",
+   "name": "Mage 227",
+   "file": "/icons/batareya-mage/mage-227.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-228",
+   "pack": "batareya-mage",
+   "name": "Mage 228",
+   "file": "/icons/batareya-mage/mage-228.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-229",
+   "pack": "batareya-mage",
+   "name": "Mage 229",
+   "file": "/icons/batareya-mage/mage-229.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-230",
+   "pack": "batareya-mage",
+   "name": "Mage 230",
+   "file": "/icons/batareya-mage/mage-230.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-231",
+   "pack": "batareya-mage",
+   "name": "Mage 231",
+   "file": "/icons/batareya-mage/mage-231.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-232",
+   "pack": "batareya-mage",
+   "name": "Mage 232",
+   "file": "/icons/batareya-mage/mage-232.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-233",
+   "pack": "batareya-mage",
+   "name": "Mage 233",
+   "file": "/icons/batareya-mage/mage-233.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-234",
+   "pack": "batareya-mage",
+   "name": "Mage 234",
+   "file": "/icons/batareya-mage/mage-234.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-235",
+   "pack": "batareya-mage",
+   "name": "Mage 235",
+   "file": "/icons/batareya-mage/mage-235.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-236",
+   "pack": "batareya-mage",
+   "name": "Mage 236",
+   "file": "/icons/batareya-mage/mage-236.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-237",
+   "pack": "batareya-mage",
+   "name": "Mage 237",
+   "file": "/icons/batareya-mage/mage-237.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-238",
+   "pack": "batareya-mage",
+   "name": "Mage 238",
+   "file": "/icons/batareya-mage/mage-238.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-239",
+   "pack": "batareya-mage",
+   "name": "Mage 239",
+   "file": "/icons/batareya-mage/mage-239.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-240",
+   "pack": "batareya-mage",
+   "name": "Mage 240",
+   "file": "/icons/batareya-mage/mage-240.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-241",
+   "pack": "batareya-mage",
+   "name": "Mage 241",
+   "file": "/icons/batareya-mage/mage-241.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-242",
+   "pack": "batareya-mage",
+   "name": "Mage 242",
+   "file": "/icons/batareya-mage/mage-242.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-243",
+   "pack": "batareya-mage",
+   "name": "Mage 243",
+   "file": "/icons/batareya-mage/mage-243.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-244",
+   "pack": "batareya-mage",
+   "name": "Mage 244",
+   "file": "/icons/batareya-mage/mage-244.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-245",
+   "pack": "batareya-mage",
+   "name": "Mage 245",
+   "file": "/icons/batareya-mage/mage-245.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-246",
+   "pack": "batareya-mage",
+   "name": "Mage 246",
+   "file": "/icons/batareya-mage/mage-246.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-247",
+   "pack": "batareya-mage",
+   "name": "Mage 247",
+   "file": "/icons/batareya-mage/mage-247.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-248",
+   "pack": "batareya-mage",
+   "name": "Mage 248",
+   "file": "/icons/batareya-mage/mage-248.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-249",
+   "pack": "batareya-mage",
+   "name": "Mage 249",
+   "file": "/icons/batareya-mage/mage-249.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "batareya-mage/mage-250",
+   "pack": "batareya-mage",
+   "name": "Mage 250",
+   "file": "/icons/batareya-mage/mage-250.webp",
+   "tags": [
+    "mage"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-1",
+   "pack": "rpg-spells",
+   "name": "Earth 1",
+   "file": "/icons/rpg-spells/earth-1.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-2",
+   "pack": "rpg-spells",
+   "name": "Earth 2",
+   "file": "/icons/rpg-spells/earth-2.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-3",
+   "pack": "rpg-spells",
+   "name": "Earth 3",
+   "file": "/icons/rpg-spells/earth-3.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-4",
+   "pack": "rpg-spells",
+   "name": "Earth 4",
+   "file": "/icons/rpg-spells/earth-4.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-5",
+   "pack": "rpg-spells",
+   "name": "Earth 5",
+   "file": "/icons/rpg-spells/earth-5.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-6",
+   "pack": "rpg-spells",
+   "name": "Earth 6",
+   "file": "/icons/rpg-spells/earth-6.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-7",
+   "pack": "rpg-spells",
+   "name": "Earth 7",
+   "file": "/icons/rpg-spells/earth-7.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-8",
+   "pack": "rpg-spells",
+   "name": "Earth 8",
+   "file": "/icons/rpg-spells/earth-8.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-9",
+   "pack": "rpg-spells",
+   "name": "Earth 9",
+   "file": "/icons/rpg-spells/earth-9.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/earth-10",
+   "pack": "rpg-spells",
+   "name": "Earth 10",
+   "file": "/icons/rpg-spells/earth-10.webp",
+   "tags": [
+    "earth"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-1",
+   "pack": "rpg-spells",
+   "name": "Fire 1",
+   "file": "/icons/rpg-spells/fire-1.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-2",
+   "pack": "rpg-spells",
+   "name": "Fire 2",
+   "file": "/icons/rpg-spells/fire-2.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-3",
+   "pack": "rpg-spells",
+   "name": "Fire 3",
+   "file": "/icons/rpg-spells/fire-3.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-4",
+   "pack": "rpg-spells",
+   "name": "Fire 4",
+   "file": "/icons/rpg-spells/fire-4.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-5",
+   "pack": "rpg-spells",
+   "name": "Fire 5",
+   "file": "/icons/rpg-spells/fire-5.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-6",
+   "pack": "rpg-spells",
+   "name": "Fire 6",
+   "file": "/icons/rpg-spells/fire-6.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-7",
+   "pack": "rpg-spells",
+   "name": "Fire 7",
+   "file": "/icons/rpg-spells/fire-7.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-8",
+   "pack": "rpg-spells",
+   "name": "Fire 8",
+   "file": "/icons/rpg-spells/fire-8.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-9",
+   "pack": "rpg-spells",
+   "name": "Fire 9",
+   "file": "/icons/rpg-spells/fire-9.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/fire-10",
+   "pack": "rpg-spells",
+   "name": "Fire 10",
+   "file": "/icons/rpg-spells/fire-10.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-1",
+   "pack": "rpg-spells",
+   "name": "Ice 1",
+   "file": "/icons/rpg-spells/ice-1.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-2",
+   "pack": "rpg-spells",
+   "name": "Ice 2",
+   "file": "/icons/rpg-spells/ice-2.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-3",
+   "pack": "rpg-spells",
+   "name": "Ice 3",
+   "file": "/icons/rpg-spells/ice-3.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-4",
+   "pack": "rpg-spells",
+   "name": "Ice 4",
+   "file": "/icons/rpg-spells/ice-4.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-5",
+   "pack": "rpg-spells",
+   "name": "Ice 5",
+   "file": "/icons/rpg-spells/ice-5.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-6",
+   "pack": "rpg-spells",
+   "name": "Ice 6",
+   "file": "/icons/rpg-spells/ice-6.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-7",
+   "pack": "rpg-spells",
+   "name": "Ice 7",
+   "file": "/icons/rpg-spells/ice-7.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-8",
+   "pack": "rpg-spells",
+   "name": "Ice 8",
+   "file": "/icons/rpg-spells/ice-8.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-9",
+   "pack": "rpg-spells",
+   "name": "Ice 9",
+   "file": "/icons/rpg-spells/ice-9.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/ice-10",
+   "pack": "rpg-spells",
+   "name": "Ice 10",
+   "file": "/icons/rpg-spells/ice-10.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-1",
+   "pack": "rpg-spells",
+   "name": "Lightning 1",
+   "file": "/icons/rpg-spells/lightning-1.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-2",
+   "pack": "rpg-spells",
+   "name": "Lightning 2",
+   "file": "/icons/rpg-spells/lightning-2.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-3",
+   "pack": "rpg-spells",
+   "name": "Lightning 3",
+   "file": "/icons/rpg-spells/lightning-3.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-4",
+   "pack": "rpg-spells",
+   "name": "Lightning 4",
+   "file": "/icons/rpg-spells/lightning-4.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-5",
+   "pack": "rpg-spells",
+   "name": "Lightning 5",
+   "file": "/icons/rpg-spells/lightning-5.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-6",
+   "pack": "rpg-spells",
+   "name": "Lightning 6",
+   "file": "/icons/rpg-spells/lightning-6.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-7",
+   "pack": "rpg-spells",
+   "name": "Lightning 7",
+   "file": "/icons/rpg-spells/lightning-7.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-8",
+   "pack": "rpg-spells",
+   "name": "Lightning 8",
+   "file": "/icons/rpg-spells/lightning-8.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-9",
+   "pack": "rpg-spells",
+   "name": "Lightning 9",
+   "file": "/icons/rpg-spells/lightning-9.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "rpg-spells/lightning-10",
+   "pack": "rpg-spells",
+   "name": "Lightning 10",
+   "file": "/icons/rpg-spells/lightning-10.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-carved-rune-bolt",
+   "pack": "card-skills",
+   "name": "carved rune bolt",
+   "file": "/icons/card-skills/arcane-carved-rune-bolt.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-clockwork",
+   "pack": "card-skills",
+   "name": "clockwork",
+   "file": "/icons/card-skills/arcane-clockwork.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-crystals",
+   "pack": "card-skills",
+   "name": "crystals",
+   "file": "/icons/card-skills/arcane-crystals.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-dimensional-portal",
+   "pack": "card-skills",
+   "name": "dimensional portal",
+   "file": "/icons/card-skills/arcane-dimensional-portal.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-forbidden-mage-bud",
+   "pack": "card-skills",
+   "name": "forbidden mage bud",
+   "file": "/icons/card-skills/arcane-forbidden-mage-bud.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-fractal-glass-shards",
+   "pack": "card-skills",
+   "name": "fractal glass shards",
+   "file": "/icons/card-skills/arcane-fractal-glass-shards.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-full-moon-ritual",
+   "pack": "card-skills",
+   "name": "full moon ritual",
+   "file": "/icons/card-skills/arcane-full-moon-ritual.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-glow-wing-ritual",
+   "pack": "card-skills",
+   "name": "glow wing ritual",
+   "file": "/icons/card-skills/arcane-glow-wing-ritual.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-glyph-orb",
+   "pack": "card-skills",
+   "name": "glyph orb",
+   "file": "/icons/card-skills/arcane-glyph-orb.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-iridescent-beetle",
+   "pack": "card-skills",
+   "name": "iridescent beetle",
+   "file": "/icons/card-skills/arcane-iridescent-beetle.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-mana-nucleus",
+   "pack": "card-skills",
+   "name": "mana nucleus",
+   "file": "/icons/card-skills/arcane-mana-nucleus.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-mana-vision",
+   "pack": "card-skills",
+   "name": "mana vision",
+   "file": "/icons/card-skills/arcane-mana-vision.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-moonwell",
+   "pack": "card-skills",
+   "name": "moonwell",
+   "file": "/icons/card-skills/arcane-moonwell.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-night-ritual",
+   "pack": "card-skills",
+   "name": "night ritual",
+   "file": "/icons/card-skills/arcane-night-ritual.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-orb",
+   "pack": "card-skills",
+   "name": "orb",
+   "file": "/icons/card-skills/arcane-orb.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-pillar",
+   "pack": "card-skills",
+   "name": "pillar",
+   "file": "/icons/card-skills/arcane-pillar.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-raise-arch-mage",
+   "pack": "card-skills",
+   "name": "raise arch mage",
+   "file": "/icons/card-skills/arcane-raise-arch-mage.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-reinforced-dome",
+   "pack": "card-skills",
+   "name": "reinforced dome",
+   "file": "/icons/card-skills/arcane-reinforced-dome.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-rune-crystal",
+   "pack": "card-skills",
+   "name": "rune crystal",
+   "file": "/icons/card-skills/arcane-rune-crystal.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-scrying-bowl",
+   "pack": "card-skills",
+   "name": "scrying bowl",
+   "file": "/icons/card-skills/arcane-scrying-bowl.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-spectral-rose",
+   "pack": "card-skills",
+   "name": "spectral rose",
+   "file": "/icons/card-skills/arcane-spectral-rose.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-spirit-moth",
+   "pack": "card-skills",
+   "name": "spirit moth",
+   "file": "/icons/card-skills/arcane-spirit-moth.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-summon-constellation",
+   "pack": "card-skills",
+   "name": "summon constellation",
+   "file": "/icons/card-skills/arcane-summon-constellation.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-vision",
+   "pack": "card-skills",
+   "name": "vision",
+   "file": "/icons/card-skills/arcane-vision.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/arcane-wizards-familiar-blessing",
+   "pack": "card-skills",
+   "name": "wizards familiar blessing",
+   "file": "/icons/card-skills/arcane-wizards-familiar-blessing.webp",
+   "tags": [
+    "arcane"
+   ]
+  },
+  {
+   "id": "card-skills/blood-bleeding-touch",
+   "pack": "card-skills",
+   "name": "bleeding touch",
+   "file": "/icons/card-skills/blood-bleeding-touch.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-blood-eruption",
+   "pack": "card-skills",
+   "name": "blood eruption",
+   "file": "/icons/card-skills/blood-blood-eruption.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-blood-essence",
+   "pack": "card-skills",
+   "name": "blood essence",
+   "file": "/icons/card-skills/blood-blood-essence.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-blood-lord",
+   "pack": "card-skills",
+   "name": "blood lord",
+   "file": "/icons/card-skills/blood-blood-lord.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-bloodbound-blade",
+   "pack": "card-skills",
+   "name": "bloodbound blade",
+   "file": "/icons/card-skills/blood-bloodbound-blade.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-crimson-bolt",
+   "pack": "card-skills",
+   "name": "crimson bolt",
+   "file": "/icons/card-skills/blood-crimson-bolt.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-crimson-chalice",
+   "pack": "card-skills",
+   "name": "crimson chalice",
+   "file": "/icons/card-skills/blood-crimson-chalice.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-crimson-masque",
+   "pack": "card-skills",
+   "name": "crimson masque",
+   "file": "/icons/card-skills/blood-crimson-masque.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-crimson-pools",
+   "pack": "card-skills",
+   "name": "crimson pools",
+   "file": "/icons/card-skills/blood-crimson-pools.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-crimson-skull",
+   "pack": "card-skills",
+   "name": "crimson skull",
+   "file": "/icons/card-skills/blood-crimson-skull.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-eye-of-the-blood-storm",
+   "pack": "card-skills",
+   "name": "eye of the blood storm",
+   "file": "/icons/card-skills/blood-eye-of-the-blood-storm.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-heart-offering",
+   "pack": "card-skills",
+   "name": "heart offering",
+   "file": "/icons/card-skills/blood-heart-offering.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-minion",
+   "pack": "card-skills",
+   "name": "minion",
+   "file": "/icons/card-skills/blood-minion.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-red-eye",
+   "pack": "card-skills",
+   "name": "red eye",
+   "file": "/icons/card-skills/blood-red-eye.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-rose",
+   "pack": "card-skills",
+   "name": "rose",
+   "file": "/icons/card-skills/blood-rose.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-sign-of-death",
+   "pack": "card-skills",
+   "name": "sign of death",
+   "file": "/icons/card-skills/blood-sign-of-death.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-thorned-heart",
+   "pack": "card-skills",
+   "name": "thorned heart",
+   "file": "/icons/card-skills/blood-thorned-heart.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-vampires-goblet",
+   "pack": "card-skills",
+   "name": "vampires goblet",
+   "file": "/icons/card-skills/blood-vampires-goblet.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/blood-void-heart",
+   "pack": "card-skills",
+   "name": "void heart",
+   "file": "/icons/card-skills/blood-void-heart.webp",
+   "tags": [
+    "blood"
+   ]
+  },
+  {
+   "id": "card-skills/dark-all-seeing",
+   "pack": "card-skills",
+   "name": "all seeing",
+   "file": "/icons/card-skills/dark-all-seeing.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-beast-of-the-night",
+   "pack": "card-skills",
+   "name": "beast of the night",
+   "file": "/icons/card-skills/dark-beast-of-the-night.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-corrupted-obelisk",
+   "pack": "card-skills",
+   "name": "corrupted obelisk",
+   "file": "/icons/card-skills/dark-corrupted-obelisk.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-dark-brew",
+   "pack": "card-skills",
+   "name": "dark brew",
+   "file": "/icons/card-skills/dark-dark-brew.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-deaths-reach",
+   "pack": "card-skills",
+   "name": "deaths reach",
+   "file": "/icons/card-skills/dark-deaths-reach.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-deathwood-shield",
+   "pack": "card-skills",
+   "name": "deathwood shield",
+   "file": "/icons/card-skills/dark-deathwood-shield.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-ethereal-skull",
+   "pack": "card-skills",
+   "name": "ethereal skull",
+   "file": "/icons/card-skills/dark-ethereal-skull.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-hell-dweller",
+   "pack": "card-skills",
+   "name": "hell dweller",
+   "file": "/icons/card-skills/dark-hell-dweller.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-lovers-agony",
+   "pack": "card-skills",
+   "name": "lovers agony",
+   "file": "/icons/card-skills/dark-lovers-agony.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-lovers-return",
+   "pack": "card-skills",
+   "name": "lovers return",
+   "file": "/icons/card-skills/dark-lovers-return.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-midnight-owl",
+   "pack": "card-skills",
+   "name": "midnight owl",
+   "file": "/icons/card-skills/dark-midnight-owl.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-moon-grip",
+   "pack": "card-skills",
+   "name": "moon grip",
+   "file": "/icons/card-skills/dark-moon-grip.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-nightshade-bloom",
+   "pack": "card-skills",
+   "name": "nightshade bloom",
+   "file": "/icons/card-skills/dark-nightshade-bloom.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-reapers-moon",
+   "pack": "card-skills",
+   "name": "reapers moon",
+   "file": "/icons/card-skills/dark-reapers-moon.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-ritual",
+   "pack": "card-skills",
+   "name": "ritual",
+   "file": "/icons/card-skills/dark-ritual.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-ritual-of-the-unseen",
+   "pack": "card-skills",
+   "name": "ritual of the unseen",
+   "file": "/icons/card-skills/dark-ritual-of-the-unseen.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-serpent",
+   "pack": "card-skills",
+   "name": "serpent",
+   "file": "/icons/card-skills/dark-serpent.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-shadow-flame",
+   "pack": "card-skills",
+   "name": "shadow flame",
+   "file": "/icons/card-skills/dark-shadow-flame.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-shadow-grasp",
+   "pack": "card-skills",
+   "name": "shadow grasp",
+   "file": "/icons/card-skills/dark-shadow-grasp.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-skeleton-ritual",
+   "pack": "card-skills",
+   "name": "skeleton ritual",
+   "file": "/icons/card-skills/dark-skeleton-ritual.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-soul-jar",
+   "pack": "card-skills",
+   "name": "soul jar",
+   "file": "/icons/card-skills/dark-soul-jar.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-summon-skeleton",
+   "pack": "card-skills",
+   "name": "summon skeleton",
+   "file": "/icons/card-skills/dark-summon-skeleton.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-tainted-compass",
+   "pack": "card-skills",
+   "name": "tainted compass",
+   "file": "/icons/card-skills/dark-tainted-compass.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-tendrils",
+   "pack": "card-skills",
+   "name": "tendrils",
+   "file": "/icons/card-skills/dark-tendrils.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-tormented-skulls",
+   "pack": "card-skills",
+   "name": "tormented skulls",
+   "file": "/icons/card-skills/dark-tormented-skulls.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-vortex",
+   "pack": "card-skills",
+   "name": "vortex",
+   "file": "/icons/card-skills/dark-vortex.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-warriors-demise",
+   "pack": "card-skills",
+   "name": "warriors demise",
+   "file": "/icons/card-skills/dark-warriors-demise.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-weathered-skull",
+   "pack": "card-skills",
+   "name": "weathered skull",
+   "file": "/icons/card-skills/dark-weathered-skull.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/dark-withered-rose",
+   "pack": "card-skills",
+   "name": "withered rose",
+   "file": "/icons/card-skills/dark-withered-rose.webp",
+   "tags": [
+    "dark"
+   ]
+  },
+  {
+   "id": "card-skills/fire-atom-splitter",
+   "pack": "card-skills",
+   "name": "atom splitter",
+   "file": "/icons/card-skills/fire-atom-splitter.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-blazing-fist",
+   "pack": "card-skills",
+   "name": "blazing fist",
+   "file": "/icons/card-skills/fire-blazing-fist.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-burning-heart",
+   "pack": "card-skills",
+   "name": "burning heart",
+   "file": "/icons/card-skills/fire-burning-heart.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-cinder-sprout",
+   "pack": "card-skills",
+   "name": "cinder sprout",
+   "file": "/icons/card-skills/fire-cinder-sprout.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-flame-sigil",
+   "pack": "card-skills",
+   "name": "flame sigil",
+   "file": "/icons/card-skills/fire-flame-sigil.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-flaming-dragon",
+   "pack": "card-skills",
+   "name": "flaming dragon",
+   "file": "/icons/card-skills/fire-flaming-dragon.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-grasp",
+   "pack": "card-skills",
+   "name": "grasp",
+   "file": "/icons/card-skills/fire-grasp.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-hell-bard",
+   "pack": "card-skills",
+   "name": "hell bard",
+   "file": "/icons/card-skills/fire-hell-bard.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-hell-forge",
+   "pack": "card-skills",
+   "name": "hell forge",
+   "file": "/icons/card-skills/fire-hell-forge.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-hydra",
+   "pack": "card-skills",
+   "name": "hydra",
+   "file": "/icons/card-skills/fire-hydra.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-lava-well",
+   "pack": "card-skills",
+   "name": "lava well",
+   "file": "/icons/card-skills/fire-lava-well.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-molten-core",
+   "pack": "card-skills",
+   "name": "molten core",
+   "file": "/icons/card-skills/fire-molten-core.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-molten-forge",
+   "pack": "card-skills",
+   "name": "molten forge",
+   "file": "/icons/card-skills/fire-molten-forge.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-phoenix-rise",
+   "pack": "card-skills",
+   "name": "phoenix rise",
+   "file": "/icons/card-skills/fire-phoenix-rise.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-quake",
+   "pack": "card-skills",
+   "name": "quake",
+   "file": "/icons/card-skills/fire-quake.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-skull-pyre",
+   "pack": "card-skills",
+   "name": "skull pyre",
+   "file": "/icons/card-skills/fire-skull-pyre.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-volcanic-phoenix",
+   "pack": "card-skills",
+   "name": "volcanic phoenix",
+   "file": "/icons/card-skills/fire-volcanic-phoenix.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/fire-volcano",
+   "pack": "card-skills",
+   "name": "volcano",
+   "file": "/icons/card-skills/fire-volcano.webp",
+   "tags": [
+    "fire"
+   ]
+  },
+  {
+   "id": "card-skills/holy-angelic-blessing",
+   "pack": "card-skills",
+   "name": "angelic blessing",
+   "file": "/icons/card-skills/holy-angelic-blessing.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-angelic-calling",
+   "pack": "card-skills",
+   "name": "angelic calling",
+   "file": "/icons/card-skills/holy-angelic-calling.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-aura",
+   "pack": "card-skills",
+   "name": "aura",
+   "file": "/icons/card-skills/holy-aura.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-blessed-hammer",
+   "pack": "card-skills",
+   "name": "blessed hammer",
+   "file": "/icons/card-skills/holy-blessed-hammer.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-clockwork-gem",
+   "pack": "card-skills",
+   "name": "clockwork gem",
+   "file": "/icons/card-skills/holy-clockwork-gem.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-dove",
+   "pack": "card-skills",
+   "name": "dove",
+   "file": "/icons/card-skills/holy-dove.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-enchanted-sword",
+   "pack": "card-skills",
+   "name": "enchanted sword",
+   "file": "/icons/card-skills/holy-enchanted-sword.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-enlightened-amber",
+   "pack": "card-skills",
+   "name": "enlightened amber",
+   "file": "/icons/card-skills/holy-enlightened-amber.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-exile",
+   "pack": "card-skills",
+   "name": "exile",
+   "file": "/icons/card-skills/holy-exile.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-fortitude",
+   "pack": "card-skills",
+   "name": "fortitude",
+   "file": "/icons/card-skills/holy-fortitude.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-godly-herb-drink",
+   "pack": "card-skills",
+   "name": "godly herb drink",
+   "file": "/icons/card-skills/holy-godly-herb-drink.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-golden-hatchling",
+   "pack": "card-skills",
+   "name": "golden hatchling",
+   "file": "/icons/card-skills/holy-golden-hatchling.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-golden-ribbon",
+   "pack": "card-skills",
+   "name": "golden ribbon",
+   "file": "/icons/card-skills/holy-golden-ribbon.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-golden-sand-ritual",
+   "pack": "card-skills",
+   "name": "golden sand ritual",
+   "file": "/icons/card-skills/holy-golden-sand-ritual.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-grail",
+   "pack": "card-skills",
+   "name": "grail",
+   "file": "/icons/card-skills/holy-grail.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-heavens-burst",
+   "pack": "card-skills",
+   "name": "heavens burst",
+   "file": "/icons/card-skills/holy-heavens-burst.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-kneeling-saint",
+   "pack": "card-skills",
+   "name": "kneeling saint",
+   "file": "/icons/card-skills/holy-kneeling-saint.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-loves-blessing",
+   "pack": "card-skills",
+   "name": "loves blessing",
+   "file": "/icons/card-skills/holy-loves-blessing.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-molten-gold",
+   "pack": "card-skills",
+   "name": "molten gold",
+   "file": "/icons/card-skills/holy-molten-gold.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-rapid-ascent",
+   "pack": "card-skills",
+   "name": "rapid ascent",
+   "file": "/icons/card-skills/holy-rapid-ascent.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-rooted-cross",
+   "pack": "card-skills",
+   "name": "rooted cross",
+   "file": "/icons/card-skills/holy-rooted-cross.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-salt-ritual",
+   "pack": "card-skills",
+   "name": "salt ritual",
+   "file": "/icons/card-skills/holy-salt-ritual.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-shield",
+   "pack": "card-skills",
+   "name": "shield",
+   "file": "/icons/card-skills/holy-shield.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-shine",
+   "pack": "card-skills",
+   "name": "shine",
+   "file": "/icons/card-skills/holy-shine.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-silent-prayer",
+   "pack": "card-skills",
+   "name": "silent prayer",
+   "file": "/icons/card-skills/holy-silent-prayer.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-split-sin",
+   "pack": "card-skills",
+   "name": "split sin",
+   "file": "/icons/card-skills/holy-split-sin.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-stained-glass-dove",
+   "pack": "card-skills",
+   "name": "stained glass dove",
+   "file": "/icons/card-skills/holy-stained-glass-dove.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-strings-of-reality",
+   "pack": "card-skills",
+   "name": "strings of reality",
+   "file": "/icons/card-skills/holy-strings-of-reality.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-vortex",
+   "pack": "card-skills",
+   "name": "vortex",
+   "file": "/icons/card-skills/holy-vortex.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/holy-weeping-angels-blessing",
+   "pack": "card-skills",
+   "name": "weeping angels blessing",
+   "file": "/icons/card-skills/holy-weeping-angels-blessing.webp",
+   "tags": [
+    "holy"
+   ]
+  },
+  {
+   "id": "card-skills/ice-burst",
+   "pack": "card-skills",
+   "name": "burst",
+   "file": "/icons/card-skills/ice-burst.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-chain-freeze",
+   "pack": "card-skills",
+   "name": "chain freeze",
+   "file": "/icons/card-skills/ice-chain-freeze.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-deep-freeze",
+   "pack": "card-skills",
+   "name": "deep freeze",
+   "file": "/icons/card-skills/ice-deep-freeze.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-explosive-shard",
+   "pack": "card-skills",
+   "name": "explosive shard",
+   "file": "/icons/card-skills/ice-explosive-shard.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frost-curse",
+   "pack": "card-skills",
+   "name": "frost curse",
+   "file": "/icons/card-skills/ice-frost-curse.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frost-feather",
+   "pack": "card-skills",
+   "name": "frost feather",
+   "file": "/icons/card-skills/ice-frost-feather.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frost-orb",
+   "pack": "card-skills",
+   "name": "frost orb",
+   "file": "/icons/card-skills/ice-frost-orb.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frostbite",
+   "pack": "card-skills",
+   "name": "frostbite",
+   "file": "/icons/card-skills/ice-frostbite.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-beetle",
+   "pack": "card-skills",
+   "name": "frozen beetle",
+   "file": "/icons/card-skills/ice-frozen-beetle.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-heart",
+   "pack": "card-skills",
+   "name": "frozen heart",
+   "file": "/icons/card-skills/ice-frozen-heart.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-serpent",
+   "pack": "card-skills",
+   "name": "frozen serpent",
+   "file": "/icons/card-skills/ice-frozen-serpent.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-shield",
+   "pack": "card-skills",
+   "name": "frozen shield",
+   "file": "/icons/card-skills/ice-frozen-shield.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-skull",
+   "pack": "card-skills",
+   "name": "frozen skull",
+   "file": "/icons/card-skills/ice-frozen-skull.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-soul-shard",
+   "pack": "card-skills",
+   "name": "frozen soul shard",
+   "file": "/icons/card-skills/ice-frozen-soul-shard.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-stance",
+   "pack": "card-skills",
+   "name": "frozen stance",
+   "file": "/icons/card-skills/ice-frozen-stance.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-frozen-vision",
+   "pack": "card-skills",
+   "name": "frozen vision",
+   "file": "/icons/card-skills/ice-frozen-vision.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-glacier-vortex",
+   "pack": "card-skills",
+   "name": "glacier vortex",
+   "file": "/icons/card-skills/ice-glacier-vortex.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-ice-shards",
+   "pack": "card-skills",
+   "name": "ice shards",
+   "file": "/icons/card-skills/ice-ice-shards.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-ice-touch",
+   "pack": "card-skills",
+   "name": "ice touch",
+   "file": "/icons/card-skills/ice-ice-touch.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-iceberg",
+   "pack": "card-skills",
+   "name": "iceberg",
+   "file": "/icons/card-skills/ice-iceberg.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-perma-frost",
+   "pack": "card-skills",
+   "name": "perma frost",
+   "file": "/icons/card-skills/ice-perma-frost.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-snow-flake",
+   "pack": "card-skills",
+   "name": "snow flake",
+   "file": "/icons/card-skills/ice-snow-flake.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-snowflake-orb",
+   "pack": "card-skills",
+   "name": "snowflake orb",
+   "file": "/icons/card-skills/ice-snowflake-orb.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/ice-star",
+   "pack": "card-skills",
+   "name": "star",
+   "file": "/icons/card-skills/ice-star.webp",
+   "tags": [
+    "ice"
+   ]
+  },
+  {
+   "id": "card-skills/life-angel-of-mercy",
+   "pack": "card-skills",
+   "name": "angel of mercy",
+   "file": "/icons/card-skills/life-angel-of-mercy.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-angelic-familiar",
+   "pack": "card-skills",
+   "name": "angelic familiar",
+   "file": "/icons/card-skills/life-angelic-familiar.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-bloom",
+   "pack": "card-skills",
+   "name": "bloom",
+   "file": "/icons/card-skills/life-bloom.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-channel-healing",
+   "pack": "card-skills",
+   "name": "channel healing",
+   "file": "/icons/card-skills/life-channel-healing.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-crystal-elixir",
+   "pack": "card-skills",
+   "name": "crystal elixir",
+   "file": "/icons/card-skills/life-crystal-elixir.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-crystal-forge",
+   "pack": "card-skills",
+   "name": "crystal forge",
+   "file": "/icons/card-skills/life-crystal-forge.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-enchanted-music-box",
+   "pack": "card-skills",
+   "name": "enchanted music box",
+   "file": "/icons/card-skills/life-enchanted-music-box.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-essence",
+   "pack": "card-skills",
+   "name": "essence",
+   "file": "/icons/card-skills/life-essence.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-fierce-vitality",
+   "pack": "card-skills",
+   "name": "fierce vitality",
+   "file": "/icons/card-skills/life-fierce-vitality.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-floral-burst",
+   "pack": "card-skills",
+   "name": "floral burst",
+   "file": "/icons/card-skills/life-floral-burst.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-glass-rose",
+   "pack": "card-skills",
+   "name": "glass rose",
+   "file": "/icons/card-skills/life-glass-rose.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-gryphon-idol",
+   "pack": "card-skills",
+   "name": "gryphon idol",
+   "file": "/icons/card-skills/life-gryphon-idol.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-haloed-lily",
+   "pack": "card-skills",
+   "name": "haloed lily",
+   "file": "/icons/card-skills/life-haloed-lily.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-harvest-nectar",
+   "pack": "card-skills",
+   "name": "harvest nectar",
+   "file": "/icons/card-skills/life-harvest-nectar.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-healing-aura",
+   "pack": "card-skills",
+   "name": "healing aura",
+   "file": "/icons/card-skills/life-healing-aura.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-healing-pool",
+   "pack": "card-skills",
+   "name": "healing pool",
+   "file": "/icons/card-skills/life-healing-pool.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-healing-shards",
+   "pack": "card-skills",
+   "name": "healing shards",
+   "file": "/icons/card-skills/life-healing-shards.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-healing-shrine",
+   "pack": "card-skills",
+   "name": "healing shrine",
+   "file": "/icons/card-skills/life-healing-shrine.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-healing-thorn",
+   "pack": "card-skills",
+   "name": "healing thorn",
+   "file": "/icons/card-skills/life-healing-thorn.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-life-shards",
+   "pack": "card-skills",
+   "name": "life shards",
+   "file": "/icons/card-skills/life-life-shards.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-nurturing-blossom",
+   "pack": "card-skills",
+   "name": "nurturing blossom",
+   "file": "/icons/card-skills/life-nurturing-blossom.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-orchid-offering",
+   "pack": "card-skills",
+   "name": "orchid offering",
+   "file": "/icons/card-skills/life-orchid-offering.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-pixie-torch",
+   "pack": "card-skills",
+   "name": "pixie torch",
+   "file": "/icons/card-skills/life-pixie-torch.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-potion-garden",
+   "pack": "card-skills",
+   "name": "potion garden",
+   "file": "/icons/card-skills/life-potion-garden.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-quartz-shard-burst",
+   "pack": "card-skills",
+   "name": "quartz shard burst",
+   "file": "/icons/card-skills/life-quartz-shard-burst.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-radiant-rose",
+   "pack": "card-skills",
+   "name": "radiant rose",
+   "file": "/icons/card-skills/life-radiant-rose.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-rare-herb",
+   "pack": "card-skills",
+   "name": "rare herb",
+   "file": "/icons/card-skills/life-rare-herb.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-rose-quartz-fragment",
+   "pack": "card-skills",
+   "name": "rose quartz fragment",
+   "file": "/icons/card-skills/life-rose-quartz-fragment.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-soothing-incense",
+   "pack": "card-skills",
+   "name": "soothing incense",
+   "file": "/icons/card-skills/life-soothing-incense.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-sweet-extraction",
+   "pack": "card-skills",
+   "name": "sweet extraction",
+   "file": "/icons/card-skills/life-sweet-extraction.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-tin-heart",
+   "pack": "card-skills",
+   "name": "tin heart",
+   "file": "/icons/card-skills/life-tin-heart.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-vital-air",
+   "pack": "card-skills",
+   "name": "vital air",
+   "file": "/icons/card-skills/life-vital-air.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-vital-geode",
+   "pack": "card-skills",
+   "name": "vital geode",
+   "file": "/icons/card-skills/life-vital-geode.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-vital-shield",
+   "pack": "card-skills",
+   "name": "vital shield",
+   "file": "/icons/card-skills/life-vital-shield.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-vital-spore",
+   "pack": "card-skills",
+   "name": "vital spore",
+   "file": "/icons/card-skills/life-vital-spore.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-vitality-aura",
+   "pack": "card-skills",
+   "name": "vitality aura",
+   "file": "/icons/card-skills/life-vitality-aura.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/life-well-of-vitality",
+   "pack": "card-skills",
+   "name": "well of vitality",
+   "file": "/icons/card-skills/life-well-of-vitality.webp",
+   "tags": [
+    "life"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-bottled-storm",
+   "pack": "card-skills",
+   "name": "bottled storm",
+   "file": "/icons/card-skills/lightning-bottled-storm.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-charged-armor",
+   "pack": "card-skills",
+   "name": "charged armor",
+   "file": "/icons/card-skills/lightning-charged-armor.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-charged-shards",
+   "pack": "card-skills",
+   "name": "charged shards",
+   "file": "/icons/card-skills/lightning-charged-shards.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-curse-of-brightness",
+   "pack": "card-skills",
+   "name": "curse of brightness",
+   "file": "/icons/card-skills/lightning-curse-of-brightness.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-disturbance",
+   "pack": "card-skills",
+   "name": "disturbance",
+   "file": "/icons/card-skills/lightning-disturbance.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-light-conduit",
+   "pack": "card-skills",
+   "name": "light conduit",
+   "file": "/icons/card-skills/lightning-light-conduit.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-light-devil",
+   "pack": "card-skills",
+   "name": "light devil",
+   "file": "/icons/card-skills/lightning-light-devil.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-light-ribbon",
+   "pack": "card-skills",
+   "name": "light ribbon",
+   "file": "/icons/card-skills/lightning-light-ribbon.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-light-summoner",
+   "pack": "card-skills",
+   "name": "light summoner",
+   "file": "/icons/card-skills/lightning-light-summoner.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-luminescent-spore",
+   "pack": "card-skills",
+   "name": "luminescent spore",
+   "file": "/icons/card-skills/lightning-luminescent-spore.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-split-beam",
+   "pack": "card-skills",
+   "name": "split beam",
+   "file": "/icons/card-skills/lightning-split-beam.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-storm-planet",
+   "pack": "card-skills",
+   "name": "storm planet",
+   "file": "/icons/card-skills/lightning-storm-planet.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-storm-raven",
+   "pack": "card-skills",
+   "name": "storm raven",
+   "file": "/icons/card-skills/lightning-storm-raven.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-storm-wing",
+   "pack": "card-skills",
+   "name": "storm wing",
+   "file": "/icons/card-skills/lightning-storm-wing.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-thunder-hands",
+   "pack": "card-skills",
+   "name": "thunder hands",
+   "file": "/icons/card-skills/lightning-thunder-hands.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-thunder-rune",
+   "pack": "card-skills",
+   "name": "thunder rune",
+   "file": "/icons/card-skills/lightning-thunder-rune.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/lightning-unstable-current",
+   "pack": "card-skills",
+   "name": "unstable current",
+   "file": "/icons/card-skills/lightning-unstable-current.webp",
+   "tags": [
+    "lightning"
+   ]
+  },
+  {
+   "id": "card-skills/nature-earthen-sigil",
+   "pack": "card-skills",
+   "name": "earthen sigil",
+   "file": "/icons/card-skills/nature-earthen-sigil.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-elder-owl",
+   "pack": "card-skills",
+   "name": "elder owl",
+   "file": "/icons/card-skills/nature-elder-owl.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-emerald-leaf",
+   "pack": "card-skills",
+   "name": "emerald leaf",
+   "file": "/icons/card-skills/nature-emerald-leaf.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-fungal-growth",
+   "pack": "card-skills",
+   "name": "fungal growth",
+   "file": "/icons/card-skills/nature-fungal-growth.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-fungal-touch",
+   "pack": "card-skills",
+   "name": "fungal touch",
+   "file": "/icons/card-skills/nature-fungal-touch.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-jade-hummingbird",
+   "pack": "card-skills",
+   "name": "jade hummingbird",
+   "file": "/icons/card-skills/nature-jade-hummingbird.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-marigold-wreath",
+   "pack": "card-skills",
+   "name": "marigold wreath",
+   "file": "/icons/card-skills/nature-marigold-wreath.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-mossy-runestones",
+   "pack": "card-skills",
+   "name": "mossy runestones",
+   "file": "/icons/card-skills/nature-mossy-runestones.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-mountain-flower",
+   "pack": "card-skills",
+   "name": "mountain flower",
+   "file": "/icons/card-skills/nature-mountain-flower.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-natural-blessing",
+   "pack": "card-skills",
+   "name": "natural blessing",
+   "file": "/icons/card-skills/nature-natural-blessing.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-natural-geode",
+   "pack": "card-skills",
+   "name": "natural geode",
+   "file": "/icons/card-skills/nature-natural-geode.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-natures-power",
+   "pack": "card-skills",
+   "name": "natures power",
+   "file": "/icons/card-skills/nature-natures-power.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-natures-rune",
+   "pack": "card-skills",
+   "name": "natures rune",
+   "file": "/icons/card-skills/nature-natures-rune.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-natures-touch",
+   "pack": "card-skills",
+   "name": "natures touch",
+   "file": "/icons/card-skills/nature-natures-touch.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-overgrown-grave",
+   "pack": "card-skills",
+   "name": "overgrown grave",
+   "file": "/icons/card-skills/nature-overgrown-grave.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-silver-lily",
+   "pack": "card-skills",
+   "name": "silver lily",
+   "file": "/icons/card-skills/nature-silver-lily.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-the-wishing-tree",
+   "pack": "card-skills",
+   "name": "the wishing tree",
+   "file": "/icons/card-skills/nature-the-wishing-tree.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/nature-willow-touch",
+   "pack": "card-skills",
+   "name": "willow touch",
+   "file": "/icons/card-skills/nature-willow-touch.webp",
+   "tags": [
+    "nature"
+   ]
+  },
+  {
+   "id": "card-skills/poison-ancient-poison-ritual",
+   "pack": "card-skills",
+   "name": "ancient poison ritual",
+   "file": "/icons/card-skills/poison-ancient-poison-ritual.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-bloom",
+   "pack": "card-skills",
+   "name": "bloom",
+   "file": "/icons/card-skills/poison-bloom.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-breath",
+   "pack": "card-skills",
+   "name": "breath",
+   "file": "/icons/card-skills/poison-breath.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-corrupted-heart",
+   "pack": "card-skills",
+   "name": "corrupted heart",
+   "file": "/icons/card-skills/poison-corrupted-heart.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-poison-orb",
+   "pack": "card-skills",
+   "name": "poison orb",
+   "file": "/icons/card-skills/poison-poison-orb.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-poison-surge",
+   "pack": "card-skills",
+   "name": "poison surge",
+   "file": "/icons/card-skills/poison-poison-surge.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-poison-vines",
+   "pack": "card-skills",
+   "name": "poison vines",
+   "file": "/icons/card-skills/poison-poison-vines.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-poisoned-rose",
+   "pack": "card-skills",
+   "name": "poisoned rose",
+   "file": "/icons/card-skills/poison-poisoned-rose.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-repulsive-brew",
+   "pack": "card-skills",
+   "name": "repulsive brew",
+   "file": "/icons/card-skills/poison-repulsive-brew.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-serpent-skull",
+   "pack": "card-skills",
+   "name": "serpent skull",
+   "file": "/icons/card-skills/poison-serpent-skull.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-serpents-delight",
+   "pack": "card-skills",
+   "name": "serpents delight",
+   "file": "/icons/card-skills/poison-serpents-delight.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-serpents-vial",
+   "pack": "card-skills",
+   "name": "serpents vial",
+   "file": "/icons/card-skills/poison-serpents-vial.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-spore",
+   "pack": "card-skills",
+   "name": "spore",
+   "file": "/icons/card-skills/poison-spore.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-toxic-bog",
+   "pack": "card-skills",
+   "name": "toxic bog",
+   "file": "/icons/card-skills/poison-toxic-bog.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-toxic-brew",
+   "pack": "card-skills",
+   "name": "toxic brew",
+   "file": "/icons/card-skills/poison-toxic-brew.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-toxic-bug",
+   "pack": "card-skills",
+   "name": "toxic bug",
+   "file": "/icons/card-skills/poison-toxic-bug.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-toxic-flame",
+   "pack": "card-skills",
+   "name": "toxic flame",
+   "file": "/icons/card-skills/poison-toxic-flame.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-toxic-fumes",
+   "pack": "card-skills",
+   "name": "toxic fumes",
+   "file": "/icons/card-skills/poison-toxic-fumes.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/poison-trapped-gas",
+   "pack": "card-skills",
+   "name": "trapped gas",
+   "file": "/icons/card-skills/poison-trapped-gas.webp",
+   "tags": [
+    "poison"
+   ]
+  },
+  {
+   "id": "card-skills/space-creation-vortex",
+   "pack": "card-skills",
+   "name": "creation vortex",
+   "file": "/icons/card-skills/space-creation-vortex.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-crystalline-howl",
+   "pack": "card-skills",
+   "name": "crystalline howl",
+   "file": "/icons/card-skills/space-crystalline-howl.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-deep-space",
+   "pack": "card-skills",
+   "name": "deep space",
+   "file": "/icons/card-skills/space-deep-space.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-deep-space-flux",
+   "pack": "card-skills",
+   "name": "deep space flux",
+   "file": "/icons/card-skills/space-deep-space-flux.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-deep-space-storm-harvester",
+   "pack": "card-skills",
+   "name": "deep space storm harvester",
+   "file": "/icons/card-skills/space-deep-space-storm-harvester.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-dimensional-curse",
+   "pack": "card-skills",
+   "name": "dimensional curse",
+   "file": "/icons/card-skills/space-dimensional-curse.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-dimensional-traveler",
+   "pack": "card-skills",
+   "name": "dimensional traveler",
+   "file": "/icons/card-skills/space-dimensional-traveler.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-distortion-stone",
+   "pack": "card-skills",
+   "name": "distortion stone",
+   "file": "/icons/card-skills/space-distortion-stone.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-essence-of-space",
+   "pack": "card-skills",
+   "name": "essence of space",
+   "file": "/icons/card-skills/space-essence-of-space.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-fractured-blast",
+   "pack": "card-skills",
+   "name": "fractured blast",
+   "file": "/icons/card-skills/space-fractured-blast.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-galactic-core",
+   "pack": "card-skills",
+   "name": "galactic core",
+   "file": "/icons/card-skills/space-galactic-core.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-orbital-sphere",
+   "pack": "card-skills",
+   "name": "orbital sphere",
+   "file": "/icons/card-skills/space-orbital-sphere.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-particle-bubble",
+   "pack": "card-skills",
+   "name": "particle bubble",
+   "file": "/icons/card-skills/space-particle-bubble.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/space-space-quartz",
+   "pack": "card-skills",
+   "name": "space quartz",
+   "file": "/icons/card-skills/space-space-quartz.webp",
+   "tags": [
+    "space"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-aether-engine",
+   "pack": "card-skills",
+   "name": "aether engine",
+   "file": "/icons/card-skills/steampunk-aether-engine.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-astral-compass",
+   "pack": "card-skills",
+   "name": "astral compass",
+   "file": "/icons/card-skills/steampunk-astral-compass.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-bottled-time",
+   "pack": "card-skills",
+   "name": "bottled time",
+   "file": "/icons/card-skills/steampunk-bottled-time.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-brass-eagle",
+   "pack": "card-skills",
+   "name": "brass eagle",
+   "file": "/icons/card-skills/steampunk-brass-eagle.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-brass-heart",
+   "pack": "card-skills",
+   "name": "brass heart",
+   "file": "/icons/card-skills/steampunk-brass-heart.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-clockwork-familiar",
+   "pack": "card-skills",
+   "name": "clockwork familiar",
+   "file": "/icons/card-skills/steampunk-clockwork-familiar.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-clockwork-spark",
+   "pack": "card-skills",
+   "name": "clockwork spark",
+   "file": "/icons/card-skills/steampunk-clockwork-spark.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-drone",
+   "pack": "card-skills",
+   "name": "drone",
+   "file": "/icons/card-skills/steampunk-drone.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-forge-spark",
+   "pack": "card-skills",
+   "name": "forge spark",
+   "file": "/icons/card-skills/steampunk-forge-spark.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-gear-storm",
+   "pack": "card-skills",
+   "name": "gear storm",
+   "file": "/icons/card-skills/steampunk-gear-storm.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-mechanical-boomerang",
+   "pack": "card-skills",
+   "name": "mechanical boomerang",
+   "file": "/icons/card-skills/steampunk-mechanical-boomerang.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-mechanical-venom",
+   "pack": "card-skills",
+   "name": "mechanical venom",
+   "file": "/icons/card-skills/steampunk-mechanical-venom.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-molten-brass",
+   "pack": "card-skills",
+   "name": "molten brass",
+   "file": "/icons/card-skills/steampunk-molten-brass.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-storm-catcher",
+   "pack": "card-skills",
+   "name": "storm catcher",
+   "file": "/icons/card-skills/steampunk-storm-catcher.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-thoughtful-blessing",
+   "pack": "card-skills",
+   "name": "thoughtful blessing",
+   "file": "/icons/card-skills/steampunk-thoughtful-blessing.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-time-bender",
+   "pack": "card-skills",
+   "name": "time bender",
+   "file": "/icons/card-skills/steampunk-time-bender.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/steampunk-wing-suit",
+   "pack": "card-skills",
+   "name": "wing suit",
+   "file": "/icons/card-skills/steampunk-wing-suit.webp",
+   "tags": [
+    "steampunk"
+   ]
+  },
+  {
+   "id": "card-skills/stone-beast",
+   "pack": "card-skills",
+   "name": "beast",
+   "file": "/icons/card-skills/stone-beast.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-carbon-compression",
+   "pack": "card-skills",
+   "name": "carbon compression",
+   "file": "/icons/card-skills/stone-carbon-compression.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-fist",
+   "pack": "card-skills",
+   "name": "fist",
+   "file": "/icons/card-skills/stone-fist.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-ground-spike",
+   "pack": "card-skills",
+   "name": "ground spike",
+   "file": "/icons/card-skills/stone-ground-spike.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-idol",
+   "pack": "card-skills",
+   "name": "idol",
+   "file": "/icons/card-skills/stone-idol.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-mossy-monolith",
+   "pack": "card-skills",
+   "name": "mossy monolith",
+   "file": "/icons/card-skills/stone-mossy-monolith.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-rocky-essence",
+   "pack": "card-skills",
+   "name": "rocky essence",
+   "file": "/icons/card-skills/stone-rocky-essence.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/stone-watcher",
+   "pack": "card-skills",
+   "name": "watcher",
+   "file": "/icons/card-skills/stone-watcher.webp",
+   "tags": [
+    "stone"
+   ]
+  },
+  {
+   "id": "card-skills/water-abyssal-call",
+   "pack": "card-skills",
+   "name": "abyssal call",
+   "file": "/icons/card-skills/water-abyssal-call.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-bioluminescent-pulse",
+   "pack": "card-skills",
+   "name": "bioluminescent pulse",
+   "file": "/icons/card-skills/water-bioluminescent-pulse.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-cresting-wave",
+   "pack": "card-skills",
+   "name": "cresting wave",
+   "file": "/icons/card-skills/water-cresting-wave.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-fish-scale-armor",
+   "pack": "card-skills",
+   "name": "fish scale armor",
+   "file": "/icons/card-skills/water-fish-scale-armor.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-hardened-bubble",
+   "pack": "card-skills",
+   "name": "hardened bubble",
+   "file": "/icons/card-skills/water-hardened-bubble.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-liquid-serpent",
+   "pack": "card-skills",
+   "name": "liquid serpent",
+   "file": "/icons/card-skills/water-liquid-serpent.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-moonlit-rock",
+   "pack": "card-skills",
+   "name": "moonlit rock",
+   "file": "/icons/card-skills/water-moonlit-rock.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-ocean-ritual",
+   "pack": "card-skills",
+   "name": "ocean ritual",
+   "file": "/icons/card-skills/water-ocean-ritual.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-water-essence",
+   "pack": "card-skills",
+   "name": "water essence",
+   "file": "/icons/card-skills/water-water-essence.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-water-serpent",
+   "pack": "card-skills",
+   "name": "water serpent",
+   "file": "/icons/card-skills/water-water-serpent.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/water-waterspout",
+   "pack": "card-skills",
+   "name": "waterspout",
+   "file": "/icons/card-skills/water-waterspout.webp",
+   "tags": [
+    "water"
+   ]
+  },
+  {
+   "id": "card-skills/wind-air-gears",
+   "pack": "card-skills",
+   "name": "air gears",
+   "file": "/icons/card-skills/wind-air-gears.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-dagger-gust",
+   "pack": "card-skills",
+   "name": "dagger gust",
+   "file": "/icons/card-skills/wind-dagger-gust.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-debris-cyclone",
+   "pack": "card-skills",
+   "name": "debris cyclone",
+   "file": "/icons/card-skills/wind-debris-cyclone.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-ethereal-veil",
+   "pack": "card-skills",
+   "name": "ethereal veil",
+   "file": "/icons/card-skills/wind-ethereal-veil.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-eye-of-the-storm",
+   "pack": "card-skills",
+   "name": "eye of the storm",
+   "file": "/icons/card-skills/wind-eye-of-the-storm.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-jagged-sweep",
+   "pack": "card-skills",
+   "name": "jagged sweep",
+   "file": "/icons/card-skills/wind-jagged-sweep.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-orbital-gust",
+   "pack": "card-skills",
+   "name": "orbital gust",
+   "file": "/icons/card-skills/wind-orbital-gust.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-reaching-gust",
+   "pack": "card-skills",
+   "name": "reaching gust",
+   "file": "/icons/card-skills/wind-reaching-gust.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-spectral-howl",
+   "pack": "card-skills",
+   "name": "spectral howl",
+   "file": "/icons/card-skills/wind-spectral-howl.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-storm-harvester",
+   "pack": "card-skills",
+   "name": "storm harvester",
+   "file": "/icons/card-skills/wind-storm-harvester.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-summoner",
+   "pack": "card-skills",
+   "name": "summoner",
+   "file": "/icons/card-skills/wind-summoner.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-swirling-debris",
+   "pack": "card-skills",
+   "name": "swirling debris",
+   "file": "/icons/card-skills/wind-swirling-debris.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-twister",
+   "pack": "card-skills",
+   "name": "twister",
+   "file": "/icons/card-skills/wind-twister.webp",
+   "tags": [
+    "wind"
+   ]
+  },
+  {
+   "id": "card-skills/wind-zephyr-feather",
+   "pack": "card-skills",
+   "name": "zephyr feather",
+   "file": "/icons/card-skills/wind-zephyr-feather.webp",
+   "tags": [
+    "wind"
    ]
   }
  ]

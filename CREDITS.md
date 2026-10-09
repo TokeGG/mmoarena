@@ -112,6 +112,9 @@ The art of skills and buffs (shared/data/icons.json says which icon each one wea
 | Frost mage icon set | Unknown | Supplied by the owner, source and licence to be confirmed | Default icons of the Frost mage skills (25 icons) |
 | Pixel icon set (151) | Unknown | Supplied by the owner, source and licence to be confirmed | Default icons of the Priest, Rogue, Arcane and trinket skills and of many buffs (151 icons) |
 | Spell set (2011) | Unknown | Supplied by the owner, source and licence to be confirmed | A few default icons and fill-ins in the Icon edit library (53 icons) |
+| Mage icons (Batareya) | Batareya | Supplied by the owner, source and licence to be confirmed | Library only: 250 mage skill icons in the Icon edit library |
+| RPG spell icons (elements) | Unknown | Supplied by the owner, source and licence to be confirmed | Library only: 40 fire, ice, earth and lightning icons in the Icon edit library |
+| Card game skill icons | Unknown | Supplied by the owner, source and licence to be confirmed | Library only: 300 skill icons (arcane, blood, fire, frost, nature and more) in the Icon edit library |
 
 The steadykeel packs are served by the game server only: they are not in this repository, and the game's own files do not ship them. All icons are re-saved as 128 px WebP.
 

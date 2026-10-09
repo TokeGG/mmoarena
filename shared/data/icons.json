@@ -110,5 +110,25 @@
     "crippling_slow": "icons151/icon-35",
     "hammer_stun": "icons151/icon-107",
     "judgment_stun": "icons151/icon-106"
+  },
+  "classes": {
+    "warrior": "classart/warrior-4",
+    "mage": "classart/mage-1",
+    "priest": "classart/priest-4",
+    "rogue": "classart/rogue-4"
+  },
+  "specs": {
+    "arms": "specart/warbringer-1",
+    "fury": "specart/rampager-1",
+    "protection": "specart/barbarian-1",
+    "frost": "specart/cryomancy-1",
+    "fire": "specart/pyromancy-1",
+    "arcane": "specart/starweaving-1",
+    "discipline": "specart/warden-1",
+    "holy": "specart/lightbearer-1",
+    "shadow": "specart/gloomweaver-1",
+    "assassination": "specart/cutthroat-1",
+    "combat": "specart/duelist-1",
+    "subtlety": "specart/shade-1"
   }
 }

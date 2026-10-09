@@ -1,6 +1,7 @@
-import { iconIdFor, iconTitle, iconUrl } from '@arena/shared';
+import { SPECS, iconIdFor, iconTitle, iconUrl } from '@arena/shared';
 import type { IconKind } from '@arena/shared';
-import { ABILITY_ICON, AURA_ICON } from './icons';
+import { loadCustomIcons } from './iconCustom';
+import { ABILITY_ICON, AURA_ICON, CLASS_ICON } from './icons';
 
 /**
  * The art of a skill or buff: its picture from the icon library (shared/data/icons.json), or the emoji of icons.ts when it has
@@ -11,7 +12,28 @@ import { ABILITY_ICON, AURA_ICON } from './icons';
 /** Icons a dev picked in the Icon edit page and has not sent yet: shown at once, over the saved ones. Keyed "ability:fireball". */
 const preview = new Map<string, string>();
 
-export const emojiFor = (kind: IconKind, id: string): string => (kind === 'ability' ? ABILITY_ICON[id] : AURA_ICON[id]) ?? '✦';
+export const emojiFor = (kind: IconKind, id: string): string => {
+  if (kind === 'class') return CLASS_ICON[id as keyof typeof CLASS_ICON] ?? '✦';
+  if (kind === 'spec') return Object.values(SPECS).flat().find((s) => s.id === id)?.icon ?? '✦';
+  return (kind === 'ability' ? ABILITY_ICON[id] : AURA_ICON[id]) ?? '✦';
+};
+
+/** A class's picture as a small round badge for a line of text ("[badge] Mira"). */
+export const classBadge = (classId: string): HTMLElement => iconEl('class', classId, 'ic-class');
+
+/** A span: the class badge, a space, then the text. */
+export function classLine(classId: string, text: string): HTMLElement {
+  const s = document.createElement('span');
+  s.append(classBadge(classId), document.createTextNode(` ${text}`));
+  return s;
+}
+
+/** "[badge] Mira, [badge] Bo" for the players of one team. */
+export function teamLine(players: { classId: string; name: string }[]): HTMLElement {
+  const s = document.createElement('span');
+  players.forEach((p, i) => s.append(...(i ? [document.createTextNode(', ')] : []), classBadge(p.classId), document.createTextNode(` ${p.name}`)));
+  return s;
+}
 
 /** The icon id a skill or buff wears on screen now (a dev's unsent pick first), or null for the emoji. */
 export function shownIconId(kind: IconKind, id: string): string | null {
@@ -74,7 +96,7 @@ export function refreshIcons(root?: ParentNode): void {
   for (const node of root.querySelectorAll<HTMLElement>('[data-ic]')) {
     const [kind, ...rest] = (node.dataset.ic ?? '').split(':');
     const id = rest.join(':');
-    if (kind !== 'ability' && kind !== 'aura') continue;
+    if (kind !== 'ability' && kind !== 'aura' && kind !== 'class' && kind !== 'spec') continue;
     const icon = shownIconId(kind, id);
     if (node instanceof HTMLImageElement) {
       if (!icon) node.replaceWith(iconEl(kind, id, node.className.replace(/\bic\b/, '').trim(), node.loading === 'lazy', node.title));
@@ -90,3 +112,6 @@ export const shownIconTitle = (kind: IconKind, id: string): string => {
   const i = shownIconId(kind, id);
   return i ? iconTitle(i) : 'the emoji';
 };
+
+// the icons uploaded to this server join the library at start, so an icons.json that names one still shows it
+if (typeof location !== 'undefined' && typeof fetch === 'function') void loadCustomIcons().then((changed) => changed && refreshIcons());

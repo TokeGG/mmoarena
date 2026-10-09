@@ -25,6 +25,8 @@ export interface BotTest {
   tries: BotTestTry[];
   /** How many further differences are not listed. */
   more: number;
+  /** The further differences, biggest first (shown while Alt is held). */
+  rest?: BotTestTry[];
   /** The variant's record against people so far (wins counts partial scores, so it may be fractional). */
   games: number;
   wins: number;
@@ -68,6 +70,7 @@ export function describeVariant(classId: ClassId, variantId: string, brain: Brai
     label: variantLabel(variantId),
     tries: diffs.slice(0, TRIES_SHOWN).map((d) => ({ key: d.key, text: tryText(d.key, d.before, d.after), watch: BRAIN_WORDS[d.key].watch })),
     more: Math.max(0, diffs.length - TRIES_SHOWN),
+    rest: diffs.slice(TRIES_SHOWN).map((d) => ({ key: d.key, text: tryText(d.key, d.before, d.after), watch: BRAIN_WORDS[d.key].watch })),
     games: record.games,
     wins: Math.round(record.wins * 10) / 10,
   };

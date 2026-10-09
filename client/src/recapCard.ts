@@ -1,6 +1,6 @@
 import { ABILITIES, CLASSES } from '@arena/shared';
 import type { TeamId } from '@arena/shared';
-import { CLASS_ICON } from './icons';
+import { classLine } from './iconArt';
 import type { Recap } from './recap';
 
 const n = (v: number) => Math.round(v).toLocaleString('en-US');
@@ -38,7 +38,7 @@ export class RecapCard {
       tr.className = (r.team === friendly ? 'recap-ally' : 'recap-foe') + (r.mvp ? ' recap-mvp' : '');
       const who = tr.insertCell();
       who.className = 'recap-who';
-      who.textContent = `${CLASS_ICON[r.classId] ?? ''} ${r.name}`;
+      who.append(classLine(r.classId, r.name));
       who.title = CLASSES[r.classId]?.name ?? r.classId;
       if (r.mvp) {
         const m = document.createElement('span');

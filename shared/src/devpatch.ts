@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, FX, ICONS, SPECS, TALENTS, TUNING } from './data';
 import { FX_ID, fxField } from './fx';
-import { fileIconIdFor, iconExists, iconIdFor } from './iconlib';
+import { ICON_TABLE, fileIconIdFor, iconExists, iconIdFor } from './iconlib';
 import type { IconKind } from './iconlib';
 
 /**
@@ -151,9 +151,9 @@ function locateAll(p: PatchAt, src: Source = LIVE): Loc[] {
   // an icon: the table entry of the skill or buff (a buff with no entry of its own gets one made)
   if (p.file === 'icons') {
     const kind = p.path[0];
-    if (p.path.length !== 1 || (kind !== 'ability' && kind !== 'aura') || typeof p.id !== 'string') return [];
-    const known = kind === 'ability' ? Object.hasOwn(src.ABILITIES, p.id) : Object.hasOwn(src.AURAS, p.id);
-    return known ? [{ obj: (kind === 'ability' ? src.ICONS.abilities : src.ICONS.auras) as Record<string, unknown>, key: p.id, rest: [] }] : [];
+    if (p.path.length !== 1 || typeof kind !== 'string' || !Object.hasOwn(ICON_TABLE, kind) || typeof p.id !== 'string') return [];
+    const known = kind === 'ability' ? Object.hasOwn(src.ABILITIES, p.id) : kind === 'aura' ? Object.hasOwn(src.AURAS, p.id) : kind === 'class' ? Object.hasOwn(src.CLASSES, p.id) : Object.values(src.SPECS).some((l) => l.some((s) => s.id === p.id));
+    return known ? [{ obj: src.ICONS[ICON_TABLE[kind as IconKind]] as Record<string, unknown>, key: p.id, rest: [] }] : [];
   }
   const slot = modSlot(p);
   const out: Loc[] = [];

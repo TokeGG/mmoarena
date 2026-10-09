@@ -1,5 +1,32 @@
 [
  {
+  "version": "0.69.27",
+  "date": "2026-10-10",
+  "at": "2026-10-10T05:10:00Z",
+  "title": "More icons",
+  "changes": [
+   "The icon library has about 590 more icons from three new packs for skills, buffs and classes."
+  ]
+ },
+ {
+  "version": "0.69.26",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:30:00Z",
+  "title": "Heroic Leap lands on the platform",
+  "changes": [
+   "Heroic Leap aimed at a platform now lands on the platform instead of the floor below it, including near its edge. This fixes bots landing under the platform."
+  ]
+ },
+ {
+  "version": "0.69.25",
+  "date": "2026-10-10",
+  "at": "2026-10-10T03:00:00Z",
+  "title": "Class and spec emblems",
+  "changes": [
+   "Classes and specs now have round emblem art on the menu cards, frames, recap and spectator panels, in place of the emoji."
+  ]
+ },
+ {
   "version": "0.69.24",
   "date": "2026-10-10",
   "at": "2026-10-10T01:10:00Z",

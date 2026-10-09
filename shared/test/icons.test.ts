@@ -52,21 +52,21 @@ describe('the icon library and the default icons', () => {
     assert.equal(iconIdFor('aura', 'frost_nova_root'), ICONS.abilities.frost_nova);
     assert.equal(iconIdFor('aura', 'polymorph'), ICONS.abilities.polymorph);
     // its own entry wins
-    assert.equal(resolveIcon({ abilities: { frost_nova: 'icons151/icon-1' }, auras: { frost_nova_root: 'icons151/icon-2' } }, 'aura', 'frost_nova_root'), 'icons151/icon-2');
-    assert.equal(resolveIcon({ abilities: { frost_nova: 'icons151/icon-1' }, auras: {} }, 'aura', 'frost_nova_root'), 'icons151/icon-1');
-    assert.equal(resolveIcon({ abilities: {}, auras: {} }, 'ability', 'frost_nova'), null);
-    assert.equal(resolveIcon({ abilities: {}, auras: {} }, 'ability', 'constructor'), null);
+    assert.equal(resolveIcon({ abilities: { frost_nova: 'icons151/icon-1' }, auras: { frost_nova_root: 'icons151/icon-2' }, classes: {}, specs: {} }, 'aura', 'frost_nova_root'), 'icons151/icon-2');
+    assert.equal(resolveIcon({ abilities: { frost_nova: 'icons151/icon-1' }, auras: {}, classes: {}, specs: {} }, 'aura', 'frost_nova_root'), 'icons151/icon-1');
+    assert.equal(resolveIcon({ abilities: {}, auras: {}, classes: {}, specs: {} }, 'ability', 'frost_nova'), null);
+    assert.equal(resolveIcon({ abilities: {}, auras: {}, classes: {}, specs: {} }, 'ability', 'constructor'), null);
   });
 });
 
 describe('searching the library', () => {
   it('matches names, packs and tags, all words together, and narrows to one pack', () => {
     assert.equal(searchIcons('').length, ICON_LIST.length);
-    assert.ok(searchIcons('barbarian').every((i) => i.pack === 'barbarian') && searchIcons('barbarian').length === 40);
+    assert.ok(searchIcons('barbarian', 'barbarian').every((i) => i.pack === 'barbarian') && searchIcons('barbarian', 'barbarian').length === 40);
     assert.ok(searchIcons('fire bolt').some((i) => i.id.startsWith('spellset/fire-bolt')));
     assert.equal(searchIcons('zzzz nothing').length, 0);
     assert.ok(searchIcons('icon 12', 'icons151').every((i) => i.pack === 'icons151'));
-    assert.ok(searchIcons('revive', 'spellset').length > 10);
+    assert.ok(searchIcons('revive', 'spellset').length >= 2);
     assert.equal(searchIcons('revive', 'barbarian').length, 0);
     // tags: the framed round icons are grouped by school
     assert.ok(searchIcons('arcane').some((i) => i.pack.startsWith('steadykeel')));
@@ -145,5 +145,49 @@ describe('the Icon edit page', () => {
     for (const a of live) assert.ok(validPatch(iconPatch(`a:${a.id}`, ICON_LIST[0].id)), a.id);
     for (const id of Object.keys(AURAS)) assert.ok(validPatch(iconPatch(`u:${id}`, ICON_LIST[0].id)), id);
     assert.ok(ICONLIB.packs.length >= 7);
+  });
+});
+
+describe('class and spec icons', () => {
+  it('every class and every spec has a default icon of the library (public, with its file)', () => {
+    for (const c of Object.keys(CLASSES)) {
+      const id = iconIdFor('class', c);
+      assert.ok(id && ICON_LIST.some((i) => i.id === id) && !isPrivateIcon(id) && fs.existsSync(`${publicDir}${iconUrl(id)}`), c);
+    }
+    for (const s of Object.values(SPECS).flat()) {
+      assert.equal(iconIdFor('spec', s.id), `specart/${s.name.toLowerCase()}-1`);
+      assert.ok(fs.existsSync(`${publicDir}${iconUrl(iconIdFor('spec', s.id))}`), s.id);
+    }
+    assert.deepEqual(Object.keys(ICONS.specs).filter((id) => !Object.values(SPECS).flat().some((s) => s.id === id)), []);
+    assert.deepEqual(Object.keys(ICONS.classes).filter((id) => !(id in CLASSES)), []);
+  });
+
+  it('are patched like skills: validated, live, put back, and never in the content hash', () => {
+    const hash = contentHash();
+    const c: DataPatch = iconPatch('c:warrior', 'classart/warrior-1');
+    const s: DataPatch = iconPatch('p:assassination', 'specart/cutthroat-3');
+    assert.deepEqual(c.path, ['class']);
+    assert.deepEqual(s.path, ['spec']);
+    assert.ok(validPatch(c) && validPatch(s));
+    assert.ok(!validPatch({ ...c, id: 'assassination' }) && !validPatch({ ...s, id: 'warrior' }), 'a class is not a spec');
+    assert.ok(!validPatch({ ...c, value: 'nowhere/none' }));
+    const undo = applyPatches([c, s]);
+    assert.equal(iconIdFor('class', 'warrior'), 'classart/warrior-1');
+    assert.equal(iconIdFor('spec', 'assassination'), 'specart/cutthroat-3');
+    assert.equal(contentHash(), hash);
+    assert.equal(fileDefault(c), 'classart/warrior-4');
+    undo();
+    assert.equal(iconIdFor('class', 'warrior'), 'classart/warrior-4');
+    assert.equal(nameOf('icons', 'warrior', ['class']), 'Warrior class');
+    assert.equal(nameOf('icons', 'assassination', ['spec']), 'Cutthroat');
+  });
+
+  it('the Icon edit page lists the classes, then the specs of each class, at the top', () => {
+    const nav = navFor('icons');
+    assert.equal(nav[0].title, 'Classes');
+    assert.deepEqual(nav[0].entries.map((e) => e.id), Object.keys(CLASSES).map((c) => `c:${c}`));
+    assert.equal(nav[1].title, 'Specs');
+    assert.equal(nav[1].groups!.flatMap((g) => g.entries).length, Object.values(SPECS).flat().length);
+    for (const e of [...nav[0].entries, ...nav[1].groups!.flatMap((g) => g.entries)]) assert.ok(entryFor('icons', e.id), e.id);
   });
 });

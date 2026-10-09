@@ -584,6 +584,8 @@ export class ArenaSim {
       const p = Math.min(1, (this.time + this.tickMs - L.start) / L.dur);
       u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
       const yAbs = leapHeight(L, p);
+      // the last part of a leap onto a walkway: the arc is no higher than its floor at the end, so its rim would stop you short; you are up there
+      if (L.toLv === 1 && u.level === 0 && p >= 0.8 && onRaised(this.arena, L.toX, L.toZ)) u.level = 1;
       this.place(u, { x: L.fromX + (L.toX - L.fromX) * p, z: L.fromZ + (L.toZ - L.fromZ) * p }, Math.max(0, yAbs - heightAt(this.arena, u.pos.x, u.pos.z, u.level))); // in the air: over rails and barricades
       // coming down onto a walkway: once over it and no lower than its floor, you are on it
       if (L.toLv === 1 && u.level === 0 && onRaised(this.arena, u.pos.x, u.pos.z) && yAbs >= heightAt(this.arena, u.pos.x, u.pos.z, 1) - STEP_HEIGHT) u.level = 1;

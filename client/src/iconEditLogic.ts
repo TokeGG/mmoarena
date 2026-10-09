@@ -1,4 +1,4 @@
-import { ICON_LIST, ICON_PACKS, fileIconIdFor, iconDef, iconIdFor, iconPatch, isPrivateIcon, searchIcons } from '@arena/shared';
+import { SPECS, ICON_LIST, ICON_PACKS, fileIconIdFor, iconDef, iconIdFor, iconPatch, isPrivateIcon, searchIcons } from '@arena/shared';
 import type { DataPatch, IconDef, IconKind, IconPack } from '@arena/shared';
 import { patchKey } from './devEdits';
 import type { EditSet } from './devEdits';
@@ -9,6 +9,8 @@ import type { EditSet } from './devEdits';
 export function iconTarget(navId: string): { kind: IconKind; id: string } | null {
   if (navId.startsWith('a:')) return { kind: 'ability', id: navId.slice(2) };
   if (navId.startsWith('u:')) return { kind: 'aura', id: navId.slice(2) };
+  if (navId.startsWith('c:')) return { kind: 'class', id: navId.slice(2) };
+  if (navId.startsWith('p:')) return { kind: 'spec', id: navId.slice(2) };
   return null;
 }
 
@@ -20,11 +22,11 @@ export function gridIcons(query: string, pack: string, available: ReadonlySet<st
   return searchIcons(query, pack).filter((i) => iconOffered(i, available));
 }
 
-/** The chips above the grid: "All" and every pack that has icons on offer, with how many match the search. A private pack is marked. */
-export function packChips(query: string, available: ReadonlySet<string> | null = null): { id: string; name: string; count: number; locked: boolean }[] {
+/** The chips above the grid: "All" and every pack that has icons on offer, with how many match the search. A private pack is marked, and so is one uploaded to the server (custom). */
+export function packChips(query: string, available: ReadonlySet<string> | null = null): { id: string; name: string; count: number; locked: boolean; custom: boolean }[] {
   const found = searchIcons(query).filter((i) => iconOffered(i, available));
-  const chips = ICON_PACKS.filter((p: IconPack) => !p.private || ICON_LIST.some((i) => i.pack === p.id && available?.has(i.id))).map((p) => ({ id: p.id, name: p.name, count: found.filter((i) => i.pack === p.id).length, locked: !!p.private }));
-  return [{ id: '', name: 'All', count: found.length, locked: false }, ...chips];
+  const chips = ICON_PACKS.filter((p: IconPack) => !p.private || ICON_LIST.some((i) => i.pack === p.id && available?.has(i.id))).map((p) => ({ id: p.id, name: p.name, count: found.filter((i) => i.pack === p.id).length, locked: !!p.private, custom: !!p.custom }));
+  return [{ id: '', name: 'All', count: found.length, locked: false, custom: false }, ...chips];
 }
 
 /** The patch of an icon pick, or null when the id is not an icon of the library. */
@@ -33,7 +35,7 @@ export function iconPick(navId: string, icon: string): DataPatch | null {
 }
 
 /** The pieces EditSet needs to treat an icon like any other value: the file's icon is the base, the live one the value. */
-function fieldOfIcon(navId: string): { file: 'icons'; id: string; path: ['ability' | 'aura']; base: string; value: string } | null {
+function fieldOfIcon(navId: string): { file: 'icons'; id: string; path: [IconKind]; base: string; value: string } | null {
   const t = iconTarget(navId);
   if (!t) return null;
   return { file: 'icons', id: t.id, path: [t.kind], base: fileIconIdFor(t.kind, t.id) ?? '', value: iconIdFor(t.kind, t.id) ?? '' };
@@ -74,10 +76,19 @@ export function previewOf(set: EditSet): Map<string, string> {
   for (const p of set.edits.values()) if (p.file === 'icons' && typeof p.value === 'string') out.set(`${p.path[0]}:${p.id}`, p.value);
   for (const k of set.reverted) {
     const [file, id, kind] = k.split(':');
-    if (file !== 'icons' || (kind !== 'ability' && kind !== 'aura')) continue;
+    if (file !== 'icons' || (kind !== 'ability' && kind !== 'aura' && kind !== 'class' && kind !== 'spec')) continue;
     out.set(`${kind}:${id}`, fileIconIdFor(kind, id) ?? '');
   }
   return out;
 }
 
 export { patchKey };
+
+/** The icons made for a class or spec (its five options in classart / specart), shown first above the grid; none for a skill or buff. */
+export function suggestedIcons(navId: string, available: ReadonlySet<string> | null = null): IconDef[] {
+  const t = iconTarget(navId);
+  if (!t || (t.kind !== 'class' && t.kind !== 'spec')) return [];
+  const art = t.kind === 'class' ? t.id : Object.values(SPECS).flat().find((s) => s.id === t.id)?.name.toLowerCase() ?? t.id; // the art is named by the spec's name
+  const prefix = `${t.kind === 'class' ? 'classart' : 'specart'}/${art}-`;
+  return ICON_LIST.filter((i) => i.id.startsWith(prefix) && iconOffered(i, available));
+}

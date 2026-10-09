@@ -1,8 +1,8 @@
 import type { DevCommitRow } from '@arena/shared';
-import { resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, PATCH_FILES, applyPatches, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
+import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, PATCH_FILES, applyPatches, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
 import { ABILITIES, AURAS } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
-import type { ClassId, DataPatch, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
+import type { ClassId, DataPatch, IconKind, IconTable, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
 
 /** A file in a commit: its path in the repository and its whole new text. */
 interface CommitFile { path: string; content: string }
@@ -458,6 +458,8 @@ function showValue(p: DataPatch, v: number | string): string {
 
 /** One short, player-facing patch-notes line for a number: "Fireball: cooldown 8 s to 7 s". */
 function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: number | string): string {
+  if (file === 'icons' && p.path[0] === 'class') return `The ${nameOf(file, p.id, p.path)} has a new icon.`;
+  if (file === 'icons' && p.path[0] === 'spec') return `${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons') return p.path[0] === 'aura' ? `The ${nameOf(file, p.id, p.path).replace(/ \((buff|debuff)\)$/, '')} ${AURAS[p.id]?.harmful ? 'debuff' : 'buff'} has a new icon.` : `${nameOf(file, p.id, p.path)} has a new icon.`;
   // stat bonuses, switches and the game's own rules are worded from the shared labels: "Warden: Power Word: Shield shield strength +50% to +60%."
   if (file === 'tuning' || file === 'fx' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
@@ -539,8 +541,8 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
 function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | string | undefined {
   if (file === 'icons') {
     try {
-      const t = JSON.parse(text) as { abilities?: Record<string, string>; auras?: Record<string, string> };
-      return resolveIcon({ abilities: t.abilities ?? {}, auras: t.auras ?? {} }, p.path[0] === 'aura' ? 'aura' : 'ability', p.id) ?? 'none';
+      const t = JSON.parse(text) as Partial<IconTable>;
+      return resolveIcon({ abilities: t.abilities ?? {}, auras: t.auras ?? {}, classes: t.classes ?? {}, specs: t.specs ?? {} }, p.path[0] as IconKind, p.id) ?? 'none';
     } catch {
       return undefined;
     }
@@ -589,8 +591,8 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
   if (file === 'classes') return patchClassesText(text, patches);
   if (file === 'icons') {
     // the skill's (or buff's) entry in icons.json: set, or added when a buff wore its skill's icon until now
-    const t = JSON.parse(text) as { abilities: Record<string, string>; auras: Record<string, string> };
-    for (const p of patches) if (typeof p.value === 'string') (p.path[0] === 'aura' ? t.auras : t.abilities)[p.id] = p.value;
+    const t = JSON.parse(text) as Record<string, Record<string, string>>;
+    for (const p of patches) if (typeof p.value === 'string' && Object.hasOwn(ICON_TABLE, String(p.path[0]))) (t[ICON_TABLE[p.path[0] as IconKind]] ??= {})[p.id] = p.value;
     return JSON.stringify(t, null, 2) + (text.endsWith('\n') ? '\n' : '');
   }
   const data = JSON.parse(text) as unknown;

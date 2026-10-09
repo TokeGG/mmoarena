@@ -14,6 +14,9 @@ export interface WorkspaceHost {
   inEffect(): DataPatch[];
   /** False in the Tuning tab: proposals are handled in their own list, not put back from here. */
   canRevert: boolean;
+  /** Save what was typed (the icon picker's Save button): where it goes depends on the panel. */
+  save?(): string | void;
+  saveTitle?: string;
   /** Something was typed, reset or undone: update the toolbar's counter and the changes list. */
   onEdit(): void;
   /** The whole panel must be drawn again (the pages changed what it shows). */
@@ -41,7 +44,7 @@ export function pageOwns(page: DevPageId, p: DataPatch): boolean {
 }
 /** The id of a change's entry in a page's navigation. */
 export function navIdOf(page: DevPageId, p: DataPatch): string {
-  if (page === 'icons') return `${p.path[0] === 'aura' ? 'u' : 'a'}:${p.id}`; // an icon's entry is its skill or buff
+  if (page === 'icons') return `${({ aura: 'u', class: 'c', spec: 'p' } as Record<string, string>)[String(p.path[0])] ?? 'a'}:${p.id}`; // an icon's entry is its skill or buff
   if (page === 'animations') return String(p.path[0]); // an animation's entry is its effect (dragonsBreath, charge, ...)
   if (page !== 'passives') return p.id;
   if (p.file === 'tuning') return `s:${CLASS_IDS.flatMap((c) => SPECS[c]).find((x) => x.passive === 'cauterize')?.id ?? ''}`;
@@ -69,7 +72,7 @@ export class DevWorkspace {
   private detailBox: HTMLElement | null = null;
 
   constructor(private host: WorkspaceHost) {
-    this.iconEd = new IconEditor({ set: this.editor.set, testing: () => host.testing(), canRevert: host.canRevert, onEdit: () => this.editor.onEdit() });
+    this.iconEd = new IconEditor({ set: this.editor.set, testing: () => host.testing(), canRevert: host.canRevert, onEdit: () => this.editor.onEdit(), save: host.save ? () => host.save?.() : undefined, saveTitle: host.saveTitle });
     this.editor.testing = () => host.testing();
     this.editor.canRevert = host.canRevert;
     this.editor.onEdit = () => {
@@ -182,7 +185,7 @@ export class DevWorkspace {
   private noteClass(): void {
     const id = this.sel[this.page];
     if (!id) return;
-    const c = this.page === 'classes' ? (id as ClassId) : this.page === 'specs' ? classOfSpec(id) : this.page === 'talents' ? classOfTalent(id) : this.page === 'passives' ? (id.startsWith('s:') ? classOfSpec(id.slice(2)) : classOfTalent(id.slice(2))) : this.page === 'skills' ? (ABILITIES[id]?.class as ClassId) : this.page === 'icons' ? (id.startsWith('a:') ? (ABILITIES[id.slice(2)]?.class as ClassId) : null) : null;
+    const c = this.page === 'classes' ? (id as ClassId) : this.page === 'specs' ? classOfSpec(id) : this.page === 'talents' ? classOfTalent(id) : this.page === 'passives' ? (id.startsWith('s:') ? classOfSpec(id.slice(2)) : classOfTalent(id.slice(2))) : this.page === 'skills' ? (ABILITIES[id]?.class as ClassId) : this.page === 'icons' ? (id.startsWith('c:') ? (id.slice(2) as ClassId) : id.startsWith('p:') ? classOfSpec(id.slice(2)) : id.startsWith('a:') ? (ABILITIES[id.slice(2)]?.class as ClassId) : null) : null;
     if (c && CLASSES[c]) this.classCtx = c;
   }
 
@@ -272,7 +275,8 @@ export class DevWorkspace {
     const entryBtn = (e: NavEntry): HTMLElement => {
       const b = el('button', `devp-navitem${e.id === sel ? ' sel' : ''}`);
       if (this.page === 'skills' || this.page === 'icons') {
-        const sk = e.id.startsWith('u:') ? iconEl('aura', e.id.slice(2), '', true) : iconEl('ability', this.page === 'icons' ? e.id.slice(2) : e.id, '', true);
+        const kind = this.page !== 'icons' ? 'ability' : ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, 'aura' | 'class' | 'spec'>)[e.id[0]] ?? 'ability';
+        const sk = iconEl(kind, this.page === 'icons' ? e.id.slice(2) : e.id, '', true);
         const ic = el('span', 'devp-navicon');
         ic.append(sk);
         b.append(ic);
@@ -426,7 +430,7 @@ export class DevWorkspace {
   private resetEntry(id: string): void {
     const pairs = this.entryPairs(id);
     const hit = (p: Pick<DataPatch, 'file' | 'id'>) => pairs.some((x) => x.file === p.file && x.id === p.id);
-    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p)) && (this.page !== 'animations' || p.path[0] === id) && (this.page !== 'icons' || p.path[0] === (id.startsWith('u:') ? 'aura' : 'ability'));
+    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p)) && (this.page !== 'animations' || p.path[0] === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
     for (const [k, p] of [...this.set.edits]) if (mine(p)) this.set.edits.delete(k);
     if (this.host.canRevert) for (const p of this.host.inEffect()) if (mine(p)) this.set.reverted.add(patchKey(p));
   }

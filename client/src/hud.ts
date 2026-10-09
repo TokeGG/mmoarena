@@ -1,5 +1,5 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor, lockedByAura, silencedBy } from '@arena/shared';
-import { CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { SCHOOL_GRADIENT } from './icons';
 import { iconEl } from './iconArt';
 import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
@@ -82,6 +82,8 @@ class UnitFrame {
   readonly root: HTMLElement;
   private portrait = el('div', 'portrait');
   private nameEl = el('div', 'name');
+  /** Under a bot's name: the spec it plays, so you see at a glance what it is. */
+  private subEl = el('div', 'fsub');
   private hp = new Bar(HP_ALLY);
   private res = new Bar('#3b82f6', true);
   private cast: Bar | null;
@@ -93,7 +95,7 @@ class UnitFrame {
     this.root = root;
     this.cast = withCast ? new Bar('#f1c40f', true) : null;
     const body = el('div', 'fbody');
-    body.append(this.nameEl, this.hp.root, this.res.root, this.pips);
+    body.append(this.nameEl, this.subEl, this.hp.root, this.res.root, this.pips);
     for (let i = 0; i < 8; i++) this.pips.append(el('span', 'pip'));
     if (this.cast) body.append(this.cast.root);
     body.append(this.auras);
@@ -105,11 +107,13 @@ class UnitFrame {
     if (this.classShown !== u.classId) {
       this.classShown = u.classId;
       const c = CLASSES[u.classId].color;
-      this.portrait.textContent = CLASS_ICON[u.classId];
+      this.portrait.replaceChildren(iconEl('class', u.classId, 'ic-portrait'));
       this.portrait.style.background = `radial-gradient(circle at 35% 30%, ${c}, #14161c 85%)`;
     }
     this.portrait.classList.toggle('enemy', enemy);
     this.nameEl.textContent = who ? `${who.emblem} ${u.name}` : u.name;
+    const sub = who && who.emblem === '🤖' ? who.title : '';
+    if (this.subEl.textContent !== sub) this.subEl.textContent = sub;
     applyName(this.nameEl, { color: who?.color || CLASSES[u.classId].color, color2: who?.color2, glow: who?.glow });
     this.hp.setColor(hpFill(enemy, u.maxHealth > 0 ? u.health / u.maxHealth : 0, CLASSES[u.classId].color));
     this.hp.set(u.health, u.maxHealth, hpText(u.health, u.maxHealth, u.absorb ?? 0), u.absorb ?? 0);

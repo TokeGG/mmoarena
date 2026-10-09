@@ -35,6 +35,7 @@ import { TakeoverUi } from './takeoverUi';
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel, adminAccessOf } from './adminPanel';
 import type { Tab as AdminTab } from './adminPanel';
+import { ToolsWindow } from './toolsWindow';
 import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
@@ -1075,20 +1076,17 @@ controls.onKey = (code, e) => {
     else menu.open(true);
     return;
   }
-  if (code === 'F2' && !latest && !binds.actionForEvent(e)) {
-    e.preventDefault();
-    return void devPanel.toggle(); // from the menu (only when the 🛠 button shows)
+  // F2: the tools window (Dev and Admin tabs; Shift+F2 switches), in the menu, a match, a watched match or replay and the end screen
+  if (code === 'F2' && !binds.actionForEvent(e)) {
+    if (tools.f2(e.shiftKey)) e.preventDefault();
+    return;
   }
   if (!latest) return;
   if (code === 'KeyB' && (spec?.kind === 'live' || spectateBar.board.visible)) return void spectateBar.board.toggle();
   // N: the builds panel (watching, or a dev in a match); F2: dev tools. Only when the key is not bound to something else
-  if (code === 'KeyN' && (spec || devPanel.button.isConnected && !devPanel.button.classList.contains('hidden')) && !binds.actionForEvent(e)) {
+  if (code === 'KeyN' && (spec || (isDev() && devPanel.matchMode)) && !binds.actionForEvent(e)) {
     if (!spec) send({ t: 'dev_builds' });
     return void buildsPanel.toggle();
-  }
-  if (code === 'F2' && (!spec || spec.kind === 'live') && !binds.actionForEvent(e)) {
-    e.preventDefault();
-    return void devPanel.toggle();
   }
   const action = binds.actionForEvent(e);
   if (!action) return;
@@ -1118,7 +1116,7 @@ let lastT = performance.now();
 let acc = 0;
 
 function frame(now: number) {
-  devPanel.menuAvailable(isDev() && mainMenu.visible && !spec); // a dev can open the tools from the menu too
+  tools.sync(); // the 🛠 button and the open window follow the account
   tours.setContext(spec ? (latest ? 'watch' : 'other') : latest ? 'match' : mainMenu.visible ? 'menu' : 'other');
   requestAnimationFrame(frame);
   const dt = Math.min(0.25, (now - lastT) / 1000);
@@ -1818,11 +1816,14 @@ const adminPanel = new AdminPanel({
   replay: (id) => void startReplay(id),
   onPending: (n) => {
     setBadge(adminBadge, n);
+    tools.setPending(n);
     adminBadge.title = `${n} dev proposal${n === 1 ? '' : 's'} not checked yet`;
   },
 });
-registerPopup(adminPanel.popup);
 registerPopup(adminPanel.bbPopup);
+/** Dev tools and the admin panel in one window with a tab for each (the 🛠 button and F2, anywhere the account has access). */
+const tools = new ToolsWindow(devPanel, adminPanel, () => accountUi.account);
+registerPopup(tools.popup);
 const menuExtras = document.createElement('div');
 menuExtras.className = 'menu-extras';
 const header = buildHeaderBar([
@@ -1939,14 +1940,13 @@ function waitForTourSync() {
 tours.setHost({
   releaseInput: () => controls.releaseAll(),
   openDevPanel: () => {
-    devPanel.menuAvailable(isDev() && mainMenu.visible && !spec);
-    if (devPanel.button.classList.contains('hidden')) return false;
-    devPanel.toggle(true);
-    return true;
+    return tools.show('dev');
   },
   devShow: (o) => devPanel.tourShow({ ...o, page: o.page as DevPageId | undefined }),
   openAdmin: (tab) => adminPanel.showTab(tab as AdminTab),
-  closeAdmin: () => adminPanel.close(),
+  closeAdmin: () => {
+    if (tools.tab === 'admin') tools.hide();
+  },
   closeMenus: () => {
     menu.close();
     helpWindow.close();
