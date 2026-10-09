@@ -732,6 +732,11 @@
   #recap tr.recap-mvp { background:rgba(255,210,74,.14); }
   .recap-badge { margin-left:6px; padding:0 5px; border-radius:4px; background:#ffd24a; color:#1a1405; font-size:10px; font-weight:800; }
   .follow-box { position:fixed; top:8px; left:50%; transform:translateX(-50%); z-index:70; display:flex; align-items:center; gap:10px; padding:6px 12px; background:rgba(20,18,25,.92); border:1px solid #7a4bb0; border-radius:10px; color:#e9e4f2; font-size:13px; box-shadow:0 4px 16px rgba(0,0,0,.6); }
+  .takeover-chip { position:fixed; top:8px; right:8px; z-index:70; display:flex; align-items:center; gap:8px; padding:5px 10px; background:rgba(20,18,25,.92); border:1px solid #7a4bb0; border-radius:10px; color:#e9e4f2; font-size:12px; }
+  .takeover-chip button, .takeover-list button { background:#2c2638; color:#e9e4f2; border:1px solid #7a4bb0; border-radius:6px; padding:4px 9px; cursor:pointer; font-size:12px; }
+  .takeover-list { position:fixed; z-index:71; display:grid; gap:4px; width:240px; padding:6px; background:rgba(20,18,25,.96); border:1px solid #7a4bb0; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.6); color:#e9e4f2; }
+  .takeover-list button { text-align:left; }
+  .takeover-chip.hidden, .takeover-list.hidden { display:none; }
   .follow-box button { background:#2c2638; color:#e9e4f2; border:1px solid #7a4bb0; border-radius:6px; padding:3px 9px; cursor:pointer; font-size:12px; }
   .admp-prop { border:1px solid #2c2638; border-radius:8px; padding:8px 10px; margin-bottom:8px; background:#1a1722; }
   .admp-prop-head { display:flex; align-items:baseline; gap:4px; cursor:pointer; }

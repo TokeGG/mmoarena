@@ -31,6 +31,7 @@ import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
 import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
+import { TakeoverUi } from './takeoverUi';
 import { DataLayers, DevPanel } from './devPanel';
 import { AdminPanel, adminAccessOf } from './adminPanel';
 import type { Tab as AdminTab } from './adminPanel';
@@ -225,6 +226,10 @@ const menu = new Menu(binds, {
     if (open) controls.releaseAll();
   },
   onLeave: () => {
+    if (controlling) {
+      send({ t: 'admin_release' }); // a bot plays it again and you go on watching; the others' match is not left
+      return;
+    }
     if (spec) {
       if (spec.kind === 'live') send({ t: 'leave' });
       exitSpectate();
@@ -302,7 +307,19 @@ function onMessage(raw: MessageEvent) {
   const m = JSON.parse(raw.data as string) as ServerMsg;
   switch (m.t) {
     case 'welcome':
+    case 'controlling':
       clearMenuLayers();
+      if (m.t === 'controlling') {
+        // owner only: the watched match turns into a normal match for the unit just taken over (no delay, no spectator bar)
+        if (spec) {
+          spec = null;
+          spectateBar.hide();
+          document.body.classList.remove('spectating');
+        }
+        resetRecap();
+        controlling = true;
+        syncTarget = true;
+      }
       endChoice.hide();
       endBoardUp = false;
       spectateBar.board.toggle(false);
@@ -359,6 +376,10 @@ function onMessage(raw: MessageEvent) {
       hudLayout.refit();
       mainMenu.show(false);
       joinMsg('');
+      if (m.t === 'controlling') {
+        devPanel.setAvailable(false); // nothing a pause or a patch would announce to the others
+        takeoverUi.setControlling(lastBuilds.find((u) => u.id === m.unitId)?.name ?? 'a bot');
+      }
       break;
     case 'account':
     case 'auth_error':
@@ -421,6 +442,8 @@ function onMessage(raw: MessageEvent) {
     case 'builds':
       lastBuilds = m.units;
       if (spec || isDev()) buildsPanel.set(m.units);
+      if (controlling) takeoverUi.setControlling(m.units.find((u) => u.id === you)?.name ?? 'a bot');
+      spectateBar.setPlayAs(!!spec && spec.kind === 'live' && !!accountUi.account?.ownerOk && m.units.some((u) => u.bot));
       devPanel.refresh();
       break;
     case 'overrides':
@@ -524,6 +547,8 @@ function onMessage(raw: MessageEvent) {
       hud.error(m.reason);
       break;
     case 'closed':
+      controlling = false;
+      takeoverUi.setControlling(null);
       matchStarting = false;
       resetRecap();
       devPanel.setAvailable(false);
@@ -587,6 +612,10 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   }
 
   const me = snap.units.find((u) => u.id === you);
+  if (syncTarget && me) {
+    syncTarget = false;
+    targetId = me.target ?? null; // the bot's target carries over to the owner
+  }
   if (me) {
     dash.sample(snap.time, me.x, me.z, me.controlled && me.alive, TUNING.runSpeed * (me.speedMult || 1));
     // Reconcile: start from the server's position, then replay inputs it has not processed yet.
@@ -1371,6 +1400,7 @@ const spectateBar = new SpectateBar({
   onCycle: (dir) => cycleFollow(dir),
   onBuilds: () => buildsPanel.toggle(),
   onSettings: () => (menu.isOpen ? menu.back() : menu.open(true)),
+  onPlayAs: (anchor) => takeoverUi.pick(lastBuilds, anchor),
   onExit: () => {
     if (spec?.kind === 'live') send({ t: 'leave' });
     exitSpectate();
@@ -1411,6 +1441,15 @@ const followBox = (() => {
     },
   };
 })();
+/** Owner only: the unit of a live match played right now, and the picker and chip for it. */
+let controlling = false;
+let syncTarget = false;
+const takeoverUi = new TakeoverUi({
+  onPick: (unit) => {
+    if (spec?.id) send({ t: 'admin_takeover', id: spec.id, unit });
+  },
+  onRelease: () => send({ t: 'admin_release' }),
+});
 const livePicker = new LivePicker(
   (id) => send({ t: 'spectate', id }),
   () => send({ t: 'live' }),
@@ -1441,6 +1480,8 @@ function swapMatchMap(mapId: string) {
 
 function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runner?: ReplayRunner) {
   clearMenuLayers();
+  controlling = false;
+  takeoverUi.setControlling(null);
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
   arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
   scene.setMap(arena.id);
@@ -1620,6 +1661,8 @@ function connect(): Promise<boolean> {
       if (ws !== sock) return;
       ws = null;
       audio.stopAmbience();
+      controlling = false;
+      takeoverUi.setControlling(null);
       const inMatch = !!latest && !spec;
       if (spec?.kind === 'live') endSpectateState();
       // the end screen (Ready / Leave and the scoreboard) belongs to the match that is gone

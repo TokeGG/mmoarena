@@ -69,6 +69,8 @@ export interface Player {
   size: TeamSize;
   /** The match this connection is watching, if any. */
   watching?: Room;
+  /** Owner only, never sent to anyone: the bot unit this connection plays right now (it also stays `watching` that room). */
+  ctl?: { room: Room; unitId: number };
   /** Dev tools: test numbers kept for this session, put into every match this dev plays (cleared on sign-out or by hand). */
   devSession?: DataPatch[];
   /** Owner: the account (key) this connection follows into every match it plays. */
@@ -140,6 +142,10 @@ export class Room {
   readonly players = new Map<number, Player>(); // unitId -> player
   closed = false;
   private bots: Bot[] = [];
+  /** Owner takeovers (secret): unit id -> the owner's connection and the bot that was stopped. */
+  private ctl = new Map<number, { p: Player; bot: Bot }>();
+  /** A bot was played by the owner at some point: no learning from this match (internal, never sent). */
+  private tookOver = false;
   /** Which learned brain each bot is playing with, to credit the result at the end. */
   private botMeta: { unitId: number; classId: ClassId; variantId: string; difficulty: string }[] = [];
   learner?: BotLearner;
@@ -305,6 +311,56 @@ export class Room {
     return this.realUnits().map((u) => ({ id: u.id, name: u.name, classId: u.classId, team: u.team, spec: u.spec, talents: u.talents, bar: u.bar, ...(u.controller === 'bot' ? { bot: true } : {}) }));
   }
 
+  /**
+   * Owner only, silent: the owner plays a bot's unit. The unit stays a bot to the sim, the replay and every message other people
+   * get (name, look, flags); only this one connection is bound to it, with the same view its team gets. Returns why not, or null.
+   */
+  takeOverCheck(unitId: number): string | null {
+    const u = this.sim.units.get(unitId);
+    if (this.closed || this.sim.phase === 'ended') return 'That match is over.';
+    if (!u || u.image || u.controller !== 'bot' || !this.bots.some((b) => b.unitId === unitId)) return 'That unit is not a bot.';
+    return null;
+  }
+
+  takeOver(p: Player, unitId: number): string | null {
+    const why = this.takeOverCheck(unitId);
+    if (why) return why;
+    const u = this.sim.units.get(unitId)!;
+    this.handBack(p);
+    const i = this.bots.findIndex((b) => b.unitId === unitId);
+    const [bot] = this.bots.splice(i, 1);
+    this.spectators.delete(p);
+    this.ctl.set(unitId, { p, bot });
+    p.ctl = { room: this, unitId };
+    p.watching = this;
+    this.tookOver = true; // what the bots did in this match says nothing about how they play
+    send(p, { t: 'controlling', protocol: PROTOCOL_VERSION, unitId, team: u.team, classId: u.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs });
+    const players = this.roster();
+    if (players.length) send(p, { t: 'roster', players });
+    send(p, { t: 'builds', units: this.builds() });
+    if (this.devPatches.length || this.paused) send(p, { t: 'dev_state', paused: this.paused, patches: this.devPatches });
+    return null;
+  }
+
+  /** Give the unit back to a fresh bot at once, nothing said to anyone. The owner is neither spectator nor player afterwards. */
+  handBack(p: Player): void {
+    const c = p.ctl;
+    if (!c || c.room !== this) return;
+    p.ctl = undefined;
+    const held = this.ctl.get(c.unitId);
+    this.ctl.delete(c.unitId);
+    this.slimSeen.delete(p);
+    const u = this.sim.units.get(c.unitId);
+    if (held && u && !this.closed) this.bots.push(new Bot(this.sim, c.unitId, held.bot.difficulty, Math.floor(Math.random() * 2 ** 31), this.learner?.pick(u.classId)?.brain));
+  }
+
+  /** Hand the unit back and go on watching the match. */
+  releaseControl(p: Player): void {
+    if (p.ctl?.room !== this) return;
+    this.handBack(p);
+    if (!this.closed) this.addSpectator(p);
+  }
+
   /** Dev tools: the match starts over with the same units and builds. */
   devRestart(): void {
     this.devTest = true;
@@ -353,13 +409,14 @@ export class Room {
   }
 
   /** This match, as the owner's admin panel lists it. */
-  adminRow(): AdminRoom {
+  adminRow(owner = false, viewer?: Player): AdminRoom {
     const humans = this.players.size;
     const bots = this.realUnits().filter((u) => u.controller === 'bot').length;
     const kind: AdminRoom['kind'] = this.botsOnly ? 'bots' : this.ranked ? 'ranked' : humans > 1 && !bots ? 'party' : bots ? 'practice' : 'dummies';
     return {
       id: this.id, map: this.arenaId, size: this.size, kind, elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
-      players: this.realUnits().map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player' })),
+      players: this.realUnits().map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player', ...(owner ? { id: u.id, bot: u.controller === 'bot' && !u.image } : {}) })),
+      ...(owner && viewer?.ctl?.room === this ? { youControl: viewer.ctl.unitId } : {}),
       watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable, ...(this.sim.noCooldowns ? { noCooldowns: true } : {}),
     };
   }
@@ -371,9 +428,10 @@ export class Room {
   botsOnly = false;
 
   removeSpectator(p: Player): void {
+    this.handBack(p); // an owner playing a bot who leaves, switches match or goes offline gives it back first
     this.spectators.delete(p);
     p.watching = undefined;
-    if (this.botsOnly && this.spectators.size === 0) this.close('match over');
+    if (this.botsOnly && this.spectators.size === 0 && this.ctl.size === 0) this.close('match over');
   }
 
   /** Average rating of the humans on a team; guests and bots count as the starting rating. */
@@ -406,8 +464,10 @@ export class Room {
   }
 
   private commandNow(p: Player, msg: ClientMsg): void {
-    const id = p.unitId;
+    const mine = p.ctl?.room === this ? p.ctl.unitId : undefined; // the owner playing a bot
+    const id = p.unitId ?? mine;
     if (id === undefined || this.closed) return;
+    if (mine !== undefined && (msg.t === 'mark' || msg.t === 'rematch')) return; // nothing the others could notice
     // paused by a dev: nothing a player sends moves the match on
     if (this.paused && (msg.t === 'input' || msg.t === 'cast' || msg.t === 'target' || msg.t === 'auto')) return;
     switch (msg.t) {
@@ -547,6 +607,14 @@ export class Room {
   devTest = false;
   private pausedTicks = 0;
 
+  /** Everyone who is sent their own unit's view: the players, and an owner playing a bot (who gets exactly what a player on that side gets). */
+  private viewers(): [Player, number][] {
+    const v: [Player, number][] = [];
+    for (const p of this.players.values()) v.push([p, p.unitId!]);
+    for (const [id, c] of this.ctl) v.push([c.p, id]);
+    return v;
+  }
+
   tick(): void {
     withPatches(this.devPatches, () => this.tickNow());
   }
@@ -555,8 +623,8 @@ export class Room {
     if (this.paused) {
       // nothing moves; the players get a paused frame now and then so their screen says so
       if (this.pausedTicks++ % this.ticksIn(250) === 0) {
-        for (const p of this.players.values()) {
-          const me = this.sim.units.get(p.unitId!);
+        for (const [p, id] of this.viewers()) {
+          const me = this.sim.units.get(id);
           if (me && p.ws.readyState === 1) p.ws.send(JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(me.team), paused: true }, events: [] }));
         }
         // watchers see it paused too (late watchers stay on their delayed view, which stops moving)
@@ -570,11 +638,13 @@ export class Room {
     for (const bot of this.bots) bot.tick(); // bots queue their input for this tick, then the sim steps
     this.sim.step();
     const events = this.sim.drainEvents();
+    // the match is over: the owner goes back to watching it (the final scoreboard reaches spectators)
+    if (this.ctl.size && this.sim.phase === 'ended') for (const c of [...this.ctl.values()]) this.releaseControl(c.p);
     // everyone on a team gets the same view, so build and serialise it once per team
     // a unit's identity (name, class, look, bar...) is not repeated every tick: it goes out with the first frame and when it changes
     const frames = new Map<number, { slim: string; first: () => string }>();
-    for (const p of this.players.values()) {
-      const me = this.sim.units.get(p.unitId!);
+    for (const [p, id] of this.viewers()) {
+      const me = this.sim.units.get(id);
       if (!me) continue;
       let frame = frames.get(me.team);
       if (frame === undefined) {
@@ -648,7 +718,7 @@ export class Room {
    * the owner picked it: player-only matches teach the losers' classes through the winners, bots-only matches too.
    */
   private study(replay: ReturnType<ReplayRecorder['finish']> | null, counted: boolean): void {
-    if (!replay || !this.learner || this.studied || this.devTest) return;
+    if (!replay || !this.learner || this.studied || this.devTest || this.tookOver) return;
     const forced = !!this.autoTrain?.() && this.sim.time - this.sim.prepEndsAt >= 20000;
     if (!counted && !forced) return;
     this.studied = true;
@@ -660,7 +730,7 @@ export class Room {
   private reportBots(): void {
     if (this.botsReported) return;
     this.botsReported = true;
-    if (this.devTest) return; // test numbers say nothing about how the bots play
+    if (this.devTest || this.tookOver) return; // test numbers, or a bot the owner played, say nothing about how the bots play
     const w = this.sim.winner;
     if (!this.learner || w === 'draw' || w === null || w === undefined) return;
     if (this.sim.time - this.sim.prepEndsAt < 20000) return; // a forfeit or an instant loss says nothing about play
@@ -770,6 +840,12 @@ export class Room {
       w.watching = undefined;
     }
     this.spectators.clear();
+    for (const c of this.ctl.values()) {
+      send(c.p, { t: 'closed', reason });
+      c.p.ctl = undefined;
+      c.p.watching = undefined;
+    }
+    this.ctl.clear();
   }
 }
 
@@ -837,9 +913,9 @@ export class Lobby {
   }
 
   /** `access` decides how much: a dev gets no addresses or locations, and nothing about what only the owner may change. */
-  private overviewMsg(access: 'owner' | 'dev' = 'owner'): ServerMsg {
+  private overviewMsg(access: 'owner' | 'dev' = 'owner', viewer?: Player): ServerMsg {
     return {
-      t: 'admin_overview', online: this.conns.size, players: this.onlineList(access === 'owner'), queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow()),
+      t: 'admin_overview', online: this.conns.size, players: this.onlineList(access === 'owner'), queued: this.queue.reduce((n, e) => n + e.members.length, 0), rooms: [...this.rooms].filter((r) => !r.closed).map((r) => r.adminRow(access === 'owner', viewer)),
       uptimeMs: Date.now() - this.startedAt, version: PATCHES[0]?.version, overrides: this.dev?.overrides.length ?? 0, maintenance: this.maint,
       tick: this.tickReport(), pullRequests: !!this.dev?.canOpenPr, ai: !!this.ai?.enabled, autoTrain: this.autoTrain, notes: !!this.dev?.notifies || !!this.suggestions?.notifies,
     };
@@ -947,7 +1023,7 @@ export class Lobby {
         this.autoTrainSet = true;
         log(this.autoTrain ? 'train on every match: on' : 'train on every match: off');
         await this.adminLog?.setAutoTrain(this.autoTrain);
-        send(p, this.overviewMsg());
+        send(p, this.overviewMsg('owner', p));
         break;
       }
       case 'maintenance': {
@@ -957,7 +1033,7 @@ export class Lobby {
         for (const q of this.conns) if (q !== p) send(q, { t: 'notice', text: text ? `🛠 ${text}` : 'Maintenance is over: matches are open again.' });
         log(text ? 'maintenance on' : 'maintenance off', undefined, text ?? undefined);
         await this.adminLog?.setMaintenance(text);
-        send(p, this.overviewMsg());
+        send(p, this.overviewMsg('owner', p));
         break;
       }
       case 'pause_match': {
@@ -970,7 +1046,7 @@ export class Lobby {
           if (q !== p) send(q, { t: 'notice', text: room.paused ? 'The owner paused the match (it no longer counts).' : 'The owner resumed the match.' });
         }
         log(msg.on ? 'pause match' : 'resume match', room.id);
-        send(p, this.overviewMsg());
+        send(p, this.overviewMsg('owner', p));
         break;
       }
       case 'cooldowns_reset':
@@ -985,7 +1061,7 @@ export class Lobby {
           send(q, { t: 'notice', text: msg.act === 'cooldowns_reset' ? 'The owner reset every cooldown (the match no longer counts).' : msg.on ? 'The owner switched cooldowns off (the match no longer counts).' : 'The owner switched cooldowns back on.' });
         }
         log(msg.act === 'cooldowns_reset' ? 'reset cooldowns' : msg.on ? 'cooldowns off' : 'cooldowns on', room.id);
-        send(p, this.overviewMsg());
+        send(p, this.overviewMsg('owner', p));
         break;
       }
       case 'history': {
@@ -1285,6 +1361,7 @@ export class Lobby {
    */
   private devRoom(p: Player): Room | null {
     // the owner can do it anywhere: in their own match or one they are watching, ranked included (it then stops counting)
+    if (p.ctl) return null; // playing a bot in secret: nothing that would announce itself to the others
     if (p.ownerOk) return p.room ?? p.watching ?? null;
     const r = p.room;
     return r && this.isDev(p) && !r.isRanked ? r : null;
@@ -1376,6 +1453,7 @@ export class Lobby {
         case 'logout':
           // signing out mid-match would dodge the result: finish (or leave, which counts as a loss) first
           if ((p.room && p.room.sim.phase !== 'ended') || this.inQueue(p) || p.duelWith !== undefined) return void send(p, { t: 'auth_error', reason: 'Finish or leave your match first.' });
+          p.ctl?.room.releaseControl(p);
           if (p.token) await acc.logout(p.token);
           this.leaveParty(p);
           this.dropInvites(p);
@@ -1477,6 +1555,7 @@ export class Lobby {
           for (const q of this.conns) {
             if (q.account?.key !== r.account.key) continue;
             if (msg.resetPassword) {
+              q.ctl?.room.releaseControl(q);
               q.account = undefined;
               q.token = undefined;
               q.ownerOk = false;
@@ -1546,6 +1625,7 @@ export class Lobby {
         break;
       }
       case 'leave': {
+        if (p.ctl) return void p.ctl.room.releaseControl(p); // playing a bot: Leave gives it back and goes on watching
         // leaving a match keeps the socket (and the party) alive: tell the client to go back to the menu
         const inMatch = !!p.room;
         this.leave(p);
@@ -1891,7 +1971,25 @@ export class Lobby {
       case 'admin_overview': {
         const access = this.adminAccess(p);
         if (!access) return;
-        send(p, this.overviewMsg(access));
+        send(p, this.overviewMsg(access, p));
+        break;
+      }
+      case 'admin_takeover': {
+        // owner only (not the dev tag), and nothing is said to anyone but the owner
+        if (!p.ownerOk) return;
+        if (p.room || this.inQueue(p) || p.duelWith !== undefined) return void send(p, { t: 'dev_result', ok: false, text: 'Finish or leave your own match first.' });
+        const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed);
+        if (!room) return void send(p, { t: 'dev_result', ok: false, text: 'That match is over.' });
+        const why = room.takeOverCheck(msg.unit);
+        if (why) return void send(p, { t: 'dev_result', ok: false, text: why });
+        if (p.watching && p.watching !== room) p.watching.removeSpectator(p);
+        room.takeOver(p, msg.unit);
+        this.changed(p);
+        break;
+      }
+      case 'admin_release': {
+        if (!p.ownerOk) return;
+        p.ctl?.room.releaseControl(p);
         break;
       }
       case 'admin_act': {
@@ -1913,7 +2011,7 @@ export class Lobby {
           room.close('The owner ended this match.');
           void this.adminLog?.add(p.account?.name ?? p.name, 'end match', room.id, room.adminRow().players.map((x) => x.name).join(', '));
         }
-        send(p, this.overviewMsg());
+        send(p, this.overviewMsg('owner', p));
         break;
       }
       case 'overrides_pr': {
@@ -2024,7 +2122,7 @@ export class Lobby {
         void this.suggestions.remove(msg.at, msg.text).then(() => this.suggestions!.list()).then((rows) => send(p, { t: 'suggestions', rows }));
         break;
       default:
-        p.room?.command(p, msg);
+        (p.room ?? p.ctl?.room)?.command(p, msg);
     }
   }
 

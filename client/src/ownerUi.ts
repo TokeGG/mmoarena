@@ -18,6 +18,9 @@ interface Hooks {
   /** Watch a match / follow a player (from the admin panel). */
   watch?(id: string): void;
   follow?(name: string): void;
+  /** Owner only: play a bot of a live match (match id, unit id) and hand it back. */
+  play?(match: string, unit: number): void;
+  release?(): void;
   /** True for a dev who is not the owner: matches they may watch only, no pause or end, numbers read-only. (The server refuses it all again.) */
   limited?(): boolean;
 }
@@ -193,6 +196,26 @@ export class OwnerPanel {
         row.append(pause, cdReset, cdOff, end);
       }
       wrap.append(row);
+      // owner only: play any bot of it, unseen by everyone else (the server sends the unit ids to the owner alone)
+      const bots = limited ? [] : r.players.filter((x) => x.bot && x.id !== undefined);
+      if (bots.length && this.hooks.play) {
+        const pr = el('div', 'own-row own-follow');
+        pr.append(el('small', 'devp-dim', 'Take over a bot:'));
+        for (const x of bots) {
+          const mine = r.youControl === x.id;
+          const b = el('button', `mm-small${mine ? ' mm-go' : ''}`, `🎮 ${x.name} (${CLASSES[x.classId as keyof typeof CLASSES]?.name ?? x.classId}, team ${x.team + 1})`);
+          b.title = mine ? 'You are playing this one' : 'Play this bot yourself. Nobody is told and nothing about it changes for them.';
+          b.disabled = mine;
+          b.addEventListener('click', () => this.hooks.play!(r.id, x.id!));
+          pr.append(b);
+        }
+        if (r.youControl !== undefined) {
+          const back = el('button', 'mm-small', 'Hand back to bot');
+          back.addEventListener('click', () => this.hooks.release?.());
+          pr.append(el('small', '', `you control ${r.players.find((x) => x.id === r.youControl)?.name ?? 'a bot'}`), back);
+        }
+        wrap.append(pr);
+      }
       // follow any person in it: you are taken into every match they play
       const humans = r.players.filter((x) => x.human);
       if (humans.length && this.hooks.follow && (!limited || r.watchable)) {
