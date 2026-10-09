@@ -31,6 +31,8 @@ The full list is in [CLAUDE.md](CLAUDE.md). In short:
 
 ## Bots and learning
 
+The plain-language owner's guide to all of this is `BOT_LEARNING.md`.
+
 - Bots play from a tunable brain (cover and defensive thresholds, strafing, healer priority, focus fire, kiting range, heal timing, burst timing, chase, ground-zone dodging, pre-shielding).
 - Bots take talents (a random pick in most tiers), so the tier IV trinket and the tier V class skills are played by bots too; a test checks that every ability on a bot's bar gets used.
 - **Rotations:** `npx tsx scripts/train-rotations.ts` searches each spec's damage-ability order against a target dummy (the real cooldowns, costs, procs and combo points; several talent builds per spec) and keeps the order that deals the most damage, in `shared/data/rotations.json`. Bots press their filler in that order; finishers and rage dumps go off at their own thresholds, crowd control is spent on purpose.
