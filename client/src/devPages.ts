@@ -14,6 +14,9 @@ export interface WorkspaceHost {
   inEffect(): DataPatch[];
   /** False in the Tuning tab: proposals are handled in their own list, not put back from here. */
   canRevert: boolean;
+  /** Save what was typed (the icon picker's Save button): where it goes depends on the panel. */
+  save?(): string | void;
+  saveTitle?: string;
   /** Something was typed, reset or undone: update the toolbar's counter and the changes list. */
   onEdit(): void;
   /** The whole panel must be drawn again (the pages changed what it shows). */
@@ -69,7 +72,7 @@ export class DevWorkspace {
   private detailBox: HTMLElement | null = null;
 
   constructor(private host: WorkspaceHost) {
-    this.iconEd = new IconEditor({ set: this.editor.set, testing: () => host.testing(), canRevert: host.canRevert, onEdit: () => this.editor.onEdit() });
+    this.iconEd = new IconEditor({ set: this.editor.set, testing: () => host.testing(), canRevert: host.canRevert, onEdit: () => this.editor.onEdit(), save: host.save ? () => host.save?.() : undefined, saveTitle: host.saveTitle });
     this.editor.testing = () => host.testing();
     this.editor.canRevert = host.canRevert;
     this.editor.onEdit = () => {

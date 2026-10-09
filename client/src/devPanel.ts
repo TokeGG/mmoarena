@@ -128,6 +128,13 @@ export class DevPanel {
       inEffect: () => this.inEffect(),
       canRevert: true,
       onEdit: () => this.refreshBar(),
+      saveTitle: "Saves what you picked: sends it to the admin panel's Proposals list, where it can be committed.",
+      save: () => {
+        const all = this.toSend();
+        if (!all.length) return 'Nothing to save yet.';
+        this.hooks.send({ t: 'dev_save', patches: all });
+        return 'Saved: it is on the Proposals list in the admin panel.';
+      },
       repaint: () => this.paint(),
       startClass: () => this.startClass(),
       matchSkills: () => (this.inMatch ? this.matchSkills() : []),

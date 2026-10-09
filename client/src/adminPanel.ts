@@ -415,6 +415,14 @@ export class AdminPanel {
         inEffect: () => this.pendingMine(),
         canRevert: false,
         onEdit: () => this.refreshAdd(),
+        saveTitle: 'Saves what you picked: adds it to the Proposals list, ready to commit to GitHub.',
+        save: () => {
+          const patches = [...(this.dsWorkspace?.set.edits.values() ?? [])];
+          if (!patches.length) return 'Nothing to save yet.';
+          this.dsWorkspace?.set.clear();
+          this.hooks.send({ t: 'dev_save', patches });
+          return 'Saved: it is on the Proposals tab.';
+        },
         repaint: () => this.paint(),
         startClass: () => CLASS_IDS[0],
         onSelect: () => this.dsChat?.isConnected && this.dsWorkspace && this.dsChat.replaceChildren(designer.renderChat(this.dsWorkspace.chatScope(), this.hooks.send, true)),

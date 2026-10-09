@@ -19,6 +19,9 @@ export interface IconEditorHost {
   canRevert: boolean;
   /** An icon was picked or put back (the counters and the changes list follow). */
   onEdit(): void;
+  /** Save what was picked (send it on as a proposal). Absent when the host has nowhere to save to. */
+  save?: () => string | void;
+  saveTitle?: string;
 }
 
 /**
@@ -67,7 +70,14 @@ export class IconEditor {
       putBackIcon(this.host.set, navId, this.host.testing(), this.host.canRevert);
       this.changed();
     });
-    info.append(nameEl, wears, back);
+    const save = el('button', 'mm-small mm-go', '💾 Save');
+    save.title = this.host.saveTitle ?? 'Save the icons you picked';
+    save.hidden = !this.host.save;
+    const saved = el('small', 'devp-dim');
+    save.addEventListener('click', () => {
+      saved.textContent = String(this.host.save?.() ?? 'Saved.');
+    });
+    info.append(nameEl, wears, back, save, saved);
     top.append(big, info, prev);
 
     this.paint = () => {
@@ -75,6 +85,7 @@ export class IconEditor {
       big.replaceChildren(iconEl(t.kind, t.id, '', false, name));
       wears.textContent = cur ? `${iconTitle(cur)}${iconChanged(this.host.set, navId, this.host.testing()) ? ' (changed)' : ''}` : 'no picture: the emoji';
       back.disabled = !iconChanged(this.host.set, navId, this.host.testing());
+      save.disabled = this.host.set.edits.size === 0;
       prev.replaceChildren(this.preview(t.kind, t.id, name));
       const def = fileIconIdFor(t.kind, t.id);
       for (const [id, b] of this.tiles) {
