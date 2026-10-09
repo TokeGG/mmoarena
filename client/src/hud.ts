@@ -1,5 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, MARKS, TUNING, autoFor, lockedByAura, silencedBy } from '@arena/shared';
-import { ABILITY_ICON, AURA_ICON, CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { CLASS_ICON, SCHOOL_GRADIENT } from './icons';
+import { iconEl } from './iconArt';
 import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
 import { TARGET_ARROWS, fillFor, hpFill, hpText, look } from './hudLook';
@@ -139,7 +140,8 @@ class UnitFrame {
     this.auras.replaceChildren(
       ...shown.map((a) => {
         const def = AURAS[a.id];
-        const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`, AURA_ICON[a.id] ?? '✦');
+        const icon = el('div', `aura ${def?.harmful ? 'bad' : 'good'}`);
+        icon.append(iconEl('aura', a.id, '', false, def?.name ?? ''));
         icon.dataset.tip = `aura:${a.id}`;
         const who = unitNames.get(a.src);
         if (who) icon.dataset.tipFrom = a.src === u.id ? `${who} (on itself)` : who;
@@ -269,7 +271,8 @@ export class Hud {
       root.style.background = SCHOOL_GRADIENT[def.school];
       root.dataset.tip = `ability:${ability}`;
       void classId;
-      const ico = el('span', 'ico', ABILITY_ICON[ability] ?? '✦');
+      const ico = el('span', 'ico');
+      ico.append(iconEl('ability', ability, '', false, def.name));
       const nm = el('span', 'nm', def.name);
       const cd = el('div', 'cd');
       cd.append(el('span'));
@@ -540,7 +543,7 @@ export class Hud {
       const arrowOn = !!u.target && look.targetArrow !== 'off';
       v.apply(prof, { hasMark: (u.mark ?? 0) > 0, hasArrow: arrowOn, hasAvatar: av.startsWith('/avatar/'), hasTitle: !!who?.title, hasRes, hasCast: !!u.cast || !!pStop, auraCount: shownAuras.length });
       v.setAuras(
-        shownAuras.map((a) => ({ id: a.id, glyph: AURA_ICON[a.id] ?? '✦', harmful: !!AURAS[a.id]?.harmful, secs: a.expiresAt > 0 ? Math.max(0, Math.ceil((a.expiresAt - now) / 1000)) : -1, stacks: a.stacks ?? 0, title: AURAS[a.id]?.name })),
+        shownAuras.map((a) => ({ id: a.id, harmful: !!AURAS[a.id]?.harmful, secs: a.expiresAt > 0 ? Math.max(0, Math.ceil((a.expiresAt - now) / 1000)) : -1, stacks: a.stacks ?? 0, title: AURAS[a.id]?.name })),
         prof,
       );
       v.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;

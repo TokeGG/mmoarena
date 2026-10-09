@@ -25,6 +25,7 @@ export interface ChangeRow {
 /** A value as a row shows it: a switch as on or off, a number with its plain meaning ("1.5 (+50%)"). */
 export const showValue = (p: Pick<DataPatch, 'file' | 'id' | 'path'>, v: number | string): string => {
   if (isSwitch(p)) return Number(v) === 1 ? 'on' : 'off';
+  if (p.file === 'icons') return v ? String(v) : 'none';
   if (typeof v !== 'number') return String(v);
   const unit = plainPath(p.file, p.id, p.path).unit;
   if (unit === 'ms') return `${Math.round(v) / 1000} s`;
@@ -67,7 +68,7 @@ export class EditSet {
   }
 
   /** The value a field shows: what was typed, else the file's number if it was put back, else what is being tried, else the live number. */
-  shown(f: DevField, testing: ReadonlyMap<string, DataPatch>): number | string {
+  shown(f: Pick<DevField, 'file' | 'id' | 'path' | 'base' | 'value'>, testing: ReadonlyMap<string, DataPatch>): number | string {
     const k = patchKey(f);
     const e = this.edits.get(k);
     if (e) return e.value;
@@ -77,7 +78,7 @@ export class EditSet {
   }
 
   /** Differs from the data file (typed, being tried, or already live). */
-  changed(f: DevField, testing: ReadonlyMap<string, DataPatch>): boolean {
+  changed(f: Pick<DevField, 'file' | 'id' | 'path' | 'base' | 'value'>, testing: ReadonlyMap<string, DataPatch>): boolean {
     return String(this.shown(f, testing)) !== String(f.base);
   }
 
@@ -104,7 +105,7 @@ export class EditSet {
       const from = fileDefault(p) ?? '?';
       const pl = plainPath(p.file, p.id, p.path);
       out.push({
-        key, patch: p, owner: nameOf(p.file, p.id), label: pl.label, from, to: p.value, pending: typed.has(key),
+        key, patch: p, owner: nameOf(p.file, p.id, p.path), label: pl.label, from, to: p.value, pending: typed.has(key),
         fromText: showValue(p, from as number | string), toText: showValue(p, p.value),
       });
     }

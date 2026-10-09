@@ -1,6 +1,6 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
 import type { Build, DevCommitRow, DevPageId, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
-import { ABILITY_ICON } from './icons';
+import { refreshIcons } from './iconArt';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
 import { cycleArena } from './mapCycle';
@@ -51,6 +51,7 @@ export class DataLayers {
       a();
     };
     invalidateTip(); // open tooltips redraw with the new numbers
+    refreshIcons(); // and every icon on the screen with the new pictures
   }
 }
 

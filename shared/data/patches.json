@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.22",
+  "date": "2026-10-09",
+  "at": "2026-10-09T23:40:00Z",
+  "title": "New skill icons",
+  "changes": [
+   "Every skill and most buffs and debuffs now have new artwork instead of emoji, on the action bar, buff rows, kill feed and spec panels."
+  ]
+ },
+ {
   "version": "0.69.21",
   "date": "2026-10-09",
   "at": "2026-10-09T23:00:00Z",

@@ -3,6 +3,7 @@ import { CLASS_BLURB, auraOrigins, describeAura, describeTalent, plainText, spec
 import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MOD_ABILITY_DEFAULT, MOD_ABILITY_FLAGS, MOD_SCALAR_DEFAULT, TUNING_ID, currentValue, fileDefault, isAddition, isSwitch, tunableNumbers } from './devpatch';
 import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
 import { FX_ID, FX_INFO, fxField } from './fx';
+import { iconTitle } from './iconlib';
 import type { ClassId } from './types';
 
 /**
@@ -165,8 +166,9 @@ const specInfo = (id: string) => {
 };
 
 /** The thing's own name: an ability, aura, class, spec or talent (the game options are "Game options"). */
-export function nameOf(file: PatchFile, id: string): string {
+export function nameOf(file: PatchFile, id: string, path: readonly (string | number)[] = []): string {
   switch (file) {
+    case 'icons': return path[0] === 'aura' ? `${auraName(id)} (${AURAS[id]?.harmful ? 'debuff' : 'buff'})` : abilityName(id);
     case 'abilities': return abilityName(id);
     case 'auras': return auraName(id);
     case 'classes': return className(id);
@@ -193,6 +195,7 @@ interface Plain { label: string; hint?: string; unit: FieldUnit }
 /** Words for one spot in a data file. */
 export function plainPath(file: PatchFile, id: string, path: readonly (string | number)[]): Plain {
   const last = String(path[path.length - 1]);
+  if (file === 'icons') return { label: path[0] === 'aura' ? 'Icon of the buff or debuff' : 'Icon', hint: 'The picture it wears on the action bar, in tooltips and on buff rows. Looks only: never changes a match.', unit: 'plain' };
   if (file === 'fx') {
     const f = fxField(path);
     return f ? { label: `${FX_INFO[String(path[0])].title}: ${f.label.charAt(0).toLowerCase()}${f.label.slice(1)}`, hint: f.hint, unit: f.unit } : { label: cap(words(last)), unit: 'plain' };
@@ -429,7 +432,7 @@ export function modGroups(file: 'specs' | 'talents' | 'auras', id: string, scope
 
 // ------------------------------------------------------------------ the pages
 
-export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'options';
+export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'icons' | 'options';
 
 export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The tab row is read left to right in these steps. */ step: string }[] = [
   { id: 'classes', label: 'Classes', step: 'Who', blurb: 'Health, resource and auto-attack of each class.' },
@@ -439,6 +442,7 @@ export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The t
   { id: 'passives', label: 'Passives', step: 'What they do', blurb: 'What a spec or talent gives without a button: stat bonuses, changes to skills, Cauterize.' },
   { id: 'auras', label: 'Buffs & debuffs', step: 'What they do', blurb: 'Every buff and debuff (the icons on a unit): duration, ticks, stacks, stat changes.' },
   { id: 'animations', label: 'Animations', step: 'What they do', blurb: 'How long the big visual effects take and stay (Dragon\'s Breath, Flamestrike, Charge, Heroic Leap). Looks only: never changes a match. Shows on the next cast.' },
+  { id: 'icons', label: 'Icon edit', step: 'Look', blurb: 'Pick the picture of any skill or buff from the whole icon library. Looks only: never changes a match. Shows at once.' },
   { id: 'options', label: 'Game options', step: 'Rules', blurb: 'Global rules: cooldowns, speeds, dampening, match length.' },
 ];
 
@@ -519,6 +523,7 @@ export function navFor(page: DevPageId): NavGroup[] {
       }
       return [...byKind.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, entries]) => ({ title: cap(words(k)), entries }));
     }
+    case 'icons': return iconNav();
     case 'animations':
       return [{ title: 'Animations', entries: Object.entries(FX_INFO).map(([id, g]) => ({ id, name: g.title, sub: g.sub })) }];
     default:
@@ -535,6 +540,7 @@ export function entryFor(page: DevPageId, id: string): DevEntry | null {
     case 'passives': return id.startsWith('s:') ? specEntry(id.slice(2), true) : id.startsWith('t:') ? talentEntry(id.slice(2), true) : null;
     case 'auras': return auraEntry(id);
     case 'animations': return animationEntry(id);
+    case 'icons': return iconEntry(id);
     case 'options': return optionsEntry();
     default: return null;
   }
@@ -618,6 +624,34 @@ function auraEntry(id: string): DevEntry | null {
   const targets: ModTarget[] = Object.keys(ABILITIES).filter((x) => !ABILITIES[x].retired).map((x) => ({ kind: 'ability', id: x, name: abilityName(x) }));
   return { file: 'auras', id, name: a.name, sub: `${a.harmful ? 'debuff' : 'buff'} · ${a.kind}`, lines: [plainText(describeAura(id))].filter(Boolean), facts, groups, addTargets: [...targets, ...auraTargets()] };
 }
+
+/** The Icon edit page's list: every skill as on the Skills page (ids "a:fireball"), then the buffs and debuffs (ids "u:polymorph"). */
+function iconNav(): NavGroup[] {
+  const mark = (g: NavGroup): NavGroup => ({ ...g, entries: g.entries.map((e) => ({ ...e, id: `a:${e.id}` })), groups: g.groups?.map(mark) });
+  const out = navFor('skills').map(mark);
+  const buffs: NavEntry[] = [];
+  const debuffs: NavEntry[] = [];
+  for (const [id, a] of Object.entries(AURAS)) (a.harmful ? debuffs : buffs).push({ id: `u:${id}`, name: a.name, sub: a.kind });
+  out.push({ title: 'Buffs', entries: buffs }, { title: 'Debuffs', entries: debuffs });
+  return out;
+}
+
+/** What the Icon edit page shows for an entry (the page draws the picker itself, so it has no number fields). */
+function iconEntry(id: string): DevEntry | null {
+  const aura = id.startsWith('u:');
+  const raw = id.slice(2);
+  if (!id.startsWith('a:') && !aura) return null;
+  if (aura ? !AURAS[raw] : !ABILITIES[raw]) return null;
+  return {
+    file: 'icons', id: raw, name: aura ? auraName(raw) : abilityName(raw), sub: aura ? `${AURAS[raw].harmful ? 'debuff' : 'buff'} · ${AURAS[raw].kind}` : `${ABILITIES[raw].school} skill`,
+    lines: [], facts: [], groups: [],
+  };
+}
+
+/** The patch that gives a skill (`a:id`) or buff (`u:id`) of the Icon edit page an icon. */
+export const iconPatch = (navId: string, icon: string): DataPatch => ({ file: 'icons', id: navId.slice(2), path: [navId.startsWith('u:') ? 'aura' : 'ability'], value: icon });
+/** Words for an icon in a change list: "fire-mage-3" style ids are shown as the library names them. */
+export const iconLabel = (id: string | number | undefined): string => (typeof id === 'string' && id ? iconTitle(id) : 'none');
 
 function animationEntry(id: string): DevEntry | null {
   const g = FX_INFO[id];

@@ -341,6 +341,30 @@
   .devp-toolbar .mm-small { padding:3px 8px; font-size:11.5px; }
   .devp-asktab, .devp-matchtab { display:block; }
   @container (max-width: 560px) { .devp-split { grid-template-columns:1fr; grid-template-rows:minmax(70px, 30%) minmax(0, 1fr); } .devp-nav { border-right:0; border-bottom:1px solid #ffffff14; } }
+  /* skill and buff art (iconArt.ts): the library picture fills its frame; the emoji stays as the fallback */
+  .ic { display:block; width:100%; height:100%; object-fit:cover; border-radius:inherit; pointer-events:none; user-select:none; }
+  .ic-emoji { display:inline-block; line-height:1; }
+  .slot .ico:has(> .ic) { inset:0; filter:none; } .slot .ico > .ic { border-radius:6px; }
+  .aura > .ic, .pdebuff > .ic { position:absolute; inset:0; border-radius:3px; }
+  .kf-icon > .ic { display:inline-block; width:1.5em; height:1.5em; vertical-align:middle; border-radius:4px; }
+  .bd-skill, .sp-tile, .devp-skill { overflow:hidden; } .bd-skill:has(> .ic), .sp-tile:has(> .ic), .devp-skill:has(> .ic) { padding:0; }
+  .devp-navicon { display:inline-flex; width:22px; height:22px; justify-content:center; align-items:center; border-radius:4px; overflow:hidden; } .devp-navicon .ic { border-radius:4px; }
+  /* Icon edit page */
+  .ie-top { position:sticky; top:0; z-index:3; display:flex; flex-wrap:wrap; gap:10px; align-items:center; padding:6px 4px 8px; background:#14121d; border-bottom:1px solid #ffffff14; }
+  .ie-big { width:64px; height:64px; border-radius:10px; overflow:hidden; border:2px solid #c9a24a; background:#0f0d16; flex:none; display:grid; place-items:center; font-size:36px; }
+  .ie-info { display:grid; gap:3px; justify-items:start; flex:1 1 160px; min-width:0; } .ie-info .devp-title { margin:0; font-size:15px; }
+  .ie-previews { display:flex; gap:8px; align-items:center; } .ie-slot { cursor:default; } .ie-slot:hover { transform:none; border-color:#8a7340; }
+  .ie-aura { width:32px; height:32px; } .ie-pdebuff { width:20px; height:20px; }
+  .ie-find { display:flex; gap:8px; align-items:center; margin:8px 0 4px; }
+  .ie-chips { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+  .ie-chip { display:inline-flex; gap:5px; align-items:center; padding:2px 8px; background:#1c1a26; border:1px solid #3d3550; border-radius:14px; color:#c8c0da; cursor:pointer; font:inherit; font-size:11.5px; } .ie-chip.sel { background:#2a2238; border-color:#c9a24a; color:#ffd24a; } .ie-chip small { color:#8b8372; }
+  .ie-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(56px, 1fr)); gap:5px; } .ie-grid.empty::after { content:'No icon matches.'; color:#8b8372; grid-column:1/-1; }
+  .ie-tile { position:relative; padding:0; width:100%; aspect-ratio:1; max-width:72px; border:2px solid #3d3550; border-radius:8px; overflow:hidden; background:#0f0d16; cursor:pointer; } .ie-tile[hidden] { display:none; }
+  .ie-tile img { display:block; width:100%; height:100%; object-fit:cover; }
+  .ie-tile:hover { border-color:#ffd24a; } .ie-tile.cur { border-color:#ffd24a; box-shadow:0 0 0 2px #ffd24a66, 0 0 10px #ffd24a88; }
+  .ie-tile.def::after { content:''; position:absolute; right:3px; top:3px; width:8px; height:8px; border-radius:50%; background:#5fd36f; border:1px solid #0008; }
+  .ie-foot { display:block; margin-top:8px; }
+  @container (max-width: 560px) { .ie-grid { grid-template-columns:repeat(auto-fill, minmax(48px, 1fr)); } .ie-top { position:static; } }
   .devp-note { width:100%; box-sizing:border-box; min-height:52px; margin:6px 0 4px; background:#0f0d16; color:#fff; border:1px solid #3d3550; border-radius:6px; padding:4px; resize:vertical; }
   .devp-result { margin-top:6px; padding:4px 6px; border-radius:6px; }
   .devp-result.ok { background:#13261a; color:#a6f0b5; } .devp-result.bad { background:#2a1414; color:#ffb0a8; }

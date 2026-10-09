@@ -3,6 +3,7 @@
  * The owner fills the text, bars and colours; `apply` sizes and places every part from a profile's layout.
  */
 import { Bar, el } from './bar';
+import { iconEl } from './iconArt';
 import { AURA_GAP, layoutPlate, titleSize, type PartId, type PlateContext, type PlateLayout, type PlateProfile, type PartRect } from './nameplateLayout';
 
 const CSS = `
@@ -35,7 +36,6 @@ export function ensurePlateStyles(): void {
 /** One effect icon of the buff row. */
 export interface AuraIcon {
   id: string;
-  glyph: string;
   harmful: boolean;
   /** Seconds left, or -1 for none. */
   secs: number;
@@ -157,7 +157,8 @@ export class PlateView {
     const s = p.auras.size * p.scaleH;
     this.auras.replaceChildren(
       ...items.map((a) => {
-        const ic = el('div', `pdebuff${a.harmful ? '' : ' good'}`, a.glyph);
+        const ic = el('div', `pdebuff${a.harmful ? '' : ' good'}`);
+        ic.append(iconEl('aura', a.id));
         const st = ic.style;
         st.width = st.height = `${s}px`;
         st.fontSize = `${Math.round(s * 0.62)}px`;
