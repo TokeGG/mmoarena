@@ -1898,7 +1898,8 @@
     "type": "aura",
     "aura": "gouge"
    }
-  ]
+  ],
+  "stopsAuto": true
  },
  {
   "id": "sap",
@@ -1906,7 +1907,7 @@
   "class": "rogue",
   "school": "physical",
   "target": "enemy",
-  "range": 3,
+  "range": 7,
   "castTime": 0,
   "cooldown": 0,
   "gcd": true,
@@ -1917,7 +1918,8 @@
     "type": "aura",
     "aura": "sap"
    }
-  ]
+  ],
+  "keepsStealth": true
  },
  {
   "id": "dragon_roar",

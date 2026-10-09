@@ -77,7 +77,7 @@ interface Hooks {
  */
 export class DevPanel {
   readonly root = el('div', 'devp hidden');
-  readonly button = el('button', 'devp-btn hidden', '🛠 Dev');
+  readonly button = el('button', 'devp-btn hidden', '🛠');
   private paused = false;
   private pick = '';
   private edits = new Map<string, DataPatch>();
@@ -107,7 +107,9 @@ export class DevPanel {
   private mode: 'skills' | 'class' = 'skills';
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
+    this.button.id = 'devbtn'; // a HUD element: movable in the HUD editor
     this.button.title = 'Dev tools (F2)';
+    this.button.setAttribute('aria-label', 'Dev tools');
     this.button.addEventListener('click', () => this.toggle());
     document.body.append(this.root, this.button);
     makeResizable(this.root, { key: 'dev', corner: 'br', minW: 240, minH: 200, z: 32 });

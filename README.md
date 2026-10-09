@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.69.4
+# WoW-style Arena · v0.69.5
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
@@ -32,7 +32,6 @@ Every key can be rebound: **Esc > Controls** in a match, or **Controls** on the 
 | Steer / look around | Hold the right / left mouse button and drag; both buttons together run forward |
 | Zoom | Mouse wheel (all the way in is first person) |
 | Target | Left-click a character or its frame (click yourself to target yourself). Right-click an enemy to target it and start auto-attack. |
-| Free camera | G while you are dead (not in ranked) or watching: W/A/S/D fly along the view, Space / C up and down, Shift fast, Alt / Z slow, wheel sets the speed; click a unit to follow it |
 | Menu | Esc (clears your target first) |
 
 - **Action bar:** drag one slot onto another to rearrange it; the order is saved for each spec. On the menu, hover a spec to see its eight skills and rearrange them there too (the card stays open while your mouse is on that side of the menu).
@@ -112,7 +111,7 @@ Pick one on the menu or leave it on Random.
 - **Facing and range:** casts and swings need the target in the half-circle in front of your character and in line of sight. Melee reach is 3 yards (some warrior weapons reach further). Range is measured in 3D, and a blade never reaches between floors, so someone up on a walkway is out of melee reach from the ground below (and the other way round). Ground spells (Flamestrike, Battle Banner, Not Going Anywhere, Rune of Power) are aimed at the cursor: press the key, then click to place; one still on its cooldown does not bring the ring up.
 - **Lava:** the four basins on Lava Forge are lava. Jump in and you are no longer pushed out, but you burn for 5% of your health every half second until you climb out; on foot you cannot walk in.
 - **Line of sight:** a body, not a single thread: a unit whose edge shows past a pillar or wall end (about a third of a yard) is in sight and can be targeted.
-- **Heal spam:** pressing the same heal again and again weakens it (each repeat in a row is 15% weaker, down to 40% of full), while rotating between different heals keeps each at full strength. A pause of 6 seconds starts it fresh.
+- **Heal spam:** pressing the same heal again and again weakens it (each repeat in a row is 15% weaker, down to 40% of full), while casting anything else in between (another heal or any other skill) keeps it at full strength. A pause of 6 seconds starts it fresh.
 - **Crowd control:** the same kind of stun, fear, incapacitate or root on one target has diminishing returns (full, half, quarter, then immune, reset after 18 seconds). Interrupts instead lock a spell school for a few seconds. Polymorph, Blind, Gouge, Sap and Frost Nova's root break on any damage; Psychic Scream and Intimidating Shout break on direct damage (not damage over time); Dragon's Breath does not break.
 - **Blink** frees you from stuns, roots and slows and works while stunned, but not while polymorphed or under Dragon's Breath.
 - **Auto-attack:** warriors and rogues deal steady damage (and warriors build rage) with auto-attack. It starts with a right-click on an enemy, R or any melee skill, stays on while you have an enemy targeted (so it is ready when you close in), and stops when you clear your target, or 5 seconds after combat if nothing hostile is targeted.
