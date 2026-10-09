@@ -110,4 +110,23 @@ describe('admin panel actions', () => {
     assert.ok(outB.some((m) => m.t === 'notice' && /paused/.test(m.text)));
     assert.equal(last(outO, 'admin_overview')?.rooms[0].paused, true);
   });
+
+  it('the owner kills, kicks and bans from inside a match; nobody else can', async () => {
+    const { lobby, owner, bobP, outO, a } = await world();
+    lobby.handle(bobP, { t: 'join', name: 'Bob', classId: 'mage', mode: 'practice', difficulty: 'normal', size: 1 } as ClientMsg);
+    const room = bobP.room;
+    const bot = [...room.sim.units.values()].find((u: any) => u.controller === 'bot');
+    lobby.handle(bobP, { t: 'dev_unit', unit: bot.id, op: 'kill' } as ClientMsg);
+    assert.ok(bot.alive, 'a player cannot');
+    lobby.handle(owner, { t: 'spectate', id: room.id } as ClientMsg);
+    lobby.handle(owner, { t: 'dev_unit', unit: bot.id, op: 'kill' } as ClientMsg);
+    assert.equal(bot.alive, false);
+    assert.equal(last(outO, 'dev_result')?.ok, true);
+    lobby.handle(owner, { t: 'dev_unit', unit: bot.id, op: 'kick' } as ClientMsg);
+    assert.equal(last(outO, 'dev_result')?.ok, false, 'a bot cannot be kicked');
+    lobby.handle(owner, { t: 'dev_unit', unit: bobP.unitId, op: 'ban', minutes: 30, reason: 'test' } as ClientMsg);
+    await tick();
+    assert.equal(bobP.ws.closed, true);
+    assert.ok((await a.adminRow((await (a as any).get('bob')) ?? bobP.account, false)).banned, 'the account is banned');
+  });
 });

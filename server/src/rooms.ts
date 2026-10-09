@@ -1643,6 +1643,42 @@ export class Lobby {
         send(p, { t: 'dev_result', ok: true, text: 'The match started over with the same builds.' });
         break;
       }
+      case 'dev_unit': {
+        // the owner moderates from inside a match (played or watched): the unit's player, not a name typed in
+        if (!p.ownerOk) return void send(p, { t: 'dev_result', ok: false, text: 'Killing, kicking and banning are for the owner only.' });
+        const room = this.devRoom(p);
+        const u = room && !room.closed ? room.sim.units.get(msg.unit) : undefined;
+        if (!room || !u) return void send(p, { t: 'dev_result', ok: false, text: 'That unit is not in a match you are in or watching.' });
+        const target = room.players.get(msg.unit);
+        const by = p.account?.name ?? p.name;
+        const log = (action: string, detail?: string) => void this.adminLog?.add(by, action, u.name, detail);
+        if (msg.op === 'kill') {
+          const killed = room.sim.adminKill(msg.unit);
+          if (killed) room.devTest = true; // the result is not a real one any more
+          log('kill in match', room.id);
+          return void send(p, { t: 'dev_result', ok: killed, text: killed ? `Killed ${u.name}.` : `${u.name} is already dead.` });
+        }
+        if (!target || target === p) return void send(p, { t: 'dev_result', ok: false, text: target === p ? 'That is you.' : `${u.name} is a bot: use Kill.` });
+        if (msg.op === 'kick') {
+          for (const q of this.connsOf(target.account?.key ?? '')) if (q !== p) { send(q, { t: 'closed', reason: `You were removed from the server by the owner${msg.reason ? `: ${msg.reason}` : '.'}` }); q.ws.close(); }
+          if (!target.account) { send(target, { t: 'closed', reason: `You were removed from the server by the owner${msg.reason ? `: ${msg.reason}` : '.'}` }); target.ws.close(); }
+          log('kick in match', msg.reason);
+          return void send(p, { t: 'dev_result', ok: true, text: `Kicked ${u.name}.` });
+        }
+        const acc = this.accounts;
+        if (!target.account || !acc) return void send(p, { t: 'dev_result', ok: false, text: `${u.name} is a guest: there is no account to ban. Kick them instead.` });
+        void (async () => {
+          const r = await acc.adminModerate(target.account!.name, 'ban', { minutes: msg.minutes, reason: msg.reason, by });
+          if (!r.ok) return void send(p, { t: 'dev_result', ok: false, text: r.reason });
+          for (const q of this.connsOf(r.account.key)) {
+            send(q, { t: 'closed', reason: bannedText(r.account) ?? 'Banned.' });
+            q.ws.close();
+          }
+          log('ban in match', `${msg.minutes ? `${msg.minutes} min` : 'permanent'}${msg.reason ? `: ${msg.reason}` : ''}`);
+          send(p, { t: 'dev_result', ok: true, text: `Banned ${r.account.name} ${msg.minutes ? `for ${msg.minutes} minutes` : 'for good'}.` });
+        })();
+        break;
+      }
       case 'dev_map': {
         const room = this.devRoom(p);
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
