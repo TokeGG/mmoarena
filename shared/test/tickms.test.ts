@@ -255,7 +255,7 @@ describe('50 ms outcomes are unchanged', () => {
   const GOLDEN: [number, string, number, number | string, string][] = [
     [1, 'ruins', 61100, 1, '9e118096fdad'],
     [2, 'frost', 76400, 1, 'f53ffb26b6bf'],
-    [3, 'serpent', 59900, 0, '4e72e9a99c19'],
+    [3, 'serpent', 65400, 1, '09d149b6b2d3'],
   ];
   for (const [seed, arenaId, time, winner, digest] of GOLDEN) {
     it(`bot match ${seed} on ${arenaId}`, () => {

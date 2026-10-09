@@ -477,6 +477,14 @@
     "dr": "incapacitate",
     "breaksOnDamage": true
   },
+  "protective_vanish": {
+    "name": "Shadow Shroud",
+    "kind": "buff",
+    "duration": 2000,
+    "harmful": false,
+    "invulnerable": true,
+    "note": "Immune to damage and crowd control. Lost when you leave stealth."
+  },
   "banner_buff": {
     "name": "Battle Banner",
     "kind": "buff",

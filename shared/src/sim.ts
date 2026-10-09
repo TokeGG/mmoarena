@@ -886,7 +886,7 @@ export class ArenaSim {
     this.stackMult = 1;
     this.ground = null;
 
-    if (isMelee(def) && autoFor(u.classId, u.spec) && !u.autoDisabled) {
+    if (isMelee(def) && !def.stopsAuto && autoFor(u.classId, u.spec) && !u.autoDisabled) {
       if (!u.autoAttack) u.autoSince = this.time;
       u.autoAttack = true;
     }
@@ -978,7 +978,10 @@ export class ArenaSim {
       case 'aura':
         if (eff.fullCast && this.procCast) break; // an instant proc cast does not earn the next proc
         if (eff.chance !== undefined && this.rng() >= eff.chance) break;
-        this.applyAura(u, eff.self ? u : t, this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+        {
+          const r = this.applyAura(u, eff.self ? u : t, this.abilityMod(u, def).swapAura?.[eff.aura] ?? eff.aura, (eff.extraPerCp ?? 0) * this.cpSpent * this.modsOf(u).cpPower, eff.duration);
+          if (def.stopsAuto && r.applied && t.team !== u.team) u.autoAttack = false;
+        }
         break;
       case 'exsanguinate': {
         let bleed = 0;
@@ -1424,6 +1427,8 @@ export class ArenaSim {
       if (st) st.resetAt = this.time + TUNING.drResetMs; // DR window starts when the CC ends
     }
     this.emit({ t: 'aura_removed', tgt: u.id, aura: a.id, reason });
+    // Protective Vanish lasts only while you stay hidden
+    if (a.kind === 'stealth') for (const x of u.auras) if (x.id === 'protective_vanish') this.removeAura(u, x, 'left stealth');
   }
 
   /** Allies lose a harmful magic aura; enemies lose a beneficial magic aura. Crowd control goes first. */
