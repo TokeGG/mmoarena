@@ -114,6 +114,57 @@ The replay is also used to learn how people of each class actually play: spacing
 - **Buttons (owner only):** train on one replay (1 to 5 passes), **train on all archived replays**, the *train on every match* switch, **reset the learned brain to shipped defaults**, and **Commit learned bots to GitHub**.
 - **Devs** can see the status. They cannot train, reset or commit the bots.
 
+## 6b. Is the bot testing something? (the learning-test marker)
+
+In a match with bots, a bot that plays a brain different from the one the game ships with wears a purple flask icon (**🧪 Learning test**) in its buff row. Only **you and devs** ever see it: the server sends it as its own message to the owner and dev-tagged accounts, never in what players, spectators or guests receive, and never in a replay. The sim is not touched.
+
+- **Where:** on the bot's nameplate buff row, on the target and enemy frames, and next to the bot's name in the spectator **Builds** panel (watching live, a replay of a bot battle you started, or playing). Hover it.
+- **What the tooltip says:** the variant (`lesson`, `variant g2v481`, `human style`), the three biggest differences from the shipped brain in plain words with the numbers (for example "hold defensive cooldowns until they are lower (62% instead of 65%)"), how many smaller ones there are, what to look for in the match, and the variant's record against people so far ("won 7 of 12 games").
+- **No icon** means that bot plays the shipped brain, so nothing is being tried on it.
+- **It matches the report:** the marker and the Bot training tab's *What the bots know* are built from the same variant records, so what the flask says is what the report says. If you take over a bot by hand, its flask goes away for that unit (a person is playing it) and a fresh one appears when you hand it back.
+
+## 6c. Telling the bot brain what went wrong (notes)
+
+After a match that had bots, the owner and any dev see a **Note for the bots** box under the end-of-match recap. It is also in the admin **Replays** tab on every row that had bots (📝 Note for the bots) and, while a match is running, in the dev panel under **Match tools** (the note is stamped with the seconds into the fight). Anyone else cannot send one; the server refuses it.
+
+**How to write a good note**
+
+- Say what the bot did wrong, one thing per sentence, in ordinary words: "didn't los enough. ran out of mana."
+- Name a class when it is not every bot: "mage: kicked too early. priest: healed too late." A tag holds until the next tag; a class word inside a sentence ("the rogue wasted trinket") names it for that sentence. Spec names work as tags too ("frost: stood in flamestrike"). With no class named, the note moves every bot class that was in that match.
+- Say the direction in the phrase itself ("too early", "didn't", "too much"). Opposite wishes about the same thing in one note cancel and are reported.
+- Only bugs ("got stuck", "froze", "ran into the wall", "standing there doing nothing") are not about judgement: they go to the **Bot bugs reported** list (below), not to a brain number.
+
+**Phrases that work** (a few of several each; the full list is `NOTE_PHRASES` in `shared/src/botnote.ts`, and the plain sentences from the brain table, like "break line of sight more", work too):
+
+| You write | The bot brain moves |
+|---|---|
+| didn't los enough / should use cover | `losUse` up |
+| ran out of mana / went oom | `spendBias` up (saves mana sooner) |
+| wasted trinket / trinket too early | `trinketAt` down |
+| didn't use trinket / died with trinket | `trinketAt` up |
+| died with defensives unused / used defensives too late | `defHp` up |
+| wasted defensives | `defHp` down |
+| stood in flamestrike / stood in the fire | `dodge` up |
+| kicked too early / fell for the fake | `kickAt` up (kicks later) |
+| never kicked / kicked too late | `kickAt` down (kicks earlier) |
+| didn't heal in time / healed too late | `healAt` up |
+| overhealed / healed people at full | `healCap` down |
+| didn't stun / cc too late | `ccEarly` up |
+| wasted stun on dr | `drRespect` up |
+| didn't finish the low target | `killLow` up |
+| ignored the healer | `healerPrio` up |
+| predictable strafing | `strafeFlip` down |
+| fell into lava | `edgeCare` up |
+| too passive / too aggressive | several numbers together (burst and cover thresholds) |
+
+All 34 brain numbers have phrases in both directions. The table-driven test checks every one.
+
+**What happens next.** The note counts like **3 replays of evidence** (`NOTE_WEIGHT` in `shared/src/botnote.ts`): each number it names moves 4% of its range times 3, but never more than one replay's step (20% of the range), never past the room around the shipped brain (60%, widened by 10% when it is hit, up to 95%), and never past its hard bounds. That is the same step, drift and bound limits as graded learning. The move goes into the class's **lesson variant** (created if it does not exist), which plays in a share of the bots' games against people and has to win its way up like any variant; the next graded learning keeps what the note added. The result appears at once in the box ("Your note moved: mage bots now break line of sight more"), is written to the admin log and listed in **What was learned** (an expandable report with source `note`: who wrote it, which match, what each phrase meant, what could not be placed). Nothing is deployed: it is committed with the rest when you press **Commit learned bots**.
+
+**If part of it could not be placed**, the box lists those words ("Could not place: ..."); rephrase them with the phrases above and send again. Sending a second note is fine: they add up (inside the same limits). A note from a dev is labelled with the dev's name; both owner and devs apply notes immediately.
+
+**Bot bugs reported.** Notes about broken behaviour land in **🐞 Bot bugs reported** in the Bot training area (Replays tab): the words, who wrote it, when, a **Watch** button for the match's replay, and for the owner **Mark fixed** (and Reopen). A bug is a code change in `shared/src/bot.ts`, not something learning can fix. The list survives "reset the learned brain".
+
 ## 7. Turning learning into a release
 
 1. Let the bots play real matches with people for a while.

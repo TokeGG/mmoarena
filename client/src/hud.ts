@@ -5,6 +5,8 @@ import { ErrorGate, controlColor, errorDurationMs } from './hudText';
 import type { ControlKind } from './hudText';
 import { TARGET_ARROWS, fillFor, hpFill, hpText, look } from './hudLook';
 import { PlateView } from './nameplateView';
+import { botTests } from './botTestState';
+import { BOT_TEST_GLYPH, botTestIcon, ensureBotTestStyles } from './botTestIcon';
 import { plateProfile } from './nameplateStore';
 import { arrowGlyph, barText, distanceScale, fadeAlpha, pickAuras, plateZ, type PlateKind } from './nameplateLayout';
 import { applyName, avatarImg } from './nameStyle';
@@ -134,7 +136,7 @@ class UnitFrame {
     // the icons are only rebuilt when the set of effects (or a seconds counter, or a stack count) changes, not every frame
     const shown = u.auras.slice(0, 8);
     const secsLeft = (x: { expiresAt: number }) => (x.expiresAt > 0 ? Math.max(0, Math.ceil((x.expiresAt - now) / 1000)) : -1);
-    const key = shown.map((x) => `${x.id}:${x.src}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|');
+    const key = shown.map((x) => `${x.id}:${x.src}:${secsLeft(x)}:${x.stacks ?? 0}`).join('|') + botTests.key(u.id);
     if (key === this.auraKey) return;
     this.auraKey = key;
     this.auras.replaceChildren(
@@ -153,6 +155,7 @@ class UnitFrame {
         if ((a.stacks ?? 0) > 1) icon.append(el('b', '', String(a.stacks)));
         return icon;
       }),
+      ...[botTestIcon(u.id)].filter((x): x is HTMLElement => !!x), // owner and devs only: a bot on an experimental brain
     );
   }
   private auraKey = '';
@@ -539,11 +542,16 @@ export class Hud {
       const pStop = u.cast ? null : stoppedCast(u.id);
       // effect icons: by the profile's pick (debuffs, all, only mine, crowd control), with the time left and stacks
       const shownAuras = pickAuras(prof.auras, u.auras ?? [], (id) => ({ harmful: !!AURAS[id]?.harmful, kind: AURAS[id]?.kind }), you);
+      const testing = botTests.get(u.id);
+      if (testing) ensureBotTestStyles();
       const hasRes = !!u.resourceType && !!(u.resourceMax && u.resourceMax > 0);
       const arrowOn = !!u.target && look.targetArrow !== 'off';
-      v.apply(prof, { hasMark: (u.mark ?? 0) > 0, hasArrow: arrowOn, hasAvatar: av.startsWith('/avatar/'), hasTitle: !!who?.title, hasRes, hasCast: !!u.cast || !!pStop, auraCount: shownAuras.length });
+      v.apply(prof, { hasMark: (u.mark ?? 0) > 0, hasArrow: arrowOn, hasAvatar: av.startsWith('/avatar/'), hasTitle: !!who?.title, hasRes, hasCast: !!u.cast || !!pStop, auraCount: shownAuras.length + (testing ? 1 : 0) });
       v.setAuras(
-        shownAuras.map((a) => ({ id: a.id, harmful: !!AURAS[a.id]?.harmful, secs: a.expiresAt > 0 ? Math.max(0, Math.ceil((a.expiresAt - now) / 1000)) : -1, stacks: a.stacks ?? 0, title: AURAS[a.id]?.name })),
+        [
+          ...shownAuras.map((a) => ({ id: a.id, harmful: !!AURAS[a.id]?.harmful, secs: a.expiresAt > 0 ? Math.max(0, Math.ceil((a.expiresAt - now) / 1000)) : -1, stacks: a.stacks ?? 0, title: AURAS[a.id]?.name })),
+          ...(testing ? [{ id: 'bot-test', harmful: true, secs: -1, stacks: 0, title: `Learning test: ${testing.label}`, pseudo: { glyph: BOT_TEST_GLYPH, tip: `bottest:${u.id}` } }] : []),
+        ],
         prof,
       );
       v.name.textContent = who ? `${who.emblem} ${u.name}` : u.name;

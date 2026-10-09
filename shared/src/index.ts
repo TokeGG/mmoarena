@@ -28,3 +28,5 @@ export * from './playtime';
 export * from './brainwords';
 export * from './hudDefault';
 export * from './botnames';
+export * from './bottest';
+export * from './botnote';

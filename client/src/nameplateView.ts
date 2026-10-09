@@ -42,6 +42,8 @@ export interface AuraIcon {
   stacks: number;
   /** Shown as the tooltip. */
   title?: string;
+  /** Not a real effect: a marker only the owner and devs see (a bot on an experimental brain). Drawn as a glyph with a tooltip key. */
+  pseudo?: { glyph: string; tip: string };
 }
 
 const WEIGHT = { normal: '400', bold: '700', heavy: '900' } as const;
@@ -151,14 +153,17 @@ export class PlateView {
 
   /** The buff row's icons (rebuilt only when the set, a seconds counter, a stack count or the profile changes). */
   setAuras(items: AuraIcon[], p: PlateProfile): void {
-    const key = `${p.auras.size}|${p.scaleH}|${p.auras.duration}|${p.auras.stacks}|${items.map((a) => `${a.id}:${a.secs}:${a.stacks}`).join()}`;
+    const key = `${p.auras.size}|${p.scaleH}|${p.auras.duration}|${p.auras.stacks}|${items.map((a) => `${a.id}:${a.secs}:${a.stacks}:${a.pseudo ? 1 : 0}`).join()}`;
     if (key === this.auraKey) return;
     this.auraKey = key;
     const s = p.auras.size * p.scaleH;
     this.auras.replaceChildren(
       ...items.map((a) => {
-        const ic = el('div', `pdebuff${a.harmful ? '' : ' good'}`);
-        ic.append(iconEl('aura', a.id));
+        const ic = el('div', `pdebuff${a.harmful ? '' : ' good'}${a.pseudo ? ' bottest' : ''}`);
+        if (a.pseudo) {
+          ic.append(el('span', '', a.pseudo.glyph));
+          ic.dataset.tip = a.pseudo.tip;
+        } else ic.append(iconEl('aura', a.id));
         const st = ic.style;
         st.width = st.height = `${s}px`;
         st.fontSize = `${Math.round(s * 0.62)}px`;

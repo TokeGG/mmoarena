@@ -14,7 +14,8 @@ export class RecapCard {
     this.root.replaceChildren();
   }
 
-  show(recap: Recap, title: string, myTeam: TeamId | null) {
+  /** `extra`: something under the table (the note box for the bots, which only the owner and devs get). */
+  show(recap: Recap, title: string, myTeam: TeamId | null, extra?: HTMLElement | null) {
     const rows = recap.rows();
     if (!rows.length) return this.hide();
     const friendly = myTeam ?? 0;
@@ -52,6 +53,7 @@ export class RecapCard {
     wrap.className = 'recap-scroll';
     wrap.append(table);
     this.root.replaceChildren(head, wrap);
+    if (extra) this.root.append(extra);
     this.root.classList.remove('hidden');
   }
 }
