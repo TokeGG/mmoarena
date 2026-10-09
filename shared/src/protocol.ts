@@ -35,6 +35,8 @@ export interface TrainJobRow {
   progress?: { done: number; total: number; skipped: number };
 }
 /** A change a dev sent to the owner's admin panel with "Send to the admin panel"; nothing in it is live until the owner acts. */
+/** A dev's commit to GitHub, for the "did it go live" list in the dev tools. */
+export interface DevCommitRow { version: string; by: string; at: number; url?: string; lines: string[] }
 export interface ProposalRow {
   id: string;
   by: string;
@@ -122,6 +124,8 @@ export type ClientMsg =
   | { t: 'dev_commit'; patches: DataPatch[]; note?: string }
   /** Dev tools: start a deploy of the latest commit on Render. */
   | { t: 'dev_redeploy' }
+  /** Dev tools: ask for the list of recent commits and the version the server runs now. */
+  | { t: 'dev_commits' }
   /** Dev tools: a note on a skill, sent to the owner. */
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
@@ -192,6 +196,8 @@ export type ServerMsg =
   /** Numbers changed for everyone by a dev (applied over the data files). */
   | { t: 'overrides'; patches: DataPatch[] }
   | { t: 'proposals'; rows: ProposalRow[] }
+  /** Recent dev commits to GitHub (newest first) and the patch version the server is running (a commit is live once that reaches its version). */
+  | { t: 'dev_commits'; rows: DevCommitRow[]; running: string }
   /** The replays the bots are training on right now and the ones just finished. */
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Owner only: what the bots know now against what shipped, and the last reports of what they learned. */
@@ -448,6 +454,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_pause', on: m.on === true };
     case 'dev_redeploy':
       return { t: 'dev_redeploy' };
+    case 'dev_commits':
+      return { t: 'dev_commits' };
     case 'dev_patch':
     case 'dev_session':
     case 'dev_commit':

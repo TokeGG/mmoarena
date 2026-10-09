@@ -1,5 +1,5 @@
 import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, TALENTS, applyPatches, mergePatches, skillInfo, talentsFor, tunableNumbers } from '@arena/shared';
-import type { Build, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, TunableNumber, UnitBuild } from '@arena/shared';
+import type { Build, DevCommitRow, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, TunableNumber, UnitBuild } from '@arena/shared';
 import { ABILITY_ICON } from './icons';
 import { invalidateTip } from './tooltip';
 import { makeResizable } from './resizable';
@@ -381,8 +381,10 @@ export class DevPanel {
   toggle(on = !this.open) {
     if (this.button.classList.contains('hidden')) return;
     this.root.classList.toggle('hidden', !on);
+    if (!on) this.watchDeploy();
     if (on) {
       this.hooks.send({ t: 'dev_builds' });
+      this.hooks.send({ t: 'dev_commits' });
       // opening the window in your own match pauses it, so you can read and edit in peace; closing it resumes
       if (this.inMatch && !this.paused && this.hooks.youId() > 0) {
         this.autoPaused = true;
@@ -395,8 +397,73 @@ export class DevPanel {
     }
   }
 
+  /** Recent commits to GitHub and the version the server runs; polled while a commit is still deploying. */
+  private commits: { rows: DevCommitRow[]; running: string } | null = null;
+  private poll: ReturnType<typeof setInterval> | null = null;
+
+  private static newer(a: string, b: string): boolean {
+    const x = a.split('.').map(Number);
+    const y = b.split('.').map(Number);
+    for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+    return false;
+  }
+
+  /** While any commit is newer than what the server runs, ask the server's status page (it keeps answering across a restart). */
+  private watchDeploy() {
+    const waiting = !!this.commits?.rows.some((r) => DevPanel.newer(r.version, this.commits!.running));
+    if (!waiting || !this.open) {
+      if (this.poll) clearInterval(this.poll);
+      this.poll = null;
+      return;
+    }
+    if (this.poll) return;
+    this.poll = setInterval(() => {
+      fetch('/api/status', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((j: { version?: string }) => {
+          if (this.commits && typeof j.version === 'string' && j.version !== this.commits.running) {
+            this.commits.running = j.version;
+            this.watchDeploy();
+            if (this.open) this.paint();
+          }
+        })
+        .catch(() => undefined);
+    }, 15000);
+  }
+
+  /** "Your commits": each patch and whether the game is running it yet. */
+  private commitsBox(): HTMLElement | null {
+    const c = this.commits;
+    if (!c?.rows.length) return null;
+    const box = el('div', 'devp-sec');
+    box.append(el('b', '', 'Commits to GitHub'));
+    for (const r of c.rows.slice(0, 5)) {
+      const live = !DevPanel.newer(r.version, c.running);
+      const line = el('div', 'devp-commit');
+      line.append(
+        el('span', live ? 'devp-ok' : 'devp-dim', live ? '✅ Live' : '⏳ Deploying…'),
+        el('span', '', ` patch ${r.version} · ${r.by} · ${new Date(r.at).toLocaleTimeString()} · ${r.lines.length} change${r.lines.length === 1 ? '' : 's'}`),
+      );
+      if (r.url) {
+        const a = el('a', '', ' view');
+        a.href = r.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        line.append(a);
+      }
+      line.title = r.lines.join('\n');
+      box.append(line);
+    }
+    const waiting = c.rows.some((r) => DevPanel.newer(r.version, c.running));
+    box.append(el('small', 'devp-dim', waiting ? `The game is on patch ${c.running} now. This updates by itself when the deploy finishes (a minute or two); then refresh the page with Ctrl+Shift+R.` : `The game is running patch ${c.running}. Refresh the page (Ctrl+Shift+R) to play on it.`));
+    return box;
+  }
+
   handle(m: ServerMsg) {
-    if (m.t === 'dev_map') {
+    if (m.t === 'dev_commits') {
+      this.commits = { rows: m.rows, running: m.running };
+      this.watchDeploy();
+    } else if (m.t === 'dev_map') {
       this.meter.clear();
     } else if (m.t === 'dev_state') {
       this.paused = m.paused;
@@ -667,6 +734,8 @@ export class DevPanel {
     if (this.inMatch) acts.append(tryIt, keep, reset, save, commit, redeploy);
     else acts.append(keep, save, commit, redeploy);
     r.append(acts);
+    const done = this.commitsBox();
+    if (done) r.append(done);
     if (this.session.length) {
       const srow = el('div', 'devp-row');
       srow.append(el('small', 'devp-dim', `🔁 ${this.session.length} number${this.session.length === 1 ? '' : 's'} kept for your session`));

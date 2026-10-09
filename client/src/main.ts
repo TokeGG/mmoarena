@@ -424,6 +424,7 @@ function onMessage(raw: MessageEvent) {
       devPanel.handle(m);
       break;
     case 'dev_session':
+    case 'dev_commits':
       devPanel.handle(m);
       break;
     case 'dev_result':

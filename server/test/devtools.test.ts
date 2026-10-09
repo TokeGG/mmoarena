@@ -1,12 +1,12 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { ABILITIES, parseClientMsg } from '@arena/shared';
+import { ABILITIES, PATCHES, parseClientMsg } from '@arena/shared';
 import type { ClientMsg, ServerMsg } from '@arena/shared';
 import { MemoryStore } from '../src/store';
 import { Accounts } from '../src/accounts';
 import { Lobby } from '../src/rooms';
-import { DevTools, patchJsonText } from '../src/devtools';
+import { DevTools, nextPatchVersion, patchJsonText } from '../src/devtools';
 
 const CODE = 'dev-code';
 const mkP = (name: string, out: ServerMsg[], account: any) => ({ ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 } as any, name, classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', account, ownerOk: false } as any);
@@ -86,6 +86,14 @@ describe('dev commits to GitHub', () => {
     assert.equal(res.ok, true);
     assert.match(res.text, new RegExp(`patch ${next.replace(/\./g, '\\.')}`));
     assert.match(String((res as any).url), /commit\/abc123/);
+    // the dev can see it: the commit is listed, and it is live once the server runs that version
+    const listed = last(outD, 'dev_commits')!;
+    assert.equal(listed.rows[0].version, next);
+    assert.equal(listed.rows[0].by, 'Dee');
+    assert.equal(listed.running, PATCHES[0].version, 'the server still runs the old patch: deploying');
+    assert.notEqual(listed.running, next);
+    lobby.handle(devP, { t: 'dev_commits' } as ClientMsg);
+    assert.equal(last(outD, 'dev_commits')!.rows.length, 1);
     // the notes are fit for players
     assert.ok(!/\b(owner|admin|debug|dev|devs|pull request)\b/i.test(patches[0].changes.join(' ')));
   });
@@ -440,5 +448,30 @@ describe('redeploy on Render from the dev panel', () => {
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(calls.length, 1);
     assert.equal(last(outD, 'dev_result')?.ok, true);
+  });
+});
+
+describe('patch versions from dev commits', () => {
+  it('only the last number goes up, never the minor or major one', () => {
+    assert.equal(nextPatchVersion('0.69.7'), '0.69.8');
+    assert.equal(nextPatchVersion('0.69.9'), '0.69.10');
+    assert.equal(nextPatchVersion('0.70.0'), '0.70.1');
+    assert.equal(nextPatchVersion('0.99.99'), '0.99.100');
+  });
+  it('a bot or guest asking for the commit list gets nothing', async () => {
+    const { lobby, bobP, outB } = await world();
+    lobby.handle(bobP, { t: 'dev_commits' } as ClientMsg);
+    assert.equal(last(outB, 'dev_commits'), undefined);
+  });
+  it('the list survives a restart', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    void calls;
+    const store = new MemoryStore();
+    const a = new DevTools(store, {});
+    await a.whenReady();
+    await (a as any).recordCommit({ version: '0.69.8', by: 'Dee', at: 1, lines: ['Fireball: cooldown 8 s to 7 s.'] });
+    const b = new DevTools(store, {});
+    await b.whenReady();
+    assert.equal(b.commits[0].version, '0.69.8');
   });
 });

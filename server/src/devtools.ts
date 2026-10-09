@@ -1,9 +1,11 @@
+import type { DevCommitRow } from '@arena/shared';
 import { ABILITIES, ABILITY_CHOICES, ABILITY_FLAGS, AURAS, CLASSES, SPECS, TALENTS, applyPatches, currentValue, mergePatches, validPatch } from '@arena/shared';
 import type { ClassId, DataPatch, ProposalRow } from '@arena/shared';
 import type { Store } from './store';
 
 const KEY = 'devoverrides';
 const PROPOSALS = 'devproposals';
+const COMMITS = 'devcommits';
 const MAX_PROPOSALS = 100;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
@@ -30,6 +32,7 @@ export interface DevToolsEnv {
  */
 export class DevTools {
   private list: DataPatch[] = [];
+  private commitRows: DevCommitRow[] = [];
   private undo: (() => void) | null = null;
   private ready: Promise<void>;
   private webhook: string | null;
@@ -49,6 +52,7 @@ export class DevTools {
 
   /** A dev's changes go to the owner's admin panel, stacked with the others; nothing changes in the game. */
   async propose(by: string, patches: DataPatch[], note?: string): Promise<ProposalRow> {
+    await this.ready; // the stored list is read first, or it would overwrite this one
     const row: ProposalRow = {
       id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       by, at: Date.now(), ...(note ? { note } : {}), patches,
@@ -109,6 +113,13 @@ export class DevTools {
   }
 
   private async load(): Promise<void> {
+    try {
+      const rawC = await this.store.get(COMMITS);
+      const vc = rawC ? (JSON.parse(rawC) as unknown) : [];
+      if (Array.isArray(vc)) this.commitRows = (vc as DevCommitRow[]).filter((r) => r && typeof r.version === 'string' && Array.isArray(r.lines)).slice(0, 30);
+    } catch {
+      /* none */
+    }
     try {
       const rawP = await this.store.get(PROPOSALS);
       const vp = rawP ? (JSON.parse(rawP) as unknown) : [];
@@ -271,7 +282,9 @@ export class DevTools {
           if (attempt < 3 && /not a fast.?forward|422|409/i.test((e as Error).message)) continue;
           throw e;
         }
-        return { url: commit.html_url ?? `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commit/${commit.sha}`, applied: notes.length, skipped, version };
+        const url = commit.html_url ?? `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commit/${commit.sha}`;
+        await this.recordCommit({ version, by, at: Date.now(), url, lines: [...new Set(lines)] });
+        return { url, applied: notes.length, skipped, version };
       }
     } catch (e) {
       const m = (e as Error).message;
@@ -313,6 +326,21 @@ export class DevTools {
     return 'Deploy started on Render. The game restarts when it is ready (a minute or two), so everyone online is disconnected for a moment.';
   }
 
+  /** Recent commits to GitHub, newest first. */
+  get commits(): DevCommitRow[] {
+    return this.commitRows;
+  }
+
+  private async recordCommit(row: DevCommitRow): Promise<void> {
+    await this.ready;
+    this.commitRows = [row, ...this.commitRows].slice(0, 30);
+    try {
+      await this.store.set(COMMITS, JSON.stringify(this.commitRows));
+    } catch {
+      /* the commit stands even if the list is not kept */
+    }
+  }
+
   get notifies(): boolean {
     return !!this.webhook;
   }
@@ -336,8 +364,8 @@ export class DevTools {
   }
 }
 
-/** 0.69.7 -> 0.69.8 */
-function nextPatchVersion(v: string): string {
+/** Always the last number only: 0.69.7 -> 0.69.8, 0.69.9 -> 0.69.10 (never the minor or major one). */
+export function nextPatchVersion(v: string): string {
   const [a, b, c] = v.split('.').map((x) => Number(x) || 0);
   return `${a}.${b}.${c + 1}`;
 }

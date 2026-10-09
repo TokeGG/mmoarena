@@ -1560,6 +1560,11 @@ export class Lobby {
         })();
         break;
       }
+      case 'dev_commits': {
+        if (!this.isDev(p) || !this.dev) return;
+        send(p, { t: 'dev_commits', rows: this.dev.commits, running: PATCHES[0]?.version ?? '0.0.0' });
+        break;
+      }
       case 'dev_redeploy': {
         if (!this.isDev(p) || !this.dev) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         const by = p.account?.name ?? p.name;
@@ -1584,6 +1589,7 @@ export class Lobby {
           try {
             const r = await dev.commitToBase(msg.patches, by, msg.note);
             void this.adminLog?.add(by, 'committed numbers to GitHub', undefined, msg.patches.map((x) => `${x.id}.${x.path.join('.')}=${x.value}`).join(', '));
+            send(p, { t: 'dev_commits', rows: dev.commits, running: PATCHES[0]?.version ?? '0.0.0' });
             send(p, { t: 'dev_result', ok: true, text: `Committed ${r.applied} number${r.applied === 1 ? '' : 's'} to the main branch on GitHub as patch ${r.version}. The game updates when the next deploy finishes.${r.skipped.length ? ` Left out: ${r.skipped.join('; ')}.` : ''}`, url: r.url });
           } catch (e) {
             send(p, { t: 'dev_result', ok: false, text: (e as Error).message });
