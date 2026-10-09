@@ -1715,7 +1715,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 100
+    "amount": 90
    }
   ],
   "unstoppable": true
@@ -1855,7 +1855,7 @@
   "target": "self",
   "range": 0,
   "castTime": 0,
-  "cooldown": 60000,
+  "cooldown": 120000,
   "gcd": false,
   "cost": 0,
   "ignoresControl": true,
@@ -1875,7 +1875,7 @@
   "target": "self",
   "range": 0,
   "castTime": 0,
-  "cooldown": 60000,
+  "cooldown": 120000,
   "gcd": false,
   "cost": 0,
   "ignoresControl": true,
@@ -1896,7 +1896,7 @@
   "target": "self",
   "range": 0,
   "castTime": 0,
-  "cooldown": 60000,
+  "cooldown": 120000,
   "gcd": false,
   "cost": 0,
   "ignoresControl": true,
