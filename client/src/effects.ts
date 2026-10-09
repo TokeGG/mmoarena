@@ -978,7 +978,7 @@ export class Effects {
         pl.fade = 1 - smoothstep((t - 0.55) / 0.6);
         pl.flash = Math.max(0, 1 - t / 0.35);
         pl.scorch = pl.fade;
-        field.place(pl, this.camera);
+        // (no flames on the ground: the fire comes down from above)
         acc += dt * 34;
         while (t < 0.4 && acc > 1) {
           acc -= 1;
@@ -3082,6 +3082,55 @@ export class Effects {
    * out to the radius, a jump of the flames and a burst of embers. Embers drift and smoke rises while it burns; a scorch mark stays
    * after it. About 55 pooled sprites for the field plus the particles, all under the global cap.
    */
+  /** One meteor of a Flamestrike: it falls from the sky at a slant, trailing fire, and bursts where it lands. */
+  private meteor(tx: number, tz: number, y0: number, big: boolean): void {
+    const ang = Math.random() * Math.PI * 2;
+    const run = rnd(2.5, 4.5); // a slight slant, like wind-driven hail
+    const high = rnd(11, 16);
+    const sx = tx + Math.cos(ang) * run;
+    const sz = tz + Math.sin(ang) * run;
+    const fall = rnd(0.34, 0.5);
+    const size = big ? rnd(1.2, 1.6) : rnd(0.55, 0.9);
+    const core = this.sprite('spark', 0xffffff);
+    const halo = this.sprite('glow', 0xff7a1a);
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const p = Math.min(1, t / fall);
+        const e = p * p; // it speeds up as it falls
+        const x = sx + (tx - sx) * e;
+        const z = sz + (tz - sz) * e;
+        const y = y0 + high * (1 - e);
+        core.position.set(x, y, z);
+        halo.position.set(x, y, z);
+        core.scale.setScalar(size * 1.1);
+        halo.scale.setScalar(size * 3.2);
+        for (let k = 0; k < 2; k++) this.particle(x + rnd(-0.2, 0.2), y + rnd(-0.2, 0.2), z + rnd(-0.2, 0.2), { color: 0xffa23a, col1: 0x6a1a08, vx: (sx - tx) * 0.1, vy: 1.4, vz: (sz - tz) * 0.1, life: 0.6, s0: size * 1.2, s1: size * 0.25, a: 0.95, fire: true });
+        if (Math.random() < 0.6) this.particle(x, y, z, { color: 0x3a2a24, vy: 0.5, life: 0.7, s0: size * 0.7, s1: size * 1.6, a: 0.45, add: false });
+        if (p < 1) return false;
+        this.scene.remove(core, halo);
+        core.visible = halo.visible = false;
+        this.pool.push(core, halo);
+        // impact: a flash, a shock ring, a scorch crater and sparks thrown up
+        this.fireFlash(tx, y0 + 0.8, tz, size * 1.4);
+        this.ring(tx, tz, 0xffb24a, size * 0.4, size * 2.4, 0.3, 0.09, 0.8);
+        this.decal(tx, tz, 0x0e0705, size * 1.6, size * 1.9, 3.2, 0.55, false, 0.4, 0.045);
+        this.burst(tx, y0 + 0.3, tz, 0xffa23a, big ? 8 : 4, big ? 5 : 3.5, 0.2, 0.5, 7);
+        for (let k = 0; k < (big ? 2 : 0); k++) this.fireTongue(tx + rnd(-1, 1) * size, y0 + 0.1, tz + rnd(-1, 1) * size, rnd(1.0, 1.7), 0xff5a14, { vy: rnd(2, 4) });
+        if (big) this.smokeWisps(tx, y0 + 0.6, tz, 1, 1.0, { spread: 0.4 });
+        return true;
+      },
+      dispose: () => {
+        if (core.visible) {
+          this.scene.remove(core, halo);
+          core.visible = halo.visible = false;
+          this.pool.push(core, halo);
+        }
+      },
+    });
+  }
+
   private fireZone(z: ZoneSnap, now: number): ZoneVfx {
     const r = z.r;
     const y0 = z.y ?? 0;
@@ -3104,12 +3153,11 @@ export class Effects {
       this.column(z.x, z.z, 0xff7a2a, 0.6, r * 0.3, 9, 0.3);
       this.ring(z.x, z.z, 0xff7a2a, 0.5, r * 1.1, 0.55, 0.08, 1);
       this.ring(z.x, z.z, 0xffffff, 0.3, r * 0.7, 0.4, 0.09, 0.8);
-      for (let k = 0; k < 8; k++) this.fireTongue(z.x + rnd(-r, r) * 0.6, y0 + 0.1, z.z + rnd(-r, r) * 0.6, rnd(1.4, 2.2), 0xff5a14, { vy: rnd(2, 4) });
       this.emberShower(z.x, y0, z.z, r * 0.8, 26, { rise: 1.5 });
     }
     let lastPulse = now >= z.firstAt ? Math.floor((now - z.firstAt) / z.pulse) : -1;
     let flare = 0;
-    let accE = 0, accS = 0, accF = 0, accG = 0;
+    let accE = 0, accS = 0, accF = 0, accG = 0, accM = 0;
     const disc = (k = 0.92) => {
       const a = Math.random() * Math.PI * 2;
       const d = Math.sqrt(Math.random()) * r * k;
@@ -3130,10 +3178,6 @@ export class Effects {
           this.ring(zz.x, zz.z, 0xffa23a, r * 0.4, r, 0.4, 0.09, 0.9);
           this.ring(zz.x, zz.z, 0xe8500e, r * 0.3, r, 0.45, 0.075, 0.6, false);
           this.column(zz.x, zz.z, 0xff8a2a, 0.35, r * 0.16, 4, 0.25);
-          for (let k = 0; k < 6; k++) {
-            const [dx, dz] = disc(0.8);
-            this.fireTongue(zz.x + dx, y0 + 0.1, zz.z + dz, rnd(1.2, 1.9), 0xff5a14, { vy: rnd(1.6, 3) });
-          }
           this.emberShower(zz.x, y0, zz.z, r * 0.9, 12, { rise: 1.3 });
           this.fireFlash(zz.x, y0 + 0.8, zz.z, r * 0.12);
         }
@@ -3159,11 +3203,13 @@ export class Effects {
           this.emberShower(zz.x, y0, zz.z, r * 0.92, n);
         }
         if (armed) {
-          accF += dt * r * 1.6 * fade;
-          while (accF > 1) {
-            accF--;
-            const [dx, dz] = disc();
-            this.fireTongue(zz.x + dx, y0 + 0.1, zz.z + dz, rnd(0.8, 1.3));
+
+          // meteors keep raining down on the circle while it burns
+          accM += dt * (r * 4.2) * fade; // a downpour of small fireballs, like a blizzard of fire
+          while (accM > 1) {
+            accM--;
+            const [mx, mz] = disc(0.95);
+            this.meteor(zz.x + mx, zz.z + mz, y0, Math.random() < 0.08);
           }
           accS += dt * 3 * fade;
           if (accS > 1) {

@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.28",
+  "date": "2026-10-10",
+  "at": "2026-10-10T07:00:00Z",
+  "title": "Flamestrike is a rain of fireballs",
+  "changes": [
+   "Flamestrike now rains many small fireballs from the sky onto its circle, like a fire blizzard, and no longer draws flames on the ground."
+  ]
+ },
+ {
   "version": "0.69.27",
   "date": "2026-10-10",
   "at": "2026-10-10T05:10:00Z",
