@@ -5,6 +5,7 @@ export * from './protocol';
 export * from './sim';
 export * from './bot';
 export * from './botbrain';
+export * from './botexport';
 export * from './build';
 export * from './describe';
 export * from './accounts';

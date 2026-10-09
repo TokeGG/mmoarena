@@ -64,6 +64,33 @@ export interface ClassKnowledge {
   variant: { games: number; winRate: number } | null;
 }
 
+/** The server's live learning at a glance (admin panel, Bot training tab): what it has studied and whether it will survive a restart. */
+export interface LiveClassStat {
+  classId: ClassId;
+  /** Matches with people that taught this class (a bot of the class was in them). */
+  people: number;
+  /** Bot-only matches that taught it. */
+  botOnly: number;
+  /** Real games of this class's bots against people, and their win rate (null before any). */
+  vsGames: number;
+  vsWinRate: number | null;
+  /** The learned ("lesson") variant against the others. */
+  variant: { games: number; winRate: number } | null;
+}
+export interface LiveLearning {
+  /** False when the store is the in-memory fallback: everything learned is lost when the server restarts. */
+  persistent: boolean;
+  storeKind: string;
+  /** Matches studied live, with at least one person in them / bots only. */
+  people: number;
+  botOnly: number;
+  lastAt: number | null;
+  /** Matches with people studied since the learned bots were last committed to GitHub. */
+  sinceCommit: number;
+  lastCommit: { at: number; version: string; url: string; matches: number } | null;
+  classes: LiveClassStat[];
+}
+
 export const fmtNum = (n: number) => (Math.abs(n) >= 10 ? n.toFixed(1) : n.toFixed(2));
 
 /** Numbers that differ by more than rounding. */
@@ -118,6 +145,11 @@ export function nothingReason(bots: BotReport[], hadReplay = true): string {
   if (!hadReplay) return 'the replay could not be used';
   if (!bots.length) return 'no bot fought a person in it, so there was nothing to compare against';
   if (bots.every((b) => b.engagedSec < 8)) return `the fight was too short to measure (${Math.max(...bots.map((b) => b.engagedSec))}s of fighting)`;
+  const found = bots.reduce((n, b) => n + b.mistakes.reduce((m, c) => m + c.count, 0), 0);
+  if (found > 0) {
+    const top = sumLines(bots.map((b) => b.mistakes)).slice(0, 3).map((c) => `${c.count} ${c.label}`).join(', ');
+    return `${found} mistake${found === 1 ? '' : 's'} showed (${top}), but that is still too little evidence to move a brain number, or the bots already play past what it asks`;
+  }
   return 'the bots played this fight the way the people did on every measure (movement, cooldowns, defensives, target switching), within the noise, and no mistake was found';
 }
 

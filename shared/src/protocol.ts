@@ -3,7 +3,7 @@ import { validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { NAME_RE, PASSWORD_MAX, PASSWORD_MIN, cleanCustom } from './accounts';
 import type { AccountInfo, AdminLogRow, AdminRow, Cosmetics, CustomStyle, FriendRow, LeaderRow, LiveMatch, MatchRecord, StatRow, PartyInfo, RosterEntry } from './accounts';
-import type { ClassKnowledge, LearnReport } from './learnreport';
+import type { ClassKnowledge, LearnReport, LiveLearning } from './learnreport';
 import type { SlimSnapshot, UnitInfo } from './snapslim';
 import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
@@ -12,8 +12,8 @@ export const PROTOCOL_VERSION = 10;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel (a dev gets only the read and training ones: see DEV_ADMIN_ACTS in the server). */
-export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset';
-const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset'];
+export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset' | 'bot_commit';
+const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset', 'bot_commit'];
 /** A running match in the owner's admin panel. */
 /** One connection on the owner's "Online now" list (guests included). */
 /** `ip` and `where` are only sent to the owner: a dev sees names, status and time. */
@@ -201,7 +201,7 @@ export type ServerMsg =
   /** The replays the bots are training on right now and the ones just finished. */
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Owner only: what the bots know now against what shipped, and the last reports of what they learned. */
-  | { t: 'bot_knowledge'; classes: ClassKnowledge[]; reports: LearnReport[] }
+  | { t: 'bot_knowledge'; classes: ClassKnowledge[]; reports: LearnReport[]; live?: LiveLearning; autoTrain?: boolean; canCommit?: boolean }
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */

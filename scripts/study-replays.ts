@@ -11,12 +11,14 @@
  * win rates against them. scripts/train-bots.ts then trains against player-like opponents, weighted towards the
  * match-ups bots lose most, and `--calibrate` there compares its simulated win rates with these real ones.
  * Replays recorded on other game data (an older patch) cannot be played back the same and are skipped.
+ * It prints what it read and wrote (replays, matches with people, games against people per class). The server's owner-only
+ * "Commit learned bots" button writes the same two files from what the live learner knows, with no replays to fetch.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
-import { BRAIN_KEYS, CLASS_IDS, brainFor, brainDiff, buildReport, contentHash, formatReport, measureHumans, lessonBrain, limitChange, mergeLessons, mergeStyle, mistakeLines, sanityClamp, studyMatch, forcedStudy } from '../shared/src/index';
+import { CLASS_IDS, brainFor, dataFileText, playersEntry, roundBrain, brainDiff, buildReport, contentHash, formatReport, measureHumans, lessonBrain, limitChange, mergeLessons, mergeStyle, mistakeLines, sanityClamp, studyMatch, forcedStudy } from '../shared/src/index';
 import type { BotStudy, ClassId, HumanStyle, Lessons, ReplayData } from '../shared/src/index';
 import { createStore } from '../server/src/store';
 
@@ -86,6 +88,8 @@ const styles = new Map<ClassId, HumanStyle>();
 /** bot class -> person class -> games and bot wins */
 const real = new Map<ClassId, Map<ClassId, { g: number; w: number }>>();
 const studies: BotStudy[] = [];
+let withPeople = 0;
+let botsOnlyMatches = 0;
 
 for await (const replay of source()) {
   read++;
@@ -97,6 +101,8 @@ for await (const replay of source()) {
   const opts = forcedStudy(replay);
   if (!opts) continue;
   const botsOnly = opts.teachers !== undefined;
+  if (botsOnly) botsOnlyMatches++;
+  else withPeople++;
   const st = studyMatch(replay, opts);
   for (const b of st.bots) {
     studies.push(b);
@@ -115,7 +121,7 @@ for await (const replay of source()) {
   for (const h of measureHumans(replay)) if (Object.keys(h.sample).length) styles.set(h.classId, mergeStyle(styles.get(h.classId) ?? {}, h.sample));
 }
 
-console.log(`read ${read} replays, ${read - stale} on this patch's data (${stale} from older patches skipped)\n`);
+console.log(`read ${read} replays, ${read - stale} on this patch's data (${stale} from older patches skipped); ${withPeople} matches with people, ${botsOnlyMatches} bot-only matches\n`);
 const pct = (x: number) => `${Math.round(x * 100)}%`;
 for (const c of CLASS_IDS) {
   const mine = studies.filter((s) => s.classId === c);
@@ -162,25 +168,27 @@ if (read - stale === 0) {
 }
 // what offline training reads: how people play each class, and how bots really do against them
 const playersFile = path.join(root, 'shared/data/players.json');
-const out: Record<string, { style: HumanStyle; vsPeople: Record<string, { games: number; botWins: number }> }> = {};
+// the same format the server's "Commit learned bots" writes (shared/src/botexport.ts)
+const out: Record<string, ReturnType<typeof playersEntry>> = {};
+for (const c of CLASS_IDS) out[c] = playersEntry(styles.get(c), [...(real.get(c) ?? [])].map(([p, e]) => [p, { games: e.g, botWins: e.w }] as [string, { games: number; botWins: number }]));
+fs.writeFileSync(playersFile, dataFileText(out));
+console.log(`wrote ${path.relative(root, playersFile)}: ${read - stale} replays read (${withPeople} matches with people, ${botsOnlyMatches} bot-only matches the owner chose)`);
 for (const c of CLASS_IDS) {
-  out[c] = {
-    style: Object.fromEntries(Object.entries(styles.get(c) ?? {}).map(([k, m]) => [k, { value: Math.round(m!.value * 1000) / 1000, weight: Math.round(m!.weight) }])) as HumanStyle,
-    vsPeople: Object.fromEntries([...(real.get(c) ?? [])].map(([p, e]) => [p, { games: e.g, botWins: e.w }])),
-  };
+  const games = Object.values(out[c].vsPeople).reduce((n, e) => n + e.games, 0);
+  console.log(`  ${c.padEnd(8)} ${String(games).padStart(4)} games against people, ${Object.keys(out[c].style).length} style measures`);
 }
-fs.writeFileSync(playersFile, JSON.stringify(out, null, 1) + '\n');
-console.log(`wrote ${path.relative(root, playersFile)}`);
 
 if (has('apply')) {
   const file = path.join(root, 'shared/data/botbrain.json');
   const now = JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, Record<string, number>>;
+  const applied: string[] = [];
   for (const c of CLASS_IDS) {
     const L = lessons.get(c);
     if (!L) continue;
     const b = sanityClamp(limitChange(brainFor(c), lessonBrain(brainFor(c), L), 0.6), brainFor(c));
-    now[c] = Object.fromEntries(BRAIN_KEYS.map((k) => [k, Math.round(b[k] * 1000) / 1000]));
+    now[c] = roundBrain(b);
+    applied.push(c);
   }
-  fs.writeFileSync(file, JSON.stringify(now, null, 1) + '\n');
-  console.log('applied the lessons to shared/data/botbrain.json');
+  fs.writeFileSync(file, dataFileText(now));
+  console.log(`applied the lessons to shared/data/botbrain.json (${applied.length ? applied.join(', ') : 'no class had lessons'})`);
 }
