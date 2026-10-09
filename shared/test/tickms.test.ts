@@ -253,9 +253,9 @@ describe('bots at 16 ms', () => {
 /** 50 ms outcomes must not have moved: digests captured from the code before the sim got a tick option (event logs and end state of six full bot matches). */
 describe('50 ms outcomes are unchanged', () => {
   const GOLDEN: [number, string, number, number | string | null, string][] = [
-    [1, 'ruins', 70650, 0, 'cecfd126584c'],
-    [2, 'frost', 41900, 1, '3e94671c298e'],
-    [3, 'serpent', 83550, 0, '91e360c19e4e'],
+    [1, 'ruins', 42050, 0, '30e851646405'],
+    [2, 'frost', 33000, 1, '3015c7d35469'],
+    [3, 'serpent', 35450, 1, '301fa16085ee'],
   ];
   for (const [seed, arenaId, time, winner, digest] of GOLDEN) {
     it(`bot match ${seed} on ${arenaId}`, () => {

@@ -1111,6 +1111,13 @@ export class Bot {
     const t = this.sim.time;
     // a sudden about-turn within a moment of the last choice is the route flickering at a cell boundary: keep going the first way
     if (prev && t - prev.at < 600 && dist(from, prev.p) > 0.8 && Math.abs(angleDiff(angleTo(from, p), angleTo(from, prev.p))) > 2) return prev.p;
+    // standing on the waypoint (a nav cell centre) the heading to it is noise: keep the way we were going until the route moves on
+    if (prev && t - prev.at < 600 && dist(from, p) < 0.5 && dist(from, to) > 1.5) {
+      const a = angleTo(from, prev.p);
+      const keep = { x: from.x + Math.sin(a) * 2, z: from.z + Math.cos(a) * 2 };
+      this.lastWp = { p: keep, at: t };
+      return keep;
+    }
     this.lastWp = { p, at: t };
     return p;
   }
