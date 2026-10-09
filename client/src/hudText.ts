@@ -15,6 +15,9 @@ export const OUTLINES: Record<string, string> = {
   soft: '0 1px 4px #000',
   strong: '-1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 -2px 0 #000, 0 2px 0 #000, -2px 0 0 #000, 2px 0 0 #000, 0 2px 6px #000',
 };
+/** Font sizes (px) of the network stats readout and the colours it can take (auto = the soft parchment tone it always had). */
+export const NET_SIZES: Record<string, number> = { sm: 10, md: 11, lg: 14 };
+export const NET_AUTO = '#cfc6ae';
 export const ERROR_TIME_MIN = 0.8;
 export const ERROR_TIME_MAX = 3;
 export const ERROR_TIME_DEFAULT = 1.8;
@@ -59,6 +62,10 @@ export function textVars(o: Record<string, string>): Record<string, string> {
     '--cc-size': `${CONTROL_SIZES[o.ccSize] ?? CONTROL_SIZES.lg}px`,
     '--cc-weight': o.ccBold === 'normal' ? '500' : '800',
     '--cc-shadow': OUTLINES[o.ccOutline] ?? OUTLINES.soft,
+    '--net-size': `${NET_SIZES[o.netSize] ?? NET_SIZES.md}px`,
+    '--net-color': o.netColor === 'auto' ? NET_AUTO : TEXT_COLORS[o.netColor] ?? NET_AUTO,
+    '--net-bg': o.netPlate === 'none' ? 'transparent' : 'rgba(10,9,12,.62)',
+    '--net-pad': o.netPlate === 'none' ? '0' : '4px 8px',
   };
 }
 

@@ -556,7 +556,7 @@ describe('rogue rework', () => {
     advance(sim, TICK);
     assert.ok(!sim.useAbility(r.id, 'vanish').ok);
   });
-  it('Shadow Mend heals 50% of missing health and Smoke Veil drops a cloud', () => {
+  it('Shadow Mend heals 50% of missing health', () => {
     const sim = live();
     const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][2])));
     add(sim, 'warrior', 1, 30, 0);
@@ -566,12 +566,61 @@ describe('rogue rework', () => {
     sim.useAbility(r.id, 'vanish');
     assert.ok(Math.abs(r.health - (r.maxHealth - missing * 0.5)) <= 2, `healed to ${r.health}`);
     assert.ok(sim.isStealthed(r), 'the heal does not undo stealth');
+  });
+  it('Protective Vanish: immune to damage and crowd control for 2 s, and it ends if you leave stealth; Vanish never drops smoke', () => {
+    const mk = () => {
+      const sim = live();
+      const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][0])));
+      const w = add(sim, 'warrior', 1, 2, 0);
+      advance(sim, TICK);
+      return { sim, r, w };
+    };
+    const a = mk();
+    assert.equal(specTalents('rogue', 'combat')[0][0].name, 'Protective Vanish');
+    assert.ok(a.sim.useAbility(a.r.id, 'vanish').ok);
+    assert.ok(!(a.sim as any).zones.some((z: any) => z.smoke), 'no smoke');
+    assert.ok(a.r.auras.some((x) => x.id === 'protective_vanish'), 'the buff is on');
+    const hp = a.r.health;
+    a.sim.dealDamage(a.w, a.r, 5000, 'physical', null);
+    assert.equal(a.r.health, hp, 'no damage taken');
+    assert.ok(a.sim.isStealthed(a.r), 'being hit while immune does not reveal you');
+    assert.equal(a.sim.applyAura(a.w, a.r, 'cheap_shot_stun').applied, false, 'crowd control bounces off');
+    advance(a.sim, 2100);
+    assert.ok(!a.r.auras.some((x) => x.id === 'protective_vanish'), 'gone after 2 seconds');
+    const b = mk();
+    b.sim.useAbility(b.r.id, 'vanish');
+    assert.ok(b.r.auras.some((x) => x.id === 'protective_vanish'));
+    (b.sim as any).breakStealth(b.r);
+    assert.ok(!b.r.auras.some((x) => x.id === 'protective_vanish'), 'leaving stealth ends it');
+    const c = mk();
+    c.sim.useAbility(c.r.id, 'vanish');
+    c.sim.useAbility(c.r.id, 'sinister_strike', c.w.id);
+    assert.ok(!c.r.auras.some((x) => x.id === 'protective_vanish'), 'attacking out of stealth ends it');
+  });
+  it('Sap works from 7 yards, keeps you in stealth and ends on any damage; Gouge turns your auto attack off', () => {
+    const sim = live();
+    const r = add(sim, 'rogue', 0, 0, 0, build('combat'));
+    const w = add(sim, 'warrior', 1, 6.5, 0);
+    advance(sim, TICK);
+    r.bar = [...r.bar.slice(0, 5), 'sap', 'gouge', 'sinister_strike'];
+    r.resource = r.resourceMax;
+    sim.applyAura(r, r, 'stealth');
+    assert.ok(sim.useAbility(r.id, 'sap', w.id).ok, 'sap from 6.5 yards');
+    assert.ok(w.auras.some((x) => x.id === 'sap'));
+    assert.ok(sim.isStealthed(r), 'still stealthed');
+    assert.equal(r.autoAttack, false, 'sap starts no swinging');
+    sim.dealDamage(null, w, 1, 'fire', 'burn', true); // a damage-over-time tick
+    assert.ok(!w.auras.some((x) => x.id === 'sap'), 'any damage ends the sap');
     const s2 = live();
-    const r2 = add(s2, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][0])));
-    add(s2, 'warrior', 1, 30, 0);
+    const r2 = add(s2, 'rogue', 0, 0, 0, build('combat'));
+    const w2 = add(s2, 'warrior', 1, 2, 0);
     advance(s2, TICK);
-    s2.useAbility(r2.id, 'vanish');
-    assert.ok((s2 as any).zones.some((z: any) => z.smoke && z.team === r2.team), 'smoke cloud on the rogue');
+    r2.bar = [...r2.bar.slice(0, 5), 'sinister_strike', 'gouge', 'sinister_strike'];
+    r2.resource = r2.resourceMax;
+    r2.autoAttack = true;
+    assert.ok(s2.useAbility(r2.id, 'gouge', w2.id).ok);
+    assert.ok(w2.auras.some((x) => x.id === 'gouge'), 'gouged');
+    assert.equal(r2.autoAttack, false, 'auto attack is off after a successful gouge');
   });
   it('class talents: energy, speed, and eight combo points that scale harder', () => {
     const t2 = specTalents('rogue', 'combat')[1];

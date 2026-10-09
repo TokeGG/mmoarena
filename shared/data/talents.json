@@ -1808,17 +1808,17 @@
       [
         {
           "id": "rogue_t1a",
-          "name": "Smoke Veil",
-          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone.",
-          "icon": "💨",
+          "name": "Protective Vanish",
+          "desc": "Vanish also makes you immune to damage and crowd control for 2 seconds. It ends early if you leave stealth.",
+          "icon": "🛡️",
           "mods": {
             "ability": {
               "vanish": {
                 "extra": [
                   {
-                    "type": "smoke",
-                    "radius": 6,
-                    "duration": 6000
+                    "type": "aura",
+                    "aura": "protective_vanish",
+                    "self": true
                   }
                 ]
               }
@@ -2001,17 +2001,17 @@
       [
         {
           "id": "rogue_t1a",
-          "name": "Smoke Veil",
-          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone.",
-          "icon": "💨",
+          "name": "Protective Vanish",
+          "desc": "Vanish also makes you immune to damage and crowd control for 2 seconds. It ends early if you leave stealth.",
+          "icon": "🛡️",
           "mods": {
             "ability": {
               "vanish": {
                 "extra": [
                   {
-                    "type": "smoke",
-                    "radius": 6,
-                    "duration": 6000
+                    "type": "aura",
+                    "aura": "protective_vanish",
+                    "self": true
                   }
                 ]
               }
@@ -2193,17 +2193,17 @@
       [
         {
           "id": "rogue_t1a",
-          "name": "Smoke Veil",
-          "desc": "Vanish also drops a 6-yard smoke cloud for 6 seconds: enemies inside it lose their target and cannot target anyone.",
-          "icon": "💨",
+          "name": "Protective Vanish",
+          "desc": "Vanish also makes you immune to damage and crowd control for 2 seconds. It ends early if you leave stealth.",
+          "icon": "🛡️",
           "mods": {
             "ability": {
               "vanish": {
                 "extra": [
                   {
-                    "type": "smoke",
-                    "radius": 6,
-                    "duration": 6000
+                    "type": "aura",
+                    "aura": "protective_vanish",
+                    "self": true
                   }
                 ]
               }

@@ -283,6 +283,8 @@ export interface AbilityDef {
   maxTargetHealthPct?: number;
   outOfCombatOnly?: boolean;
   keepsStealth?: boolean;
+  /** A successful use on an enemy turns the caster's auto attack off (Gouge: you would break the incapacitate by swinging). */
+  stopsAuto?: boolean;
   /** While the caster is stealthed this ability's slot becomes the named ability (Sinister Strike turns into Cheap Shot). */
   stealthSwap?: string;
   prepOk?: boolean;

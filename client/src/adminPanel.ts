@@ -1,4 +1,4 @@
-import { CLASSES } from '@arena/shared';
+import { CLASSES, formatReport, moveText } from '@arena/shared';
 import { pendingProposals } from './counts';
 import type { AccountInfo, AdminLogRow, AdminOnline, ClassKnowledge, ClientMsg, LearnReport, MatchRecord, ProposalRow, ServerMsg, TrainJobRow } from '@arena/shared';
 import { OwnerPanel } from './ownerUi';
@@ -69,6 +69,12 @@ export class AdminPanel {
   /** The replays the bots are training on or just trained on, pushed by the server every second while any runs. */
   private jobs: TrainJobRow[] = [];
   private picks = new Set<string>();
+  /** What the bots know now against what shipped, and the last reports of what they learned (owner only). */
+  private knowledge: { classes: ClassKnowledge[]; reports: LearnReport[] } | null = null;
+  /** Queue rows opened to show exactly what was learned. */
+  private opened = new Set<string>();
+  /** Passes (1..5) for the owner's forced training on one replay. */
+  private passes = 1;
   /** The same tools as the profile's Owner tab (players, matches, tuning), drawn here. */
   private op: OwnerPanel;
   readonly popup: Popup = { isOpen: () => !!this.root, close: () => this.close(), el: () => this.root };
@@ -163,6 +169,7 @@ export class AdminPanel {
     if (this.tab === 'replays') {
       s({ t: 'admin_act', act: 'feed' });
       s({ t: 'admin_act', act: 'train_status' });
+      s({ t: 'admin_act', act: 'bot_knowledge' });
     }
   }
 
@@ -179,6 +186,9 @@ export class AdminPanel {
         break;
       case 'train_status':
         this.jobs = m.jobs;
+        break;
+      case 'bot_knowledge':
+        this.knowledge = { classes: m.classes, reports: m.reports };
         break;
       case 'proposals':
         this.proposals = m.rows;
@@ -350,7 +360,6 @@ export class AdminPanel {
     return box;
   }
 
-
   /** The suggestion box and skill notes, newest first, with delete. */
   private moderation(): HTMLElement {
     const box = el('div');
@@ -515,6 +524,27 @@ export class AdminPanel {
     auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
     box.append(auto);
     box.append(this.trainBanner());
+    const allBtn = el('button', 'mm-small mm-go', '🧠 Train on all archived replays');
+    allBtn.title = 'Plays back every replay the server kept (people against bots, and the ones you picked) one after another; replays from another version of the game are skipped and counted.';
+    allBtn.disabled = this.isTraining('all-archived');
+    allBtn.addEventListener('click', () => {
+      this.trainMsg = null;
+      this.jobs = [{ id: 'all-archived', state: 'training', startedAt: Date.now(), etaMs: 60000, progress: { done: 0, total: 0, skipped: 0 } }, ...this.jobs.filter((j) => j.id !== 'all-archived')];
+      this.hooks.send({ t: 'admin_act', act: 'train_all', value: this.passes });
+      this.paint();
+    });
+    const pass = el('select', 'mm-small');
+    for (let n = 1; n <= 5; n++) pass.append(new Option(`${n} pass${n === 1 ? '' : 'es'}`, String(n), false, n === this.passes));
+    pass.title = 'How many times each replay\u2019s lessons are applied (the owner\u2019s forced training). More passes make the same mistakes count for more.';
+    pass.addEventListener('change', () => (this.passes = Number(pass.value)));
+    const reset = el('button', 'mm-small adm-danger', 'Reset learned brain to shipped defaults');
+    reset.addEventListener('click', () => {
+      if (!window.confirm('Put every bot class back on the brain it ships with? Everything the bots learned (lessons, habits, counters and the log) is cleared. This cannot be undone.')) return;
+      this.hooks.send({ t: 'admin_act', act: 'bot_reset' });
+    });
+    const learnBar = el('div', 'own-row');
+    learnBar.append(allBtn, pass, reset);
+    box.append(learnBar, this.jobList(), this.knowledgeBox());
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
       box.append(el('p', 'mm-modal-foot', 'Loading…'));
@@ -574,6 +604,7 @@ export class AdminPanel {
       const train = el('button', 'mm-small mm-go', busy ? 'Training…' : '🧠 Train bots');
       train.disabled = busy;
       train.addEventListener('click', () => this.trainMany([m.id]));
+      train.title = `Train on it (${this.passes} pass${this.passes === 1 ? '' : 'es'}; change the passes above)`;
       const tick = el('input');
       tick.type = 'checkbox';
       tick.checked = this.picks.has(m.id);
@@ -602,7 +633,8 @@ export class AdminPanel {
       if (this.isTraining(id)) continue;
       // show it at once; the server's first status replaces this
       this.jobs = [{ id, state: 'training', startedAt: Date.now(), etaMs: 8000 }, ...this.jobs.filter((j) => j.id !== id)];
-      this.hooks.send({ t: 'admin_act', act: 'train', id });
+      if (this.passes > 1) this.hooks.send({ t: 'admin_act', act: 'train_passes', id, value: this.passes });
+      else this.hooks.send({ t: 'admin_act', act: 'train', id });
       this.picks.delete(id);
     }
     this.paint();
@@ -619,8 +651,69 @@ export class AdminPanel {
     track.append(fill);
     const label = job.state === 'training' ? (left > 0 ? `~${Math.ceil(left / 1000)}s left` : 'almost done…') : job.state === 'done' ? `Done in ${Math.round(((job.finishedAt ?? Date.now()) - job.startedAt) / 1000)}s` : 'Failed';
     wrap.append(track, el('small', '', label));
+    if (job.progress) wrap.append(el('small', 'devp-dim', ` ${job.progress.done}/${job.progress.total} replays${job.progress.skipped ? `, ${job.progress.skipped} skipped` : ''}`));
     if (job.state !== 'training' && job.text) wrap.append(el('small', 'devp-dim', ` ${job.text}`));
+    if (job.report) wrap.append(this.reportLines(job.report, `job:${job.id}`));
     return wrap;
+  }
+
+  /** The lines of a report under a row, opened and closed with a click. */
+  private reportLines(r: LearnReport, key: string): HTMLElement {
+    const box = el('div', 'admp-report');
+    const open = this.opened.has(key);
+    const toggle = el('button', 'mm-small', open ? '▾ Hide what was learned' : '▸ What was learned');
+    toggle.addEventListener('click', () => {
+      if (open) this.opened.delete(key);
+      else this.opened.add(key);
+      this.paint();
+    });
+    box.append(toggle);
+    if (open) for (const line of formatReport(r)) box.append(el('div', 'devp-dim', line));
+    return box;
+  }
+
+  /** Jobs that belong to no replay row (the batch over the archive) are listed here. */
+  private jobList(): HTMLElement {
+    const box = el('div');
+    const job = this.jobs.find((j) => j.id === 'all-archived');
+    if (job) {
+      box.append(el('b', '', 'All archived replays'));
+      box.append(this.jobBar(job));
+    }
+    return box;
+  }
+
+  /** What the bots know: per class the learned numbers against the shipped ones, and the log of the last reports. */
+  private knowledgeBox(): HTMLElement {
+    const d = el('details', 'admp-know');
+    d.open = this.opened.has('know');
+    d.addEventListener('toggle', () => {
+      if (d.open) this.opened.add('know');
+      else this.opened.delete('know');
+    });
+    d.append(el('summary', '', '🧠 What the bots know'));
+    const k = this.knowledge;
+    if (!k) {
+      d.append(el('small', 'devp-dim', 'Loading…'));
+      return d;
+    }
+    for (const c of k.classes) {
+      const row = el('div', 'admp-know-row');
+      const last = c.lastAt ? new Date(c.lastAt).toLocaleString() : 'never';
+      row.append(el('b', '', `${CLASSES[c.classId as keyof typeof CLASSES]?.name ?? c.classId}`), el('small', 'devp-dim', ` · ${c.replays} replay${c.replays === 1 ? '' : 's'} taught it · last learned ${last}${c.variant ? ` · learned variant wins ${Math.round(c.variant.winRate * 100)}% of ${c.variant.games} games` : ''}`));
+      row.append(el('div', 'devp-dim', c.diff.length ? `Differs from the shipped brain: ${c.diff.map(moveText).join(', ')}` : 'Same as the shipped brain: nothing learned yet.'));
+      if (c.mistakes.length) row.append(el('div', 'devp-dim', `Mistakes seen: ${c.mistakes.slice(0, 8).map((m) => `${m.count} ${m.label}`).join(', ')}`));
+      d.append(row);
+    }
+    d.append(el('b', '', `Last ${k.reports.length} lessons`));
+    if (!k.reports.length) d.append(el('div', 'devp-dim', 'Nothing learned yet.'));
+    for (const r of k.reports) {
+      const line = el('div', 'admp-know-row');
+      line.append(el('small', 'devp-dim', `${new Date(r.at).toLocaleString()} · ${r.source} · ${r.replayId}${r.passes > 1 ? ` · ${r.passes} passes` : ''}`), el('div', '', r.headline));
+      line.append(this.reportLines(r, `rep:${r.id}`));
+      d.append(line);
+    }
+    return d;
   }
 
   /** On top of the replays: what the bots are actively training on and how long is left (the longest of the batch). */

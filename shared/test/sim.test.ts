@@ -1604,6 +1604,17 @@ describe('heal spam', () => {
     assert.ok(a2 >= a * 0.8, `flash heal back at full after a different heal: ${a2} vs ${a}`);
     assert.ok(b > 0);
   });
+  it('heal, another skill, heal: casting anything else in between keeps the heal at full strength', () => {
+    const { sim, p } = setup();
+    p.maxHealth = p.health = 1e6;
+    const other = 'power_word_shield';
+    const first = cast(sim, p, 'flash_heal');
+    cast(sim, p, other);
+    const again = cast(sim, p, 'flash_heal');
+    assert.ok(again >= first * 0.8, `back at full after another skill: ${again} vs ${first}`);
+    const third = cast(sim, p, 'flash_heal');
+    assert.ok(third < again * 0.95, 'pressing it twice in a row still weakens it');
+  });
   it('a long pause starts the count again, and there is no dampening any more', () => {
     const { sim, p } = setup();
     p.maxHealth = p.health = 1e6;
