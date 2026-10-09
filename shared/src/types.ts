@@ -157,6 +157,8 @@ export interface AuraDef {
   flee?: boolean;
   /** Enemies cannot see or target the holder while it lasts (Ascend to the Heavens). */
   untargetable?: boolean;
+  /** The holder is lifted straight up, held there unable to move, and brought back down over the aura's duration (Ascend to the Heavens). */
+  hover?: { height: number; riseMs: number; fallMs: number };
   /** Takes no damage or harmful effects while it lasts. */
   invulnerable?: boolean;
   /** Harmful effects put on the holder do not take hold while it lasts (Purifying Light). */

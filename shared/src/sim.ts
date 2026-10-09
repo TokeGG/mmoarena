@@ -1,7 +1,7 @@
 import { ABILITIES, ARENA, AURAS, CLASSES, SPECS, TUNING, lockedByAura, silencedBy } from './data';
 import { autoFor, barFor, barSwapped, compileMods, gearLook, stealthSwapsFor, trinketFor, withAuraMods } from './build';
 import { LOW_CLEAR, STEP_HEIGHT, blinkDestination, inLava, onRaised, clamp, clampToGate, dist, hasLOS, heightAt, moveTo, resolveCollisions, stepMovementL } from './geometry';
-import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, jumpHeight } from './jump';
+import { JUMP_DODGE_CD, JUMP_DODGE_HEIGHT, JUMP_MS, canStartJump, hoverHeight, jumpHeight } from './jump';
 import type {
   AbilityDef, AbilityMod, ArenaDef, AuraInst, AuraKind, Build, ClassId, Mods, MoveInput, Phase, Result, School, SimEvent, Snapshot, TeamId, Unit, UnitSnap, Vec2,
 } from './types';
@@ -531,7 +531,7 @@ export class ArenaSim {
       if (move) extras.push(x);
       u.lastInput = x;
       u.lastSeq = x.seq;
-      if (x.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) {
+      if (x.jump && this.canAct(u) && !this.hovering(u) && canStartJump(this.time - u.jumpStart)) {
         u.jumpStart = this.time;
         if (this.time >= u.dodgeReadyAt) {
           u.dodgeUntil = this.time + JUMP_MS;
@@ -557,7 +557,7 @@ export class ArenaSim {
     }
 
     // a fresh jump request only (a repeated stale input must not re-jump)
-    if (queued?.jump && this.canAct(u) && canStartJump(this.time - u.jumpStart)) {
+    if (queued?.jump && this.canAct(u) && !this.hovering(u) && canStartJump(this.time - u.jumpStart)) {
       u.jumpStart = this.time;
       if (this.time >= u.dodgeReadyAt) {
         u.dodgeUntil = this.time + JUMP_MS;
@@ -1302,7 +1302,21 @@ export class ArenaSim {
 
   /** How high a unit is in a jump right now (0 on its feet). */
   airOf(u: Unit): number {
-    return jumpHeight(this.time - u.jumpStart);
+    return Math.max(jumpHeight(this.time - u.jumpStart), this.hoverOf(u));
+  }
+
+  /** How high a unit is lifted by a hover aura (Ascend to the Heavens) right now, 0 without one. */
+  hoverOf(u: Unit): number {
+    for (const a of u.auras) {
+      const d = AURAS[a.id];
+      if (d?.hover && isFinite(a.expiresAt)) return hoverHeight(d.hover, d.duration - (a.expiresAt - this.time), d.duration);
+    }
+    return 0;
+  }
+
+  /** Held in the air by a hover aura: it cannot move or jump. */
+  hovering(u: Unit): boolean {
+    return u.auras.some((a) => AURAS[a.id]?.hover);
   }
 
   private canCauterize(u: Unit): boolean {
@@ -1576,7 +1590,7 @@ export class ArenaSim {
     return !this.hasAura(u, CC_KINDS);
   }
   canMove(u: Unit): boolean {
-    return this.canAct(u) && !this.hasAura(u, ['root']);
+    return this.canAct(u) && !this.hasAura(u, ['root']) && !this.hovering(u);
   }
   speedMult(u: Unit): number {
     if (!this.canMove(u)) return 0;
@@ -1777,9 +1791,9 @@ export class ArenaSim {
       stealthed: this.isStealthed(u),
       ...(u.image ? { img: u.image.owner } : {}),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
-      y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(jumpHeight(this.time - u.jumpStart) * 100) / 100) : 0,
+      y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(this.airOf(u) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
-      controlled: !this.canAct(u) || !!u.charge || !!u.leap,
+      controlled: !this.canAct(u) || !!u.charge || !!u.leap || this.hovering(u),
       autoAttack: u.autoAttack,
       lastSeq: u.lastSeq,
     };

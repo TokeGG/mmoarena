@@ -831,7 +831,7 @@ export class Bot {
       }
       case 'priest': {
         const shielded = u.auras.some((a) => a.kind === 'absorb');
-        // fly away from melee on it or a lock-down: nothing can touch it for a few seconds
+        // rise out of reach of melee on it or a lock-down: hovering, nothing can touch it for a few seconds (it cannot move meanwhile)
         if (emergency && (melee.length || u.auras.some((a) => LOCKED_DOWN.includes(a.kind))) && this.use(u, 'ascend')) return true;
         if (emergency && this.use(u, 'desperate_prayer')) return true;
         if (u.cast && !emergency) return false;

@@ -398,9 +398,9 @@ describe('passives and where effects come from', () => {
     const { specPassives, auraOrigins } = await import('../src/index');
     assert.ok(specPassives('mage', 'fire').some((p) => p.startsWith('Cauterize')));
     const fury = specPassives('warrior', 'fury');
-    assert.ok(fury.some((p) => /auto-attacks/.test(p)), 'its weapon');
+    assert.ok(fury.some((p) => /^Auto-attacks for/.test(p)), 'its auto-attack');
     assert.ok(fury.some((p) => /Bloodthirst: \+1\.5 yd range/.test(p)), 'its range bonus');
-    assert.deepEqual(specPassives('rogue', 'combat'), ['Twin Daggers: auto-attacks for 50 every 1.8s at 3 yd.']);
+    assert.deepEqual(specPassives('rogue', 'combat'), ['Auto-attacks for 50 every 1.8s at 3 yd.']);
     assert.ok(auraOrigins('cauterized').some((o) => /Pyromancy/.test(o)), 'a spec passive');
     assert.ok(auraOrigins('mortal_wounds').includes('Mortal Strike'), 'an ability');
   });

@@ -299,6 +299,11 @@ export class ArenaScene {
   }
 
   /** Smooth a unit's floor height: up a ramp it follows at once; off a ledge (a jump down from a walkway) it falls. */
+  /** Height the model of this unit is drawn at (floor under it plus any jump or levitation), if it has one. */
+  unitY(id: number): number | undefined {
+    return this.meshes.get(id)?.group.position.y;
+  }
+
   private floorY(m: UnitMesh, ground: number, dt: number): number {
     m.baseY = fallToward(m.baseY, ground, dt, m);
     return m.baseY;

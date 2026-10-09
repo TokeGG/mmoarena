@@ -22,3 +22,15 @@ export const JUMP_DODGE_HEIGHT = 0.62;
 export const JUMP_DODGE_CD = 1500;
 
 export const canStartJump = (sinceLastStartMs: number): boolean => sinceLastStartMs >= JUMP_MS + JUMP_GAP_MS;
+
+/** A unit lifted straight up and held there (Ascend to the Heavens). */
+export interface HoverDef { height: number; riseMs: number; fallMs: number }
+
+/** Height above the ground `elapsedMs` into a hover that lasts `totalMs`: a smooth rise, a hold, a smooth fall back down (0 outside it). */
+export function hoverHeight(h: HoverDef, elapsedMs: number, totalMs: number): number {
+  if (elapsedMs <= 0 || elapsedMs >= totalMs) return 0;
+  const smooth = (t: number) => t * t * (3 - 2 * t);
+  const up = Math.min(1, elapsedMs / h.riseMs);
+  const down = Math.min(1, (totalMs - elapsedMs) / h.fallMs);
+  return h.height * smooth(Math.min(up, down));
+}
