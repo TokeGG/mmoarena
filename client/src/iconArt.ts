@@ -1,5 +1,6 @@
 import { SPECS, iconIdFor, iconTitle, iconUrl } from '@arena/shared';
 import type { IconKind } from '@arena/shared';
+import { loadCustomIcons } from './iconCustom';
 import { ABILITY_ICON, AURA_ICON, CLASS_ICON } from './icons';
 
 /**
@@ -111,3 +112,6 @@ export const shownIconTitle = (kind: IconKind, id: string): string => {
   const i = shownIconId(kind, id);
   return i ? iconTitle(i) : 'the emoji';
 };
+
+// the icons uploaded to this server join the library at start, so an icons.json that names one still shows it
+if (typeof location !== 'undefined' && typeof fetch === 'function') void loadCustomIcons().then((changed) => changed && refreshIcons());

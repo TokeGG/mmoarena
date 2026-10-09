@@ -22,11 +22,11 @@ export function gridIcons(query: string, pack: string, available: ReadonlySet<st
   return searchIcons(query, pack).filter((i) => iconOffered(i, available));
 }
 
-/** The chips above the grid: "All" and every pack that has icons on offer, with how many match the search. A private pack is marked. */
-export function packChips(query: string, available: ReadonlySet<string> | null = null): { id: string; name: string; count: number; locked: boolean }[] {
+/** The chips above the grid: "All" and every pack that has icons on offer, with how many match the search. A private pack is marked, and so is one uploaded to the server (custom). */
+export function packChips(query: string, available: ReadonlySet<string> | null = null): { id: string; name: string; count: number; locked: boolean; custom: boolean }[] {
   const found = searchIcons(query).filter((i) => iconOffered(i, available));
-  const chips = ICON_PACKS.filter((p: IconPack) => !p.private || ICON_LIST.some((i) => i.pack === p.id && available?.has(i.id))).map((p) => ({ id: p.id, name: p.name, count: found.filter((i) => i.pack === p.id).length, locked: !!p.private }));
-  return [{ id: '', name: 'All', count: found.length, locked: false }, ...chips];
+  const chips = ICON_PACKS.filter((p: IconPack) => !p.private || ICON_LIST.some((i) => i.pack === p.id && available?.has(i.id))).map((p) => ({ id: p.id, name: p.name, count: found.filter((i) => i.pack === p.id).length, locked: !!p.private, custom: !!p.custom }));
+  return [{ id: '', name: 'All', count: found.length, locked: false, custom: false }, ...chips];
 }
 
 /** The patch of an icon pick, or null when the id is not an icon of the library. */
