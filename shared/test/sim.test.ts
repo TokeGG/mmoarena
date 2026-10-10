@@ -41,15 +41,14 @@ describe('global cooldown and resources', () => {
     assert.ok(sim.useAbility(rogue.id, 'sinister_strike', war.id).ok);
   });
 
-  it('starting another skill stops the cast in progress and starts the next one at once', () => {
-    const sim = live();
+  it('a player\'s spell cannot be started in the middle of another cast (it is held, not cancelled)', () => {
+    const sim = new ArenaSim({ seed: 1, prepMs: 0, facing: true });
     const mage = add(sim, 'mage', 0, 0, 0);
     const war = add(sim, 'warrior', 1, 10, 0);
     advance(sim, TICK);
     assert.ok(sim.useAbility(mage.id, 'frostbolt', war.id).ok);
-    assert.ok(mage.cast && mage.cast.ability === 'frostbolt');
-    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok);
-    assert.equal(mage.cast?.ability, 'fireball');
+    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok, 'held for a moment, accepted');
+    assert.equal(mage.cast?.ability, 'frostbolt', 'the cast in progress is not ended');
   });
 
   it('refuses abilities you cannot afford', () => {
@@ -1472,8 +1471,8 @@ describe('v0.23 combat rules', () => {
     run(sim, 6000);
     assert.equal(m.health, hp);
   });
-  it('starting another spell cancels the cast in progress, but a failed attempt does not', () => {
-    const sim = new ArenaSim({ seed: 2, prepMs: 0 });
+  it('a player\'s spell with a cast time does not cancel the cast in progress (it is held)', () => {
+    const sim = new ArenaSim({ seed: 2, prepMs: 0, facing: true });
     const a = sim.addUnit({ name: 'a', classId: 'mage', team: 0 });
     const b = sim.addUnit({ name: 'b', classId: 'warrior', team: 1 });
     a.pos = { x: 0, z: 0 }; b.pos = { x: 10, z: 0 };
@@ -1483,7 +1482,7 @@ describe('v0.23 combat rules', () => {
     assert.ok(a.cast?.ability === 'polymorph');
     const r = sim.useAbility(a.id, 'frostbolt', b.id);
     assert.ok(r.ok);
-    assert.equal(a.cast?.ability, 'frostbolt');
+    assert.equal(a.cast?.ability, 'polymorph');
   });
   it('blink works while stunned, polymorph is limited to one target, and a sheep stands still, turns, heals and cannot blink', () => {
     const sim = new ArenaSim({ seed: 3, prepMs: 0 });
@@ -1795,5 +1794,31 @@ describe('dampening', () => {
     p.health = 1;
     const weak = sim.heal(p, p, 10000, 'flash_heal');
     assert.ok(Math.abs(weak - fresh * (1 - d)) <= 2, `${weak} vs ${fresh} * ${1 - d}`);
+  });
+});
+
+describe('casting from a walk', () => {
+  it('a cast made while walking is not cancelled by the walking inputs already on their way; letting go and pressing again moves and cancels it', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'warrior', 1, 0, 20);
+    advance(sim, TICK);
+    let seq = 0;
+    const walk = (fwd: number) => sim.queueInput(mage.id, { seq: ++seq, fwd, strafe: 0, facing: 0 });
+    walk(1);
+    advance(sim, TICK * 2);
+    assert.ok(mage.lastInput.fwd === 1);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', foe.id).ok);
+    for (let i = 0; i < 6; i++) walk(1); // inputs that were already on their way
+    advance(sim, TICK * 6);
+    const z = mage.pos.z;
+    assert.equal(mage.cast?.ability, 'frostbolt', 'still casting');
+    walk(0);
+    advance(sim, TICK * 2);
+    assert.ok(Math.abs(mage.pos.z - z) < 0.01, 'stood still');
+    walk(1);
+    advance(sim, TICK * 2);
+    assert.equal(mage.cast, null, 'a fresh press moves on and ends the cast');
+    assert.ok(mage.pos.z > z);
   });
 });

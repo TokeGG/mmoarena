@@ -414,6 +414,15 @@ export class DevWorkspace {
           const flds = entry.groups.flatMap((g) => g.fields);
           const at = (path: (string | number)[]) => flds.find((x) => x.path.join('.') === ['characters', id.slice(2), ...path].join('.'));
           win.setPartEdit({
+            list: () => {
+              const out: { kind: 'part' | 'bone'; bone: string }[] = [];
+              for (const fd of flds) {
+                const [, , root, bone, key] = fd.path.map(String);
+                if (root === 'bones' && key === 'rx') out.push({ kind: 'bone', bone });
+                if (root === 'parts' && key === 'file' && fd.value) out.push({ kind: 'part', bone });
+              }
+              return out;
+            },
             get: (path) => {
               const fd = at(path);
               return fd && typeof fd.value === 'number' ? fd.value : undefined;

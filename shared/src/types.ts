@@ -490,6 +490,8 @@ export interface Unit {
   dodgeUntil: number;
   dodgeReadyAt: number;
   lastInput: MoveInput;
+  /** A cast was made while walking: the move keys are ignored until they are let go (or the cast ends). */
+  castStill?: boolean;
   lastSeq: number;
   starve: number;
   /** Input catch-up credit: idle ticks owed back (see Sim.tickUnit). */

@@ -52,6 +52,47 @@ interface Shared {
   animNote: Partial<Record<Mode, string>>;
 }
 
+
+const boxCache = new WeakMap<THREE.BufferGeometry, Map<string, THREE.Box3>>();
+/**
+ * Per canonical bone, the box (in that bone's own space) round the vertices that bone moves most. The vertices are taken where the
+ * skin really puts them (SkinnedMesh.getVertexPosition) and brought into the bone's space, so it fits however the model is bound;
+ * computed once per geometry.
+ */
+function boneBoxes(mesh: THREE.SkinnedMesh): Map<string, THREE.Box3> {
+  const got = boxCache.get(mesh.geometry);
+  if (got) return got;
+  const out = new Map<string, THREE.Box3>();
+  boxCache.set(mesh.geometry, out);
+  const g = mesh.geometry;
+  const si = g.getAttribute('skinIndex');
+  const sw = g.getAttribute('skinWeight');
+  if (!si || !sw || !mesh.skeleton) return out;
+  mesh.updateMatrixWorld(true);
+  const names = mesh.skeleton.bones.map((b) => canonicalOf(b.name));
+  const inv: (THREE.Matrix4 | undefined)[] = [];
+  const v = new THREE.Vector3();
+  const count = g.getAttribute('position').count;
+  for (let i = 0; i < count; i++) {
+    let k = 0;
+    for (let j = 1; j < 4; j++) if (sw.getComponent(i, j) > sw.getComponent(i, k)) k = j;
+    if (sw.getComponent(i, k) < 0.5) continue;
+    const idx = si.getComponent(i, k);
+    const canon = names[idx];
+    if (!canon) continue;
+    const m = (inv[idx] ??= new THREE.Matrix4().copy(mesh.skeleton.bones[idx].matrixWorld).invert());
+    mesh.getVertexPosition(i, v);
+    v.applyMatrix4(mesh.matrixWorld).applyMatrix4(m);
+    let b = out.get(canon);
+    if (!b) out.set(canon, (b = new THREE.Box3()));
+    b.expandByPoint(v);
+  }
+  return out;
+}
+
+export type BoxRole = 'face' | 'corner';
+export interface BoxHit { role: BoxRole; kind: 'part' | 'bone'; bone: string }
+
 /** One picture: a canvas, a renderer, and the character built for the shared state. */
 class ModelView {
   readonly canvas = document.createElement('canvas');
@@ -176,6 +217,7 @@ class ModelView {
       c.pose({ phase: this.phase, move, casting: s.mode === 'cast', time: s.time, dt, vf: move * 7, vs: 0, air });
       this.mixer?.update(dt); // the file's motion lands on the bones after the built-in pose, so it replaces it
     }
+    this.syncBoxes();
     r.render(this.scene, this.camera);
   }
 
@@ -189,6 +231,111 @@ class ModelView {
   }
 
   private raycaster = new THREE.Raycaster();
+
+  private boxObjs: THREE.Mesh[] = [];
+  private boxHolders: THREE.Object3D[] = [];
+  private boxKey = '';
+  private boxChar: Character | null = null;
+  private boxWanted: { items: { kind: 'part' | 'bone'; bone: string }[]; sel: string | null } = { items: [], sel: null };
+
+  /** Draw (or stop drawing) a box round each listed part, the selected one lit; clicking a box picks the part, its corners resize it. */
+  setBoxes(items: { kind: 'part' | 'bone'; bone: string }[], sel: string | null): void {
+    this.boxWanted = { items, sel };
+  }
+
+  private clearBoxes(): void {
+    for (const h of this.boxHolders) h.removeFromParent();
+    this.boxHolders = [];
+    this.boxObjs = [];
+  }
+
+  private syncBoxes(): void {
+    const key = JSON.stringify(this.boxWanted);
+    if (this.boxChar === this.char && this.boxKey === key) return;
+    this.clearBoxes();
+    this.boxChar = this.char;
+    this.boxKey = key;
+    const c = this.char;
+    if (!c || !this.boxWanted.items.length) return;
+    c.root.updateMatrixWorld(true);
+    const bones: Record<string, THREE.Object3D> = {};
+    const meshes: THREE.SkinnedMesh[] = [];
+    c.root.traverse((o) => {
+      if ((o as THREE.Bone).isBone) {
+        const cn = canonicalOf(o.name);
+        if (cn && !bones[cn]) bones[cn] = o;
+      }
+      if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh);
+    });
+    for (const it of this.boxWanted.items) {
+      const selected = this.boxWanted.sel === `${it.kind}:${it.bone}`;
+      let host: THREE.Object3D | undefined;
+      const box = new THREE.Box3();
+      if (it.kind === 'bone') {
+        host = bones[it.bone];
+        for (const m of meshes) {
+          const b = boneBoxes(m).get(it.bone);
+          if (b && !b.isEmpty()) box.union(b);
+        }
+      } else {
+        host = c.root.getObjectByName(`custom-part:${it.bone}`) ?? undefined;
+        if (host) {
+          const w = new THREE.Box3().setFromObject(host);
+          for (const x of [w.min.x, w.max.x]) for (const y of [w.min.y, w.max.y]) for (const z of [w.min.z, w.max.z]) box.expandByPoint(host.worldToLocal(new THREE.Vector3(x, y, z)));
+        }
+      }
+      if (!host || box.isEmpty()) continue;
+      const g = new THREE.Group();
+      g.name = `pbox:${it.kind}:${it.bone}`;
+      const size = box.getSize(new THREE.Vector3()).max(new THREE.Vector3(0.04, 0.04, 0.04));
+      g.position.copy(box.getCenter(new THREE.Vector3()));
+      g.scale.copy(size);
+      const color = selected ? 0xffd24a : 0x8fd0ff;
+      const face = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ transparent: true, opacity: selected ? 0.12 : 0.04, color, depthWrite: false, depthTest: false }));
+      face.userData = { pbox: true, role: 'face', kind: it.kind, bone: it.bone };
+      face.renderOrder = 998;
+      const lines = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)), new THREE.LineBasicMaterial({ color, depthTest: false, transparent: true, opacity: selected ? 1 : 0.7 }));
+      lines.renderOrder = 999;
+      g.add(face, lines);
+      this.boxObjs.push(face);
+      if (selected) {
+        for (const x of [-0.5, 0.5]) for (const y of [-0.5, 0.5]) for (const z of [-0.5, 0.5]) {
+          const h = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial({ color: 0xffd24a, depthTest: false }));
+          h.position.set(x, y, z);
+          h.scale.set(0.07 / size.x, 0.07 / size.y, 0.07 / size.z);
+          h.renderOrder = 1000;
+          h.userData = { pbox: true, role: 'corner', kind: it.kind, bone: it.bone };
+          g.add(h);
+          this.boxObjs.push(h);
+        }
+      }
+      host.add(g);
+      this.boxHolders.push(g);
+    }
+  }
+
+  /** The box (or corner of the selected box) under a point of this picture, corners first. */
+  pickBox(clientX: number, clientY: number): BoxHit | null {
+    if (!this.char || !this.boxObjs.length) return null;
+    for (const h of this.boxHolders) h.updateMatrixWorld(true);
+    const r = this.canvas.getBoundingClientRect();
+    this.raycaster.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.camera);
+    this.char.root.updateMatrixWorld(true);
+    const hits = this.raycaster.intersectObjects(this.boxObjs, false);
+    const best = hits.find((h) => h.object.userData.role === 'corner') ?? hits[0];
+    return best ? { role: best.object.userData.role as BoxRole, kind: best.object.userData.kind, bone: best.object.userData.bone } : null;
+  }
+
+  /** Where the centre of a part's box is on this picture (canvas pixels, page coordinates), or null. */
+  boxCentre(kind: 'part' | 'bone', bone: string): { x: number; y: number } | null {
+    const h = this.boxHolders.find((x) => x.name === `pbox:${kind}:${bone}`);
+    if (!h) return null;
+    h.updateMatrixWorld(true);
+    const g = h;
+    const p = g.getWorldPosition(new THREE.Vector3()).project(this.camera);
+    const r = this.canvas.getBoundingClientRect();
+    return { x: r.left + ((p.x + 1) / 2) * r.width, y: r.top + ((1 - p.y) / 2) * r.height };
+  }
 
   /**
    * What is under a point of this picture: a weapon (and which hand), a body part the dev uploaded (and its bone), or a bit of the
@@ -293,12 +440,16 @@ export class ModelWindow {
     this.paintAnim();
   }
   /** Set by the Models page on a character: writes a number of that character (path from its own entry: ['bones', 'hand_r', 'rx']) and reads one. */
-  private partEdit: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined } | null = null;
+  private partEdit: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined; list: () => { kind: 'part' | 'bone'; bone: string }[] } | null = null;
+  private selected: { kind: 'part' | 'bone'; bone: string } | null = null;
   private picked = '';
-  setPartEdit(e: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined } | null): void {
+  setPartEdit(e: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined; list: () => { kind: 'part' | 'bone'; bone: string }[] } | null): void {
     this.partEdit = e;
     if (!e && !this.weaponEdit) this.moveOn = false;
     this.paintMove();
+  }
+  private partName(bone: string): string {
+    return `${BONE_LABEL[bone] ?? bone}${/_l$/.test(bone) ? ' (left)' : /_r$/.test(bone) ? ' (right)' : ''}`;
   }
   private moveOn = false;
   private editWeapon = '';
@@ -328,7 +479,20 @@ export class ModelWindow {
         this.paintMove();
       });
       b.append(on);
-      if (this.moveOn) b.append(el('small', 'devp-dim', this.picked ? `${this.picked}: drag left / right to turn it, up / down to swing it, Shift for lean. A part you uploaded slides (Shift: forward / back).` : 'Click a part of the model, then drag it. Drag the background to turn the view.'));
+      if (this.moveOn) {
+        const sel = el('select');
+        sel.title = 'The part to move: pick it here or click it on the model.';
+        sel.append(new Option('(none: dragging turns the view)', ''));
+        for (const it of this.partEdit.list()) sel.append(new Option(`${it.kind === 'part' ? 'Your ' : ''}${this.partName(it.bone)}`, `${it.kind}:${it.bone}`));
+        sel.value = this.selected ? `${this.selected.kind}:${this.selected.bone}` : '';
+        sel.addEventListener('change', () => {
+          const [kind, bone] = sel.value.split(':');
+          this.selected = sel.value ? { kind: kind as 'part' | 'bone', bone } : null;
+          this.picked = this.selected ? this.partName(this.selected.bone) : '';
+          this.paintMove();
+        });
+        b.append(sel, el('small', 'devp-dim', this.selected ? 'Drag its box: left / right turns it, up / down swings it, Shift for lean (a part you uploaded slides; Shift: forward / back). Pull a corner to resize it. Drag the background to turn the view.' : 'Click the box round a part (or pick it here), then drag it; pull a corner to resize.'));
+      }
       return;
     }
     if (!this.weaponEdit) return;
@@ -576,6 +740,7 @@ export class ModelWindow {
       this.last = now;
       this.s.time += dt;
       if (this.s.spin) this.s.yaw += dt * 0.5;
+      this.now.setBoxes(this.moveOn && this.partEdit && !this.weaponEdit ? this.partEdit.list() : [], this.selected ? `${this.selected.kind}:${this.selected.bone}` : null);
       this.now.frame(dt, this.s);
       if (this.compare) this.shipped.frame(dt, this.s);
     };
@@ -638,7 +803,7 @@ export class ModelWindow {
   private wire(c: HTMLCanvasElement, editable: boolean): void {
     let drag: { x: number; y: number; pan: boolean; weapon: boolean } | null = null;
     let last: { pos: number[]; rot: number[] } | null = null;
-    let part: { kind: 'part' | 'bone'; bone: string; start: Record<string, number> } | null = null;
+    let part: { kind: 'part' | 'bone'; bone: string; start: Record<string, number>; mode: 'move' | 'size'; c: { x: number; y: number } | null; d0: number } | null = null;
     let acc = { x: 0, y: 0 };
     let lastPut: { path: (string | number)[]; v: number } | null = null;
     const put = (path: (string | number)[], v: number) => {
@@ -654,15 +819,19 @@ export class ModelWindow {
       lastPut = null;
       acc = { x: 0, y: 0 };
       if (editable && this.moveOn && this.partEdit && !this.weaponEdit && e.button === 0) {
-        const hit = this.now.pickPart(e.clientX, e.clientY);
-        if (hit && hit.kind !== 'weapon') {
-          const keys = hit.kind === 'part' ? ['x', 'y', 'z'] : ['rx', 'ry', 'rz'];
+        const hit = this.now.pickBox(e.clientX, e.clientY);
+        if (hit) {
+          // a click on a part's box picks it; on a corner of the picked box it resizes it
+          const key = `${hit.kind}:${hit.bone}`;
+          const was = this.selected ? `${this.selected.kind}:${this.selected.bone}` : '';
+          this.selected = { kind: hit.kind, bone: hit.bone };
+          this.picked = this.partName(hit.bone);
+          if (was !== key) this.paintMove();
           const root = hit.kind === 'part' ? 'parts' : 'bones';
           const start: Record<string, number> = {};
-          for (const k of keys) start[k] = this.partEdit.get([root, hit.bone, k]) ?? (k === 'size' ? 1 : 0);
-          part = { kind: hit.kind, bone: hit.bone, start };
-          this.picked = `${hit.kind === 'part' ? 'Your ' : ''}${BONE_LABEL[hit.bone] ?? hit.bone}${/_l$/.test(hit.bone) ? ' (left)' : /_r$/.test(hit.bone) ? ' (right)' : ''}`;
-          this.paintMove();
+          for (const k of hit.kind === 'part' ? ['x', 'y', 'z', 'scale'] : ['rx', 'ry', 'rz', 'size']) start[k] = this.partEdit.get([root, hit.bone, k]) ?? (k === 'size' || k === 'scale' ? 1 : 0);
+          const centre = this.now.boxCentre(hit.kind, hit.bone);
+          part = { kind: hit.kind, bone: hit.bone, start, mode: hit.role === 'corner' ? 'size' : 'move', c: centre, d0: centre ? Math.max(8, Math.hypot(e.clientX - centre.x, e.clientY - centre.y)) : 1 };
           drag!.weapon = false;
           drag!.pan = false;
         }
@@ -677,7 +846,12 @@ export class ModelWindow {
       const dy = e.clientY - drag.y;
       drag.x = e.clientX;
       drag.y = e.clientY;
-      if (part && this.partEdit) {
+      if (part && this.partEdit && part.mode === 'size') {
+        // a corner pulled away from the middle of the box makes the part bigger, towards it smaller
+        const ratio = part.c ? Math.max(0.2, Math.min(5, Math.hypot(e.clientX - part.c.x, e.clientY - part.c.y) / part.d0)) : 1;
+        const key = part.kind === 'part' ? 'scale' : 'size';
+        put([part.kind === 'part' ? 'parts' : 'bones', part.bone, key], Math.round(part.start[key] * ratio * 1000) / 1000);
+      } else if (part && this.partEdit) {
         // the view looks at the character from the front when yaw is 0: left / right on the screen is the character's left / right the other way round once it has turned half way
         const sgn = Math.cos(this.s.yaw) >= 0 ? 1 : -1;
         acc = { x: acc.x + dx, y: acc.y + dy };

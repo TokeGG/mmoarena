@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.69.73",
+  "date": "2026-10-10",
+  "at": "2026-10-10T22:00:16Z",
+  "title": "Casting from a walk, fixed",
+  "changes": [
+    "A spell cast while walking now really starts and keeps casting: the game holds your walk back from the moment the cast begins, so steps that were already on their way no longer cancel it. Let go of the move key and press it again to move on and stop the cast.",
+    "The cast bar now appears the instant you press the spell, before the server confirms it.",
+    "A cast in progress is no longer ended by starting another spell: the new spell waits and goes off the moment the cast finishes. Moving still stops a cast."
+  ]
+ },
+ {
   "version": "0.69.72",
   "date": "2026-10-10",
   "at": "2026-10-10T21:45:27Z",
