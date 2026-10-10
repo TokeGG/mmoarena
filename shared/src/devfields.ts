@@ -559,6 +559,11 @@ function autoGroup(file: 'classes' | 'specs', id: string, has: boolean): FieldGr
   return { id: 'auto', title: 'Auto-attack', sub: 'the swing it makes without a button', open: true, fields: some(['interval', 'damage', 'range'].map((k) => fieldAt(file, id, ['auto', k]))) };
 }
 
+/** How rage is built and lost (game options, shown where the rage class is edited). */
+function rageGroup(): FieldGroup {
+  return { id: 'rage', title: 'Rage gain', sub: 'rage per point of damage dealt and taken, and the drain out of combat', open: true, fields: some(['rageFromDealt', 'rageFromTaken', 'rageDecayPerSec'].map((k) => fieldAt('tuning', TUNING_ID, [k]))) };
+}
+
 function classEntry(c: ClassId): DevEntry | null {
   const def = CLASSES[c];
   if (!def) return null;
@@ -567,6 +572,7 @@ function classEntry(c: ClassId): DevEntry | null {
   ];
   const auto = autoGroup('classes', c, !!def.auto);
   if (auto) groups.push(auto);
+  if (def.resource.type === 'rage') groups.push(rageGroup());
   return {
     file: 'classes', id: c, name: def.name, sub: `${def.resource.type} class`,
     lines: [CLASS_BLURB[c]].filter(Boolean),
