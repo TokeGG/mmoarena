@@ -1,4 +1,4 @@
-import { ABILITIES, ABILITY_GRANTS, ARENAS, AURAS, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, nameOf, resolveCosmetics } from '@arena/shared';
+import { ABILITIES, ABILITY_GRANTS, AURAS, allArenas, findArena, isCustomArena, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, nameOf, resolveCosmetics } from '@arena/shared';
 import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, DataPatch, MatchRecord, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
@@ -170,7 +170,7 @@ export class OwnerPanel {
       const info = el('div', 'own-room-info');
       const sides = [0, 1].map((team) => r.players.filter((x) => x.team === team).map((x) => (x.human ? `★${x.name}` : x.name)).join(', '));
       info.append(
-        el('b', '', `${kindName[r.kind] ?? r.kind} ${r.size}v${r.size} · ${ARENAS.find((x) => x.id === r.map)?.name ?? r.map} · ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`),
+        el('b', '', `${kindName[r.kind] ?? r.kind} ${r.size}v${r.size} · ${findArena(r.map)?.name ?? r.map} · ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`),
         el('span', '', `${sides[0]}  vs  ${sides[1]}`),
         el('small', '', [r.watchers ? `${r.watchers} watching` : '', r.devTest ? 'dev test numbers' : '', r.paused ? 'paused' : ''].filter(Boolean).join(' · ')),
       );
@@ -323,7 +323,7 @@ export class OwnerPanel {
     top.append(
       select([['1', '1v1'], ['2', '2v2'], ['3', '3v3']], String(this.bm.size), (v) => { this.bm.size = Number(v) as 1 | 2 | 3; this.hooks.rerender(); }),
       select([['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], this.bm.difficulty, (v) => (this.bm.difficulty = v as 'easy' | 'normal' | 'hard')),
-      select([['random', 'Random arena'], ...ARENAS.filter((x) => x.randomPool !== false).map((x): [string, string] => [x.id, x.name])], this.bm.map, (v) => (this.bm.map = v)),
+      select([['random', 'Random arena'], ...allArenas().filter((x) => x.randomPool !== false).map((x): [string, string] => [x.id, isCustomArena(x.id) ? `${x.name} (custom)` : x.name])], this.bm.map, (v) => (this.bm.map = v)),
     );
     wrap.append(top);
     ([0, 1] as const).forEach((team) => {
