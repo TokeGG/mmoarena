@@ -2092,7 +2092,7 @@ export class Lobby {
               } else {
                 const row = r.row;
                 turn.request = { id: row.id, title: row.title, ...(row.issueUrl ? { issueUrl: row.issueUrl, issueNumber: row.issueNumber } : {}), ...(row.issueError ? { issueError: row.issueError } : {}) };
-                turn.text = `${a.text}\n\nThat needs a code change. I have saved it as a request for the owner with the full details ("${row.title}"); you can follow its status in the dev panel.${row.issueUrl ? ` A GitHub issue was opened too: ${row.issueUrl}` : ''}${row.issueError ? `\n\nThe GitHub issue could not be opened (${row.issueError}). The request is saved for the owner anyway.` : ''}`;
+                turn.text = `${a.text}\n\nThat needs a code change. I have saved it as a request for the owner with the full details ("${row.title}"); you can follow its status in the dev panel.${row.build ? ' Claude is writing the code on GitHub now: a pull request appears on the request in a few minutes, and the owner can merge it from there once its checks pass.' : ''}${row.issueUrl ? ` A GitHub issue was opened too: ${row.issueUrl}` : ''}${row.issueError ? `\n\nThe GitHub issue could not be opened (${row.issueError}). The request is saved for the owner anyway.` : ''}`;
                 this.sendRequests();
               }
             }

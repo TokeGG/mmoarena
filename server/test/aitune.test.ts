@@ -200,9 +200,9 @@ describe('change requests', () => {
     assert.match(t.text, /saved it as a request for the owner/);
     assert.equal(t.request!.title, REQ.title);
     assert.equal(t.request!.issueUrl, 'https://github.com/TokeGG/mmoarena/issues/7');
-    assert.deepEqual(calls.map((c) => c.url.replace(/.*mmoarena/, '')), ['/issues', '/labels', '/issues/7/labels'], 'an issue, then the label that starts Claude on GitHub');
-    assert.equal(calls[0].body.labels, undefined);
-    assert.deepEqual(calls[2].body.labels, ['dev-request']);
+    assert.deepEqual(calls.map((c) => c.url.replace(/.*mmoarena/, '')), ['/labels', '/issues'], 'the label is made if it is missing, and the issue opens with it on (one call, so one permission)');
+    assert.deepEqual(calls[1].body.labels, ['dev-request'], 'the label that starts Claude on GitHub');
+    assert.ok(w.requests.list[0].build, 'the request shows that Claude was asked');
     const row = w.requests.list[0];
     assert.equal(row.by, 'Dee');
     assert.equal(row.status, 'open');
@@ -224,7 +224,7 @@ describe('change requests', () => {
 
   it('opens an unlabelled GitHub issue, and a refused issue still keeps the request and says why', async () => {
     const calls: Call[] = [];
-    const w = await world([], { GITHUB_TOKEN: 'tok', ARENA_DEV_REQUEST_ISSUES: '1' }, ghHttp(calls));
+    const w = await world([], { GITHUB_TOKEN: 'tok', ARENA_DEV_REQUEST_ISSUES: '1', ARENA_DEV_REQUEST_AUTOBUILD: '0' }, ghHttp(calls));
     const r = await w.requests.file('Dee', 'Fireball', REQ as any, []);
     assert.equal(r.row!.issueUrl, 'https://github.com/TokeGG/mmoarena/issues/7');
     const issue = calls.find((c) => c.url.endsWith('/issues'))!;
