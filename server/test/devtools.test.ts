@@ -6,7 +6,9 @@ import type { ClientMsg, ServerMsg } from '@arena/shared';
 import { MemoryStore } from '../src/store';
 import { Accounts } from '../src/accounts';
 import { Lobby } from '../src/rooms';
+import { landingRoute } from './githubLanding';
 import { DevTools, nextPatchVersion, patchJsonText } from '../src/devtools';
+import type { CheckRun } from './githubLanding';
 
 const CODE = 'dev-code';
 const mkP = (name: string, out: ServerMsg[], account: any) => ({ ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 } as any, name, classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', account, ownerOk: false } as any);
@@ -33,13 +35,15 @@ async function world(http?: typeof fetch) {
 describe('dev commits to GitHub', () => {
   type Call = { url: string; method: string; body?: any };
   /** A fake GitHub: the repository's real files, one tree and one commit, and a branch pointer. */
-  const mkHttp = (calls: Call[], opts: { refFails?: number; readError?: string } = {}) => {
+  const mkHttp = (calls: Call[], opts: { refFails?: number; readError?: string; checks?: CheckRun[] } = {}) => {
     let refFails = opts.refFails ?? 0;
     return (async (url: string, init?: RequestInit) => {
       const body = init?.body ? JSON.parse(String(init.body)) : undefined;
       const method = init?.method ?? 'GET';
       calls.push({ url, method, body });
       const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+      const landed = landingRoute(url, method, ok, opts.checks);
+      if (landed) return landed;
       if (url.includes('/git/ref/heads/')) return ok({ object: { sha: 'head' + calls.length } });
       if (url.includes('/git/commits/')) return ok({ tree: { sha: 'tree1' } });
       if (url.endsWith('/git/trees')) return ok({ sha: 'tree2' });
@@ -63,7 +67,10 @@ describe('dev commits to GitHub', () => {
     const { lobby, devP, outD } = await world(mkHttp(calls));
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
     await new Promise((r) => setTimeout(r, 80));
-    assert.ok(!calls.some((c) => c.url.endsWith('/git/refs') || c.url.endsWith('/pulls') || c.method === 'PUT'), 'no branch, no pull request, no per-file commits');
+    assert.ok(calls.some((c) => c.url.endsWith('/git/refs') && c.method === 'POST'), 'the commit gets its own branch');
+    assert.ok(calls.some((c) => c.url.endsWith('/pulls') && c.method === 'POST'), 'a pull request checks it');
+    assert.ok(calls.some((c) => c.url.endsWith('/pulls/7/merge') && c.method === 'PUT'), 'and it merges once the checks pass');
+    assert.ok(!calls.some((c) => c.url.includes('/git/refs/heads/main') && c.method === 'PATCH'), 'main is never moved directly');
     assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 1, 'one commit');
     const files = tree(calls);
     const paths = files.map((f) => f.path).sort();
@@ -86,7 +93,7 @@ describe('dev commits to GitHub', () => {
     const res = last(outD, 'dev_result')!;
     assert.equal(res.ok, true);
     assert.match(res.text, new RegExp(`patch ${next.replace(/\./g, '\\.')}`));
-    assert.match(String((res as any).url), /commit\/abc123/);
+    assert.match(String((res as any).url), /pull\/7/);
     // the dev can see it: the commit is listed, and it is live once the server runs that version
     const listed = last(outD, 'dev_commits')!;
     assert.equal(listed.rows[0].version, next);
@@ -155,13 +162,16 @@ describe('dev commits to GitHub', () => {
     assert.ok(!calls.slice(before).some((c) => c.url.endsWith('/git/commits') && c.method === 'POST'), 'no commit for nothing');
   });
 
-  it('a commit that races another push is built again on the new head', async () => {
+  it('a failing check keeps the commit off main and names the check to the dev', async () => {
     const calls: Call[] = [];
-    const { lobby, devP, outD } = await world(mkHttp(calls, { refFails: 1 }));
+    const { lobby, devP, outD } = await world(mkHttp(calls, { checks: [{ name: 'check', status: 'completed', conclusion: 'failure' }] }));
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
     await new Promise((r) => setTimeout(r, 120));
-    assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 2, 'built twice');
-    assert.equal(last(outD, 'dev_result')?.ok, true);
+    assert.ok(!calls.some((c) => c.url.endsWith('/pulls/7/merge')), 'not merged');
+    const res = last(outD, 'dev_result')!;
+    assert.equal(res.ok, false);
+    assert.match(res.text, /check \(failure\)/);
+    assert.match(res.text, /pull\/7/);
   });
 
   it('a protected main branch or a token without write access is explained in plain words', async () => {

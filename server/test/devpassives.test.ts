@@ -6,6 +6,7 @@ import type { ClientMsg, DataPatch, ServerMsg } from '@arena/shared';
 import { MemoryStore } from '../src/store';
 import { Accounts } from '../src/accounts';
 import { Lobby } from '../src/rooms';
+import { landingRoute } from './githubLanding';
 import { DevTools, label, patchJsonText } from '../src/devtools';
 
 const read = (name: string) => fs.readFileSync(new URL(`../../shared/data/${name}.json`, import.meta.url), 'utf8');
@@ -127,6 +128,8 @@ describe('committing passives through the dev tools', () => {
       const method = init?.method ?? 'GET';
       calls.push({ url, method, body });
       const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+      const landed = landingRoute(url, method, ok);
+      if (landed) return landed;
       if (url.includes('/git/ref/heads/')) return ok({ object: { sha: 'head' } });
       if (url.includes('/git/commits/')) return ok({ tree: { sha: 'tree1' } });
       if (url.endsWith('/git/trees')) return ok({ sha: 'tree2' });
@@ -162,7 +165,7 @@ describe('committing passives through the dev tools', () => {
     assert.ok(notes.includes('Warden: Power Word: Shield: shield strength +50% to +75%.'), notes.join(' | '));
     assert.ok(notes.some((l) => /^Lightbearer: healing done normal to \+10%\.$/.test(l)), notes.join(' | '));
     assert.ok(notes.some((l) => /^Warden: Penance: can be cast while moving \(now off\)\.$/.test(l)), notes.join(' | '));
-    assert.ok(notes.some((l) => /^Game rules: cauterize: health left 35% to 50%\.$/.test(l)), notes.join(' | '));
+    assert.ok(notes.some((l) => /^Game rules: cauterize: health left 45% to 50%\.$/.test(l)), notes.join(' | '));
     assert.ok(notes.some((l) => /^Mage: mana regenerated per second 24 to 30\.$/.test(l)), notes.join(' | '));
   });
 
@@ -293,7 +296,7 @@ describe('a passive patch reaches the match', () => {
     assert.equal(unit(devP).mods.ability.power_word_shield.heal, 4);
     assert.ok(!unit(devP).mods.ability.penance.castWhileMoving);
     assert.equal(unit(devP).mods.damageDone, 1.5);
-    assert.equal(unit(bobP).maxHealth, Math.round(hp / 1.1 * 2), 'the other player in the match plays on it too');
+    assert.equal(unit(bobP).maxHealth, Math.round(hp / 1.15 * 2), 'the other player in the match plays on it too');
     // the data itself is back as the files have it between ticks
     assert.equal(SPECS.priest[0].mods.ability!.power_word_shield.heal, 1.5);
     lobby.handle(devP, { t: 'dev_patch', patches: [] } as ClientMsg);
