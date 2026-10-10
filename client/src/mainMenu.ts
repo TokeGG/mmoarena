@@ -907,10 +907,13 @@ export class MainMenu {
   }
 
   private ownerLogBox = el('div', 'mm-ownerlog');
+  /** The owner's change list is shown (the button toggles it). */
+  private ownerLogOpen = false;
 
   /** The owner's full change log arrived: every commit, newest first. */
   showOwnerLog(rows: { sha: string; at: number; by: string; title: string; body: string; url: string }[], error?: string): void {
     const box = this.ownerLogBox;
+    if (!this.ownerLogOpen) return; // it was closed while the answer was on its way
     box.replaceChildren();
     if (error) return void box.append(el('div', 'adm-state bad', error));
     for (const r of rows) {
@@ -941,7 +944,12 @@ export class MainMenu {
     if (this.hooks.ownerLog && this.hooks.isOwner?.()) {
       const all = el('button', 'mm-small', 'Everything that changed (owner)');
       all.title = 'Every commit on the main branch, including changes the player notes leave out';
+      this.ownerLogOpen = false;
+      this.ownerLogBox.replaceChildren();
       all.addEventListener('click', () => {
+        this.ownerLogOpen = !this.ownerLogOpen;
+        all.textContent = this.ownerLogOpen ? 'Hide the full change list' : 'Everything that changed (owner)';
+        if (!this.ownerLogOpen) return void this.ownerLogBox.replaceChildren();
         this.ownerLogBox.replaceChildren(el('small', 'devp-dim', 'Loading…'));
         this.hooks.ownerLog?.();
       });

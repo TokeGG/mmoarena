@@ -67,6 +67,9 @@ export const SOUNDS = soundsJson as unknown as Record<string, { file: string; vo
 import modelsJson from '../data/models.json' with { type: 'json' };
 /** How the player models stand, hold weapons and wear cosmetics (shared/data/models.json, see modeldata.ts): looks only. */
 export const MODELS_DATA = modelsJson as unknown as import('./modeldata').ModelsFile;
+import looksJson from '../data/looks.json' with { type: 'json' };
+/** How each skill's projectile and impact are drawn (shared/data/looks.json, see looks.ts): looks only. */
+export const LOOKS = looksJson as unknown as Record<string, Record<string, string | number>>;
 export const FX = fxJson as unknown as Record<string, Record<string, number>>;
 
 /** Which icon each skill and buff wears (shared/data/icons.json): visual only, not part of the simulation or its content hash. */

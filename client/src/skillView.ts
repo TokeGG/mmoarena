@@ -26,6 +26,9 @@ export function skillPicker(ids: string[], pick: string, onPick: (id: string) =>
 }
 
 const STEP: Record<string, string> = { x: '0.05', chance: '0.01', ms: '50', yd: '0.5', percent: '1', count: '1', hp: '10', deg: '5', plain: 'any' };
+/** What a number is measured in, in words, for the models, looks and sounds pages: yards of the world, degrees of turn, times the normal size. */
+const MEASURE: Record<string, string> = { yd: 'yards', deg: 'degrees', x: '× normal' };
+const nice = (n: number) => String(Math.round(n * 1000) / 1000);
 
 /**
  * The number editor shared by the debug panel and the admin panel's Tuning tab: one row per value (what it is in plain words,
@@ -74,7 +77,8 @@ export class SkillEditor {
       row.classList.toggle('pending', this.set.pending(f));
       undo.hidden = !changed;
       was.textContent = changed ? `file: ${showValue(f, f.base)}` : '';
-      meaning.textContent = f.kind === 'number' ? (f.unit === 'ms' ? 'seconds' : valueHint(f.unit, Number(shown()))) : '';
+      const range = f.min !== undefined && f.max !== undefined ? ` (${nice(f.min)} to ${nice(f.max)})` : '';
+      meaning.textContent = f.kind === 'number' ? (f.unit === 'ms' ? 'seconds' : MEASURE[f.unit] && (f.file === 'models' || f.file === 'looks' || f.file === 'sounds') ? `${MEASURE[f.unit]}${range} · ${valueHint(f.unit, Number(shown())) || nice(Number(shown()))}` : valueHint(f.unit, Number(shown()))) : '';
     };
     let control: HTMLElement;
     let reread: () => void;
@@ -107,7 +111,7 @@ export class SkillEditor {
       input.type = 'number';
       // times are typed in seconds (1.2 is 1.2 s) and stored in milliseconds
       const secs = f.unit === 'ms';
-      input.step = secs ? '0.05' : STEP[f.unit] ?? 'any';
+      input.step = secs ? '0.05' : f.file === 'models' && f.unit === 'yd' ? '0.05' : f.file === 'models' && f.unit === 'deg' ? '1' : STEP[f.unit] ?? 'any';
       input.title = secs ? 'Seconds (decimals allowed: 1.2)' : '';
       if (secs) input.classList.add('devp-secs');
       const unitK = secs ? 0.001 : 1;

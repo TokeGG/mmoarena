@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.67",
+  "date": "2026-10-10",
+  "at": "2026-10-10T20:35:08Z",
+  "title": "Skill visuals and the model window",
+  "changes": [
+    "Each skill can now be given a different projectile shape, colour, trail and impact, so the same spell can look new without a new build."
+  ]
+ },
+ {
   "version": "0.69.66",
   "date": "2026-10-10",
   "at": "2026-10-10T20:17:38Z",

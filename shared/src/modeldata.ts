@@ -98,7 +98,13 @@ export function characterGroups(id: string, data: ModelsFile): ModelGroup[] {
       const fields: ModelField[] = [];
       for (const b of part.bones.filter((x) => c.bones![x])) {
         const lbl = BONE_LABEL[b];
-        fields.push(f([...base, 'bones', b, 'rx'], `${lbl}: tilt forward / back`, 'deg', -90, 90, 'Added to whatever the animation does, always.'), f([...base, 'bones', b, 'ry'], `${lbl}: turn`, 'deg', -90, 90), f([...base, 'bones', b, 'rz'], `${lbl}: lean sideways`, 'deg', -90, 90), f([...base, 'bones', b, 'size'], `${lbl}: size`, 'x', 0.4, 2.5, 'Scales this bone and what is attached to it.'));
+        const limb = /arm|hand|shoulder|thigh|shin|foot/.test(b);
+        fields.push(
+          f([...base, 'bones', b, 'rx'], limb ? `${lbl}: swing forward / back` : `${lbl}: lean forward / back`, 'deg', -90, 90, limb ? 'Degrees, added to whatever the animation does. Negative swings it forward, positive swings it back. 90 is a quarter turn; 5 is a nudge.' : 'Degrees, added to whatever the animation does. Positive leans it forward, negative back. 90 is a quarter turn; 5 is a nudge.'),
+          f([...base, 'bones', b, 'ry'], `${lbl}: turn left / right`, 'deg', -90, 90, 'Degrees. Positive turns it towards the character\'s left, negative towards its right.'),
+          f([...base, 'bones', b, 'rz'], `${lbl}: lean sideways`, 'deg', -90, 90, 'Degrees. Positive tips it towards the character\'s right, negative towards its left.'),
+          f([...base, 'bones', b, 'size'], `${lbl}: size`, 'x', 0.4, 2.5, 'Times its normal size: 1 is unchanged, 2 is double, 0.5 is half. Scales this bone and what is attached to it.'),
+        );
       }
       out.push({ id: `part-${part.title}`, title: part.title, sub: part.sub, fields });
     }
@@ -109,9 +115,9 @@ export function characterGroups(id: string, data: ModelsFile): ModelGroup[] {
 }
 
 const hand = (base: (string | number)[], title: string): ModelField[] => [
-  f([...base, 'rot', 0], `${title}: turn about x`, 'deg', -180, 180, 'Turns the weapon into the hand: x then y then z.'), f([...base, 'rot', 1], `${title}: turn about y`, 'deg', -180, 180), f([...base, 'rot', 2], `${title}: turn about z`, 'deg', -180, 180),
-  f([...base, 'pos', 0], `${title}: slide sideways`, 'yd', -1.5, 1.5, 'Moves the weapon through the fist.'), f([...base, 'pos', 1], `${title}: slide along (up / down the grip)`, 'yd', -1.5, 1.5), f([...base, 'pos', 2], `${title}: slide forward`, 'yd', -1.5, 1.5),
-  f([...base, 'lift'], `${title}: raise the tip`, 'deg', -120, 120, 'Raises (positive) or lowers the tip, on top of the turn.'), f([...base, 'out'], `${title}: turn away from the body`, 'deg', -90, 90),
+  f([...base, 'rot', 0], `${title}: turn about the left-right axis`, 'deg', -180, 180, 'Degrees. Tips the weapon forward or back (like nodding). 90 is a quarter turn.'), f([...base, 'rot', 1], `${title}: turn about the up-down axis`, 'deg', -180, 180, 'Degrees. Swings the weapon left or right (like shaking your head).'), f([...base, 'rot', 2], `${title}: roll about the forward axis`, 'deg', -180, 180, 'Degrees. Rolls the weapon sideways (like tilting your head to a shoulder).'),
+  f([...base, 'pos', 0], `${title}: slide left / right`, 'yd', -1.5, 1.5, 'Yards from where the fist holds it. Positive is the character\'s left. A nudge is 0.05; the fist is about 0.15 wide.'), f([...base, 'pos', 1], `${title}: slide up / down`, 'yd', -1.5, 1.5, 'Yards. Positive slides it up through the fist, negative down. A nudge is 0.05.'), f([...base, 'pos', 2], `${title}: slide forward / back`, 'yd', -1.5, 1.5, 'Yards. Positive slides it forward, negative back. A nudge is 0.05.'),
+  f([...base, 'lift'], `${title}: raise / lower the tip`, 'deg', -120, 120, 'Degrees. Positive raises the tip, negative lowers it, on top of the turns above. 5 is a nudge.'), f([...base, 'out'], `${title}: turn the tip away from the body`, 'deg', -90, 90, 'Degrees. Positive turns the tip outwards, negative towards the body.'),
 ];
 
 export function weaponGroups(id: string, data: ModelsFile): ModelGroup[] {
@@ -135,8 +141,8 @@ export function slotGroups(slot: string, data: ModelsFile): ModelGroup[] {
   if (!data.cosmetics[slot]) return [];
   const base = ['cosmetics', slot];
   return [{ id: 'fit', title: 'Placement', sub: 'moves every cosmetic of this kind on every model', fields: [
-    f([...base, 'x'], 'Slide sideways', 'yd', -1, 1), f([...base, 'y'], 'Slide up / down', 'yd', -1, 1), f([...base, 'z'], 'Slide forward / back', 'yd', -1, 1),
-    f([...base, 'scale'], 'Size', 'x', 0.2, 3), f([...base, 'rotY'], 'Turn about the up axis', 'deg', -180, 180),
+    f([...base, 'x'], 'Slide left / right', 'yd', -1, 1, 'Yards. Positive is the character\'s left. A nudge is 0.05; a head is about 0.3 wide.'), f([...base, 'y'], 'Slide up / down', 'yd', -1, 1, 'Yards. Positive is up. A nudge is 0.05; a person is about 2 yards tall.'), f([...base, 'z'], 'Slide forward / back', 'yd', -1, 1, 'Yards. Positive is forward, negative is back. A nudge is 0.05.'),
+    f([...base, 'scale'], 'Size', 'x', 0.2, 3, 'Times its normal size: 1 is unchanged, 2 is double, 0.5 is half.'), f([...base, 'rotY'], 'Turn left / right', 'deg', -180, 180, 'Degrees, about the up axis. Positive turns it towards the character\'s left.'),
   ] }];
 }
 

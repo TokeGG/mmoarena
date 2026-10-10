@@ -1,7 +1,9 @@
-import { ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
+import { itemsForSlot, ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
 import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavGroup } from '@arena/shared';
 import { iconEl, setIconPreview } from './iconArt';
 import { libraryPage, loadCustomSounds, soundTools } from './soundsUi';
+import { ModelWindow } from './modelPreview';
+import type { PreviewSpec } from './modelPreview';
 import { IconEditor } from './iconEditor';
 import { previewOf } from './iconEditLogic';
 import { SkillEditor, el } from './skillView';
@@ -33,9 +35,28 @@ export interface WorkspaceHost {
 
 let soundsLoadedOnce = false;
 
+/** Which character, weapon and cosmetic the Models page shows for an entry of its list. */
+function previewFor(id: string): { spec: PreviewSpec; gear: Record<string, string> } | null {
+  const key = id.slice(2);
+  if (id.startsWith('c:')) {
+    const cls: Record<string, ClassId> = { knight: 'warrior', wizard: 'mage', assassin: 'rogue', sentinel: 'priest', brute: 'warrior' };
+    return cls[key] ? { spec: { classId: cls[key] }, gear: {} } : null;
+  }
+  if (id.startsWith('w:')) {
+    const cls: Record<string, ClassId> = { dual: 'warrior', twohand: 'warrior', polearm: 'warrior', daggers: 'rogue', fire_staff: 'mage', ice_staff: 'mage', arcane_staff: 'mage', holy_staff: 'priest', necro_staff: 'priest' };
+    return cls[key] ? { spec: { classId: cls[key], weapon: key }, gear: {} } : null;
+  }
+  if (id.startsWith('s:')) {
+    const item = itemsForSlot(key).find((i) => i.id && i.style);
+    const gear: Record<string, string> = item ? { [key]: item.id } : {};
+    return { spec: key === 'weapon' ? { classId: 'mage', weapon: 'fire_staff' } : { classId: 'warrior' }, gear };
+  }
+  return null;
+}
+
 /** The files each page edits (for its reset and its change counter). */
 export const PAGE_FILES: Record<DevPageId, DataPatch['file'][]> = {
-  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], animations: ['fx'], sounds: ['sounds'], models: ['models'], icons: ['icons'], options: ['tuning'],
+  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], animations: ['fx', 'looks'], sounds: ['sounds'], models: ['models'], icons: ['icons'], options: ['tuning'],
 };
 
 const CAULDRON = new Set(['cauterizeHealth', 'cauterizeCooldownMs']);
@@ -50,6 +71,7 @@ export function pageOwns(page: DevPageId, p: DataPatch): boolean {
 /** The id of a change's entry in a page's navigation. */
 export function navIdOf(page: DevPageId, p: DataPatch): string {
   if (page === 'icons') return `${({ aura: 'u', class: 'c', spec: 'p' } as Record<string, string>)[String(p.path[0])] ?? 'a'}:${p.id}`; // an icon's entry is its skill or buff
+  if (page === 'animations' && p.file === 'looks') return `skill_${String(p.path[0])}`; // a skill's look sits on its Animations page
   if (page === 'animations' || page === 'sounds') return String(p.path[0]);
   if (page === 'models') return `${({ characters: 'c:', weapons: 'w:', cosmetics: 's:' } as Record<string, string>)[String(p.path[0])] ?? 'c:'}${String(p.path[1])}`; // an animation's entry is its effect (dragonsBreath, charge, ...)
   if (page === 'classes' && p.file === 'tuning') return classOfOption(String(p.path[0])) ?? p.id;
@@ -72,6 +94,10 @@ export class DevWorkspace {
   private sel: Partial<Record<DevPageId, string>> = {};
   private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', passives: '', auras: '', animations: '', sounds: '', models: '', icons: '', options: '' };
   private navOpen = new Map<string, boolean>();
+  /** The Models page's preview, kept across redraws so it keeps turning while numbers are typed. */
+  private preview: ModelWindow | null = null;
+  /** The dev closed the model view: it stays closed until the button opens it again. */
+  private previewDismissed = false;
   private adding = new Map<string, { kind: 'ability' | 'aura'; id: string }>();
   private classCtx: ClassId | null = null;
   private iconEd: IconEditor;
@@ -374,6 +400,23 @@ export class DevWorkspace {
     if (!entry) return void box.append(el('small', 'devp-dim', 'Nothing to show.'));
     if (this.page === 'icons') return this.iconEd.draw(box, id);
     box.append(this.head(entry.name, entry.sub, id));
+    if (this.page === 'models') {
+      const pv = previewFor(id);
+      if (pv) {
+        const first = !this.preview;
+        this.preview ??= new ModelWindow();
+        const win = this.preview;
+        if (!first && !win.isOpen) this.previewDismissed = true;
+        if (first || (win.isOpen && !this.previewDismissed)) win.show(pv.spec, pv.gear);
+        const open = el('button', `mm-small${win.isOpen ? '' : ' mm-go'}`, win.isOpen ? 'The model view is open: it floats over the game, drag it where you like' : 'Show the model view');
+        open.addEventListener('click', () => {
+          this.previewDismissed = false;
+          win.show(pv.spec, pv.gear);
+          this.host.repaint();
+        });
+        box.append(open);
+      }
+    } else this.preview?.close();
     if (this.page === 'sounds') {
       if (!soundsLoadedOnce) {
         soundsLoadedOnce = true;
@@ -530,13 +573,13 @@ export class DevWorkspace {
       return [{ file: 'abilities', id }, ...info.sections.filter((s) => s.kind === 'aura').map((s) => ({ file: 'auras' as const, id: s.id })), ...info.modifiers.map((m) => ({ file: m.source.file as DataPatch['file'], id: m.source.id }))];
     }
     const e = entryFor(this.page, id);
-    return e ? [{ file: e.file, id: e.id }] : [];
+    return e ? [{ file: e.file, id: e.id }, ...(this.page === 'animations' && id.startsWith('skill_') ? [{ file: 'looks' as const, id: 'looks' }] : [])] : [];
   }
 
   private resetEntry(id: string): void {
     const pairs = this.entryPairs(id);
     const hit = (p: Pick<DataPatch, 'file' | 'id'>) => pairs.some((x) => x.file === p.file && x.id === p.id);
-    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p) || ((this.page === 'talents' || this.page === 'specs') && pageOwns('passives', p))) && ((this.page !== 'animations' && this.page !== 'sounds') || p.path[0] === id) && (this.page !== 'models' || navIdOf('models', p) === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
+    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p) || ((this.page === 'talents' || this.page === 'specs') && pageOwns('passives', p))) && ((this.page !== 'animations' && this.page !== 'sounds') || navIdOf(this.page, p) === id) && (this.page !== 'models' || navIdOf('models', p) === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
     for (const [k, p] of [...this.set.edits]) if (mine(p)) this.set.edits.delete(k);
     if (this.host.canRevert) for (const p of this.host.inEffect()) if (mine(p)) this.set.reverted.add(patchKey(p));
   }
