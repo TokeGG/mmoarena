@@ -783,12 +783,16 @@ export class DevPanel {
       if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
-    const keep = el('button', 'mm-small mm-go', 'Keep for my session');
-    keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
+    const owner = this.hooks.isOwner();
+    const keep = el('button', 'mm-small mm-go', owner ? 'Make it live' : 'Keep for my session');
+    keep.title = owner
+      ? 'Everyone gets these numbers now, in every match and in the menu, and they stay until you change them. "Try in this match" only changes the match you are in.'
+      : 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
     keep.addEventListener('click', () => {
       const all = this.edits.patches(mergePatches(this.session, this.layers.roomPatches));
       if (!all.length) return nothing();
-      this.hooks.send({ t: 'dev_session', patches: all });
+      if (owner && !window.confirm(`Make ${all.length} number${all.length === 1 ? '' : 's'} live for everyone now?`)) return;
+      this.hooks.send({ t: 'dev_session', patches: all, ...(owner ? { live: true } : {}) });
     });
     const changes = el('button', `mm-small devp-changes-btn${this.drawerOpen ? ' mm-go' : ''}`, `Changes (${this.ws.changeCount()})`);
     changes.title = 'Every changed number as old -> new, with an undo for each';
