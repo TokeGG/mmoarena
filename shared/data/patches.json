@@ -7,8 +7,7 @@
   "changes": [
    "Bots no longer know when an enemy's interrupt is on cooldown. Like a player, they assume it is ready until they have seen it used.",
    "Casters no longer sit at the very edge of their range: each picks a distance it likes, closes in when the gap opens and picks again every few seconds.",
-   "Warrior bots save up rage for Slice and Dice and You're Not Going Anywhere instead of spending it on smaller attacks.",
-   "Restarting a match in the debug tools now restarts healing dampening too."
+   "Warrior bots save up rage for Slice and Dice and You're Not Going Anywhere instead of spending it on smaller attacks."
   ]
  },
  {
