@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import {
-  ABILITIES, CLASSES, CLASS_IDS, allArenas, findArena, isCustomArena, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
+  ABILITIES, CLASSES, CLASS_IDS, allArenas, availableArenas, findArena, isCustomArena, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { iconEl } from './iconArt';
@@ -339,7 +339,7 @@ export class MainMenu {
     refill();
     this.queueBtn.textContent = this.queueLabel(!!this.account);
     opt(this.diff, [['dummy', 'Dummies (passive)'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], 'arena.difficulty', 'normal');
-    const mapItems = (): [string, string][] => [['random', 'Random'], ...allArenas().map((a): [string, string] => [a.id, isCustomArena(a.id) ? `${a.name} (custom)` : a.name])];
+    const mapItems = (): [string, string][] => [['random', 'Random'], ...availableArenas().map((a): [string, string] => [a.id, isCustomArena(a.id) ? `${a.name} (custom)` : a.name])];
     opt(this.map, mapItems(), 'arena.map', 'random');
     const showMap = () => {
       const a = findArena(this.map.value);

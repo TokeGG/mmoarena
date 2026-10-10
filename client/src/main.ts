@@ -1,6 +1,6 @@
 import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
 import { helpWindow } from './tourUi';
-import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, setDisabledMaps, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { UpdateNotice } from './updateNotice';
@@ -451,6 +451,7 @@ function onMessage(raw: MessageEvent) {
     case 'custom_maps':
       // the owner's custom maps: known to every lookup from now on (menus, scene, minimap, watch labels)
       registerCustomArenas(m.maps);
+      setDisabledMaps(m.off ?? []);
       mainMenu.refreshMaps();
       adminPanel.handle(m);
       break;

@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, findArena, customArenas, isCustomArena, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
+import { ARENAS, ArenaSim, disabledMaps, mapDisabled, findArena, customArenas, isCustomArena, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
 import type { HudLayoutMap, StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
@@ -137,8 +137,9 @@ export const DUEL_MAP = 'overlook';
 
 /** An arena id, resolving 'random' (or anything unknown) to a random arena. */
 export function pickMap(pref: string, avoid?: string): string {
-  if (findArena(pref)) return pref; // a custom map can be picked by name; it is never in the random pool below
-  const pool = ARENAS.filter((a) => a.randomPool !== false);
+  if (findArena(pref) && !mapDisabled(pref)) return pref; // a custom map can be picked by name; it is never in the random pool below
+  const open = ARENAS.filter((a) => a.randomPool !== false);
+  const pool = open.some((a) => !mapDisabled(a.id)) ? open.filter((a) => !mapDisabled(a.id)) : open; // switched off maps are left out (unless that leaves none)
   const fresh = pool.filter((a) => a.id !== avoid); // never the arena that was just played
   const from = fresh.length ? fresh : pool;
   return from[Math.floor(Math.random() * from.length)].id;
@@ -148,7 +149,7 @@ export function pickMap(pref: string, avoid?: string): string {
  * The map a queued player asks for. Custom maps are for practice, parties and the owner's bot matches only: the ranked and
  * the normal queue (which pair people who ask for the same map) treat a custom pick as 'random', so the pool is built-ins.
  */
-export const queuePref = (pref: string): string => (isCustomArena(pref) ? 'random' : pref);
+export const queuePref = (pref: string): string => (isCustomArena(pref) || mapDisabled(pref) ? 'random' : pref);
 
 export class Room {
   readonly sim: ArenaSim;
@@ -1564,7 +1565,7 @@ export class Lobby {
     // the owner's default HUD layout, for everyone (guests and spectators too)
     if (this.hudDef) send(out, this.hudDef);
     // the owner's custom maps, so the pickers, the scene and the minimap know them
-    if (customArenas().length) send(out, { t: 'custom_maps', maps: [...customArenas()] });
+    if (customArenas().length || disabledMaps().length) send(out, { t: 'custom_maps', maps: [...customArenas()], off: disabledMaps() });
     // a recent announcement greets people who come online just after it
     if (this.lastAnnounce && Date.now() - this.lastAnnounce.at < ANNOUNCE_KEEP_MS) send(out, this.lastAnnounce);
     return out;
@@ -1572,7 +1573,7 @@ export class Lobby {
 
   /** The custom maps changed: every connected client gets the new list (their pickers and scenes). */
   customMapsChanged(maps: readonly ArenaDef[]): void {
-    for (const q of this.conns) send(q, { t: 'custom_maps', maps: [...maps] });
+    for (const q of this.conns) send(q, { t: 'custom_maps', maps: [...maps], off: disabledMaps() });
   }
 
   /** Save (or, with null, remove) the default HUD layout, tell everyone connected, and write the admin log. */
@@ -2332,7 +2333,11 @@ export class Lobby {
       }
       case 'maps_list':
         if (this.ownerOnly(p, 'The map editor') || !p.ownerOk) return;
-        send(p, { t: 'custom_maps', maps: [...customArenas()] });
+        send(p, { t: 'custom_maps', maps: [...customArenas()], off: disabledMaps() });
+        break;
+      case 'map_enable':
+        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        void this.customMaps.setAvailable(p.account?.name ?? p.name, msg.id, msg.on).then((r) => send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id } : {}) }));
         break;
       case 'map_save':
       case 'map_delete': {

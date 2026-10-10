@@ -49,6 +49,15 @@ export const allArenas = (): readonly ArenaDef[] => (customList.length ? [...ARE
 /** An arena by id, built-in or custom; undefined when there is none. */
 export const findArena = (id: string | undefined): ArenaDef | undefined => ARENAS.find((a) => a.id === id) ?? customList.find((a) => a.id === id);
 export const isCustomArena = (id: string | undefined): boolean => !ARENAS.some((a) => a.id === id) && customList.some((a) => a.id === id);
+/** Maps the owner switched off: not in the random pool, the queue or ranked, and not pickable by players (the owner and devs can still use them). */
+let offList: ReadonlySet<string> = new Set();
+export const setDisabledMaps = (ids: readonly string[]): void => {
+  offList = new Set(ids);
+};
+export const disabledMaps = (): string[] => [...offList];
+export const mapDisabled = (id: string | undefined): boolean => !!id && offList.has(id);
+/** The arenas players can pick by name (the switched-off ones left out). */
+export const availableArenas = (): readonly ArenaDef[] => allArenas().filter((a) => !offList.has(a.id));
 export const arenaById = (id: string | undefined): ArenaDef => findArena(id) ?? ARENA;
 export const TUNING = tuningJson as unknown as Tuning;
 /** Animation timings (shared/data/fx.json): visual only, not part of the simulation or its content hash. */
