@@ -276,7 +276,7 @@ export class Bot {
     // (Bladestorm cannot be stopped, so distance is the only answer)
     if (this.P.tricks > 0 && sim.canMove(u) && !this.castHolds(u)) {
       const spinner = enemies.find((e) => e.cast && ABILITIES[e.cast.ability]?.channel && ABILITIES[e.cast.ability]?.target === 'aoe_enemy' && dist(u.pos, e.pos) < sim.radiusOf(e, ABILITIES[e.cast.ability]) + 1.5);
-      if (spinner && this.noticed(`spin:${spinner.id}:${spinner.cast!.start}`)) {
+      if (spinner && dist(u.pos, spinner.pos) < this.retreatLimit(u) && this.noticed(`spin:${spinner.id}:${spinner.cast!.start}`)) {
         const away = this.blinkAngle(u, spinner.pos) ?? angleTo(spinner.pos, u.pos);
         this.moving = true;
         if (sim.time >= this.nextThink) {
@@ -558,9 +558,15 @@ export class Bot {
   }
 
   private coverFromHp = false;
+  /** A warrior with Charge on its bar only retreats as far as Charge reaches (so it can charge back in); others are not limited. */
+  private retreatLimit(u: Unit): number {
+    if (u.classId !== 'warrior' || !u.bar.includes('charge')) return Infinity;
+    const a = ABILITIES.charge;
+    return Math.max(a.minRange ?? 0, a.range + (u.mods.ability.charge?.range ?? 0)) - 1;
+  }
   /** Head for the nearest spot `threat` cannot see (walk grid, both floors) and stay there `ms`. */
   private takeCover(u: Unit, threat: Unit, ms: number, fromHp = true, maxWalk = 16): boolean {
-    const c = coverSpot(this.sim.arena, u.pos, u.level, threat.pos, threat.level, maxWalk);
+    const c = coverSpot(this.sim.arena, u.pos, u.level, threat.pos, threat.level, maxWalk, undefined, this.retreatLimit(u));
     if (!c) return false;
     this.cover = c.point;
     this.coverLv = c.level;
