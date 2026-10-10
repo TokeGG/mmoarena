@@ -256,3 +256,27 @@ describe('dev powers the owner switched off', () => {
     assert.deepEqual(parseClientMsg('{"t":"admin_set","name":"Dee","grants":["dev","deny:botmatch","power:maintain"]}'), { t: 'admin_set', name: 'Dee', grants: ['dev', 'deny:botmatch', 'power:maintain'] });
   });
 });
+
+describe('the owner\'s other tools, given to a dev one power at a time', () => {
+  it('a dev needs the power for each owner-only action, and never gets tags or the owner\'s account', async () => {
+    const { lobby, devP, owner, outD } = await world();
+    owner.ownerOk = true;
+    const refused = () => /not given you that power|owner only|are for the owner/i.test(JSON.stringify(outD.slice(-3)));
+    devP.account = { ...devP.account, grants: ['dev'] };
+    lobby.handle(devP, { t: 'admin_act', act: 'kick', name: 'Bob' } as any);
+    await tick();
+    assert.ok(refused(), 'kick is refused without Moderation');
+    outD.length = 0;
+    devP.account = { ...devP.account, grants: ['dev', 'power:moderate'] };
+    lobby.handle(devP, { t: 'admin_act', act: 'kick', name: 'Bob' } as any);
+    await tick();
+    assert.ok(!/owner only/i.test(JSON.stringify(outD)), 'kick is let through with the Moderation power');
+    outD.length = 0;
+    devP.account = { ...devP.account, grants: ['dev', 'power:players'] };
+    devP.chain = Promise.resolve();
+    devP.pending = 0;
+    lobby.handle(devP, { t: 'admin_set', name: 'Toke', grants: ['dev'] } as any);
+    await tick();
+    assert.ok(/owner/i.test(JSON.stringify(outD)), 'the owner\'s account and tags stay the owner\'s');
+  });
+});

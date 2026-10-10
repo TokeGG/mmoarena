@@ -49,6 +49,8 @@ const TABS: [Tab, string][] = [
 ];
 
 /** The tabs a dev can use (the rest is account moderation, announcements and maintenance). */
+/** Tabs the owner can open for a dev by giving one of these powers. */
+const TAB_POWERS: Partial<Record<Tab, string[]>> = { players: ['players', 'moderate'], time: ['matchctl'], requests: ['requestsadm'], server: ['maintain', 'botnames'] };
 const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'proposals', 'tuning', 'maps', 'log'];
 
 interface Hooks {
@@ -182,6 +184,12 @@ export class AdminPanel {
     return adminAccessOf(this.hooks.account());
   }
 
+  /** Whether the owner, or a dev the owner gave this power, may use something (the server checks again). */
+  private can(power: string): boolean {
+    const a = this.access();
+    return a === 'owner' || (a === 'dev' && hasPower(this.hooks.account()?.grants, power));
+  }
+
   /** The tools window is open on the Admin tab. */
   get isOpen(): boolean {
     return this.active;
@@ -245,18 +253,18 @@ export class AdminPanel {
   private refresh() {
     const access = this.access();
     if (!access) return;
-    if (access === 'dev' && !DEV_TABS.includes(this.tab)) this.tab = 'dashboard';
+    if (access === 'dev' && !DEV_TABS.includes(this.tab) && !TAB_POWERS[this.tab]?.some((pw) => hasPower(this.hooks.account()?.grants, pw))) this.tab = 'dashboard';
     const s = this.hooks.send;
     s({ t: 'admin_overview' });
-    if (this.tab === 'players' && access === 'owner') s({ t: 'admin_list' });
-    if (this.tab === 'time' && access === 'owner') this.time.refresh();
+    if (this.tab === 'players' && (this.can('players') || this.can('moderate'))) s({ t: 'admin_list' });
+    if (this.tab === 'time' && this.can('matchctl')) this.time.refresh();
     if (this.tab === 'proposals' || this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
     if (this.tab !== 'maps') this.maps.hide();
     else if (access === 'owner') this.maps.show();
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
-    if (this.tab === 'server' && access === 'owner' && this.botNamesText === null) s({ t: 'admin_botnames' });
+    if (this.tab === 'server' && this.can('botnames') && this.botNamesText === null) s({ t: 'admin_botnames' });
     if (this.tab === 'replays') {
       s({ t: 'admin_act', act: 'feed' });
       s({ t: 'admin_act', act: 'train_status' });
@@ -372,8 +380,8 @@ export class AdminPanel {
     const tabs = el('div', 'admp-tabs');
     tabs.dataset.tour = 'admin-tabs'; // the guided tours point at these (tourData.ts)
     for (const [id, label] of TABS) {
-      if (access === 'dev' && !DEV_TABS.includes(id)) continue;
       if (access === 'dev' && id === 'maps' && !hasPower(this.hooks.account()?.grants, 'maps')) continue; // the owner switched the map tools off for this dev
+      if (access === 'dev' && !DEV_TABS.includes(id) && !TAB_POWERS[id]?.some((pw) => hasPower(this.hooks.account()?.grants, pw))) continue;
       const waiting = id === 'proposals' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.dataset.tour = `admin-tab-${id}`;
@@ -423,7 +431,7 @@ export class AdminPanel {
         body.append(this.requestsBox());
         break;
       case 'server':
-        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), ...(access === 'owner' ? [el('h3', '', 'Bot names'), this.botNamesBox()] : []), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
+        body.append(el('h3', '', 'Announcement'), this.op.announceBox(), el('h3', '', 'Maintenance mode'), this.maintenance(), ...(this.can('botnames') ? [el('h3', '', 'Bot names'), this.botNamesBox()] : []), el('h3', '', 'Guided tours'), toursList(['dev', 'admin', 'player']));
         break;
       case 'log':
         body.append(this.logList(this.log ?? [], 300));
@@ -522,7 +530,7 @@ export class AdminPanel {
       box.append(msg);
     }
     if (!rows.length) box.append(el('p', 'mm-modal-foot', 'No requests yet.'));
-    const owner = this.access() === 'owner';
+    const owner = this.can('requestsadm');
     for (const r of rows) box.append(this.requestCard(r, owner));
     return box;
   }
@@ -682,7 +690,7 @@ export class AdminPanel {
       info.append(el('b', '', `${s.name} · ${new Date(s.at).toLocaleString()}`), el('span', 'admp-wrap', s.text));
       if (s.note) info.append(el('small', '', `+ attached note (${s.note.length} characters)`));
       row.append(info);
-      if (this.access() === 'owner') {
+      if (this.can('suggestions')) {
         const del = el('button', 'mm-small', 'Delete');
         del.addEventListener('click', () => {
           this.hooks.send({ t: 'suggest_delete', at: s.at, text: s.text });
@@ -770,7 +778,7 @@ export class AdminPanel {
     }
     const done = this.proposals.filter((r) => r.status !== 'pending').slice(0, 5);
     if (rows.length && this.access()) {
-      const owner = this.access() === 'owner';
+      const owner = this.can('numberslive');
       const all = el('button', 'mm-small', 'Select all');
       all.addEventListener('click', () => { for (const r of rows) this.picked.add(r.id); this.paint(); });
       const note = el('input');
@@ -866,7 +874,7 @@ export class AdminPanel {
     cb.checked = !!this.op.overview?.autoTrain;
     cb.addEventListener('change', () => this.hooks.send({ t: 'admin_act', act: 'autotrain', on: cb.checked }));
     auto.append(cb, document.createTextNode(' 🧠 Train the bots on every match automatically (player matches and bot matches too)'));
-    if (this.access() === 'owner') box.append(auto);
+    if (this.can('botadmin')) box.append(auto);
     box.append(this.liveBox());
     box.append(this.trainBanner());
     const allBtn = el('button', 'mm-small mm-go', '🧠 Train on all archived replays');
@@ -889,7 +897,7 @@ export class AdminPanel {
     });
     const learnBar = el('div', 'own-row');
     learnBar.append(allBtn, pass);
-    if (this.access() === 'owner') learnBar.append(reset);
+    if (this.can('botadmin')) learnBar.append(reset);
     box.append(learnBar, this.jobList(), this.knowledgeBox(), this.bugsBox());
     if (this.trainMsg) box.append(el('div', `adm-state ${this.trainMsg.ok ? 'ok' : 'warn'}`, this.trainMsg.text));
     if (!this.feed) {
@@ -1018,7 +1026,7 @@ export class AdminPanel {
         this.hooks.replay(b.matchId);
       });
       row.append(watch);
-      if (this.access() === 'owner') {
+      if (this.can('botadmin')) {
         const fix = el('button', 'mm-small', b.fixed ? 'Reopen' : 'Mark fixed');
         fix.addEventListener('click', () => this.hooks.send({ t: 'admin_act', act: 'bug_fixed', id: b.id, on: b.fixed }));
         row.append(fix);
@@ -1113,7 +1121,7 @@ export class AdminPanel {
     box.append(el('small', 'devp-dim', 'Matches with people are always studied. "Train on every match" also studies bot-only matches (lower value, off by default).'));
     const c = l.lastCommit;
     const row = el('div', 'own-row');
-    if (this.access() === 'owner') {
+    if (this.can('botadmin')) {
       const btn = el('button', 'mm-small mm-go', '⬆ Commit learned bots to GitHub');
       btn.title = 'Writes the brains the bots learned and the human-style data to shared/data/botbrain.json and players.json on the main branch in one commit, as a patch (version +1, patch notes). The game updates on the next deploy.';
       btn.disabled = l.sinceCommit < 1 || this.knowledge?.canCommit === false;

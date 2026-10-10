@@ -13,6 +13,20 @@ export const DEV_POWERS: readonly DevPower[] = [
   { id: 'maps', label: 'Maps', hint: 'The map editor, custom maps, and switching maps on or off for players', on: true },
   { id: 'redeploy', label: 'Redeploy the server', hint: 'The Redeploy button', on: true },
   { id: 'maintain', label: 'Announcements and maintenance mode', hint: 'Send announcements to everyone and switch maintenance mode on', on: false },
+  // everything else the owner has: all off until given
+  { id: 'players', label: 'Players tab: see accounts and edit them', hint: 'The player list, account changes, password resets, custom styles. Never tags and powers, and never the owner or other devs', on: false },
+  { id: 'moderate', label: 'Moderation: kick, ban, mute, notes, kill', hint: 'Kick, ban and unban, mute and unmute, account notes, and killing players from inside a match', on: false },
+  { id: 'ratings', label: 'Change ratings and reset stats', hint: 'Set a rating, reset someone\'s stats', on: false },
+  { id: 'matchctl', label: 'Control other people\'s matches', hint: 'Pause or end matches, the cooldown switches, and the play-time statistics', on: false },
+  { id: 'botadmin', label: 'Bot brain tools', hint: 'Reset the learned brain, commit learned bots to GitHub, the train-on-every-match switch and marking bot bugs fixed', on: false },
+  { id: 'numberslive', label: 'Make numbers live and pull requests', hint: 'Make test numbers live for everyone at once, open pull requests with them, clear the live numbers', on: false },
+  { id: 'requestsadm', label: 'Manage requests', hint: 'Have Claude build a request, merge its pull request, mark or delete requests', on: false },
+  { id: 'hudall', label: 'HUD default for everyone', hint: 'Publish a HUD layout as everyone\'s starting layout', on: false },
+  { id: 'botnames', label: 'Bot names', hint: 'Edit the names bots play under', on: false },
+  { id: 'suggestions', label: 'Delete suggestions', hint: 'Remove entries from the suggestion box', on: false },
+  { id: 'takeover', label: 'Take over a bot in a match', hint: 'Secretly play a bot in a live match', on: false },
+  { id: 'watchall', label: 'Watch any match, live', hint: 'Watch private matches and ranked matches without the delay, and follow players into them', on: false },
+  { id: 'changelog', label: 'The full change log', hint: 'Every commit on the main branch, including what the player notes leave out', on: false },
 ];
 
 export const DEV_POWER_IDS: readonly string[] = DEV_POWERS.map((p) => p.id);
