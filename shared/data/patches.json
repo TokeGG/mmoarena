@@ -1,8 +1,23 @@
 [
  {
+  "version": "0.69.60",
+  "date": "2026-10-10",
+  "at": "2026-10-10T18:31:42Z",
+  "title": "Bot notes you approve, follow friends",
+  "changes": [
+   "Notes for the bots now show a breakdown of what they would change first. You choose Apply and commit to main, or Discard. Nothing is filed as an issue any more.",
+   "Friends list: a Follow button joins a friend in every match they play.",
+   "Walking under a platform now cuts away only the walkway above you, not the ramps.",
+   "The see-through circle under a platform keeps the same size at every camera angle, and aimed spells land on the floor inside it unless your cursor is on the visible platform.",
+   "Cone skills like Dragon's Breath now point where you see them pointing when you press them, so people standing in the cone are hit.",
+   "Aimed spells such as Flamestrike go off at the spot the ring just showed green, even if you click in a hurry.",
+   "Patch note times shown to players were wrong and are fixed."
+  ]
+ },
+ {
   "version": "0.69.59",
   "date": "2026-10-10",
-  "at": "2026-10-10T21:30:00Z",
+  "at": "2026-10-10T18:20:41Z",
   "title": "Damage numbers, deck circle, Slice and Dice",
   "changes": [
    "The see-through circle under a platform is smaller and can be changed in the skill editor (Animations, Camera).",
@@ -14,7 +29,7 @@
  {
   "version": "0.69.58",
   "date": "2026-10-10",
-  "at": "2026-10-10T20:00:00Z",
+  "at": "2026-10-10T18:05:16Z",
   "title": "Under platforms, jumps and swings",
   "changes": [
    "Walking under a platform now cuts a see-through circle in the deck above you, wide enough to cover the camera, so you can always see what is going on. The camera is no longer squashed.",
@@ -29,7 +44,7 @@
  {
   "version": "0.69.57",
   "date": "2026-10-10",
-  "at": "2026-10-10T18:10:00Z",
+  "at": "2026-10-10T17:46:36Z",
   "title": "Camera under platforms, rogue daggers",
   "changes": [
    "Going under a platform or ramp now pulls the camera in close instead of clipping through the floor above you.",

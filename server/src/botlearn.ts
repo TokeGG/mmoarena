@@ -497,7 +497,7 @@ export class BotLearner {
    * through the same room, step and bound limits, so the bots actually try it against people. What reports a bug goes to the bug
    * list; what cannot be placed is handed back. Always writes a report (source 'note') so "What was learned" shows its effect.
    */
-  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number; /** Reads a note the phrase list could not place (Ask Claude): the moves, the bugs and what it still could not place. */ interpret?: (text: string) => Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[]; requests?: { title: string; detail: string }[]; understood?: string } | null>; /** Files something no brain number can do as a change request (Claude builds it); resolves with the title it was filed under, or null. */ fileRequest?: (title: string, detail: string) => Promise<string | null> }): Promise<{ note: NoteInfo; report: LearnReport; understood?: string; filed: string[] }> {
+  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number; /** Work out what the note would change and report it, without changing, saving or filing anything. */ dryRun?: boolean; /** Reads a note the phrase list could not place (Ask Claude): the moves, the bugs and what it still could not place. */ interpret?: (text: string) => Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[]; requests?: { title: string; detail: string }[]; understood?: string } | null>; /** Files something no brain number can do as a change request (Claude builds it); resolves with the title it was filed under, or null. */ fileRequest?: (title: string, detail: string) => Promise<string | null> }): Promise<{ note: NoteInfo; report: LearnReport; understood?: string; filed: string[] }> {
     await this.ready;
     let parsed = parseNote(o.text);
     let understood: string | undefined;
@@ -508,8 +508,9 @@ export class BotLearner {
         const fresh = read.effects.filter((e) => !parsed.effects.some((x) => x.key === e.key && x.dir === e.dir));
         parsed = { effects: [...parsed.effects, ...fresh], conflicts: parsed.conflicts, bugs: [...parsed.bugs, ...read.bugs], unmapped: read.unplaced };
         understood = read.understood;
-        // what no brain number can do becomes a change request: Claude writes it and it comes back as a pull request
+        // what no brain number can do is filed as a change request when the server is set to (never while only previewing)
         for (const r of read.requests ?? []) {
+          if (o.dryRun) { filed.push(`${r.title}: ${r.detail}`); continue; }
           const title = await o.fileRequest?.(r.title, r.detail).catch(() => null);
           if (title) filed.push(title);
         }
@@ -533,7 +534,8 @@ export class BotLearner {
     const classes: ClassReport[] = [];
     for (const [classId, want] of wanted) {
       const pop = this.pops.get(classId)!;
-      const stat = this.stats.get(classId) ?? { replays: 0, lastAt: null, mistakes: {} };
+      const stat0 = this.stats.get(classId) ?? { replays: 0, lastAt: null, mistakes: {} };
+      const stat = o.dryRun ? structuredClone(stat0) : stat0; // a preview works on a copy
       const nudge = (stat.nudge ??= {});
       const room = (stat.room ??= {});
       const shipped = brainFor(classId);
@@ -571,13 +573,14 @@ export class BotLearner {
         asked.push({ classId, key: k, dir, said, moved: Math.abs(brain[k] - before[k]) > 1e-9 });
       }
       const moved = brainDiff(before, brain, 0.0005).map((mv) => ({ ...mv, why: why.get(mv.key) ?? 'your note' }));
-      if (moved.length) {
+      if (moved.length && !o.dryRun) {
         if (mine) mine.brain = brain;
         else pop.variants.push({ id: 'lesson', brain, wins: 0, games: 0 });
       }
+      classes.push({ classId, moved, notes, replays: stat.replays });
+      if (o.dryRun) continue;
       stat.lastAt = Date.now();
       this.stats.set(classId, stat);
-      classes.push({ classId, moved, notes, replays: stat.replays });
       this.persist(classId, () => Promise.all([this.store.set(KEY(classId), JSON.stringify(pop)), this.store.set(STAT_KEY(classId), JSON.stringify(stat))]));
     }
     const at = Date.now();
@@ -595,6 +598,7 @@ export class BotLearner {
       report.headline = `Your note did not move any bot numbers: ${report.nothing}.`;
     }
     report.note = note;
+    if (o.dryRun) return { note, report, ...(understood ? { understood } : {}), filed };
     this.remember(report);
     this.notes = [note, ...this.notes].slice(0, NOTES_MAX);
     this.saveList(NOTES_KEY, this.notes);

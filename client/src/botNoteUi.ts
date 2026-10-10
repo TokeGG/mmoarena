@@ -36,14 +36,14 @@ const live = new Set<() => void>();
 /** The server answered a note: show it in every box for that match. */
 export function handleNoteAck(m: Ack): void {
   answers.set(m.id, m);
-  if (m.ok) drafts.delete(m.id);
+  if (m.ok && !m.preview) drafts.delete(m.id);
   for (const repaint of live) repaint();
 }
 
 /** The lines under the box for an answer: what it moved first, then what could not be placed. */
 export function ackLines(a: Ack): string[] {
   if (!a.ok) return [a.text];
-  const lines = a.lines?.length ? a.lines.slice(0, 1) : [a.text];
+  const lines = a.preview ? [a.text, ...(a.lines ?? [])] : a.lines?.length ? [...a.lines] : [a.text];
   if (a.unmapped?.length) lines.push(`Could not place: ${a.unmapped.map((u) => `"${u}"`).join(', ')}. Try other words, e.g. "didn't los enough", "ran out of mana", "kicked too early".`);
   if (a.bug) lines.push('The bug part is in the owner\'s "Bot bugs reported" list.');
   return lines;
@@ -66,7 +66,7 @@ export function noteBox(matchId: string, send: (m: ClientMsg) => void, o: { live
   row.className = 'bn-row';
   const btn = document.createElement('button');
   btn.className = 'mm-small mm-go';
-  btn.textContent = 'Send to the bot brain';
+  btn.textContent = 'Show what it would change';
   const count = document.createElement('small');
   const out = document.createElement('div');
   out.className = 'bn-out';
@@ -74,9 +74,20 @@ export function noteBox(matchId: string, send: (m: ClientMsg) => void, o: { live
     count.textContent = `${ta.value.length}/${BOT_NOTE_MAX}`;
     btn.disabled = !ta.value.trim() || answers.get(matchId) === 'sending';
   };
+  const decide = document.createElement('div');
+  decide.className = 'bn-row';
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'mm-small mm-go';
+  applyBtn.textContent = 'Apply and commit to main';
+  const discard = document.createElement('button');
+  discard.className = 'mm-small';
+  discard.textContent = 'Discard';
+  decide.append(applyBtn, discard);
+  decide.style.display = 'none';
   const paintAnswer = () => {
     const a = answers.get(matchId);
     out.replaceChildren();
+    decide.style.display = a && a !== 'sending' && a.ok && a.preview ? 'flex' : 'none';
     out.className = `bn-out${a && a !== 'sending' ? (a.ok ? ' ok' : ' bad') : ''}`;
     if (a === 'sending') out.textContent = 'Sending…';
     else if (a) for (const l of ackLines(a)) {
@@ -84,7 +95,7 @@ export function noteBox(matchId: string, send: (m: ClientMsg) => void, o: { live
       d.textContent = l;
       out.append(d);
     }
-    if (a && a !== 'sending' && a.ok && !drafts.has(matchId)) ta.value = '';
+    if (a && a !== 'sending' && a.ok && !a.preview && !drafts.has(matchId)) ta.value = '';
     paintCount();
   };
   ta.addEventListener('input', () => {
@@ -98,8 +109,19 @@ export function noteBox(matchId: string, send: (m: ClientMsg) => void, o: { live
     send({ t: 'bot_note', id: matchId, text, ...(o.liveNote ? { live: true } : {}) });
     paintAnswer();
   });
+  applyBtn.addEventListener('click', () => {
+    const text = (drafts.get(matchId) ?? ta.value).trim();
+    if (!text) return;
+    answers.set(matchId, 'sending');
+    send({ t: 'bot_note', id: matchId, text, apply: true, ...(o.liveNote ? { live: true } : {}) });
+    paintAnswer();
+  });
+  discard.addEventListener('click', () => {
+    answers.delete(matchId);
+    paintAnswer();
+  });
   row.append(btn, count);
-  root.append(head, ta, row, out);
+  root.append(head, ta, row, out, decide);
   paintAnswer();
   const repaint = () => (root.isConnected ? paintAnswer() : live.delete(repaint));
   live.add(repaint);

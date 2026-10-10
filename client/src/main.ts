@@ -796,6 +796,7 @@ function fixedStep() {
     audio.jump();
   }
   const input: MoveInput = { seq: ++seq, ...sample, jump: jump || undefined };
+  lastFacing = sample.facing;
   send({ t: 'input', ...input });
   jumpTicks = jump ? 0 : jumpTicks + 1;
   const mine = { ...input, air: jumpHeight(jumpTicks * tickMs) };
@@ -973,11 +974,14 @@ const QUEUE_SAME_MS = 250;
 /** The last spell sent, so a repeat press of it is not queued on top of itself. */
 const lastSent = { ability: '', at: 0 };
 function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
+  if (ABILITIES[msg.ability]?.coneDeg && msg.facing === undefined && Number.isFinite(lastFacing)) msg = { ...msg, facing: lastFacing };
   lastSent.ability = msg.ability;
   lastSent.at = performance.now();
   send(msg);
 }
 
+/** The way the player faced in the last step sent (cone skills carry it so they point where the screen shows). */
+let lastFacing = NaN;
 let queued: { ability: string; target: number | null; until: number; ground?: { x: number; z: number; lv?: 1 } } | null = null;
 function estimatedNow(): number {
   if (!latest) return 0;
@@ -1032,6 +1036,8 @@ function groundBlockedWhileAiming(ability: string): boolean {
 
 /** The ground spell waiting for a click (Flamestrike, Blizzard), or null. The aiming ring only shows while this is set. */
 let aiming: string | null = null;
+/** The last spot the aiming ring showed green. */
+let lastGreen: { g: { x: number; z: number; lv?: 1 }; at: number; ability: string } | null = null;
 function setAiming(id: string | null) {
   aiming = id;
   hud.setAiming(id);
@@ -1039,7 +1045,9 @@ function setAiming(id: string | null) {
 function confirmAim() {
   const def = aiming ? ABILITIES[aiming] : undefined;
   if (!aiming || !def) return;
-  const g = groundAim(def.range);
+  let g = groundAim(def.range);
+  // the spot the ring showed green a moment ago counts when the cursor just slipped (a click made in a hurry)
+  if (!g && lastGreen && performance.now() - lastGreen.at < 250 && lastGreen.ability === aiming) g = lastGreen.g;
   if (!g) return; // cursor on the sky: keep aiming
   if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt))) return; // red spot: nothing is sent, nothing is spent, still aiming
   const spot = { x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}) };
@@ -1379,6 +1387,7 @@ function frame(now: number) {
     const aimed = !spec && aiming && !groundBlockedWhileAiming(aiming) ? ABILITIES[aiming] : undefined;
     const g = aimed ? groundAim(aimed.range) : null;
     const r = aimed?.effects.find((e) => e.type === 'zone');
+    if (g && aiming && hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt))) lastGreen = { g, at: performance.now(), ability: aiming };
     scene.setReticle(g && snap.units.find((u) => u.id === you)?.alive ? g : null, r && r.type === 'zone' ? r.radius : 5, !g || hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt)));
   }
   if (spec) spectateBar.update(snap.tick, snap.units.find((u) => u.id === you)?.name ?? '');
@@ -1853,6 +1862,7 @@ const friendsUi = new FriendsUi({
   },
   signedIn: () => !!accountUi.account,
   needSignIn: () => accountUi.openAuth(),
+  follow: { isOwner: () => !!accountUi.account?.ownerOk, current: () => following, set: (name) => send({ t: 'follow', name }) },
   onParty: (p) => {
     mainMenu.setParty(p);
     sendLook();

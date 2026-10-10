@@ -61,8 +61,11 @@ describe('note box answers', () => {
   it('shows what the note moved, what could not be placed and that a bug was listed', () => {
     const lines = ackLines({ t: 'bot_note_ack', id: 'abcdef012345', ok: true, text: 'Your note moved: mage bots now break line of sight more.', lines: ['Your note moved: mage bots now break line of sight more.', 'more detail'], unmapped: ['purple flamingo'], bug: true });
     assert.equal(lines[0], 'Your note moved: mage bots now break line of sight more.');
-    assert.match(lines[1], /Could not place: "purple flamingo"/);
-    assert.match(lines[2], /Bot bugs reported/);
+    assert.equal(lines[1], 'more detail');
+    assert.match(lines[2], /Could not place: "purple flamingo"/);
+    assert.match(lines[3], /Bot bugs reported/);
+    const preview = ackLines({ t: 'bot_note_ack', id: 'abcdef012345', ok: true, preview: true, text: 'Would move: x', lines: ['detail'] });
+    assert.deepEqual(preview, ['Would move: x', 'detail']);
     assert.deepEqual(ackLines({ t: 'bot_note_ack', id: 'abcdef012345', ok: false, text: 'There were no bots in that match.' }), ['There were no bots in that match.']);
   });
 });

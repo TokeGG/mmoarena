@@ -152,7 +152,7 @@ describe('notes for the bots', () => {
     const before = t.learner.noteList().length;
     const lesson = JSON.stringify(t.learner.knowledge().find((c) => c.classId === 'mage')!.learned);
     for (const who of [t.human, t.fan, t.guest]) {
-      t.lobby.handle(who.p, { t: 'bot_note', id: t.room.id, text: "didn't los enough" } as ClientMsg);
+      t.lobby.handle(who.p, { t: 'bot_note', id: t.room.id, text: "didn't los enough", apply: true } as ClientMsg);
       await new Promise((r) => setTimeout(r, 10));
     }
     assert.equal(t.learner.noteList().length, before);
@@ -161,11 +161,26 @@ describe('notes for the bots', () => {
     assert.equal((of(t.human.s, 'dev_result').at(-1) as any).ok, false);
   });
 
+  it('a note without apply only shows what it would change: nothing is moved, stored or committed', async () => {
+    const t = await setup();
+    const before = JSON.stringify(t.learner.knowledge().find((c) => c.classId === 'mage')!.learned);
+    const notesBefore = t.learner.noteList().length;
+    t.room.addSpectator(t.dev.p);
+    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: "didn't los enough" } as ClientMsg);
+    await until(() => of(t.dev.s, 'bot_note_ack').length > 0);
+    const ack = of(t.dev.s, 'bot_note_ack').at(-1);
+    assert.equal(ack.ok, true);
+    assert.equal(ack.preview, true);
+    assert.match(ack.text, /Your note moved: mage bots now /);
+    assert.equal(JSON.stringify(t.learner.knowledge().find((c) => c.classId === 'mage')!.learned), before, 'the brain is unchanged');
+    assert.equal(t.learner.noteList().length, notesBefore, 'no note is stored');
+  });
+
   it('a dev note on a live match moves the lesson variant of the classes in it, and is stored with who wrote it', async () => {
     const t = await setup();
     const mageBefore = t.learner.knowledge().find((c) => c.classId === 'mage')!.learned;
     t.room.addSpectator(t.dev.p);
-    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: "the bot didn't use cover and wasted trinket" } as ClientMsg);
+    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: "the bot didn't use cover and wasted trinket", apply: true } as ClientMsg);
     await until(() => of(t.dev.s, 'bot_note_ack').length > 0);
     const ack = of(t.dev.s, 'bot_note_ack').at(-1);
     assert.equal(ack.ok, true);
@@ -201,7 +216,7 @@ describe('notes for the bots', () => {
     const priest = before('priest');
     const rogue = before('rogue');
     const mage = before('mage');
-    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'bbbbbbbbbbbb', text: 'ran out of mana' } as ClientMsg);
+    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'bbbbbbbbbbbb', text: 'ran out of mana', apply: true } as ClientMsg);
     await until(() => of(t.owner.s, 'bot_note_ack').length > 0);
     assert.equal(of(t.owner.s, 'bot_note_ack').at(-1).ok, true);
     assert.ok(before('priest').spendBias > priest.spendBias, 'priest');
@@ -210,17 +225,17 @@ describe('notes for the bots', () => {
     assert.equal(t.learner.noteList()[0].role, 'owner');
     // a class tag chooses
     const p2 = before('priest');
-    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'bbbbbbbbbbbb', text: 'rogue: wasted trinket' } as ClientMsg);
+    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'bbbbbbbbbbbb', text: 'rogue: wasted trinket', apply: true } as ClientMsg);
     await until(() => of(t.owner.s, 'bot_note_ack').length > 1);
     assert.equal(before('priest').trinketAt, p2.trinketAt);
     assert.ok(before('rogue').trinketAt <= rogue.trinketAt);
     assert.deepEqual(t.learner.noteList()[0].classes, ['rogue']);
     // an unknown match, and a match without bots
-    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'cccccccccccc', text: 'ran out of mana' } as ClientMsg);
+    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'cccccccccccc', text: 'ran out of mana', apply: true } as ClientMsg);
     await until(() => of(t.owner.s, 'bot_note_ack').length > 2);
     assert.equal(of(t.owner.s, 'bot_note_ack').at(-1).ok, false);
     t.learner.archived = async () => [{ id: 'dddddddddddd', at: 1, bots: [], humans: ['mage'], humansWon: true }];
-    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'dddddddddddd', text: 'ran out of mana' } as ClientMsg);
+    t.lobby.handle(t.owner.p, { t: 'bot_note', id: 'dddddddddddd', text: 'ran out of mana', apply: true } as ClientMsg);
     await until(() => of(t.owner.s, 'bot_note_ack').length > 3);
     assert.match(of(t.owner.s, 'bot_note_ack').at(-1).text, /no bots/);
   });
@@ -228,8 +243,8 @@ describe('notes for the bots', () => {
   it('notes from one person are spaced out', async () => {
     const t = await setup();
     (t.lobby as any).clock = () => 5_000_000; // a frozen clock
-    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: 'ran out of mana' } as ClientMsg);
-    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: 'wasted trinket' } as ClientMsg);
+    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: 'ran out of mana', apply: true } as ClientMsg);
+    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: 'wasted trinket', apply: true } as ClientMsg);
     await until(() => of(t.dev.s, 'bot_note_ack').length >= 2);
     const acks = of(t.dev.s, 'bot_note_ack');
     assert.equal(acks.filter((a) => a.ok).length, 1);
@@ -238,7 +253,7 @@ describe('notes for the bots', () => {
 
   it('what cannot be placed comes back; a bug report goes to the bug list, only the owner marks it fixed', async () => {
     const t = await setup();
-    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: 'the mage got stuck on a pillar. purple flamingo danced strangely' } as ClientMsg);
+    t.lobby.handle(t.dev.p, { t: 'bot_note', id: t.room.id, text: 'the mage got stuck on a pillar. purple flamingo danced strangely', apply: true } as ClientMsg);
     await until(() => of(t.dev.s, 'bot_note_ack').length > 0);
     const ack = of(t.dev.s, 'bot_note_ack').at(-1);
     assert.equal(ack.ok, true);
