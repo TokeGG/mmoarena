@@ -805,6 +805,71 @@ function rogue(b: Builder): Rig {
 // ------------------------------------------------------------------ rigged (skinned) models
 
 /**
+ * The Abyssal Sentinel's built head: the mesh that came with the model is a few hundred jagged triangles, so it is hidden (ModelDef.ownHead)
+ * and a finished one is built in its place, in head-anchor units (head centre at y = 0.99, facing +z): a face with brows, eyes, nose, mouth and
+ * ears under a steel helm with a gold brow band, a crest, cheek guards, a neck plate and two swept horns, and a gauntlet round the staff hand.
+ */
+function sentinelHead(b: Builder, r: Rig) {
+  const g = r.head ?? r.upper;
+  const steel = b.m(0x3a3842, { metal: 0.75, rough: 0.32 });
+  const steelDk = b.m(0x25232b, { metal: 0.7, rough: 0.42 });
+  const gold = b.m(0xdcae40, { metal: 0.8, rough: 0.3 });
+  const ivory = b.m(0xf1ead6, { rough: 0.5 });
+  const skin = b.m(0xdcb89c, { rough: 0.75 });
+  const lip = b.m(0xa5605a, { rough: 0.6 });
+  const hair = b.m(0xe9e4da, { rough: 0.85 });
+  // face
+  b.ball(g, 0.12, skin, 0, 0.965, 0.02).scale.set(0.92, 1.12, 0.96);
+  b.ball(g, 0.05, skin, 0, 0.885, 0.085).scale.set(1.1, 0.75, 0.9); // chin and jaw
+  for (const s of [-1, 1]) b.ball(g, 0.026, skin, s * 0.112, 0.98, -0.005).scale.set(0.5, 1.2, 0.9); // ears
+  const nose = b.cone(g, 0.016, 0.05, skin, 0, 0.955, 0.14, 10);
+  nose.rotation.x = Math.PI / 2 - 0.15;
+  b.rbox(g, 0.05, 0.009, 0.014, lip, 0, 0.905, 0.12, 0.004);
+  // a short white beard along the jaw
+  b.ball(g, 0.075, hair, 0, 0.85, 0.05).scale.set(1.15, 0.8, 0.95);
+  b.cone(g, 0.045, 0.1, hair, 0, 0.79, 0.07, 10).rotation.x = Math.PI;
+  b.plain(() => {
+    for (const s of [-1, 1]) {
+      b.ball(g, 0.02, b.m(0xffffff, { rough: 0.4 }), s * 0.045, 0.995, 0.115).scale.set(1.15, 0.7, 0.6);
+      b.ball(g, 0.011, b.m(0xffe9a0, { glow: 1.8 }), s * 0.045, 0.995, 0.127);
+      const brow = b.rbox(g, 0.062, 0.012, 0.02, hair, s * 0.047, 1.03, 0.115, 0.004);
+      brow.rotation.z = s * -0.2;
+    }
+  });
+  // helm: a half dome tipped back so the brim sits above the brows
+  const helm = new THREE.Group();
+  helm.position.set(0, 1.035, -0.01);
+  helm.rotation.x = -0.16;
+  g.add(helm);
+  const dome = b.add(helm, b.geoShared('sentinelDome', () => new THREE.SphereGeometry(0.15, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2)), steel);
+  dome.scale.set(1, 0.85, 1.1);
+  b.torus(helm, 0.152, 0.014, gold, 0, 0.002, 0).rotation.x = Math.PI / 2;
+  for (let i = 0; i < 6; i++) { // crest: a low gold ridge front to back
+    const k = i / 5;
+    const h = 0.03 + 0.03 * Math.sin(k * Math.PI);
+    const seg = b.rbox(helm, 0.024, h, 0.045, gold, 0, 0.115 + h * 0.3 - k * 0.025, 0.1 - k * 0.22, 0.008);
+    seg.rotation.x = 0.3 - k * 0.6;
+  }
+  b.rbox(helm, 0.03, 0.09, 0.012, gold, 0, -0.045, 0.158, 0.005); // nose guard
+  for (const s of [-1, 1]) {
+    const cheek = b.rbox(g, 0.03, 0.15, 0.115, steelDk, s * 0.125, 0.93, 0.005, 0.012);
+    cheek.rotation.z = s * -0.12;
+    b.rbox(g, 0.034, 0.02, 0.12, gold, s * 0.127, 1.0, 0.005, 0.006); // trim along the top of the cheek guard
+    b.cyl(helm, 0.032, 0.036, 0.04, gold, s * 0.148, -0.01, 0, 12).rotation.z = Math.PI / 2; // horn socket
+    const h1 = b.cone(helm, 0.036, 0.15, ivory, s * 0.19, 0.06, -0.01, 10);
+    h1.rotation.z = -s * 0.85;
+    const h2 = b.cone(helm, 0.022, 0.14, ivory, s * 0.255, 0.16, -0.03, 10);
+    h2.rotation.set(-0.25, 0, -s * 0.3);
+  }
+  b.rbox(g, 0.25, 0.1, 0.05, steelDk, 0, 0.93, -0.115, 0.02); // neck plate
+  // gauntlet round the staff
+  const fist = r.armR;
+  b.rbox(fist, 0.12, 0.105, 0.13, steelDk, 0, -0.62, 0.05, 0.03);
+  b.rbox(fist, 0.13, 0.02, 0.14, gold, 0, -0.585, 0.05, 0.008);
+  b.rbox(fist, 0.13, 0.02, 0.14, gold, 0, -0.66, 0.05, 0.008);
+}
+
+/**
  * Build a Rig from a skinned GLB (scripts/rig-model.mjs). The unit gets its own skeleton; geometry, texture and material are
  * shared with every other unit until the unit needs a colour of its own (hit flash, death, stealth, dye). Cosmetic anchors
  * ride on the bones and use the same coordinates as the procedural models' `upper` group: its origin is placed so the head
@@ -866,6 +931,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     const replaceable = (REPLACEABLE_SLOTS as readonly string[]).includes(slot) && !(slot === 'head' && asset.def.keepHead);
     if (!replaceable) {
       for (const m of list) {
+        if (slot === 'head' && asset.def.ownHead) m.visible = false; // the model's own head is replaced by a built one (sentinelHead)
         if (!inst.anim) root.add(m); // clip models keep their node hierarchy: the meshes stay where the skeleton is
         bodyMeshes.push(m);
         b.meshes.push(m);
@@ -910,6 +976,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
       m.material = Array.isArray(m.material) ? m.material.map(clone) : clone(m.material);
     }
   };
+  if (asset.def.ownHead) sentinelHead(b, r);
   r.rigged = { anim: inst.anim ?? new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3, robe: bodyMeshes.filter((m) => asset.def.robeBack?.includes(m.name.split('__')[1])), robeFront: asset.def.robeFront ?? 1 };
   root.userData.driver = r.rigged.anim; // for tests and debugging
   if (!asset.def.ownWeapon) {
@@ -2088,6 +2155,9 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   const SWING = 0.38;
   let swingDur = SWING;
   let swingHand = 0;
+  /** An instant cast flicks the casting hand (RigAnimator's gesture): seconds left of it. */
+  let gestureT = 0;
+  const GESTURE = 0.45;
   // smoothed joint state so nothing ever snaps
   const st = { sign: 1, upX: lean, upZ: 0, bob: 0, legL: 0, legR: 0, armLx: armRest, armRx: armRest, armLz: 0, armRz: 0, twist: 0, lunge: 0, cape: 0.08, capeV: 0, lastVf: 0 };
 
@@ -2157,7 +2227,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
       flashT = 0.2;
     },
     // a clip model plays its attack animation for a cast (the swing path starts it, see ClipAnimator)
-    cast: r.rigged?.anim.castable ? () => doSwing(true) : undefined,
+    cast: r.rigged ? (r.rigged.anim.castable ? () => doSwing(true) : () => { gestureT = GESTURE; }) : undefined,
     pose({ phase, move, casting, time, dt: rawDt, vf: vfIn, vs: vsIn, air }) {
       const dt = clamp(rawDt, 0.001, 0.1);
       const vf = vfIn ?? move * 7;
@@ -2168,7 +2238,9 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         const q = swinging ? 1 - swingT / swingDur : -1;
         const shq = shoutT > 0 && !dead ? 1 - shoutT / SHOUT_DUR : -1;
         if (shoutT > 0) shoutT = Math.max(0, shoutT - dt);
-        r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead, shout: shq });
+        const gq = gestureT > 0 && !dead ? 1 - gestureT / GESTURE : -1;
+        if (gestureT > 0) gestureT = Math.max(0, gestureT - dt);
+        r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead, shout: shq, gesture: gq });
         r.weaponGrip?.(r.rigged.anim.grip ?? 1);
         for (const f of b.motion) f({ dt, vf, vs, move, time, air, dead, casting });
         if (swinging) swingT = Math.max(0, swingT - dt);

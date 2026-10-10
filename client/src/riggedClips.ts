@@ -109,6 +109,15 @@ export class ClipAnimator {
   private lastSwing = -1;
   private wasDead = false;
   private lastCasting = false;
+  /** The jump (the clips have none): height above ground, its smoothed vertical speed, the take-off and landing envelopes and the arm / spine turns they give. */
+  private air = 0;
+  private vy = 0;
+  private launch = 0;
+  private landK = 0;
+  private jx = 0;
+  private jz = 0;
+  private js = 0;
+  private jc = 0;
   /** The canonical bones (set by the model builder) that the shout overlay turns after the mixer has run; without them the overlay is skipped. */
   bones: Record<string, THREE.Object3D> | null = null;
   private readonly sh = newShoutPose();
@@ -253,12 +262,29 @@ export class ClipAnimator {
     this.body.position.y = f * 0.2;
     this.body.position.z = -f * 0.9;
     this.mixer.update(dt);
+    // ---- the jump: the arms fly up with the take-off, spread at the top and drop to balance on the way down, the body arches on take-off and
+    // folds on the landing (the robe hides the legs, so only the upper body is turned)
+    this.vy += ((p.air - this.air) / dt - this.vy) * (1 - Math.exp(-12 * dt));
+    if (this.air <= 0.05 && p.air > 0.05 && !dead) this.launch = 1;
+    if (this.air > 0.12 && p.air < 0.05 && !dead) this.landK = clamp(0.5 + Math.abs(this.vy) * 0.12, 0.5, 1);
+    this.launch *= Math.exp(-7 * dt);
+    this.landK *= Math.exp(-8 * dt);
+    this.air = p.air;
+    const airborne = clamp((p.air - 0.04) * 6, 0, 1);
+    const rise = airborne > 0 ? clamp(this.vy / 3, -1, 1) : 0;
+    const keep = dead ? 0 : 1 - 0.6 * this.atkW; // a cast in the air keeps its own arms
+    const k = 1 - Math.exp(-16 * dt);
+    this.jx += (keep * (airborne * (-0.85 * Math.max(0, rise) - 0.35 * (1 - Math.abs(rise)) + 0.15 * Math.max(0, -rise)) - 0.3 * this.landK) - this.jx) * k;
+    this.jz += (keep * airborne * 0.55 - this.jz) * k;
+    this.js += (keep * (-0.1 * this.launch + 0.12 * Math.max(0, -rise) * airborne + 0.2 * this.landK) - this.js) * k;
+    this.jc += (keep * (-0.12 * this.launch + 0.15 * this.landK) - this.jc) * k;
+    const jumping = !dead && !!this.bones && Math.abs(this.jx) + Math.abs(this.jz) + Math.abs(this.js) + Math.abs(this.jc) > 0.002;
     const po = this.o.posture;
     const posture = !!this.bones && !!(po.spine || po.chest || po.neck || po.head);
     // the correction belongs to standing and walking; a run leans forward on purpose (`run` is the share kept), a cast and the fall take it away
     const pg = posture ? (1 - this.w[3]) * (1 - 0.45 * this.atkW) * (1 - (1 - (po.run ?? 1)) * this.w[2]) : 0;
     if (!dead && this.bones && p.shout !== undefined && p.shout >= 0) this.overlayShout(p.shout, pg);
-    else if (pg > 0.001) {
+    else if (pg > 0.001 || jumping) {
       this.lungeZ = 0;
       this.overlayShout(-1, pg);
     } else {
@@ -311,6 +337,10 @@ export class ClipAnimator {
     const po = this.o.posture;
     sh.spine += (po.spine ?? 0) * pg;
     sh.chest += (po.chest ?? 0) * pg;
+    sh.spine += this.js;
+    sh.chest += this.jc;
+    sh.armX += this.jx;
+    sh.armZ += this.jz;
     sh.neck += (po.neck ?? 0) * pg;
     sh.head += (po.head ?? 0) * pg;
     this.body.updateMatrixWorld(true);

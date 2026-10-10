@@ -10,7 +10,7 @@ import type { WingFit } from './wingModels';
 import type { CapeFit } from './capeModels';
 import { ClipAnimator } from './riggedClips';
 import type { ClipOpts } from './riggedClips';
-import type { RigPoseInput, ArmHold } from './riggedPose';
+import type { RigPoseInput, ArmHold, RigStyle } from './riggedPose';
 
 /**
  * Registry and loader for rigged (skinned) character models, written by scripts/rig-model.mjs (see DEVELOPING.md,
@@ -42,6 +42,8 @@ export interface ModelDef {
    * skull radius and the brow line, which is what every head cosmetic is placed against.
    */
   keepHead?: boolean;
+  /** The model's own head mesh is hidden and models.ts builds a head in its place (sentinelHead). */
+  ownHead?: boolean;
   helm?: { top: number; r: number; brow: number };
   /**
    * The model brings its own animation clips (scripts/prep-character.mjs) and the skeleton hierarchy stays intact: it is driven by a
@@ -52,11 +54,18 @@ export interface ModelDef {
   /** Sub-meshes (the part after `__` in their names) that armor dyes tint; the others (skin, beard) keep their colours. Default: all. */
   dye?: string[];
   /** Animation tuning. */
-  pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number; armIn?: number; legIn?: number; castR?: number; castL?: number; swingArc?: number };
+  pose?: { armRest?: number; elbow?: number; stride?: number; rightSwing?: number; armIn?: number; legIn?: number; castR?: number; castL?: number; swingArc?: number; /** How the class carries itself (riggedPose.ts RigStyle). */ style?: RigStyle };
 }
 
+/** The warrior is heavy and braced: short bounce, a stiff chest, arms that stay near the weapon, knees that give hard on a landing. */
+const KNIGHT_STYLE: RigStyle = { bounce: 0.8, sway: 0.7, lean: 0.75, arms: 0.8, landing: 1.35, tuck: 0.8, cast: 'brace', strike: 'slash' };
+/** The rogue is low and quick: a standing crouch, the elbows tucked, a strong lean into the run, a tight tuck in the air, stabs and close casting. */
+const ASSASSIN_STYLE: RigStyle = { bounce: 1.1, sway: 1.25, lean: 1.5, crouch: 0.16, arms: 0.7, guard: 0.3, landing: 1.1, tuck: 1.3, cast: 'conceal', strike: 'stab' };
+/** The priest is upright and gliding: little bounce, a long soft sway, a slow hover, a floaty jump, a raised staff in a cast and a two-handed smite. */
+const SENTINEL_STYLE: RigStyle = { bounce: 0.45, sway: 1.3, lean: 0.5, arms: 0.55, float: 1, landing: 0.7, tuck: 0.65, cast: 'raise', strike: 'smite' };
+
 export const MODELS: Record<string, ModelDef> = {
-  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55 }, cape: { tilt: -0.08, sy: 0.95 } },
+  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55, style: KNIGHT_STYLE }, cape: { tilt: -0.08, sy: 0.95 } },
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
   wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0, posture: { chest: 0.2, neck: 0.22, head: 0.08, run: 0.5 } }, dye: ['robe'],
     // a cloak recolours the back of his own robe (robeBack); this fit is only where ribbons and the rift hang
@@ -66,9 +75,9 @@ export const MODELS: Record<string, ModelDef> = {
     // the pair grows out of the upper back, smaller than the default so the span is about 1.7 times the shoulders
     wings: { scale: 0.4, z: 0.22, y: 0.58, sx: 1 } },
   // the rogue's hooded assassin (rigged by scripts/rig-model.mjs from an unrigged mesh): the hood is part of the head and stays under head cosmetics
-  assassin: { url: '/models/rogue.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.6, armIn: 0.3 }, cape: { tilt: -0.08, sy: 0.95 } },
+  assassin: { url: '/models/rogue.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.6, armIn: 0.3, style: ASSASSIN_STYLE }, cape: { tilt: -0.08, sy: 0.95 } },
   // the priest's Abyssal Sentinel (rigged by scripts/rig-model.mjs from an unrigged mesh): the horned helm is part of the head and stays under head cosmetics
-  sentinel: { url: '/models/priest.glb', keepHead: true, helm: { top: 1.15, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.35, armIn: 0.3, castR: -0.35, castL: -1.1, swingArc: -1.6 }, cape: { tilt: -0.08, sy: 0.95 } },
+  sentinel: { url: '/models/priest.glb', keepHead: true, ownHead: true, helm: { top: 1.19, r: 0.15, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.15, stride: 0.35, armIn: 0.3, castR: -0.35, castL: -1.1, swingArc: -1.6, rightSwing: 0.3, style: SENTINEL_STYLE }, cape: { tilt: -0.08, sy: 0.95 } },
   // already-rigged brute with its own axe (scripts/convert-skinned.mjs); drop a better texture next to the GLB and list it under `textures` to override
   brute: { url: '/models/warrior-brute.glb', ownWeapon: true, pose: { armRest: -0.1, elbow: 0.2, stride: 0.5, rightSwing: 0.3, armIn: 0.6, legIn: 0.08 } },
 };

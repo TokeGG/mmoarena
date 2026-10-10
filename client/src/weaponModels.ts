@@ -119,12 +119,13 @@ export const WEAPONS: Record<string, WeaponDef> = {
   // Priest staffs (Abyssal Sentinel): the shaft stands up through the fist like the mage staffs, the gold head above it. Warden and Lightbearer share the holy staff.
   holy_staff: {
     url: '/models/weapons/staff-holy.glb',
-    right: { part: 'staff', rot: [0.159, 0, 0.034] },
+    // the fist closes about a third of the way up the shaft (`pos` slides the staff down through the hand), so its foot stands near the floor instead of hanging in the air
+    right: { part: 'staff', rot: [0.159, 0, 0.034], pos: [0, -0.4, 0] },
     mid: 1.0,
   },
   necro_staff: {
     url: '/models/weapons/staff-necro.glb',
-    right: { part: 'staff', rot: [0.159, 0, 0.034] },
+    right: { part: 'staff', rot: [0.159, 0, 0.034], pos: [0, -0.4, 0] },
     mid: 0.9,
   },
 };
