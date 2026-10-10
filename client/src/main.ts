@@ -39,7 +39,9 @@ import { ToolsWindow } from './toolsWindow';
 import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
-import { DpsMeter } from './dpsMeter';
+import { DpsMeter, METRICS } from './dpsMeter';
+import { look, setLook } from './hudLook';
+import type { MeterMetric, MeterNumbers, MeterWho } from './dpsMeter';
 import { Recap } from './recap';
 import { botTests } from './botTestState';
 import { handleNoteAck, noteBox } from './botNoteUi';
@@ -164,6 +166,11 @@ const endChoice = (() => {
 let latest: Snapshot | null = null;
 const killFeed = new KillFeed();
 const dpsMeter = new DpsMeter();
+// click the meter's header to show the next thing (damage, healing, damage taken, interrupts...); the Look window and Edit HUD set all of it
+dpsMeter.onCycle = () => {
+  const i = METRICS.findIndex((m) => m.id === look.dpsMetric);
+  setLook('dpsMetric', METRICS[(i + 1) % METRICS.length].id);
+};
 const recap = new Recap();
 const recapCard = new RecapCard();
 let recapPhase = '';
@@ -696,7 +703,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     recapPhase = snap.phase;
   }
   recap.setUnits(snap.units);
-  dpsMeter.paint(snap.units, you, spec ? null : team);
+  dpsMeter.paint(snap.units, you, { metric: look.dpsMetric as MeterMetric, who: look.dpsWho as MeterWho, numbers: look.dpsNumbers as MeterNumbers, rows: Number(look.dpsRows) || 5, friendly: spec ? 0 : team });
   const unitOf = (id: number) => snap.units.find((u) => u.id === id);
   for (const ev of events) {
     recap.add(ev);

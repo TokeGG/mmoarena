@@ -2,7 +2,7 @@ import { HUD_IDS, HUD_TEXT_BOX, HUD_TEXT_MAX, HUD_TEXT_MIN, clamp, layerLayout, 
 import type { HudLayoutMap } from '@arena/shared';
 import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
 import { sameLayout, sourceOf, tagText, viewLayout, whereText, type EditMode } from './hudLayers';
-import { loadLook } from './hudLook';
+import { LOOK_OPTIONS, look, loadLook, setLook } from './hudLook';
 import { nameplateEditorOpen, openNameplateEditor } from './nameplateEditor';
 
 /**
@@ -582,6 +582,29 @@ export class HudLayout {
     reset.addEventListener('click', () => this.resetOne(id));
     const b = mk('b', label);
     this.selBox.append(b, mk('small', ` ${where}`), reset);
+    if (id === 'dpsmeter') this.selBox.append(this.dpsSettings());
+  }
+
+  /** What the DPS meter shows: the same settings as Look > HUD > DPS meter, here where the meter is being placed. */
+  private dpsSettings(): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'he-row';
+    for (const o of LOOK_OPTIONS.filter((x) => x.group === 'DPS meter' && x.id !== 'dpsmeter')) {
+      const label = document.createElement('label');
+      label.textContent = `${o.label} `;
+      const sel = document.createElement('select');
+      for (const [v, text] of o.choices) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = text;
+        sel.append(opt);
+      }
+      sel.value = look[o.id];
+      sel.addEventListener('change', () => setLook(o.id, sel.value));
+      label.append(sel);
+      box.append(label);
+    }
+    return box;
   }
 
   /** The owner's part of the editor: who the changes are for, and saving / removing the default for everyone. Only the owner sees it. */

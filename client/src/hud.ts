@@ -470,7 +470,7 @@ export class Hud {
   private updateBanner(snap: Snapshot, now: number, myTeam: TeamId) {
     const b = $('banner');
     if (snap.paused) {
-      b.replaceChildren(document.createTextNode('Paused'), el('small', '', 'dev tools · F2'));
+      b.replaceChildren(document.createTextNode('Paused'), el('small', '', snap.pausedBy ? `by ${snap.pausedBy}` : 'dev tools · F2'));
     } else if (snap.phase === 'prep') {
       b.replaceChildren(document.createTextNode(`Gates open in ${Math.max(0, Math.ceil((snap.phaseEndsAt - now) / 1000))}`));
     } else if (snap.phase === 'ended') {

@@ -107,7 +107,7 @@ describe('admin panel actions', () => {
     lobby.handle(owner, { t: 'admin_act', act: 'pause_match', id: room.id, on: true } as ClientMsg);
     await tick();
     assert.equal(room.paused, true);
-    assert.ok(outB.some((m) => m.t === 'notice' && /paused/.test(m.text)));
+    assert.ok(outB.some((m) => m.t === 'dev_state' && m.paused));
     assert.equal(last(outO, 'admin_overview')?.rooms[0].paused, true);
   });
 
