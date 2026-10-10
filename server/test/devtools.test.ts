@@ -175,13 +175,13 @@ describe('dev commits to GitHub', () => {
     assert.match(String((res as any).url), /commit\/abc123/);
   });
 
-  it('if GitHub refuses the push to main, the change goes through a pull request instead', async () => {
+  it('if GitHub refuses the push to main, nothing is created: no branch, no pull request, and the dev is told', async () => {
     const calls: Call[] = [];
     const { lobby, devP, outD } = await world(mkHttp(calls, { refFails: 1 }));
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
     await new Promise((r) => setTimeout(r, 120));
-    assert.ok(calls.some((c) => c.url.endsWith('/pulls') && c.method === 'POST'), 'the pull request takes over');
-    assert.equal(last(outD, 'dev_result')!.ok, true);
+    assert.ok(!calls.some((c) => c.url.endsWith('/pulls') || (c.url.endsWith('/git/refs') && c.method === 'POST')), 'no pull request and no branch');
+    assert.equal(last(outD, 'dev_result')!.ok, false);
   });
 
   it('a failing check keeps the commit off main and names the check to the dev', async () => {
