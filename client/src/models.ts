@@ -271,6 +271,11 @@ interface Rig {
   rigged?: { anim: RigDriver; ensureOwn(): void; deadY: number; /** The robe sub-meshes a mage's cloak recolours (ModelDef.robeBack). */ robe: THREE.SkinnedMesh[]; robeFront: 1 | -1 };
   /** Where weapon cosmetics are centred, in the right hand group's frame, when a real weapon model is held (default: at the grip). */
   weaponGlowAt?: THREE.Vector3;
+  /** Rigged models whose helm has horns of its own (ModelDef.helmHorns): the helm's head meshes, so a horns cosmetic can cut them away. */
+  helmMeshes?: THREE.Mesh[];
+  /** The materials of the held weapon model (a weapon cosmetic makes them glow). */
+  weaponMats?: THREE.MeshStandardMaterial[];
+  helmHorns?: { yMin: number; xMin: number };
   /** Blends a shoulder-carried weapon between its one-handed rest and the two-handed hold (weaponModels.ts); the weapon cosmetics ride on `weaponPivot`. */
   weaponGrip?: (k: number) => void;
   weaponPivot?: { node: THREE.Object3D; mid: number };
@@ -530,7 +535,10 @@ function heldWeapon(b: Builder, r: Rig, weapon?: string): AttachedWeapon | undef
     armR: r.armR,
     armL: r.armL,
     addMesh: (m) => b.meshes.push(m),
-    addMaterial: (m) => b.mats.push(m),
+    addMaterial: (m) => {
+      b.mats.push(m);
+      (r.weaponMats ??= []).push(m);
+    },
     addFx: (o) => b.fx.push(o),
     glow: (parent, geo, color, opacity, x, y, z) => b.glow(parent, geo, color, opacity, x, y, z),
   });
@@ -923,7 +931,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     // the wings grow between the shoulder blades, behind the back plate (and behind a cape); each model's `wings` overrides refine it
     wings: { ...DEFAULT_WING_FIT, y: meta.shoulderJoint[1] - O + 0.02, z: Math.max(0.1, meta.chestBackZ + 0.04), scale: 0.5 * Math.max(0.9, meta.height / 2.4), sx: Math.max(1, meta.torsoW / 0.6), ...asset.def.wings },
   };
-  const r: Rig = { root, upper, legL: new THREE.Group(), legR: new THREE.Group(), armL, armR, head, shoulderL, shoulderR, fit };
+  const r: Rig = { root, upper, legL: new THREE.Group(), legR: new THREE.Group(), armL, armR, head, shoulderL, shoulderR, fit, helmMeshes: asset.def.helmHorns ? inst.parts.head : undefined, helmHorns: asset.def.helmHorns };
 
   const bodyMeshes: THREE.SkinnedMesh[] = [];
   for (const [slot, list] of Object.entries(inst.parts)) {
@@ -1248,13 +1256,32 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
     const sides = [-1, 1];
     switch (head.style) {
       case 'horns':
+        if (r.helmMeshes && r.helmHorns) {
+          // the helm's own horns are cut away: the cosmetic's horns grow where they were
+          const { yMin, xMin } = r.helmHorns;
+          for (const hm of r.helmMeshes) {
+            const geo = hm.geometry.clone();
+            const pos = geo.getAttribute('position');
+            const idx = geo.getIndex();
+            if (idx) {
+              const keep: number[] = [];
+              for (let t = 0; t < idx.count; t += 3) {
+                const tri = [idx.getX(t), idx.getX(t + 1), idx.getX(t + 2)];
+                if (!tri.every((v) => pos.getY(v) > yMin && Math.abs(pos.getX(v)) > xMin)) keep.push(...tri);
+              }
+              geo.setIndex(keep);
+              hm.geometry = geo;
+            }
+          }
+        }
         for (const sd of sides) {
-          // two stacked segments sweeping up and out from a base point; over the knight's helm they branch off its sides, outside its own horns
-          const base = fit.helm ? { x: 0.14, y: 0.98 } : { x: R * 0.9 - 0.19 * Math.sin(0.75), y: brow + 0.12 - 0.19 * Math.cos(0.75) };
-          const tip1 = { x: base.x + 0.38 * Math.sin(0.75), y: base.y + 0.38 * Math.cos(0.75) };
-          const horn = b.cone(hu, 0.07, 0.38, metal(c), sd * (base.x + 0.19 * Math.sin(0.75)), base.y + 0.19 * Math.cos(0.75), 0, 8);
+          // two stacked segments sweeping up and out from a base point; over the knight's helm they replace its own horns
+          const k = fit.helm ? 0.62 : 1; // on a helm the horns are smaller: they stand where the helm's own were
+          const base = fit.helm ? { x: 0.085, y: 1.1 } : { x: R * 0.9 - 0.19 * Math.sin(0.75), y: brow + 0.12 - 0.19 * Math.cos(0.75) };
+          const tip1 = { x: base.x + 0.38 * k * Math.sin(0.75), y: base.y + 0.38 * k * Math.cos(0.75) };
+          const horn = b.cone(hu, 0.07 * k, 0.38 * k, metal(c), sd * (base.x + 0.19 * k * Math.sin(0.75)), base.y + 0.19 * k * Math.cos(0.75), 0, 8);
           horn.rotation.z = -sd * 0.75;
-          const tip = b.cone(hu, 0.045, 0.22, metal(lighter(c)), sd * (tip1.x + 0.11 * Math.sin(0.25) - 0.02), tip1.y + 0.11 * Math.cos(0.25) - 0.02, 0, 8);
+          const tip = b.cone(hu, 0.045 * k, 0.22 * k, metal(lighter(c)), sd * (tip1.x + 0.11 * k * Math.sin(0.25) - 0.02), tip1.y + 0.11 * k * Math.cos(0.25) - 0.02, 0, 8);
           tip.rotation.z = -sd * 0.25;
         }
         break;
@@ -1588,7 +1615,15 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       aura.position.copy(r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05));
       r.armR.add(aura);
     }
-    b.glow(aura, new THREE.SphereGeometry(0.22, 16, 12), c, 0.22, 0, 0, 0);
+    if (r.weaponMats?.length) {
+      // the weapon model itself glows in the cosmetic's colour (the lit material survives hits and stealth through userData.emit)
+      for (const wm of r.weaponMats) {
+        wm.userData.glow = 1.15;
+        wm.userData.emit = new THREE.Color(c);
+        wm.emissive.set(c);
+        wm.emissiveIntensity = 1.15;
+      }
+    } else b.glow(aura, new THREE.SphereGeometry(0.22, 16, 12), c, 0.22, 0, 0, 0);
     if (weapon.style === 'sparks') {
       const pts: THREE.Object3D[] = [];
       for (let i = 0; i < 5; i++) pts.push(b.glow(aura, new THREE.SphereGeometry(0.035, 8, 6), lighter(c, 0.3), 0.95, 0, 0, 0));
@@ -2187,7 +2222,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         m.emissive.set(0xff2a1a);
         m.emissiveIntensity = 0.7 * v;
       } else {
-        m.emissive.set(m.userData.glow ? (m.userData.base as THREE.Color) : 0x000000);
+        m.emissive.set(m.userData.emit ? (m.userData.emit as THREE.Color) : m.userData.glow ? (m.userData.base as THREE.Color) : 0x000000);
         m.emissiveIntensity = m.userData.glow as number;
       }
     }

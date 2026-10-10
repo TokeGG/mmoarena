@@ -45,6 +45,8 @@ export interface ModelDef {
   /** The model's own head mesh is hidden and models.ts builds a head in its place (sentinelHead). */
   ownHead?: boolean;
   helm?: { top: number; r: number; brow: number };
+  /** The helm's own horns, as a region of its head mesh (model space): a horns cosmetic cuts them away and grows its own in their place. */
+  helmHorns?: { yMin: number; xMin: number };
   /**
    * The model brings its own animation clips (scripts/prep-character.mjs) and the skeleton hierarchy stays intact: it is driven by a
    * THREE.AnimationMixer (riggedClips.ts) instead of procedural bone rotations. The value tunes the clips; the bone names the
@@ -65,7 +67,7 @@ const ASSASSIN_STYLE: RigStyle = { bounce: 1.1, sway: 1.25, lean: 1.5, crouch: 0
 const SENTINEL_STYLE: RigStyle = { bounce: 0.45, sway: 1.3, lean: 0.5, arms: 0.55, float: 1, landing: 0.7, tuck: 0.65, cast: 'raise', strike: 'smite' };
 
 export const MODELS: Record<string, ModelDef> = {
-  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55, style: KNIGHT_STYLE }, cape: { tilt: -0.08, sy: 0.95 } },
+  knight: { url: '/models/warrior.glb', keepHead: true, helm: { top: 1.3, r: 0.165, brow: 1.03 }, helmHorns: { yMin: 2.1, xMin: 0.07 }, pose: { armRest: -0.1, elbow: 0.12, stride: 0.55, style: KNIGHT_STYLE }, cape: { tilt: -0.08, sy: 0.95 } },
   // the mage's Old Wizard: already rigged with real clips (idle / walk / run / attack / death), see scripts/prep-character.mjs
   wizard: { url: '/models/mage-wizard.glb', clips: { windup: 0.4, deathHold: 1.0, posture: { chest: 0.2, neck: 0.22, head: 0.08, run: 0.5 } }, dye: ['robe'],
     // a cloak recolours the back of his own robe (robeBack); this fit is only where ribbons and the rift hang
