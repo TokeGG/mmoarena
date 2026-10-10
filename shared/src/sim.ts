@@ -1711,14 +1711,16 @@ export class ArenaSim {
     const base = Math.min((baseMs ?? def.duration) + (def.duration > 0 ? extraMs : 0), def.maxDuration ?? Infinity);
     let duration = def.duration;
     let drMult = 1;
+    // with the dev test cooldown switch off, diminishing returns are off too: a stun or fear can be spammed to test it
+    const drKind = this.noCooldowns ? undefined : def.dr;
     // a channel that applies crowd control every tick (Slice and Dice) is one diminishing-returns step for the whole cast:
     // the first tick sets the level and counts, every later tick of the same cast gets that same full level
-    const chanKey = this.channelOf && def.dr ? `${this.channelOf.unit}:${this.channelOf.start}:${tgt.id}:${auraId}` : null;
+    const chanKey = this.channelOf && drKind ? `${this.channelOf.unit}:${this.channelOf.start}:${tgt.id}:${auraId}` : null;
     const chanMult = chanKey ? this.channelDr.get(chanKey) : undefined;
     // and the channel's hold is diminished as one block: at full returns the target is held for the whole channel (each tick
     // stuns past the next one, so there is no gap to walk or swing in); at half it is held for the first half, then free
     const holdLeft = (mult: number) => this.channelOf ? this.channelOf.start + (this.channelOf.end - this.channelOf.start + 100) * mult - this.time : Infinity;
-    if (def.dr && chanMult !== undefined) {
+    if (drKind && chanMult !== undefined) {
       drMult = chanMult;
       const left = holdLeft(drMult);
       if (drMult === 0 || left <= 0) {
@@ -1726,10 +1728,10 @@ export class ArenaSim {
         return { applied: false, immune: true };
       }
       duration = Math.min(base * (this.modsOf(src).auraDuration[auraId] ?? 1), left);
-      const st = (tgt.dr[def.dr] ??= { count: 0, resetAt: 0 });
+      const st = (tgt.dr[drKind] ??= { count: 0, resetAt: 0 });
       st.resetAt = Math.max(st.resetAt, this.time + duration + TUNING.drResetMs);
-    } else if (def.dr) {
-      const st = (tgt.dr[def.dr] ??= { count: 0, resetAt: 0 });
+    } else if (drKind) {
+      const st = (tgt.dr[drKind] ??= { count: 0, resetAt: 0 });
       if (this.time >= st.resetAt) st.count = 0;
       drMult = TUNING.drSteps[Math.min(st.count, TUNING.drSteps.length - 1)];
       if (chanKey) {

@@ -1822,3 +1822,29 @@ describe('casting from a walk', () => {
     assert.ok(mage.pos.z > z);
   });
 });
+
+describe('dev test switch: cooldowns off', () => {
+  const rootLeft = (off: boolean): [number, number] => {
+    const sim = live();
+    sim.noCooldowns = off;
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 3, 0);
+    advance(sim, TICK);
+    const left = () => (war.auras.find((a) => a.id === 'frost_nova_root')?.expiresAt ?? 0) - sim.time;
+    assert.ok(sim.useAbility(mage.id, 'frost_nova').ok);
+    const first = left();
+    advance(sim, TUNING.gcdMs + 100);
+    war.auras = []; // the root is gone, the diminishing-returns count is not
+    sim.resetCooldowns();
+    assert.ok(sim.useAbility(mage.id, 'frost_nova').ok);
+    return [first, left()];
+  };
+  it('diminishing returns are off with it: the second root is as long as the first', () => {
+    const [a, b] = rootLeft(true);
+    assert.ok(a > 0 && Math.abs(a - b) < 100, `${a} vs ${b}`);
+  });
+  it('and on without it (the second root is shorter)', () => {
+    const [a, b] = rootLeft(false);
+    assert.ok(b < a - 100, `${a} vs ${b}`);
+  });
+});
