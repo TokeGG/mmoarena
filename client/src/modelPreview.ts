@@ -228,6 +228,7 @@ class ModelView {
       this.mixer?.update(dt); // the file's motion lands on the bones after the built-in pose, so it replaces it
     }
     this.syncBoxes();
+    this.updateGizmo();
     r.render(this.scene, this.camera);
   }
 
@@ -291,9 +292,96 @@ class ModelView {
     this.boxWanted = { items, sel };
   }
 
+
+  private gizmoKind: 'rotate' | 'slide' | null = null;
+  private gizmo: THREE.Group | null = null;
+  private gizmoBuilt = '';
+
+  /** Arrows on the picked box showing which way a drag moves it: `slide` (three arrows) or `rotate` (turn, swing and a lean ring). */
+  setGizmo(kind: 'rotate' | 'slide' | null): void {
+    this.gizmoKind = kind;
+  }
+
+  private updateGizmo(): void {
+    const sel = this.boxWanted.sel;
+    const holder = sel ? this.boxHolders.find((h) => h.name === `pbox:${sel}`) : undefined;
+    const kind = holder ? this.gizmoKind : null;
+    const key = `${kind}|${sel}`;
+    if (this.gizmo && this.gizmoBuilt !== key) {
+      this.gizmo.removeFromParent();
+      this.gizmo = null;
+    }
+    if (!kind || !holder) return;
+    if (!this.gizmo) {
+      const g = new THREE.Group();
+      const size = holder.scale.length() * 0.5;
+      const L = Math.min(0.9, Math.max(0.35, size * 0.9));
+      const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true, opacity: 0.95 });
+      const both = (axis: THREE.Vector3, color: number, label: string) => {
+        const m = mat(color);
+        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2 * L, 8), m);
+        shaft.quaternion.copy(q);
+        const head = (sign: number) => {
+          const h = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.12, 12), m);
+          h.quaternion.copy(q);
+          h.position.copy(axis).multiplyScalar(sign * L);
+          if (sign < 0) h.rotateX(Math.PI);
+          return h;
+        };
+        const t = this.labelSprite(label, color);
+        t.position.copy(axis).multiplyScalar(L + 0.16);
+        for (const o of [shaft, head(1), head(-1), t]) {
+          o.renderOrder = 1002;
+          g.add(o);
+        }
+      };
+      const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
+      if (kind === 'slide') {
+        both(X, 0xff5a5a, 'slide ← →');
+        both(Y, 0x5aff7a, 'slide ↑ ↓');
+        both(Z, 0x6aa8ff, 'Shift: in / out');
+      } else {
+        both(X, 0xff5a5a, 'turn ← →');
+        both(Y, 0x5aff7a, 'swing ↑ ↓');
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(L * 0.8, 0.01, 8, 48), mat(0x6aa8ff));
+        ring.renderOrder = 1002;
+        g.add(ring);
+        const t = this.labelSprite('Shift: lean ← →', 0x6aa8ff);
+        t.position.set(L * 0.8, -L * 0.8, 0);
+        t.renderOrder = 1002;
+        g.add(t);
+      }
+      this.scene.add(g);
+      this.gizmo = g;
+      this.gizmoBuilt = key;
+    }
+    this.gizmo.position.copy(holder.getWorldPosition(new THREE.Vector3()));
+    this.gizmo.quaternion.copy(this.camera.quaternion); // the arrows are the screen's own directions: the mouse moves things that way
+  }
+
+  private labelSprite(text: string, color: number): THREE.Sprite {
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 64;
+    const g = c.getContext('2d')!;
+    g.font = 'bold 30px system-ui, sans-serif';
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.lineWidth = 6;
+    g.strokeStyle = 'rgba(0,0,0,.85)';
+    g.strokeText(text, 128, 32);
+    g.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
+    g.fillText(text, 128, 32);
+    const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
+    sp.scale.set(0.85, 0.21, 1);
+    return sp;
+  }
+
   private clearBoxes(): void {
     for (const h of this.boxHolders) h.removeFromParent();
     this.boxHolders = [];
+    this.gizmoBuilt = '';
     this.boxObjs = [];
   }
 
@@ -315,7 +403,9 @@ class ModelView {
       }
       if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh);
     });
-    for (const it of this.boxWanted.items) {
+    // with a part picked, only its box is drawn: the others would hide it against the model
+    const shown = this.boxWanted.sel ? this.boxWanted.items.filter((x) => `${x.kind}:${x.bone}` === this.boxWanted.sel) : this.boxWanted.items;
+    for (const it of shown) {
       const selected = this.boxWanted.sel === `${it.kind}:${it.bone}`;
       let host: THREE.Object3D | undefined;
       const box = new THREE.Box3();
@@ -571,7 +661,7 @@ export class ModelWindow {
       };
       b.append(mode('slide', 'Slide', 'Drag the weapon\'s box to slide it across the view; hold Shift to push it towards or away from you.'), mode('turn', 'Turn', 'Drag the weapon\'s box to swing it about; hold Shift and drag sideways to roll it about its own length.'));
     }
-    b.append(el('small', 'devp-dim', this.selected ? (this.selected.kind === 'weapon' ? 'Drag its box (Slide or Turn). Drag anywhere else to turn the view.' : 'Drag its box: left / right turns it, up / down swings it, Shift for lean (a part you uploaded slides; Shift: forward / back). Pull a corner to resize it. Drag anywhere else to turn the view.') : 'Click the box round a part or the weapon (or pick it here), then drag it. Drag anywhere else to turn the view.'));
+    b.append(el('small', 'devp-dim', this.selected ? (this.selected.kind === 'weapon' ? 'Drag its box (Slide or Turn). Drag anywhere else to turn the view.' : 'Drag its box: left / right turns it, up / down swings it, Shift for lean (a part you uploaded slides; Shift: forward / back). Pull a corner to resize it. Drag anywhere else to turn the view; a click on the background lets go of it.') : 'Click the box round a part or the weapon (or pick it here), then drag it. Drag anywhere else to turn the view.'));
   }
 
   constructor() {
@@ -823,6 +913,7 @@ export class ModelWindow {
       this.last = now;
       this.s.time += dt;
       if (this.s.spin) this.s.yaw += dt * 0.5;
+      this.now.setGizmo(this.moveOn && this.selected ? (this.selected.kind === 'part' ? 'slide' : this.selected.kind === 'weapon' ? (this.moveMode === 'slide' ? 'slide' : 'rotate') : 'rotate') : null);
       this.now.setBoxes(this.moveOn ? this.boxItems() : [], this.selected ? `${this.selected.kind}:${this.selected.bone}` : null);
       this.now.frame(dt, this.s);
       if (this.compare) this.shipped.frame(dt, this.s);
@@ -888,6 +979,7 @@ export class ModelWindow {
     let last: { pos: number[]; rot: number[] } | null = null;
     let part: { kind: 'part' | 'bone'; bone: string; start: Record<string, number>; mode: 'move' | 'size'; c: { x: number; y: number } | null; d0: number } | null = null;
     let acc = { x: 0, y: 0 };
+    let travel = 0;
     let lastPut: { path: (string | number)[]; v: number } | null = null;
     const put = (path: (string | number)[], v: number) => {
       lastPut = { path, v };
@@ -901,6 +993,7 @@ export class ModelWindow {
       last = null;
       part = null;
       lastPut = null;
+      travel = 0;
       acc = { x: 0, y: 0 };
       if (editable && this.moveOn && (this.partEdit || this.weaponFor) && e.button === 0) {
         const hit = this.now.pickBox(e.clientX, e.clientY);
@@ -937,6 +1030,7 @@ export class ModelWindow {
       if (!drag) return;
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
+      travel += Math.abs(dx) + Math.abs(dy);
       drag.x = e.clientX;
       drag.y = e.clientY;
       if (part && this.partEdit && part.mode === 'size') {
@@ -974,6 +1068,12 @@ export class ModelWindow {
       }
     });
     const end = () => {
+      // a plain click on the background (not a drag) lets go of the picked part, so every box shows again
+      if (drag && !drag.weapon && !part && travel < 4 && editable && this.moveOn && this.selected) {
+        this.selected = null;
+        this.picked = '';
+        this.paintMove();
+      }
       if (drag?.weapon && last) this.weaponFn?.(this.hand, last, true);
       if (part && lastPut) this.partEdit?.set(lastPut.path, lastPut.v, true);
       lastPut = null;
