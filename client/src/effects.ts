@@ -211,6 +211,7 @@ export class Effects {
   private clock = 0;
   private ringGeo = new THREE.RingGeometry(0.88, 1, 56);
   private discGeo = new THREE.CircleGeometry(1, 40);
+  private planeGeo = new THREE.PlaneGeometry(1, 1);
   private sphereGeo = new THREE.SphereGeometry(1, 24, 16);
   private beamGeo = new THREE.CylinderGeometry(1, 1, 1, 8, 1, true);
   private slashGeo = new THREE.RingGeometry(0.55, 0.68, 24, 1, 0, 2.3);
@@ -2139,6 +2140,24 @@ export class Effects {
     }
   }
 
+  /**
+   * The expanding ring every cast used to leave, dressed: a glyph circle under it that turns, a sunburst for the bigger ones and, by
+   * the colour (warm, cold, dark, bright), motes winding up or an inward vortex. Same arguments as `ring`.
+   */
+  private styledRing(x: number, z: number, color: number, from: number, to: number, life: number, y = 0.07, opacity = 0.9) {
+    this.ring(x, z, color, from, to, life, y, opacity);
+    if (to < 1.3) return;
+    _c.set(color);
+    const hsl = { h: 0, s: 0, l: 0 };
+    _c.getHSL(hsl);
+    this.runeCircle(x, z, color, to * 0.85, Math.max(0.6, life * 1.7), hsl.h > 0.5 && hsl.h < 0.8 ? -1.3 : 1.2, y + 0.02);
+    if (to >= 2.4) this.sunburst(x, 0.1, z, color, to * 0.75, Math.max(0.35, life * 0.9));
+    const gy = this.floorAt(x, z);
+    if (hsl.l > 0.7 || (hsl.h > 0.1 && hsl.h < 0.2)) this.helix(x, gy, z, color, 2.2 + to * 0.15, Math.min(1.1, to * 0.3), 2, 0.8, 22, false, 'star'); // bright and golden: light winding up
+    else if (hsl.h > 0.65 && hsl.h < 0.85) this.vortex(x, gy + 0.1, z, color, to * 0.9, true, 20, 0.6); // purples: drawn in
+    else if (hsl.h > 0.45 && hsl.h <= 0.65) this.spikes(x, z, color, to * 0.7, 8); // cold: crystals
+  }
+
   private onCast(unit: number, ability: string, target: number) {
     const def = ABILITIES[ability];
     const s = this.pos(unit);
@@ -2155,7 +2174,7 @@ export class Effects {
     switch (ability) {
       case 'slam':
         melee(0xffaa40, 1.7);
-        if (t) this.ring(t.x, t.z, 0xffaa40, 0.3, 2.2, 0.3);
+        if (t) this.styledRing(t.x, t.z, 0xffaa40, 0.3, 2.2, 0.3);
         break;
       case 'sweep': {
         // a 90 degree slice of the blade across the real arc in front of the warrior: three cuts fan across the wedge
@@ -2180,7 +2199,7 @@ export class Effects {
         this.onSwing(unit);
         this.later(0.1, () => this.onSwing(unit, true));
         this.spinBlades(unit, (def.radius ?? 3) + 1, 0xd02a3a, 0.4, 1.1);
-        this.ring(s.x, s.z, 0xd02a3a, 0.4, (def.radius ?? 3) + 1, 0.4, 0.08, 0.7);
+        this.styledRing(s.x, s.z, 0xd02a3a, 0.4, (def.radius ?? 3) + 1, 0.4, 0.08, 0.7);
         break;
       }
       case 'deep_cuts':
@@ -2213,14 +2232,14 @@ export class Effects {
         break;
       case 'bladestorm':
         this.onSwing(unit);
-        this.ring(s.x, s.z, 0xdfe6f2, 0.3, def.radius ?? 6, 0.3, 0.08, 0.9);
+        this.styledRing(s.x, s.z, 0xdfe6f2, 0.3, def.radius ?? 6, 0.3, 0.08, 0.9);
         break;
       case 'whirlwind': {
         // Cleave: a full turn of the blade round the warrior, out to the real radius
         this.onSwing(unit);
         this.later(0.12, () => this.onSwing(unit, true));
         this.spinBlades(unit, def.radius ?? 8, 0xffe2b0, 0.45, 1.25);
-        this.ring(s.x, s.z, 0xffe2b0, 0.5, def.radius ?? 8, 0.45, 0.08, 0.7);
+        this.styledRing(s.x, s.z, 0xffe2b0, 0.5, def.radius ?? 8, 0.45, 0.08, 0.7);
         break;
       }
       case 'intimidating_shout':
@@ -2238,7 +2257,7 @@ export class Effects {
       case 'vanish':
         this.puff(s.x, s.y + 0.9, s.z, 0x2b2b33, 16, 2.0);
         this.puff(s.x, s.y + 1.5, s.z, 0x4a3a66, 8, 1.4);
-        this.ring(s.x, s.z, 0x555566, 0.4, 3, 0.6);
+        this.styledRing(s.x, s.z, 0x555566, 0.4, 3, 0.6);
         this.burst(s.x, s.y + 1.1, s.z, 0x9a8ac0, 18, 4, 0.3, 0.7, 0);
         break;
       case 'mirror_image':
@@ -2253,13 +2272,13 @@ export class Effects {
             this.column(x, z, 0xc58bff, 0.5, 0.5, 3);
           });
         }
-        this.ring(s.x, s.z, 0xc58bff, 0.4, 3.2, 0.5);
+        this.styledRing(s.x, s.z, 0xc58bff, 0.4, 3.2, 0.5);
         break;
       case 'holy_nova': {
         const r = def.radius ?? 12;
         const grow = fxSec('holyNova', 'expandMs');
-        this.ring(s.x, s.z, 0xffe98a, 0.5, r, grow, 0.08, 1);
-        this.later(0.08, () => this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.7, grow * 0.85, 0.09, 0.8));
+        this.styledRing(s.x, s.z, 0xffe98a, 0.5, r, grow, 0.08, 1);
+        this.later(0.08, () => this.styledRing(s.x, s.z, 0xffffff, 0.3, r * 0.7, grow * 0.85, 0.09, 0.8));
         this.column(s.x, s.z, 0xfff1a8, 0.6, 1.3, 6, 0.5);
         for (let i = 0; i < 26; i++) {
           const a = Math.random() * Math.PI * 2;
@@ -2271,7 +2290,7 @@ export class Effects {
       case 'purifying_light': {
         // the sanctified ground: a circle of light at the real radius that stays as long as the Purified aura it gives lasts
         const r = def.radius ?? 12;
-        this.ring(s.x, s.z, 0xfff1a8, 0.5, r, 0.55, 0.08, 1);
+        this.styledRing(s.x, s.z, 0xfff1a8, 0.5, r, 0.55, 0.08, 1);
         this.column(s.x, s.z, 0xfff1a8, 0.6, 1.1, 6, 0.45);
         this.holyCircle(s.x, s.z, r, (AURAS.purified?.duration ?? 4000) / 1000);
         break;
@@ -2286,11 +2305,11 @@ export class Effects {
           this.particle(s.x + Math.cos(a) * d, s.y + rnd(0.2, 2.2), s.z + Math.sin(a) * d, { color: 0xc58bff, s0: 0.35, s1: 0.08, life, vx: -Math.cos(a) * d / life, vz: -Math.sin(a) * d / life, vy: (1.2 - 1) * 0 });
         }
         this.column(s.x, s.z, 0xc58bff, 0.8, 0.8, 4);
-        this.ring(s.x, s.z, 0xc58bff, 0.4, 2.0, 0.5);
+        this.styledRing(s.x, s.z, 0xc58bff, 0.4, 2.0, 0.5);
         break;
       }
       case 'enraged_regeneration':
-        this.ring(s.x, s.z, 0xff4a2a, 0.3, 2.2, 0.5);
+        this.styledRing(s.x, s.z, 0xff4a2a, 0.3, 2.2, 0.5);
         this.column(s.x, s.z, 0xff4a2a, 0.7, 0.7, 4, 0.4);
         for (let i = 0; i < 8; i++) this.particle(s.x + rnd(-0.6, 0.6), s.y + rnd(0.2, 1.0), s.z + rnd(-0.6, 0.6), { tex: 'plus', color: 0xff6a4a, vy: rnd(1.2, 2.4), s0: rnd(0.3, 0.5), s1: 0.1, life: rnd(0.8, 1.2), drag: 0.5 });
         break;
@@ -2306,7 +2325,7 @@ export class Effects {
       case 'flash_heal': {
         const p = this.pos(target) ?? s;
         this.column(p.x, p.z, 0x9dffb4, 0.8, 0.6, 5);
-        this.ring(p.x, p.z, 0xfff1a8, 0.3, 1.5, 0.6);
+        this.styledRing(p.x, p.z, 0xfff1a8, 0.3, 1.5, 0.6);
         break;
       }
       case 'power_word_shield': {
@@ -2319,15 +2338,15 @@ export class Effects {
         const p = this.pos(target) ?? s;
         this.onSwing(unit);
         this.column(p.x, p.z, 0xfff1a8, 0.4, 0.45, 8, 0.32);
-        this.ring(p.x, p.z, 0xffe98a, 0.3, 1.6, 0.35, 0.08);
+        this.styledRing(p.x, p.z, 0xffe98a, 0.3, 1.6, 0.35, 0.08);
         this.burst(p.x, p.y + CHEST, p.z, 0xfff1a8, 6, 3, 0.25, 0.4, 0);
         break;
       }
       case 'frost_nova': {
         const r = def.radius ?? 10;
         const grow = fxSec('frostNova', 'expandMs');
-        this.ring(s.x, s.z, 0x7fd8ff, 0.5, r, grow, 0.08, 1);
-        this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.8, grow * 0.75, 0.09, 0.8);
+        this.styledRing(s.x, s.z, 0x7fd8ff, 0.5, r, grow, 0.08, 1);
+        this.styledRing(s.x, s.z, 0xffffff, 0.3, r * 0.8, grow * 0.75, 0.09, 0.8);
         for (let i = 0; i < 28; i++) {
           const a = Math.random() * Math.PI * 2;
           const sp = rnd(r * 1.1, r * 1.8);
@@ -2340,7 +2359,7 @@ export class Effects {
         const r = def.radius ?? 8;
         this.shout(unit, s, r, 0xb06bff, { count: 5, dust: false, ring2: 0x9a4dff });
         this.later(SHOUT_RELEASE, () => {
-          this.ring(s.x, s.z, 0x331a55, 0.3, r * 0.9, 0.7, 0.09, 0.9);
+          this.styledRing(s.x, s.z, 0x331a55, 0.3, r * 0.9, 0.7, 0.09, 0.9);
           for (let i = 0; i < 20; i++) {
             const a = Math.random() * Math.PI * 2;
             const sp = rnd(r * 0.9, r * 1.5);
@@ -2351,12 +2370,12 @@ export class Effects {
       }
       case 'blink': {
         this.burst(s.x, s.y + 1.1, s.z, 0xc58bff, 22, 5, 0.4, 0.6, 0);
-        this.ring(s.x, s.z, 0xc58bff, 0.3, 2.2, 0.4);
+        this.styledRing(s.x, s.z, 0xc58bff, 0.3, 2.2, 0.4);
         this.later(0.06, () => {
           const n = this.pos(unit);
           if (!n) return;
           this.burst(n.x, n.y + 1.1, n.z, 0xe0c2ff, 22, 5, 0.4, 0.6, 0);
-          this.ring(n.x, n.z, 0xc58bff, 0.3, 2.2, 0.4);
+          this.styledRing(n.x, n.z, 0xc58bff, 0.3, 2.2, 0.4);
           this.beam(s.x, s.y + 1.1, s.z, n.x, n.y + 1.1, n.z, 0xc58bff, fxSec('blink', 'streakMs'), 0.05);
         });
         break;
@@ -2365,14 +2384,14 @@ export class Effects {
         // a streak and dust follow the warrior along the whole run (however long it takes), then an impact where he arrives
         this.dashRun(unit, 0xffe2b0, (n) => {
           this.burst(n.x, n.y + 0.4, n.z, 0xd9c19a, 10, 4, 0.5, 0.5);
-          this.ring(n.x, n.z, 0xffe2b0, 0.4, 2.8, 0.35);
+          this.styledRing(n.x, n.z, 0xffe2b0, 0.4, 2.8, 0.35);
           this.onSwing(unit);
         });
         break;
       }
       case 'mortal_strike':
         melee(0xff4a2a, 1.5);
-        if (t) this.ring(t.x, t.z, 0xff4a2a, 0.3, 2, 0.3);
+        if (t) this.styledRing(t.x, t.z, 0xff4a2a, 0.3, 2, 0.3);
         break;
       case 'sinister_strike':
       case 'backstab':
@@ -2397,11 +2416,11 @@ export class Effects {
         break;
       case 'stealth':
         this.puff(s.x, s.y + 0.9, s.z, 0x2b2b33, 12, 1.5);
-        this.ring(s.x, s.z, 0x555566, 0.4, 2, 0.5);
+        this.styledRing(s.x, s.z, 0x555566, 0.4, 2, 0.5);
         break;
       case 'sprint':
         this.puff(s.x, s.y + 0.3, s.z, 0xc9b99a, 8, 1.2);
-        this.ring(s.x, s.z, 0xfff079, 0.3, 1.8, 0.35);
+        this.styledRing(s.x, s.z, 0xfff079, 0.3, 1.8, 0.35);
         break;
       default:
         this.genericCast(unit, def, s, t, target);
@@ -2463,6 +2482,177 @@ export class Effects {
   }
 
   /** Visuals for any ability without a hand-made effect, chosen from what the ability does. */
+  // ------------------------------------------------------------ style kit: the shapes the plainest skills are dressed in
+
+  private raysTex: THREE.Texture | null = null;
+
+  /** Radial streaks (a sunburst): white wedges fading outward. */
+  private raysTexture(): THREE.Texture {
+    if (this.raysTex) return this.raysTex;
+    this.raysTex = makeTexture((g, sz) => {
+      const c = sz / 2;
+      const n = 16;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * Math.PI * 2 + (i % 2 ? 0.05 : 0);
+        const w = (i % 2 ? 0.05 : 0.09) * Math.PI;
+        const grad = g.createRadialGradient(c, c, 0, c, c, c);
+        grad.addColorStop(0, 'rgba(255,255,255,.95)');
+        grad.addColorStop(1, 'rgba(255,255,255,0)');
+        g.fillStyle = grad;
+        g.beginPath();
+        g.moveTo(c, c);
+        g.arc(c, c, c * (i % 2 ? 0.7 : 1), a - w / 2, a + w / 2);
+        g.closePath();
+        g.fill();
+      }
+    });
+    return this.raysTex;
+  }
+
+  /** A glyph circle laid on the ground: it turns, swells in, holds and fades (the mark of a spell being worked). */
+  private runeCircle(x: number, z: number, color: number, radius: number, life = 1.0, spin = 1.2, y = 0.09) {
+    const mat = new THREE.MeshBasicMaterial({ color, map: this.getRuneTex(), transparent: true, opacity: 0.95, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    const mesh = new THREE.Mesh(this.planeGeo, mat);
+    mesh.rotation.x = -Math.PI / 2;
+    const gy = y + this.floorAt(x, z);
+    mesh.position.set(x, gy, z);
+    this.scene.add(mesh);
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const k = Math.min(1, t / life);
+        const grow = k < 0.2 ? k / 0.2 : 1;
+        const sc = radius * 2 * (0.4 + 0.6 * (1 - (1 - grow) * (1 - grow)));
+        mesh.scale.set(sc, sc, 1);
+        mesh.rotation.z = t * spin;
+        mat.opacity = 0.95 * (k < 0.55 ? 1 : 1 - (k - 0.55) / 0.45);
+        return k >= 1;
+      },
+      dispose: () => {
+        this.scene.remove(mesh);
+        mat.dispose();
+      },
+    });
+  }
+
+  /** A sunburst: radial streaks that flash out from a point and fade (lying on the ground, or standing up facing the camera when `flat` is false). */
+  private sunburst(x: number, y: number, z: number, color: number, radius: number, life = 0.45, flat = true) {
+    const mat = new THREE.MeshBasicMaterial({ color, map: this.raysTexture(), transparent: true, opacity: 0.9, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false });
+    const mesh = new THREE.Mesh(this.planeGeo, mat);
+    if (flat) mesh.rotation.x = -Math.PI / 2;
+    mesh.position.set(x, flat ? y + this.floorAt(x, z) : y, z);
+    this.scene.add(mesh);
+    let t = 0;
+    this.addFx({
+      update: (dt) => {
+        t += dt;
+        const k = Math.min(1, t / life);
+        const sc = radius * 2 * (0.3 + 0.7 * (1 - (1 - k) * (1 - k)));
+        mesh.scale.set(sc, sc, 1);
+        if (flat) mesh.rotation.z = t * 0.6;
+        mat.opacity = 0.9 * (1 - k);
+        return k >= 1;
+      },
+      dispose: () => {
+        this.scene.remove(mesh);
+        mat.dispose();
+      },
+    });
+  }
+
+  /** Motes winding up (or down) a spiral round a point: a helix of light. */
+  private helix(x: number, y: number, z: number, color: number, height = 2.6, radius = 0.8, turns = 2.2, life = 0.9, n = 34, down = false, tex: TexName = 'glow') {
+    for (let i = 0; i < n; i++) {
+      const f = i / n;
+      this.later(f * life * 0.6, () => {
+        const a = f * turns * Math.PI * 2;
+        const h = down ? height * (1 - f) : height * f;
+        this.particle(x + Math.cos(a) * radius, y + h, z + Math.sin(a) * radius, { tex, color, vx: -Math.sin(a) * 1.3, vz: Math.cos(a) * 1.3, vy: down ? -0.6 : 0.9, s0: 0.32, s1: 0.05, life: life * 0.55, a: 0.9, drag: 0.8 });
+      });
+    }
+  }
+
+  /** Particles pulled in from a ring toward a point (a gathering), or thrown out from it (a release). */
+  private vortex(x: number, y: number, z: number, color: number, radius: number, inward = true, n = 26, life = 0.6) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rnd(-0.1, 0.1);
+      const r = radius * rnd(0.8, 1.1);
+      const sp = (r / life) * (inward ? -1 : 1);
+      const px = inward ? x + Math.cos(a) * r : x;
+      const pz = inward ? z + Math.sin(a) * r : z;
+      this.particle(px, y + rnd(0, 0.5), pz, { color, vx: Math.cos(a) * sp + Math.sin(a) * 2.2, vz: Math.sin(a) * sp - Math.cos(a) * 2.2, vy: rnd(0.2, 1.2), s0: 0.3, s1: 0.06, life, a: 0.9 });
+    }
+  }
+
+  /** A jagged bolt between two points: a few kinked beams that flash and fade. */
+  private bolt(ax: number, ay: number, az: number, bx: number, by: number, bz: number, color: number, life = 0.16, segs = 6, jag = 0.5) {
+    let px = ax, py = ay, pz = az;
+    for (let i = 1; i <= segs; i++) {
+      const f = i / segs;
+      const last = i === segs;
+      const nx = ax + (bx - ax) * f + (last ? 0 : rnd(-jag, jag));
+      const ny = ay + (by - ay) * f + (last ? 0 : rnd(-jag, jag));
+      const nz = az + (bz - az) * f + (last ? 0 : rnd(-jag, jag));
+      this.beam(px, py, pz, nx, ny, nz, color, life, 0.04);
+      px = nx; py = ny; pz = nz;
+    }
+  }
+
+  /** Slim crystal-like shards thrown upward in a ring (ice, arcane): a burst with a shape to it. */
+  private spikes(x: number, z: number, color: number, radius: number, n = 10) {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + rnd(-0.15, 0.15);
+      const r = radius * rnd(0.55, 1);
+      this.later(rnd(0, 0.12), () => {
+        for (let k = 0; k < 4; k++) this.particle(x + Math.cos(a) * r, this.floorAt(x, z) + 0.1 + k * 0.28, z + Math.sin(a) * r, { tex: 'star', color: k > 2 ? 0xffffff : color, vy: 1.2 + k * 0.4, s0: 0.38 - k * 0.04, s1: 0.05, life: 0.55, a: 0.9, drag: 1.2 });
+      });
+    }
+  }
+
+  /** A school's own way of arriving on a spot: the ground rune, then what that school does with it. */
+  private schoolBurst(p: Pos, school: School, radius: number) {
+    const color = SCHOOL_COLOR[school];
+    const y = p.y;
+    switch (school) {
+      case 'fire':
+        this.sunburst(p.x, 0.1, p.z, 0xffb347, radius * 0.9, 0.5);
+        this.shockwave(p.x, p.z, radius, 0xff8a3a, false, 0.5);
+        this.emberShower(p.x, y + 0.2, p.z, radius * 0.7, 18, { heat: 0.6, rise: 2.5 });
+        break;
+      case 'frost':
+        this.runeCircle(p.x, p.z, 0xbfeaff, radius, 0.9, -0.9);
+        this.spikes(p.x, p.z, color, radius * 0.85, 12);
+        break;
+      case 'holy':
+        this.runeCircle(p.x, p.z, 0xfff1a8, radius, 1.1, 0.7);
+        this.sunburst(p.x, 0.12, p.z, 0xfff6c8, radius * 0.9, 0.7);
+        this.helix(p.x, y, p.z, 0xfff1a8, 3.2, Math.min(1.4, radius * 0.35), 2.4, 1.0, 36);
+        break;
+      case 'shadow':
+        this.runeCircle(p.x, p.z, 0x9a5cff, radius, 1.0, -1.4);
+        this.vortex(p.x, y + 0.1, p.z, 0x6b2fb0, radius, true, 30, 0.7);
+        this.puff(p.x, y + 0.8, p.z, 0x2a1442, 8, 1.6);
+        break;
+      case 'arcane':
+        this.runeCircle(p.x, p.z, 0xd9a8ff, radius, 1.0, 1.6);
+        this.spikes(p.x, p.z, color, radius * 0.8, 10);
+        this.bolt(p.x, y + 3.2, p.z, p.x + rnd(-1, 1), y, p.z + rnd(-1, 1), 0xf0d8ff, 0.2, 5, 0.4);
+        break;
+      case 'nature':
+        this.runeCircle(p.x, p.z, 0x7fe08a, radius, 1.0, 0.8);
+        this.helix(p.x, y, p.z, 0x9dff8f, 2.4, radius * 0.4, 2, 0.9, 28, false, 'star');
+        break;
+      default: // physical
+        this.shockwave(p.x, p.z, radius, 0xffe2b0, true, 0.55);
+        this.sunburst(p.x, 0.1, p.z, 0xffe8bd, radius * 0.7, 0.35);
+        for (let i = 0; i < 10; i++) {
+          const a = Math.random() * Math.PI * 2;
+          this.particle(p.x, y + 0.3, p.z, { tex: 'spark', color: 0xfff2c4, vx: Math.cos(a) * rnd(4, 9), vz: Math.sin(a) * rnd(4, 9), vy: rnd(1, 4), s0: 0.22, life: 0.45, grav: 9 });
+        }
+    }
+  }
+
   private genericCast(unit: number, def: AbilityDef, s: Pos, t: Pos | null, target: number) {
     const color = SCHOOL_COLOR[def.school];
     const has = (type: string) => def.effects.some((e) => e.type === type);
@@ -2473,7 +2663,8 @@ export class Effects {
       // dust and a streak while the unit runs, then an impact where it lands
       this.dashRun(unit, color, (n) => {
         this.burst(n.x, n.y + 0.5, n.z, color, 10, 4, 0.4, 0.5);
-        this.ring(n.x, n.z, color, 0.4, 2.8, 0.3);
+        this.sunburst(n.x, 0.1, n.z, 0xffe8bd, 2.6, 0.35);
+        this.shockwave(n.x, n.z, 2.8, color, true, 0.4);
         this.onSwing(unit);
       });
       return;
@@ -2490,7 +2681,7 @@ export class Effects {
           this.particle(ox + (n.x - ox) * f, s.y + (n.y - s.y) * f + 1.0 + rnd(-0.3, 0.3), oz + (n.z - oz) * f, { color, s0: 0.8, s1: 0.2, life: 0.35, a: 0.6 });
         }
         this.burst(n.x, n.y + 0.5, n.z, color, 8, 3.5, 0.4, 0.45);
-        this.ring(n.x, n.z, color, 0.4, 2.4, 0.3);
+        this.sunburst(n.x, 0.1, n.z, color, 2.2, 0.3);
         this.onSwing(unit);
       });
       return;
@@ -2501,7 +2692,7 @@ export class Effects {
       const tp = target ? this.pos(target) : null;
       if (tp) {
         this.hitVisual(vis.hit, tp, target);
-        if (def.target === 'ally' && unit !== target) this.ring(s.x, s.z, color, 0.3, 1.8, 0.4);
+        if (def.target === 'ally' && unit !== target) this.runeCircle(s.x, s.z, color, 1.1, 0.7, 1.4);
         return;
       }
     }
@@ -2519,8 +2710,7 @@ export class Effects {
         if (has('damage')) this.onSwing(unit);
         return;
       }
-      this.ring(s.x, s.z, color, 0.5, r, 0.55, 0.08, 1);
-      this.ring(s.x, s.z, 0xffffff, 0.3, r * 0.75, 0.4, 0.09, 0.7);
+      this.schoolBurst(s, def.school, r); // a shape of the school's own, not a plain ring
       for (let i = 0; i < 22; i++) {
         const a = Math.random() * Math.PI * 2;
         const sp = rnd(r * 0.9, r * 1.6);
@@ -2534,6 +2724,11 @@ export class Effects {
       const heavy = def.effects.some((e) => e.type === 'damage' && e.amount >= 140);
       this.slash(s.x, s.z, t.x, t.z, color, heavy ? 1.35 : 1.1);
       this.burst(t.x, t.y + CHEST, t.z, color, 7, 3.6, 0.26, 0.4);
+      if (heavy) {
+        this.sunburst(t.x, t.y + CHEST, t.z, 0xffe8bd, 1.6, 0.3, false);
+        this.bolt(s.x, s.y + 1.2, s.z, t.x, t.y + CHEST, t.z, color, 0.14, 4, 0.25);
+      }
+      if (def.school !== 'physical') this.helix(t.x, t.y, t.z, color, 1.8, 0.5, 1.4, 0.5, 14, false, 'star');
       if (has('aura') && !has('damage')) this.burst(t.x, t.y + HEAD, t.z, 0xfff1a8, 8, 3, 0.3, 0.5, 0);
       return;
     }
@@ -2562,14 +2757,16 @@ export class Effects {
     }
     if (has('heal')) {
       const p = this.pos(target) ?? s;
-      this.column(p.x, p.z, def.school === 'holy' ? 0x9dffb4 : color, 0.8, 0.6, 5);
-      this.ring(p.x, p.z, 0xfff1a8, 0.3, 1.5, 0.6);
+      this.column(p.x, p.z, def.school === 'holy' ? 0x9dffb4 : color, 0.8, 0.5, 5);
+      this.helix(p.x, p.y, p.z, 0x9dffb4, 3.0, 0.7, 2.4, 1.0, 36);
+      this.helix(p.x, p.y, p.z, 0xfff1a8, 3.0, 0.45, -2.0, 0.9, 20, false, 'star');
+      this.runeCircle(p.x, p.z, 0xcfffd8, 1.3, 0.8, 1.0);
       return;
     }
     // self or ally buff
     const p = def.target === 'ally_or_self' && target ? this.pos(target) ?? s : s;
-    this.column(p.x, p.z, color, 0.7, 0.8, 4);
-    this.ring(p.x, p.z, color, 0.4, 2.0, 0.5);
+    this.column(p.x, p.z, color, 0.7, 0.6, 4);
+    this.schoolBurst(p, def.school, 2.0);
     this.burst(p.x, p.y + 1.0, p.z, color, 14, 3.2, 0.3, 0.6, 0);
   }
 
