@@ -397,6 +397,18 @@ export class Room {
     return null;
   }
 
+  /**
+   * Mind Control: the priest's screen switches to the unit they took (their own commands drive it in the sim) and back when it ends.
+   * Everyone on a team already gets the same view, and the taken unit is on the priest's team meanwhile, so nothing else changes.
+   */
+  private mindView(casterId: number, targetId: number | null, until?: number): void {
+    const p = [...this.players.values()].find((q) => q.unitId === casterId);
+    if (!p) return; // a bot has no screen
+    const u = this.sim.units.get(targetId ?? casterId);
+    if (!u) return;
+    send(p, { t: 'controlling', protocol: PROTOCOL_VERSION, unitId: u.id, team: u.team, classId: u.classId, spec: u.spec, ...(barSwapped(u.classId, u.spec, u.bar) ? { bar: u.bar } : {}), map: this.arenaId, tickMs: this.tickMs, mind: targetId === null ? 'own' : 'control', ...(until !== undefined ? { until } : {}) });
+  }
+
   /** Give the unit back to a fresh bot at once, nothing said to anyone. The owner is neither spectator nor player afterwards. */
   handBack(p: Player): void {
     const c = p.ctl;
@@ -712,6 +724,10 @@ export class Room {
     for (const bot of this.bots) bot.tick(); // bots queue their input for this tick, then the sim steps
     this.sim.step();
     const events = this.sim.drainEvents();
+    for (const e of events) {
+      if (e.t === 'mindControl') this.mindView(e.caster, e.target, e.until);
+      else if (e.t === 'mindControlEnd') this.mindView(e.caster, null);
+    }
     // the match is over: the owner goes back to watching it (the final scoreboard reaches spectators)
     if (this.ctl.size && this.sim.phase === 'ended') for (const c of [...this.ctl.values()]) this.releaseControl(c.p);
     // everyone on a team gets the same view, so build and serialise it once per team

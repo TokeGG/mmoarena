@@ -61,7 +61,7 @@ describe('the five-tier talent tree', () => {
     assert.ok(bar.includes('leap_of_faith') && !bar.includes('desperate_prayer') && bar.includes('power_word_shield'));
     const g: Build = { spec: 'shadow', talents: ['', '', '', '', 'priest_shadow_t5c'], gear: {} };
     const gb = barFor('priest', g, []);
-    assert.ok(gb.includes('ascend') && !gb.includes('power_word_shield'));
+    assert.ok(gb.includes('mind_control') && !gb.includes('power_word_shield'));
   });
 });
 
@@ -481,7 +481,7 @@ describe('tier five skills', () => {
     assert.ok(e.health > 1000 + e.maxHealth * 0.04, `${e.health}`);
   });
 
-  it('Leap of Faith pulls an ally; Purifying Light cleanses allies and blocks debuffs; Ascend makes you untouchable', () => {
+  it('Leap of Faith pulls an ally; Purifying Light cleanses allies and blocks debuffs; Ascend keeps you unhurt while you cast', () => {
     const sim = live();
     const p = unit(sim, 'priest', 0, 0, 0, 'holy', { 4: 'priest_holy_t5a' });
     const ally = unit(sim, 'warrior', 0, 30, 0, 'arms');
@@ -506,17 +506,17 @@ describe('tier five skills', () => {
     assert.equal(sim2.applyAura(e, a, 'plague_bloom').applied, true, 'until it wears off');
 
     const sim3 = live();
-    const s = unit(sim3, 'priest', 0, 0, 0, 'shadow', { 4: 'priest_shadow_t5c' });
+    const s = unit(sim3, 'priest', 0, 0, 0, 'holy'); // Lightbearer has Ascend on its bar
     const f = unit(sim3, 'warrior', 1, 3, 0, 'arms');
     advance(sim3, TICK);
     f.target = s.id;
     ok(sim3.useAbility(s.id, 'ascend'));
-    assert.equal(f.target, null);
+    assert.equal(f.target, s.id, 'still targetable');
     const hp = s.health;
     sim3.dealDamage(f, s, 500, 'physical', 'mortal_strike');
     assert.equal(s.health, hp, 'untouched');
-    assert.equal(sim3.canSee(f, s), false, 'and cannot be seen');
-    assert.equal(sim3.useAbility(s.id, 'smite', f.id).ok, false, 'but cannot act either');
+    assert.equal(sim3.canSee(f, s), true, 'and seen');
+    assert.equal(sim3.useAbility(s.id, 'smite', f.id).ok, true, 'and it can cast from the air');
     assert.ok(foe);
   });
 

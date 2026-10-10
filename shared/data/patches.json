@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.69.44",
+  "date": "2026-10-10",
+  "at": "2026-10-10T03:09:04Z",
+  "title": "Priest: Mind Control",
+  "changes": [
+   "Mind Control (new, tier 5): take control of an enemy for 8 seconds. You see through their eyes and play their character with all their abilities and talents while they watch. Ends if you are stunned or die.",
+   "Ascend to the Heavens no longer makes you untargetable, and you can cast spells while you hover. Lightbearer has it on its bar in place of Holy Nova; Heavenly Ascent is no longer a talent.",
+   "Greater Greater Heal is now Defensive Greater Heal: the target of your Greater Heal takes 20% less damage for 4 seconds."
+  ]
+ },
+ {
   "version": "0.69.43",
   "date": "2026-10-10",
   "at": "2026-10-10T02:48:49Z",

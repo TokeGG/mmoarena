@@ -346,7 +346,7 @@ export type ServerMsg =
   /** You are now watching a match (snapshots follow, about 5 s behind). */
   | { t: 'spectating'; id: string; map: string; size: number }
   /** Owner only: you now play this unit like a normal player slot (the same fields as `welcome`, which is what the client does with it). */
-  | { t: 'controlling'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string; tickMs?: number }
+  | { t: 'controlling'; protocol: number; unitId: number; team: TeamId; classId: ClassId; spec: string | null; bar?: string[]; map: string; tickMs?: number; /** Mind Control: "control": you now play the enemy you took (until `until`, match ms); "own": it ended, back to your own unit. */ mind?: 'control' | 'own'; until?: number }
   | { t: 'admin_accounts'; rows: AdminRow[] }
   /** Result of an admin_set; `tempPassword` is shown once when a password was reset. */
   | { t: 'admin_result'; ok: boolean; name: string; reason?: string; row?: AdminRow; tempPassword?: string };

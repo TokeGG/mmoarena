@@ -66,7 +66,7 @@ export const ABILITY_VISUAL: Record<string, AbilityVisual> = {
   dispel_magic: swirl('holy'), leap_of_faith: swirl('holy'),
   flash_heal: c('support'), greater_heal: c('support'), power_word_shield: c('support'), pain_suppression: c('support'),
   desperate_prayer: c('support'), dispersion: c('support'), ascend: c('support'),
-  psychic_scream: c('burst'), holy_nova: c('burst'), purifying_light: c('burst'),
+  psychic_scream: c('burst'), mind_control: c('support'), purifying_light: c('burst'),
   // rogue
   stealth: c('support'), vanish: c('support'), sprint: c('support'), adrenaline_rush: c('support'), evasion: c('support'),
   cheap_shot: c('melee'), kidney_shot: c('melee'), sinister_strike: c('melee'), backstab: c('melee'), kick: c('melee'),

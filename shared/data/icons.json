@@ -52,7 +52,6 @@
     "psychic_scream": "card-skills/dark-shadow-grasp",
     "desperate_prayer": "spellset/revive-finalrev",
     "penance": "icons151/icon-151",
-    "holy_nova": "icons151/icon-61",
     "purifying_light": "icons151/icon-132",
     "mind_blast": "icons151/icon-126",
     "shadow_word_death": "icons151/icon-139",
@@ -78,7 +77,8 @@
     "garrote": "icons151/icon-34",
     "exsanguinate": "icons151/icon-31",
     "gouge": "icons151/icon-120",
-    "sap": "icons151/icon-27"
+    "sap": "icons151/icon-27",
+    "mind_control": "icons151/icon-61"
   },
   "auras": {
     "blink_speed": "icons151/icon-80",
@@ -109,7 +109,10 @@
     "power_infusion": "icons151/icon-114",
     "crippling_slow": "icons151/icon-35",
     "hammer_stun": "icons151/icon-107",
-    "judgment_stun": "icons151/icon-106"
+    "judgment_stun": "icons151/icon-106",
+    "defensive_heal": "icons151/icon-1",
+    "mind_controlling": "icons151/icon-2",
+    "mind_controlled": "icons151/icon-3"
   },
   "classes": {
     "warrior": "classart/warrior-4",

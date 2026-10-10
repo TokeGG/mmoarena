@@ -319,7 +319,7 @@ function onMessage(raw: MessageEvent) {
     case 'controlling':
       botTests.clear();
       clearMenuLayers();
-      if (m.t === 'controlling') {
+      if (m.t === 'controlling' && !m.mind) {
         // owner only: the watched match turns into a normal match for the unit just taken over (no delay, no spectator bar)
         if (spec) {
           spec = null;
@@ -386,7 +386,10 @@ function onMessage(raw: MessageEvent) {
       hudLayout.refit();
       mainMenu.show(false);
       joinMsg('');
-      if (m.t === 'controlling') {
+      if (m.t === 'controlling' && m.mind) {
+        // a priest took an enemy (or it ended): the screen follows that unit, the match goes on
+        hud.error(m.mind === 'control' ? `Mind Control: you play ${lastBuilds.find((u) => u.id === m.unitId)?.name ?? 'the enemy'}` : 'Mind Control ended');
+      } else if (m.t === 'controlling') {
         devPanel.setAvailable(false); // nothing a pause or a patch would announce to the others
         takeoverUi.setControlling(lastBuilds.find((u) => u.id === m.unitId)?.name ?? 'a bot');
       }
@@ -649,7 +652,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     // Reconcile: start from the server's position, then replay inputs it has not processed yet.
     // While we can't act (stunned, feared, sheep) the server moves us, so glide from the last position to the new one;
     // otherwise the render position would swing back to where the crowd control began on every tick.
-    if (me.controlled || !me.alive) {
+    if (me.controlled || hovers(me) || !me.alive) {
       prevPred.x = pred.x;
       prevPred.z = pred.z;
     }
@@ -666,7 +669,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
       prevPred.z = vis.z = me.z;
     }
     while (pending.length && pending[0].seq <= me.lastSeq) pending.shift();
-    if (me.alive && !me.controlled && !snap.paused) for (const i of pending) applyInput(i, me);
+    if (me.alive && !me.controlled && !hovers(me) && !snap.paused) for (const i of pending) applyInput(i, me);
   }
 
   const ctx = {
@@ -725,6 +728,9 @@ function spatial(id: number): Spatial | null {
 
 // ------------------------------------------------------------------ movement prediction
 
+/** Hovering (Ascend to the Heavens) holds you in place without taking your hands: you can cast, you cannot walk or jump. */
+const hovers = (u: { auras: { id: string }[] }): boolean => u.auras.some((a) => AURAS[a.id]?.hover);
+
 function applyInput(i: MoveInput & { air: number }, me: UnitSnap) {
   const speed = TUNING.runSpeed * me.speedMult;
   if (speed <= 0) return;
@@ -755,7 +761,7 @@ function fixedStep() {
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
   const sample = controls.sample(DT);
-  const jump = sample.jump && me.alive && !me.controlled && canStartJump(performance.now() - myJumpAt);
+  const jump = sample.jump && me.alive && !me.controlled && !hovers(me) && canStartJump(performance.now() - myJumpAt);
   if (jump) {
     myJumpAt = performance.now();
     audio.jump();
@@ -766,7 +772,7 @@ function fixedStep() {
   const mine = { ...input, air: jumpHeight(jumpTicks * tickMs) };
   pending.push(mine);
   if (pending.length > Math.ceil(3000 / tickMs)) pending.shift(); // 3 s of unacknowledged inputs
-  if (me.alive && !me.controlled) applyInput(mine, me);
+  if (me.alive && !me.controlled && !hovers(me)) applyInput(mine, me);
 }
 
 // ------------------------------------------------------------------ interpolation of other units

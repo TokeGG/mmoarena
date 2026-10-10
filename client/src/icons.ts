@@ -14,7 +14,7 @@ export const ABILITY_ICON: Record<string, string> = {
   dragons_breath: '🐉', evocation: '🧘', mirror_image: '👥', rune_of_power: '🔯',
   // priest
   flash_heal: '💚', power_word_shield: '🛡️', smite: '☀️', dispel_magic: '🪄', psychic_scream: '😱', greater_heal: '💗', pain_suppression: '🙏',
-  desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '☠️', dispersion: '🌫️', penance: '🔆', plague_bloom: '🦠', holy_nova: '🔔', mind_flay: '🧿',
+  desperate_prayer: '🕯️', mind_blast: '🧠', shadow_word_death: '☠️', dispersion: '🌫️', penance: '🔆', plague_bloom: '🦠', mind_control: '🕳️', mind_flay: '🧿',
   leap_of_faith: '🤝', purifying_light: '🕊️', ascend: '☁️',
   // rogue
   stealth: '👤', cheap_shot: '💫', sinister_strike: '🗡️', backstab: '🔪', kidney_shot: '🥊', kick: '🦶', sprint: '💨', mutilate: '🥩', vanish: '🌑',
@@ -31,7 +31,7 @@ export const AURA_ICON: Record<string, string> = {
   blink_speed: '👟', blink_haste: '🚀', arcane_slow: '💠', garrote_bleed: '🪢', weak_point: '🎯', mutilate_bleed: '🥩', shatter: '💎', fingers_of_frost: '🖐️',
   arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', singed: '🕯️', cauterized: '🧯', burn: '♨️', deep_freeze_stun: '⛄',
   mortal_wounds: '🩸', mind_flay_slow: '🧿', mind_slow: '💭', hammer_stun: '🌩️', judgment_stun: '⚖️', creeping_rot: '☠️', plague_bloom: '🦠', plague_ready: '🧫',
-  trinket_shield: '🔰', gouge: '👁️', sap: '🪵', banner_buff: '🏴', rune_of_power: '🔯', purified: '🕊️', ascended: '☁️', protective_vanish: '🌑',
+  trinket_shield: '🔰', gouge: '👁️', sap: '🪵', banner_buff: '🏴', rune_of_power: '🔯', purified: '🕊️', ascended: '☁️', defensive_heal: '🧡', mind_controlling: '👁️‍🗨️', mind_controlled: '🪆', protective_vanish: '🌑',
   intercept_guard: '🤝', renew: '🌿', penance_barrier: '🔆',
 };
 

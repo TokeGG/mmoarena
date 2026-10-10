@@ -533,15 +533,13 @@
     "kind": "buff",
     "duration": 4000,
     "harmful": false,
-    "noCast": true,
-    "untargetable": true,
     "invulnerable": true,
     "hover": {
       "height": 6,
       "riseMs": 600,
       "fallMs": 600
     },
-    "note": "You rise straight up and hover, unable to move, then drift back down: nothing can target or hurt you, and harmful effects cannot take hold"
+    "note": "You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover."
   },
   "intercept_guard": {
     "name": "Intercepted",
@@ -639,5 +637,30 @@
     "duration": 1100,
     "harmful": true,
     "dr": "stun"
+  },
+  "defensive_heal": {
+    "name": "Defensive Heal",
+    "kind": "buff",
+    "duration": 4000,
+    "harmful": false,
+    "mods": {
+      "damageTaken": 0.8
+    }
+  },
+  "mind_controlling": {
+    "name": "Mind Controlling",
+    "kind": "buff",
+    "duration": 8000,
+    "harmful": false,
+    "noCast": true,
+    "note": "You are controlling an enemy through their eyes: your own body stands still and cannot act until it ends."
+  },
+  "mind_controlled": {
+    "name": "Mind Controlled",
+    "kind": "mark",
+    "duration": 8000,
+    "harmful": true,
+    "dispellable": true,
+    "note": "A priest controls you: you fight for their team and watch, unable to act, until it ends."
   }
 }

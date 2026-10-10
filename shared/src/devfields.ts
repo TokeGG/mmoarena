@@ -423,7 +423,13 @@ export function modGroups(file: 'specs' | 'talents' | 'auras', id: string, scope
       perSkill.set(a, [...(perSkill.get(a) ?? []), f]);
     } else others.push(f);
   }
-  for (const [a, fields] of perSkill) groups.push({ id: `${scope}skill:${a}`, title: `Changes to ${abilityName(a)}`, fields, open: true });
+  for (const [a, fields] of perSkill) {
+    groups.push({ id: `${scope}skill:${a}`, title: `Changes to ${abilityName(a)}`, fields, open: true });
+    // and what else it could change on that skill, right there (a barrier on a heal, a shorter cooldown...), without the picker below
+    const have = new Set(fields.map((f) => f.path.join('.')));
+    const more = skillSlots(file, id, a).filter((f) => !have.has(f.path.join('.')));
+    if (more.length) groups.push({ id: `${scope}skillmore:${a}`, title: `Also change ${abilityName(a)}`, sub: 'change a value to add it: a barrier on the healing, a shorter cooldown, a longer range...', fields: more, open: false });
+  }
   if (others.length) groups.push({ id: `${scope}auras`, title: 'Buff and debuff durations', sub: 'how long other effects last', fields: others, open: true });
   const unused = Object.keys(MOD_SCALAR_DEFAULT).filter((k) => !stats.some((f) => f.path[1] === k)).map((k) => fieldAt(file, id, ['mods', k])).filter((f): f is DevField => !!f);
   if (unused.length) groups.push({ id: `${scope}unused`, title: 'Stat bonuses it does not have yet', sub: file === 'specs' ? 'change one to add it (specs are meant to have none: for trying)' : 'change one to add it', fields: unused, open: false });

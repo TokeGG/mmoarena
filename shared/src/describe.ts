@@ -369,6 +369,8 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         return `Summons ${e.count} images of you for ${fmtS(e.duration / 1000)}: same class, spec and talents, 1 health and ${Math.round((1 - e.damage) * 100)}% less damage. They fight at your side.`;
       case 'dropTargets':
         return 'Enemies lose their target on you and spells aimed at you are cancelled.';
+      case 'mindControl':
+        return `Takes control of the target for ${fmtS(e.duration / 1000)}: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still and cannot act meanwhile. Ends early if you die or are stunned, or if the effect is dispelled.`;
       case 'zoneBuff': {
         const a = AURAS[e.aura];
         return `Marks ${an(e.radius)}-yard circle at the chosen spot for ${fmtS(e.duration / 1000)}. ${e.who === 'allies' ? 'You and your allies' : 'You'} standing inside: ${a ? describeAura(e.aura, mods, o).replace(/\.$/, '') : e.aura}.`;

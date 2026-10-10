@@ -1413,12 +1413,12 @@
         },
         {
           "id": "priest_discipline_t5c",
-          "name": "Heavenly Ascent",
-          "desc": "Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer.",
-          "icon": "👼",
+          "name": "Mind Control",
+          "desc": "Take control of an enemy for 8 seconds: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still meanwhile. Replaces Desperate Prayer.",
+          "icon": "🧠",
           "mods": {},
           "swap": {
-            "to": "ascend",
+            "to": "mind_control",
             "from": "desperate_prayer"
           }
         }
@@ -1503,13 +1503,18 @@
       [
         {
           "id": "priest_holy_t3a",
-          "name": "Greater Greater Heal",
-          "desc": "Greater Heal heals 15% more.",
-          "icon": "💛",
+          "name": "Defensive Greater Heal",
+          "desc": "Greater Heal also gives its target Defensive Heal: they take 20% less damage for 4 seconds.",
+          "icon": "🛡️",
           "mods": {
             "ability": {
               "greater_heal": {
-                "heal": 1.15
+                "extra": [
+                  {
+                    "type": "aura",
+                    "aura": "defensive_heal"
+                  }
+                ]
               }
             }
           }
@@ -1597,12 +1602,12 @@
         },
         {
           "id": "priest_holy_t5c",
-          "name": "Heavenly Ascent",
-          "desc": "Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer.",
-          "icon": "👼",
+          "name": "Mind Control",
+          "desc": "Take control of an enemy for 8 seconds: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still meanwhile. Replaces Desperate Prayer.",
+          "icon": "🧠",
           "mods": {},
           "swap": {
-            "to": "ascend",
+            "to": "mind_control",
             "from": "desperate_prayer"
           }
         }
@@ -1799,12 +1804,12 @@
         },
         {
           "id": "priest_shadow_t5c",
-          "name": "Heavenly Ascent",
-          "desc": "Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Power Word: Shield.",
-          "icon": "👼",
+          "name": "Mind Control",
+          "desc": "Take control of an enemy for 8 seconds: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still meanwhile. Replaces Power Word: Shield.",
+          "icon": "🧠",
           "mods": {},
           "swap": {
-            "to": "ascend",
+            "to": "mind_control",
             "from": "power_word_shield"
           }
         }
