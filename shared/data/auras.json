@@ -568,7 +568,7 @@
   "burn": {
     "name": "Burn",
     "kind": "dot",
-    "duration": 4000,
+    "duration": 3000,
     "harmful": true,
     "dispellable": true,
     "dot": {

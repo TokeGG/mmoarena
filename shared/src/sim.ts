@@ -78,7 +78,7 @@ export class ArenaSim {
   onUnit: ((o: AddUnitOptions) => void) | null = null;
   phase: Phase = 'prep';
   winner: TeamId | 'draw' | null = null;
-  readonly prepEndsAt: number;
+  prepEndsAt: number;
   matchEndsAt: number;
   readonly units = new Map<number, Unit>();
   private events: SimEvent[] = [];
@@ -178,8 +178,10 @@ export class ArenaSim {
     this.zones = [];
     this.recharge.clear();
     this.pending.clear();
+    this.seenUse.clear();
     this.winner = null;
     this.phase = 'live';
+    this.prepEndsAt = this.time; // the fight starts now: dampening counts from here, not from the first start
     this.matchEndsAt = this.time + TUNING.maxMatchMs;
     this.emit({ t: 'phase', phase: 'live', winner: null });
   }
@@ -1994,7 +1996,11 @@ export class ArenaSim {
     return out ? { charges: out } : {};
   }
 
+  /** When each unit was last seen using each ability (`unit:ability`): what anyone watching the fight knows about an enemy's cooldowns. */
+  readonly seenUse = new Map<string, number>();
+
   private emit(e: SimEvent): void {
+    if (e.t === 'cast') this.seenUse.set(`${e.unit}:${e.ability}`, this.time);
     this.events.push(e);
   }
 }

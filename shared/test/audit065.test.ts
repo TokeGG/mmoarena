@@ -306,6 +306,7 @@ describe('physical channels and interrupts', () => {
     assert.equal(w.cast, null, 'interrupted');
     assert.ok(!(w.lockouts.physical && w.lockouts.physical > sim.time), 'physical school not locked');
     w.gcdEnd = 0;
+    w.resource = 100; // Slice and Dice cost most of it
     assert.ok(sim.useAbility(w.id, 'mortal_strike', r.id).ok, 'Mortal Strike still works');
   });
 });

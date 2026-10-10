@@ -211,11 +211,6 @@ export class Bot {
     const enemies = all.filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e));
     const allies = all.filter((a) => a.alive && a.team === u.team && !a.image);
 
-    // a player cannot see an enemy's cooldowns: it learns that a kick is spent by being kicked
-    const lockEnd = Math.max(0, ...Object.values(u.lockouts ?? {}));
-    if (lockEnd > this.lockSeen) this.kickedAt = sim.time;
-    this.lockSeen = lockEnd;
-
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
 
@@ -522,15 +517,11 @@ export class Bot {
     return interruptsOf(x);
   }
 
-  /** When it last got interrupted (the only way it learns an enemy's interrupt went on cooldown) and the end of the longest lockout it has seen. */
-  private kickedAt = -1e9;
-  private lockSeen = 0;
-
-  /** An enemy who could interrupt us right now: its interrupt is assumed ready (unless it just used it on us), it is in reach and it can see us. */
+  /** An enemy who could interrupt us right now: its interrupt is assumed ready unless it was seen being used and is still recharging (a bot cannot read cooldowns), it is in reach and it can see us. */
   private kickThreat(u: Unit, enemies: Unit[]): boolean {
     const sim = this.sim;
     // in reach, or closing in fast enough to be in reach before a cast finishes
-    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => sim.time - this.kickedAt >= (ABILITIES[id].cooldown ?? 0) && dist(e.pos, u.pos) <= ABILITIES[id].range + 6) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
+    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => sim.time - (sim.seenUse.get(`${e.id}:${id}`) ?? -1e9) >= (ABILITIES[id].cooldown ?? 0) && dist(e.pos, u.pos) <= ABILITIES[id].range + 6) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
   }
 
   /**
@@ -919,10 +910,17 @@ export class Bot {
     if (hpFrac(u) < this.brain.defHp && this.useFirst(u, ['enraged_regeneration', 'shield_wall', 'die_by_the_sword'])) return;
     // Slow ranged targets so they cannot walk away from us.
     const kiter = tgt.classId === 'mage' || tgt.classId === 'priest';
+    // a costly stun or fence is saved for: with rage past 40% of its price, nothing smaller spends it (the free builders fill the time)
+    const saving = ['slice_and_dice', 'not_going_anywhere'].some((id) => u.bar.includes(id) && (u.cooldowns[id] ?? 0) <= this.sim.time && u.resource < ABILITIES[id].cost && u.resource >= ABILITIES[id].cost * 0.4);
+    if (saving) {
+      if (!stunned && d <= (ABILITIES.slice_and_dice.radius ?? 5) - 0.5 && this.use(u, 'slice_and_dice', tgt.id)) return;
+      if (d >= 5 && d <= 15 && this.use(u, 'not_going_anywhere', undefined, feetOf(tgt))) return;
+      if (this.rotate(u, tgt, ['bloodthirst', 'slam', 'deep_cuts'])) return;
+    }
     if (kiter && !slowed && u.resource >= 10 && this.use(u, 'hamstring', tgt.id)) return;
     // Barbarian: drag a runner back in, fence a kiter in, throw axes while it is out of reach
     if (d >= 4 && d <= 9.5 && kiter && this.use(u, 'reel_in', tgt.id)) return; // a 10 yard cone in front: the bot already faces its target
-    if (d >= 6 && d <= 15 && kiter && this.use(u, 'not_going_anywhere', undefined, feetOf(tgt))) return;
+    if (d >= 5 && d <= 15 && this.use(u, 'not_going_anywhere', undefined, feetOf(tgt))) return;
     if (d > 4 && d <= 10 && this.use(u, 'axe_throw', tgt.id)) return;
     if (hpFrac(tgt) < 0.2 && this.use(u, 'execute', tgt.id)) return;
     if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.useFirst(u, ['recklessness', 'bladestorm']); // not into a shield wall
@@ -1219,6 +1217,11 @@ export class Bot {
     return dist(a, to) < dist(b, to) ? a : b;
   }
 
+  /** The distance a caster likes to fight from right now, until when, and whether it is walking in to it. */
+  private holdAt = 20;
+  private holdUntil = 0;
+  private closing = false;
+
   private movement(u: Unit, enemies: Unit[], allies: Unit[], tgt?: Unit): Cmd {
     const sim = this.sim;
     const idle: Cmd = { facing: u.facing, fwd: 0, strafe: 0 };
@@ -1314,7 +1317,16 @@ export class Bot {
     }
     // spells reach in 3D: a target up on the deck at the edge of the range is out of reach even when the plan view says it is not
     const d3 = Math.hypot(d, heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));
-    if (!hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level) || d3 > range.max) {
+    // a player does not hold the very edge of its range all fight: it picks a distance that feels right, closes in when the gap
+    // opens past it and drifts about between fights (the distance is chosen again every 4 to 9 seconds)
+    if (sim.time >= this.holdUntil) {
+      this.holdAt = range.min + 1 + this.rng() * Math.max(1, range.max - range.min - 3);
+      this.holdUntil = sim.time + 4000 + this.rng() * 5000;
+    }
+    const sight = hasLOS(u.pos, tgt.pos, sim.arena, u.level, tgt.level);
+    if (!sight) this.closing = false; // walking round a pillar is the chase below, not a stroll to a favourite distance
+    else if (this.closing ? d3 <= this.holdAt : d3 > this.holdAt + 4) this.closing = d3 > this.holdAt + 4;
+    if (!sight || d3 > range.max || this.closing) {
       return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
     }
     // Walking away from a melee enemy only helps while it is slowed or rooted; otherwise stand and cast.

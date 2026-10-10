@@ -777,7 +777,7 @@ describe('warrior rework', () => {
     assert.ok(!sim.useAbility(w.id, 'mortal_strike', f.id).ok, 'needs its rage cost');
   });
   it('Slam gives its listed rage; Mortal Strike hits for about its listed damage and applies Mortal Wounds (less healing taken)', () => {
-    assert.ok(ABILITIES.slam.effects.some((e) => e.type === 'gain' && e.amount > 0), 'Slam gives rage');
+    assert.ok(ABILITIES.slam.effects.some((e) => e.type === 'gain'), 'Slam gives rage');
     const { sim, w, f } = war('arms');
     f.maxHealth = f.health = 1e6;
     const priest = add(sim, 'priest', 0, 0, -3);
@@ -893,12 +893,13 @@ describe('warrior rework', () => {
   it('Recklessness multiplies damage and every rage gain by its aura numbers for its listed duration', () => {
     const gain = (reckless: boolean) => {
       const { sim, w, f } = war('fury', 2);
-      const start = 10 + ABILITIES.bloodthirst.cost; // low enough that the doubled gain never hits the cap
+      const spent = ABILITIES.bloodthirst.cost + (reckless ? ABILITIES.recklessness.cost : 0);
+      const start = 10 + spent; // low enough that the doubled gain never hits the cap
       w.resource = start;
       if (reckless) assert.ok(sim.useAbility(w.id, 'recklessness').ok);
       assert.ok(sim.useAbility(w.id, 'bloodthirst').ok);
       advance(sim, TICK);
-      return { rage: w.resource - (start - ABILITIES.bloodthirst.cost), dealt: f.maxHealth - f.health };
+      return { rage: w.resource - (start - spent), dealt: f.maxHealth - f.health };
     };
     const rm = AURAS.recklessness.mods!;
     const a = gain(false), b = gain(true);

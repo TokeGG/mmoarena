@@ -117,6 +117,7 @@ describe('bots and Mind Control', () => {
     priest.pos = { x: 0, z: 0 }; ally.pos = { x: 3, z: 0 }; mage.pos = { x: 0, z: 14 }; rogue.pos = { x: 4, z: 15 };
     priest.bar = [...priest.bar.slice(0, 7), 'mind_control'];
     for (const u of [priest, ally, mage, rogue]) u.maxHealth = u.health = 1e6;
+    mage.cooldowns.counterspell = 8000; // the mage cannot kick the first cast (this test is about what comes after it lands)
     const bots = [new Bot(sim, priest.id, 'hard', 1), new Bot(sim, mage.id, 'hard', 2)];
     sim.step(); sim.drainEvents();
     let controlled = false, rogueHurtWhileControlled = false;

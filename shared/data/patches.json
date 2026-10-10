@@ -1,12 +1,48 @@
 [
  {
+  "version": "0.69.50",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:50:35Z",
+  "title": "Bots play more like people",
+  "changes": [
+   "Bots no longer know when an enemy's interrupt is on cooldown. Like a player, they assume it is ready until they have seen it used.",
+   "Casters no longer sit at the very edge of their range: each picks a distance it likes, closes in when the gap opens and picks again every few seconds.",
+   "Warrior bots save up rage for Slice and Dice and You're Not Going Anywhere instead of spending it on smaller attacks.",
+   "Restarting a match in the debug tools now restarts healing dampening too."
+  ]
+ },
+ {
+  "version": "0.69.49",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:43:17Z",
+  "title": "Balance changes",
+  "changes": [
+   "Pummel: cooldown 10 s to 15 s.",
+   "Counterspell: lockout 5 s to 7 s.",
+   "Kick: lockout 5 s to 6 s."
+  ],
+  "by": "Toke"
+ },
+ {
   "version": "0.69.48",
   "date": "2026-10-10",
-  "at": "2026-10-10T04:39:27Z",
-  "title": "Bots can no longer read your cooldowns",
+  "at": "2026-10-10T04:38:12Z",
+  "title": "Balance changes",
   "changes": [
-   "Bots no longer know when an enemy's interrupt is on cooldown. Like a player, they assume it is ready until it has been used on them."
-  ]
+   "Slam: strength 15 to 0.",
+   "Fireball: damage 280 to 230.",
+   "Slice and Dice: cost 30 to 80.",
+   "Recklessness: cost 0 to 60.",
+   "Bladestorm: cost 30 to 40.",
+   "Sweep: cost 40 to 60.",
+   "Axe Throw: cost 50 to 60.",
+   "You're Not Going Anywhere: cost 20 to 80.",
+   "Hamstring: cost 10 to 30.",
+   "Burn: duration 4 s to 3 s.",
+   "Game rules: rage from damage taken 0.08 to 0.01.",
+   "Game rules: rage from damage dealt 0.15 to 0.03."
+  ],
+  "by": "scrandy"
  },
  {
   "version": "0.69.47",
