@@ -799,7 +799,7 @@ function fixedStep() {
   let sample = raw;
   if (castStill) {
     if (me.cast) castStill.seen = true;
-    if (!moving || (!me.cast && (castStill.seen || performance.now() > castStill.until))) castStill = null; // keys let go (a fresh press moves and ends the cast), or the cast is over
+    if (!moving || controls.movePresses !== castStill.presses || (!me.cast && (castStill.seen || performance.now() > castStill.until))) castStill = null; // keys let go, or a move key pressed again (it moves on and ends the cast), or the cast is over
     else sample = { ...raw, fwd: 0, strafe: 0 };
   }
   const jump = sample.jump && me.alive && !me.controlled && !hovers(me) && canStartJump((jumpTicks + 1) * tickMs); // counted in ticks like the server (one input per tick), not wall time: a late frame that plays several steps at once must not send a jump the server will refuse
@@ -1001,13 +1001,13 @@ function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
   lastSent.at = performance.now();
   // a cast started from a walk stands you still (your keys are held back) until you let go and press a move key again
   const cd = ABILITIES[msg.ability];
-  if (lastMoving && cd && (cd.castTime > 0 || cd.channel) && !cd.castWhileMoving && !cd.unstoppable) castStill = { until: performance.now() + 500, seen: false };
+  if (lastMoving && cd && (cd.castTime > 0 || cd.channel) && !cd.castWhileMoving && !cd.unstoppable) castStill = { until: performance.now() + 500, seen: false, presses: controls.movePresses };
   hud.castSent(msg.ability);
   send(msg);
 }
 
 /** Set while a cast made on the move holds your walk back: `seen` once the server shows the cast, `until` how long to wait for it. */
-let castStill: { until: number; seen: boolean } | null = null;
+let castStill: { until: number; seen: boolean; presses: number } | null = null;
 /** Were movement keys down in the last step? */
 let lastMoving = false;
 /** The way the player faced in the last step sent (cone skills carry it so they point where the screen shows). */
