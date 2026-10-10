@@ -1,5 +1,5 @@
 import type { DevCommitRow } from '@arena/shared';
-import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, PATCH_FILES, applyPatches, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
+import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MAX_ENTITY_CHARS, PATCH_FILES, smokeProblem, applyPatches, isEntityPatch, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
 import { ABILITIES, AURAS } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
 import type { ClassId, DataPatch, IconKind, IconTable, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
@@ -143,7 +143,7 @@ export class DevTools {
     try {
       const raw = await this.store.get(KEY);
       const v = raw ? (JSON.parse(raw) as unknown) : [];
-      if (Array.isArray(v)) this.setLive((v as DataPatch[]).filter((p) => validPatch(p)));
+      if (Array.isArray(v)) this.setLive((v as DataPatch[]).filter((p) => validPatch(p)).filter((p, _i, all) => !smokeProblem(all)));
     } catch {
       /* no overrides */
     }
@@ -241,8 +241,10 @@ export class DevTools {
     const token = this.env.GITHUB_TOKEN;
     if (!token) throw new Error('No GITHUB_TOKEN on the server: nothing was committed.');
     const sane = (p: DataPatch) => !!p && typeof p.id === 'string' && Array.isArray(p.path) && p.path.length > 0 && p.path.every((k) => typeof k === 'string' || typeof k === 'number')
-      && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= 40) && (PATCH_FILES as readonly string[]).includes(p.file);
+      && (typeof p.value === 'number' ? Number.isFinite(p.value) && Math.abs(p.value) <= 1e9 : typeof p.value === 'string' && p.value.length <= (isEntityPatch(p) ? MAX_ENTITY_CHARS : 40)) && (PATCH_FILES as readonly string[]).includes(p.file);
     if (!patches.length || !patches.every(sane)) throw new Error('Those changes are not numbers the data files can take.');
+    const broken = smokeProblem(patches);
+    if (broken) throw new Error(broken);
     const sum = await this.commitPatch(token, {
       title: 'Balance changes',
       build: async (read) => {
@@ -258,10 +260,10 @@ export class DevTools {
           for (const p of mine) {
             const was = fileValue(text, file, p);
             if (was === undefined) skipped.push(`${label(p)} (no longer in the data files)`);
-            else if (String(was) === String(p.value)) skipped.push(`${label(p)} (already ${p.value})`);
+            else if (isEntityPatch(p) ? was === compactJson(p.value) : String(was) === String(p.value)) skipped.push(`${label(p)} (already ${isEntityPatch(p) ? 'like that' : p.value})`);
             else {
               todo.push(p);
-              notes.push(`${label(p)}: ${was} -> ${p.value}`);
+              notes.push(isEntityPatch(p) ? `${label(p)}` : `${label(p)}: ${was} -> ${p.value}`);
               lines.push(playerLine(text, file, p, was));
             }
           }
@@ -501,6 +503,7 @@ function showValue(p: DataPatch, v: number | string): string {
 
 /** One short, player-facing patch-notes line for a number: "Fireball: cooldown 8 s to 7 s". */
 function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: number | string): string {
+  if (isEntityPatch(p)) return `${nameOf(file, p.id, p.path)} was reworked.`;
   if (file === 'icons' && p.path[0] === 'class') return `The ${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons' && p.path[0] === 'spec') return `${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons') return p.path[0] === 'aura' ? `The ${nameOf(file, p.id, p.path).replace(/ \((buff|debuff)\)$/, '')} ${AURAS[p.id]?.harmful ? 'debuff' : 'buff'} has a new icon.` : `${nameOf(file, p.id, p.path)} has a new icon.`;
@@ -581,7 +584,24 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
 }
 
 /** The number at a patch's spot in a data file's text (the file as the repository has it); a stat change or switch the file does not have yet reads as the value that does nothing. */
+/** A JSON text with the spaces and line breaks taken out, to tell whether two entries are the same. */
+function compactJson(v: unknown): string {
+  try {
+    return JSON.stringify(JSON.parse(String(v)));
+  } catch {
+    return String(v);
+  }
+}
+
 function fileValue(text: string, file: DataPatch['file'], p: DataPatch): number | string | undefined {
+  if (isEntityPatch(p)) {
+    try {
+      const t = targetsIn(JSON.parse(text) as unknown, file, p.id)[0];
+      return t ? JSON.stringify(t) : undefined;
+    } catch {
+      return undefined;
+    }
+  }
   if (file === 'icons') {
     try {
       const t = JSON.parse(text) as Partial<IconTable>;
@@ -639,7 +659,17 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
     return JSON.stringify(t, null, 2) + (text.endsWith('\n') ? '\n' : '');
   }
   const data = JSON.parse(text) as unknown;
+  // whole entries first (the data editor): every copy of the entry takes the new fields, in place
   for (const p of patches) {
+    if (!isEntityPatch(p)) continue;
+    for (const t of targetsIn(data, file, p.id)) {
+      if (!t || typeof t !== 'object') continue;
+      for (const k of Object.keys(t)) delete (t as Record<string, unknown>)[k];
+      Object.assign(t, JSON.parse(String(p.value)));
+    }
+  }
+  for (const p of patches) {
+    if (isEntityPatch(p)) continue;
     for (const start of targetsIn(data, file, p.id)) {
       if (!start || typeof start !== 'object') continue;
       const last = p.path[p.path.length - 1];

@@ -1,4 +1,4 @@
-import { ABILITIES, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
+import { ABILITIES, AURAS, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
 import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavGroup } from '@arena/shared';
 import { iconEl, setIconPreview } from './iconArt';
 import { IconEditor } from './iconEditor';
@@ -347,6 +347,7 @@ export class DevWorkspace {
       if (!ABILITIES[id]) return void box.append(el('small', 'devp-dim', 'That skill is gone.'));
       box.append(this.head(ABILITIES[id].name, `${ABILITIES[id].school} · ${CLASSES[ABILITIES[id].class as ClassId]?.name ?? ABILITIES[id].class}`, id));
       box.append(ed.skillBody(id));
+      box.append(this.dataEditor('abilities', id));
       return;
     }
     const entry = entryFor(this.page, id);
@@ -397,6 +398,68 @@ export class DevWorkspace {
     }
     if (!any && q) box.append(el('small', 'devp-dim', 'No value here matches the search.'));
     if (entry.addTargets && !q) box.append(this.addWidget(entry));
+    if (!q && this.page !== 'passives' && canEditAsData(entry.file)) box.append(this.dataEditor(entry.file, entry.id));
+  }
+
+  /** "Edit as data": the whole entry as text. Anything the game can do with a skill, buff, talent or spec can be added, changed or removed here. */
+  private dataEditor(file: DataPatch['file'], id: string): HTMLElement {
+    const key = `${this.page}:${id}:data`;
+    const box = el('details', 'devp-sec devp-add');
+    box.open = this.editor.open.get(key) ?? false;
+    box.addEventListener('toggle', () => this.editor.open.set(key, box.open));
+    box.append(el('summary', 'devp-sec-head', '{ } Edit as data: add or remove anything'));
+    box.append(el('small', 'devp-dim', 'Every field of this entry as text. Add, change or delete anything: effects (damage, heal, shield, stun...), buffs, talent bonuses. Mistakes are listed below and cannot be applied.'));
+    const field = { file, id, path: ['$entity'], base: entityText(file, id, true) ?? '', value: entityText(file, id) ?? '' };
+    const norm = (t: string) => { try { return JSON.stringify(JSON.parse(t), null, 2); } catch { return t; } };
+    const testing = this.host.testing();
+    const area = el('textarea', 'devp-data') as HTMLTextAreaElement;
+    area.spellcheck = false;
+    area.rows = 14;
+    area.value = String(this.set.shown(field, testing));
+    const msg = el('div', 'devp-dim');
+    const apply = el('button', 'mm-small mm-go', 'Apply');
+    const check = () => {
+      const bad = entityProblems(file, id, area.value);
+      msg.replaceChildren(...(bad.length ? bad.slice(0, 6).map((b) => el('div', 'devp-bad', `✗ ${b}`)) : [el('div', '', '✓ Looks right')]));
+      apply.toggleAttribute('disabled', bad.length > 0 || norm(area.value) === norm(String(this.set.shown(field, testing))));
+    };
+    area.addEventListener('input', check);
+    apply.addEventListener('click', () => {
+      this.set.set(field, norm(area.value), testing, this.host.canRevert);
+      this.host.onEdit();
+      this.host.repaint();
+    });
+    const reset = el('button', 'mm-small', '↺ Put back');
+    reset.title = 'Put this entry back to the data file';
+    reset.addEventListener('click', () => {
+      area.value = field.base;
+      this.set.set(field, field.base, testing, this.host.canRevert);
+      this.host.onEdit();
+      this.host.repaint();
+    });
+    const tools = el('div', 'devp-row');
+    if (file === 'abilities') {
+      const typeSel = el('select', 'devp-sel');
+      for (const t of EFFECT_TYPES) { const o = el('option', '', t); o.value = t; typeSel.append(o); }
+      const auraSel = el('select', 'devp-sel');
+      for (const [aid, a] of Object.entries(AURAS)) { const o = el('option', '', a.name); o.value = aid; auraSel.append(o); }
+      auraSel.value = 'pw_shield';
+      const add = el('button', 'mm-small', '＋ Add effect');
+      add.title = 'Adds an effect of this type to the end of the effects list (pick the buff first for an "aura" effect, e.g. a shield)';
+      add.addEventListener('click', () => {
+        try {
+          const o = JSON.parse(area.value);
+          (o.effects ??= []).push(effectSkeleton(typeSel.value, auraSel.value));
+          area.value = JSON.stringify(o, null, 2);
+        } catch { /* the problems list says what is wrong */ }
+        check();
+      });
+      tools.append(typeSel, auraSel, add);
+    }
+    tools.append(apply, reset);
+    box.append(area, msg, tools);
+    check();
+    return box;
   }
 
   /** The entry's title with a reset for everything on it. */

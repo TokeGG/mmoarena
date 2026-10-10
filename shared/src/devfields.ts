@@ -195,6 +195,7 @@ interface Plain { label: string; hint?: string; unit: FieldUnit }
 /** Words for one spot in a data file. */
 export function plainPath(file: PatchFile, id: string, path: readonly (string | number)[]): Plain {
   const last = String(path[path.length - 1]);
+  if (path[0] === '$entity') return { label: 'Whole entry (edited as data)', hint: 'Every field of it, as the data editor wrote it.', unit: 'plain' };
   if (file === 'icons') return { label: path[0] === 'aura' ? 'Icon of the buff or debuff' : 'Icon', hint: 'The picture it wears on the action bar, in tooltips and on buff rows. Looks only: never changes a match.', unit: 'plain' };
   if (file === 'fx') {
     const f = fxField(path);

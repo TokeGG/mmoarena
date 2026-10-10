@@ -11,7 +11,7 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { DEFAULT_BOT_NAMES, pickBotName, validateBotNames, currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { DEFAULT_BOT_NAMES, pickBotName, validateBotNames, currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, smokeProblem, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import { formatReport } from '@arena/shared';
 import { whereIs } from './geoip';
 import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
@@ -1428,6 +1428,8 @@ export class Lobby {
    * who changed what. From then on the match counts for nothing (progress, rating, replays, bot learning).
    */
   private setRoomPatches(room: Room, p: Player, patches: DataPatch[]): void {
+    const broken = smokeProblem(patches); // a whole entry rewritten as data must still run
+    if (broken) return void send(p, { t: 'dev_result', ok: false, text: broken });
     room.devTest = true;
     room.devPatches = patches;
     // class, spec and talent numbers are worked into each unit, so they are worked out again
