@@ -1533,8 +1533,10 @@ export class Lobby {
     // the owner can do it anywhere: in their own match or one they are watching, ranked included (it then stops counting)
     if (p.ctl) return null; // playing a bot in secret: nothing that would announce itself to the others
     if (p.ownerOk) return p.room ?? p.watching ?? null;
-    const r = p.room;
-    return r && this.isDev(p) && !r.isRanked ? r : null;
+    if (!this.isDev(p)) return null;
+    // a dev can also tune and pause a bot match they are watching (those are made for testing)
+    const r = p.room ?? (p.watching?.botsOnly ? p.watching : null);
+    return r && !r.isRanked ? r : null;
   }
   /** Last suggestion time per account and per network address (old entries are swept). */
   private lastSuggest = new Map<string, number>();

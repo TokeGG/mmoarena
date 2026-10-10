@@ -1546,7 +1546,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   scene.setMap(arena.id);
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
   devPanel.setAvailable(false); // test numbers never carry over from a match you played
-  if (accountUi.account?.ownerOk && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched
+  if ((accountUi.account?.ownerOk || isDev()) && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched, a dev one of the bot matches (the server says no to the others)
   if (accountUi.account?.ownerOk && kind === 'live') accountUi.sendRaw({ t: 'dev_builds' }); // the bots list for the Play as picker, without opening the tools window
   audio.ambience(arena.theme);
   you = 0;
