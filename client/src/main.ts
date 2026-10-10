@@ -138,7 +138,7 @@ const endChoice = (() => {
   const mk = (label: string, primary: boolean) => {
     const b = document.createElement('button');
     b.textContent = label;
-    b.style.cssText = `padding:12px 28px;font-size:18px;font-weight:700;border-radius:8px;border:2px solid ${primary ? '#ffd34a' : '#8a93a6'};background:${primary ? '#ffd34a' : 'rgba(20,24,34,.9)'};color:${primary ? '#1a1a1a' : '#fff'};cursor:pointer;`;
+    b.className = `ec-btn${primary ? ' ec-primary' : ''}`; // styled in index.html (hudSkin.ts changes it)
     row.append(b);
     return b;
   };

@@ -167,3 +167,14 @@ describe('tour data', () => {
     }
   });
 });
+
+describe('skipping the tour', () => {
+  it('counts every tour as seen, keeping the times already there, so none starts by itself again', async () => {
+    const { markAllSeenIn, pickAutoTour, TOUR_IDS } = await import('../src/tourLogic');
+    const seen = markAllSeenIn({ menu: 5 }, 100);
+    assert.equal(seen.menu, 5);
+    for (const id of TOUR_IDS) assert.ok(seen[id]);
+    assert.equal(pickAutoTour('menu', seen, null), null);
+    assert.equal(pickAutoTour('match', seen, null), null);
+  });
+});

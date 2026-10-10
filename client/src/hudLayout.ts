@@ -1,3 +1,4 @@
+import { applySkinTo, loadSkin, optionsFor, resetSkin, setSkin, skinChanged, skinValue } from './hudSkin';
 import { HUD_IDS, HUD_TEXT_BOX, HUD_TEXT_MAX, HUD_TEXT_MIN, clamp, layerLayout, parseHudLayout } from '@arena/shared';
 import type { HudLayoutMap } from '@arena/shared';
 import { EDIT_BODY_CLASSES, EDIT_IDLE, closeEditor, leavesEditor, openEditor, type HudEditState } from './hudEditState';
@@ -204,6 +205,8 @@ export class HudLayout {
   private resetAllBtn!: HTMLButtonElement;
 
   constructor() {
+    loadSkin();
+    if (typeof requestAnimationFrame !== 'undefined') requestAnimationFrame(() => this.applySkins());
     try {
       this.saved = parseLayout(JSON.parse(localStorage.getItem(KEY) ?? '{}'), HUD_ELEMENTS, window.innerWidth, window.innerHeight);
     } catch {
@@ -284,7 +287,13 @@ export class HudLayout {
   }
 
   /** Mark and place every movable element that exists now (the ones made later arrive through the observer). */
+  /** Put every element's own look (hudSkin.ts) on it. */
+  applySkins() {
+    for (const t of TARGET_DEFS) for (const e of elsOf(t.id)) applySkinTo(e, t.id);
+  }
+
   private adopt() {
+    this.applySkins();
     for (const t of TARGET_DEFS) {
       for (const e of elsOf(t.id)) {
         if (e.dataset.hudId === t.id) continue;
@@ -622,7 +631,43 @@ export class HudLayout {
     top.append(mk('b', label), close);
     this.selBox.append(top, mk('small', where), reset);
     if (id === 'dpsmeter') this.selBox.append(this.dpsSettings());
-    else this.selBox.append(mk('small', 'Drag it on screen to move it, drag its corner to resize, scroll to scale. Reset puts it back to the default spot.'));
+    this.selBox.append(this.skinSettings(id));
+  }
+
+  /** The element's look: background, border, corners, opacity, text colour, shadow, and the options only it has (layout, button style...). */
+  private skinSettings(id: string): HTMLElement {
+    const box = document.createElement('div');
+    box.className = 'he-opts';
+    const head = document.createElement('div');
+    head.className = 'he-pop-head';
+    const title = document.createElement('b');
+    title.textContent = 'Style';
+    const clear = document.createElement('button');
+    clear.textContent = 'Reset style';
+    clear.disabled = !skinChanged(id);
+    clear.addEventListener('click', () => {
+      resetSkin(id);
+      this.applySkins();
+      this.paintSelInfo();
+    });
+    head.append(title, clear);
+    box.append(head);
+    for (const o of optionsFor(id)) {
+      const label = document.createElement('label');
+      label.textContent = `${o.label} `;
+      const sel = document.createElement('select');
+      for (const [v, text] of o.choices) sel.append(new Option(text, v));
+      sel.value = skinValue(id, o.id);
+      sel.addEventListener('change', () => {
+        setSkin(id, o.id, sel.value);
+        this.applySkins();
+        clear.disabled = !skinChanged(id);
+        requestAnimationFrame(() => this.fitAll());
+      });
+      label.append(sel);
+      box.append(label);
+    }
+    return box;
   }
 
   /** What the DPS meter shows: the same settings as Look > HUD > DPS meter, here where the meter is being placed. */
