@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.69.62",
+  "date": "2026-10-10",
+  "at": "2026-10-10T18:56:53Z",
+  "title": "Aiming near platforms, horns, weapon glow",
+  "changes": [
+   "Aiming a ground spell at the floor next to or under a platform now stays on the floor until your cursor is on the platform itself, instead of jumping up onto it.",
+   "Dragon's Breath: people it hits now stumble about inside its cone instead of walking out of it.",
+   "The Horned Crown now replaces the warrior helm's own horns.",
+   "Weapon glow cosmetics now light up the weapon itself instead of a small aura around it.",
+   "Rogue daggers are held pointing forward and slightly down."
+  ]
+ },
+ {
   "version": "0.69.61",
   "date": "2026-10-10",
   "at": "2026-10-10T18:36:14Z",

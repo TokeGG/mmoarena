@@ -330,7 +330,8 @@
     "harmful": true,
     "locksAbilities": true,
     "dr": "fear",
-    "dispellable": true
+    "dispellable": true,
+    "stayInCone": true
   },
   "evocation": {
     "name": "Evocation",
