@@ -154,8 +154,8 @@ export class AdminPanel {
     head.append(el('h2', '', '🤖 Bot battle'), el('span', 'admp-status', 'Watch bots fight each other'), close);
     card.append(head);
     const body = el('div', 'admp-body');
-    if (!a || a.role !== 'owner') body.append(el('p', 'mm-modal-foot', 'Only the founder account can start a bot battle.'));
-    else if (!a.ownerOk) body.append(this.op.render(a));
+    if (!a || (a.role !== 'owner' && !adminAccessOf(a))) body.append(el('p', 'mm-modal-foot', 'Only the founder account and devs can start a bot battle.'));
+    else if (a.role === 'owner' && !a.ownerOk) body.append(this.op.render(a));
     else body.append(this.op.botMatch(() => this.closeBotBattle()));
     card.append(body);
     r.replaceChildren(card);

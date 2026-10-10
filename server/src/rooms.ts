@@ -2342,8 +2342,8 @@ export class Lobby {
         break;
       }
       case 'bot_match': {
-        // the owner's test bench: bots against bots, watched live, in a room nobody else can find
-        if (!p.ownerOk) return void send(p, { t: 'notice', text: 'Only the owner can start a bot match.' });
+        // the owner's and devs' test bench: bots against bots, watched live, in a room nobody else can find
+        if (!p.ownerOk && !this.isDev(p)) return void send(p, { t: 'notice', text: 'Only the owner or a dev can start a bot match.' });
         if (this.busy(p)) return;
         p.watching?.removeSpectator(p);
         const room = this.makeRoom(this.cfg.practicePrepMs, false, false, pickMap(msg.map));

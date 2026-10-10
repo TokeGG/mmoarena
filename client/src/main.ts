@@ -1868,7 +1868,7 @@ const header = buildHeaderBar([
   { icon: 'watch', label: 'Watch live matches', onClick: () => void openLive(), badge: liveBadge },
   { icon: 'suggest', label: 'Suggestions', onClick: () => suggestUi.open() },
   { icon: 'settings', label: 'Settings (sound, graphics)', onClick: () => menu.open(false) },
-  { icon: 'bots', label: 'Bot battle (owner)', onClick: () => adminPanel.openBotBattle() },
+  { icon: 'bots', label: 'Bot battle', onClick: () => adminPanel.openBotBattle() },
   { icon: 'admin', label: 'Admin panel', onClick: () => adminPanel.open(), badge: adminBadge },
 ]);
 const paintHeader = () => {
@@ -1877,7 +1877,7 @@ const paintHeader = () => {
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
   header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner' && !adminAccessOf(a)); // the founder account and accounts with the dev tag see the admin button
-  header.buttons.bots.classList.toggle('hidden', a?.role !== 'owner'); // and the bot battle button
+  header.buttons.bots.classList.toggle('hidden', !adminAccessOf(a) && a?.role !== 'owner'); // and the bot battle button
 };
 paintHeader();
 menuExtras.append(header.root, friendsUi.partyChip);
