@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ReplayRunner, arenaById, blankArena, copyArena, findArena, parseClientMsg, registerCustomArenas, replayMapProblem } from '@arena/shared';
+import { ARENAS, ArenaSim, ReplayRecorder, ReplayRunner, arenaById, blankArena, copyArena, findArena, parseClientMsg, registerCustomArenas, replayMapProblem } from '@arena/shared';
 import type { ArenaDef, ReplayData, ServerMsg } from '@arena/shared';
 import { MemoryStore } from '../src/store';
 import { Accounts } from '../src/accounts';
@@ -172,16 +172,30 @@ describe('custom maps over the protocol', () => {
 });
 
 describe('replays of custom maps', () => {
+  it('a recording of a custom map is marked, a built-in one is not', async () => {
+    const m = new CustomMaps(new MemoryStore());
+    await m.save('T', good());
+    const rec = (id: string) => {
+      const sim = new ArenaSim({ seed: 1, prepMs: 0, arena: arenaById(id) });
+      return new ReplayRecorder(sim, { arena: id, seed: 1, prepMs: 0 }).finish([]);
+    };
+    assert.equal(rec('pit-fight').custom, true);
+    assert.equal(rec('ruins').custom, undefined);
+    registerCustomArenas([]);
+  });
+
   it('a replay of a deleted custom map says so instead of playing on the wrong map', async () => {
     const m = new CustomMaps(new MemoryStore());
     await m.save('T', good());
-    const data = { v: 1, arena: 'pit-fight', seed: 1, prepMs: 0, units: [], cmds: [], ticks: 0, hash: 'x' } as unknown as ReplayData;
+    const data = { v: 1, arena: 'pit-fight', custom: true, seed: 1, prepMs: 0, units: [], cmds: [], ticks: 0, hash: 'x' } as unknown as ReplayData;
     assert.equal(replayMapProblem(data), null);
     assert.doesNotThrow(() => new ReplayRunner(data));
     await m.remove('T', 'pit-fight');
     assert.match(replayMapProblem(data)!, /no longer exists/);
     assert.throws(() => new ReplayRunner(data), /no longer exists/);
     assert.equal(arenaById('pit-fight'), ARENAS[0]);
+    // an old recording of an unknown built-in id keeps playing on the default map as before
+    assert.equal(replayMapProblem({ arena: 'default' }), null);
     assert.equal(copyArena(ARENAS[0], 'x-copy', 'X copy').randomPool, undefined);
     registerCustomArenas([]);
   });
