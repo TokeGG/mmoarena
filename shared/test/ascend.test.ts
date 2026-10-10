@@ -99,3 +99,22 @@ describe('Ascend to the Heavens', () => {
     assert.ok(f.health < fhp, 'the spell landed from the air');
   });
 });
+
+describe('what cannot reach up to a hovering unit', () => {
+  it('a damage zone on the ground does not hurt someone hovering above it', () => {
+    const sim = live();
+    const p = priest(sim, 0, 0, 0);
+    const m = sim.addUnit({ name: 'm', classId: 'mage', team: 1 });
+    m.pos = { x: 0, z: 12 };
+    advance(sim, TICK);
+    // a zone on top of the priest, then the priest rises
+    (sim as unknown as { zones: unknown[] }).zones.push({ id: 1, ability: 'flamestrike', owner: m.id, team: 1, x: 0, z: 0, r: 5, amount: 100, school: 'fire', pulse: 500, nextAt: sim.time + 100, end: sim.time + 3000, level: 0 });
+    assert.ok(sim.useAbility(p.id, 'ascend').ok);
+    advance(sim, 1500);
+    p.auras = p.auras.filter((a) => a.id !== 'ascended'); // never mind the shield: only the height keeps the zone off
+    const hp = p.health;
+    (sim as unknown as { hoverOf: (u: unknown) => number }).hoverOf = () => 8;
+    advance(sim, 800);
+    assert.equal(p.health, hp, 'the zone did not reach it up there');
+  });
+});

@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.81",
+  "date": "2026-10-10",
+  "at": "2026-10-10T22:57:09Z",
+  "title": "Out of reach in the air",
+  "changes": [
+    "Fire, ice and other damage zones on the ground no longer hurt someone hovering high above them (Ascend to the Heavens). Only ranged skills reach up there."
+  ]
+ },
+ {
   "version": "0.69.80",
   "date": "2026-10-10",
   "at": "2026-10-10T22:55:37Z",
