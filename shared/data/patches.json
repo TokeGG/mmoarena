@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.45",
+  "date": "2026-10-10",
+  "at": "2026-10-10T03:30:38Z",
+  "title": "Balance changes",
+  "changes": [
+   "Ascended: height 6 to 10.",
+   "Ascended: duration 4 s to 6 s.",
+   "Purified: duration 4 s to 6 s."
+  ],
+  "by": "scrandy"
+ },
+ {
   "version": "0.69.44",
   "date": "2026-10-10",
   "at": "2026-10-10T03:09:04Z",
