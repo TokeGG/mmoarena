@@ -1,6 +1,6 @@
 import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
 import { helpWindow } from './tourUi';
-import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, setDisabledMaps, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
+import { hasPower, ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, setDisabledMaps, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { UpdateNotice } from './updateNotice';
@@ -1890,7 +1890,7 @@ const paintHeader = () => {
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
   header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner' && !adminAccessOf(a)); // the founder account and accounts with the dev tag see the admin button
-  header.buttons.bots.classList.toggle('hidden', !adminAccessOf(a) && a?.role !== 'owner'); // and the bot battle button
+  header.buttons.bots.classList.toggle('hidden', (!adminAccessOf(a) && a?.role !== 'owner') || (adminAccessOf(a) === 'dev' && !hasPower(a?.grants, 'botmatch'))); // and the bot battle button
 };
 paintHeader();
 menuExtras.append(header.root, friendsUi.partyChip);

@@ -235,3 +235,24 @@ describe('switching maps off', () => {
     setDisabledMaps([]);
   });
 });
+
+describe('dev powers the owner switched off', () => {
+  it('a dev without the Maps power is refused map actions, and with it can use them again; admin_set accepts the grants', async () => {
+    const { lobby, owner, devP, outD } = await world();
+    owner.ownerOk = true;
+    devP.account = { ...devP.account, grants: ['dev', 'deny:maps'] };
+    lobby.handle(devP, { t: 'map_save', map: good() });
+    await tick();
+    assert.equal(findArena('pit-fight'), undefined, 'refused');
+    assert.match(String(last(outD, 'dev_result')?.text), /not given you that power/);
+    devP.account = { ...devP.account, grants: ['dev'] };
+    lobby.handle(devP, { t: 'map_save', map: good() });
+    await tick();
+    assert.ok(findArena('pit-fight'), 'allowed again');
+    registerCustomArenas([]);
+    assert.equal(Accounts.validGrant('deny:maps'), true);
+    assert.equal(Accounts.validGrant('power:maintain'), true);
+    assert.equal(Accounts.validGrant('deny:nonsense'), false);
+    assert.deepEqual(parseClientMsg('{"t":"admin_set","name":"Dee","grants":["dev","deny:botmatch","power:maintain"]}'), { t: 'admin_set', name: 'Dee', grants: ['dev', 'deny:botmatch', 'power:maintain'] });
+  });
+});

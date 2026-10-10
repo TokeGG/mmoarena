@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { promisify } from 'node:util';
-import { ABILITY_GRANTS, sanctionActive, DEFAULT_COSMETICS, EMBLEMS, NAME_COLORS, NAME_RE, TITLES, cleanCustom, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
+import { ABILITY_GRANTS, DEV_POWER_IDS, sanctionActive, DEFAULT_COSMETICS, EMBLEMS, NAME_COLORS, NAME_RE, TITLES, cleanCustom, isOwnerName, PASSWORD_MAX, PASSWORD_MIN, START_RATING, eloDelta, validateCosmetics } from '@arena/shared';
 import { MAX_FRIENDS, MAX_HISTORY, MAX_REQUESTS } from '@arena/shared';
 import type { AccountInfo, AdminRow, Sanction, CustomStyle, Cosmetics, LeaderRow, MatchRecord } from '@arena/shared';
 import type { Store } from './store';
@@ -377,6 +377,7 @@ export class Accounts {
   static validGrant(g: string): boolean {
     const [kind, id] = g.split(':');
     if (!id) return ABILITY_GRANTS.some((x) => x.id === kind);
+    if (kind === 'deny' || kind === 'power') return DEV_POWER_IDS.includes(id);
     const list = kind === 'title' ? TITLES : kind === 'emblem' ? EMBLEMS : kind === 'color' ? NAME_COLORS : null;
     return !!list?.some((d) => d.id === id && d.unlock.kind === 'owner');
   }
