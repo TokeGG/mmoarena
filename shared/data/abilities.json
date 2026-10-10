@@ -60,7 +60,7 @@
   "target": "enemy",
   "range": 3,
   "castTime": 0,
-  "cooldown": 10000,
+  "cooldown": 15000,
   "gcd": false,
   "cost": 10,
   "effects": [
@@ -176,7 +176,7 @@
   "effects": [
    {
     "type": "interrupt",
-    "lockout": 5000
+    "lockout": 7000
    }
   ],
   "ignoresLockout": true,
@@ -441,7 +441,7 @@
   "effects": [
    {
     "type": "interrupt",
-    "lockout": 5000
+    "lockout": 6000
    }
   ]
  },
