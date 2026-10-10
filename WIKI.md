@@ -38,7 +38,7 @@ Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts
 |  | 🏃 **Long Charge** | Charge reaches 10 yards further. |
 |  | 🛡️ **Intercept** | Target an ally or yourself and Charge becomes Intercept: you rush to your ally (you stay put if you target yourself) and the target takes 20% less damage for 4 seconds. |
 | II | ⚡ **Quick Hands** | Attack speed is 20% faster. |
-|  | 🛡️ **Iron Constitution** | +10% maximum health. |
+|  | 🛡️ **Iron Constitution** | +15% maximum health. |
 |  | 💪 **Savage Might** | +10% damage. |
 | IV | 🧿 **Cleansing Charm** | A trinket button beside your bar: removes every harmful effect from you (stuns and fears included). 60 second cooldown, no global cooldown, works while stunned. |
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
@@ -182,7 +182,7 @@ On the bar: [Warbringer](#warrior-arms) (key 4).
 *Physical* · 25 yd range · min 6 yd · Instant · 15s cooldown
 
 - Stuns the target for up to 2.5s as you sprint at it, closing the distance in about a second, then hits it for 50 and ends the stun when you land. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).
-- Generates 10 rage.
+- Generates 20 rage.
 - *Its damage builds rage: 15% of the damage dealt (8 per hit).*
 - *Does not trigger the global cooldown.*
 
@@ -276,7 +276,7 @@ On the bar: [Barbarian](#warrior-protection) (key 1).
 *Physical* · 3 yd range · Instant · 4s cooldown · 6s bleed
 
 - Deals 30 physical damage.
-- Bleeding: takes 14 physical damage every 1s (84 total).
+- Bleeding: takes 16 physical damage every 1s (96 total).
 - Generates 10 rage.
 - *Its damage builds rage: 15% of the damage dealt (5 per hit).*
 
@@ -344,8 +344,8 @@ Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.
 | I | ⚡ **Twin Blink** | Blink holds two charges, each recharging on its own timer. A number on the button shows how many are ready. |
 |  | 🌀 **Blink and Cast** | Blink can be used in the middle of a cast, and the spell keeps casting. |
 |  | ❄️ **Frozen Departure** | Blink releases a Frost Nova where you stood before you blink away. |
-| II | ⏩ **Quickened Casting** | Casting time and the global cooldown are 10% shorter. |
-|  | ❤️ **Hardy Mage** | +10% maximum health. |
+| II | ⏩ **Quickened Casting** | Casting time and the global cooldown are 15% shorter. |
+|  | ❤️ **Hardy Mage** | +20% maximum health. |
 |  | 💥 **Arcane Might** | +10% damage. |
 | IV | 🧿 **Cleansing Charm** | A trinket button beside your bar: removes every harmful effect from you (stuns and fears included). 60 second cooldown, no global cooldown, works while stunned. |
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
@@ -673,9 +673,9 @@ Healer and support. Shields, heals, dispels and fears. Mana-hungry.
 | I | ⏳ **Lingering Scream** | Psychic Scream lasts 33.3% (2 seconds) longer. |
 |  | 🧱 **Paralyzing Scream** | Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 50% longer cooldown (45 seconds). |
 |  | 🏃 **Fleeing Scream** | Psychic Scream makes enemies run as far from you as they can instead of running at random. |
-| II | ⏩ **Quickened Prayer** | Casting time and the global cooldown are 10% shorter. |
-|  | ✨ **Healing Light** | +10% healing. |
-|  | 💥 **Shadow Might** | +10% damage and healing. |
+| II | ⏩ **Quickened Prayer** | Casting time and the global cooldown are 20% shorter. |
+|  | ✨ **Healing Light** | +15% healing. |
+|  | 💥 **Shadow Might** | +10% damage. |
 | IV | 🧿 **Cleansing Charm** | A trinket button beside your bar: removes every harmful effect from you (stuns and fears included). 60 second cooldown, no global cooldown, works while stunned. |
 |  | 🛡️ **Warding Charm** | A trinket button beside your bar: a shield absorbing 20% of your maximum health for 8 seconds. 60 second cooldown, no global cooldown, works while stunned. |
 |  | 💚 **Healing Charm** | A trinket button beside your bar: heals you for 25% of your maximum health. 60 second cooldown, no global cooldown, works while stunned. |
@@ -777,7 +777,7 @@ Base numbers, before spec and talent changes (in game, hover a skill to see your
 
 *Holy* · 70 mana · 40 yd range · 1.5s cast
 
-- Heals for 350.
+- Heals for 375.
 
 On the bar: [Warden](#priest-discipline) (key 1), [Lightbearer](#priest-holy) (key 1), [Gloomweaver](#priest-shadow) (key 7).
 
@@ -1017,7 +1017,7 @@ Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swin
 | 2 | [Sinister Strike](#skill-sinister-strike) | 40 energy · 3 yd range · Instant |
 | 3 | [Kidney Shot](#skill-kidney-shot) | 25 energy · 3 yd range · Instant · 30s cooldown · 2s stun (+0.8s per combo point, up to 6s) |
 | 4 | [Kick](#skill-kick) | 3 yd range · Instant · 15s cooldown |
-| 5 | [Adrenaline Rush](#skill-adrenaline-rush) | Instant · 15s cooldown · 5s buff (+1.5s per combo point) |
+| 5 | [Adrenaline Rush](#skill-adrenaline-rush) | Instant · 10s cooldown · 5s buff (+1.5s per combo point) |
 | 6 | [Vanish](#skill-vanish) | Instant · 120s cooldown |
 | 7 | [Sprint](#skill-sprint) | Instant · 60s cooldown · 8s speed boost |
 | 8 | [Gouge](#skill-gouge) | 25 energy · 3 yd range · Instant · 20s cooldown · 4s incapacitate |
@@ -1152,7 +1152,7 @@ On the bar: [Cutthroat](#rogue-assassination) (key 8).
 
 *Physical* · 40 energy · 3 yd range · Instant
 
-- Deals 110 physical damage.
+- Deals 140 physical damage.
 - *Awards 1 combo point.*
 - *While you are stealthed this slot becomes Cheap Shot.*
 
@@ -1161,9 +1161,9 @@ On the bar: [Duelist](#rogue-combat) (key 2).
 <a id="skill-adrenaline-rush"></a>
 #### Adrenaline Rush
 
-*Physical* · Instant · 15s cooldown · 5s buff (+1.5s per combo point)
+*Physical* · Instant · 10s cooldown · 5s buff (+1.5s per combo point)
 
-- +60% energy regeneration. +81.8% auto attack speed. Heals 2% of maximum health every 3s.
+- +60% energy regeneration. +69.5% auto attack speed. Heals 2% of maximum health every 2s.
 - *Spends all combo points (needs at least 1).*
 - *Does not trigger the global cooldown.*
 
@@ -1298,7 +1298,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 
 | Effect | Kind | Lasts | What it does | From |
 |---|---|---|---|---|
-| <a id="effect-adrenaline-rush"></a>**Adrenaline Rush** | Buff | 5s | +60% energy regeneration. +81.8% auto attack speed. Heals 2% of maximum health every 3s. | [Adrenaline Rush](#skill-adrenaline-rush) |
+| <a id="effect-adrenaline-rush"></a>**Adrenaline Rush** | Buff | 5s | +60% energy regeneration. +69.5% auto attack speed. Heals 2% of maximum health every 2s. | [Adrenaline Rush](#skill-adrenaline-rush) |
 | <a id="effect-arcane-charge"></a>**Arcane Charge** | Buff | 12s | Stacks up to 5 times. | [Arcane Blast](#skill-arcane-blast), [Arcane Missiles](#skill-arcane-missiles) |
 | <a id="effect-arcane-slow"></a>**Arcane Explosion** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Arcane Explosion](#skill-arcane-explosion) |
 | <a id="effect-arcane-power"></a>**Arcane Power** | Buff, magic | 15s | +25% damage dealt. −30% cast time. | [Arcane Power](#skill-arcane-power) |
@@ -1307,7 +1307,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-cauterized"></a>**Cauterized** | Buff (mark) | 4s | Cheated death: a killing blow left you at 35% health. Cauterize is ready again in 3 minutes. | Pyromancy passive (Cauterize) |
 | <a id="effect-charge-stun"></a>**Charge** | Debuff (stun) | 2.5s | Cannot move, cast or act. | [Charge](#skill-charge) |
 | <a id="effect-cheap-shot-stun"></a>**Cheap Shot** | Debuff (stun) | 4s | Cannot move, cast or act. | [Cheap Shot](#skill-cheap-shot) |
-| <a id="effect-deep-cuts-bleed"></a>**Deep Cuts** | Debuff (dot) | 6s | Bleeding: takes 14 physical damage every 1s (84 total). | [Deep Cuts](#skill-deep-cuts) |
+| <a id="effect-deep-cuts-bleed"></a>**Deep Cuts** | Debuff (dot) | 6s | Bleeding: takes 16 physical damage every 1s (96 total). | [Deep Cuts](#skill-deep-cuts) |
 | <a id="effect-deep-freeze-stun"></a>**Deep Freeze** | Debuff (stun) | 4s | Cannot move, cast or act. | [Deep Freeze](#skill-deep-freeze) |
 | <a id="effect-plague-bloom"></a>**Devouring Plague** | Debuff (dot), magic | 10s | Takes 45 shadow damage every 1s (450 total). | [Devouring Plague](#skill-plague-bloom) |
 | <a id="effect-dispersion"></a>**Dispersion** | Buff | 6s | −90% damage taken. You cannot use any ability while it lasts. | [Dispersion](#skill-dispersion) |

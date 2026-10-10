@@ -921,11 +921,11 @@ describe('stealth', () => {
     assert.ok(b.moved && !b.channelling, 'others are stopped by moving');
   });
 
-  it('Shadow Might adds 10% healing as well as damage', () => {
+  it('Shadow Might adds 10% damage', () => {
     const t = Object.values(TALENTS.priest).flat(2).find((x) => x.id === 'priest_t2c')!;
     assert.equal(t.mods?.damageDone, 1.1);
-    assert.equal(t.mods?.healingDone, 1.1);
-    assert.match(t.desc, /damage and healing/);
+    assert.equal(t.mods?.healingDone ?? 1, 1);
+    assert.match(t.desc, /10% damage/);
   });
 
   it('exsanguinate adds damage from the target\'s bleeds and then triples them; adrenaline rush lasts longer per combo point', () => {
@@ -950,7 +950,7 @@ describe('stealth', () => {
       rg.cooldowns = {}; rg.gcdEnd = 0; rg.cp = cp; rg.auras = rg.auras.filter((x) => x.id !== 'adrenaline_rush');
       assert.ok(sim.useAbility(rg.id, 'adrenaline_rush', null).ok);
       const a = rg.auras.find((x) => x.id === 'adrenaline_rush')!;
-      assert.equal(Math.round((a.expiresAt - sim.time) / 100) / 10, 4 + 1.5 * cp, `${cp} CP`);
+      assert.equal(Math.round((a.expiresAt - sim.time) / 100) / 10, 5 + 1.5 * cp, `${cp} CP`);
       assert.equal(rg.cp, 0);
     }
   });

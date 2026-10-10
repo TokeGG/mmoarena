@@ -257,13 +257,13 @@ describe('tier two', () => {
     const sim = live();
     const base = unit(sim, 'mage', 0, 0, 0, 'frost');
     const hp = unit(sim, 'mage', 0, 0, 0, 'frost', { 1: 'mage_t2b' });
-    assert.equal(hp.maxHealth, Math.round(base.maxHealth * 1.1));
+    assert.equal(hp.maxHealth, Math.round(base.maxHealth * 1.2));
     const fast = unit(sim, 'mage', 0, 0, 0, 'frost', { 1: 'mage_t2a' });
     assert.ok(fast.mods.castTime < 0.92 && fast.mods.gcd < 0.92);
     const w = unit(sim, 'warrior', 0, 0, 0, 'arms', { 1: 'warrior_t2a' });
     assert.ok(Math.abs(w.mods.autoSpeed - 1 / 1.2) < 1e-9);
     const p = unit(sim, 'priest', 0, 0, 0, 'holy', { 1: 'priest_t2b' });
-    assert.equal(p.mods.healingDone, 1.1);
+    assert.equal(p.mods.healingDone, 1.15);
   });
 });
 
