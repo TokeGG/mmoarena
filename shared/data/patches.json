@@ -1,8 +1,8 @@
 [
  {
-  "version": "0.69.79",
+  "version": "0.69.80",
   "date": "2026-10-10",
-  "at": "2026-10-10T22:50:43Z",
+  "at": "2026-10-10T22:55:37Z",
   "title": "Dragon's Breath stays where it was cast",
   "changes": [
     "Dragon's Breath's flames now stay in the cone where it was cast, even if the caster walks or turns while it burns, so the people it fears no longer seem to walk out of it."
@@ -11,11 +11,13 @@
  {
   "version": "0.69.78",
   "date": "2026-10-10",
-  "at": "2026-10-10T22:48:19Z",
-  "title": "Housekeeping",
+  "at": "2026-10-10T22:43:14Z",
+  "title": "Balance changes",
   "changes": [
-    "Behind-the-scenes fixes; no change to how matches play."
-  ]
+   "The player models were adjusted (arcane_staff).",
+   "The player models were adjusted (fire_staff)."
+  ],
+  "by": "Toke"
  },
  {
   "version": "0.69.77",
@@ -23,7 +25,7 @@
   "at": "2026-10-10T22:41:31Z",
   "title": "Housekeeping",
   "changes": [
-    "Behind-the-scenes fixes; no change to how matches play."
+   "Behind-the-scenes fixes; no change to how matches play."
   ]
  },
  {
@@ -32,7 +34,7 @@
   "at": "2026-10-10T22:36:33Z",
   "title": "Housekeeping",
   "changes": [
-    "Behind-the-scenes fixes; no change to how matches play."
+   "Behind-the-scenes fixes; no change to how matches play."
   ]
  },
  {
@@ -41,7 +43,7 @@
   "at": "2026-10-10T22:33:20Z",
   "title": "Housekeeping",
   "changes": [
-    "Behind-the-scenes fixes; no change to how matches play."
+   "Behind-the-scenes fixes; no change to how matches play."
   ]
  },
  {
@@ -50,7 +52,7 @@
   "at": "2026-10-10T22:28:32Z",
   "title": "Move right after a cast starts",
   "changes": [
-    "After a cast starts from a walk, pressing any move key again moves you at once and stops the cast, even if other move keys are still held down."
+   "After a cast starts from a walk, pressing any move key again moves you at once and stops the cast, even if other move keys are still held down."
   ]
  },
  {
@@ -59,9 +61,9 @@
   "at": "2026-10-10T22:00:16Z",
   "title": "Casting from a walk, fixed",
   "changes": [
-    "A spell cast while walking now really starts and keeps casting: the game holds your walk back from the moment the cast begins, so steps that were already on their way no longer cancel it. Let go of the move key and press it again to move on and stop the cast.",
-    "The cast bar now appears the instant you press the spell, before the server confirms it.",
-    "A cast in progress is no longer ended by starting another spell: the new spell waits and goes off the moment the cast finishes. Moving still stops a cast."
+   "A spell cast while walking now really starts and keeps casting: the game holds your walk back from the moment the cast begins, so steps that were already on their way no longer cancel it. Let go of the move key and press it again to move on and stop the cast.",
+   "The cast bar now appears the instant you press the spell, before the server confirms it.",
+   "A cast in progress is no longer ended by starting another spell: the new spell waits and goes off the moment the cast finishes. Moving still stops a cast."
   ]
  },
  {
@@ -70,8 +72,8 @@
   "at": "2026-10-10T21:45:27Z",
   "title": "Casting from a walk",
   "changes": [
-    "Casting a spell while walking now stops you where you stand and starts the cast instead of cancelling it. Let go and press a move key again to move on at once.",
-    "While aiming a ground spell, a click over any frame, nameplate or chat places it instead of being caught by them."
+   "Casting a spell while walking now stops you where you stand and starts the cast instead of cancelling it. Let go and press a move key again to move on at once.",
+   "While aiming a ground spell, a click over any frame, nameplate or chat places it instead of being caught by them."
   ]
  },
  {
@@ -80,8 +82,8 @@
   "at": "2026-10-10T21:29:19Z",
   "title": "Switch skills instantly",
   "changes": [
-    "Starting a different skill now stops the cast or global cooldown in progress and starts the new one at once, no waiting.",
-    "Pressing the same skill again still waits for its own cooldown."
+   "Starting a different skill now stops the cast or global cooldown in progress and starts the new one at once, no waiting.",
+   "Pressing the same skill again still waits for its own cooldown."
   ]
  },
  {
@@ -90,8 +92,8 @@
   "at": "2026-10-10T21:17:15Z",
   "title": "Ground spells cast on the first click",
   "changes": [
-    "Flamestrike, Blizzard and other ground spells no longer need several clicks: a click a moment before the global cooldown ends, or a spot that just slipped out of sight, is held for a moment instead of thrown away.",
-    "A red aiming spot now tells you there is no line of sight to it."
+   "Flamestrike, Blizzard and other ground spells no longer need several clicks: a click a moment before the global cooldown ends, or a spot that just slipped out of sight, is held for a moment instead of thrown away.",
+   "A red aiming spot now tells you there is no line of sight to it."
   ]
  },
  {
@@ -119,7 +121,7 @@
   "at": "2026-10-10T20:35:08Z",
   "title": "Skill visuals and the model window",
   "changes": [
-    "Each skill can now be given a different projectile shape, colour, trail and impact, so the same spell can look new without a new build."
+   "Each skill can now be given a different projectile shape, colour, trail and impact, so the same spell can look new without a new build."
   ]
  },
  {
@@ -128,7 +130,7 @@
   "at": "2026-10-10T20:17:38Z",
   "title": "Model fit numbers",
   "changes": [
-    "The player models' pose, weapon grips and cosmetic placement are now kept in a data file, so they can be tuned without a new build."
+   "The player models' pose, weapon grips and cosmetic placement are now kept in a data file, so they can be tuned without a new build."
   ]
  },
  {
@@ -137,8 +139,8 @@
   "at": "2026-10-10T20:02:38Z",
   "title": "New map editor",
   "changes": [
-    "The map editor now opens in a window of its own with a top view and a 3D view of the real depth of the map.",
-    "Maps can be exported to a file and dropped back into the editor; the editor also has undo and redo, snapping choices, duplicate, drawing both sides at once and a make-symmetric button."
+   "The map editor now opens in a window of its own with a top view and a 3D view of the real depth of the map.",
+   "Maps can be exported to a file and dropped back into the editor; the editor also has undo and redo, snapping choices, duplicate, drawing both sides at once and a make-symmetric button."
   ]
  },
  {
@@ -197,13 +199,13 @@
   "at": "2026-10-10T18:35:03Z",
   "title": "Class animations and a finished priest",
   "changes": [
-    "Every class now moves in its own way. The warrior is heavy and braced, the rogue stays low and quick with the elbows tucked, and the priest is upright and gliding with a slow hover.",
-    "Starting and stopping now lean the body, feet roll heel to toe on each step, and a jump stretches out on take-off before the legs tuck. The rogue curls tighter in the air, the priest floats, and the warrior lands harder.",
-    "Casting looks different per class: the priest raises the staff with an open free hand, the rogue crouches and draws the hands in, and the warrior plants wide with both fists forward. Instant casts add a quick flick of the casting hands: a push for the priest, a throwing flick for the rogue.",
-    "Melee swings differ too: the rogue pulls back and stabs, the priest lifts the staff overhead with both hands and smites down, and the warrior keeps the wide slash.",
-    "The mage now jumps with his arms: they fly up on take-off, spread at the top and drop to balance on the way down, and the body folds on landing.",
-    "Priest: the right arm now points forward like the left instead of out to the side, and the staff is held in a gauntlet lower on the shaft instead of floating next to him.",
-    "Priest: new head with a face, helm, horns, crest and cheek guards in place of the old jagged one."
+   "Every class now moves in its own way. The warrior is heavy and braced, the rogue stays low and quick with the elbows tucked, and the priest is upright and gliding with a slow hover.",
+   "Starting and stopping now lean the body, feet roll heel to toe on each step, and a jump stretches out on take-off before the legs tuck. The rogue curls tighter in the air, the priest floats, and the warrior lands harder.",
+   "Casting looks different per class: the priest raises the staff with an open free hand, the rogue crouches and draws the hands in, and the warrior plants wide with both fists forward. Instant casts add a quick flick of the casting hands: a push for the priest, a throwing flick for the rogue.",
+   "Melee swings differ too: the rogue pulls back and stabs, the priest lifts the staff overhead with both hands and smites down, and the warrior keeps the wide slash.",
+   "The mage now jumps with his arms: they fly up on take-off, spread at the top and drop to balance on the way down, and the body folds on landing.",
+   "Priest: the right arm now points forward like the left instead of out to the side, and the staff is held in a gauntlet lower on the shaft instead of floating next to him.",
+   "Priest: new head with a face, helm, horns, crest and cheek guards in place of the old jagged one."
   ]
  },
  {
