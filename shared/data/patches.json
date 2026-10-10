@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.57",
+  "date": "2026-10-10",
+  "at": "2026-10-10T18:10:00Z",
+  "title": "Camera under platforms, rogue daggers",
+  "changes": [
+   "Going under a platform or ramp now pulls the camera in close instead of clipping through the floor above you.",
+   "The rogue now holds daggers pointing forward and down, like a real grip, instead of straight out at 90 degrees.",
+   "The skill editor's Crowd control list now shows the kinds of crowd control (stun, root, slow, fear, incapacitate, interrupt) instead of skill names, and percentage fields are spelled out.",
+   "The damage meter now colours every row by the class and spec being played, with the spec icon beside the name; a green or red edge shows which team they are on."
+  ]
+ },
+ {
   "version": "0.69.56",
   "date": "2026-10-10",
   "at": "2026-10-10T16:42:31Z",

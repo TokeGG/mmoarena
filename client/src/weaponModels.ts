@@ -72,8 +72,8 @@ export const WEAPONS: Record<string, WeaponDef> = {
   // Rogue (every spec): the same dagger in each hand, point forward and a little out, held in a forward grip
   daggers: {
     url: '/models/weapons/dagger.glb',
-    right: { part: 'dagger', rot: [H, H, 0], lift: 0.3, out: 0.3 },
-    left: { part: 'dagger', rot: [H, H, 0], lift: 0.3, out: 0.3, mirror: true },
+    right: { part: 'dagger', rot: [H, H, 0], lift: -0.85, out: 0.35 },
+    left: { part: 'dagger', rot: [H, H, 0], lift: -0.85, out: 0.35, mirror: true },
     mid: 0.4,
   },
   // Rampager: the greatsword rests on the right shoulder in one hand; both hands take it up and forward to swing

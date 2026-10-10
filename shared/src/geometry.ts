@@ -261,6 +261,26 @@ export function onRaised(arena: ArenaDef, x: number, z: number): boolean {
   return !!dk && (dk.flats.some((f) => inBox(x, z, f)) || dk.ramps.some((r) => inBox(x, z, r)));
 }
 
+/**
+ * How far a camera can go from `head` along the ray `offset` (unit length), up to `want`, before it would sit inside a walkway: the
+ * deck's slab (top to underside) or a ramp's solid wedge. Under a platform this pulls the camera into the space under it, on top of
+ * one it keeps the camera above the deck, instead of cutting through the floor. `margin` is how far short of the surface it stops.
+ */
+export function slabReach(arena: ArenaDef, head: { x: number; y: number; z: number }, offset: { x: number; y: number; z: number }, want: number, margin = 0.3): number {
+  const dk = arena.deck;
+  if (!dk || want <= 0) return want;
+  const inside = (x: number, y: number, z: number): boolean => {
+    for (const f of dk.flats) if (inBox(x, z, f) && y > dk.height - DECK_THICKNESS - 0.05 && y < dk.height + 0.05) return true;
+    for (const r of dk.ramps) if (inBox(x, z, r) && y > -0.1 && y < rampHeight(r, x, z, dk.height) + 0.05) return true;
+    return false;
+  };
+  const step = 0.1;
+  for (let t = 0; t <= want; t += step) {
+    if (inside(head.x + offset.x * t, head.y + offset.y * t, head.z + offset.z * t)) return Math.max(0, t - margin);
+  }
+  return want;
+}
+
 /** How far a point is from the nearest walkway piece (Infinity without a walkway). */
 function deckDistance(arena: ArenaDef, p: Vec2): number {
   const dk = arena.deck;

@@ -1,4 +1,4 @@
-import { AURAS } from '@arena/shared';
+import { AURAS, CLASSES, SPECS } from '@arena/shared';
 import type { SimEvent, TeamId } from '@arena/shared';
 
 /** Everything the meter counts for a unit since the round started; the last ten seconds of damage, healing and damage taken are kept for the per-second numbers. */
@@ -36,8 +36,8 @@ export const METRICS: { id: MeterMetric; label: string; hint: string; rate: bool
   { id: 'casts', label: 'Spells cast', hint: 'how many spells each unit finished casting', rate: false },
 ];
 
-export interface MeterUnit { id: number; name: string; team: TeamId }
-export interface MeterRow { id: number; name: string; team: TeamId; value: number; rate: number | null; tally: Omit<Tally, 'log'> }
+export interface MeterUnit { id: number; name: string; team: TeamId; classId?: string; spec?: string | null }
+export interface MeterRow { id: number; name: string; team: TeamId; classId?: string; spec?: string | null; value: number; rate: number | null; tally: Omit<Tally, 'log'> }
 export interface MeterOptions { metric: MeterMetric; /** More blocks under the first one (damage, then healing, then damage taken...): each shows its own rows. */ also?: MeterMetric[]; rows: number; who: MeterWho; numbers: MeterNumbers; friendly: TeamId }
 
 /** How far back the per-second numbers look (the same window the dev panel's meter uses). */
@@ -63,6 +63,21 @@ const totalOf = (t: Tally, m: MeterMetric): number => {
     case 'casts': return t.casts;
   }
 };
+
+/** A colour and icon for what a unit plays: the class colour, shifted a little for each of its specs so two specs of one class look apart. */
+export function specLook(classId?: string, spec?: string | null): { color: string; icon: string; label: string } | null {
+  const cls = classId ? (CLASSES as Record<string, { color: string; name: string }>)[classId] : undefined;
+  if (!cls) return null;
+  const list = (SPECS as Record<string, { id: string; name: string; icon: string }[]>)[classId!] ?? [];
+  const i = list.findIndex((x) => x.id === spec);
+  const sp = i >= 0 ? list[i] : undefined;
+  const base = /^#[0-9a-f]{6}$/i.test(cls.color) ? cls.color : '#cccccc';
+  const mix = (c: number, to: number, f: number) => Math.round(c + (to - c) * f);
+  const f = i <= 0 ? 0 : 0.28;
+  const to = i === 1 ? 255 : 0;
+  const rgb = [1, 3, 5].map((p) => mix(parseInt(base.slice(p, p + 2), 16), to, f));
+  return { color: `#${rgb.map((v) => v.toString(16).padStart(2, '0')).join('')}`, icon: sp?.icon ?? '', label: `${cls.name}${sp ? ` · ${sp.name}` : ''}` };
+}
 
 /**
  * A meter for the HUD (the dev panel keeps its own, with more columns). What it shows is the player's choice: damage, healing,
@@ -157,7 +172,7 @@ export class DpsMeter {
       const value = totalOf(t, opt.metric);
       if (!value) continue;
       const k = opt.metric === 'damage' ? 'd' : opt.metric === 'healing' ? 'h' : opt.metric === 'taken' ? 't' : null;
-      out.push({ id, name: u.name, team: u.team, value, rate: k ? this.perSecond(t, k) : null, tally: { dealt: t.dealt, healed: t.healed, taken: t.taken, overheal: t.overheal, absorbed: t.absorbed, interrupts: t.interrupts, dispels: t.dispels, cc: t.cc, kills: t.kills, deaths: t.deaths, casts: t.casts } });
+      out.push({ id, name: u.name, team: u.team, classId: u.classId, spec: u.spec, value, rate: k ? this.perSecond(t, k) : null, tally: { dealt: t.dealt, healed: t.healed, taken: t.taken, overheal: t.overheal, absorbed: t.absorbed, interrupts: t.interrupts, dispels: t.dispels, cc: t.cc, kills: t.kills, deaths: t.deaths, casts: t.casts } });
     }
     return out.sort((a, b) => b.value - a.value).slice(0, Math.max(1, opt.rows));
   }
@@ -197,6 +212,14 @@ export class DpsMeter {
         const name = document.createElement('span');
         name.className = 'dm-name';
         name.textContent = r.name;
+        const look = specLook(r.classId, r.spec);
+        if (look) {
+          // the bar and name wear the colour of what they play; the row's edge says which team
+          bar.style.background = look.color;
+          name.style.color = look.color;
+          name.textContent = `${look.icon} ${r.name}`.trim();
+          row.title = look.label;
+        }
         row.append(bar, name);
         const showRate = r.rate !== null && opt.numbers !== 'total';
         const showTotal = opt.numbers !== 'rate' || r.rate === null;
