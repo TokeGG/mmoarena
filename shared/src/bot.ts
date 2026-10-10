@@ -92,6 +92,8 @@ export class Bot {
   private castSeen = new Map<number, { start: number; at: number; will: boolean; wait: number }>();
   private auraSeen = new Map<string, number>();
   private strafeSign = 1;
+  /** The earliest the melee circle may turn round again after it ran into something. */
+  private blockFlipAt = 0;
   private strafeFlipAt = 0;
   private forceFacing: { angle: number; until: number } | null = null;
   private cover: Vec2 | null = null;
@@ -406,8 +408,11 @@ export class Bot {
   private probe(u: Unit, c: Cmd): Vec2 {
     let pos = u.pos;
     let level = u.level;
-    for (let i = 0; i < 12; i++) {
-      const r = stepMovementL(pos, level, c, TUNING.runSpeed, 0.1, this.sim.arena);
+    // the same step the sim takes (a wall corner that a big step jumps over stops a walker taking small ones), for 1.2 s ahead
+    const dt = this.sim.tickMs / 1000;
+    const steps = Math.round(1.2 / dt);
+    for (let i = 0; i < steps; i++) {
+      const r = stepMovementL(pos, level, c, TUNING.runSpeed, dt, this.sim.arena);
       pos = r.pos;
       level = r.level;
     }
@@ -1244,7 +1249,18 @@ export class Bot {
       // then a hop), never a standing target. The step in keeps the circle tight enough to stay in reach.
       const circle = 0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility); // faster than this, the orbit itself spins the bot round
       if (this.rng() < 0.006 * this.brain.mobility) this.hop(u);
-      return { facing: toT, fwd: d > reach * 0.75 ? 0.45 : 0, strafe: this.strafeSign * circle };
+      // the circle runs into a wall, a pillar or a slab: go the other way round instead of pressing against it (a bot that
+      // keeps strafing into something stands still for as long as the fight lasts)
+      const stepIn = d > reach * 0.75 ? 0.45 : 0;
+      if (sim.time >= this.blockFlipAt) {
+        const stepped = this.probe(u, { facing: toT, fwd: stepIn, strafe: this.strafeSign * circle });
+        if (Math.hypot(stepped.x - u.pos.x, stepped.z - u.pos.z) < TUNING.runSpeed * 1.2 * circle * 0.5) {
+          this.strafeSign = -this.strafeSign;
+          this.blockFlipAt = sim.time + 700; // not every tick: both ways blocked would spin it on the spot
+          this.strafeFlipAt = sim.time + this.brain.strafeFlip * 1000;
+        }
+      }
+      return { facing: toT, fwd: stepIn, strafe: this.strafeSign * circle };
     }
     // spells reach in 3D: a target up on the deck at the edge of the range is out of reach even when the plan view says it is not
     const d3 = Math.hypot(d, heightAt(sim.arena, u.pos.x, u.pos.z, u.level) - heightAt(sim.arena, tgt.pos.x, tgt.pos.z, tgt.level));

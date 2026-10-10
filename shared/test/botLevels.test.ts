@@ -8,7 +8,7 @@ import type { ArenaDef, ClassId, SimEvent, TeamId, Unit } from '../src/index';
  * Bots on arenas with two levels: they take the ramps to a unit on the other floor (no pacing under or over it), do not
  * swing or cast through the floor, and do not stand still. Deterministic scenarios on every arena that has a deck.
  */
-const TICK = TUNING.tickMs;
+const TICK = 16; // the production tick (ARENA_TICK_MS=16)
 const DECKED = ARENAS.filter((a) => a.deck);
 
 type Spot = { x: number; z: number; lv: 0 | 1 };
@@ -35,7 +35,7 @@ interface Result { firstHit: number; crossed: number; idleMax: number; travelled
 
 /** A bot against a standing dummy; the bot's gap-closers are on cooldown so it has to walk. Runs `secs` of game time. */
 function duel(arena: ArenaDef, botClass: ClassId, dummyClass: ClassId, botAt: Spot, dummyAt: Spot, secs: number, walk = true): Result {
-  const sim = new ArenaSim({ seed: 3, prepMs: 0, arena });
+  const sim = new ArenaSim({ seed: 3, prepMs: 0, arena , tickMs: 16});
   const a = sim.addUnit({ name: 'bot', classId: botClass, team: 0 as TeamId, controller: 'bot' });
   const d = sim.addUnit({ name: 'dummy', classId: dummyClass, team: 1 as TeamId, controller: 'dummy' });
   sim.step();
@@ -117,7 +117,7 @@ describe('bots on a deck: reaching a unit on the other floor', () => {
 
   it('a warrior does not charge at a unit on the deck from the ground (Heroic Leap or the ramp instead)', () => {
     const arena = ARENAS.find((a) => a.id === 'overlook')!;
-    const sim = new ArenaSim({ seed: 3, prepMs: 0, arena });
+    const sim = new ArenaSim({ seed: 3, prepMs: 0, arena , tickMs: 16});
     const a = sim.addUnit({ name: 'bot', classId: 'warrior', team: 0 as TeamId, controller: 'bot' });
     const d = sim.addUnit({ name: 'dummy', classId: 'mage', team: 1 as TeamId, controller: 'dummy' });
     sim.step();
@@ -140,7 +140,7 @@ describe('bots on a deck: reaching a unit on the other floor', () => {
 
   it('a ground zone on the floor below does not chase a bot off the deck above it', () => {
     const arena = ARENAS.find((a) => a.id === 'overlook')!;
-    const sim = new ArenaSim({ seed: 3, prepMs: 0, arena });
+    const sim = new ArenaSim({ seed: 3, prepMs: 0, arena , tickMs: 16});
     const mage = sim.addUnit({ name: 'm', classId: 'mage', team: 0 as TeamId, controller: 'dummy' });
     const bot = sim.addUnit({ name: 'b', classId: 'warrior', team: 1 as TeamId, controller: 'dummy' });
     sim.step();
@@ -160,7 +160,7 @@ describe('bots on a deck: reaching a unit on the other floor', () => {
 describe('the walking routes agree with the movement rules', () => {
   /** Walk a unit along navRoute (jumping where it says) and return the seconds it takes to get within 2 yards of the goal, or Infinity. */
   function walk(arena: ArenaDef, from: Spot, goal: Spot, secs = 40): number {
-    const sim = new ArenaSim({ seed: 1, prepMs: 0, arena });
+    const sim = new ArenaSim({ seed: 1, prepMs: 0, arena , tickMs: 16});
     const u = sim.addUnit({ name: 'walker', classId: 'warrior', team: 0 as TeamId, controller: 'dummy' });
     sim.addUnit({ name: 'other', classId: 'warrior', team: 1 as TeamId, controller: 'dummy' }).pos = { x: arena.spawns[1][0].x, z: arena.spawns[1][0].z };
     sim.step();
@@ -213,7 +213,7 @@ describe('bots on a deck: whole matches', () => {
     for (const arena of DECKED) {
       for (const seed of [1, 2, 3, 4]) {
         const size = seed % 2 ? 2 : 3;
-        const sim = new ArenaSim({ seed: seed * 7 + 1, prepMs: 0, arena });
+        const sim = new ArenaSim({ seed: seed * 7 + 1, prepMs: 0, arena , tickMs: 16});
         const units: Unit[] = [];
         for (let t = 0; t < 2; t++) for (let k = 0; k < size; k++) units.push(sim.addUnit({ name: `u${t}${k}`, classId: classes[(seed + t * 2 + k * 3) % 4], team: t as TeamId, controller: 'bot' }));
         const bots = units.map((u, i) => new Bot(sim, u.id, 'hard', seed * 10 + i));
