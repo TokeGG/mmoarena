@@ -355,6 +355,21 @@ function rayLOS(a: Vec2, b: Vec2, arena: ArenaDef, la: Level, lb: Level, ha: num
       const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
       if (dk.flats.some((f) => x > f.x0 + LOS_EDGE && x < f.x1 - LOS_EDGE && z > f.z0 + LOS_EDGE && z < f.z1 - LOS_EDGE)) return false;
     }
+    // a line that runs through the slab itself (in at its side face, out at its underside near an edge) is blocked too:
+    // sampled along the line, more than a body's width of it inside the slab's footprint at the slab's height
+    {
+      const len = Math.hypot(b.x - a.x, b.z - a.z);
+      const n = Math.max(6, Math.ceil(len * 2));
+      let inside = 0;
+      for (let i = 1; i < n; i++) {
+        const t = i / n;
+        const y = ya + (yb - ya) * t;
+        if (y > dk.height || y < dk.height - DECK_THICKNESS) continue;
+        const x = a.x + (b.x - a.x) * t, z = a.z + (b.z - a.z) * t;
+        if (dk.flats.some((f) => x > f.x0 && x < f.x1 && z > f.z0 && z < f.z1)) inside++;
+      }
+      if (inside * (len / n) > 0.7) return false;
+    }
     if (la === 0 && lb === 0) {
       for (const r of [...dk.ramps, ...deckPiers(arena)]) if (segmentHitsRect(a, b, r.x0, r.x1, r.z0, r.z1)) return false; // on the ground, the ramps and piers are walls
     } else {

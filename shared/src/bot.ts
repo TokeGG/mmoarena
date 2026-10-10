@@ -704,7 +704,7 @@ export class Bot {
   }
 
   /** Enemies casting something the bot has had time to notice (and chose to answer). */
-  private interruptible(enemies: Unit[]): Unit[] {
+  private interruptible(enemies: Unit[], u?: Unit): Unit[] {
     const out: Unit[] = [];
     for (const e of enemies) {
       if (!e.cast) {
@@ -715,7 +715,7 @@ export class Bot {
       if (!s || s.start !== e.cast.start) {
         // how far into this cast to wait before kicking: later beats a fake, and a known faker is waited out longer
         const wait = this.brain.kickAt + (this.rng() - 0.5) * 0.25 + Math.min(0.3, 0.12 * (this.jukers.get(e.id) ?? 0));
-        s = { start: e.cast.start, at: this.sim.time, will: this.rng() < this.P.interruptChance, wait: Math.max(0, Math.min(0.9, wait)) };
+        s = { start: e.cast.start, at: this.sim.time, will: this.rng() < this.P.interruptChance || (!!u && MELEE.has(u.classId) && dist(u.pos, e.pos) <= 6), wait: Math.max(0, Math.min(0.9, wait)) };
         this.castSeen.set(e.id, s);
       }
       const span = Math.max(1, e.cast.end - e.cast.start);
@@ -732,7 +732,7 @@ export class Bot {
   private tryInterrupt(u: Unit, enemies: Unit[]): boolean {
     const mine = this.interruptsOf(u);
     if (!mine.length) return false;
-    for (const e of this.interruptible(enemies)) for (const id of mine) if (this.use(u, id, e.id)) return true;
+    for (const e of this.interruptible(enemies, u)) for (const id of mine) if (this.use(u, id, e.id)) return true;
     return false;
   }
 
@@ -1300,7 +1300,8 @@ export class Bot {
       if (d > reach || floorGap > 1.6 || blind) return { facing: angleTo(u.pos, this.waypoint(u.pos, tgt.pos, u.level, tgt.level)), fwd: 1, strafe: 0 };
       // in melee range: circle the target like a player does (strafing round it, stepping in when it drifts out, now and
       // then a hop), never a standing target. The step in keeps the circle tight enough to stay in reach.
-      const circle = 0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility); // faster than this, the orbit itself spins the bot round
+      // only a small turn round the target: the big circle is the rogue's walk behind it for a backstab (above)
+      const circle = (0.3 + 0.22 * Math.max(this.brain.strafe, this.brain.mobility)) * 0.75; // faster than this, the orbit itself spins the bot round
       if (this.rng() < 0.006 * this.brain.mobility) this.hop(u);
       // the circle runs into a wall, a pillar or a slab: go the other way round instead of pressing against it (a bot that
       // keeps strafing into something stands still for as long as the fight lasts)
