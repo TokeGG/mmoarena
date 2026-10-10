@@ -338,7 +338,7 @@
   .devp-entryhead { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:4px; } .devp-entryhead .devp-title { font-size:15px; margin:0; }
   .devp-facts { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; margin:6px 0; font-size:11px; } .devp-facts span:nth-child(odd) { text-align:right; }
   .devp-sec > summary { cursor:pointer; } summary.devp-sec-head::before { content:'▸'; color:#9a90b0; width:12px; flex:none; } details[open] > summary.devp-sec-head::before { content:'▾'; }
-  .devp-add select { max-width:48%; }
+  .devp-add select { max-width:48%; } .devp-data { width:100%; box-sizing:border-box; font:11px/1.35 ui-monospace,Menlo,monospace; background:#0b0b12; color:#e8e8f0; border:1px solid #ffffff2a; border-radius:4px; padding:6px; resize:vertical; } .dform-top,.dform-box { display:flex; flex-direction:column; gap:3px; } .dform-box { border-left:2px solid #ffffff22; padding-left:8px; margin:2px 0; } .dform-row { display:grid; grid-template-columns:130px 1fr auto; gap:6px; align-items:start; } .dform-lab { font-size:11px; color:#c9b98f; padding-top:4px; } .dform-in { width:100%; box-sizing:border-box; background:#0b0b12; color:#fff; border:1px solid #ffffff2a; border-radius:4px; padding:3px 5px; font:inherit; } .dform-item { border:1px solid #ffffff1a; border-radius:5px; padding:5px 6px; margin:4px 0; } .dform-itemhead { display:flex; justify-content:space-between; align-items:center; color:#9fd0ff; font-size:11px; margin-bottom:3px; } .dform-x { color:#ff9a8a; } .dform-add { max-width:60%; font:inherit; font-size:11px; } .devp-bad { color:#ff8a7a; font-size:11px; }
   .devp-links { gap:4px; margin:4px 0; } .devp-links .mm-small { padding:1px 7px; font-size:11px; }
   .devp-toolbar .mm-small { padding:3px 8px; font-size:11.5px; }
   .devp-asktab, .devp-matchtab { display:block; }
@@ -1055,6 +1055,14 @@
 .av-img{width:1.35em;height:1.35em;border-radius:50%;object-fit:cover;vertical-align:middle;box-shadow:0 0 0 1px rgba(255,255,255,.25)}
 .picon{display:flex;justify-content:center;height:0}.picon:has(img){height:30px;margin-bottom:2px}.pav{width:30px;height:30px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.5);box-shadow:0 0 8px rgba(0,0,0,.6)}
 .prof-emblem img{width:100%;height:100%;border-radius:inherit;object-fit:cover}
+/* map editor (admin panel, Maps tab) */
+.mape{display:grid;gap:10px}.mape-count{color:#a99cc4;font-size:13px}.mape-thumb{width:120px;height:72px;border-radius:6px;border:1px solid #2c2638;flex:none}
+.mape-row{align-items:center}.mape-builtin{margin-top:10px}.mape-builtin summary{cursor:pointer;color:#e2c7ff;font-weight:600;padding:6px 0}
+.mape-canvas-wrap{width:100%;overflow:hidden;border-radius:8px;border:1px solid #2c2638;background:#10131a;touch-action:none}.mape-canvas{display:block;margin:0 auto;touch-action:none;outline:none;cursor:crosshair}.mape-canvas:focus{box-shadow:inset 0 0 0 2px #7a4bb0}
+.mape-f{display:grid;gap:2px;font-size:12px;color:#a99cc4;min-width:0}.mape-f input[type=number]{width:84px;background:#10131a;border:1px solid #333b4d;color:#e6e9ef;border-radius:6px;padding:6px 7px;font-size:14px}.mape-nums{align-items:flex-end}
+.mape-form textarea,.mape-form input[type=text]{background:#10131a;border:1px solid #333b4d;color:#e6e9ef;border-radius:6px;padding:7px 9px;font-size:14px;min-width:0;width:100%;box-sizing:border-box}.mape-form .own-row input[type=text]{flex:1 1 150px;width:auto}
+.mape-sel{padding:8px 10px;border:1px solid #2c2638;border-radius:8px;background:#1a1722}.mape-list{margin:4px 0 0 18px;padding:0;font-size:13px}.mape-danger{background:#7a1f1f !important;color:#fff}
+@media (max-width:700px){.mape-thumb{width:96px;height:58px}.mape-f input[type=number]{width:72px}}
 .own-box{display:grid;gap:10px}.own-box h3{margin:8px 0 2px}.own-row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .own-box input[type=text],.own-box input[type=password],.own-box input[type=search]{background:#10131a;border:1px solid #333b4d;color:#e6e9ef;border-radius:6px;padding:7px 9px;font-size:14px;min-width:0;flex:1 1 150px}
 .own-box input[type=color]{width:42px;height:32px;padding:0;border:1px solid #333b4d;background:none;border-radius:6px}

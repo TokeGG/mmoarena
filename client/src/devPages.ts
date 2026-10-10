@@ -1,9 +1,10 @@
-import { ABILITIES, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
+import { ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
 import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavGroup } from '@arena/shared';
 import { iconEl, setIconPreview } from './iconArt';
 import { IconEditor } from './iconEditor';
 import { previewOf } from './iconEditLogic';
 import { SkillEditor, el } from './skillView';
+import { dataForm } from './dataForm';
 import { patchKey } from './devEdits';
 import type { ChatScope } from './designer';
 
@@ -38,6 +39,7 @@ const CAULDRON = new Set(['cauterizeHealth', 'cauterizeCooldownMs']);
 /** Whether a change belongs to a page: the Passives page owns every stat bonus and skill change of specs and talents, and Cauterize. */
 export function pageOwns(page: DevPageId, p: DataPatch): boolean {
   const passive = ((p.file === 'specs' || p.file === 'talents') && p.path[0] === 'mods') || (p.file === 'tuning' && CAULDRON.has(String(p.path[0])));
+  if (p.file === 'tuning' && classOptionKeys().has(String(p.path[0]))) return page === 'classes';
   if (page === 'passives') return passive;
   if (passive) return false;
   return PAGE_FILES[page].includes(p.file);
@@ -46,6 +48,7 @@ export function pageOwns(page: DevPageId, p: DataPatch): boolean {
 export function navIdOf(page: DevPageId, p: DataPatch): string {
   if (page === 'icons') return `${({ aura: 'u', class: 'c', spec: 'p' } as Record<string, string>)[String(p.path[0])] ?? 'a'}:${p.id}`; // an icon's entry is its skill or buff
   if (page === 'animations') return String(p.path[0]); // an animation's entry is its effect (dragonsBreath, charge, ...)
+  if (page === 'classes' && p.file === 'tuning') return classOfOption(String(p.path[0])) ?? p.id;
   if (page !== 'passives') return p.id;
   if (p.file === 'tuning') return `s:${CLASS_IDS.flatMap((c) => SPECS[c]).find((x) => x.passive === 'cauterize')?.id ?? ''}`;
   return `${p.file === 'specs' ? 's' : 't'}:${p.id}`;
@@ -347,6 +350,7 @@ export class DevWorkspace {
       if (!ABILITIES[id]) return void box.append(el('small', 'devp-dim', 'That skill is gone.'));
       box.append(this.head(ABILITIES[id].name, `${ABILITIES[id].school} · ${CLASSES[ABILITIES[id].class as ClassId]?.name ?? ABILITIES[id].class}`, id));
       box.append(ed.skillBody(id));
+      box.append(this.dataEditor('abilities', id));
       return;
     }
     const entry = entryFor(this.page, id);
@@ -397,6 +401,67 @@ export class DevWorkspace {
     }
     if (!any && q) box.append(el('small', 'devp-dim', 'No value here matches the search.'));
     if (entry.addTargets && !q) box.append(this.addWidget(entry));
+    if (!q && this.page !== 'passives' && canEditAsData(entry.file)) box.append(this.dataEditor(entry.file, entry.id));
+  }
+
+  /** "Edit as data": the whole entry as text. Anything the game can do with a skill, buff, talent or spec can be added, changed or removed here. */
+  private dataEditor(file: DataPatch['file'], id: string): HTMLElement {
+    const key = `${this.page}:${id}:data`;
+    const box = el('details', 'devp-sec devp-add');
+    box.open = this.editor.open.get(key) ?? false;
+    box.addEventListener('toggle', () => this.editor.open.set(key, box.open));
+    box.append(el('summary', 'devp-sec-head', '＋ Add or remove anything (effects, shields, bonuses…)'));
+    box.append(el('small', 'devp-dim', 'Every part of this entry as boxes. ✕ removes a part, ＋ adds one the game knows (a shield, damage, a stun, a talent bonus). Mistakes are listed and cannot be applied.'));
+    const field = { file, id, path: ['$entity'], base: entityText(file, id, true) ?? '', value: entityText(file, id) ?? '' };
+    const norm = (t: string) => { try { return JSON.stringify(JSON.parse(t), null, 2); } catch { return t; } };
+    const testing = this.host.testing();
+    let work: Record<string, unknown> = JSON.parse(String(this.set.shown(field, testing)) || '{}');
+    const msg = el('div', 'devp-dim');
+    const apply = el('button', 'mm-small mm-go', 'Apply');
+    const area = el('textarea', 'devp-data') as HTMLTextAreaElement;
+    area.spellcheck = false;
+    area.rows = 12;
+    const current = () => JSON.stringify(work, null, 2);
+    const check = () => {
+      const text = current();
+      const bad = entityProblems(file, id, text);
+      msg.replaceChildren(...(bad.length ? bad.slice(0, 6).map((b) => el('div', 'devp-bad', `✗ ${b}`)) : [el('div', '', '✓ Ready to apply')]));
+      apply.toggleAttribute('disabled', bad.length > 0 || norm(text) === norm(String(this.set.shown(field, testing))));
+    };
+    const formHost = el('div');
+    const drawForm = () => {
+      formHost.replaceChildren(dataForm(file, work, () => { area.value = current(); check(); }, drawForm));
+      area.value = current();
+      check();
+    };
+    drawForm();
+    apply.addEventListener('click', () => {
+      this.set.set(field, norm(current()), testing, this.host.canRevert);
+      this.host.onEdit();
+      this.host.repaint();
+    });
+    const reset = el('button', 'mm-small', '↺ Put back');
+    reset.title = 'Put this entry back to the data file';
+    reset.addEventListener('click', () => {
+      this.set.set(field, field.base, testing, this.host.canRevert);
+      this.host.onEdit();
+      this.host.repaint();
+    });
+    const raw = el('details', 'devp-sec');
+    raw.append(el('summary', 'devp-dim', 'Advanced: the same thing as text'));
+    area.addEventListener('input', () => {
+      try {
+        work = JSON.parse(area.value);
+        formHost.replaceChildren(dataForm(file, work, () => { area.value = current(); check(); }, drawForm));
+      } catch { /* mid-typing */ }
+      const bad = entityProblems(file, id, area.value);
+      msg.replaceChildren(...(bad.length ? bad.slice(0, 6).map((b) => el('div', 'devp-bad', `✗ ${b}`)) : [el('div', '', '✓ Ready to apply')]));
+      apply.toggleAttribute('disabled', bad.length > 0);
+    });
+    raw.append(area);
+    box.append(formHost, msg, el('div', 'devp-row'), raw);
+    (box.children[box.children.length - 2] as HTMLElement).append(apply, reset);
+    return box;
   }
 
   /** The entry's title with a reset for everything on it. */

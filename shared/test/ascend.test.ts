@@ -20,8 +20,11 @@ const priest = (sim: ArenaSim, team: 0 | 1, x: number, z: number): Unit => {
 };
 const yOf = (sim: ArenaSim, u: Unit) => sim.snapshot().units.find((s) => s.id === u.id)!.y;
 
+const H = AURAS['ascended'].hover!.height;
+const D = AURAS['ascended'].duration!;
+
 describe('Ascend to the Heavens', () => {
-  it('rises straight up to about 6 yards, hovers, and is back on the ground after 4 seconds', () => {
+  it('rises straight up to its hover height, hovers, and is back on the ground when it ends', () => {
     const sim = live();
     const p = priest(sim, 0, 0, 0);
     priest(sim, 1, 40, 0);
@@ -29,7 +32,7 @@ describe('Ascend to the Heavens', () => {
     const x = p.pos.x, z = p.pos.z;
     assert.ok(sim.useAbility(p.id, 'ascend').ok);
     let peak = 0, prev = 0, midAt = 0;
-    for (let t = TICK; t < 4000; t += TICK) {
+    for (let t = TICK; t < D; t += TICK) {
       sim.step();
       sim.drainEvents();
       const y = yOf(sim, p);
@@ -40,8 +43,8 @@ describe('Ascend to the Heavens', () => {
       assert.equal(p.pos.x, x);
       assert.equal(p.pos.z, z);
     }
-    assert.ok(peak >= 5.9 && peak <= 6.01, `peak ${peak}`);
-    assert.ok(midAt >= 5.9, 'hovering mid way');
+    assert.ok(peak >= H - 0.1 && peak <= H + 0.01, `peak ${peak}`);
+    assert.ok(midAt >= H - 0.1, 'hovering mid way');
     advance(sim, 200);
     assert.equal(yOf(sim, p), 0, 'back down');
     assert.ok(!p.auras.some((a) => a.id === 'ascended'));
@@ -49,12 +52,12 @@ describe('Ascend to the Heavens', () => {
 
   it('the height curve rises over 0.6 s, holds, and falls over 0.6 s', () => {
     const h = AURAS['ascended'].hover!;
-    assert.equal(hoverHeight(h, 0, 4000), 0);
-    assert.ok(Math.abs(hoverHeight(h, 300, 4000) - 3) < 1e-9);
-    assert.equal(hoverHeight(h, 600, 4000), 6);
-    assert.equal(hoverHeight(h, 2000, 4000), 6);
-    assert.ok(Math.abs(hoverHeight(h, 3700, 4000) - 3) < 1e-9);
-    assert.equal(hoverHeight(h, 4000, 4000), 0);
+    assert.equal(hoverHeight(h, 0, D), 0);
+    assert.ok(Math.abs(hoverHeight(h, 300, D) - H / 2) < 1e-9);
+    assert.equal(hoverHeight(h, 600, D), H);
+    assert.equal(hoverHeight(h, 2000, D), H);
+    assert.ok(Math.abs(hoverHeight(h, D - 300, D) - H / 2) < 1e-9);
+    assert.equal(hoverHeight(h, D, D), 0);
   });
 
   it('no movement or jumping is accepted while ascended', () => {
@@ -70,8 +73,8 @@ describe('Ascend to the Heavens', () => {
     }
     assert.equal(p.pos.x, x);
     assert.equal(p.pos.z, z);
-    assert.ok(sim.snapshot().units.find((s) => s.id === p.id)!.y >= 5.9, 'no jump on top of the hover');
-    advance(sim, 4000);
+    assert.ok(sim.snapshot().units.find((s) => s.id === p.id)!.y >= H - 0.1, 'no jump on top of the hover');
+    advance(sim, D);
     sim.queueInput(p.id, { seq: 100, fwd: 1, strafe: 0, facing: 0 });
     advance(sim, 300);
     assert.ok(Math.hypot(p.pos.x - x, p.pos.z - z) > 0.5, 'free to move again afterwards');

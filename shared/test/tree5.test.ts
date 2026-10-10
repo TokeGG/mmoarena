@@ -502,7 +502,7 @@ describe('tier five skills', () => {
     assert.ok(!a.auras.some((x) => AURAS[x.id].harmful && AURAS[x.id].dispellable), 'cleansed');
     assert.ok(e.auras.some((x) => x.id === 'frostbolt_slow'), 'enemies keep theirs');
     assert.equal(sim2.applyAura(e, a, 'plague_bloom').applied, false, 'new harmful effects are kept off');
-    advance(sim2, 4200);
+    advance(sim2, (AURAS['purified'].duration ?? 4000) + 200);
     assert.equal(sim2.applyAura(e, a, 'plague_bloom').applied, true, 'until it wears off');
 
     const sim3 = live();

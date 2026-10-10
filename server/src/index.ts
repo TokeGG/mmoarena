@@ -15,6 +15,7 @@ import { BotLearner, MeasureWorker } from './botlearn';
 import { DevTools } from './devtools';
 import { AdminLog } from './adminlog';
 import { CUSTOM_LIMITS, CustomIcons } from './customicons';
+import { CustomMaps } from './custommaps';
 import { AiTune } from './aitune';
 import { DevRequests } from './devrequests';
 import { Suggestions } from './suggestions';
@@ -96,7 +97,9 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const adminLog = new AdminLog(store);
   // icon packs uploaded in the Icon edit window: kept in the store, part of the library the server validates icon picks against
   const customIcons = new CustomIcons(store, adminLog);
-  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, adminLog, new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)), playTime, health);
+  // maps the owner made in the admin panel's Maps tab: kept in the store, registered for every arena lookup, sent to every client
+  const customMaps = new CustomMaps(store, adminLog, (maps) => lobby.customMapsChanged(maps));
+  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, adminLog, new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)), playTime, health, customMaps);
 
   const server = http.createServer((req, res) => {
     let url: URL;
@@ -345,7 +348,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
 
   return new Promise((resolve, reject) => {
     server.once('error', reject);
-    void customIcons.ready.then(() => server.listen(opts.port, opts.host ?? '0.0.0.0', () => {
+    void Promise.all([customIcons.ready, customMaps.ready]).then(() => server.listen(opts.port, opts.host ?? '0.0.0.0', () => {
       const addr = server.address();
       const port = typeof addr === 'object' && addr ? addr.port : opts.port;
       resolve({

@@ -199,7 +199,7 @@ export class ArenaScene {
   /** Swap the scenery (and the camera's pillar collision) to another arena. A no-op if it is already showing. */
   setMap(id: string): void {
     const next = arenaById(id);
-    if (next.id === this.arena.id) return;
+    if (next === this.arena) return; // the same object (a custom map that was edited is a new one, even under the same id)
     this.env.dispose(); // frees its meshes and keeps a pack that loads later from adding pieces (never two sceneries alive)
     this.arena = next;
     this.env = buildArenaEnvironment(this.scene, this.renderer, this.arena);

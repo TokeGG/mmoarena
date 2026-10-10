@@ -24,6 +24,7 @@ export interface ChangeRow {
 
 /** A value as a row shows it: a switch as on or off, a number with its plain meaning ("1.5 (+50%)"). */
 export const showValue = (p: Pick<DataPatch, 'file' | 'id' | 'path'>, v: number | string): string => {
+  if (p.path[0] === '$entity') return typeof v === 'string' && v.length > 0 ? `${v.split('\n').length} lines of data` : 'none';
   if (isSwitch(p)) return Number(v) === 1 ? 'on' : 'off';
   if (p.file === 'icons') return v ? String(v) : 'none';
   if (typeof v !== 'number') return String(v);

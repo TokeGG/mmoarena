@@ -1,4 +1,4 @@
-import { ARENAS, CLASSES, SPECS, TIME_CATS, TIME_CAT_LABEL, TIME_DAYS } from '@arena/shared';
+import { CLASSES, findArena, SPECS, TIME_CATS, TIME_CAT_LABEL, TIME_DAYS } from '@arena/shared';
 import type { ClientMsg, HealthHour, ServerMsg, TimeBuckets, TimeCat, TimeGlobal, TimeRecord, TimeRow } from '@arena/shared';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -90,7 +90,7 @@ const specName = (k: string) => {
   const spec = SPECS[c as keyof typeof SPECS]?.find((x) => x.id === s);
   return `${spec?.name ?? s} ${className(c)}`;
 };
-const mapLabel = (id: string) => ARENAS.find((a) => a.id === id)?.name ?? id;
+const mapLabel = (id: string) => findArena(id)?.name ?? id;
 
 /** The last `n` days (UTC) ending today, oldest first, with zero for days nobody played. */
 export function lastDays(days: TimeBuckets, n = TIME_DAYS, now = Date.now()): { key: string; ms: number }[] {

@@ -12,6 +12,7 @@ import { mapName } from './spectate';
 import type { Popup } from './popups';
 import { tours } from './tour';
 import { toursList } from './tourUi';
+import { MapEditor } from './mapEditor';
 
 /** The panel's access for an account (the server decides for real; this only shapes what is shown). */
 export function adminAccessOf(a: AccountInfo | null): 'owner' | 'dev' | null {
@@ -29,7 +30,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-export type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'requests' | 'server' | 'log';
+export type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'maps' | 'requests' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
@@ -39,6 +40,7 @@ const TABS: [Tab, string][] = [
   ['moderation', 'Moderation'],
   ['proposals', 'Proposals'],
   ['tuning', 'Tuning'],
+  ['maps', 'Maps'],
   ['requests', 'Requests'],
   ['server', 'Server'],
   ['log', 'Log'],
@@ -55,6 +57,8 @@ interface Hooks {
   follow(name: string): void;
   /** Play a stored replay. */
   replay(id: string): void;
+  /** Start a practice match on this map (the map editor's Play it). */
+  playOn(mapId: string): void;
   /** The number of dev proposals nobody has checked yet changed (for the badge on the admin button). */
   onPending?(n: number): void;
 }
@@ -118,6 +122,8 @@ export class AdminPanel {
   private op: OwnerPanel;
   /** Play time per player (owner only). */
   private time: TimeView;
+  /** The map editor of the Maps tab (owner only). */
+  private maps: MapEditor;
   /** The bot battle window, started from the main menu (owner only). */
   private bb: HTMLElement | null = null;
   readonly bbPopup: Popup = { isOpen: () => !!this.bb, close: () => this.closeBotBattle(), el: () => this.bb };
@@ -148,8 +154,8 @@ export class AdminPanel {
     head.append(el('h2', '', '🤖 Bot battle'), el('span', 'admp-status', 'Watch bots fight each other'), close);
     card.append(head);
     const body = el('div', 'admp-body');
-    if (!a || a.role !== 'owner') body.append(el('p', 'mm-modal-foot', 'Only the founder account can start a bot battle.'));
-    else if (!a.ownerOk) body.append(this.op.render(a));
+    if (!a || (a.role !== 'owner' && !adminAccessOf(a))) body.append(el('p', 'mm-modal-foot', 'Only the founder account and devs can start a bot battle.'));
+    else if (a.role === 'owner' && !a.ownerOk) body.append(this.op.render(a));
     else body.append(this.op.botMatch(() => this.closeBotBattle()));
     card.append(body);
     r.replaceChildren(card);
@@ -159,6 +165,7 @@ export class AdminPanel {
   private card = el('div', 'admp-card');
 
   constructor(private hooks: Hooks) {
+    this.maps = new MapEditor({ send: hooks.send, closeWindow: () => this.close(), playOn: (id) => hooks.playOn(id) });
     this.time = new TimeView((m) => hooks.send(m), () => this.paint());
     this.root.append(this.card);
     this.root.addEventListener('focusout', () => window.setTimeout(() => this.repaintLater && !this.typing() && this.paint(), 150));
@@ -243,6 +250,8 @@ export class AdminPanel {
     if (this.tab === 'time' && access === 'owner') this.time.refresh();
     if (this.tab === 'proposals' || this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
+    if (this.tab !== 'maps') this.maps.hide();
+    else if (access === 'owner') this.maps.show();
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
     if (this.tab === 'server' && access === 'owner' && this.botNamesText === null) s({ t: 'admin_botnames' });
@@ -255,6 +264,7 @@ export class AdminPanel {
 
   handle(m: ServerMsg) {
     this.time.handle(m);
+    this.maps.handle(m);
     switch (m.t) {
       case 'admin_log':
         this.log = m.rows;
@@ -399,6 +409,9 @@ export class AdminPanel {
       case 'tuning':
         body.append(el('h3', '', 'Skill designer'), this.propMsgBox(), this.designerBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
         if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
+        break;
+      case 'maps':
+        body.append(this.maps.root);
         break;
       case 'requests':
         body.append(this.requestsBox());

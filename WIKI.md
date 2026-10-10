@@ -862,7 +862,7 @@ On the bar: [Lightbearer](#priest-holy) (key 2).
 *Holy* · Instant · 90s cooldown
 
 - Removes every root and slow from you.
-- You gain Ascended for 4s: You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover. You cannot move while it lasts.
+- You gain Ascended for 6s: You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover. You cannot move while it lasts.
 - *Does not trigger the global cooldown.*
 - Effects: [Ascended](#effect-ascended)
 
@@ -934,7 +934,7 @@ Talent: Warden tier V *Leap of Trust* (replaces Desperate Prayer); Lightbearer t
 *Holy* · 60 mana · 12 yd radius · Instant · 50s cooldown
 
 - Removes every harmful magic effect from you and every ally in range.
-- You and every ally in range gain Purified for 4s: Harmful effects cannot take hold.
+- You and every ally in range gain Purified for 6s: Harmful effects cannot take hold.
 - Effects: [Purified](#effect-purified)
 
 Talent: Warden tier V *Cleansing Radiance* (replaces Desperate Prayer); Lightbearer tier V *Cleansing Radiance* (replaces Desperate Prayer); Gloomweaver tier V *Cleansing Radiance* (replaces Power Word: Shield).
@@ -1300,7 +1300,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-arcane-charge"></a>**Arcane Charge** | Buff | 12s | Stacks up to 5 times. | [Arcane Blast](#skill-arcane-blast), [Arcane Missiles](#skill-arcane-missiles) |
 | <a id="effect-arcane-slow"></a>**Arcane Explosion** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Arcane Explosion](#skill-arcane-explosion) |
 | <a id="effect-arcane-power"></a>**Arcane Power** | Buff, magic | 15s | +25% damage dealt. −30% cast time. | [Arcane Power](#skill-arcane-power) |
-| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover. You cannot move while it lasts. | [Ascend to the Heavens](#skill-ascend) |
+| <a id="effect-ascended"></a>**Ascended** | Buff | 6s | You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover. You cannot move while it lasts. | [Ascend to the Heavens](#skill-ascend) |
 | <a id="effect-blind"></a>**Blind** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Blind](#skill-blind) |
 | <a id="effect-cauterized"></a>**Cauterized** | Buff (mark) | 4s | Cheated death: a killing blow left you at 35% health. Cauterize is ready again in 3 minutes. | Pyromancy passive (Cauterize) |
 | <a id="effect-charge-stun"></a>**Charge** | Debuff (stun) | 2.5s | Cannot move, cast or act. | [Charge](#skill-charge) |
@@ -1333,7 +1333,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-polymorph"></a>**Polymorph** | Debuff (incapacitate), magic | 8s | Cannot move, cast or act (can still turn), not even Blink. Breaks on damage. Heals 10% of maximum health every 1s. | [Polymorph](#skill-polymorph) |
 | <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 275 damage. | [Power Word: Shield](#skill-power-word-shield) |
 | <a id="effect-psychic-scream"></a>**Psychic Scream** | Debuff (fear), magic | 6s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Psychic Scream](#skill-psychic-scream) |
-| <a id="effect-purified"></a>**Purified** | Buff | 4s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
+| <a id="effect-purified"></a>**Purified** | Buff | 6s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
 | <a id="effect-recklessness"></a>**Recklessness** | Buff | 12s | +30% damage dealt. +100% rage from all sources. | [Recklessness](#skill-recklessness) |
 | <a id="effect-renew"></a>**Renew** | Buff, magic | 5s | Heals 1% of maximum health every 1s. | talent *Renewing Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |

@@ -30,3 +30,5 @@ export * from './hudDefault';
 export * from './botnames';
 export * from './bottest';
 export * from './botnote';
+export * from './devsmoke';
+export * from './mapedit';

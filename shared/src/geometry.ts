@@ -38,6 +38,8 @@ const RAMP_AIR = 0.8;
 export const STEP_HEIGHT = 0.4;
 /** How thick a deck rail is (it stands just outside the edge it guards). */
 export const RAIL_THICKNESS = 0.4;
+/** A unit pressed against a rail sits a hair inside its reach after being pushed out of something else; only deeper than this counts as having landed in it. */
+const RAIL_SETTLE = 0.02;
 
 /**
  * Push a position out of walls and pillars, and whatever else is solid at that level: the ramps, piers and low barricades
@@ -52,12 +54,29 @@ export function resolveCollisions(p: Vec2, arena: ArenaDef, level: Level = 0, ai
   const clear = air >= CLEAR_HEIGHT;
   const dk = arena.deck;
   const solids: Rect[] = [...(arena.walls ?? [])];
-  if (dk) solids.push(...(level === 1 ? (clear ? [] : deckRails(arena)) : [...dk.ramps, ...deckPiers(arena)]));
+  // rails a unit has come down inside (a jump over them ended short): they ease it out at its own pace instead of shoving it to the
+  // nearest face at once, which snapped it back or forward by up to a yard in a single tick
+  const inside: Rect[] = [];
+  if (dk) {
+    if (level !== 1) solids.push(...dk.ramps, ...deckPiers(arena));
+    else if (!clear) {
+      for (const q of deckRails(arena)) (from && rectDist(from.x, from.z, q) < R - RAIL_SETTLE ? inside : solids).push(q);
+    }
+  }
   if (level === 0 && air < LOW_CLEAR) {
     for (const r of arena.lows ?? []) {
       // a lava pit takes whoever is in a jump or already in it (they are not pushed out, they burn and cannot walk out: see the end); walking in from outside is still blocked
       if (r.lava && (air > 0 || (from && from.x > r.x0 && from.x < r.x1 && from.z > r.z0 && from.z < r.z1))) continue;
       solids.push(r);
+    }
+  }
+  if (inside.length && from) {
+    const step = Math.hypot(x - from.x, z - from.z);
+    for (const q of inside) ({ x, z } = pushOutOfBox(x, z, q, R));
+    const moved = Math.hypot(x - from.x, z - from.z);
+    if (moved > step) { // never faster than it walks: pushed with its stride it just keeps going, pushed across it slides out sideways
+      x = from.x + ((x - from.x) * step) / moved;
+      z = from.z + ((z - from.z) * step) / moved;
     }
   }
   for (let i = 0; i < 2; i++) {

@@ -1,4 +1,4 @@
-import { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING } from './data';
+import { ABILITIES, AURAS, CLASSES, CLASS_IDS, SPECS, TALENTS, TUNING } from './data';
 import { CLASS_BLURB, auraOrigins, describeAura, describeTalent, plainText, specPassives } from './describe';
 import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MOD_ABILITY_DEFAULT, MOD_ABILITY_FLAGS, MOD_SCALAR_DEFAULT, TUNING_ID, currentValue, fileDefault, isAddition, isSwitch, tunableNumbers } from './devpatch';
 import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
@@ -195,6 +195,7 @@ interface Plain { label: string; hint?: string; unit: FieldUnit }
 /** Words for one spot in a data file. */
 export function plainPath(file: PatchFile, id: string, path: readonly (string | number)[]): Plain {
   const last = String(path[path.length - 1]);
+  if (path[0] === '$entity') return { label: 'Whole entry (edited as data)', hint: 'Every field of it, as the data editor wrote it.', unit: 'plain' };
   if (file === 'icons') return { label: path[0] === 'aura' ? 'Icon of the buff or debuff' : 'Icon', hint: 'The picture it wears on the action bar, in tooltips and on buff rows. Looks only: never changes a match.', unit: 'plain' };
   if (file === 'fx') {
     const f = fxField(path);
@@ -559,6 +560,17 @@ function autoGroup(file: 'classes' | 'specs', id: string, has: boolean): FieldGr
   return { id: 'auto', title: 'Auto-attack', sub: 'the swing it makes without a button', open: true, fields: some(['interval', 'damage', 'range'].map((k) => fieldAt(file, id, ['auto', k]))) };
 }
 
+/** How rage is built and lost (game options, shown where the rage class is edited). */
+/** Game options that belong to one class and are edited on its page, not under Game options. */
+export const CLASS_OPTION_KEYS: Record<string, readonly string[]> = { rage: ['rageFromDealt', 'rageFromTaken', 'rageDecayPerSec'], stealth: ['stealthDetect'] };
+export const classOptionKeys = (all = false): Set<string> => new Set([...Object.values(CLASS_OPTION_KEYS).flat(), ...(all ? ['cauterizeHealth', 'cauterizeCooldownMs'] : [])]);
+/** The class a class-bound option is edited on. */
+export const classOfOption = (k: string): ClassId | null => (k === 'stealthDetect' ? ('rogue' as ClassId) : CLASS_IDS.find((c) => CLASSES[c]?.resource.type === 'rage') ?? null);
+
+function rageGroup(): FieldGroup {
+  return { id: 'rage', title: 'Rage gain', sub: 'rage per point of damage dealt and taken, and the drain out of combat', open: true, fields: some(['rageFromDealt', 'rageFromTaken', 'rageDecayPerSec'].map((k) => fieldAt('tuning', TUNING_ID, [k]))) };
+}
+
 function classEntry(c: ClassId): DevEntry | null {
   const def = CLASSES[c];
   if (!def) return null;
@@ -567,6 +579,8 @@ function classEntry(c: ClassId): DevEntry | null {
   ];
   const auto = autoGroup('classes', c, !!def.auto);
   if (auto) groups.push(auto);
+  if (def.resource.type === 'rage') groups.push(rageGroup());
+  if (c === classOfOption('stealthDetect')) groups.push({ id: 'stealth', title: 'Stealth', sub: 'how close enemies notice you', open: true, fields: some([fieldAt('tuning', TUNING_ID, ['stealthDetect'])]) });
   return {
     file: 'classes', id: c, name: def.name, sub: `${def.resource.type} class`,
     lines: [CLASS_BLURB[c]].filter(Boolean),
@@ -681,7 +695,7 @@ function optionsEntry(): DevEntry {
   const groups = new Map<string, DevField[]>();
   for (const k of Object.keys(TUNING)) {
     const info = TUNING_INFO[k];
-    if (!info) continue;
+    if (!info || classOptionKeys(true).has(k)) continue; // class rules live on the class (and spec) pages
     const v = (TUNING as unknown as Record<string, unknown>)[k];
     const fields: DevField[] = [];
     if (Array.isArray(v)) v.forEach((_x, i) => { const f = fieldAt('tuning', TUNING_ID, [k, i]); if (f) fields.push(f); });

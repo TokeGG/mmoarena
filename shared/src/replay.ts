@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, AURAS, CLASSES, SPECS, TALENTS, TUNING, arenaById } from './data';
+import { ABILITIES, ARENAS, AURAS, CLASSES, SPECS, TALENTS, TUNING, arenaById, findArena, isCustomArena } from './data';
 import { ArenaSim } from './sim';
 import type { AddUnitOptions, SimCommand } from './sim';
 import type { RosterEntry } from './accounts';
@@ -8,7 +8,7 @@ import type { SimEvent, Snapshot, TeamId } from './types';
  * Bump when the simulation's rules (code, not data) change in a way that alters outcomes: older replays would no longer
  * play out the same, so they are refused instead of showing something wrong. Data changes are caught by `contentHash`.
  */
-export const SIM_REVISION = 117;
+export const SIM_REVISION = 118;
 
 /** A small hash of every balance-relevant data file; a replay only plays on the data it was recorded with. */
 export function contentHash(tickMs: number = TUNING.tickMs): string {
@@ -26,6 +26,8 @@ export interface ReplayData {
   v: 1;
   hash: string;
   arena: string;
+  /** The map is one of the owner's custom maps (not part of the game's data): the replay needs it to still exist. */
+  custom?: true;
   seed: number;
   prepMs: number;
   /** Milliseconds per tick the match was played at (absent: TUNING.tickMs, what older recordings used). `ticks` and every command's tick number count these. */
@@ -50,8 +52,17 @@ export class ReplayRecorder {
   finish(roster: RosterEntry[]): ReplayData {
     this.sim.onUnit = null;
     this.sim.onCommand = null;
-    return { v: 1, hash: contentHash(this.sim.tickMs), ...this.meta, ...(this.sim.tickMs !== TUNING.tickMs ? { tickMs: this.sim.tickMs } : {}), units: this.units, cmds: this.cmds, ticks: this.sim.tickNo, winner: this.sim.winner, roster };
+    return { v: 1, hash: contentHash(this.sim.tickMs), ...this.meta, ...(isCustomArena(this.meta.arena) ? { custom: true as const } : {}), ...(this.sim.tickMs !== TUNING.tickMs ? { tickMs: this.sim.tickMs } : {}), units: this.units, cmds: this.cmds, ticks: this.sim.tickNo, winner: this.sim.winner, roster };
   }
+}
+
+/**
+ * Why a recording cannot be played because of its map, or null. A replay records the map id (and `custom` when it is one of the
+ * owner's custom maps). If that custom map was deleted since, or this client was not sent it, playing it on the default map
+ * would show something wrong, so it is refused with a plain message. Other unknown ids keep the old behaviour (default map).
+ */
+export function replayMapProblem(data: Pick<ReplayData, 'arena' | 'custom'>): string | null {
+  return data.custom && !findArena(data.arena) ? `This match was played on a custom map ("${data.arena}") that no longer exists, so it cannot be replayed.` : null;
 }
 
 /** Plays a recording forward on a local sim. Same commands on the same tick = same match. */
@@ -59,6 +70,8 @@ export class ReplayRunner {
   sim!: ArenaSim;
   private cursor = 0;
   constructor(readonly data: ReplayData) {
+    const gone = replayMapProblem(data);
+    if (gone) throw new Error(gone);
     this.reset();
   }
   /** Milliseconds per tick of this recording. */
