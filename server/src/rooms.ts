@@ -660,6 +660,7 @@ export class Room {
     if (!me || !this.sim.units.has(unitId)) return;
     const team = this.marks.get(me.team) ?? new Map<number, number>();
     this.marks.set(me.team, team);
+    this.sim.raidMarks.set(me.team, team); // the bots follow them (skull: kill this first)
     const had = team.get(unitId);
     team.delete(unitId); // 0, or the same mark again, takes it off
     if (mark > 0 && had !== mark) {

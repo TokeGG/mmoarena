@@ -3,6 +3,7 @@ import { angleTo, blinkDestination, dist, distPointToSegment, hasLOS, heightAt, 
 import { coverSpot, highSpot, navRoute, needsNavGrid } from './nav';
 import { JUMP_HEIGHT, canStartJump } from './jump';
 import { mulberry32 } from './sim';
+import { MARKS } from './protocol';
 import type { ArenaSim } from './sim';
 import type { ClassId, Unit, Vec2 } from './types';
 
@@ -82,6 +83,10 @@ interface Cmd { facing: number; fwd: number; strafe: number; /** retreating: loo
  * so it obeys every rule: GCD, range, line of sight, resources, lockouts, stealth visibility.
  * Call tick() once per sim step, before sim.step().
  */
+/** The raid marks the bots obey: skull is the one to kill first, cross the one after it. */
+const MARK_SKULL = MARKS.findIndex((m) => m.id === 'skull') + 1;
+const MARK_CROSS = MARKS.findIndex((m) => m.id === 'cross') + 1;
+
 export class Bot {
   private seq = 0;
   private nextThink = 0;
@@ -643,7 +648,11 @@ export class Bot {
     const unhittable = !!cur && cur.alive && (!hasLOS(u.pos, cur.pos, sim.arena, u.level, cur.level) || cur.auras.some((a) => AURAS[a.id]?.invulnerable));
     this.badSince = unhittable ? this.badSince ?? sim.time : undefined;
     const letGo = unhittable && sim.time - (this.badSince ?? sim.time) >= 400 + B0.stickiness * 100;
-    if (cur && cur.alive && enemies.includes(cur) && sim.time < this.retargetAt && !letGo) return;
+    // a raid mark from the team's players: skull is the kill target, cross the one after it. A skull put on someone else is followed at once.
+    const marks = sim.raidMarks.get(u.team);
+    const markOf = (e: Unit): number => marks?.get(e.id) ?? 0;
+    const skulled = enemies.find((e) => markOf(e) === MARK_SKULL);
+    if (cur && cur.alive && enemies.includes(cur) && sim.time < this.retargetAt && !letGo && !(skulled && skulled !== cur)) return;
     // nearly dead: finish it rather than switch
     if (cur && cur.alive && enemies.includes(cur) && !unhittable && hpFrac(cur) <= B0.switchHp && !cur.auras.some((x) => x.kind === 'incapacitate' && AURAS[x.id]?.breaksOnDamage) && this.reduction(cur) > 0.65) {
       this.retargetAt = sim.time + 500;
@@ -663,7 +672,8 @@ export class Bot {
       hpFrac(e) * B.killLow + dist(u.pos, e.pos) * 0.8 - (e.classId === 'priest' ? B.healerPrio : 0) - (e === cur ? B.stickiness : 0) -
       (mates.some((a) => a.target === e.id) ? B.focus : 0) - (fleeing(e) ? B.chase * 15 : 0) +
       (e.auras.some((a) => AURAS[a.id]?.invulnerable) ? 80 : 0) + (hasLOS(u.pos, e.pos, sim.arena, u.level, e.level) ? 0 : 25) +
-      (this.reduction(e) < 0.65 ? 40 : 0); // someone behind a shield wall or evasion: hit the other one while it lasts
+      (this.reduction(e) < 0.65 ? 40 : 0) - // someone behind a shield wall or evasion: hit the other one while it lasts
+      (markOf(e) === MARK_SKULL ? 1000 : markOf(e) === MARK_CROSS ? 400 : 0); // the marked target comes first, whatever else is near
     list.sort((a, b) => score(a) - score(b));
     this.target = list[0].id;
     this.retargetAt = sim.time + 2500;

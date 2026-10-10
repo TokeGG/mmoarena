@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ABILITIES, ArenaSim, Bot, DEFAULT_BRAIN, TUNING, clampBrain, hasLOS, newPopulation, recordResult } from '../src/index';
+import { ABILITIES, ArenaSim, Bot, DEFAULT_BRAIN, MARKS, TUNING, clampBrain, hasLOS, newPopulation, recordResult } from '../src/index';
 import type { ClassId, Difficulty, SimEvent, TeamId, Unit } from '../src/index';
 
 const TICK = 16;
@@ -327,3 +327,48 @@ describe('bots look after their lives', () => {
   });
 });
 
+
+describe('bots follow the raid marks', () => {
+  const setup = () => {
+    const ctx = mk();
+    const w = bot(ctx, 'warrior', 0, 0, 0);
+    const near = dummy(ctx, 'mage', 1, 8, 0);
+    const far = dummy(ctx, 'rogue', 1, 20, 0);
+    return { ctx, w, near, far };
+  };
+  const targetOf = (ctx: Ctx, id: number) => ctx.sim.units.get(id)!.target;
+
+  it('a skull on someone makes the DPS go for them, even when someone else is closer', () => {
+    const { ctx, w, near, far } = setup();
+    run(ctx, 1500);
+    assert.equal(targetOf(ctx, w.id), near.id, 'with no mark it takes the nearer one');
+    ctx.sim.raidMarks.set(0, new Map([[far.id, MARKS.findIndex((m) => m.id === 'skull') + 1]]));
+    run(ctx, 600);
+    assert.equal(targetOf(ctx, w.id), far.id, 'the skull is followed within a moment, not after the usual retarget delay');
+  });
+
+  it('a skull that moves to someone else is followed again, and a cross is the second choice', () => {
+    const { ctx, w, near, far } = setup();
+    const skull = MARKS.findIndex((m) => m.id === 'skull') + 1;
+    const cross = MARKS.findIndex((m) => m.id === 'cross') + 1;
+    ctx.sim.raidMarks.set(0, new Map([[far.id, skull]]));
+    run(ctx, 1500);
+    assert.equal(targetOf(ctx, w.id), far.id);
+    ctx.sim.raidMarks.set(0, new Map([[near.id, skull]]));
+    run(ctx, 600);
+    assert.equal(targetOf(ctx, w.id), near.id);
+    // the skull is dead: the cross is next
+    near.health = 0;
+    near.alive = false;
+    ctx.sim.raidMarks.set(0, new Map([[far.id, cross]]));
+    run(ctx, 3000);
+    assert.equal(targetOf(ctx, w.id), far.id);
+  });
+
+  it('marks on the other team\'s bots are not followed', () => {
+    const { ctx, w, near, far } = setup();
+    ctx.sim.raidMarks.set(1, new Map([[far.id, MARKS.findIndex((m) => m.id === 'skull') + 1]]));
+    run(ctx, 1500);
+    assert.equal(targetOf(ctx, w.id), near.id);
+  });
+});
