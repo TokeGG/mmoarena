@@ -102,14 +102,13 @@ export class DevRequests {
     const body = requestText(row);
     // an issue is opened for every request; one that needs code then gets the label at once, which is what starts Claude on GitHub
     // (ARENA_DEV_REQUEST_AUTOBUILD=0 keeps it for the owner's "Build it with Claude" button)
-    if (this.env.ARENA_DEV_REQUEST_ISSUES !== '0') await this.openIssue(row);
+    // the label goes on in the same call that opens the issue, so Claude starts with the one permission that opens it (adding a label
+    // to an issue afterwards is a second call a token can be refused)
+    const auto = !!row.needsCode && this.env.ARENA_DEV_REQUEST_AUTOBUILD !== '0';
+    if (this.env.ARENA_DEV_REQUEST_ISSUES !== '0') await this.openIssue(row, auto);
+    if (auto && row.issueNumber) row.build = { at: Date.now(), by };
     this.rows = [row, ...this.rows].slice(0, MAX_ROWS);
     await this.persist();
-    if (row.needsCode && row.issueNumber && this.env.ARENA_DEV_REQUEST_AUTOBUILD !== '0') {
-      const started = await this.build(row.id, by);
-      if (!started.ok) row.issueError = started.text; // the request stays; the owner can press the button again
-      await this.persist();
-    }
     void this.post(`📋 **Change request** from **${by}**: ${row.title}\n${row.proposed}\n${row.issueUrl ? `Issue: ${row.issueUrl}` : '(no GitHub issue)'}\n${requestText(row).slice(0, 1200)}`).catch(() => false);
     return { ok: true, row, text: '' };
   }
@@ -120,6 +119,7 @@ export class DevRequests {
       return;
     }
     try {
+      if (labelled) await this.api('/labels', { method: 'POST', body: JSON.stringify({ name: REQUEST_LABEL, color: 'a371f7', description: 'Asked for in the game by a dev' }) }).catch(() => undefined);
       const issue = (await this.api('/issues', { method: 'POST', body: JSON.stringify({ title: `Dev request: ${row.title}`.slice(0, 200), body: requestText(row).slice(0, 60000), ...(labelled ? { labels: [REQUEST_LABEL] } : {}) }) })) as { html_url?: string; number?: number };
       row.issueUrl = issue.html_url;
       row.issueNumber = issue.number;
