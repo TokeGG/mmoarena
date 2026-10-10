@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { arenaById, heightAt, onRaised, slabReach } from '@arena/shared';
+import { arenaById, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -333,13 +333,16 @@ export class ArenaScene {
     const h = Math.cos(pitch);
     const offset = new THREE.Vector3(-dir.x * h, Math.sin(pitch), -dir.z * h);
 
+    // under a walkway the deck above is cut away in a circle around you, so the camera can stay as it is and you still see everything
+    const dk = this.arena.deck;
+    const under = !!dk && fy < dk.height - 1.5 && dk.flats.some((f) => fx > f.x0 && fx < f.x1 && fz > f.z0 && fz < f.z1);
+    this.env.setHole(fx, fz, under ? Math.max(6, dist * Math.cos(pitch) + 2) : 0); // wide enough to cover the camera too
     let d = dist;
     if (d > 0.35) {
       this.raycaster.set(head, offset);
       this.raycaster.far = dist;
       const hits = this.raycaster.intersectObjects(this.pillars, true);
       d = cameraReach(dist, { x: head.x, y: head.y, z: head.z }, { x: offset.x, y: offset.y, z: offset.z }, this.arena.bounds, hits.length ? hits[0].distance : Infinity);
-      d = Math.min(d, slabReach(this.arena, head, offset, d)); // under a platform the camera is held in the space under it, not pushed up through it
     }
     const first = d < 1.8; // the camera pressed this close to a wall or pillar becomes first person
     const me = this.meshes.get(this.followId);
@@ -479,12 +482,14 @@ export class ArenaScene {
 
 /** A floor height that drops with gravity when the ground falls away by more than a step, and follows it otherwise. */
 export function fallToward(cur: number | undefined, ground: number, dt: number, st: { fallV?: number }): number {
-  if (cur === undefined || ground >= cur - 0.3 && !st.fallV) {
+  if (cur === undefined || (ground >= cur - 0.3 && ground - cur <= 0.25 && !st.fallV)) {
     st.fallV = 0;
     return ground;
   }
   if (ground >= cur) {
     st.fallV = 0;
+    // a jump into the side of a ramp lands the feet on its surface a good way above: climb there quickly instead of popping over
+    if (ground - cur > 0.25) return Math.min(ground, cur + Math.max(ground - cur, 1) * (1 - Math.exp(-dt * 18)) + 0.01);
     return ground;
   }
   st.fallV = (st.fallV ?? 0) + 30 * dt;

@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.69.58",
+  "date": "2026-10-10",
+  "at": "2026-10-10T20:00:00Z",
+  "title": "Under platforms, jumps and swings",
+  "changes": [
+   "Walking under a platform now cuts a see-through circle in the deck above you, wide enough to cover the camera, so you can always see what is going on. The camera is no longer squashed.",
+   "Jumping looks like a real jump: one knee drives up and the other foot trails, both tuck at the top, the legs reach for the ground on the way down, and the knees give when you land.",
+   "Melee swings feel heavier: the body winds up, the hips and shoulders turn into the blow, the front foot steps in, and the arm comes across the body.",
+   "Jumping into the side of a ramp now climbs smoothly onto it instead of popping over the edge.",
+   "Practice matches against bots no longer end on a time limit and no longer dampen healing.",
+   "New keybind: Closest enemy, which always targets the nearest enemy instead of the next one in line.",
+   "The Animations page in the skill editor now has every movement (jumping, melee attacks, running, standing still) and a page for every skill's visuals (size, amount and lasting time)."
+  ]
+ },
+ {
   "version": "0.69.57",
   "date": "2026-10-10",
   "at": "2026-10-10T18:10:00Z",

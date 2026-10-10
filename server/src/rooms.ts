@@ -2787,6 +2787,7 @@ export class Lobby {
     if (wait0) return void send(p, { t: 'closed', reason: wait0 });
     const room = this.makeRoom(this.cfg.practicePrepMs, difficulty !== 'dummy', false, pickMap(p.mapPref));
     room.size = size;
+    room.sim.endless = true; // practice against bots never times out and never dampens healing
     const wait = this.notReady(p);
     if (wait) return void send(p, { t: 'closed', reason: wait });
     const humans = [p, ...this.partyMates(p)].slice(0, size);

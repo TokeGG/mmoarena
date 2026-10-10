@@ -532,7 +532,11 @@ export function navFor(page: DevPageId): NavGroup[] {
     }
     case 'icons': return iconNav();
     case 'animations':
-      return [{ title: 'Animations', entries: Object.entries(FX_INFO).map(([id, g]) => ({ id, name: g.title, sub: g.sub })) }];
+      {
+      const sections = new Map<string, { id: string; name: string; sub: string }[]>();
+      for (const [id, g] of Object.entries(FX_INFO)) sections.set(g.section ?? 'Big effects', [...(sections.get(g.section ?? 'Big effects') ?? []), { id, name: g.title, sub: g.sub }]);
+      return [...sections.entries()].map(([title, entries]) => ({ title, entries }));
+    }
     default:
       return [{ title: 'Game options', entries: [{ id: TUNING_ID, name: 'Game options', sub: 'global rules' }] }];
   }

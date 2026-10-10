@@ -881,7 +881,7 @@ export class ArenaSim {
     if (alive0 === 0 && alive1 === 0) winner = 'draw';
     else if (alive0 === 0) winner = 1;
     else if (alive1 === 0) winner = 0;
-    else if (this.time >= this.matchEndsAt) winner = 'draw';
+    else if (!this.endless && this.time >= this.matchEndsAt) winner = 'draw';
     if (winner !== null) {
       for (const u of [...this.units.values()]) if (u.mcTarget !== undefined) this.endMindControl(u, 'the match ended');
       this.phase = 'ended';
@@ -1056,6 +1056,8 @@ export class ArenaSim {
   private recharge = new Map<number, Record<string, number[]>>();
   /** Dev test: abilities start no cooldown (the global cooldown still applies). */
   noCooldowns = false;
+  /** Practice against bots: the match never runs out of time and healing is never dampened (it still ends when one side is down). */
+  endless = false;
   private storedFull(u: Unit, def: AbilityDef): boolean {
     const stored = this.modsOf(u).ability[def.id]?.stored ?? 0;
     if (!stored) return false;
@@ -1551,7 +1553,7 @@ export class ArenaSim {
    * shields get weaker by `dampenPerSec` every second (up to `dampenMax`), so two healers cannot out-heal each other forever.
    */
   dampening(): number {
-    if (this.phase !== 'live' && this.phase !== 'ended') return 0;
+    if (this.endless || (this.phase !== 'live' && this.phase !== 'ended')) return 0;
     const t = (this.time - this.prepEndsAt - TUNING.dampenStartMs) / 1000;
     if (t <= 0 || !this.hasHealer()) return 0;
     return Math.min(TUNING.dampenMax, t * TUNING.dampenPerSec);

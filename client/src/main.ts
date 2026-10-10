@@ -882,6 +882,15 @@ function cycleTarget(dir: 1 | -1) {
   setTarget(next.id);
 }
 
+/** Target the closest living enemy, whoever was targeted before (Next enemy walks the list in order instead). */
+function nearestTarget() {
+  if (!latest || spec) return;
+  const near = latest.units
+    .filter((u) => u.team !== team && u.id !== you && u.alive && !smokeHidden(u.id))
+    .sort((a, b) => Math.hypot(a.x - pred.x, a.z - pred.z) - Math.hypot(b.x - pred.x, b.z - pred.z))[0];
+  if (near) setTarget(near.id);
+}
+
 /** Your team's raid marks over heads (unit id -> mark 1-8), as the server last sent them. */
 let teamMarks = new Map<number, number>();
 
@@ -1137,6 +1146,7 @@ controls.onKey = (code, e) => {
   } else if (slot >= 0) castSlot(slot);
   else if (action === 'nextTarget') cycleTarget(e.shiftKey ? -1 : 1);
   else if (action === 'prevTarget') cycleTarget(-1);
+  else if (action === 'nearestTarget') nearestTarget();
   else if (action in MARK_ACTIONS) markTarget(MARK_ACTIONS[action]!);
   else if (action === 'autoAttack') {
     if (spec || !autoEnabled) return;

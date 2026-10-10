@@ -170,8 +170,8 @@ describe('the animations (fx.json) are visual only and editable', () => {
   it("the Animations page lists every group, times in milliseconds (shown as seconds), and the Dragon's Breath numbers", () => {
     const page = DEV_PAGES.find((x) => x.id === 'animations')!;
     assert.equal(page.step, 'What they do');
-    const nav = navFor('animations')[0].entries.map((e) => e.id);
-    assert.deepEqual(nav, Object.keys(FX_INFO));
+    const nav = navFor('animations').flatMap((s) => s.entries.map((e) => e.id));
+    assert.deepEqual([...nav].sort(), Object.keys(FX_INFO).sort());
     const db = entryFor('animations', 'dragonsBreath')!.groups.flatMap((g) => g.fields);
     assert.deepEqual(db.map((f) => f.path[1]), ['startDelayMs', 'sprayMs', 'fadeMs', 'lengthScale', 'widthScale', 'density']);
     const spray = db.find((f) => f.path[1] === 'sprayMs')!;

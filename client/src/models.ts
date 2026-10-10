@@ -2,7 +2,7 @@ import { SHOUT_DUR, newShoutPose, shoutPose } from './shoutPose';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { parseLook, clamp } from '@arena/shared';
+import { parseLook, clamp, fxNum } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 import { RigAnimator } from './riggedPose';
 import { attachWeapon, WEAPONS } from './weaponModels';
@@ -2124,7 +2124,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   };
 
   const doSwing = (fast = false) => {
-    swingDur = fast ? 0.2 : SWING;
+    swingDur = (fast ? 0.2 : SWING) / fxNum('attack', 'swingSpeed');
     swingT = swingDur;
     if (classId === 'rogue' || (r.rigged && weapon === 'dual')) swingHand = 1 - swingHand; // twin blades strike in turn
   };

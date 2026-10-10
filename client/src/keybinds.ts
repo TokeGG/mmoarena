@@ -7,7 +7,7 @@
 export type Action =
   | 'jump' | 'forward' | 'back' | 'turnLeft' | 'turnRight' | 'strafeLeft' | 'strafeRight'
   | 'slot1' | 'slot2' | 'slot3' | 'slot4' | 'slot5' | 'slot6' | 'slot7' | 'slot8' | 'trinket'
-  | 'nextTarget' | 'prevTarget' | 'autoAttack' | 'detail'
+  | 'nextTarget' | 'prevTarget' | 'nearestTarget' | 'autoAttack' | 'detail'
   | 'markSkull' | 'markCross' | 'markSquare' | 'markMoon' | 'markTriangle' | 'markDiamond' | 'markCircle' | 'markStar' | 'markClear';
 
 export const ACTIONS: { id: Action; label: string; group: string }[] = [
@@ -29,6 +29,7 @@ export const ACTIONS: { id: Action; label: string; group: string }[] = [
   { id: 'trinket', label: 'Trinket (the extra button beside the bar)', group: 'Abilities' },
   { id: 'nextTarget', label: 'Next enemy', group: 'Targeting' },
   { id: 'prevTarget', label: 'Previous enemy', group: 'Targeting' },
+  { id: 'nearestTarget', label: 'Closest enemy (always the nearest, not the next in line)', group: 'Targeting' },
   { id: 'autoAttack', label: 'Toggle auto-attack', group: 'Targeting' },
   { id: 'markSkull', label: '💀 Mark target: Skull', group: 'Marks' },
   { id: 'markCross', label: '❌ Mark target: Cross', group: 'Marks' },
@@ -69,6 +70,7 @@ const DEFAULTS: Record<Action, [string, string]> = {
   trinket: ['KeyF', ''],
   nextTarget: ['Tab', ''],
   prevTarget: ['', ''],
+  nearestTarget: ['', ''],
   autoAttack: ['KeyR', ''],
   detail: ['AltLeft', 'AltRight'],
   markSkull: ['Alt+Digit1', ''],
