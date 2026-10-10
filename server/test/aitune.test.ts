@@ -301,3 +301,28 @@ describe('Ask Claude messages', () => {
     assert.equal(p({ t: 'dev_ai_undo', turn: '../x' }), null);
   });
 });
+
+describe('notes for the bots, read by Claude', () => {
+  const reply = (obj: unknown): MessagesLike => ({ async create() { return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(obj) }] } as any; } });
+  it('turns what Claude read into brain moves, drops keys that do not exist, and keeps bugs apart', async () => {
+    const ai = new AiTune({}, reply({
+      effects: [
+        { key: 'coverHp', dir: 'up', said: 'should hide sooner', classes: ['mage', 'nonsense'] },
+        { key: 'notAKey', dir: 'up', said: 'x', classes: [] },
+        { key: 'strafe', dir: 'sideways', said: 'x', classes: [] },
+        { key: 'strafe', dir: 'down', said: 'stood still', classes: [] },
+      ],
+      bugs: ['the warrior got stuck on a pillar'],
+      unplaced: ['the music'],
+    }));
+    const r = await ai.interpretNote('the mage should hide sooner and the warrior got stuck', ['mage', 'warrior']);
+    assert.ok(r);
+    assert.deepEqual(r!.effects.map((e) => [e.key, e.dir, e.classes]), [['coverHp', 1, ['mage']], ['strafe', -1, null]]);
+    assert.deepEqual(r!.bugs, ['the warrior got stuck on a pillar']);
+    assert.deepEqual(r!.unplaced, ['the music']);
+  });
+  it('is null when Ask Claude is off or cannot answer, so the phrase reading stands alone', async () => {
+    assert.equal(await new AiTune({}).interpretNote('hide sooner', ['mage']), null);
+    assert.equal(await new AiTune({}, { async create() { throw new Error('down'); } } as any).interpretNote('hide sooner', ['mage']), null);
+  });
+});

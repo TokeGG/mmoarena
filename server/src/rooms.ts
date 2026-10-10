@@ -1270,7 +1270,8 @@ export class Lobby {
     const m = await this.matchBots(msg.id);
     if (!m) return fail('That match is not known any more (replays are kept for 30 days).');
     if (!m.classes.length) return fail('There were no bots in that match, so there is nothing to teach.');
-    const { note, report } = await learner.addNote({ matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec });
+    const ai = this.ai?.enabled ? this.ai : null;
+    const { note, report } = await learner.addNote({ matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec, ...(ai ? { interpret: (t: string) => ai.interpretNote(t, m.classes) } : {}) });
     void this.adminLog?.add(by, 'note for the bots', msg.id, `"${msg.text.slice(0, 160)}": ${report.headline.slice(0, 200)}${note.bugs.length ? ` (${note.bugs.length} bug${note.bugs.length === 1 ? '' : 's'} reported)` : ''}`);
     send(p, { t: 'bot_note_ack', id: msg.id, ok: true, text: report.headline, lines: formatReport(report), unmapped: note.unmapped, bug: note.bugs.length > 0 });
     for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
