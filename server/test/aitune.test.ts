@@ -189,7 +189,7 @@ describe('change requests', () => {
       return new Response(JSON.stringify({ html_url: 'https://github.com/TokeGG/mmoarena/issues/7', number: 7 }), { status: 201 });
     }) as typeof fetch;
 
-  it('is stored and posted to Discord with the full spec and the tested numbers, a GitHub issue without the label by default', async () => {
+  it('is stored and posted to Discord with the full spec and the tested numbers, a GitHub issue, and Claude is started on it', async () => {
     const calls: Call[] = [];
     const w = await world([filing], { GITHUB_TOKEN: 'tok' }, ghHttp(calls));
     send(w.lobby, w.devP, { t: 'dev_ai', ability: 'fireball', text: 'split it' });
@@ -200,8 +200,9 @@ describe('change requests', () => {
     assert.match(t.text, /saved it as a request for the owner/);
     assert.equal(t.request!.title, REQ.title);
     assert.equal(t.request!.issueUrl, 'https://github.com/TokeGG/mmoarena/issues/7');
-    assert.deepEqual(calls.map((c) => c.url.replace(/.*mmoarena/, '')), ['/issues'], 'an issue, and no label: Claude starts only when the owner presses Build');
+    assert.deepEqual(calls.map((c) => c.url.replace(/.*mmoarena/, '')), ['/issues', '/labels', '/issues/7/labels'], 'an issue, then the label that starts Claude on GitHub');
     assert.equal(calls[0].body.labels, undefined);
+    assert.deepEqual(calls[2].body.labels, ['dev-request']);
     const row = w.requests.list[0];
     assert.equal(row.by, 'Dee');
     assert.equal(row.status, 'open');
@@ -210,6 +211,15 @@ describe('change requests', () => {
     for (const part of ['Fireball splits in two', 'I want fireball to split', 'One ball, 200 damage', 'Two balls of 100 damage', 'Two balls fly', 'shared/src/sim.ts', 'A new split effect type', '6000', 'Requested by Dee']) assert.ok(text.includes(part), part);
     assert.equal(w.posts.length, 1);
     assert.match(w.posts[0], /Change request/);
+  });
+
+  it('ARENA_DEV_REQUEST_AUTOBUILD=0 keeps the label for the owner\'s Build button', async () => {
+    const calls: Call[] = [];
+    const w = await world([filing], { GITHUB_TOKEN: 'tok', ARENA_DEV_REQUEST_AUTOBUILD: '0' }, ghHttp(calls));
+    send(w.lobby, w.devP, { t: 'dev_ai', ability: 'fireball', text: 'split it' });
+    await until(() => !!lastOf(w.outD, 'dev_chat'));
+    assert.deepEqual(calls.map((c) => c.url.replace(/.*mmoarena/, '')), ['/issues'], 'an issue and no label');
+    assert.equal(w.requests.list[0].build, undefined);
   });
 
   it('opens an unlabelled GitHub issue, and a refused issue still keeps the request and says why', async () => {
