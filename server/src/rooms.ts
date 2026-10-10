@@ -1568,7 +1568,8 @@ export class Lobby {
     if (p.ctl) return null; // playing a bot in secret: nothing that would announce itself to the others
     if (p.ownerOk) return p.room ?? p.watching ?? null;
     if (!this.isDev(p)) return null;
-    // a dev can also tune and pause a bot match they are watching (those are made for testing)
+    // a dev with the Tune-any-match power (on unless the owner took it away) can tune and pause whatever they play in or watch, ranked included
+    if (hasPower(p.account?.grants, 'tuneany')) return p.room ?? p.watching ?? null;
     const r = p.room ?? (p.watching?.botsOnly ? p.watching : null);
     return r && !r.isRanked ? r : null;
   }

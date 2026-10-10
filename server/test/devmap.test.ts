@@ -111,8 +111,9 @@ describe('dev map swap', () => {
     assert.equal(last(outO, 'dev_result')?.ok, false);
   });
 
-  it('is refused in a ranked room for a dev tag holder', async () => {
+  it('is refused in a ranked room for a dev tag holder whose Tune-any-match power was taken away', async () => {
     const { lobby, devP } = await world();
+    devP.account = { ...devP.account, grants: ['dev', 'deny:tuneany'] };
     const ranked: any = (lobby as any).makeRoom(0, true, true, 'colosseum');
     (lobby as any).rooms.add(ranked);
     ranked.addPlayer(devP, 0);
