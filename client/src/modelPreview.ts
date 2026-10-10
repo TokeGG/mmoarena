@@ -91,7 +91,8 @@ function boneBoxes(mesh: THREE.SkinnedMesh): Map<string, THREE.Box3> {
 }
 
 export type BoxRole = 'face' | 'corner';
-export interface BoxHit { role: BoxRole; kind: 'part' | 'bone'; bone: string }
+export type PartKind = 'part' | 'bone' | 'weapon';
+export interface BoxHit { role: BoxRole; kind: PartKind; bone: string }
 
 /** One picture: a canvas, a renderer, and the character built for the shared state. */
 class ModelView {
@@ -236,10 +237,10 @@ class ModelView {
   private boxHolders: THREE.Object3D[] = [];
   private boxKey = '';
   private boxChar: Character | null = null;
-  private boxWanted: { items: { kind: 'part' | 'bone'; bone: string }[]; sel: string | null } = { items: [], sel: null };
+  private boxWanted: { items: { kind: PartKind; bone: string }[]; sel: string | null } = { items: [], sel: null };
 
   /** Draw (or stop drawing) a box round each listed part, the selected one lit; clicking a box picks the part, its corners resize it. */
-  setBoxes(items: { kind: 'part' | 'bone'; bone: string }[], sel: string | null): void {
+  setBoxes(items: { kind: PartKind; bone: string }[], sel: string | null): void {
     this.boxWanted = { items, sel };
   }
 
@@ -276,6 +277,12 @@ class ModelView {
         for (const m of meshes) {
           const b = boneBoxes(m).get(it.bone);
           if (b && !b.isEmpty()) box.union(b);
+        }
+      } else if (it.kind === 'weapon') {
+        host = this.pivotOf(it.bone === 'left' ? 'left' : 'right') ?? undefined;
+        if (host) {
+          const w = new THREE.Box3().setFromObject(host);
+          if (!w.isEmpty()) for (const x of [w.min.x, w.max.x]) for (const y of [w.min.y, w.max.y]) for (const z of [w.min.z, w.max.z]) box.expandByPoint(host.worldToLocal(new THREE.Vector3(x, y, z)));
         }
       } else {
         host = c.root.getObjectByName(`custom-part:${it.bone}`) ?? undefined;
@@ -327,7 +334,7 @@ class ModelView {
   }
 
   /** Where the centre of a part's box is on this picture (canvas pixels, page coordinates), or null. */
-  boxCentre(kind: 'part' | 'bone', bone: string): { x: number; y: number } | null {
+  boxCentre(kind: PartKind, bone: string): { x: number; y: number } | null {
     const h = this.boxHolders.find((x) => x.name === `pbox:${kind}:${bone}`);
     if (!h) return null;
     h.updateMatrixWorld(true);
@@ -364,6 +371,11 @@ class ModelView {
       if (canon && (CANON as readonly string[]).includes(canon)) return { kind: 'bone', bone: canon };
     }
     return null;
+  }
+
+  /** Which weapon (an id of weaponModels.ts) is in this hand. */
+  weaponIdOf(hand: 'right' | 'left'): string {
+    return String(this.pivotOf(hand)?.userData.weaponId ?? '');
   }
 
   /** Is there a weapon in this hand to move? */
@@ -430,8 +442,9 @@ export class ModelWindow {
   private raf = 0;
   private running = false;
   private last = 0;
-  /** Set by the Models page while a weapon is on show: writes the numbers a drag made (final: the drag is over). */
-  private weaponEdit: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null = null;
+  /** Set by the Models page: for a weapon (its id), the function that writes the numbers a drag made (final: the drag is over), or null when it cannot be edited. */
+  private weaponFor: ((weapon: string) => ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null) | null = null;
+  private weaponFn: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null = null;
   private animFiles: Partial<Record<Mode, File>> = {};
   /** Set by the Models page on a character: keeps a tried animation for this character's motion (uploads it and sets the field). Resolves with a problem text, or null when kept. */
   private keepAnim: ((mode: string, f: File) => Promise<string | null>) | null = null;
@@ -441,94 +454,76 @@ export class ModelWindow {
   }
   /** Set by the Models page on a character: writes a number of that character (path from its own entry: ['bones', 'hand_r', 'rx']) and reads one. */
   private partEdit: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined; list: () => { kind: 'part' | 'bone'; bone: string }[] } | null = null;
-  private selected: { kind: 'part' | 'bone'; bone: string } | null = null;
+  private selected: { kind: PartKind; bone: string } | null = null;
   private picked = '';
   setPartEdit(e: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined; list: () => { kind: 'part' | 'bone'; bone: string }[] } | null): void {
     this.partEdit = e;
-    if (!e && !this.weaponEdit) this.moveOn = false;
+    if (!e && !this.weaponFor) this.moveOn = false;
     this.paintMove();
   }
   private partName(bone: string): string {
     return `${BONE_LABEL[bone] ?? bone}${/_l$/.test(bone) ? ' (left)' : /_r$/.test(bone) ? ' (right)' : ''}`;
   }
   private moveOn = false;
-  private editWeapon = '';
   private weaponPicked = false;
   private weaponSel = document.createElement('select');
   private moveMode: 'slide' | 'turn' = 'slide';
   private hand: 'right' | 'left' = 'right';
   private moveBox = el('div', 'mwin-move');
 
-  /** Offer (or take away) dragging the weapon in the picture; the page gives the function that saves what the drag made. */
-  setWeaponEdit(fn: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null, weapon = ''): void {
-    this.weaponEdit = fn;
-    this.editWeapon = weapon;
-    if (!fn && !this.partEdit) this.moveOn = false;
+  /** Offer (or take away) dragging the weapon in the picture; the page gives, per weapon, the function that saves what the drag made. */
+  setWeaponEditor(f: ((weapon: string) => ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null) | null): void {
+    this.weaponFor = f;
+    if (!f && !this.partEdit) this.moveOn = false;
     this.paintMove();
+  }
+
+  /** Everything that has a box while moving things: the character's parts and the weapon in each hand. */
+  private boxItems(): { kind: PartKind; bone: string }[] {
+    const out: { kind: PartKind; bone: string }[] = this.partEdit ? this.partEdit.list() : [];
+    if (this.weaponFor) for (const h of ['right', 'left'] as const) if (this.now.hasHand(h)) out.push({ kind: 'weapon', bone: h });
+    return out;
   }
 
   private paintMove(): void {
     const b = this.moveBox;
     b.replaceChildren();
-    b.style.display = this.weaponEdit || this.partEdit ? 'flex' : 'none';
-    if (this.partEdit && !this.weaponEdit) {
-      const on = el('button', `mm-small${this.moveOn ? ' on' : ''}`, '✋ Move parts');
-      on.title = 'Click a part of the model in the left picture (a hand, the head, an arm, a leg, a part you uploaded) and drag it.';
-      on.addEventListener('click', () => {
-        this.moveOn = !this.moveOn;
-        this.paintMove();
-      });
-      b.append(on);
-      if (this.moveOn) {
-        const sel = el('select');
-        sel.title = 'The part to move: pick it here or click it on the model.';
-        sel.append(new Option('(none: dragging turns the view)', ''));
-        for (const it of this.partEdit.list()) sel.append(new Option(`${it.kind === 'part' ? 'Your ' : ''}${this.partName(it.bone)}`, `${it.kind}:${it.bone}`));
-        sel.value = this.selected ? `${this.selected.kind}:${this.selected.bone}` : '';
-        sel.addEventListener('change', () => {
-          const [kind, bone] = sel.value.split(':');
-          this.selected = sel.value ? { kind: kind as 'part' | 'bone', bone } : null;
-          this.picked = this.selected ? this.partName(this.selected.bone) : '';
-          this.paintMove();
-        });
-        b.append(sel, el('small', 'devp-dim', this.selected ? 'Drag its box: left / right turns it, up / down swings it, Shift for lean (a part you uploaded slides; Shift: forward / back). Pull a corner to resize it. Drag the background to turn the view.' : 'Click the box round a part (or pick it here), then drag it; pull a corner to resize.'));
-      }
-      return;
-    }
-    if (!this.weaponEdit) return;
-    if ((this.s.spec.weapon ?? '') !== this.editWeapon) {
-      b.append(el('small', 'devp-dim', `Pick ${this.editWeapon.replace(/_/g, ' ')} in the weapon list to move it by hand.`));
-      return;
-    }
-    const on = el('button', `mm-small${this.moveOn ? ' on' : ''}`, '✋ Move the weapon');
-    on.title = 'Drag the weapon in the left picture: it moves with the mouse and the numbers are saved as you let go.';
+    const can = !!(this.partEdit || this.weaponFor);
+    b.style.display = can ? 'flex' : 'none';
+    if (!can) return;
+    const on = el('button', `mm-small${this.moveOn ? ' on' : ''}`, '✋ Move parts');
+    on.title = 'Shows a box round each part of the model (and the weapon). Click a box and drag it; pull a corner to resize. Drag anywhere else to turn the view.';
     on.addEventListener('click', () => {
       this.moveOn = !this.moveOn;
       this.paintMove();
     });
     b.append(on);
     if (!this.moveOn) return;
-    const mode = (m: 'slide' | 'turn', label: string, tip: string) => {
-      const x = el('button', `mm-small${this.moveMode === m ? ' on' : ''}`, label);
-      x.title = tip;
-      x.addEventListener('click', () => {
-        this.moveMode = m;
-        this.paintMove();
-      });
-      return x;
-    };
-    b.append(mode('slide', 'Slide', 'Drag to slide it across the view; hold Shift to push it towards or away from you.'), mode('turn', 'Turn', 'Drag to swing it about; hold Shift and drag sideways to roll it about its own length.'));
-    if (this.now.hasHand('left')) {
-      for (const h of ['right', 'left'] as const) {
-        const x = el('button', `mm-small${this.hand === h ? ' on' : ''}`, h === 'right' ? 'Right hand' : 'Left hand');
+    const sel = el('select');
+    sel.title = 'The part to move: pick it here or click its box on the model.';
+    sel.append(new Option('(none)', ''));
+    for (const it of this.boxItems()) sel.append(new Option(it.kind === 'weapon' ? `Weapon (${it.bone} hand)` : `${it.kind === 'part' ? 'Your ' : ''}${this.partName(it.bone)}`, `${it.kind}:${it.bone}`));
+    sel.value = this.selected ? `${this.selected.kind}:${this.selected.bone}` : '';
+    sel.addEventListener('change', () => {
+      const [kind, bone] = sel.value.split(':');
+      this.selected = sel.value ? { kind: kind as PartKind, bone } : null;
+      this.picked = this.selected ? this.partName(this.selected.bone) : '';
+      this.paintMove();
+    });
+    b.append(sel);
+    if (this.selected?.kind === 'weapon') {
+      const mode = (m: 'slide' | 'turn', label: string, tip: string) => {
+        const x = el('button', `mm-small${this.moveMode === m ? ' on' : ''}`, label);
+        x.title = tip;
         x.addEventListener('click', () => {
-          this.hand = h;
+          this.moveMode = m;
           this.paintMove();
         });
-        b.append(x);
-      }
-    } else this.hand = 'right';
-    b.append(el('small', 'devp-dim', this.moveMode === 'slide' ? 'drag the weapon · Shift: nearer / farther' : 'drag to swing · Shift: roll'));
+        return x;
+      };
+      b.append(mode('slide', 'Slide', 'Drag the weapon\'s box to slide it across the view; hold Shift to push it towards or away from you.'), mode('turn', 'Turn', 'Drag the weapon\'s box to swing it about; hold Shift and drag sideways to roll it about its own length.'));
+    }
+    b.append(el('small', 'devp-dim', this.selected ? (this.selected.kind === 'weapon' ? 'Drag its box (Slide or Turn). Drag anywhere else to turn the view.' : 'Drag its box: left / right turns it, up / down swings it, Shift for lean (a part you uploaded slides; Shift: forward / back). Pull a corner to resize it. Drag anywhere else to turn the view.') : 'Click the box round a part or the weapon (or pick it here), then drag it. Drag anywhere else to turn the view.'));
   }
 
   constructor() {
@@ -740,7 +735,7 @@ export class ModelWindow {
       this.last = now;
       this.s.time += dt;
       if (this.s.spin) this.s.yaw += dt * 0.5;
-      this.now.setBoxes(this.moveOn && this.partEdit && !this.weaponEdit ? this.partEdit.list() : [], this.selected ? `${this.selected.kind}:${this.selected.bone}` : null);
+      this.now.setBoxes(this.moveOn ? this.boxItems() : [], this.selected ? `${this.selected.kind}:${this.selected.bone}` : null);
       this.now.frame(dt, this.s);
       if (this.compare) this.shipped.frame(dt, this.s);
     };
@@ -813,14 +808,24 @@ export class ModelWindow {
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
-      drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey, weapon: editable && this.moveOn && !!this.weaponEdit && e.button === 0 };
+      drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey, weapon: false };
+      this.weaponFn = null;
       last = null;
       part = null;
       lastPut = null;
       acc = { x: 0, y: 0 };
-      if (editable && this.moveOn && this.partEdit && !this.weaponEdit && e.button === 0) {
+      if (editable && this.moveOn && (this.partEdit || this.weaponFor) && e.button === 0) {
         const hit = this.now.pickBox(e.clientX, e.clientY);
-        if (hit) {
+        if (hit && hit.kind === 'weapon') {
+          // a click on the weapon's box: it is dragged (Slide or Turn), whichever hand holds it
+          this.selected = { kind: 'weapon', bone: hit.bone };
+          this.picked = 'Weapon';
+          this.hand = hit.bone === 'left' ? 'left' : 'right';
+          this.weaponFn = this.weaponFor?.(this.now.weaponIdOf(this.hand)) ?? null;
+          drag!.weapon = !!this.weaponFn;
+          drag!.pan = false;
+          this.paintMove();
+        } else if (hit && this.partEdit) {
           // a click on a part's box picks it; on a corner of the picked box it resizes it
           const key = `${hit.kind}:${hit.bone}`;
           const was = this.selected ? `${this.selected.kind}:${this.selected.bone}` : '';
@@ -831,7 +836,7 @@ export class ModelWindow {
           const start: Record<string, number> = {};
           for (const k of hit.kind === 'part' ? ['x', 'y', 'z', 'scale'] : ['rx', 'ry', 'rz', 'size']) start[k] = this.partEdit.get([root, hit.bone, k]) ?? (k === 'size' || k === 'scale' ? 1 : 0);
           const centre = this.now.boxCentre(hit.kind, hit.bone);
-          part = { kind: hit.kind, bone: hit.bone, start, mode: hit.role === 'corner' ? 'size' : 'move', c: centre, d0: centre ? Math.max(8, Math.hypot(e.clientX - centre.x, e.clientY - centre.y)) : 1 };
+          part = { kind: hit.kind as 'part' | 'bone', bone: hit.bone, start, mode: hit.role === 'corner' ? 'size' : 'move', c: centre, d0: centre ? Math.max(8, Math.hypot(e.clientX - centre.x, e.clientY - centre.y)) : 1 };
           drag!.weapon = false;
           drag!.pan = false;
         }
@@ -872,7 +877,7 @@ export class ModelWindow {
         const r = this.now.dragWeapon(this.s, this.hand, this.moveMode, dx, dy, e.shiftKey);
         if (r) {
           last = r;
-          this.weaponEdit?.(this.hand, r, false);
+          this.weaponFn?.(this.hand, r, false);
         }
       } else if (drag.pan) this.s.lookY = Math.max(0.2, Math.min(2.2, this.s.lookY + dy * 0.004));
       else {
@@ -881,7 +886,7 @@ export class ModelWindow {
       }
     });
     const end = () => {
-      if (drag?.weapon && last) this.weaponEdit?.(this.hand, last, true);
+      if (drag?.weapon && last) this.weaponFn?.(this.hand, last, true);
       if (part && lastPut) this.partEdit?.set(lastPut.path, lastPut.v, true);
       lastPut = null;
       part = null;

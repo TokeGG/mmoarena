@@ -285,6 +285,8 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
   right.userData.hand = 'right';
   const left = def.left ? place(host.armL, def.left) : undefined;
   if (left) left.userData.hand = 'left';
+  right.userData.weaponId = id;
+  if (left) left.userData.weaponId = id;
   // a faint halo in the spec's colour along the blade
   const g = def.glow;
   const mid = def.mid;

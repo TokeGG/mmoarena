@@ -1,4 +1,4 @@
-import { itemsForSlot, ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
+import { fieldAt, MODELS_ID, itemsForSlot, ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
 import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavGroup } from '@arena/shared';
 import { iconEl, setIconPreview } from './iconArt';
 import { libraryPage, loadCustomSounds, soundTools } from './soundsUi';
@@ -449,22 +449,22 @@ export class DevWorkspace {
             return null;
           });
         } else win.setKeepAnim(null);
-        if (id.startsWith('w:')) {
-          // dragging the weapon in the window writes the same numbers the fields below hold
-          const fields = entry.groups.flatMap((g) => g.fields);
-          win.setWeaponEdit((hand, v, final) => {
-            const put = (key: string, i: number, n: number) => {
-              const fd = fields.find((x) => x.path.join('.') === `weapons.${id.slice(2)}.${hand}.${key}.${i}`);
-              if (fd) this.editor.set.set(fd, n, this.editor.testing(), this.editor.canRevert);
-            };
+        // dragging a weapon in the window writes the same numbers as its fields on the weapons page, whichever page is open
+        win.setWeaponEditor((weaponId) => {
+          if (!weaponId) return null;
+          const field = (hand: string, key: string, i: number) => fieldAt('models', MODELS_ID, ['weapons', weaponId, hand, key, i]);
+          if (!field('right', 'pos', 0)) return null;
+          return (hand, v, final) => {
             for (let i = 0; i < 3; i++) {
-              put('pos', i, v.pos[i]);
-              put('rot', i, v.rot[i]);
+              for (const [key, n] of [['pos', v.pos[i]], ['rot', v.rot[i]]] as const) {
+                const fd = field(hand, key, i);
+                if (fd) this.editor.set.set(fd, Math.max(fd.min ?? -1e9, Math.min(fd.max ?? 1e9, n)), this.editor.testing(), this.editor.canRevert);
+              }
             }
             this.editor.onEdit();
             if (final) this.host.repaint();
-          }, id.slice(2));
-        } else win.setWeaponEdit(null);
+          };
+        });
         if (!first && !win.isOpen) this.previewDismissed = true;
         if (first || (win.isOpen && !this.previewDismissed)) win.show(pv.spec, pv.gear);
         const open = el('button', `mm-small${win.isOpen ? '' : ' mm-go'}`, win.isOpen ? 'The model view is open: it floats over the game, drag it where you like' : 'Show the model view');
