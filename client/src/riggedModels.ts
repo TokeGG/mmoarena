@@ -1,7 +1,9 @@
+import { customGltf, customModelError, customModelVersion } from './customModels';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { fetchModel } from './modelPack';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { MODELS_DATA } from '@arena/shared';
 import type { ClassId } from '@arena/shared';
 import { preloadWeaponModels, weaponModelVersion } from './weaponModels';
 import { preloadCapeModel, capeModelVersion } from './capeModels';
@@ -148,7 +150,7 @@ let version = 0;
 /** Bumped when the Models page's numbers (shared/data/models.json) are merged again: scenes rebuild their characters. */
 let dataRev = 0;
 export const bumpModelData = (): void => void dataRev++;
-export const modelVersion = () => version + dataRev + weaponModelVersion() + capeModelVersion() + wingModelVersion(); // the weapon, cape and wing models count too
+export const modelVersion = () => version + dataRev + weaponModelVersion() + capeModelVersion() + wingModelVersion() + customModelVersion(); // the weapon, cape and wing models count too
 
 const queryModel = (cls: string): string | null => {
   try {
@@ -177,10 +179,41 @@ export function modelIdFor(classId: ClassId, weapon?: string): string | undefine
 /** The loaded asset for a class, or undefined while it is still loading (or failed): the caller then builds the procedural model. */
 export function riggedAssetFor(classId: ClassId, weapon?: string): RigAsset | undefined {
   const id = modelIdFor(classId, weapon);
-  return id ? assets.get(id) : undefined;
+  if (!id) return undefined;
+  const own = MODELS_DATA.characters[id]?.body?.file;
+  if (own && assets.has(id)) return bodyAsset(id, own) ?? assets.get(id); // the game's own model stands in until the dev's has loaded
+  return assets.get(id);
 }
 
+const bodyAssets = new Map<string, RigAsset | null>();
+/** A whole body of the dev's own for a character (a rigged .glb with the game's bone names), or undefined while it loads or when it cannot be used (see customModelError). */
+export function bodyAsset(id: string, file: string): RigAsset | undefined {
+  const key = `${id}|${file}`;
+  const known = bodyAssets.get(key);
+  if (known !== undefined) return known ?? undefined;
+  const g = customGltf(file);
+  if (!g) return undefined;
+  try {
+    const orig = MODELS[id];
+    const asset = makeAsset(id, { url: `/models/${file}`, pose: orig?.pose, cape: orig?.cape, wings: orig?.wings }, { scene: g.scene.clone(true) as THREE.Group, animations: g.animations });
+    bodyAssets.set(key, asset);
+    return asset;
+  } catch {
+    bodyAssets.set(key, null);
+    return undefined;
+  }
+}
+/** Why a character's own body could not be used (empty when it can, or has not been asked for yet). */
+export const bodyProblem = (file: string): string => customModelError(file) || '';
+
 function finish(id: string, def: ModelDef, gltf: { scene: THREE.Group; animations: THREE.AnimationClip[] }): RigAsset {
+  const asset = makeAsset(id, def, gltf);
+  assets.set(id, asset);
+  version++;
+  return asset;
+}
+
+function makeAsset(id: string, def: ModelDef, gltf: { scene: THREE.Group; animations: THREE.AnimationClip[] }): RigAsset {
   const scene = gltf.scene;
   let meta: RigMeta | undefined;
   scene.traverse((o) => {
@@ -197,8 +230,6 @@ function finish(id: string, def: ModelDef, gltf: { scene: THREE.Group; animation
   });
   const asset: RigAsset = { id, def, scene, meta };
   if (def.clips) asset.clips = gltf.animations;
-  assets.set(id, asset);
-  version++;
   return asset;
 }
 
@@ -217,6 +248,7 @@ export function registerRiggedModel(id: string, data: ArrayBuffer, def: ModelDef
 
 export function forgetRiggedModels() {
   assets.clear();
+  bodyAssets.clear();
   version++;
 }
 

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { customScene, fittedWeapon } from './customModels';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { fetchModel } from './modelPack';
 import type { ArmHold } from './riggedPose';
@@ -34,6 +35,8 @@ export interface HandHold {
 
 export interface WeaponDef {
   url: string;
+  /** A model the dev uploaded in place of the weapon's own (models.json `file`): stood along y at the length of the weapon (2 x `mid`). */
+  file?: string;
   right: HandHold;
   /** Second hand-held piece (dual wield). Two-handers leave this out and use `hold` for the off hand. */
   left?: HandHold;
@@ -262,7 +265,8 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
       pivot.userData.aim = aim.clone();
     }
     pivot.userData.grip = GRIP.clone();
-    const part = src.scene.getObjectByName(h.part)!.clone(true); // meshes share geometry and textures
+    const upload = def.file ? customScene(def.file) : null;
+    const part = upload ? fittedWeapon(upload, Math.max(0.2, def.mid * 2)) : src.scene.getObjectByName(h.part)!.clone(true); // meshes share geometry and textures
     if (h.mirror) part.scale.z = -1;
     part.traverse((o) => {
       if (!(o instanceof THREE.Mesh)) return;

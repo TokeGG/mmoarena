@@ -9,6 +9,8 @@ import { boneAdjust, slotPlacement } from './modelData';
 import { attachWeapon, WEAPONS } from './weaponModels';
 import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
+import { applyCustomParts } from './customParts';
+import { createMotion, motionOf } from './customMotion';
 import type { RigAsset, RigDriver } from './riggedModels';
 import { buildCape, isCapeItem, DEFAULT_CAPE_FIT } from './capeModels';
 import { robeBackLook, robeBackUniforms, robeBackAttribute, ROBE_BACK_GLSL } from './robeBack';
@@ -957,6 +959,8 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     }
     (b.parts[slot] ??= []).push({ group, meshes: [...list], fx: [], anim: [] });
   }
+
+  applyCustomParts(b, asset.id, inst, meta); // body parts the dev uploaded
 
   // what shows where a worn item took a part away: a bare face under the helm, plain joints under the pauldrons
   const skin = b.m(SKIN, { rough: 0.8 });
@@ -2202,6 +2206,8 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   let lastAlive = true;
   let lastStealth = false;
   let swingT = 0;
+  const motion = r.rigged && !r.rigged.anim.castable ? createMotion(r.root, asset!.id) : null;
+  let kick = 0;
   let shoutT = 0;
   const shP = newShoutPose();
   let flashT = 0;
@@ -2249,6 +2255,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
   const doSwing = (fast = false) => {
     swingDur = (fast ? 0.2 : SWING) / fxNum('attack', 'swingSpeed');
     swingT = swingDur;
+    kick++;
     if (classId === 'rogue' || (r.rigged && weapon === 'dual')) swingHand = 1 - swingHand; // twin blades strike in turn
   };
 
@@ -2294,6 +2301,7 @@ export function createCharacter(classId: ClassId, look?: string, weapon?: string
         const gq = gestureT > 0 && !dead ? 1 - gestureT / GESTURE : -1;
         if (gestureT > 0) gestureT = Math.max(0, gestureT - dt);
         r.rigged.anim.update({ phase, move, casting, time, dt, vf, vs, swing: q, hand: swingHand, air: air ?? 0, dead, shout: shq, gesture: gq });
+        motion?.update(dt, motionOf({ dead, swinging, air: air ?? 0, casting, move }), kick); // the dev's own animation files, on top of the built-in pose
         r.weaponGrip?.(r.rigged.anim.grip ?? 1);
         for (const f of b.motion) f({ dt, vf, vs, move, time, air, dead, casting });
         if (swinging) swingT = Math.max(0, swingT - dt);

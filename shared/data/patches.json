@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.69",
+  "date": "2026-10-10",
+  "at": "2026-10-10T21:11:42Z",
+  "title": "Lava platforms and warrior bots",
+  "changes": [
+   "Lava maps: the see-through circle under a platform now shows the player and the floor instead of a solid orange slab.",
+   "Warrior bots that fall back only retreat as far as Charge can reach, so they can Charge straight back in."
+  ]
+ },
+ {
   "version": "0.69.68",
   "date": "2026-10-10",
   "at": "2026-10-10T20:40:00Z",

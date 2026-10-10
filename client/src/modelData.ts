@@ -57,6 +57,7 @@ function applyWeapon(def: WeaponDef, was: WeaponDef, w: WeaponData): void {
   def.right = hold(w.right, was.right);
   if (w.left && was.left) def.left = hold(w.left, was.left);
   def.mid = w.mid;
+  def.file = w.file || undefined;
   if (w.hold && was.hold) {
     const t = (a: number[]) => ({ x: rad(a[0]), z: rad(a[1]), e: rad(a[2]) });
     def.hold = { ...was.hold, r: t(w.hold.r), l: t(w.hold.l), walk: w.hold.walk, arc: w.hold.arc, elbowArc: w.hold.elbowArc };

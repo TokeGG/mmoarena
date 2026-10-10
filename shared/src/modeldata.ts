@@ -18,6 +18,8 @@ export const NEUTRAL_PART: PartFit = { file: '', x: 0, y: 0, z: 0, rx: 0, ry: 0,
 export interface CharacterData {
   /** A whole replacement body: a rigged .glb made like the game's own models (see DEVELOPING.md). Empty keeps the game's. */
   body?: { file: string };
+  /** Motions of the dev's own, per motion: an uploaded .glb whose first animation plays in place of the built-in one (empty keeps the game's). */
+  anims?: Record<string, string>;
   parts?: Record<string, PartFit>;
   pose?: Record<string, number>;
   style?: Record<string, number>;
@@ -154,6 +156,7 @@ export function characterGroups(id: string, data: ModelsFile): ModelGroup[] {
       out.push({ id: `own-${part.title}`, title: `${part.title}: your own models`, sub: 'replace this part with a model you uploaded', fields });
     }
   }
+  if (c.anims) out.push({ id: 'anims', title: 'Your own animations', sub: 'play an animation file in place of a built-in motion', fields: [['stand', 'Standing'], ['walk', 'Walking'], ['run', 'Running'], ['swing', 'Melee swing'], ['cast', 'Casting'], ['jump', 'Jumping']].filter(([k]) => k in c.anims!).map(([k, label]) => f([...base, 'anims', k], `${label}: animation file`, 'plain', 0, 0, 'Pick an uploaded .glb with a skeleton and an animation (Mixamo downloads work). Its bones are matched to this character by name, so the character moves the way the clip does. Stand, walk, run and cast loop; a swing starts over each time; a jump plays once.')) });
   if (c.cape) out.push({ id: 'cape', title: 'Cape', sub: 'where cape cosmetics hang', fields: CAPE.filter(([k]) => k in c.cape!).map(([k, label, lo, hi]) => f([...base, 'cape', k], label, 'plain', lo, hi)) });
   if (c.wings) out.push({ id: 'wings', title: 'Wings', sub: 'where wing cosmetics grow', fields: WINGS.filter(([k]) => k in c.wings!).map(([k, label, lo, hi]) => f([...base, 'wings', k], label, 'plain', lo, hi)) });
   return out;
@@ -169,7 +172,7 @@ export function weaponGroups(id: string, data: ModelsFile): ModelGroup[] {
   const w = data.weapons[id];
   if (!w) return [];
   const base = ['weapons', id];
-  const out: ModelGroup[] = [{ id: 'model', title: 'Model', sub: 'swap the weapon for a model of your own', fields: [f([...base, 'file'], 'Weapon model', 'plain', 0, 0, 'A .glb you uploaded, used whole: its middle is held in the fist and its long side points where the tip should. Tune the grip below.')] }, { id: 'right', title: 'Right hand', sub: 'how it sits in the right hand', fields: hand([...base, 'right'], 'Right hand') }];
+  const out: ModelGroup[] = [{ id: 'model', title: 'Model', sub: 'swap the weapon for a model of your own', fields: [f([...base, 'file'], 'Weapon model', 'plain', 0, 0, 'A .glb you uploaded. It is made the length of the weapon it replaces, with its long side along the blade or shaft and its bottom end in the fist. Tune the grip below.')] }, { id: 'right', title: 'Right hand', sub: 'how it sits in the right hand', fields: hand([...base, 'right'], 'Right hand') }];
   if (w.left) out.push({ id: 'left', title: 'Left hand', sub: 'the second weapon of a pair', fields: hand([...base, 'left'], 'Left hand') });
   out.push({ id: 'effects', title: 'Cosmetic centre', sub: 'where weapon cosmetics (flames, stars, rings) are centred', fields: [f([...base, 'mid'], 'Centre along the weapon', 'yd', -1, 3, 'Yards from the grip.')] });
   if (w.hold) out.push({ id: 'hold', title: 'Two hands on it', sub: 'how both arms carry it', fields: [

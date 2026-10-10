@@ -3,6 +3,7 @@ import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavG
 import { iconEl, setIconPreview } from './iconArt';
 import { libraryPage, loadCustomSounds, soundTools } from './soundsUi';
 import { ModelWindow } from './modelPreview';
+import { modelUploadBox } from './modelsUi';
 import type { PreviewSpec } from './modelPreview';
 import { IconEditor } from './iconEditor';
 import { previewOf } from './iconEditLogic';
@@ -401,6 +402,7 @@ export class DevWorkspace {
     if (this.page === 'icons') return this.iconEd.draw(box, id);
     box.append(this.head(entry.name, entry.sub, id));
     if (this.page === 'models') {
+      modelUploadBox(box, () => this.host.repaint());
       const pv = previewFor(id);
       if (pv) {
         const first = !this.preview;

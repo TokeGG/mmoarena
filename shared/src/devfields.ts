@@ -5,7 +5,7 @@ import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
 import { FX_ID, FX_INFO, fxField } from './fx';
 import { LOOKS_ID, LOOK_CHOICES, LOOK_COLORS, LOOK_FORMS, LOOK_HIT_STYLES, LOOK_IMPACTS, LOOK_NUMBER_BOUNDS, LOOK_TRAILS } from './looks';
 import { LOOKS } from './data';
-import { BODY_PARTS, characterGroups, modelBounds, slotGroups, weaponGroups, SLOT_LABEL, MODELS_ID } from './modeldata';
+import { BODY_PARTS, characterGroups, modelBounds, modelFileChoices, slotGroups, weaponGroups, SLOT_LABEL, MODELS_ID } from './modeldata';
 import { MODELS_DATA } from './data';
 import { SOUND_ID, SOUND_LIBRARY, customSounds, soundFileChoices, soundList } from './sounds';
 import type { SoundInfo } from './sounds';
@@ -357,13 +357,15 @@ export function fieldAt(file: PatchFile, id: string, path: (string | number)[], 
   const plain = plainPath(file, id, path);
   const soundFile = file === 'sounds' && path[1] === 'file' ? soundFileChoices() : null;
   const lookChoice = file === 'looks' && typeof path[1] === 'string' && LOOK_CHOICES[path[1]] ? lookLabels(path[1]) : null;
-  const choice = lookChoice ? { label: 'Choice', options: lookChoice.options } : soundFile ? { label: 'Recording', options: soundFile.options } : file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
-  const kind: DevField['kind'] = choice || soundFile ? 'choice' : isSwitch({ file, id, path }) ? 'switch' : 'number';
+  const modelFile = file === 'models' && path[path.length - 1] === 'file' ? modelFileChoices() : null;
+  const choice = modelFile ? { label: 'Model', options: modelFile.options } : lookChoice ? { label: 'Choice', options: lookChoice.options } : soundFile ? { label: 'Recording', options: soundFile.options } : file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
+  const kind: DevField['kind'] = choice || soundFile || modelFile ? 'choice' : isSwitch({ file, id, path }) ? 'switch' : 'number';
   const f: DevField = { file, id, path, kind, label: over.label ?? plain.label, unit: kind === 'number' ? over.unit ?? plain.unit : 'plain', value: now, base };
   const hint = over.hint ?? plain.hint;
   if (hint) f.hint = hint;
   if (choice) f.options = choice.options;
   if (soundFile) f.optionLabels = soundFile.labels;
+  if (modelFile) f.optionLabels = modelFile.labels;
   if (lookChoice) f.optionLabels = lookChoice.labels;
   if (file === 'looks' && typeof path[1] === 'string' && LOOK_NUMBER_BOUNDS[path[1]]) { f.min = LOOK_NUMBER_BOUNDS[path[1]].min; f.max = LOOK_NUMBER_BOUNDS[path[1]].max; }
   if (path[0] === 'mods' && isAddition({ file, id, path })) f.added = true;
