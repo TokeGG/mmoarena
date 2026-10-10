@@ -662,5 +662,24 @@
     "harmful": true,
     "dispellable": true,
     "note": "A priest controls you: you fight for their team and watch, unable to act, until it ends."
+  },
+  "shield": {
+    "name": "Shield",
+    "kind": "absorb",
+    "duration": 10000,
+    "harmful": false,
+    "absorb": 1,
+    "dispellable": true,
+    "note": "Soaks damage until it is used up or runs out."
+  },
+  "damage_reduction": {
+    "name": "Damage reduction",
+    "kind": "buff",
+    "duration": 5000,
+    "harmful": false,
+    "note": "You take less damage while it lasts.",
+    "mods": {
+      "damageTaken": 1
+    }
   }
 }

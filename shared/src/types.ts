@@ -224,6 +224,12 @@ export type Effect =
   | { type: 'healMax'; pct: number }
   /** A jump to the chosen ground spot (Heroic Leap). */
   | { type: 'leap'; /** Damage to enemies around the landing spot. */ damage?: number; radius?: number }
+  /** A shield that soaks `amount` damage for `duration` ms, on the target or (`self`) on the caster. */
+  | { type: 'shield'; amount: number; duration: number; self?: boolean }
+  /** Takes `pct` (0-1) off the damage the target (or the caster, with `self`) takes, for `duration` ms. */
+  | { type: 'reduction'; pct: number; duration: number; self?: boolean }
+  /** Throws the target `distance` yards straight away from the caster. */
+  | { type: 'knockback'; distance: number }
   /** Drags the target in front of the caster, `stopDistance` yards away (Reel In). */
   | { type: 'pull'; stopDistance: number; /** Drags an ally (Leap of Faith) instead of an enemy. */ ally?: boolean }
   /** Plants a banner at the chosen ground spot: enemies inside cannot leave the circle while it stands. */
@@ -401,7 +407,7 @@ export interface Tuning {
 export interface MoveInput { seq: number; fwd: number; strafe: number; facing: number; /** Start a (cosmetic) jump. */ jump?: boolean }
 export type Result = { ok: true } | { ok: false; reason: string };
 
-export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number; stacks?: number; /** Multiplier on this damage-over-time's ticks (Exsanguinate). */ dotMult?: number }
+export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number; stacks?: number; /** Multiplier on this damage-over-time's ticks (Exsanguinate). */ dotMult?: number; /** Multiplier on all damage taken while it lasts (a Damage reduction effect: 0.8 is 20% less). */ dmgTaken?: number }
 export interface CastState { ability: string; target: number; start: number; end: number; /** Ground-targeted spells: where it lands (gl 1: on top of a walkway). */ gx?: number; gz?: number; gl?: 1; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
 export interface DRState { count: number; resetAt: number }
 

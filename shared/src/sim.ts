@@ -1208,6 +1208,30 @@ export class ArenaSim {
         if (t.cast) this.cancelCast(t, 'pulled');
         break;
       }
+      case 'shield': {
+        const who = eff.self ? u : t;
+        const r = this.applyAura(u, who, 'shield', 0, eff.duration);
+        const inst = r.applied ? who.auras.find((a) => a.id === 'shield' && a.sourceId === u.id) : undefined;
+        if (inst) inst.absorbLeft = Math.round(eff.amount * u.gearMult * this.modsOf(u).healingDone * (1 - this.dampening()));
+        break;
+      }
+      case 'reduction': {
+        const who = eff.self ? u : t;
+        const r = this.applyAura(u, who, 'damage_reduction', 0, eff.duration);
+        const inst = r.applied ? who.auras.find((a) => a.id === 'damage_reduction' && a.sourceId === u.id) : undefined;
+        if (inst) inst.dmgTaken = Math.max(0, 1 - eff.pct);
+        break;
+      }
+      case 'knockback': {
+        if (t === u) break;
+        const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z;
+        const d = Math.hypot(dx, dz) || 1;
+        if (this.unstoppable(t)) break; // a Bladestorming warrior cannot be thrown
+        t.pos = resolveCollisions({ x: t.pos.x + (dx / d) * eff.distance, z: t.pos.z + (dz / d) * eff.distance }, this.arena, t.level);
+        this.settleLevel(t);
+        if (t.cast) this.cancelCast(t, 'knocked back');
+        break;
+      }
       case 'flag':
         this.zones.push({
           id: this.nextZoneId++, owner: u.id, team: u.team, x: this.ground?.x ?? u.pos.x, z: this.ground?.z ?? u.pos.z, r: eff.radius, school: def.school, ability: def.id, amount: 0,
@@ -1399,7 +1423,9 @@ export class ArenaSim {
     if (!tgt.alive) return 0;
     if (tgt.auras.some((a) => AURAS[a.id]?.invulnerable)) return 0; // Ascend to the Heavens: nothing touches you
     if (src?.image) raw *= src.image.dmg; // an image hits for a fraction
-    let remaining = Math.max(0, Math.round(raw * this.modsOf(tgt).damageTaken));
+    let extra = 1;
+    for (const a of tgt.auras) if (a.dmgTaken !== undefined) extra *= a.dmgTaken;
+    let remaining = Math.max(0, Math.round(raw * this.modsOf(tgt).damageTaken * extra));
     if (tgt.image && raw > 0) remaining = Math.max(remaining, tgt.health); // any hit at all ends an image
     let absorbed = 0;
     for (const a of [...tgt.auras]) {

@@ -27,7 +27,7 @@ Everything here comes straight from the game data, so it matches the in-game too
 Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts.
 
 - **Health:** 3400
-- **Rage:** 100 max, start with 0; built by dealing damage (3% of it with a free skill or auto-attack) and taking damage (1%), and drains 5 a second out of combat
+- **Rage:** 100 max, start with 0; built by dealing damage (13% of it with a free skill or auto-attack) and taking damage (2%), and drains 5 a second out of combat
 - **Specs:** [Warbringer](#warrior-arms) (Dual wield) · [Rampager](#warrior-fury) (Two-handed sword) · [Barbarian](#warrior-protection) (Control / reach)
 
 **Talents every Warrior spec shares** (one pick per tier, kept when you change spec):
@@ -58,7 +58,7 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 | Key | Skill | Numbers with this spec |
 |---|---|---|
 | 1 | [Slam](#skill-slam) | 3 yd range · Instant · 3s cooldown |
-| 2 | [Mortal Strike](#skill-mortal-strike) | 30 rage · 3 yd range · Instant · 8s cooldown |
+| 2 | [Mortal Strike](#skill-mortal-strike) | 60 rage · 3 yd range · Instant · 8s cooldown |
 | 3 | [Execute](#skill-execute) | 40 rage · 3 yd range · Instant · 5s cooldown |
 | 4 | [Slice and Dice](#skill-slice-and-dice) | 80 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
@@ -141,14 +141,14 @@ Base numbers, before spec and talent changes (in game, hover a skill to see your
 
 - Deals 160 physical damage.
 - Generates 0 rage.
-- *Its damage builds rage: 3% of the damage dealt (5 per hit).*
+- *Its damage builds rage: 13% of the damage dealt (20 per hit).*
 
 On the bar: [Warbringer](#warrior-arms) (key 1).
 
 <a id="skill-mortal-strike"></a>
 #### Mortal Strike
 
-*Physical* · 30 rage · 3 yd range · Instant · 8s cooldown
+*Physical* · 60 rage · 3 yd range · Instant · 8s cooldown
 
 - Deals 370 physical damage.
 - Applies Mortal Wounds for 8s: −40% healing received.
@@ -183,7 +183,7 @@ On the bar: [Warbringer](#warrior-arms) (key 4).
 
 - Stuns the target for up to 2.5s as you sprint at it, closing the distance in about a second, then hits it for 50 and ends the stun when you land. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).
 - Generates 20 rage.
-- *Its damage builds rage: 3% of the damage dealt (2 per hit).*
+- *Its damage builds rage: 13% of the damage dealt (6 per hit).*
 - *Does not trigger the global cooldown.*
 
 On the bar: [Warbringer](#warrior-arms) (key 5), [Rampager](#warrior-fury) (key 5), [Barbarian](#warrior-protection) (key 5).
@@ -213,7 +213,7 @@ On the bar: [Warbringer](#warrior-arms) (key 7), [Rampager](#warrior-fury) (key 
 *Physical* · 25 yd range · Aimed at the cursor · Instant · 60s cooldown
 
 - Leaps through the air to the chosen spot, slamming enemies within 5 yards for 120 damage on landing.
-- *Its damage builds rage: 3% of the damage dealt (4 per enemy hit).*
+- *Its damage builds rage: 13% of the damage dealt (15 per enemy hit).*
 - *Does not trigger the global cooldown.*
 
 On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 8), [Barbarian](#warrior-protection) (key 8).
@@ -237,7 +237,7 @@ On the bar: [Rampager](#warrior-fury) (key 1).
 - Deals 140 physical damage to all enemies in range.
 - Heals you for 3% of your maximum health.
 - Generates 8 rage.
-- *Its damage builds rage: 3% of the damage dealt (4 per enemy hit).*
+- *Its damage builds rage: 13% of the damage dealt (18 per enemy hit).*
 
 On the bar: [Rampager](#warrior-fury) (key 2).
 
@@ -278,7 +278,7 @@ On the bar: [Barbarian](#warrior-protection) (key 1).
 - Deals 30 physical damage.
 - Bleeding: takes 16 physical damage every 1s (96 total).
 - Generates 10 rage.
-- *Its damage builds rage: 3% of the damage dealt (1 per hit).*
+- *Its damage builds rage: 13% of the damage dealt (4 per hit).*
 
 On the bar: [Barbarian](#warrior-protection) (key 2).
 
@@ -694,7 +694,7 @@ Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a 
 | 2 | [Power Word: Shield](#skill-power-word-shield) | 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield |
 | 3 | [Pain Suppression](#skill-pain-suppression) | 40 yd range · Instant · 80s cooldown · 8s buff |
 | 4 | [Smite](#skill-smite) | 25 mana · 30 yd range · 1.5s cast |
-| 5 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 8s cooldown |
+| 5 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 12s cooldown |
 | 6 | [Psychic Scream](#skill-psychic-scream) | 50 mana · 8 yd radius · Instant · 30s cooldown · 6s fear |
 | 7 | [Penance](#skill-penance) | 45 mana · 30 yd range · 1.5s channel · 10s cooldown |
 | 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 60s cooldown |
@@ -722,7 +722,7 @@ Direct healing. Ascend to the Heavens lifts you out of reach for a moment while 
 | 1 | [Flash Heal](#skill-flash-heal) | 70 mana · 40 yd range · 1.5s cast |
 | 2 | [Greater Heal](#skill-greater-heal) | 90 mana · 40 yd range · 2.8s cast |
 | 3 | [Power Word: Shield](#skill-power-word-shield) | 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield |
-| 4 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 8s cooldown |
+| 4 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 12s cooldown |
 | 5 | [Psychic Scream](#skill-psychic-scream) | 50 mana · 8 yd radius · Instant · 30s cooldown · 6s fear |
 | 6 | [Ascend to the Heavens](#skill-ascend) | Instant · 90s cooldown |
 | 7 | [Smite](#skill-smite) | 25 mana · 30 yd range · 1.5s cast |
@@ -812,7 +812,7 @@ On the bar: [Warden](#priest-discipline) (key 4), [Lightbearer](#priest-holy) (k
 <a id="skill-dispel-magic"></a>
 #### Dispel Magic
 
-*Holy* · 40 mana · 30 yd range · Instant · 8s cooldown
+*Holy* · 40 mana · 30 yd range · Instant · 12s cooldown
 
 - Removes one magic effect: a harmful one from allies, a beneficial one from enemies.
 

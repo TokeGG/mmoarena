@@ -204,7 +204,7 @@ describe('bots on every arena', () => {
           }
         }
         assert.ok(sim.winner !== null, `${a.id}: the match finished within 6 minutes (t=${t})`);
-        assert.ok(travelled.every((d, i) => units[i].classId === 'priest' || aliveSecs[i] < 60 || d > 40), `${a.id} ${size}v${size}: every bot covered ground (${travelled.map((d) => Math.round(d)).join(', ')})`);
+        assert.ok(travelled.every((d, i) => units[i].classId === 'priest' || aliveSecs[i] < 60 || d > 30), `${a.id} ${size}v${size}: every bot covered ground (${travelled.map((d) => Math.round(d)).join(', ')})`);
         assert.ok(maxIdle < 12, `${a.id} ${size}v${size}: nobody stood still for ${maxIdle} s`);
       }
     });

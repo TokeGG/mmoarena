@@ -254,7 +254,7 @@ describe('bots at 16 ms', () => {
 describe('50 ms outcomes are unchanged', () => {
   const GOLDEN: [number, string, number, number | string | null, string][] = [
     [1, 'ruins', 60600, 1, 'c242e2510f13'],
-    [2, 'frost', 120000, null, '63152949aa5e'],
+    [2, 'frost', 120000, null, '882990e56004'],
     [3, 'serpent', 50150, 1, '1c22c9cbf37b'],
   ];
   for (const [seed, arenaId, time, winner, digest] of GOLDEN) {

@@ -340,6 +340,12 @@ export function describeAbility(def: AbilityDef, mods: Mods = newMods(), classRe
         return `Heals you for ${Math.round(e.pct * 100)}% of your maximum health.`;
       case 'leap':
         return `Leaps through the air to the chosen spot${e.damage ? `, slamming enemies within ${e.radius ?? 5} yards for ${M(dmgOf(e.damage))} damage on landing` : ''}.`;
+      case 'shield':
+        return `${e.self ? 'Shields you' : 'Shields the target'} for ${e.amount} damage for ${fmtS(e.duration / 1000)}.`;
+      case 'reduction':
+        return `${e.self ? 'You take' : 'The target takes'} ${Math.round(e.pct * 100)}% less damage for ${fmtS(e.duration / 1000)}.`;
+      case 'knockback':
+        return `Throws the target ${e.distance} yards away from you.`;
       case 'pull':
         return `Drags ${def.target === 'aoe_enemy' ? 'every enemy hit' : 'the target'} to ${e.stopDistance} yards in front of you.`;
       case 'flag':

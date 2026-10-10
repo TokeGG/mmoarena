@@ -782,7 +782,7 @@ describe('warrior rework', () => {
     f.maxHealth = f.health = 1e6;
     const priest = add(sim, 'priest', 0, 0, -3);
     priest.maxHealth = 3000; priest.health = 1000;
-    w.resource = 30; w.cooldowns = {}; w.gcdEnd = 0;
+    w.resource = 100; w.cooldowns = {}; w.gcdEnd = 0;
     const hp = f.health;
     assert.ok(sim.useAbility(w.id, 'mortal_strike', f.id).ok);
     advance(sim, TICK);
