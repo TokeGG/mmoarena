@@ -70,7 +70,7 @@ describe('tooltips follow the build', () => {
 
   it('what a talent adds to a skill is listed as a bonus', () => {
     setTipBuild('rogue', { spec: 'assassination', talents: ['rogue_t1c'], gear: {} });
-    assert.deepEqual(resolveTip('ability:vanish', {})!.good, ['Heals you for 50% of your missing health.']);
+    assert.deepEqual(resolveTip('ability:vanish', {})!.good, ['Heals you for 30% of your missing health.']);
   });
 
   it("someone else's effect shows its plain values, not your talents", () => {

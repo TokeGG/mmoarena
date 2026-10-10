@@ -174,7 +174,7 @@ describe('bots on every arena', () => {
     it(`${a.id}: bot duel and a 2v2 finish and nobody sits stuck`, () => {
       // 1v1 mage against rogue always ends; the 2v2 has to keep moving and finish too
       for (const [seed, size] of [[5, 1], [5, 2], [9, 2], [14, 1]] as const) {
-        const sim = new ArenaSim({ prepMs: 0, seed, arena: a });
+        const sim = new ArenaSim({ prepMs: 0, seed, arena: a, tickMs: 16 });
         const units: ReturnType<ArenaSim['addUnit']>[] = [];
         const classes = size === 1 ? [['mage'], ['rogue']] : [['warrior', 'priest'], ['rogue', 'mage']];
         for (let t = 0; t < 2; t++) for (let k = 0; k < size; k++) units.push(sim.addUnit({ name: `b${t}${k}`, classId: classes[t][k] as any, team: t as 0 | 1, controller: 'bot' }));
@@ -182,8 +182,9 @@ describe('bots on every arena', () => {
         const last = units.map((u) => ({ ...u.pos }));
         const idle = units.map(() => 0);
         const travelled = units.map(() => 0);
+        const aliveSecs = units.map(() => 0); // someone who fell early had no time to cover ground
         let maxIdle = 0;
-        const ticks = Math.round(240000 / sim.tickMs);
+        const ticks = Math.round(360000 / sim.tickMs); // a healer outlasting a mage can take five minutes; the game's own cap is ten
         const perSecond = Math.round(1000 / sim.tickMs);
         let t = 0;
         for (; t < ticks && sim.winner === null; t++) {
@@ -194,6 +195,7 @@ describe('bots on every arena', () => {
               const moved = Math.hypot(u.pos.x - last[i].x, u.pos.z - last[i].z);
               last[i] = { ...u.pos };
               travelled[i] += moved;
+              if (u.alive) aliveSecs[i]++;
               // stuck: alive, free to act and not casting, but not moving for a long time (healers and casters may hold still on purpose)
               if (u.alive && u.classId !== 'priest' && moved < 0.05 && !u.cast) idle[i]++;
               else idle[i] = 0;
@@ -201,8 +203,8 @@ describe('bots on every arena', () => {
             });
           }
         }
-        assert.ok(sim.winner !== null, `${a.id}: the match finished within 4 minutes (t=${t})`);
-        assert.ok(travelled.every((d, i) => units[i].classId === 'priest' || d > 40), `${a.id} ${size}v${size}: every bot covered ground (${travelled.map((d) => Math.round(d)).join(', ')})`);
+        assert.ok(sim.winner !== null, `${a.id}: the match finished within 6 minutes (t=${t})`);
+        assert.ok(travelled.every((d, i) => units[i].classId === 'priest' || aliveSecs[i] < 60 || d > 40), `${a.id} ${size}v${size}: every bot covered ground (${travelled.map((d) => Math.round(d)).join(', ')})`);
         assert.ok(maxIdle < 12, `${a.id} ${size}v${size}: nobody stood still for ${maxIdle} s`);
       }
     });

@@ -1863,6 +1863,15 @@ export class Lobby {
       }
       case 'dev_session': {
         if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
+        if (msg.live) {
+          // "Make it live": everyone gets these numbers at once, and the same match keeps them as well
+          if (this.ownerOnly(p, 'Making numbers live')) return;
+          const by = p.account?.name ?? p.name;
+          void this.dev?.save(msg.patches).then(() => {
+            void this.adminLog?.add(by, 'numbers made live', undefined, `${msg.patches.length} number${msg.patches.length === 1 ? '' : 's'}`);
+            for (const q of this.conns) send(q, { t: 'overrides', patches: this.dev?.overrides ?? [] });
+          });
+        }
         p.devSession = msg.patches;
         send(p, { t: 'dev_session', patches: p.devSession });
         // the match running now gets them too

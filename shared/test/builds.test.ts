@@ -557,7 +557,7 @@ describe('rogue rework', () => {
     advance(sim, TICK);
     assert.ok(!sim.useAbility(r.id, 'vanish').ok);
   });
-  it('Shadow Mend heals 50% of missing health', () => {
+  it('Shadow Mend heals 30% of missing health', () => {
     const sim = live();
     const r = add(sim, 'rogue', 0, 0, 0, build('combat', picks('rogue', 'combat', specTalents('rogue', 'combat')[0][2])));
     add(sim, 'warrior', 1, 30, 0);
@@ -565,7 +565,7 @@ describe('rogue rework', () => {
     r.health = Math.round(r.maxHealth * 0.2);
     const missing = r.maxHealth - r.health;
     sim.useAbility(r.id, 'vanish');
-    assert.ok(Math.abs(r.health - (r.maxHealth - missing * 0.5)) <= 2, `healed to ${r.health}`);
+    assert.ok(Math.abs(r.health - (r.maxHealth - missing * 0.7)) <= 2, `healed to ${r.health}`);
     assert.ok(sim.isStealthed(r), 'the heal does not undo stealth');
   });
   it('Protective Vanish: immune to damage and crowd control for 2 s, and it ends if you leave stealth; Vanish never drops smoke', () => {

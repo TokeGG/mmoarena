@@ -12,8 +12,16 @@ const KEY = 'devoverrides';
 const PROPOSALS = 'devproposals';
 const COMMITS = 'devcommits';
 const MAX_PROPOSALS = 100;
+/** How long a dev commit waits for its checks before it gives up (the check workflow takes about two minutes). */
+const LANDING_MS = 20 * 60_000;
+const LANDING_POLL_MS = 15_000;
 const WEBHOOK = /^https:\/\/(?:discord|discordapp)\.com\/api\/webhooks\/\d+\/[\w-]+$/;
 /** The data files a patch can land in, as the repository has them. */
+type CommitPatchOpts<X> = {
+  title: string;
+  by: string;
+  build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }>;
+};
 const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json', icons: 'shared/data/icons.json' };
 
 export interface DevToolsEnv {
@@ -310,48 +318,83 @@ export class DevTools {
    * package.json, client/package.json and the README, and SIM_REVISION raised, makes one tree and one commit, and moves the
    * branch. A push that raced ours starts again from the new head. Every committer here goes through it.
    */
-  private async commitPatch<X>(token: string, o: { title: string; by: string; build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }> }): Promise<{ url: string; version: string; extra: X }> {
+  private landing: Promise<void> = Promise.resolve();
+
+  private commitPatch<X>(token: string, o: CommitPatchOpts<X>): Promise<{ url: string; version: string; extra: X }> {
+    const run = this.landing.then(() => this.commitPatchNow(token, o));
+    this.landing = run.then(() => undefined, () => undefined);
+    return run;
+  }
+
+  private async commitPatchNow<X>(token: string, o: { title: string; by: string; build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }> }): Promise<{ url: string; version: string; extra: X }> {
     const { api, base } = this.github(token);
     const read = async (path: string): Promise<string> => {
       const got = (await api(`/contents/${path}?ref=${base}`)) as { content: string };
       return Buffer.from(got.content, 'base64').toString('utf8');
     };
     try {
-      for (let attempt = 1; ; attempt++) {
-        const ref = (await api(`/git/ref/heads/${base}`)) as { object: { sha: string } };
-        const head = (await api(`/git/commits/${ref.object.sha}`)) as { tree: { sha: string } };
-        const built = await o.build(read);
-        const files = [...built.files];
-        // the patch: notes entry, version, README, SIM_REVISION
-        const patchesText = await read('shared/data/patches.json');
-        const list = JSON.parse(patchesText) as { version: string; date: string; at?: string; title: string; changes: string[]; by?: string }[];
-        const version = nextPatchVersion(list[0]?.version ?? '0.0.0');
-        const now = new Date();
-        const at = now.toISOString().replace(/\.\d+Z$/, 'Z');
-        const lines = [...new Set(built.lines)];
-        list.unshift({ version, date: at.slice(0, 10), at, title: o.title, changes: lines, by: o.by.slice(0, 40) });
-        files.push({ path: 'shared/data/patches.json', content: JSON.stringify(list, null, 1) + (patchesText.endsWith('\n') ? '\n' : '') });
-        for (const path of ['package.json', 'client/package.json']) files.push({ path, content: (await read(path)).replace(/("version":\s*")[^"]+(")/, `$1${version}$2`) });
-        files.push({ path: 'README.md', content: (await read('README.md')).replace(/^([^\n]*?v)\d+\.\d+\.\d+/, `$1${version}`) });
-        if (built.sim !== false) files.push({ path: 'shared/src/replay.ts', content: (await read('shared/src/replay.ts')).replace(/(SIM_REVISION\s*=\s*)(\d+)/, (_m, a: string, n: string) => `${a}${Number(n) + 1}`) });
-        const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
-        const message = built.message(version);
-        const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string; html_url?: string };
-        try {
-          await api(`/git/refs/heads/${base}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
-        } catch (e) {
-          // someone pushed to the branch since we read it: start again from the new head
-          if (attempt < 3 && /not a fast.?forward|422|409/i.test((e as Error).message)) continue;
-          throw e;
-        }
-        const url = commit.html_url ?? `https://github.com/${this.env.GITHUB_REPO || 'TokeGG/mmoarena'}/commit/${commit.sha}`;
-        await this.recordCommit({ version, by: o.by, at: Date.now(), url, lines });
-        return { url, version, extra: built.extra };
-      }
+      const ref = (await api(`/git/ref/heads/${base}`)) as { object: { sha: string } };
+      const head = (await api(`/git/commits/${ref.object.sha}`)) as { tree: { sha: string } };
+      const built = await o.build(read);
+      const files = [...built.files];
+      // the patch: notes entry, version, README, SIM_REVISION
+      const patchesText = await read('shared/data/patches.json');
+      const list = JSON.parse(patchesText) as { version: string; date: string; at?: string; title: string; changes: string[]; by?: string }[];
+      const version = nextPatchVersion(list[0]?.version ?? '0.0.0');
+      const now = new Date();
+      const at = now.toISOString().replace(/\.\d+Z$/, 'Z');
+      const lines = [...new Set(built.lines)];
+      list.unshift({ version, date: at.slice(0, 10), at, title: o.title, changes: lines, by: o.by.slice(0, 40) });
+      files.push({ path: 'shared/data/patches.json', content: JSON.stringify(list, null, 1) + (patchesText.endsWith('\n') ? '\n' : '') });
+      for (const path of ['package.json', 'client/package.json']) files.push({ path, content: (await read(path)).replace(/("version":\s*")[^"]+(")/, `$1${version}$2`) });
+      files.push({ path: 'README.md', content: (await read('README.md')).replace(/^([^\n]*?v)\d+\.\d+\.\d+/, `$1${version}`) });
+      if (built.sim !== false) files.push({ path: 'shared/src/replay.ts', content: (await read('shared/src/replay.ts')).replace(/(SIM_REVISION\s*=\s*)(\d+)/, (_m, a: string, n: string) => `${a}${Number(n) + 1}`) });
+      const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
+      const message = built.message(version);
+      const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string };
+      // never straight onto the base branch: the commit goes on its own branch, a pull request checks it, and it merges once the checks pass
+      const branch = `dev/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+      await api('/git/refs', { method: 'POST', body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: commit.sha }) });
+      const pr = (await api('/pulls', { method: 'POST', body: JSON.stringify({ title: message.split('\n')[0], head: branch, base, body: `${message}\n\nMerges into ${base} once every check passes.` }) })) as { number: number; html_url: string };
+      const url = pr.html_url;
+      await this.landPullRequest(api, pr.number, url, branch);
+      await this.recordCommit({ version, by: o.by, at: Date.now(), url, lines });
+      return { url, version, extra: built.extra };
     } catch (e) {
       const m = (e as Error).message;
-      throw new Error(m.startsWith('Nothing was committed') ? m : friendlyGithubError(m, base));
+      throw new Error(m.startsWith('Nothing was committed') || m.startsWith('Checks failed') ? m : friendlyGithubError(m, base));
     }
+  }
+
+  /**
+   * Waits for the checks on a dev pull request, then merges it into the base branch. A failing check leaves the pull request
+   * open and throws naming the checks, so the dev who pressed the button sees the cause in the game. Landings run one at a time
+   * (see `landing`), so every commit is built on the base as it is when it lands.
+   */
+  private async landPullRequest(api: (path: string, init?: RequestInit) => Promise<Record<string, unknown>>, number: number, url: string, branch: string): Promise<void> {
+    const pr = (await api(`/pulls/${number}`)) as { head: { sha: string } };
+    const deadline = Date.now() + LANDING_MS;
+    let seen = false;
+    for (;;) {
+      const runs = (await api(`/commits/${pr.head.sha}/check-runs?per_page=100`)) as { check_runs: { name: string; status: string; conclusion: string | null }[] };
+      const all = runs.check_runs;
+      if (all.length) seen = true;
+      const failed = all.filter((c) => c.status === 'completed' && !['success', 'neutral', 'skipped'].includes(c.conclusion ?? ''));
+      if (failed.length) {
+        const names = failed.map((c) => `${c.name} (${c.conclusion})`).join(', ');
+        await api(`/issues/${number}/comments`, { method: 'POST', body: JSON.stringify({ body: `Not merged: ${names}. Fix it on this branch or in a new commit.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_` }) }).catch(() => undefined);
+        throw new Error(`Checks failed, so nothing was merged: ${names}. The pull request stays open: ${url}`);
+      }
+      if (seen && all.length && all.every((c) => c.status === 'completed')) break;
+      if (Date.now() > deadline) throw new Error(`Checks did not finish in time, so nothing was merged. The pull request stays open: ${url}`);
+      await new Promise((r) => setTimeout(r, LANDING_POLL_MS));
+    }
+    try {
+      await api(`/pulls/${number}/merge`, { method: 'PUT', body: JSON.stringify({ merge_method: 'squash' }) });
+    } catch (e) {
+      throw new Error(`GitHub refused the merge, so nothing was merged: ${(e as Error).message}. The pull request stays open: ${url}`);
+    }
+    await api(`/git/refs/heads/${branch}`, { method: 'DELETE' }).catch(() => undefined);
   }
 
   private lastRedeploy = 0;

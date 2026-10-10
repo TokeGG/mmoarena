@@ -473,6 +473,7 @@ function onMessage(raw: MessageEvent) {
       dataLayers.setLive(m.patches);
       accountUi.handle(m);
       adminPanel.handle(m);
+      devPanel.handle(m);
       break;
     case 'dev_map':
       swapMatchMap(m.map);

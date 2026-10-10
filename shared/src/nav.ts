@@ -1,5 +1,5 @@
 import type { ArenaDef, Vec2 } from './types';
-import { PLAYER_RADIUS, STEP_HEIGHT, dist, hasLOS, heightAt, inLava, rectDist, resolveCollisions } from './geometry';
+import { PLAYER_RADIUS, STEP_HEIGHT, dist, hasLOS, heightAt, inLava, moveTo, rectDist, resolveCollisions } from './geometry';
 import type { Level } from './geometry';
 import { JUMP_HEIGHT } from './jump';
 
@@ -31,6 +31,26 @@ const grids = new WeakMap<ArenaDef, Grid>();
 
 /** Does this arena need the grid (walkways or barricades)? Plain arenas keep the simple pillar steering. */
 export const needsNavGrid = (arena: ArenaDef): boolean => !!arena.deck || !!arena.lows?.length;
+
+/**
+ * Can a walker get from a to b on the sim's own movement rules (`moveTo`, the same call the sim makes each step)? It walks
+ * in short steps along the straight line and must stay on that line and arrive on the right level. The grid cannot say
+ * this on its own: a corner where a ramp meets a pier passes every cell test and still stops a walker dead.
+ */
+function walksBetween(arena: ArenaDef, a: Vec2, la: Level, b: Vec2, lb: Level): boolean {
+  const n = Math.max(4, Math.ceil(dist(a, b) / 0.2));
+  let pos = a;
+  let lv: Level = la;
+  for (let i = 1; i <= n; i++) {
+    const t = i / n;
+    const want = { x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t };
+    const m = moveTo(arena, lv, pos, want, 0);
+    if (dist(m.pos, want) > 0.25) return false;
+    pos = m.pos;
+    lv = m.level;
+  }
+  return lv === lb && dist(pos, b) < 0.6;
+}
 
 function gridOf(arena: ArenaDef): Grid {
   let g = grids.get(arena);
@@ -94,12 +114,15 @@ function gridOf(arena: ArenaDef): Grid {
         const len = dist(p, q);
         if (len > HOP) continue;
         const clearOfDeck = pieces.every((r) => rectDist(q.x, q.z, r) >= R + 0.1);
-        if (!clearOfDeck) continue;
         if (onRamp && h <= STEP_HEIGHT) {
-          // the low end of a ramp: walk on and off
+          // the low end of a ramp: walk on and off, but only where the sim's own movement really carries a walker from
+          // the ground onto the ramp and back (a pier or a ramp corner in the way stops it, and a route through there
+          // would keep sending it into the wall)
+          if (!walksBetween(arena, q, 0, p, 1)) continue;
           out[gi].push({ to: up, cost: len, jump: false });
-          out[up].push({ to: gi, cost: len, jump: false });
-        } else {
+          // and back off it, onto ground clear of the walkway (a ground cell touching the ramp is where a step puts you back on it)
+          if (clearOfDeck && walksBetween(arena, p, 1, q, 0)) out[up].push({ to: gi, cost: len, jump: false });
+        } else if (clearOfDeck) {
           // jump off the walkway (over a rail if there is one)
           out[up].push({ to: gi, cost: len + 2, jump: true });
           // and jump onto a ramp's lower part from the side
@@ -308,3 +331,4 @@ export function coverSpot(arena: ArenaDef, from: Vec2, fromLv: Level, threat: Ve
   }
   return null;
 }
+export { walksBetween as __walks };

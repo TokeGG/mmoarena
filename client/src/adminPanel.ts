@@ -760,14 +760,12 @@ export class AdminPanel {
       commit.addEventListener('click', () => act('commit'));
       const pr = el('button', 'mm-small', 'One pull request with the ticked ones');
       pr.addEventListener('click', () => act('pr'));
-      const live = el('button', 'mm-small', 'Make live');
-      live.addEventListener('click', () => act('live'));
       const del = el('button', 'mm-small', 'Delete ticked');
       del.title = 'Takes the ticked proposals off the list without applying them';
       del.addEventListener('click', () => act('dismiss'));
       const r1 = el('div', 'own-row');
       r1.append(all, commit);
-      if (owner) r1.append(pr, live);
+      if (owner) r1.append(pr);
       r1.append(del);
       const r2 = el('div', 'own-row');
       r2.append(note);

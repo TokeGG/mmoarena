@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.42",
+  "date": "2026-10-10",
+  "at": "2026-10-10T01:52:40Z",
+  "title": "Smarter bots",
+  "changes": [
+   "Bots find their way up and down ramps without getting stuck, and keep moving when they circle a target against a wall.",
+   "Bots updated with what they learned from recent matches."
+  ]
+ },
+ {
   "version": "0.69.41",
   "date": "2026-10-10",
   "at": "2026-10-10T01:14:36Z",

@@ -1849,7 +1849,7 @@
         {
           "id": "rogue_t1c",
           "name": "Shadow Mend",
-          "desc": "Vanishing heals you for 50% of your missing health.",
+          "desc": "Vanishing heals you for 30% of your missing health.",
           "icon": "💚",
           "mods": {
             "ability": {
@@ -2042,7 +2042,7 @@
         {
           "id": "rogue_t1c",
           "name": "Shadow Mend",
-          "desc": "Vanishing heals you for 50% of your missing health.",
+          "desc": "Vanishing heals you for 30% of your missing health.",
           "icon": "💚",
           "mods": {
             "ability": {
@@ -2234,7 +2234,7 @@
         {
           "id": "rogue_t1c",
           "name": "Shadow Mend",
-          "desc": "Vanishing heals you for 50% of your missing health.",
+          "desc": "Vanishing heals you for 30% of your missing health.",
           "icon": "💚",
           "mods": {
             "ability": {

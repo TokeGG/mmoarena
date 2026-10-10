@@ -177,8 +177,8 @@ export type ClientMsg =
   /** Dev tools (owner or the 'dev' tag), in a match where the dev is the only person: pause it, try numbers in it. */
   | { t: 'dev_pause'; on: boolean }
   | { t: 'dev_patch'; patches: DataPatch[] }
-  /** Test numbers kept for the dev's session: put into every match they play (or watch, as the owner) until cleared. */
-  | { t: 'dev_session'; patches: DataPatch[] }
+  /** Test numbers kept for the dev's session: put into every match they play (or watch, as the owner) until cleared. `live`: the owner's "Make it live", which also keeps them for everyone. */
+  | { t: 'dev_session'; patches: DataPatch[]; live?: boolean }
   /** Dev tools: keep these numbers for everyone (live at once, and proposed for the data files). */
   | { t: 'dev_save'; patches: DataPatch[]; note?: string }
   /** Dev tools: commit these numbers straight to the main branch on GitHub. */
@@ -561,7 +561,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
     case 'dev_save': {
       const patches = parsePatches(m.patches);
       if (!patches) return null;
-      if (m.t === 'dev_patch' || m.t === 'dev_session') return { t: m.t, patches };
+      if (m.t === 'dev_session') return { t: 'dev_session', patches, ...(m.live === true ? { live: true } : {}) };
+      if (m.t === 'dev_patch') return { t: m.t, patches };
       const note = typeof m.note === 'string' ? m.note.slice(0, 600) : undefined;
       return { t: m.t === 'dev_commit' ? 'dev_commit' : 'dev_save', patches, ...(note ? { note } : {}) } as ClientMsg;
     }

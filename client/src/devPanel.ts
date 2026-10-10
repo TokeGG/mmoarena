@@ -107,6 +107,8 @@ export class DevPanel {
   private note = '';
   /** Numbers kept for this session (the server puts them into every match the dev starts). */
   private session: DataPatch[] = [];
+  /** The numbers kept for everyone this session (the owner's button), which every match uses. */
+  private everyone: DataPatch[] = [];
   /** In a match the tools act on it; in the menu changes go to the dev's session or to everyone. */
   private inMatch = false;
   /** Bots being edited: the class and build chosen for each, until applied. */
@@ -564,6 +566,10 @@ export class DevPanel {
       const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
       this.layers.setRoom(m.patches);
       if (!same || m.reset) this.edits.clear();
+    } else if (m.t === 'overrides') {
+      // what everyone plays with (kept for everyone this session by the owner): shown in the changes list
+      this.everyone = m.patches;
+      if (this.drawerOpen) this.paint();
     } else if (m.t === 'dev_session') {
       this.session = m.patches;
       this.layers.setSession(m.patches);
@@ -783,12 +789,16 @@ export class DevPanel {
       if (!window.confirm(`Send ${all.length} changed number${all.length === 1 ? '' : 's'} to the owner's admin panel? Nothing goes live until the owner applies it.`)) return;
       this.hooks.send({ t: 'dev_save', patches: all, ...(this.note.trim() ? { note: this.note.trim() } : {}) });
     });
-    const keep = el('button', 'mm-small mm-go', 'Keep for my session');
-    keep.title = 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
+    const owner = this.hooks.isOwner();
+    const keep = el('button', 'mm-small mm-go', owner ? 'Keep for everyone this session' : 'Keep for my session');
+    keep.title = owner
+      ? 'Everyone plays with these numbers for this session, in every match and in the menu, until you clear them. "Try in this match" only changes the match you are in.'
+      : 'Every match you start (not ranked) uses these numbers until you clear them or sign out, so you can keep testing across matches';
     keep.addEventListener('click', () => {
       const all = this.edits.patches(mergePatches(this.session, this.layers.roomPatches));
       if (!all.length) return nothing();
-      this.hooks.send({ t: 'dev_session', patches: all });
+      if (owner && !window.confirm(`Keep ${all.length} number${all.length === 1 ? '' : 's'} for everyone this session?`)) return;
+      this.hooks.send({ t: 'dev_session', patches: all, ...(owner ? { live: true } : {}) });
     });
     const changes = el('button', `mm-small devp-changes-btn${this.drawerOpen ? ' mm-go' : ''}`, `Changes (${this.ws.changeCount()})`);
     changes.title = 'Every changed number as old -> new, with an undo for each';
@@ -812,6 +822,7 @@ export class DevPanel {
     list.append(this.ws.changesList());
     this.drawerList = list;
     box.append(list);
+    if (this.everyone.length) box.append(el('small', 'devp-dim', `🌐 ${this.everyone.length} number${this.everyone.length === 1 ? '' : 's'} kept for everyone this session (the owner's button)`));
     if (this.session.length) {
       const srow = el('div', 'devp-row');
       srow.append(el('small', 'devp-dim', `🔁 ${this.session.length} number${this.session.length === 1 ? '' : 's'} kept for your session`));

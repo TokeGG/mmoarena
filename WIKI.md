@@ -80,7 +80,7 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 Slow swings with long reach. Bloodthirst cleaves everything around you and heals per enemy hit; Sweep slices the arc ahead.
 
 - **Weapon:** Greatsword
-- **Auto-attack:** 85 damage every 3s, 4.5 yd reach
+- **Auto-attack:** 110 damage every 3s, 4.5 yd reach
 - **Spec bonuses:** Bloodthirst: +1.5 yd range
 
 | Key | Skill | Numbers with this spec |
@@ -115,7 +115,7 @@ Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps ene
 |---|---|---|
 | 1 | [Reel In](#skill-reel-in) | 15 rage · 10 yd range, 90° cone in front of you · Instant · 25s cooldown |
 | 2 | [Deep Cuts](#skill-deep-cuts) | **5** (base 3) yd range · Instant · 4s cooldown · 6s bleed |
-| 3 | [Axe Throw](#skill-axe-throw) | 50 rage · 10 yd range · Instant · 2s cooldown |
+| 3 | [Axe Throw](#skill-axe-throw) | 50 rage · 10 yd range · Instant · 4s cooldown |
 | 4 | [You're Not Going Anywhere](#skill-not-going-anywhere) | 20 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
 | 6 | [Pummel](#skill-pummel) | 10 rage · **5** (base 3) yd range · Instant · 10s cooldown |
@@ -171,7 +171,7 @@ On the bar: [Warbringer](#warrior-arms) (key 3).
 
 *Physical* · 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun
 
-- Strikes every enemy in range 16 times, once every 0.3s (the first at once), for 25 physical damage each (400 total). You stand still while it lasts, and being interrupted stops it.
+- Strikes every enemy in range 16 times, once every 0.3s (the first at once), for 40 physical damage each (640 total). You stand still while it lasts, and being interrupted stops it.
 - Cannot move, cast or act.
 
 On the bar: [Warbringer](#warrior-arms) (key 4).
@@ -223,7 +223,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 
 *Physical* · 30 rage · 7 yd radius · 7s channel · 80s cooldown
 
-- Strikes every enemy in range 10 times, once every 0.7s, for 90 physical damage each (900 total).
+- Strikes every enemy in range 10 times, once every 0.7s, for 86 physical damage each (860 total).
 - *Can be cast while moving.*
 - *Cannot be interrupted, and nothing ends it early: while it lasts you are immune to stuns, fears, incapacitates, roots, slows and pulls, and your other skills wait until it is over.*
 
@@ -234,10 +234,10 @@ On the bar: [Rampager](#warrior-fury) (key 1).
 
 *Physical* · 3 yd radius · Instant · 3.5s cooldown
 
-- Deals 200 physical damage to all enemies in range.
+- Deals 140 physical damage to all enemies in range.
 - Heals you for 3% of your maximum health.
 - Generates 8 rage.
-- *Its damage builds rage: 15% of the damage dealt (30 per enemy hit).*
+- *Its damage builds rage: 15% of the damage dealt (21 per enemy hit).*
 
 On the bar: [Rampager](#warrior-fury) (key 2).
 
@@ -256,7 +256,7 @@ On the bar: [Rampager](#warrior-fury) (key 3).
 
 *Physical* · 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown
 
-- Deals 300 physical damage to all enemies in range.
+- Deals 220 physical damage to all enemies in range.
 
 On the bar: [Rampager](#warrior-fury) (key 4).
 
@@ -285,9 +285,9 @@ On the bar: [Barbarian](#warrior-protection) (key 2).
 <a id="skill-axe-throw"></a>
 #### Axe Throw
 
-*Physical* · 50 rage · 10 yd range · Instant · 2s cooldown
+*Physical* · 50 rage · 10 yd range · Instant · 4s cooldown
 
-- Deals 300 physical damage.
+- Deals 275 physical damage.
 
 On the bar: [Barbarian](#warrior-protection) (key 3).
 
@@ -333,7 +333,7 @@ Talent: Warbringer tier V *Rallying Banner* (replaces Heroic Leap); Rampager tie
 
 Ranged caster. Slows, roots and polymorphs. Fragile, so keep your distance.
 
-- **Health:** 2400
+- **Health:** 2800
 - **Mana:** 1000 max, start with 1000, +24 a second
 - **Specs:** [Cryomancy](#mage-frost) (Control / kiting) · [Pyromancy](#mage-fire) (Burst damage) · [Starweaving](#mage-arcane) (Sustain / utility)
 
@@ -662,7 +662,7 @@ Talent: Cryomancy tier V *Runecaster* (replaces Polymorph); Pyromancy tier V *Ru
 
 Healer and support. Shields, heals, dispels and fears. Mana-hungry.
 
-- **Health:** 2500
+- **Health:** 2800
 - **Mana:** 1000 max, start with 1000, +15 a second
 - **Specs:** [Warden](#priest-discipline) (Shield healer) · [Lightbearer](#priest-holy) (Pure healer) · [Gloomweaver](#priest-shadow) (Damage)
 
@@ -965,7 +965,7 @@ Stealth melee assassin. Stuns from stealth, kicks casters, hard to pin down.
 |---|---|---|
 | I | 🛡️ **Protective Vanish** | Vanish also makes you immune to damage and crowd control for 2 seconds. It ends early if you leave stealth. |
 |  | 🌫️ **Twin Vanish** | Vanish holds two charges, and each charge recharges on its own timer. |
-|  | 💚 **Shadow Mend** | Vanishing heals you for 50% of your missing health. |
+|  | 💚 **Shadow Mend** | Vanishing heals you for 30% of your missing health. |
 | II | ⚡ **Quiet Reserves** | Energy regenerates 20% faster. |
 |  | 👟 **Fleet Footed** | You move 10% faster. |
 |  | 🎯 **Deep Pockets** | Three extra combo point slots (8 in all), and combo point payoffs scale 15% harder per point. |
@@ -1009,7 +1009,7 @@ Stealth openers into heavy hits. Mutilate and Garrote leave bleeds; Exsanguinate
 Steady damage with Sinister Strike and Sprint. Adrenaline Rush gives faster swings, energy and healing.
 
 - **Weapon:** Twin Daggers
-- **Auto-attack:** 75 damage every 1.8s, 3 yd reach
+- **Auto-attack:** 70 damage every 1.8s, 3 yd reach
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|

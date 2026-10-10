@@ -1,3 +1,4 @@
+import { landingRoute } from './githubLanding';
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -51,6 +52,8 @@ const mkHttp = (calls: Call[]) =>
     const method = init?.method ?? 'GET';
     calls.push({ url, method, body });
     const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+    const landed = landingRoute(url, method, ok);
+    if (landed) return landed;
     if (url.includes('/git/ref/heads/') && method === 'GET') return ok({ object: { sha: 'head1' } });
     if (url.includes('/git/commits/')) return ok({ tree: { sha: 'tree1' } });
     if (url.endsWith('/git/trees')) return ok({ sha: 'tree2' });

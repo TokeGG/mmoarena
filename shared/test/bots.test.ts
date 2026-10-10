@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 import { ABILITIES, ArenaSim, Bot, DEFAULT_BRAIN, TUNING, clampBrain, hasLOS, newPopulation, recordResult } from '../src/index';
 import type { ClassId, Difficulty, SimEvent, TeamId, Unit } from '../src/index';
 
-const TICK = TUNING.tickMs;
+const TICK = 16;
 
 function mk(prepMs = 0) {
-  return { sim: new ArenaSim({ seed: 7, prepMs }), bots: [] as Bot[] };
+  return { sim: new ArenaSim({ seed: 7, prepMs, tickMs: 16 }), bots: [] as Bot[] };
 }
 type Ctx = ReturnType<typeof mk>;
 function bot(ctx: Ctx, classId: ClassId, team: TeamId, x: number, z: number, diff: Difficulty = 'hard'): Unit {
