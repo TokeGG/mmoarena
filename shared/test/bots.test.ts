@@ -125,7 +125,7 @@ describe('bots play by the same rules as humans', () => {
     const res = ctx.sim.useAbility(w.id, 'bladestorm');
     assert.ok(res.ok, (res as { reason?: string }).reason);
     run(ctx, 1500);
-    assert.ok(Math.hypot(r.pos.x - w.pos.x, r.pos.z - w.pos.z) > 7, `still in the spin at ${Math.hypot(r.pos.x - w.pos.x, r.pos.z - w.pos.z).toFixed(1)}`);
+    assert.ok(Math.hypot(r.pos.x - w.pos.x, r.pos.z - w.pos.z) > (ABILITIES.bladestorm.radius ?? 0), `still in the spin at ${Math.hypot(r.pos.x - w.pos.x, r.pos.z - w.pos.z).toFixed(1)}`);
   });
 
   it('a spell cast on the move keeps the bot moving: a Bladestorming warrior chases its target', () => {

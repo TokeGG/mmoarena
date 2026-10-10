@@ -1704,7 +1704,7 @@
   "school": "physical",
   "target": "aoe_enemy",
   "range": 0,
-  "radius": 7,
+  "radius": 5,
   "castTime": 7000,
   "cooldown": 80000,
   "gcd": true,

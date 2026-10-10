@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.69.63",
+  "date": "2026-10-10",
+  "at": "2026-10-10T19:05:01Z",
+  "title": "Reach and Bladestorm",
+  "changes": [
+   "Melee reach, including bots' auto attacks, now counts height: nobody can hit someone lifted by Ascend to the Heavens from the ground.",
+   "Bladestorm now reaches 5 yards instead of 7, and the spinning blades match it.",
+   "Melee bots now only turn a little around their target, and walk round it only when a rogue goes for a backstab.",
+   "Melee bots standing next to a caster now kick or interrupt the cast every time they can.",
+   "Sight lines no longer pass through the side of a walkway slab: nobody can be hit through the floor from a ramp."
+  ]
+ },
+ {
   "version": "0.69.62",
   "date": "2026-10-10",
   "at": "2026-10-10T18:56:53Z",

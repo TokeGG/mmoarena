@@ -631,7 +631,7 @@ export class ArenaSim {
       if (p >= 1) {
         u.leap = null;
         this.emit({ t: 'leap_land', unit: u.id, x: u.pos.x, z: u.pos.z });
-        if (L.damage > 0) for (const e of this.units.values()) if (e.alive && e.team !== u.team && this.gap(u, e.pos, e.level) <= L.radius && this.sees(u, e)) this.dealDamage(u, e, L.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability['heroic_leap']?.damage ?? 1), 'physical', 'heroic_leap');
+        if (L.damage > 0) for (const e of this.units.values()) if (e.alive && e.team !== u.team && this.gap(u, e.pos, e.level, e) <= L.radius && this.sees(u, e)) this.dealDamage(u, e, L.damage * u.gearMult * this.variance() * this.modsOf(u).damageDone * (this.modsOf(u).ability['heroic_leap']?.damage ?? 1), 'physical', 'heroic_leap');
       }
       return;
     }
@@ -640,7 +640,7 @@ export class ArenaSim {
       const tgt = this.units.get(ch.target);
       const d = tgt ? dist(u.pos, tgt.pos) : 0;
       const arrived = d <= ch.stop + 0.05;
-      if (tgt && arrived && tgt.level !== u.level && this.gap(u, tgt.pos, tgt.level) > ch.stop + TUNING.autoTolerance) {
+      if (tgt && arrived && tgt.level !== u.level && this.gap(u, tgt.pos, tgt.level, tgt) > ch.stop + TUNING.autoTolerance) {
         // under (or over) a target on another floor: the charge ends there without the hit, instead of parking you out of reach
         this.endCharge(u, false);
       } else if (!tgt || !tgt.alive || this.time > ch.until || !this.canAct(u) || this.hasAura(u, ['root']) || arrived) {
@@ -932,7 +932,7 @@ export class ArenaSim {
         return;
       }
       if (tgt !== u) {
-        if (def.range > 0 && this.gap(u, tgt.pos, tgt.level) > this.reachOf(u, def)) return this.cancelCast(u, 'out of range');
+        if (def.range > 0 && this.gap(u, tgt.pos, tgt.level, tgt) > this.reachOf(u, def)) return this.cancelCast(u, 'out of range');
         // a channel that has started keeps ticking when the target steps behind a pillar or wall
         if (!this.canSee(u, tgt)) return this.cancelCast(u, 'target not visible');
         // but not when it drops to the other side of a floor: nothing ticks through a deck
@@ -963,7 +963,7 @@ export class ArenaSim {
     const tgt = this.units.get(c.target);
     if (!tgt || !tgt.alive) return this.failCast(u, c.ability, 'target is dead');
     if (tgt !== u) {
-      if (def.range > 0 && this.gap(u, tgt.pos, tgt.level) > this.reachOf(u, def)) return this.failCast(u, c.ability, 'out of range');
+      if (def.range > 0 && this.gap(u, tgt.pos, tgt.level, tgt) > this.reachOf(u, def)) return this.failCast(u, c.ability, 'out of range');
       if (!this.sees(u, tgt)) return this.failCast(u, c.ability, 'no line of sight');
       if (!this.canSee(u, tgt)) return this.failCast(u, c.ability, 'target not visible');
     }
@@ -1064,8 +1064,8 @@ export class ArenaSim {
   /** Area abilities reach as far as their radius plus any range a talent adds (a cone gets longer). Measured in 3D, and never through a pillar or a floor. */
   private targetsOf(u: Unit, def: AbilityDef, tgt: Unit): Unit[] {
     const r = this.radiusOf(u, def);
-    if (def.target === 'aoe_enemy') return [...this.units.values()].filter((v) => v.alive && v.team !== u.team && this.gap(u, v.pos, v.level) <= r && this.inCone(u, v.pos, def.coneDeg) && this.sees(u, v));
-    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && (v === u || (this.gap(u, v.pos, v.level) <= r && this.sees(u, v))));
+    if (def.target === 'aoe_enemy') return [...this.units.values()].filter((v) => v.alive && v.team !== u.team && this.gap(u, v.pos, v.level, v) <= r && this.inCone(u, v.pos, def.coneDeg) && this.sees(u, v));
+    if (def.target === 'aoe_all') return [...this.units.values()].filter((v) => v.alive && (v === u || (this.gap(u, v.pos, v.level, v) <= r && this.sees(u, v))));
     return [tgt];
   }
   radiusOf(u: Unit, def: AbilityDef): number {
@@ -1284,7 +1284,7 @@ export class ArenaSim {
         if (echo && healed > 0) {
           // the same heal arrives on the other side of the pair: your ally if you healed yourself, you if you healed an ally
           let other: Unit | undefined = t === u ? undefined : u;
-          if (t === u) for (const v of this.units.values()) if (v !== u && v.alive && v.team === u.team && v.health < v.maxHealth && this.gap(u, v.pos, v.level) <= this.rangeOf(u, def) && this.sees(u, v) && (!other || v.health / v.maxHealth < other.health / other.maxHealth)) other = v;
+          if (t === u) for (const v of this.units.values()) if (v !== u && v.alive && v.team === u.team && v.health < v.maxHealth && this.gap(u, v.pos, v.level, v) <= this.rangeOf(u, def) && this.sees(u, v) && (!other || v.health / v.maxHealth < other.health / other.maxHealth)) other = v;
           if (other) this.heal(u, other, healed * echo, def.id);
         }
         break;
@@ -1663,7 +1663,7 @@ export class ArenaSim {
     if (!t || !t.alive || t.team === u.team || !this.canSee(u, t)) return;
     // auto-attack is held while stealthed, unless the target is right next to you: then the swing lands and breaks stealth
     if (this.isStealthed(u) && dist(u.pos, t.pos) > TUNING.stealthDetect) return;
-    if (this.gap(u, t.pos, t.level) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
+    if (this.gap(u, t.pos, t.level, t) > auto.range + TUNING.autoTolerance || this.time < u.nextSwing) return;
     if (this.floorsApart(u, t.pos, t.level)) return; // on top of a walkway and under it (or below its edge): out of reach
     if (!this.sees(u, t)) return; // no swinging through pillars
     if (!this.inFront(u, t.pos.x, t.pos.z)) return; // and no swinging at what is behind you
@@ -1811,8 +1811,9 @@ export class ArenaSim {
     return def.range + (this.abilityMod(u, def).range ?? 0);
   }
   /** Range is measured in 3D: up on a walkway you are out of melee reach of someone on the ground below. */
-  private gap(u: Unit, p: Vec2, level: 0 | 1): number {
-    const dh = heightAt(this.arena, u.pos.x, u.pos.z, u.level) - heightAt(this.arena, p.x, p.z, level);
+  private gap(u: Unit, p: Vec2, level: 0 | 1, v?: Unit): number {
+    // someone lifted by Ascend to the Heavens is that much higher: out of reach of what cannot reach up there
+    const dh = heightAt(this.arena, u.pos.x, u.pos.z, u.level) + this.hoverOf(u) - heightAt(this.arena, p.x, p.z, level) - (v ? this.hoverOf(v) : 0);
     return Math.hypot(dist(u.pos, p), dh);
   }
   /** Standing on different floors: a walkway's top and the ground below it (ramps in between are reachable). */
@@ -1867,7 +1868,7 @@ export class ArenaSim {
     if (other.auras.some((a) => AURAS[a.id]?.untargetable)) return false;
     if (this.smokeHides(viewer, other)) return false;
     if (!this.isStealthed(other)) return true;
-    return this.gap(viewer, other.pos, other.level) <= TUNING.stealthDetect;
+    return this.gap(viewer, other.pos, other.level, other) <= TUNING.stealthDetect;
   }
 
   /**
@@ -1886,7 +1887,7 @@ export class ArenaSim {
     const all = [...this.units.values()];
     for (const u of all) {
       if (u.team === team || !this.isStealthed(u)) continue;
-      if (!all.some((v) => v.team === team && v.alive && this.gap(v, u.pos, u.level) <= TUNING.stealthDetect)) out.add(u.id);
+      if (!all.some((v) => v.team === team && v.alive && this.gap(v, u.pos, u.level, u) <= TUNING.stealthDetect)) out.add(u.id);
     }
     return out;
   }

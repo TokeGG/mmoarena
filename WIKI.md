@@ -85,7 +85,7 @@ Slow swings with long reach. Bloodthirst cleaves everything around you and heals
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
-| 1 | [Bladestorm](#skill-bladestorm) | 40 rage · 7 yd radius · 7s channel · 80s cooldown |
+| 1 | [Bladestorm](#skill-bladestorm) | 40 rage · 5 yd radius · 7s channel · 80s cooldown |
 | 2 | [Bloodthirst](#skill-bloodthirst) | **4.5** (base 3) yd radius · Instant · 3.5s cooldown |
 | 3 | [Recklessness](#skill-recklessness) | 60 rage · Instant · 45s cooldown · 12s buff |
 | 4 | [Sweep](#skill-sweep) | 60 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown |
@@ -221,7 +221,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 <a id="skill-bladestorm"></a>
 #### Bladestorm
 
-*Physical* · 40 rage · 7 yd radius · 7s channel · 80s cooldown
+*Physical* · 40 rage · 5 yd radius · 7s channel · 80s cooldown
 
 - Strikes every enemy in range 10 times, once every 0.7s, for 86 physical damage each (860 total).
 - *Can be cast while moving.*

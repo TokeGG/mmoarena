@@ -220,6 +220,7 @@ describe('bots on a deck: whole matches', () => {
         const idle = units.map(() => 0);
         const last = units.map((u) => ({ ...u.pos }));
         let crossed = 0, stuck = 0;
+        const crossedBy: string[] = [];
         const per = Math.round(1000 / sim.tickMs);
         const check = () => {
           for (const e of sim.drainEvents()) {
@@ -227,7 +228,7 @@ describe('bots on a deck: whole matches', () => {
             const s = sim.units.get(e.src)!, v = sim.units.get(e.tgt)!;
             // direct hits only (a damage-over-time tick may outlive the sight line), and nobody in the air (a jump lifts the line)
             const direct = e.ability === null || ABILITIES[e.ability]?.effects.some((x) => x.type === 'damage');
-            if (direct && !s.image && !v.image && sim.airOf(s) === 0 && sim.airOf(v) === 0 && throughDeck(arena, s, v)) crossed++;
+            if (direct && !s.image && !v.image && sim.airOf(s) === 0 && sim.airOf(v) === 0 && throughDeck(arena, s, v)) { crossed++; crossedBy.push(`${s.classId}:${e.ability ?? 'auto'} h${sim.hoverOf(s).toFixed(1)}/${sim.hoverOf(v).toFixed(1)}`); }
           }
         };
         for (let t = 0; t < 40000 / sim.tickMs && sim.winner === null; t++) {
@@ -243,7 +244,7 @@ describe('bots on a deck: whole matches', () => {
             stuck = Math.max(stuck, idle[i]);
           });
         }
-        assert.equal(crossed, 0, `${arena.id} seed ${seed}: ${crossed} hits through the floor`);
+        assert.equal(crossed, 0, `${arena.id} seed ${seed}: ${crossed} hits through the floor (${crossedBy.join(', ')})`);
         assert.ok(stuck <= 10, `${arena.id} seed ${seed}: someone stood still for ${stuck} s`);
       }
     }
