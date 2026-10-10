@@ -72,6 +72,15 @@ export const LOOK_OPTIONS: LookOption[] = [
   { id: 'ccOutline', label: 'Outline and shadow', group: 'Stun text', choices: [['off', 'None'], ['soft', 'Soft shadow'], ['strong', 'Strong outline']] },
   { id: 'ccPlate', label: 'Background', group: 'Stun text', choices: [['pill', 'Coloured plate'], ['none', 'None']] },
   { id: 'ccAnim', label: 'Movement', group: 'Stun text', choices: [['pulse', 'Pulsing'], ['still', 'Still']] },
+  // the floating numbers over heads (damage dealt, taken, healing)
+  { id: 'dmgShow', label: 'Which numbers', group: 'Damage numbers', choices: [['all', 'Everyone\'s'], ['mine', 'Mine and what I take'], ['off', 'None']] },
+  { id: 'dmgSize', label: 'Size', group: 'Damage numbers', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large'], ['xl', 'Huge']] },
+  { id: 'dmgColor', label: 'Colour of my damage', group: 'Damage numbers', choices: [['school', 'By school (fire, frost...)'], ['white', 'White'], ['yellow', 'Yellow']] },
+  { id: 'dmgBold', label: 'Weight', group: 'Damage numbers', choices: [['bold', 'Bold'], ['normal', 'Normal']] },
+  { id: 'dmgOutline', label: 'Outline and shadow', group: 'Damage numbers', choices: [['soft', 'Soft shadow'], ['strong', 'Strong outline'], ['off', 'None']] },
+  { id: 'dmgTime', label: 'Stays visible', group: 'Damage numbers', choices: [['0.8', '0.8 s'], ['1.3', '1.3 s'], ['2', '2 s'], ['3', '3 s']] },
+  { id: 'dmgHeal', label: 'Healing numbers', group: 'Damage numbers', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
+  { id: 'dmgCrowd', label: 'Crowd control words (Stunned, Rooted...)', group: 'Damage numbers', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   // the network stats readout (Esc menu: Show network stats; always on for devs); it moves and resizes in the editor too
   { id: 'netSize', label: 'Text size', group: 'Network stats', choices: [['sm', 'Small'], ['md', 'Medium'], ['lg', 'Large']] },
   { id: 'netColor', label: 'Text colour', group: 'Network stats', choices: [['auto', 'Auto (parchment)'], ['white', 'White'], ['yellow', 'Yellow'], ['cyan', 'Cyan'], ['orange', 'Orange'], ['magenta', 'Magenta']] },
@@ -85,6 +94,7 @@ const DEFAULTS: Record<string, string> = {
   killfeed: 'show', dpsmeter: 'show', dpsMetric: 'damage', dpsMetric2: 'none', dpsMetric3: 'none', dpsWho: 'all', dpsNumbers: 'both', dpsRows: '5',
   errSize: 'lg', errColor: 'auto', errBold: 'bold', errOutline: 'strong', errPlate: 'none', errTime: '1.8', errAnim: 'pop', errRepeat: 'hold',
   ccSize: 'lg', ccColor: 'auto', ccBold: 'bold', ccOutline: 'soft', ccPlate: 'pill', ccAnim: 'pulse',
+  dmgShow: 'all', dmgSize: 'md', dmgColor: 'school', dmgBold: 'bold', dmgOutline: 'soft', dmgTime: '1.3', dmgHeal: 'show', dmgCrowd: 'show',
   netSize: 'md', netColor: 'auto', netPlate: 'plate',
   plates: 'all', plateWidth: 'normal', plateBar: 'normal', plateHp: 'none', plateColor: 'team', plateName: 'show', plateText: 'md', plateRes: 'show', plateCast: 'show', plateDebuffs: 'show',
 };

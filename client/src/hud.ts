@@ -11,6 +11,9 @@ import { plateProfile } from './nameplateStore';
 import { arrowGlyph, barText, distanceScale, fadeAlpha, pickAuras, plateZ, type PlateKind } from './nameplateLayout';
 import { applyName, avatarImg } from './nameStyle';
 import { Bar, el } from './bar';
+
+/** Buffs and debuffs that a channelled skill puts on with each of its ticks. */
+const CHANNEL_AURAS = new Set(Object.values(ABILITIES).filter((a) => a.channel).flatMap((a) => a.effects.flatMap((e) => (e.type === 'aura' && typeof e.aura === 'string' ? [e.aura] : []))));
 import type { AbilityDef, ClassId, RosterEntry, SimEvent, Snapshot, TeamId, UnitSnap } from '@arena/shared';
 
 const $ = (id: string) => document.getElementById(id) as HTMLElement;
@@ -625,14 +628,28 @@ export class Hud {
 
   private float(pos: { x: number; y: number } | null, text: string, cls: string, size = 20, color = '') {
     if (!pos) return;
+    const numbers = cls === 'in' || cls === 'out' || cls === 'other' || cls === 'heal';
+    if (numbers && look.dmgShow === 'off') return;
+    if (cls === 'cc' && look.dmgCrowd === 'hide') return;
+    if (cls === 'heal' && look.dmgHeal === 'hide') return;
+    if (cls === 'other' && look.dmgShow === 'mine') return;
     const f = el('div', `ft ${cls}`, text);
+    if (numbers) {
+      size = Math.round(size * (({ sm: 0.8, md: 1, lg: 1.25, xl: 1.5 } as Record<string, number>)[look.dmgSize] ?? 1));
+      const secs = Number(look.dmgTime) || 1.3;
+      f.style.animationDuration = `${secs}s`;
+      color = look.dmgColor === 'white' ? '#ffffff' : look.dmgColor === 'yellow' ? '#ffe36a' : look.dmgColor === 'school' ? color : '';
+      if (look.dmgOutline === 'off') f.style.cssText += 'text-shadow:none;-webkit-text-stroke:0;';
+      else if (look.dmgOutline === 'strong') f.style.cssText += '-webkit-text-stroke:1.6px #000;';
+      if (look.dmgBold === 'normal') f.style.fontWeight = '500';
+    }
     f.style.left = `${pos.x + (Math.random() * 44 - 22)}px`;
     f.style.top = `${pos.y - Math.random() * 14}px`;
     f.style.fontSize = `${size}px`;
     if (color) f.style.color = color;
     f.style.setProperty('--dx', `${(Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 26)}px`);
     $('ftext').append(f);
-    window.setTimeout(() => f.remove(), 1400);
+    window.setTimeout(() => f.remove(), numbers ? (Number(look.dmgTime) || 1.3) * 1000 + 100 : 1400);
   }
 
   private autoShown = false;
@@ -715,7 +732,8 @@ export class Hud {
         const def = AURAS[ev.aura];
         if (def && ['stun', 'incapacitate', 'fear', 'root'].includes(def.kind)) {
           const dr = ev.dr < 1 ? (ev.dr === 0.5 ? ' (½)' : ' (¼)') : '';
-          this.float(ctx.project(ev.tgt), `${def.name}${dr}`, 'cc');
+          // a channel (Slice and Dice) puts its hold on again with every tick: the name is not shown over and over
+          if (!CHANNEL_AURAS.has(ev.aura)) this.float(ctx.project(ev.tgt), `${def.name}${dr}`, 'cc');
           this.log(`${n(ev.tgt)} is affected by ${def.name}${dr}`);
         }
         break;

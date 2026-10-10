@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { arenaById, heightAt, onRaised } from '@arena/shared';
+import { DECK_THICKNESS, arenaById, fxNum, heightAt, onRaised } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -336,7 +336,6 @@ export class ArenaScene {
     // under a walkway the deck above is cut away in a circle around you, so the camera can stay as it is and you still see everything
     const dk = this.arena.deck;
     const under = !!dk && fy < dk.height - 1.5 && dk.flats.some((f) => fx > f.x0 && fx < f.x1 && fz > f.z0 && fz < f.z1);
-    this.env.setHole(fx, fz, under ? Math.max(6, dist * Math.cos(pitch) + 2) : 0); // wide enough to cover the camera too
     let d = dist;
     if (d > 0.35) {
       this.raycaster.set(head, offset);
@@ -344,6 +343,12 @@ export class ArenaScene {
       const hits = this.raycaster.intersectObjects(this.pillars, true);
       d = cameraReach(dist, { x: head.x, y: head.y, z: head.z }, { x: offset.x, y: offset.y, z: offset.z }, this.arena.bounds, hits.length ? hits[0].distance : Infinity);
     }
+    // the circle's size is the Animations page's (Camera); it only opens further when the camera itself sits above the deck
+    if (under && dk) {
+      const camAbove = head.y + offset.y * d > dk.height - DECK_THICKNESS;
+      const base = fxNum('deckHole', 'radius');
+      this.env.setHole(fx, fz, base > 0 ? Math.max(base, camAbove ? (d * h + 1.5) * fxNum('deckHole', 'coverCamera') : 0) : 0);
+    } else this.env.setHole(fx, fz, 0);
     const first = d < 1.8; // the camera pressed this close to a wall or pillar becomes first person
     const me = this.meshes.get(this.followId);
     if (me) me.group.visible = !first;

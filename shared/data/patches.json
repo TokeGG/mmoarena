@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.59",
+  "date": "2026-10-10",
+  "at": "2026-10-10T21:30:00Z",
+  "title": "Damage numbers, deck circle, Slice and Dice",
+  "changes": [
+   "The see-through circle under a platform is smaller and can be changed in the skill editor (Animations, Camera).",
+   "Slice and Dice now holds you in place on your screen too, instead of letting you slide and snapping you back, and it no longer repeats its name over and over.",
+   "New Damage numbers options in the HUD Look window: which numbers show, size, colour, weight, outline, how long they stay, healing numbers and the crowd control words.",
+   "Name lists of who is watching a match show in the match list."
+  ]
+ },
+ {
   "version": "0.69.58",
   "date": "2026-10-10",
   "at": "2026-10-10T20:00:00Z",

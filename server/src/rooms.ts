@@ -507,7 +507,7 @@ export class Room {
       id: this.id, map: this.arenaId, size: this.size, kind, elapsedMs: Math.max(0, Math.round(this.sim.time - this.sim.prepEndsAt)),
       players: this.realUnits().map((u) => ({ name: u.name, classId: u.classId, team: u.team, human: u.controller === 'player', ...(owner ? { id: u.id, bot: u.controller === 'bot' && !u.image } : {}) })),
       ...(owner && viewer?.ctl?.room === this ? { youControl: viewer.ctl.unitId } : {}),
-      watchers: this.spectators.size, devTest: this.devTest, paused: this.paused, watchable: this.watchable, ...(this.sim.noCooldowns ? { noCooldowns: true } : {}),
+      watchers: this.spectators.size, ...(owner ? { watching: [...this.spectators].map((w) => w.name || 'Guest') } : {}), devTest: this.devTest, paused: this.paused, watchable: this.watchable, ...(this.sim.noCooldowns ? { noCooldowns: true } : {}),
     };
   }
 

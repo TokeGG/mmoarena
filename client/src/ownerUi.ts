@@ -172,7 +172,7 @@ export class OwnerPanel {
       info.append(
         el('b', '', `${kindName[r.kind] ?? r.kind} ${r.size}v${r.size} · ${findArena(r.map)?.name ?? r.map} · ${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`),
         el('span', '', `${sides[0]}  vs  ${sides[1]}`),
-        el('small', '', [r.watchers ? `${r.watchers} watching` : '', r.devTest ? 'dev test numbers' : '', r.paused ? 'paused' : ''].filter(Boolean).join(' · ')),
+        el('small', '', [r.watchers ? `${r.watchers} watching${r.watching?.length ? `: ${r.watching.join(', ')}` : ''}` : '', r.devTest ? 'dev test numbers' : '', r.paused ? 'paused' : ''].filter(Boolean).join(' · ')),
       );
       const limited = !!this.hooks.limited?.();
       row.append(info);
