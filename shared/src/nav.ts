@@ -301,7 +301,7 @@ export function highSpot(arena: ArenaDef, to: Vec2): Vec2 | null {
  * within `maxWalk` yards: behind a pillar, round a wall, under or on top of a deck. Null when there is none in reach.
  * Works on every arena (plain ones too: their grid is just the ground with pillars cut out).
  */
-export function coverSpot(arena: ArenaDef, from: Vec2, fromLv: Level, threat: Vec2, threatLv: Level, maxWalk = 16, avoid?: Vec2): { point: Vec2; level: Level; walk: number } | null {
+export function coverSpot(arena: ArenaDef, from: Vec2, fromLv: Level, threat: Vec2, threatLv: Level, maxWalk = 16, avoid?: Vec2, maxThreatDist = Infinity): { point: Vec2; level: Level; walk: number } | null {
   const g = gridOf(arena);
   const start = nodeNear(g, from, fromLv);
   if (start < 0) return null;
@@ -319,7 +319,7 @@ export function coverSpot(arena: ArenaDef, from: Vec2, fromLv: Level, threat: Ve
     // hidden, and not right next to the threat (cover is no use with the enemy standing in it)
     // hidden even a step off the exact spot (arriving is never exact), and not right next to the threat
     const hidden = (x: number, z: number) => !hasLOS({ x, z }, threat, arena, lv, threatLv);
-    if (g.open[n] === 1 && dist(p, threat) > 4 && (!avoid || dist(p, avoid) > 3) && hidden(p.x, p.z) && hidden(p.x + 0.8, p.z) && hidden(p.x - 0.8, p.z) && hidden(p.x, p.z + 0.8) && hidden(p.x, p.z - 0.8)) {
+    if (g.open[n] === 1 && dist(p, threat) > 4 && dist(p, threat) <= maxThreatDist && (!avoid || dist(p, avoid) > 3) && hidden(p.x, p.z) && hidden(p.x + 0.8, p.z) && hidden(p.x - 0.8, p.z) && hidden(p.x, p.z + 0.8) && hidden(p.x, p.z - 0.8)) {
       return { point: p, level: lv, walk: d };
     }
     for (const e of g.out[n]) {

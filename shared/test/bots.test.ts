@@ -376,3 +376,25 @@ describe('bots follow the raid marks', () => {
     assert.equal(targetOf(ctx, w.id), near.id);
   });
 });
+
+describe('a warrior only retreats as far as Charge reaches', () => {
+  it('the cover it runs to stays within Charge range of the enemy', () => {
+    const range = ABILITIES.charge.range;
+    for (const seed of [1, 2, 3, 4]) {
+      const ctx = { sim: new ArenaSim({ seed, prepMs: 0, tickMs: 16 }), bots: [] as Bot[] };
+      const war = bot(ctx, 'warrior', 0, 0, -10);
+      const foe = dummy(ctx, 'mage', 1, 0, 10);
+      foe.maxHealth = foe.health = 1e6;
+      war.health = war.maxHealth * 0.1; // hurt: wants cover
+      let worst = 0;
+      run(ctx, 12000, () => {
+        const cover = (ctx.bots[0] as unknown as { cover: { x: number; z: number } | null }).cover;
+        if (cover) worst = Math.max(worst, Math.hypot(cover.x - foe.pos.x, cover.z - foe.pos.z));
+        return false;
+      });
+      assert.ok(worst <= range, `seed ${seed}: cover ${worst.toFixed(1)} yd from the enemy, Charge reaches ${range}`);
+      const limit = (ctx.bots[0] as unknown as { retreatLimit(u: Unit): number }).retreatLimit(war);
+      assert.equal(limit, range - 1);
+    }
+  });
+});
