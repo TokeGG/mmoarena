@@ -112,7 +112,9 @@
     "judgment_stun": "icons151/icon-106",
     "defensive_heal": "icons151/icon-1",
     "mind_controlling": "icons151/icon-2",
-    "mind_controlled": "icons151/icon-3"
+    "mind_controlled": "icons151/icon-3",
+    "shield": "icons151/icon-4",
+    "damage_reduction": "icons151/icon-5"
   },
   "classes": {
     "warrior": "classart/warrior-4",

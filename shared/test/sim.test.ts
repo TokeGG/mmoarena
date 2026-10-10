@@ -217,7 +217,7 @@ describe('crowd control and diminishing returns', () => {
     assert.ok(sim.useAbility(priest.id, 'dispel_magic', mageAlly.id).ok);
     assert.ok(!mageAlly.auras.some((a) => a.id === 'polymorph'));
 
-    advance(sim, 8100);
+    advance(sim, ABILITIES.dispel_magic.cooldown + 100);
     mustFail(sim.useAbility(priest.id, 'dispel_magic', enemy.id), /nothing to dispel/);
     sim.applyAura(enemy, enemy, 'pw_shield');
     assert.ok(sim.useAbility(priest.id, 'dispel_magic', enemy.id).ok);
@@ -1224,7 +1224,7 @@ describe('melee and auto-attack', () => {
     const war = add(sim, 'warrior', 0, 0, 0);
     const rogue = add(sim, 'rogue', 1, 2, 0);
     advance(sim, TICK);
-    war.resource = 30;
+    war.resource = ABILITIES.mortal_strike.cost;
     assert.ok(sim.useAbility(war.id, 'mortal_strike', rogue.id).ok);
     assert.ok(war.autoAttack);
     assert.equal(war.resource, 0, 'a rage spender does not refund rage from its own hit');
@@ -1281,7 +1281,7 @@ describe('smoke bomb', () => {
     const foe = add(sim, 'warrior', 1, 3, 0);
     const far = add(sim, 'mage', 1, 30, 0);
     rogue.bar = [...rogue.bar, 'choke_bomb']; // normally learned through a talent
-    foe.resource = 50;
+    foe.resource = ABILITIES.mortal_strike.cost + 20;
     advance(sim, TICK);
     sim.setTarget(foe.id, rogue.id);
     sim.setTarget(far.id, rogue.id);
@@ -1337,7 +1337,7 @@ describe('auto-attack setting', () => {
     sim.setAutoDisabled(war.id, true);
     sim.setAutoAttack(war.id, true);
     assert.ok(!war.autoAttack);
-    war.resource = 30;
+    war.resource = ABILITIES.mortal_strike.cost;
     assert.ok(sim.useAbility(war.id, 'mortal_strike', rogue.id).ok);
     assert.ok(!war.autoAttack);
     const hp = rogue.health;

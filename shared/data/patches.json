@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.54",
+  "date": "2026-10-10",
+  "at": "2026-10-10T12:32:04Z",
+  "title": "New skill effects",
+  "changes": [
+   "Skills can now shield you or an ally, reduce the damage you take for a short time, and knock enemies back. No existing skill changes with this update."
+  ]
+ },
+ {
   "version": "0.69.53",
   "date": "2026-10-10",
   "at": "2026-10-10T08:45:45Z",

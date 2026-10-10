@@ -10,6 +10,41 @@ const nice = (k: string) => {
   return w.charAt(0).toUpperCase() + w.slice(1);
 };
 
+/** Effects by their plain names. */
+const EFFECT_NAMES: Record<string, string> = {
+  damage: 'Damage', heal: 'Heal', shield: 'Shield', reduction: 'Damage reduction', knockback: 'Knockback', aura: 'Buff / debuff', interrupt: 'Interrupt',
+  dispel: 'Dispel', gain: 'Resource gain', healMissing: 'Heal (share of missing health)', healMax: 'Heal (share of max health)', pull: 'Pull', leap: 'Leap', blink: 'Blink',
+  charge: 'Charge', dashToTarget: 'Dash to target', zone: 'Ground area', cleanse: 'Cleanse', strip: 'Strip effects', smoke: 'Smoke', images: 'Mirror images', flag: 'Banner',
+  mindControl: 'Mind control', zoneBuff: 'Area buff', freeMove: 'Free movement', dropCombat: 'Drop combat', dropTargets: 'Drop targets', exsanguinate: 'Exsanguinate', proc: 'Chance to trigger', cast: 'Cast another skill',
+};
+/** What a "plain" add-effect choice makes: a ready effect, so the dev never has to know an aura's id. */
+const QUICK: [string, string, () => Record<string, unknown>][] = [
+  ['damage', 'Damage', () => effectSkeleton('damage')],
+  ['heal', 'Heal', () => effectSkeleton('heal')],
+  ['shield', 'Shield', () => ({ ...effectSkeleton('shield'), amount: 300, duration: 8000, self: true })],
+  ['reduction', 'Damage reduction', () => ({ ...effectSkeleton('reduction'), pct: 0.2, duration: 4000, self: true })],
+  ['knockback', 'Knockback', () => effectSkeleton('knockback')],
+  ['stun', 'Stun', () => ({ type: 'aura', aura: 'concussion_stun', duration: 2000 })],
+  ['root', 'Root', () => ({ type: 'aura', aura: 'frostbolt_root', duration: 3000 })],
+  ['slow', 'Slow', () => ({ type: 'aura', aura: 'frostbolt_slow', duration: 4000 })],
+  ['interrupt', 'Interrupt', () => effectSkeleton('interrupt')],
+  ['dispel', 'Dispel', () => effectSkeleton('dispel')],
+  ['aura', 'Other buff / debuff…', () => effectSkeleton('aura')],
+];
+/** Plain labels for the fields of an effect (by effect type, else by field). */
+const FIELD_LABELS: Record<string, Record<string, string>> = {
+  shield: { amount: 'Shield strength', duration: 'Lasts', self: 'On yourself (off: on the target)' },
+  reduction: { pct: 'Damage reduced by', duration: 'Lasts', self: 'On yourself (off: on the target)' },
+  knockback: { distance: 'Thrown back' },
+  damage: { amount: 'Damage' }, heal: { amount: 'Healing' }, gain: { amount: 'Resource gained' },
+  aura: { aura: 'Effect', duration: 'Lasts', chance: 'Chance', self: 'On yourself (off: on the target)', stacks: 'Stacks added' },
+};
+const FIELD_PLAIN: Record<string, string> = { self: 'On yourself', pct: 'Share', duration: 'Lasts', lockout: 'Lockout', radius: 'Radius', distance: 'Distance', chance: 'Chance', p: 'Chance', amount: 'Amount' };
+/** Fields shown in seconds (stored in ms) and in percent (stored 0 to 1). */
+const SECONDS = new Set(['duration', 'lockout', 'delay', 'pulse', 'initial', 'castTime', 'cooldown']);
+const PERCENT = new Set(['pct', 'chance', 'p']);
+const UNIT: Record<string, string> = { distance: 'yards', radius: 'yards', range: 'yards', stopDistance: 'yards' };
+
 /** Every field name used by the entries of a kind in the game (with an example value), so "add a field" offers what the game knows. */
 function known(objs: unknown[]): Map<string, unknown> {
   const out = new Map<string, unknown>();
@@ -28,6 +63,7 @@ function suggestions(file: string, path: string[], o: Obj): Map<string, unknown>
     if (file === 'talents') return known(allTalents());
     return known(Object.values(SPECS).flat());
   }
+  if (typeof o.type === 'string' && /^\d+$/.test(last) && ['shield', 'reduction'].includes(o.type)) return new Map<string, unknown>([['self', true]]);
   if (typeof o.type === 'string' && /^\d+$/.test(last)) return known(allEffects().filter((e) => isObj(e) && e.type === o.type));
   if (last === 'mods') return known(allTalents().map((t) => (t as Obj).mods));
   return new Map();
@@ -60,17 +96,20 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
     const v = (parent as Obj)[key as string];
     const k = String(key);
     if (typeof v === 'number') {
+      const f = SECONDS.has(k) ? 1000 : PERCENT.has(k) ? 0.01 : 1; // shown value = stored / f
+      const unit = SECONDS.has(k) ? 'seconds' : PERCENT.has(k) ? '%' : UNIT[k] ?? '';
       const i = el('input', 'dform-in') as HTMLInputElement;
       i.type = 'number';
       i.step = 'any';
-      i.value = String(v);
+      i.value = String(Math.round((v / f) * 1000) / 1000);
       i.addEventListener('input', () => {
         if (i.value.trim() !== '' && Number.isFinite(Number(i.value))) {
-          (parent as Obj)[key as string] = Number(i.value);
+          (parent as Obj)[key as string] = Math.round(Number(i.value) * f * 1000) / 1000;
           change();
         }
       });
       host.append(i);
+      if (unit) host.append(el('small', 'devp-dim', ` ${unit}`));
     } else if (typeof v === 'boolean') {
       const i = el('input') as HTMLInputElement;
       i.type = 'checkbox';
@@ -125,12 +164,18 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
     return b;
   };
 
+  /** A field's label: its effect's own wording first, then the shared plain wording, then its name made readable. */
+  const labelOf = (o: Obj, k: string): string => {
+    const t = typeof o.type === 'string' ? o.type : '';
+    return FIELD_LABELS[t]?.[k] ?? FIELD_PLAIN[k] ?? nice(k);
+  };
+
   function drawObject(o: Obj, path: string[]): HTMLElement {
     const box = el('div', path.length ? 'dform-box' : 'dform-top');
     const locked = path.length === 0 ? new Set(['id']) : new Set<string>();
     for (const k of Object.keys(o)) {
       const row = el('div', 'dform-row');
-      row.append(el('label', 'dform-lab', nice(k)));
+      row.append(el('label', 'dform-lab', labelOf(o, k)));
       const val = el('div', 'dform-val');
       drawValue(val, o, k, path);
       row.append(val);
@@ -164,7 +209,7 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
     a.forEach((item, i) => {
       const row = el('div', 'dform-item');
       const head = el('div', 'dform-itemhead');
-      const title = isObj(item) && typeof item.type === 'string' ? `${nice(item.type)}${typeof item.aura === 'string' ? `: ${AURAS[item.aura]?.name ?? item.aura}` : ''}` : `${nice(k)} ${i + 1}`;
+      const title = isObj(item) && typeof item.type === 'string' ? `${EFFECT_NAMES[item.type] ?? nice(item.type)}${typeof item.aura === 'string' ? `: ${AURAS[item.aura]?.name ?? item.aura}` : ''}` : `${nice(k)} ${i + 1}`;
       head.append(el('b', '', k === 'effects' ? `Effect ${i + 1}: ${title}` : title), remove(() => { a.splice(i, 1); structural(); }, 'Remove'));
       row.append(head);
       if (isObj(item)) row.append(drawObject(item, [...path, String(i)]));
@@ -178,16 +223,25 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
     const add = el('button', 'mm-small', k === 'effects' ? '＋ Add effect' : `＋ Add to ${nice(k).toLowerCase()}`);
     const kindSel = el('select', 'dform-add');
     if (k === 'effects') {
-      for (const t of EFFECT_TYPES) {
-        const o = el('option', '', t === 'aura' ? 'Buff / debuff / shield' : nice(t));
-        o.value = t;
+      for (const [id, name] of QUICK) {
+        const o = el('option', '', name);
+        o.value = id;
         kindSel.append(o);
       }
-      kindSel.value = 'aura';
+      const more = el('optgroup') as HTMLOptGroupElement;
+      more.label = 'Everything else';
+      for (const t of EFFECT_TYPES.filter((x) => !QUICK.some(([id]) => id === x))) {
+        const o = el('option', '', EFFECT_NAMES[t] ?? nice(t));
+        o.value = `type:${t}`;
+        more.append(o);
+      }
+      kindSel.append(more);
     }
     add.addEventListener('click', () => {
-      if (k === 'effects') a.push(effectSkeleton(kindSel.value));
-      else if (a.length) a.push(structuredClone(a[a.length - 1]));
+      if (k === 'effects') {
+        const q = QUICK.find(([id]) => id === kindSel.value);
+        a.push(q ? q[2]() : effectSkeleton(kindSel.value.replace(/^type:/, '')));
+      } else if (a.length) a.push(structuredClone(a[a.length - 1]));
       else a.push('');
       structural();
     });
