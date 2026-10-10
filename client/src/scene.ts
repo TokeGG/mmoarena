@@ -482,12 +482,14 @@ export class ArenaScene {
 
 /** A floor height that drops with gravity when the ground falls away by more than a step, and follows it otherwise. */
 export function fallToward(cur: number | undefined, ground: number, dt: number, st: { fallV?: number }): number {
-  if (cur === undefined || ground >= cur - 0.3 && !st.fallV) {
+  if (cur === undefined || (ground >= cur - 0.3 && ground - cur <= 0.25 && !st.fallV)) {
     st.fallV = 0;
     return ground;
   }
   if (ground >= cur) {
     st.fallV = 0;
+    // a jump into the side of a ramp lands the feet on its surface a good way above: climb there quickly instead of popping over
+    if (ground - cur > 0.25) return Math.min(ground, cur + Math.max(ground - cur, 1) * (1 - Math.exp(-dt * 18)) + 0.01);
     return ground;
   }
   st.fallV = (st.fallV ?? 0) + 30 * dt;
