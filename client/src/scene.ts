@@ -6,7 +6,7 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { arenaById, heightAt, onRaised } from '@arena/shared';
+import { arenaById, heightAt, onRaised, slabReach } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { ClassId, TeamId } from '@arena/shared';
 import { createCharacter, createSheep } from './models';
@@ -339,6 +339,7 @@ export class ArenaScene {
       this.raycaster.far = dist;
       const hits = this.raycaster.intersectObjects(this.pillars, true);
       d = cameraReach(dist, { x: head.x, y: head.y, z: head.z }, { x: offset.x, y: offset.y, z: offset.z }, this.arena.bounds, hits.length ? hits[0].distance : Infinity);
+      d = Math.min(d, slabReach(this.arena, head, offset, d)); // under a platform the camera is held in the space under it, not pushed up through it
     }
     const first = d < 1.8; // the camera pressed this close to a wall or pillar becomes first person
     const me = this.meshes.get(this.followId);

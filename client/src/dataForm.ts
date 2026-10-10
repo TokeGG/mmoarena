@@ -27,6 +27,8 @@ const QUICK: [string, string, () => Record<string, unknown>][] = [
   ['stun', 'Stun', () => ({ type: 'aura', aura: 'concussion_stun', duration: 2000 })],
   ['root', 'Root', () => ({ type: 'aura', aura: 'frostbolt_root', duration: 3000 })],
   ['slow', 'Slow', () => ({ type: 'aura', aura: 'frostbolt_slow', duration: 4000 })],
+  ['fear', 'Fear', () => ({ type: 'aura', aura: 'psychic_scream', duration: 5000 })],
+  ['incapacitate', 'Incapacitate (breaks on damage)', () => ({ type: 'aura', aura: 'polymorph', duration: 6000 })],
   ['interrupt', 'Interrupt', () => effectSkeleton('interrupt')],
   ['dispel', 'Dispel', () => effectSkeleton('dispel')],
   ['aura', 'Other buff / debuff…', () => effectSkeleton('aura')],
@@ -39,7 +41,7 @@ const FIELD_LABELS: Record<string, Record<string, string>> = {
   damage: { amount: 'Damage' }, heal: { amount: 'Healing' }, gain: { amount: 'Resource gained' },
   aura: { aura: 'Effect', duration: 'Lasts', chance: 'Chance', self: 'On yourself (off: on the target)', stacks: 'Stacks added' },
 };
-const FIELD_PLAIN: Record<string, string> = { self: 'On yourself', pct: 'Share', duration: 'Lasts', lockout: 'Lockout', radius: 'Radius', distance: 'Distance', chance: 'Chance', p: 'Chance', amount: 'Amount' };
+const FIELD_PLAIN: Record<string, string> = { self: 'On yourself', pct: 'Percentage', duration: 'Lasts', lockout: 'Lockout', radius: 'Radius', distance: 'Distance', chance: 'Chance', p: 'Chance', amount: 'Amount' };
 /** Fields shown in seconds (stored in ms) and in percent (stored 0 to 1). */
 const SECONDS = new Set(['duration', 'lockout', 'delay', 'pulse', 'initial', 'castTime', 'cooldown']);
 const PERCENT = new Set(['pct', 'chance', 'p']);
@@ -235,10 +237,10 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
       const types = (ids: string[]): [string, string][] => ids.filter((t) => EFFECT_TYPES.includes(t)).map((t) => [QUICK.some(([q]) => q === t) ? `q:${t}` : `type:${t}`, EFFECT_NAMES[t] ?? nice(t)]);
       const CATS: [string, string, () => [string, string][]][] = [
         ['dmg', 'Damage and healing', () => types(['damage', 'heal', 'healMissing', 'healMax', 'gain', 'zone', 'exsanguinate'])],
-        ['shield', 'Shields and protection', () => [['q:shield', 'Shield (you set the strength)'], ['q:reduction', 'Damage reduction (you set the %)'], ...auraItems((a) => !a.harmful && (a.kind === 'absorb' || !!a.invulnerable || !!a.mods?.damageTaken))]],
+        ['shield', 'Shields and protection', () => [['q:shield', 'Shield (you set the strength)'], ['q:reduction', 'Damage reduction (you set the percentage)'], ...auraItems((a) => !a.harmful && (a.kind === 'absorb' || !!a.invulnerable || !!a.mods?.damageTaken))]],
         ['buff', 'Buffs on you or allies', () => auraItems((a) => !a.harmful)],
-        ['cc', 'Crowd control', () => [['q:stun', 'Stun'], ['q:root', 'Root'], ['q:slow', 'Slow'], ...auraItems((a) => !!a.harmful && CC_KINDS.includes(a.kind))]],
-        ['debuff', 'Debuffs and damage over time', () => auraItems((a) => !!a.harmful && !CC_KINDS.includes(a.kind))],
+        ['cc', 'Crowd control', () => [['q:stun', 'Stun'], ['q:root', 'Root'], ['q:slow', 'Slow'], ['q:fear', 'Fear'], ['q:incapacitate', 'Incapacitate (breaks on damage)'], ['type:interrupt', 'Interrupt (locks a school of magic)']]],
+        ['debuff', 'Debuffs and damage over time (named effects)', () => auraItems((a) => !!a.harmful && !CC_KINDS.includes(a.kind))],
         ['move', 'Movement', () => types(['knockback', 'pull', 'leap', 'blink', 'charge', 'dashToTarget', 'freeMove'])],
         ['util', 'Utility', () => types(['interrupt', 'dispel', 'cleanse', 'strip', 'smoke', 'images', 'flag', 'mindControl', 'zoneBuff', 'dropCombat', 'dropTargets', 'cast', 'proc'])],
       ];
