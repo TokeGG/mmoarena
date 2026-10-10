@@ -30,6 +30,8 @@ export const CATCHUP_CREDIT_MS = 250;
 /** A melee swing reaches this far up or down (a ramp's slope), not from a walkway's top to the ground below. */
 const MELEE_FLOOR_GAP = 1.6;
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
+/** How high above the ground (yards) a hovering unit is out of reach of the damage zones laid on the floor. */
+const ZONE_REACH_UP = 1.5;
 const GRACE_REASONS = ['out of range', 'you are already casting', 'global cooldown', 'no line of sight', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
 /** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
 /** How long a fallen Mirror Image stays in the snapshots before it is gone. */
@@ -2018,6 +2020,7 @@ export class ArenaSim {
         for (const v of this.units.values()) {
           if (!v.alive || v.team === z.team || !owner) continue;
           if (Math.hypot(v.pos.x - z.x, v.pos.z - z.z) > z.r || !this.onZoneFloor(v, z)) continue;
+          if (this.hoverOf(v) > ZONE_REACH_UP) continue; // fire and ice on the ground do not reach someone hovering high above it (Ascend to the Heavens): only ranged skills do
           if (this.time < v.dodgeUntil && jumpHeight(this.time - v.jumpStart) >= JUMP_DODGE_HEIGHT) {
             this.emit({ t: 'dodge', unit: v.id, ability: z.ability });
             continue;
