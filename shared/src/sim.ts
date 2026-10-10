@@ -373,7 +373,8 @@ export class ArenaSim {
     if (this.storedFull(u, def)) return fail('ability is on cooldown');
     if (!this.modsOf(u).ability[def.id]?.stored && (u.cooldowns[def.id] ?? 0) > this.time && (u.chargesUsed[def.id] ?? 0) >= (this.modsOf(u).ability[def.id]?.charges ?? 0)) return fail('ability is on cooldown');
     // a press a hair before the global cooldown ends (the player's clock runs a little ahead of the server's) is held, not thrown away
-    if (def.gcd && u.gcdEnd > this.time) return u.gcdEnd - this.time <= TUNING.castGraceMs ? soft('global cooldown') : fail('global cooldown');
+    // a different spell may be started in the middle of the global cooldown (it ends the one before it at once); the same one waits
+    if (def.gcd && u.gcdEnd > this.time && !(TUNING.gcdSwitch && u.gcdBy !== def.id)) return u.gcdEnd - this.time <= TUNING.castGraceMs ? soft('global cooldown') : fail('global cooldown');
     if (u.resource < this.costOf(u, def)) return fail(`not enough ${u.resourceType}`);
     if (def.cpSpend && u.cp < 1) return fail('needs combo points');
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
@@ -444,7 +445,7 @@ export class ArenaSim {
         this.removeAura(u, fed, 'consumed');
       }
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks, done: 0 };
-      if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      if (def.gcd) this.startGcd(u, def.id);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       if (def.channel.immediate) this.tickChannel(u); // the first strike (and its stun) lands the moment the channel starts, not a tick later
@@ -454,7 +455,7 @@ export class ArenaSim {
     if (proc) {
       // a proc (Hot Streak) makes this cast instant and is used up
       this.removeAura(u, proc, 'consumed');
-      if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      if (def.gcd) this.startGcd(u, def.id);
       this.procCast = true;
       try { this.execute(u, def, tgt, ground ?? undefined); } finally { this.procCast = false; }
       return ok;
@@ -462,7 +463,7 @@ export class ArenaSim {
     if (def.castTime > 0) {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z, ...(ground.lv === 1 ? { gl: 1 as const } : {}) } : {}) };
-      if (def.gcd) u.gcdEnd = this.time + this.gcdOf(u);
+      if (def.gcd) this.startGcd(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
     }
@@ -1126,7 +1127,7 @@ export class ArenaSim {
       u.resource = 0;
     } else u.resource -= this.costOf(u, def);
     this.startCooldown(u, def);
-    if (def.gcd && def.castTime === 0) u.gcdEnd = this.time + this.gcdOf(u);
+    if (def.gcd && def.castTime === 0) this.startGcd(u, def.id);
     this.emit({ t: 'cast', unit: u.id, ability: def.id, target: tgt.id });
 
     const abMod = this.modsOf(u).ability[def.id];
@@ -1834,6 +1835,11 @@ export class ArenaSim {
     return Math.max(750, Math.round(TUNING.gcdMs * this.modsOf(u).gcd));
   }
 
+  private startGcd(u: Unit, ability: string): void {
+    u.gcdEnd = this.time + this.gcdOf(u);
+    u.gcdBy = ability;
+  }
+
   hasAura(u: Unit, kinds: AuraKind[]): boolean {
     return u.auras.some((a) => kinds.includes(a.kind));
   }
@@ -2040,7 +2046,7 @@ export class ArenaSim {
       x: r2(u.pos.x), z: r2(u.pos.z), facing: Math.round(u.facing * 1000) / 1000,
       alive: u.alive, health: Math.round(u.health), maxHealth: u.maxHealth,
       resource: Math.round(u.resource), resourceMax: u.resourceMax, resourceType: u.resourceType,
-      target: u.target, cast: u.cast, gcdEnd: u.gcdEnd, cooldowns,
+      target: u.target, cast: u.cast, gcdEnd: u.gcdEnd, ...(u.gcdBy ? { gcdBy: u.gcdBy } : {}), cooldowns,
       auras: u.auras.map((a) => ({ id: a.id, kind: a.kind, src: a.sourceId, expiresAt: isFinite(a.expiresAt) ? a.expiresAt : 0, ...(a.stacks ? { stacks: a.stacks } : {}) })),
       ...this.chargesOf(u),
       ...(u.cp > 0 ? { cp: u.cp } : {}),

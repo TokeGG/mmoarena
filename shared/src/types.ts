@@ -372,6 +372,8 @@ export interface ArenaDef {
 export interface Tuning {
   tickMs: number;
   gcdMs: number;
+  /** 1: a different spell can be started during the global cooldown (it ends the one before it); 0: every spell waits for it. */
+  gcdSwitch: number;
   runSpeed: number;
   drResetMs: number;
   drSteps: number[];
@@ -452,6 +454,8 @@ export interface Unit {
   target: number | null;
   cast: CastState | null;
   gcdEnd: number;
+  /** The spell that started the global cooldown. */
+  gcdBy?: string;
   cooldowns: Record<string, number>;
   /** Extra charges spent during each ability's current cooldown (talents that allow more than one use). */
   chargesUsed: Record<string, number>;
@@ -561,6 +565,7 @@ export interface UnitSnap {
   target: number | null;
   cast: CastState | null;
   gcdEnd: number;
+  gcdBy?: string;
   /** abilityId -> absolute server time (ms) when ready. Only entries still on cooldown. */
   cooldowns: Record<string, number>;
   /** expiresAt 0 = permanent */

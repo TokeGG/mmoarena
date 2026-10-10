@@ -53,6 +53,6 @@ for (const [id, w] of Object.entries(d.weapons)) {
   weapons[id] = { ...e, ...(old.weapons[id] ?? {}), file: old.weapons[id]?.file ?? '' };
 }
 const cosmetics: Record<string, SlotData> = {};
-for (const s of COSMETIC_SLOTS) cosmetics[s] = old.cosmetics[s] ?? { x: 0, y: 0, z: 0, scale: 1, rotY: 0 };
+for (const s of COSMETIC_SLOTS) cosmetics[s] = { file: '', ...(old.cosmetics[s] ?? { x: 0, y: 0, z: 0, scale: 1, rotY: 0 }) };
 writeFileSync(path, JSON.stringify({ characters, weapons, cosmetics }, null, 1) + '\n');
 console.log(`wrote ${Object.keys(characters).length} characters, ${Object.keys(weapons).length} weapons, ${Object.keys(cosmetics).length} cosmetic slots`);
