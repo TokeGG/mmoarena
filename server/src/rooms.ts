@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
+import { ARENAS, ArenaSim, findArena, customArenas, isCustomArena, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
 import type { HudLayoutMap, StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
@@ -18,6 +18,7 @@ import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch,
 import { TickMeter } from './tickmeter';
 import type { DevTools } from './devtools';
 import type { AdminLog } from './adminlog';
+import type { CustomMaps } from './custommaps';
 import type { AiTune, StoredTurn } from './aitune';
 import type { DevRequests } from './devrequests';
 import { label as patchLabel } from './devtools';
@@ -26,7 +27,7 @@ import type { ServerHealth } from './health';
 import type { TimeSample } from './playtime';
 import { TIME_IDLE_MS } from '@arena/shared';
 
-import type { BotTest, Brain, Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
+import type { ArenaDef, BotTest, Brain, Build, ClassId, ClientMsg, Difficulty, PracticeDifficulty, ServerMsg, TeamId, TeamSize } from '@arena/shared';
 
 type JoinMsg = Extract<ClientMsg, { t: 'join' }>;
 
@@ -136,12 +137,18 @@ export const DUEL_MAP = 'overlook';
 
 /** An arena id, resolving 'random' (or anything unknown) to a random arena. */
 export function pickMap(pref: string, avoid?: string): string {
-  if (ARENAS.some((a) => a.id === pref)) return pref;
+  if (findArena(pref)) return pref; // a custom map can be picked by name; it is never in the random pool below
   const pool = ARENAS.filter((a) => a.randomPool !== false);
   const fresh = pool.filter((a) => a.id !== avoid); // never the arena that was just played
   const from = fresh.length ? fresh : pool;
   return from[Math.floor(Math.random() * from.length)].id;
 }
+
+/**
+ * The map a queued player asks for. Custom maps are for practice, parties and the owner's bot matches only: the ranked and
+ * the normal queue (which pair people who ask for the same map) treat a custom pick as 'random', so the pool is built-ins.
+ */
+export const queuePref = (pref: string): string => (isCustomArena(pref) ? 'random' : pref);
 
 export class Room {
   readonly sim: ArenaSim;
@@ -808,7 +815,7 @@ export class Room {
    * the owner picked it: player-only matches teach the losers' classes through the winners, bots-only matches too.
    */
   private study(replay: ReturnType<ReplayRecorder['finish']> | null, counted: boolean): void {
-    if (!replay || !this.learner || this.studied || this.devTest || this.tookOver) return;
+    if (!replay || !this.learner || this.studied || this.devTest || this.tookOver || isCustomArena(this.arenaId)) return; // a custom map teaches nothing general (and may be deleted before the replay is studied)
     const forced = !!this.autoTrain?.() && this.sim.time - this.sim.prepEndsAt >= 20000;
     if (!counted && !forced) return;
     this.studied = true;
@@ -820,7 +827,7 @@ export class Room {
   private reportBots(): void {
     if (this.botsReported) return;
     this.botsReported = true;
-    if (this.devTest || this.tookOver) return; // test numbers, or a bot the owner played, say nothing about how the bots play
+    if (this.devTest || this.tookOver || isCustomArena(this.arenaId)) return; // custom maps, test numbers, or a bot the owner played, say nothing about how the bots play
     const w = this.sim.winner;
     if (!this.learner || w === 'draw' || w === null || w === undefined) return;
     if (this.sim.time - this.sim.prepEndsAt < 20000) return; // a forfeit or an instant loss says nothing about play
@@ -964,7 +971,7 @@ export class Lobby {
     return this.queue.some((e) => e.members.includes(p));
   }
 
-  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private requests?: DevRequests, private time?: PlayTime, private health?: ServerHealth) {
+  constructor(private cfg: LobbyConfig, private accounts?: Accounts, private learner?: BotLearner, private suggestions?: Suggestions, private dev?: DevTools, private adminLog?: AdminLog, private ai?: AiTune, private requests?: DevRequests, private time?: PlayTime, private health?: ServerHealth, private customMaps?: CustomMaps) {
     this.tickMs = Math.max(1, Math.round(cfg.tickMs ?? TUNING.tickMs));
     this.meter = new TickMeter(this.tickMs);
     // the saved state, unless the owner already changed it while it loaded
@@ -1550,9 +1557,16 @@ export class Lobby {
     if (this.dev?.overrides.length) send(out, { t: 'overrides', patches: this.dev.overrides });
     // the owner's default HUD layout, for everyone (guests and spectators too)
     if (this.hudDef) send(out, this.hudDef);
+    // the owner's custom maps, so the pickers, the scene and the minimap know them
+    if (customArenas().length) send(out, { t: 'custom_maps', maps: [...customArenas()] });
     // a recent announcement greets people who come online just after it
     if (this.lastAnnounce && Date.now() - this.lastAnnounce.at < ANNOUNCE_KEEP_MS) send(out, this.lastAnnounce);
     return out;
+  }
+
+  /** The custom maps changed: every connected client gets the new list (their pickers and scenes). */
+  customMapsChanged(maps: readonly ArenaDef[]): void {
+    for (const q of this.conns) send(q, { t: 'custom_maps', maps: [...maps] });
   }
 
   /** Save (or, with null, remove) the default HUD layout, tell everyone connected, and write the admin log. */
@@ -1976,7 +1990,7 @@ export class Lobby {
         const room = this.devRoom(p);
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: !this.isDev(p) ? 'Dev tools need the dev tag.' : 'Start a match that is not ranked first.' });
         if (room.closed) return void send(p, { t: 'dev_result', ok: false, text: 'That match is over.' });
-        const map = ARENAS.find((a) => a.id === msg.id);
+        const map = findArena(msg.id);
         if (!map) return void send(p, { t: 'dev_result', ok: false, text: 'That map does not exist.' });
         room.devSwapMap(map.id);
         const by = p.account?.name ?? p.name;
@@ -2311,6 +2325,19 @@ export class Lobby {
         else send(p, { t: 'notice', text: `Following ${msg.name}: you will join their next match as soon as it starts.` });
         break;
       }
+      case 'maps_list':
+        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk) return;
+        send(p, { t: 'custom_maps', maps: [...customArenas()] });
+        break;
+      case 'map_save':
+      case 'map_delete': {
+        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        const by = p.account?.name ?? p.name;
+        void (msg.t === 'map_save' ? this.customMaps.save(by, msg.map) : this.customMaps.remove(by, msg.id)).then((r) => {
+          send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id, warnings: r.warnings } : {}) });
+        });
+        break;
+      }
       case 'bot_match': {
         // the owner's test bench: bots against bots, watched live, in a room nobody else can find
         if (!p.ownerOk) return void send(p, { t: 'notice', text: 'Only the owner can start a bot match.' });
@@ -2642,7 +2669,7 @@ export class Lobby {
     }
     for (const g of groups) {
       for (const q of g) send(q, { t: 'closed', reason: `${leaver.name} left before the start. You are back in the queue.` });
-      this.queue.push({ members: g, size: room.size, pref: g[0].mapPref, at: 0, ranked: true }); // first in line
+      this.queue.push({ members: g, size: room.size, pref: queuePref(g[0].mapPref), at: 0, ranked: true }); // first in line
     }
     for (const q of [...others, leaver]) this.changed(q);
     this.tryMatch(room.size, true);
@@ -2654,7 +2681,7 @@ export class Lobby {
     room.removePlayer(p);
     send(p, { t: 'closed', reason: 'Your opponents left, so there is no rematch. Back in the ranked queue.' });
     if (!p.account || this.banned(p)) return;
-    this.queue.push({ members: [p], size: room.size, pref: p.mapPref, at: Date.now(), ranked: true });
+    this.queue.push({ members: [p], size: room.size, pref: queuePref(p.mapPref), at: Date.now(), ranked: true });
     this.changed(p);
     this.tryMatch(room.size, true);
     this.announceQueue();
@@ -2790,12 +2817,12 @@ export class Lobby {
         m.size = p.size;
         m.mapPref = p.mapPref;
       }
-      this.queue.push({ members: all, size: p.size, pref: p.mapPref, at: now, ranked });
+      this.queue.push({ members: all, size: p.size, pref: queuePref(p.mapPref), at: now, ranked });
     } else {
       for (const m of [p, ...mates]) {
         m.size = p.size;
         m.mapPref = p.mapPref;
-        this.queue.push({ members: [m], size: p.size, pref: p.mapPref, at: now, ranked });
+        this.queue.push({ members: [m], size: p.size, pref: queuePref(p.mapPref), at: now, ranked });
       }
       if (mates.length) for (const m of [p, ...mates]) send(m, { t: 'notice', text: 'Your party is bigger than the team size, so you queue separately and may not be placed together.' });
     }

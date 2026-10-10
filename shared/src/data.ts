@@ -32,7 +32,24 @@ export const CLASSES = classesJson as unknown as Record<ClassId, ClassDef>;
 /** Every arena the server can play on. The first is the default. */
 export const ARENAS = arenasJson as unknown as ArenaDef[];
 export const ARENA = ARENAS[0];
-export const arenaById = (id: string | undefined): ArenaDef => ARENAS.find((a) => a.id === id) ?? ARENA;
+/** Maps the owner made in the admin panel's Maps tab (server store 'custommaps'). Never part of ARENAS, the random pool, ranked play or the content hash. */
+let customList: readonly ArenaDef[] = [];
+/** Replace the custom maps (the server after a load or a change, a client when the server sends the list). Every object is kept as is, so geometry caches stay valid. */
+export function registerCustomArenas(list: readonly ArenaDef[]): void {
+  const old = customList;
+  // a map that did not change keeps its object, so a scene showing it is not rebuilt
+  customList = list.filter((a) => !ARENAS.some((b) => b.id === a.id)).map((a) => {
+    const prev = old.find((o) => o.id === a.id);
+    return prev && JSON.stringify(prev) === JSON.stringify(a) ? prev : a;
+  });
+}
+export const customArenas = (): readonly ArenaDef[] => customList;
+/** Every arena that can be chosen by name: the built-ins, then the custom maps. (The random pool is `ARENAS` only.) */
+export const allArenas = (): readonly ArenaDef[] => (customList.length ? [...ARENAS, ...customList] : ARENAS);
+/** An arena by id, built-in or custom; undefined when there is none. */
+export const findArena = (id: string | undefined): ArenaDef | undefined => ARENAS.find((a) => a.id === id) ?? customList.find((a) => a.id === id);
+export const isCustomArena = (id: string | undefined): boolean => !ARENAS.some((a) => a.id === id) && customList.some((a) => a.id === id);
+export const arenaById = (id: string | undefined): ArenaDef => findArena(id) ?? ARENA;
 export const TUNING = tuningJson as unknown as Tuning;
 /** Animation timings (shared/data/fx.json): visual only, not part of the simulation or its content hash. */
 export const FX = fxJson as unknown as Record<string, Record<string, number>>;

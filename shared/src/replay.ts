@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, AURAS, CLASSES, SPECS, TALENTS, TUNING, arenaById } from './data';
+import { ABILITIES, ARENAS, AURAS, CLASSES, SPECS, TALENTS, TUNING, arenaById, findArena } from './data';
 import { ArenaSim } from './sim';
 import type { AddUnitOptions, SimCommand } from './sim';
 import type { RosterEntry } from './accounts';
@@ -54,11 +54,22 @@ export class ReplayRecorder {
   }
 }
 
+/**
+ * Why a recording cannot be played because of its map, or null. A replay records the map id; a custom map the owner deleted
+ * since (or one this client has not been sent) is gone, and playing it on the default map would show something wrong.
+ * (A built-in map that was removed from the game is refused by the content hash already.)
+ */
+export function replayMapProblem(data: Pick<ReplayData, 'arena'>): string | null {
+  return findArena(data.arena) ? null : `This match was played on a map ("${data.arena}") that no longer exists, so it cannot be replayed.`;
+}
+
 /** Plays a recording forward on a local sim. Same commands on the same tick = same match. */
 export class ReplayRunner {
   sim!: ArenaSim;
   private cursor = 0;
   constructor(readonly data: ReplayData) {
+    const gone = replayMapProblem(data);
+    if (gone) throw new Error(gone);
     this.reset();
   }
   /** Milliseconds per tick of this recording. */

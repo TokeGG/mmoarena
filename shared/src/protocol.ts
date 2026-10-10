@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS } from './data';
+import { ABILITIES, CLASSES, CLASS_IDS, SPECS, findArena } from './data';
 import { PATCH_FILES, validPatch } from './devpatch';
 import type { DataPatch } from './devpatch';
 import { HUD_DEFAULT_MAX_CHARS, parseHudDefault } from './hudDefault';
@@ -10,7 +10,7 @@ import type { BotBug, ClassKnowledge, LearnReport, LiveLearning, NoteInfo } from
 import { BOT_NOTE_MAX } from './botnote';
 import type { BotTest } from './bottest';
 import type { SlimSnapshot, UnitInfo } from './snapslim';
-import type { Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
+import type { ArenaDef, Build, ClassId, SimEvent, Snapshot, TeamId } from './types';
 
 export const PROTOCOL_VERSION = 10;
 
@@ -234,6 +234,10 @@ export type ClientMsg =
   /** Owner only: follow a player (by name) into every match they play, as a live spectator; null stops following. */
   | { t: 'follow'; name: string | null }
   | { t: 'bot_match'; size: TeamSize; teams: [BotPick[], BotPick[]]; difficulty: 'easy' | 'normal' | 'hard'; map: string }
+  /** Owner only (Maps tab): ask for the custom maps again, create or update one (checked by cleanCustomArena on the server), delete one. The answer is `map_result`; a change is also pushed to everyone as `custom_maps`. */
+  | { t: 'maps_list' }
+  | { t: 'map_save'; map: ArenaDef }
+  | { t: 'map_delete'; id: string }
   /** Friends: your list and requests. */
   | { t: 'friends' }
   | { t: 'friend'; op: 'add' | 'accept' | 'decline' | 'remove'; name: string }
@@ -292,6 +296,10 @@ export type ServerMsg =
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean; /** Cooldowns are switched off in this match. */ noCooldowns?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */
   | { t: 'dev_map'; map: string }
+  /** Every custom map (the owner's map editor), sent on connect and after every change: register them with registerCustomArenas. */
+  | { t: 'custom_maps'; maps: ArenaDef[] }
+  /** The answer to a map_save / map_delete (only to the owner who asked). */
+  | { t: 'map_result'; ok: boolean; text: string; id?: string; warnings?: string[] }
   | { t: 'dev_session'; patches: DataPatch[] }
   | { t: 'dev_result'; ok: boolean; text: string; url?: string }
   /** Ask Claude's next answer in the chat. */
@@ -437,7 +445,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
         ally: m.ally === undefined ? undefined : validClass(m.ally) ? m.ally : null,
         difficulty: DIFFICULTIES.includes(m.difficulty) ? m.difficulty : undefined,
         build: parseBuild(m.build),
-        map: typeof m.map === 'string' && (m.map === 'random' || ARENAS.some((a) => a.id === m.map)) ? m.map : undefined,
+        map: typeof m.map === 'string' && (m.map === 'random' || !!findArena(m.map)) ? m.map : undefined,
         profile: typeof m.profile === 'string' && m.profile.length <= 400 ? m.profile : undefined,
       };
     }
@@ -603,7 +611,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_unit', unit: m.unit, op: m.op, ...(minutes !== undefined ? { minutes } : {}), ...(reason ? { reason } : {}) };
     }
     case 'dev_map':
-      return typeof m.id === 'string' && ARENAS.some((a) => a.id === m.id) ? { t: 'dev_map', id: m.id } : null;
+      return typeof m.id === 'string' && !!findArena(m.id) ? { t: 'dev_map', id: m.id } : null;
     case 'dev_bot': {
       if (typeof m.unit !== 'number' || !Number.isInteger(m.unit) || !CLASS_IDS.includes(m.classId)) return null;
       const build = parseBuild(m.build);
@@ -685,6 +693,14 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.name === null) return { t: 'follow', name: null };
       if (typeof m.name !== 'string' || !NAME_RE.test(m.name)) return null;
       return { t: 'follow', name: m.name };
+    case 'maps_list':
+      return { t: 'maps_list' };
+    case 'map_save':
+      // the server cleans and checks the map (cleanCustomArena); here only that it is an object of a sane size
+      if (!m.map || typeof m.map !== 'object' || Array.isArray(m.map) || JSON.stringify(m.map).length > 24000) return null;
+      return { t: 'map_save', map: m.map as ArenaDef };
+    case 'map_delete':
+      return typeof m.id === 'string' && m.id.length <= 40 ? { t: 'map_delete', id: m.id } : null;
     case 'bot_match': {
       const size = m.size === 1 || m.size === 2 || m.size === 3 ? (m.size as TeamSize) : null;
       if (!size || !Array.isArray(m.teams) || m.teams.length !== 2) return null;
@@ -701,7 +717,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       const a = side(m.teams[0]);
       const b = side(m.teams[1]);
       const difficulty = m.difficulty === 'easy' || m.difficulty === 'normal' || m.difficulty === 'hard' ? m.difficulty : null;
-      if (!a || !b || !difficulty || typeof m.map !== 'string' || !(m.map === 'random' || ARENAS.some((x) => x.id === m.map))) return null;
+      if (!a || !b || !difficulty || typeof m.map !== 'string' || !(m.map === 'random' || !!findArena(m.map))) return null;
       return { t: 'bot_match', size, teams: [a, b], difficulty, map: m.map };
     }
     case 'admin_set': {
