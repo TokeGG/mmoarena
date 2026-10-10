@@ -35,6 +35,7 @@ for (const [id, m] of Object.entries(d.characters)) {
     for (const b of BONE_NAMES) c.bones[b] = old.characters[id]?.bones?.[b] ?? ({ rx: 0, ry: 0, rz: 0, size: 1 } satisfies BoneAdjust);
   }
   c.body = { file: '' };
+  if (!m.clips) c.anims = { stand: '', walk: '', run: '', swing: '', cast: '', jump: '', ...(old.characters[id]?.anims ?? {}) };
   c.parts = {};
   for (const b of BONE_NAMES) c.parts[b] = old.characters[id]?.parts?.[b] ?? ({ ...NEUTRAL_PART } satisfies PartFit);
   if (m.helm) c.helm = { ...m.helm };
