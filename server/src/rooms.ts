@@ -2325,7 +2325,7 @@ export class Lobby {
         p.follow = key;
         send(p, { t: 'following', name: msg.name });
         // already in a match: go and watch it now (dummy practice included: the owner sees everything)
-        const target = [...this.conns].find((q) => q.account?.key === key && q.room);
+        const target = [...this.conns].find((q) => q.account?.key === key && (q.room || q.watching));
         if (target && !this.busy(p)) this.pullFollowers(target);
         else send(p, { t: 'notice', text: `Following ${msg.name}: you will join their next match as soon as it starts.` });
         break;
@@ -2354,6 +2354,7 @@ export class Lobby {
         msg.teams.forEach((side, team) => side.forEach((b) => room.addNpc(b.classId, team as TeamId, msg.difficulty, b.spec)));
         this.rooms.add(room);
         room.addSpectator(p);
+        this.pullFollowers(p); // whoever follows this account comes along
         this.changed(p);
         break;
       }
@@ -2467,12 +2468,12 @@ export class Lobby {
   /** Something about `p` changed (online, queueing, in a match...): tell the friends who are watching their list. */
   /** `q` just went into a match: an owner following them comes along as a live spectator, wherever they were watching. */
   private pullFollowers(q: Player): void {
-    const room = q.room;
+    const room = q.room ?? q.watching; // in a match, or watching one (a bot battle they just started)
     const key = q.account?.key;
     if (!room || !key) return;
     for (const f of this.conns) {
-      // a dev follows into matches a dev may watch (listed ones, on the delayed view), never into private practice
-      if (f.follow !== key || !(f.ownerOk || (this.adminAccess(f) && room.watchable)) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
+      // a dev follows into matches a dev may watch (listed ones, on the delayed view) and into bot battles, never into private practice
+      if (f.follow !== key || !(f.ownerOk || (this.adminAccess(f) && (room.watchable || room.botsOnly))) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
       f.watching?.removeSpectator(f);
       room.addSpectator(f);
       send(f, { t: 'notice', text: `Following ${q.account!.name} into their match.` });
