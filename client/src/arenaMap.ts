@@ -23,6 +23,8 @@ export interface ArenaEnvironment {
   pillars: THREE.Mesh[];
   /** Per frame; the camera lets pieces that only look right at player height step aside for a view from above. */
   update(t: number, camera?: THREE.Camera): void;
+  /** Under a walkway: the deck above is cut away in a circle of this radius (yards) around x, z so you can see what is going on; radius 0 closes it. */
+  setHole(x: number, z: number, radius: number): void;
   /** Start gates are only shown during the prep phase. */
   setPhase(phase: string): void;
   /** Meshes and triangles in the scenery now (for performance checks). */
@@ -374,6 +376,7 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   const th = THEMES[ARENA.theme] ?? THEMES.colosseum;
   const root = new THREE.Group();
   scene.add(root);
+  const hole3 = { value: new THREE.Vector3(0, 0, 0) }; // x, z, radius of the cut in the deck
   const rand = rng(1337 + ARENA.id.length * 17);
   const b = ARENA.bounds;
   const w = b.maxX - b.minX;
@@ -756,9 +759,20 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
   if (ARENA.deck) {
     const dk = ARENA.deck;
     const H = dk.height;
-    const topMat = M(th.deck.top, { color: th.deck.topTint, roughness: 0.9 });
-    const stoneMat = M(th.deck.side, { roughness: 0.95, side: THREE.DoubleSide });
-    const wedgeMat = M(th.deck.side, { repeat: [1 / 4, 1 / 4], roughness: 0.95, side: THREE.DoubleSide }); // extruded wedges take their UVs in yards
+    // the deck can be cut away in a circle (a soft, dithered edge) around a viewer standing under it
+    const hole = hole3;
+    const holeable = <T extends THREE.Material>(m: T): T => {
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uHole = hole;
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vHoleW;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvHoleW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vHoleW;\nuniform vec3 uHole;').replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\nif (uHole.z > 0.0) { float hd = distance(vHoleW.xz, uHole.xy); float hn = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715)))); if (hd < uHole.z - 1.2 || (hd < uHole.z && hn < (uHole.z - hd) / 1.2)) discard; }');
+      };
+      m.customProgramCacheKey = () => 'deckhole';
+      return m;
+    };
+    const topMat = holeable(M(th.deck.top, { color: th.deck.topTint, roughness: 0.9 }));
+    const stoneMat = holeable(M(th.deck.side, { roughness: 0.95, side: THREE.DoubleSide }));
+    const wedgeMat = holeable(M(th.deck.side, { repeat: [1 / 4, 1 / 4], roughness: 0.95, side: THREE.DoubleSide })); // extruded wedges take their UVs in yards
     const railMat = M(th.deck.side, { color: 0xb0a89c, roughness: 0.95 });
     const shadeMat = new THREE.MeshBasicMaterial({ color: 0x0b0a0d, transparent: true, opacity: 0.35, depthWrite: false });
     mats.push(shadeMat);
@@ -1266,6 +1280,9 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       scene.fog = null;
     },
     pillars,
+    setHole(x, z, radius) {
+      hole3.value.set(x, z, radius);
+    },
     stats() {
       let meshes = 0, triangles = 0, lights = 0;
       root.traverse((o: THREE.Object3D) => {

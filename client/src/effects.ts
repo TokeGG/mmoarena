@@ -1,6 +1,8 @@
 import { lightMode } from './lightMode';
 import * as THREE from 'three';
-import { ABILITIES, AURAS, fxNum, fxSec } from '@arena/shared';
+import { ABILITIES, AURAS, FX_INFO, fxNum, fxSec } from '@arena/shared';
+
+const FX_GROUPS = FX_INFO;
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
 import { clothShade, clothWave, endFade, unfurlProgress } from './flagCloth';
 import { AURA_VISUAL, LayerBook, coneShape, fireFieldShape, coneSpawnAngle, fireballLookFor, fireballShape, fireballTailScale, hotAuras, impactKindFor, isDotTick, layerAlpha, visualFor, windupScale } from './skillVisuals';
@@ -302,6 +304,7 @@ export class Effects {
   ) {
     if (this.parts.length > (lightMode.on ? PARTICLE_CAP_LIGHT : PARTICLE_CAP)) return;
     if (lightMode.on && this.thin++ % 5 < 2) return; // light mode: two of every five sparks are never drawn
+    if (this.skillK.amount < 1 && Math.random() > this.skillK.amount) return; // fewer sparks (the Animations page's Amount)
     const flip = !!o.fire && !!this.fireFrames;
     const sp = this.sprite(flip ? 'glow' : o.tex ?? 'spark', o.color, flip ? true : o.add ?? true);
     const mat = sp.material as THREE.SpriteMaterial;
@@ -311,11 +314,12 @@ export class Effects {
     _c.set(o.color);
     const c1 = o.col1 !== undefined ? _c2.set(o.col1) : _c;
     sp.position.set(x, y, z);
-    const s0 = o.s0 ?? 0.3;
+    const k = this.skillK;
+    const s0 = (o.s0 ?? 0.3) * k.size;
     sp.scale.set(s0, s0, 1);
     this.parts.push({
       sprite: sp, vx: o.vx ?? 0, vy: o.vy ?? 0, vz: o.vz ?? 0,
-      life: o.life ?? 0.6, max: o.life ?? 0.6, s0, s1: o.s1 ?? 0, a0: o.a ?? 1,
+      life: (o.life ?? 0.6) * k.life, max: (o.life ?? 0.6) * k.life, s0, s1: (o.s1 ?? 0) * k.size, a0: o.a ?? 1,
       grav: o.grav ?? 0, drag: o.drag ?? 0, spin: o.spin ?? 0,
       fps: flip ? o.fps ?? 18 : 0, ph, frame: ph,
       cr: _c.r, cg: _c.g, cb: _c.b, er: c1.r, eg: c1.g, eb: c1.b, fade: o.col1 !== undefined,
@@ -324,6 +328,7 @@ export class Effects {
 
   /** Burst of sparks flying outward. */
   private burst(x: number, y: number, z: number, color: number, n: number, speed = 3.5, size = 0.28, life = 0.55, grav = 3) {
+    n = Math.round(n * Math.max(1, this.skillK.amount)); // more sparks when the Animations page asks for them (fewer are dropped in particle)
     for (let i = 0; i < n; i++) {
       const a = Math.random() * Math.PI * 2;
       const u = rnd(-0.3, 1);
@@ -2158,7 +2163,20 @@ export class Effects {
     else if (hsl.h > 0.45 && hsl.h <= 0.65) this.spikes(x, z, color, to * 0.7, 8); // cold: crystals
   }
 
+  /** The Animations page's numbers for the skill being played right now (size, amount and lasting time of its sparks): 1 each otherwise. */
+  private skillK = { size: 1, amount: 1, life: 1 };
+
   private onCast(unit: number, ability: string, target: number) {
+    this.skillK = { size: fxNum(`skill_${ability}`, 'size') || 1, amount: fxNum(`skill_${ability}`, 'amount'), life: fxNum(`skill_${ability}`, 'length') || 1 };
+    if (!(`skill_${ability}` in FX_GROUPS)) this.skillK = { size: 1, amount: 1, life: 1 };
+    try {
+      this.playCast(unit, ability, target);
+    } finally {
+      this.skillK = { size: 1, amount: 1, life: 1 };
+    }
+  }
+
+  private playCast(unit: number, ability: string, target: number) {
     const def = ABILITIES[ability];
     const s = this.pos(unit);
     if (!def || !s) return;

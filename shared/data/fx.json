@@ -1,4 +1,27 @@
 {
+ "jump": {
+  "legTuck": 1,
+  "armSwing": 1,
+  "landingDip": 1
+ },
+ "attack": {
+  "swingSpeed": 1,
+  "armArc": 1,
+  "bodyTwist": 1,
+  "hipTurn": 1,
+  "legPlant": 1,
+  "lunge": 1,
+  "lean": 1
+ },
+ "running": {
+  "strideScale": 1,
+  "armSwing": 1,
+  "lean": 1,
+  "bounce": 1
+ },
+ "idle": {
+  "breathing": 1
+ },
  "dragonsBreath": {
   "startDelayMs": 0,
   "sprayMs": 650,
@@ -35,5 +58,500 @@
  },
  "bladestorm": {
   "spinPerSec": 1.6
+ },
+ "skill_mortal_strike": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_charge": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_pummel": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_hamstring": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_frostbolt": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_fireball": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_polymorph": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_counterspell": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_frost_nova": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_blink": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_flash_heal": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_power_word_shield": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_smite": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_dispel_magic": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_psychic_scream": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_stealth": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_cheap_shot": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_sinister_strike": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_backstab": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_kidney_shot": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_kick": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_sprint": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_execute": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_recklessness": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_intimidating_shout": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_bloodthirst": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_whirlwind": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_enraged_regeneration": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_concussion_blow": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_shield_wall": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_ice_barrier": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_pyroblast": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_arcane_blast": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_arcane_barrage": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_arcane_power": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_greater_heal": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_pain_suppression": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_desperate_prayer": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_mind_blast": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_shadow_word_death": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_dispersion": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_mutilate": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_vanish": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_adrenaline_rush": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_shadowstep": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_evasion": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_flamestrike": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_shockwave": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_piercing_howl": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_die_by_the_sword": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_penance": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_holy_word": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_power_infusion": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_blind": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_eviscerate": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_crippling_strike": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_ice_lance": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_blizzard": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_scorch": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_deep_freeze": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_arcane_silence": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_hammer_toss": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_harpoon_throw": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_judgment_hammer": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_hush": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_plague_bloom": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_choke_bomb": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_knife_snipe": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_dragons_breath": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_evocation": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_arcane_missiles": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_arcane_explosion": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_garrote": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_fan_of_knives": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_holy_nova": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_mind_flay": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_exsanguinate": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_heroic_leap": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_slice_and_dice": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_bladestorm": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_slam": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_sweep": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_reel_in": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_deep_cuts": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_axe_throw": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_not_going_anywhere": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_trinket_cleanse": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_trinket_shield": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_trinket_heal": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_gouge": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_sap": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_dragon_roar": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_battle_banner": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_mirror_image": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_rune_of_power": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_leap_of_faith": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_purifying_light": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_ascend": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
+ },
+ "skill_mind_control": {
+  "size": 1,
+  "amount": 1,
+  "length": 1
  }
 }

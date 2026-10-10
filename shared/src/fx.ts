@@ -1,4 +1,4 @@
-import { FX } from './data';
+import { ABILITIES, FX } from './data';
 
 /**
  * Animations: how the big visual effects look in time (how long Dragon's Breath sprays, how fast a Frost Nova ring grows, how
@@ -12,9 +12,45 @@ export const FX_ID = 'fx';
 
 export type FxUnit = 'ms' | 'x' | 'plain';
 export interface FxField { label: string; hint: string; unit: FxUnit; min: number; max: number }
-export interface FxGroup { title: string; sub: string; fields: Record<string, FxField> }
+export interface FxGroup { title: string; sub: string; fields: Record<string, FxField>; /** Where the Animations page lists it. */ section?: string }
 
+const mult = (label: string, hint: string, min = 0, max = 2.5): FxField => ({ label, hint, unit: 'x', min, max });
+/** How the people move (the rigged characters): 1 is as it was; more is bigger, less is smaller. Looks only. */
+const MOVE = 'Character movement';
 export const FX_INFO: Record<string, FxGroup> = {
+  jump: {
+    title: 'Jumping', section: MOVE, sub: 'how a character pulls up, floats and lands',
+    fields: {
+      legTuck: mult('Knees pulled up', 'How high the knees come up in the air (0 keeps the legs hanging, 1 is the normal tuck, more pulls them to the chest).'),
+      armSwing: mult('Arms swing', 'How far the arms swing up with the take-off and out for balance (0 keeps them down).'),
+      landingDip: mult('Landing squat', 'How deep the knees give and the body drops when the feet touch the ground (0 lands stiff).'),
+    },
+  },
+  attack: {
+    title: 'Melee attacks', section: MOVE, sub: 'the swing of a blade or weapon',
+    fields: {
+      swingSpeed: mult('Swing speed', 'How fast a swing plays (2 is twice as fast, 0.5 is half as fast). Only the look: the damage lands when it always did.', 0.4, 2.5),
+      armArc: mult('Arm swing size', 'How far the arm is drawn back and brought through (1 is the normal arc).'),
+      bodyTwist: mult('Body twist', 'How much the shoulders wind up and turn into the blow.'),
+      hipTurn: mult('Hip turn', 'How much the hips turn the other way, so the whole body winds and unwinds.'),
+      legPlant: mult('Foot planting', 'How far the front foot steps in and the back foot pushes during a strike (0 keeps the feet still).'),
+      lunge: mult('Lunge forward', 'How far the whole body steps toward the target on the strike.'),
+      lean: mult('Lean into the blow', 'How far the chest leans forward on the strike.'),
+    },
+  },
+  running: {
+    title: 'Running and walking', section: MOVE, sub: 'the gait of a moving character',
+    fields: {
+      strideScale: mult('Stride length', 'How far the legs swing with each step.'),
+      armSwing: mult('Arm swing', 'How far the arms swing against the legs while moving.'),
+      lean: mult('Lean into the run', 'How far the body leans forward at speed.'),
+      bounce: mult('Bounce', 'How much the body rises and falls with each step.'),
+    },
+  },
+  idle: {
+    title: 'Standing still', section: MOVE, sub: 'the small movements of a character that is not moving',
+    fields: { breathing: mult('Breathing', 'How much the chest rises and falls while idle (0 stands perfectly still).') },
+  },
   dragonsBreath: {
     title: "Dragon's Breath",
     sub: 'a jet of fire sprayed from the mage over the real cone',
@@ -89,6 +125,18 @@ export const FX_INFO: Record<string, FxGroup> = {
     },
   },
 };
+
+// every skill gets a page of its own: how big, how thick and how long its effects look (applied while that skill's effect starts)
+for (const [id, a] of Object.entries(ABILITIES)) {
+  FX_INFO[`skill_${id}`] = {
+    title: a.name, section: 'Skill visuals', sub: 'how this skill\'s effects look',
+    fields: {
+      size: mult('Size', 'How big its sparks, rings and flashes are drawn (1 is as it was).', 0.2, 3),
+      amount: mult('Amount', 'How many sparks and puffs it throws out (0 draws none of them).', 0, 3),
+      length: mult('Lasting time', 'How long its sparks and flashes stay visible.', 0.3, 3),
+    },
+  };
+}
 
 /** The bounds of the number at a fx.json path (['dragonsBreath', 'sprayMs']), or null when it is not a known animation number. */
 export function fxField(path: readonly (string | number)[]): FxField | null {

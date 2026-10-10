@@ -1,4 +1,4 @@
-# WoW-style Arena · v0.69.57
+# WoW-style Arena · v0.69.58
 
 A 3D arena game in the style of WoW arena that runs in your browser: tab-target combat in 1v1, 2v2 or 3v3, four classes with three specs each and a talent tree for every spec, bots to practice against, ranked matches, friends, parties, duels, live spectating and replays. Nothing to download or install.
 
