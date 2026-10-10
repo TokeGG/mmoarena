@@ -406,6 +406,22 @@ export class DevWorkspace {
         const first = !this.preview;
         this.preview ??= new ModelWindow();
         const win = this.preview;
+        if (id.startsWith('w:')) {
+          // dragging the weapon in the window writes the same numbers the fields below hold
+          const fields = entry.groups.flatMap((g) => g.fields);
+          win.setWeaponEdit((hand, v, final) => {
+            const put = (key: string, i: number, n: number) => {
+              const fd = fields.find((x) => x.path.join('.') === `weapons.${id.slice(2)}.${hand}.${key}.${i}`);
+              if (fd) this.editor.set.set(fd, n, this.editor.testing(), this.editor.canRevert);
+            };
+            for (let i = 0; i < 3; i++) {
+              put('pos', i, v.pos[i]);
+              put('rot', i, v.rot[i]);
+            }
+            this.editor.onEdit();
+            if (final) this.host.repaint();
+          }, id.slice(2));
+        } else win.setWeaponEdit(null);
         if (!first && !win.isOpen) this.previewDismissed = true;
         if (first || (win.isOpen && !this.previewDismissed)) win.show(pv.spec, pv.gear);
         const open = el('button', `mm-small${win.isOpen ? '' : ' mm-go'}`, win.isOpen ? 'The model view is open: it floats over the game, drag it where you like' : 'Show the model view');

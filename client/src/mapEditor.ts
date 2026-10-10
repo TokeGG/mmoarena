@@ -35,6 +35,7 @@ const CSS = `
 .mape-win .mape-stage .mape-canvas-wrap { position:absolute; left:0; top:0; right:0; bottom:0; width:auto; border:0; border-radius:0; overflow:hidden; }
 .mape-win .mape-stage .mape-canvas { position:absolute; left:0; top:0; margin:0; }
 .mape-win .mape-stage .mape-3d { position:absolute; left:0; top:0; width:100%; height:100%; display:block; outline:none; cursor:grab; }
+.mape-win [hidden] { display:none !important; }
 .mape-win .mape-toolcol { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mape-win .mape-toolcol button { text-align:left; }
 .mape-win .mape-form .own-row { flex-wrap:wrap; }

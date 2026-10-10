@@ -42,7 +42,21 @@ export class DataLayers {
     return this.room;
   }
   private hadModels = false;
+  private hadPreview = false;
+  /** Takes the typed (not yet kept) Models numbers off the data again. */
+  private previewUndo: (() => void) | null = null;
+  /** The Models page's typed numbers show on the characters at once (the model view, and the game's models), before anything is kept or tried. */
+  previewModels(typed: readonly DataPatch[]) {
+    const mine = typed.filter((p) => p.file === 'models');
+    if (!mine.length && !this.previewUndo) return;
+    this.previewUndo?.();
+    this.previewUndo = mine.length ? applyPatches(mine) : null;
+    this.hadPreview = true;
+    applyModelData();
+  }
   private apply() {
+    this.previewUndo?.();
+    this.previewUndo = null;
     this.undo?.();
     const a = applyPatches(this.live);
     const s = applyPatches(this.session);
@@ -54,7 +68,8 @@ export class DataLayers {
     };
     // the Models page's numbers are merged over the model registry, and the characters are rebuilt, only while some are in effect (and once more when they go)
     const modelsNow = [...this.live, ...this.session, ...this.room].some((p) => p.file === 'models');
-    if (modelsNow || this.hadModels) applyModelData();
+    if (modelsNow || this.hadModels || this.hadPreview) applyModelData();
+    this.hadPreview = false;
     this.hadModels = modelsNow;
     invalidateTip(); // open tooltips redraw with the new numbers
     refreshIcons(); // and every icon on the screen with the new pictures
@@ -168,6 +183,7 @@ export class DevPanel {
       canRevert: true,
       onEdit: () => {
         this.refreshBar();
+        this.layers.previewModels(this.toSend());
         this.autoApply();
       },
       saveTitle: "Saves what you picked: sends it to the admin panel's Proposals list, where it can be committed.",
@@ -826,6 +842,7 @@ export class DevPanel {
     reset.title = this.inMatch ? 'Back to the real numbers in this match' : 'Forget what you typed and the numbers kept for your session';
     reset.addEventListener('click', () => {
       this.edits.clear();
+      this.layers.previewModels([]);
       if (this.inMatch) this.hooks.send({ t: 'dev_patch', patches: [] });
       else {
         this.hooks.send({ t: 'dev_session', patches: [] });

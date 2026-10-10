@@ -683,5 +683,48 @@
     "mods": {
       "damageTaken": 1
     }
+  },
+  "cc_stun": {
+    "name": "Stun",
+    "kind": "stun",
+    "duration": 2000,
+    "harmful": true,
+    "dr": "stun"
+  },
+  "cc_root": {
+    "name": "Root",
+    "kind": "root",
+    "duration": 3000,
+    "harmful": true,
+    "dr": "root",
+    "dispellable": true
+  },
+  "cc_slow": {
+    "name": "Slow",
+    "kind": "slow",
+    "duration": 4000,
+    "harmful": true,
+    "slowPct": 40,
+    "dispellable": true
+  },
+  "cc_fear": {
+    "name": "Fear",
+    "kind": "fear",
+    "duration": 5000,
+    "harmful": true,
+    "dr": "fear",
+    "dispellable": true,
+    "breaksOnDamage": true
+  },
+  "cc_incapacitate": {
+    "name": "Incapacitate",
+    "kind": "incapacitate",
+    "duration": 6000,
+    "harmful": true,
+    "dr": "incapacitate",
+    "breaksOnDamage": true,
+    "dispellable": true,
+    "canTurn": true,
+    "locksAbilities": true
   }
 }

@@ -259,7 +259,9 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
     if (h.lift || h.out) {
       const aim = new THREE.Quaternion().setFromEuler(new THREE.Euler(-(h.lift ?? 0), (h.mirror ? 1 : -1) * (h.out ?? 0), 0, 'YXZ'));
       pivot.quaternion.premultiply(aim);
+      pivot.userData.aim = aim.clone();
     }
+    pivot.userData.grip = GRIP.clone();
     const part = src.scene.getObjectByName(h.part)!.clone(true); // meshes share geometry and textures
     if (h.mirror) part.scale.z = -1;
     part.traverse((o) => {
@@ -276,7 +278,9 @@ export function attachWeapon(id: string | undefined, host: WeaponHost): Attached
     return pivot;
   };
   const right = place(host.armR, def.right);
+  right.userData.hand = 'right';
   const left = def.left ? place(host.armL, def.left) : undefined;
+  if (left) left.userData.hand = 'left';
   // a faint halo in the spec's colour along the blade
   const g = def.glow;
   const mid = def.mid;

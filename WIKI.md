@@ -914,7 +914,7 @@ On the bar: [Gloomweaver](#priest-shadow) (key 4).
 - Removes every root and slow from you.
 - −90% damage taken. You cannot use any ability while it lasts.
 - *Usable while locked out.*
-- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath or Incapacitate holds you.*
 - *Does not trigger the global cooldown.*
 
 On the bar: [Gloomweaver](#priest-shadow) (key 6).
@@ -1272,7 +1272,7 @@ Talent: tier IV *Cleansing Charm*.
 
 - Absorbs 20% of your max health.
 - *Usable while locked out.*
-- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath or Incapacitate holds you.*
 - *Does not trigger the global cooldown.*
 
 Talent: tier IV *Warding Charm*.
@@ -1284,7 +1284,7 @@ Talent: tier IV *Warding Charm*.
 
 - Heals you for 25% of your maximum health.
 - *Usable while locked out.*
-- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath holds you.*
+- *Works while stunned, feared or rooted, but not while Polymorph or Dragon's Breath or Incapacitate holds you.*
 - *Does not trigger the global cooldown.*
 
 Talent: tier IV *Healing Charm*.
