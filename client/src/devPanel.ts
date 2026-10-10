@@ -183,7 +183,7 @@ export class DevPanel {
       canRevert: true,
       onEdit: () => {
         this.refreshBar();
-        this.previewModels(this.toSend());
+        this.layers.previewModels(this.toSend());
         this.autoApply();
       },
       saveTitle: "Saves what you picked: sends it to the admin panel's Proposals list, where it can be committed.",
@@ -842,7 +842,7 @@ export class DevPanel {
     reset.title = this.inMatch ? 'Back to the real numbers in this match' : 'Forget what you typed and the numbers kept for your session';
     reset.addEventListener('click', () => {
       this.edits.clear();
-      this.previewModels([]);
+      this.layers.previewModels([]);
       if (this.inMatch) this.hooks.send({ t: 'dev_patch', patches: [] });
       else {
         this.hooks.send({ t: 'dev_session', patches: [] });
