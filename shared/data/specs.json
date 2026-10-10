@@ -210,7 +210,7 @@
       "id": "holy",
       "name": "Lightbearer",
       "role": "Pure healer",
-      "desc": "Direct healing. Holy Nova heals your team and hurts every enemy.",
+      "desc": "Direct healing. Ascend to the Heavens lifts you out of reach for a moment while you keep healing.",
       "icon": "\u2728",
       "bar": [
         "flash_heal",
@@ -218,7 +218,7 @@
         "power_word_shield",
         "dispel_magic",
         "psychic_scream",
-        "holy_nova",
+        "ascend",
         "smite",
         "desperate_prayer"
       ],

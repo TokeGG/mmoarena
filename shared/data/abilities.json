@@ -1599,7 +1599,8 @@
     "amount": 285,
     "only": "ally"
    }
-  ]
+  ],
+  "retired": true
  },
  {
   "id": "mind_flay",
@@ -2093,14 +2094,29 @@
   "cost": 0,
   "effects": [
    {
-    "type": "dropTargets"
-   },
-   {
     "type": "freeMove"
    },
    {
     "type": "aura",
     "aura": "ascended"
+   }
+  ]
+ },
+ {
+  "id": "mind_control",
+  "name": "Mind Control",
+  "class": "priest",
+  "school": "shadow",
+  "target": "enemy",
+  "range": 30,
+  "castTime": 1500,
+  "cooldown": 90000,
+  "gcd": true,
+  "cost": 120,
+  "effects": [
+   {
+    "type": "mindControl",
+    "duration": 8000
    }
   ]
  }

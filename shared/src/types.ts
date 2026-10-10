@@ -250,6 +250,8 @@ export type Effect =
   | { type: 'strip'; kinds: AuraKind[] }
   /** Enemies lose their target on the caster, and casts at it stop (Mirror Image, Ascend to the Heavens). */
   | { type: 'dropTargets' }
+  /** Takes control of the target for `duration` ms (Mind Control): the caster's commands drive it, it fights for the caster's team, and the caster's own body stands still. */
+  | { type: 'mindControl'; duration: number }
   /** Summons `count` copies of the caster (same class, spec and talents) for `duration` ms: 1 health, `damage` times the damage (Mirror Image). */
   | { type: 'images'; count: number; duration: number; damage: number }
   /** A circle on the ground that gives `aura` to those inside for as long as it stands: `allies` for the caster's team, `self` for the caster alone (Battle Banner, Rune of Power). */
@@ -453,6 +455,10 @@ export interface Unit {
   autoSince: number;
   /** The player turned auto-attack off in settings: it never starts, not even from a melee ability. */
   autoDisabled: boolean;
+  /** Mind Control: this unit is driven by `by` until `until`. It fights for that unit's team meanwhile; `team` is the one it comes back to. */
+  mc?: { by: number; until: number; team: TeamId };
+  /** The unit this one is mind controlling: the commands of this unit drive that one meanwhile. */
+  mcTarget?: number;
   /** Set while running a Charge: the unit is carried to the target and ignores movement input. */
   /** In the air after Heroic Leap: flies from -> to between start and start + dur, then slams down. */
   /** The spell this unit finished casting last, so a Counterspell pressed a moment late still counts. */
@@ -505,6 +511,9 @@ export type SimEvent =
   | { t: 'immune'; src: number; tgt: number; aura: string }
   | { t: 'dispel'; src: number; tgt: number; aura: string }
   | { t: 'death'; unit: number; killer: number | null }
+  /** A priest took control of an enemy until `until` (the match clock in ms), and the moment it ends. */
+  | { t: 'mindControl'; caster: number; target: number; until: number }
+  | { t: 'mindControlEnd'; caster: number; target: number }
   | { t: 'respawn'; unit: number }
   /** A jump took the unit out of a ground effect's pulse. */
   | { t: 'dodge'; unit: number; ability: string }

@@ -140,6 +140,23 @@ export class Bot {
   /** The floor the cover spot is on. */
   private coverLv: 0 | 1 = 0;
 
+  /** Mind Control: the unit whose commands this bot sends when it plays a unit that is not its own (the priest controlling it). */
+  sendAs: number | null = null;
+  private cmdId(u: Unit): number {
+    return this.sendAs ?? u.id;
+  }
+  /** Plays the unit this bot's priest is mind controlling, as that unit's class would, against its own former team. */
+  private puppet: Bot | null = null;
+  private playControlled(u: Unit): void {
+    const v = this.sim.units.get(u.mcTarget!);
+    if (!v || !v.alive) return void (this.puppet = null);
+    if (!this.puppet || this.puppet.unitId !== v.id) {
+      this.puppet = new Bot(this.sim, v.id, this.difficulty, v.id * 7919 + 13, brainFor(v.classId));
+      this.puppet.sendAs = u.id;
+    }
+    this.puppet.tick();
+  }
+
   constructor(private sim: ArenaSim, readonly unitId: number, readonly difficulty: Difficulty = 'normal', seed = 1, brain?: Brain) {
     this.P = PARAMS[difficulty];
     // a brain from storage may be missing newer traits: those come from the class's trained baseline
@@ -161,6 +178,12 @@ export class Bot {
     const sim = this.sim;
     const u = sim.units.get(this.unitId);
     if (!u || !u.alive) return;
+    // Mind Control: a priest controlling an enemy plays that unit (its own body stands still), and a bot that is being controlled does nothing of its own
+    if (this.sendAs === null) {
+      if (u.mcTarget !== undefined) return this.playControlled(u);
+      if (u.mc) return;
+    }
+    this.puppet = null;
     const idle: Cmd = { facing: u.facing, fwd: 0, strafe: 0 };
 
     if (sim.phase === 'prep') {
@@ -195,7 +218,7 @@ export class Bot {
     if (this.juke) {
       if (!u.cast || u.cast.start !== this.juke.start) this.juke = null;
       else if (sim.time >= this.juke.until) {
-        sim.stopCast(u.id);
+        sim.stopCast(this.cmdId(u));
         this.juke = null;
         this.lastJuke = sim.time;
       }
@@ -210,7 +233,7 @@ export class Bot {
     if (castTgt && castTgt !== u && u.cast!.gx === undefined && !hasLOS(u.pos, castTgt.pos, sim.arena, u.level, castTgt.level, sim.airOf(u), sim.airOf(castTgt))) {
       this.hiddenSince ??= sim.time;
       if (sim.time - this.hiddenSince >= Math.max(150, this.P.react * 0.6 * (1.5 - this.brain.losCheck)) && u.cast!.end - sim.time > 200) {
-        sim.stopCast(u.id);
+        sim.stopCast(this.cmdId(u));
         this.hiddenSince = undefined;
       }
     } else this.hiddenSince = undefined;
@@ -404,7 +427,7 @@ export class Bot {
     if (this.sim.time < this.unstickUntil && c.fwd > 0) c = { facing: c.facing + this.unstickSign * 1.2, fwd: 1, strafe: 0 };
     if (c.guard) c = this.wallGuard(u, c);
     this.lastWalk = c.fwd !== 0 || c.strafe !== 0 ? c.fwd > 0 : false;
-    this.sim.queueInput(u.id, { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && (c.fwd > 0 || c.strafe !== 0)) || this.popJump || undefined });
+    this.sim.queueInput(this.cmdId(u), { seq: ++this.seq, facing: c.facing, fwd: c.fwd, strafe: c.strafe, jump: (this.jumpNow && (c.fwd > 0 || c.strafe !== 0)) || this.popJump || undefined });
     this.jumpNow = false;
     this.popJump = false;
   }
@@ -484,7 +507,7 @@ export class Bot {
       const t = this.sim.units.get(target);
       if (t && t.team !== u.team && dist(u.pos, t.pos) > def.range - this.brain.rangeBuffer) return false;
     }
-    const ok = this.sim.useAbility(u.id, ability, target, ground ?? null).ok;
+    const ok = this.sim.useAbility(this.cmdId(u), ability, target, ground ?? null).ok;
     if (ok && def && def.castTime > 0 && !def.channel && u.cast?.ability === ability) this.maybeJuke(u, def, target);
     return ok;
   }
@@ -662,7 +685,7 @@ export class Bot {
     const list = pool.length ? pool : enemies;
     if (!list.length) {
       this.target = null;
-      if (u.target !== null && sim.units.get(u.target)?.team !== u.team) sim.setTarget(u.id, null); // let go of an enemy it can no longer see
+      if (u.target !== null && sim.units.get(u.target)?.team !== u.team) sim.setTarget(this.cmdId(u), null); // let go of an enemy it can no longer see
       return;
     }
     const B = this.brain;
@@ -677,7 +700,7 @@ export class Bot {
     list.sort((a, b) => score(a) - score(b));
     this.target = list[0].id;
     this.retargetAt = sim.time + 2500;
-    sim.setTarget(u.id, this.target);
+    sim.setTarget(this.cmdId(u), this.target);
   }
 
   /** Enemies casting something the bot has had time to notice (and chose to answer). */
@@ -869,7 +892,7 @@ export class Bot {
   private warrior(u: Unit, enemies: Unit[], tgt?: Unit): void {
     if (this.tryInterrupt(u, enemies)) return;
     if (!tgt) return;
-    this.sim.setAutoAttack(u.id, true); // rage and damage start from swinging, not only from abilities
+    this.sim.setAutoAttack(this.cmdId(u), true); // rage and damage start from swinging, not only from abilities
     const d = dist(u.pos, tgt.pos);
     const slowed = tgt.auras.some((a) => a.kind === 'slow');
     const stunned = tgt.auras.some((a) => a.kind === 'stun');
@@ -917,7 +940,7 @@ export class Bot {
       this.useFirst(u, ['cheap_shot', 'garrote'], tgt.id);
       return;
     }
-    this.sim.setAutoAttack(u.id, true);
+    this.sim.setAutoAttack(this.cmdId(u), true);
     if (hpFrac(u) < this.brain.defHp + 0.05 && this.use(u, 'evasion')) return;
     if (hpFrac(u) < this.brain.defHp * 0.6 && enemies.length && this.use(u, 'vanish')) return;
     if (d <= 8 && hpFrac(tgt) <= this.brain.burstHp && this.reduction(tgt) > 0.8) this.use(u, 'adrenaline_rush');
@@ -1025,7 +1048,7 @@ export class Bot {
     }
 
     // Smite is filler: drop it when something urgent shows up.
-    if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(u.id);
+    if ((freeAlly || (lowest && hpFrac(lowest) < 0.6)) && u.cast?.ability === 'smite') sim.stopCast(this.cmdId(u));
     if (freeAlly && this.use(u, 'dispel_magic', freeAlly.id)) return;
     // Purifying Light for a crowd of the team under something nasty (a stun, fear, root or damage over time on someone near)
     {
@@ -1036,6 +1059,14 @@ export class Bot {
     {
       const lost = allies.find((a) => a !== u && a.alive && hpFrac(a) < 0.65 && dist(u.pos, a.pos) > 18 && dist(u.pos, a.pos) <= 40 && hasLOS(u.pos, a.pos, sim.arena, u.level, a.level));
       if (lost && this.use(u, 'leap_of_faith', lost.id)) return;
+    }
+    // Mind Control: with the team doing fine, take over the enemy that would hurt most (never its healer): it fights for us for a few seconds
+    if ((!lowest || hpFrac(lowest) > 0.7) && hpFrac(u) > 0.5 && !u.cast) {
+      const order = ['mage', 'rogue', 'warrior'];
+      const prey = enemies
+        .filter((e) => e.classId !== 'priest' && dist(u.pos, e.pos) <= 28 && hasLOS(u.pos, e.pos, sim.arena, u.level, e.level))
+        .sort((a, b) => order.indexOf(a.classId) - order.indexOf(b.classId))[0];
+      if (prey && this.use(u, 'mind_control', prey.id)) return;
     }
     if (this.tryInterrupt(u, enemies)) return; // Silence, if a talent put it on the bar
     // an enemy healing (itself or a partner): break the cast with a fear or a stun, unless our side needs healing first

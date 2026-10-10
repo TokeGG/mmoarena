@@ -224,7 +224,23 @@ export class ArenaSim {
 
   // ------------------------------------------------------------------ player commands
 
+  /**
+   * Mind Control: whose unit a command for `id` really drives. A controlled unit's own commands are ignored (null), the
+   * controller's go to the unit it controls, everyone else's are their own. Applied after a command is recorded, so a replay
+   * (which records who pressed the button) routes it the same way.
+   */
+  private drives(id: number): number | null {
+    const u = this.units.get(id);
+    if (!u) return id;
+    if (u.mc) return null;
+    if (u.mcTarget !== undefined) return this.units.get(u.mcTarget)?.mc?.by === id ? u.mcTarget : null;
+    return id;
+  }
+
   queueInput(id: number, input: MoveInput): void {
+    const driven = this.drives(id);
+    if (driven === null) return;
+    id = driven;
     const u = this.units.get(id);
     if (!u || !u.alive) return;
     // quantised here (not just in the recorder) so a replay of the recorded numbers is bit-identical to the live match
@@ -238,6 +254,9 @@ export class ArenaSim {
 
   setTarget(id: number, targetId: number | null): Result {
     this.onCommand?.([this.tickNo, 1, id, targetId]);
+    const driven = this.drives(id);
+    if (driven === null) return fail('you are controlled');
+    id = driven;
     const u = this.units.get(id);
     if (!u) return fail('no unit');
     if (targetId === null) {
@@ -254,6 +273,9 @@ export class ArenaSim {
 
   setAutoAttack(id: number, on: boolean): void {
     this.onCommand?.([this.tickNo, 3, id, on]);
+    const driven = this.drives(id);
+    if (driven === null) return;
+    id = driven;
     const u = this.units.get(id);
     if (!u) return;
     const next = on && !u.autoDisabled && !!autoFor(u.classId, u.spec);
@@ -281,6 +303,9 @@ export class ArenaSim {
     rewindMs = Number.isFinite(rewindMs) ? Math.max(0, Math.min(TUNING.maxRewindMs, Math.round(rewindMs))) : 0;
     const cmd: SimCommand = [this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs, ...(ground?.lv === 1 ? [1] : [])];
     if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100, ...(ground.lv === 1 ? { lv: 1 as const } : {}) };
+    const driven = this.drives(id);
+    if (driven === null) return fail('you are controlled');
+    id = driven;
     const dropped = this.pending.delete(id); // any new press replaces a held cast
     const r = this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false, rewindMs);
     // a refused press changes nothing (unless it replaced a held cast), so it is left out of the replay: bots press a lot of buttons that fail
@@ -290,7 +315,9 @@ export class ArenaSim {
 
   /** Stop casting or channelling (a bot changing its mind). Recorded, so a replay stops the same cast on the same tick. */
   stopCast(id: number, reason = 'cancelled'): void {
-    const u = this.units.get(id);
+    const driven = this.drives(id);
+    if (driven === null) return;
+    const u = this.units.get(driven);
     if (!u?.cast) return;
     this.onCommand?.([this.tickNo, 6, id]);
     this.cancelCast(u, reason);
@@ -450,6 +477,7 @@ export class ArenaSim {
     for (const u of this.units.values()) if (u.alive) { if (u.image) this.tickImage(u); if (u.alive) this.tickUnit(u); }
     for (const u of [...this.units.values()]) if (u.image?.removeAt !== undefined && this.time >= u.image.removeAt) this.removeUnit(u);
     if (this.pending.size) this.retryPending();
+    this.tickMindControl();
     this.recordHistory();
     this.tickZones();
     if (this.phase === 'live') this.checkEnd();
@@ -843,13 +871,15 @@ export class ArenaSim {
     let alive0 = 0;
     let alive1 = 0;
     // a dummy that is about to stand up again does not end the match
-    for (const u of this.units.values()) if ((u.alive || u.respawnAt !== undefined) && !u.image) (u.team === 0 ? alive0++ : alive1++);
+    // a mind controlled unit still counts for the team it comes back to
+    for (const u of this.units.values()) if ((u.alive || u.respawnAt !== undefined) && !u.image) ((u.mc?.team ?? u.team) === 0 ? alive0++ : alive1++);
     let winner: TeamId | 'draw' | null = null;
     if (alive0 === 0 && alive1 === 0) winner = 'draw';
     else if (alive0 === 0) winner = 1;
     else if (alive1 === 0) winner = 0;
     else if (this.time >= this.matchEndsAt) winner = 'draw';
     if (winner !== null) {
+      for (const u of [...this.units.values()]) if (u.mcTarget !== undefined) this.endMindControl(u, 'the match ended');
       this.phase = 'ended';
       this.winner = winner;
       this.emit({ t: 'phase', phase: 'ended', winner });
@@ -909,6 +939,54 @@ export class ArenaSim {
     }
     if (u.resource < this.costOf(u, def)) return this.failCast(u, c.ability, `not enough ${u.resourceType}`);
     this.execute(u, def, tgt, c.gx !== undefined && c.gz !== undefined ? { x: c.gx, z: c.gz, ...(c.gl === 1 ? { lv: 1 as const } : {}) } : undefined);
+  }
+
+  /**
+   * Mind Control: `caster` takes the enemy `victim` for `ms`. The victim fights for the caster's team meanwhile (so every ability
+   * and targeting rule treats it as an ally of the caster), the caster's commands drive it (see `drives`) and the caster's own
+   * body stands still. It ends on time, when either dies, when the caster is locked down, or when the effect is dispelled.
+   */
+  private beginMindControl(caster: Unit, victim: Unit, ms: number): void {
+    if (!caster.alive || !victim.alive || victim.image || victim.team === caster.team || caster.mcTarget !== undefined || caster.mc || victim.mc || victim.mcTarget !== undefined) return;
+    if (victim.auras.some((a) => AURAS[a.id]?.invulnerable || AURAS[a.id]?.untargetable)) return;
+    const until = this.time + ms;
+    victim.mc = { by: caster.id, until, team: victim.team };
+    caster.mcTarget = victim.id;
+    // it stops what it was doing for its own side
+    this.cancelCast(victim, 'mind controlled');
+    victim.target = null;
+    victim.autoAttack = false;
+    victim.inputQueue.length = 0;
+    victim.team = caster.team;
+    this.applyAura(caster, victim, 'mind_controlled', 0, ms);
+    this.applyAura(caster, caster, 'mind_controlling', 0, ms);
+    caster.inputQueue.length = 0;
+    this.emit({ t: 'mindControl', caster: caster.id, target: victim.id, until });
+  }
+
+  /** Give the controlled unit back to its own team and clear both sides. */
+  private endMindControl(caster: Unit, _why: string): void {
+    const victim = caster.mcTarget !== undefined ? this.units.get(caster.mcTarget) : undefined;
+    caster.mcTarget = undefined;
+    for (const a of [...caster.auras]) if (a.id === 'mind_controlling') this.removeAura(caster, a, 'expired');
+    if (!victim || !victim.mc) return;
+    victim.team = victim.mc.team;
+    victim.mc = undefined;
+    for (const a of [...victim.auras]) if (a.id === 'mind_controlled') this.removeAura(victim, a, 'expired');
+    this.cancelCast(victim, 'control ended');
+    victim.target = null;
+    victim.autoAttack = false;
+    victim.inputQueue.length = 0;
+    this.emit({ t: 'mindControlEnd', caster: caster.id, target: victim.id });
+  }
+
+  private tickMindControl(): void {
+    for (const c of this.units.values()) {
+      if (c.mcTarget === undefined) continue;
+      const v = this.units.get(c.mcTarget);
+      const lockedDown = c.auras.some((a) => ['stun', 'incapacitate', 'fear'].includes(a.kind));
+      if (!v || !v.alive || !c.alive || !v.mc || this.time >= v.mc.until || lockedDown || !v.auras.some((a) => a.id === 'mind_controlled')) this.endMindControl(c, 'ended');
+    }
   }
 
   cancelCast(u: Unit, reason: string): void {
@@ -1083,6 +1161,9 @@ export class ArenaSim {
         break;
       case 'dropTargets':
         for (const e of this.units.values()) if (e.team !== u.team) this.loseTarget(e, u);
+        break;
+      case 'mindControl':
+        this.beginMindControl(u, t, eff.duration);
         break;
       case 'images':
         this.summonImages(u, eff.count, eff.duration, eff.damage);
@@ -1896,7 +1977,7 @@ export class ArenaSim {
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
       y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(this.airOf(u) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
-      controlled: !this.canAct(u) || !!u.charge || !!u.leap || this.hovering(u),
+      controlled: !this.canAct(u) || !!u.charge || !!u.leap || !!u.mc, // hovering holds you in place but not your hands: you can cast (the client stops the walking itself)
       autoAttack: u.autoAttack,
       lastSeq: u.lastSeq,
     };

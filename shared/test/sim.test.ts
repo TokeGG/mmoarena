@@ -1013,6 +1013,7 @@ describe('stealth', () => {
     foe.maxHealth = foe.health = 5000;
     priest.resource = priest.resourceMax;
     advance(sim, TICK);
+    priest.bar[priest.bar.indexOf('ascend')] = 'holy_nova'; // retired from the bars (Lightbearer has Ascend there now), still works
     assert.ok(priest.bar.includes('holy_nova') && !priest.bar.includes('pain_suppression'));
     const ah = ally.health, fh = foe.health;
     assert.ok(sim.useAbility(priest.id, 'holy_nova').ok);

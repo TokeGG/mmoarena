@@ -708,12 +708,12 @@ Wards and Pain Suppression keep allies alive. Penance heals a friend or hurts a 
 |  | ⏱️ **Rapid Penance** | Penance fires a tick every 0.25 seconds and lasts 2.5 seconds, each tick doing 60% less damage and healing than before, and a 66.7% longer cast time. |
 | V | 🕊️ **Leap of Trust** | Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Desperate Prayer. → [Leap of Faith](#skill-leap-of-faith) |
 |  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Desperate Prayer. → [Purifying Light](#skill-purifying-light) |
-|  | 👼 **Heavenly Ascent** | Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer. → [Ascend to the Heavens](#skill-ascend) |
+|  | 🧠 **Mind Control** | Take control of an enemy for 8 seconds: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still meanwhile. Replaces Desperate Prayer. → [Mind Control](#skill-mind-control) |
 
 <a id="priest-holy"></a>
 ### ✨ Lightbearer · Pure healer
 
-Direct healing. Holy Nova heals your team and hurts every enemy.
+Direct healing. Ascend to the Heavens lifts you out of reach for a moment while you keep healing.
 
 - **Weapon:** Holy Staff
 
@@ -724,7 +724,7 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 | 3 | [Power Word: Shield](#skill-power-word-shield) | 50 mana · 40 yd range · Instant · 15s cooldown · 15s shield |
 | 4 | [Dispel Magic](#skill-dispel-magic) | 40 mana · 30 yd range · Instant · 8s cooldown |
 | 5 | [Psychic Scream](#skill-psychic-scream) | 50 mana · 8 yd radius · Instant · 30s cooldown · 6s fear |
-| 6 | [Holy Nova](#skill-holy-nova) | 70 mana · 15 yd radius · Instant · 12s cooldown |
+| 6 | [Ascend to the Heavens](#skill-ascend) | Instant · 90s cooldown |
 | 7 | [Smite](#skill-smite) | 25 mana · 30 yd range · 1.5s cast |
 | 8 | [Desperate Prayer](#skill-desperate-prayer) | Instant · 60s cooldown |
 
@@ -732,12 +732,12 @@ Direct healing. Holy Nova heals your team and hurts every enemy.
 
 | Tier | Talent | What it does |
 |---|---|---|
-| III | 💛 **Greater Greater Heal** | Greater Heal heals 15% more. |
+| III | 🛡️ **Defensive Greater Heal** | Greater Heal also gives its target Defensive Heal: they take 20% less damage for 4 seconds. |
 |  | 🪞 **Mirrored Heal** | Greater Heal also heals an ally for 50% of the amount when you heal yourself, or heals you for 50% when you heal an ally. |
 |  | 🌿 **Renewing Heal** | Greater Heal also gives the target Renew: 1% of their maximum health every second for 5 seconds. |
 | V | 🕊️ **Leap of Trust** | Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Desperate Prayer. → [Leap of Faith](#skill-leap-of-faith) |
 |  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Desperate Prayer. → [Purifying Light](#skill-purifying-light) |
-|  | 👼 **Heavenly Ascent** | Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Desperate Prayer. → [Ascend to the Heavens](#skill-ascend) |
+|  | 🧠 **Mind Control** | Take control of an enemy for 8 seconds: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still meanwhile. Replaces Desperate Prayer. → [Mind Control](#skill-mind-control) |
 
 <a id="priest-shadow"></a>
 ### 🌑 Gloomweaver · Damage
@@ -766,7 +766,7 @@ Shadow Word: Pain and Devouring Plague wear enemies down; Mind Flay and Mind Bla
 |  | 🐌 **Mind Numbing** | Mind Blast has a 20% chance to slow the target by 30% for 4 seconds. |
 | V | 🕊️ **Leap of Trust** | Learn Leap of Faith: pull an ally to you from up to 40 yards. Replaces Power Word: Shield. → [Leap of Faith](#skill-leap-of-faith) |
 |  | ✨ **Cleansing Radiance** | Learn Purifying Light: removes every harmful magic effect from you and allies within 12 yards and keeps new harmful effects off all of you for 4 seconds. Replaces Power Word: Shield. → [Purifying Light](#skill-purifying-light) |
-|  | 👼 **Heavenly Ascent** | Learn Ascend to the Heavens: fly away for 4 seconds, faster, untargetable and unhurt, but unable to act; also frees you from roots and slows. Replaces Power Word: Shield. → [Ascend to the Heavens](#skill-ascend) |
+|  | 🧠 **Mind Control** | Take control of an enemy for 8 seconds: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still meanwhile. Replaces Power Word: Shield. → [Mind Control](#skill-mind-control) |
 
 ### Priest skills
 
@@ -856,13 +856,15 @@ On the bar: [Warden](#priest-discipline) (key 8), [Lightbearer](#priest-holy) (k
 
 On the bar: [Lightbearer](#priest-holy) (key 2).
 
-<a id="skill-holy-nova"></a>
-#### Holy Nova
+<a id="skill-ascend"></a>
+#### Ascend to the Heavens
 
-*Holy* · 70 mana · 15 yd radius · Instant · 12s cooldown
+*Holy* · Instant · 90s cooldown
 
-- Deals 140 holy damage to all enemies in range.
-- Heals you and every ally in range for 285.
+- Removes every root and slow from you.
+- You gain Ascended for 4s: You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover. You cannot move while it lasts.
+- *Does not trigger the global cooldown.*
+- Effects: [Ascended](#effect-ascended)
 
 On the bar: [Lightbearer](#priest-holy) (key 6).
 
@@ -937,18 +939,14 @@ Talent: Warden tier V *Leap of Trust* (replaces Desperate Prayer); Lightbearer t
 
 Talent: Warden tier V *Cleansing Radiance* (replaces Desperate Prayer); Lightbearer tier V *Cleansing Radiance* (replaces Desperate Prayer); Gloomweaver tier V *Cleansing Radiance* (replaces Power Word: Shield).
 
-<a id="skill-ascend"></a>
-#### Ascend to the Heavens
+<a id="skill-mind-control"></a>
+#### Mind Control
 
-*Holy* · Instant · 90s cooldown
+*Shadow* · 120 mana · 30 yd range · 1.5s cast · 90s cooldown
 
-- Enemies lose their target on you and spells aimed at you are cancelled.
-- Removes every root and slow from you.
-- You gain Ascended for 4s: You rise straight up and hover, unable to move, then drift back down: nothing can target or hurt you, and harmful effects cannot take hold. You cannot use any ability while it lasts. You cannot move while it lasts.
-- *Does not trigger the global cooldown.*
-- Effects: [Ascended](#effect-ascended)
+- Takes control of the target for 8s: you see through their eyes and play their character with all of their abilities and talents, fighting for your team, while they can only watch. Your own body stands still and cannot act meanwhile. Ends early if you die or are stunned, or if the effect is dispelled.
 
-Talent: Warden tier V *Heavenly Ascent* (replaces Desperate Prayer); Lightbearer tier V *Heavenly Ascent* (replaces Desperate Prayer); Gloomweaver tier V *Heavenly Ascent* (replaces Power Word: Shield).
+Talent: Warden tier V *Mind Control* (replaces Desperate Prayer); Lightbearer tier V *Mind Control* (replaces Desperate Prayer); Gloomweaver tier V *Mind Control* (replaces Power Word: Shield).
 
 <a id="rogue"></a>
 ## Rogue
@@ -1302,13 +1300,14 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-arcane-charge"></a>**Arcane Charge** | Buff | 12s | Stacks up to 5 times. | [Arcane Blast](#skill-arcane-blast), [Arcane Missiles](#skill-arcane-missiles) |
 | <a id="effect-arcane-slow"></a>**Arcane Explosion** | Debuff (slow), magic | 4s | Movement speed reduced by 40%. | [Arcane Explosion](#skill-arcane-explosion) |
 | <a id="effect-arcane-power"></a>**Arcane Power** | Buff, magic | 15s | +25% damage dealt. −30% cast time. | [Arcane Power](#skill-arcane-power) |
-| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | You rise straight up and hover, unable to move, then drift back down: nothing can target or hurt you, and harmful effects cannot take hold. You cannot use any ability while it lasts. You cannot move while it lasts. | [Ascend to the Heavens](#skill-ascend) |
+| <a id="effect-ascended"></a>**Ascended** | Buff | 4s | You rise straight up and hover, unable to move, then drift back down: nothing can hurt you, and harmful effects cannot take hold. You can still be targeted, and you can cast while you hover. You cannot move while it lasts. | [Ascend to the Heavens](#skill-ascend) |
 | <a id="effect-blind"></a>**Blind** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Blind](#skill-blind) |
 | <a id="effect-cauterized"></a>**Cauterized** | Buff (mark) | 4s | Cheated death: a killing blow left you at 35% health. Cauterize is ready again in 3 minutes. | Pyromancy passive (Cauterize) |
 | <a id="effect-charge-stun"></a>**Charge** | Debuff (stun) | 2.5s | Cannot move, cast or act. | [Charge](#skill-charge) |
 | <a id="effect-cheap-shot-stun"></a>**Cheap Shot** | Debuff (stun) | 4s | Cannot move, cast or act. | [Cheap Shot](#skill-cheap-shot) |
 | <a id="effect-deep-cuts-bleed"></a>**Deep Cuts** | Debuff (dot) | 6s | Bleeding: takes 16 physical damage every 1s (96 total). | [Deep Cuts](#skill-deep-cuts) |
 | <a id="effect-deep-freeze-stun"></a>**Deep Freeze** | Debuff (stun) | 4s | Cannot move, cast or act. | [Deep Freeze](#skill-deep-freeze) |
+| <a id="effect-defensive-heal"></a>**Defensive Heal** | Buff | 4s | −20% damage taken. | talent *Defensive Greater Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-plague-bloom"></a>**Devouring Plague** | Debuff (dot), magic | 10s | Takes 45 shadow damage every 1s (450 total). | [Devouring Plague](#skill-plague-bloom) |
 | <a id="effect-dispersion"></a>**Dispersion** | Buff | 6s | −90% damage taken. You cannot use any ability while it lasts. | [Dispersion](#skill-dispersion) |
 | <a id="effect-dragons-breath"></a>**Dragon's Breath** | Debuff (fear), magic | 4s | Runs around in fear at 35% speed. Cannot cast or act, not even Blink. | [Dragon's Breath](#skill-dragons-breath) |

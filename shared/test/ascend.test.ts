@@ -14,7 +14,7 @@ function advance(sim: ArenaSim, ms: number): SimEvent[] {
   return out;
 }
 const priest = (sim: ArenaSim, team: 0 | 1, x: number, z: number): Unit => {
-  const u = sim.addUnit({ name: `p${team}`, classId: 'priest', team, build: { spec: 'shadow', talents: ['', '', '', '', 'priest_shadow_t5c'], gear: {} } });
+  const u = sim.addUnit({ name: `p${team}`, classId: 'priest', team, build: { spec: 'holy', talents: [], gear: {} } }); // Lightbearer has Ascend on its bar
   u.pos = { x, z };
   return u;
 };
@@ -77,19 +77,22 @@ describe('Ascend to the Heavens', () => {
     assert.ok(Math.hypot(p.pos.x - x, p.pos.z - z) > 0.5, 'free to move again afterwards');
   });
 
-  it('stays untargetable and untouchable in the air', () => {
+  it('can still be targeted in the air, takes no damage, and can cast spells while it hovers', () => {
     const sim = live();
     const p = priest(sim, 0, 0, 0);
     const f = priest(sim, 1, 3, 0);
     advance(sim, TICK);
     f.target = p.id;
     assert.ok(sim.useAbility(p.id, 'ascend').ok);
-    assert.equal(f.target, null);
+    assert.equal(f.target, p.id, 'the enemy keeps its target on you');
     advance(sim, 1000);
     const hp = p.health;
     sim.dealDamage(f, p, 500, 'physical', 'mortal_strike');
-    assert.equal(p.health, hp);
-    assert.equal(sim.canSee(f, p), false);
-    assert.equal(sim.useAbility(p.id, 'smite', f.id).ok, false);
+    assert.equal(p.health, hp, 'nothing hurts you up there');
+    assert.equal(sim.canSee(f, p), true, 'but you can be seen and targeted');
+    assert.ok(sim.useAbility(p.id, 'smite', f.id).ok, 'and you can cast');
+    const fhp = f.health;
+    advance(sim, 2000);
+    assert.ok(f.health < fhp, 'the spell landed from the air');
   });
 });
