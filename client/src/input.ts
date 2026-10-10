@@ -11,6 +11,9 @@ const CLICK_MS = 350;
  * WoW-style controls: hold RMB to steer (character faces the camera), LMB-drag to orbit the camera only,
  * A/D turn (or strafe while RMB is held), Q/E strafe, both mouse buttons run forward, scroll to zoom (all the way in = first person).
  */
+/** What keeps its clicks while a ground spell is being aimed: the action bar, menus and windows, and form controls. */
+const AIM_KEEPS = '.slot, #menu, .mm-modal, .mm-specpop, .devp, .mapw, .mwin, .announce, input, select, textarea, button, a, [data-aim-keep]';
+
 export class Controls {
   private keys = new Set<string>();
   yaw = 0;
@@ -40,6 +43,7 @@ export class Controls {
   onClick: (x: number, y: number) => void = () => {};
   /** True while a ground spell waits for a click; the left press then places it instead of steering the camera. */
   aimActive: () => boolean = () => false;
+  private swallowClick = false;
   onAimPress: () => void = () => {};
   /** A right-button click that did not turn the camera (WoW: target and auto-attack). */
   onRightClick: (x: number, y: number) => void = () => {};
@@ -90,6 +94,14 @@ export class Controls {
       (e) => {
         if (!this.enabled || this.fromTouch()) return;
         const other = this.lmb || this.rmb;
+        // while a ground spell is being aimed, a left press over any frame, nameplate, chat or other HUD part places it (only the action bar,
+        // menus and windows, and form controls keep their clicks)
+        if (e.button === 0 && !other && e.target !== canvas && this.aimActive() && !(e.target as Element | null)?.closest?.(AIM_KEEPS)) {
+          this.onAimPress();
+          this.swallowUp = true;
+          this.swallowClick = true;
+          return;
+        }
         // a press counts when it starts on the scene, or joins a button that is already steering
         if (e.target !== canvas && !other) return;
         if (e.button === 0 && e.target === canvas && this.aimActive()) {
@@ -113,10 +125,22 @@ export class Controls {
       },
       true,
     );
+    // the click that follows a press the aim took must not also select, target or open what is under the cursor
+    window.addEventListener(
+      'click',
+      (e) => {
+        if (!this.swallowClick) return;
+        this.swallowClick = false;
+        e.stopPropagation();
+        e.preventDefault();
+      },
+      true,
+    );
     window.addEventListener('mouseup', (e) => {
       if (this.fromTouch()) return;
       if (e.button === 0 && this.swallowUp) {
         this.swallowUp = false;
+        window.setTimeout(() => (this.swallowClick = false), 80);
         sync(e);
         return;
       }

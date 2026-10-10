@@ -2,6 +2,7 @@ import { requestText } from '@arena/shared';
 import type { ChatChange, DevRequestRow } from '@arena/shared';
 import type { Store } from './store';
 import type { RequestDraft } from './aitune';
+import type { CodeWriter } from './codegen';
 
 const KEY = 'devrequests';
 const MAX_ROWS = 100;
@@ -32,6 +33,7 @@ export class DevRequests {
     private env: DevRequestsEnv = {},
     private http: typeof fetch = (...a) => fetch(...a),
     private post: (text: string) => Promise<boolean> = async () => false,
+    private writer?: CodeWriter,
   ) {
     this.ready = this.load();
   }
@@ -155,6 +157,37 @@ export class DevRequests {
     r.build = { at: Date.now(), by };
     await this.persist();
     return { ok: true, text: 'Claude was asked to build it on GitHub. A pull request appears here when it is ready (a few minutes).' };
+  }
+
+  /** Can the game's own Claude write code for a request (it has the Anthropic key and the GitHub token)? */
+  get canWrite(): boolean {
+    return !!this.writer?.enabled;
+  }
+
+  /**
+   * Owner: the game's own Claude writes the code for a request and uploads it as a pull request (a branch of its own; the repository's
+   * checks run on it, and nothing goes live until it is merged here or on GitHub).
+   */
+  async writeCode(id: string, by: string): Promise<{ ok: boolean; text: string }> {
+    await this.ready;
+    const r = this.rows.find((x) => x.id === id);
+    if (!r) return { ok: false, text: 'That request is gone.' };
+    if (!this.writer) return { ok: false, text: 'Writing code in the game is off.' };
+    if (r.prNumber && r.prState === 'open') return { ok: false, text: 'A pull request is already open for this one.' };
+    const res = await this.writer.write(r, by);
+    if (!res.ok) {
+      r.codeError = res.text;
+      await this.persist();
+      return { ok: false, text: res.text };
+    }
+    delete r.codeError;
+    r.build = { at: Date.now(), by };
+    r.code = { at: Date.now(), by, summary: res.summary, files: res.files };
+    r.prUrl = res.prUrl;
+    r.prNumber = res.prNumber;
+    r.prState = 'open';
+    await this.persist();
+    return { ok: true, text: `Claude wrote the code and opened pull request #${res.prNumber}. Its checks are running; merge it here when they pass.` };
   }
 
   /** Look for the pull request Claude opened for a request (by its issue number) and keep where it stands. */

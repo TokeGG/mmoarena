@@ -793,7 +793,15 @@ function fixedStep() {
   if (!latest || spec || latest.paused || devPaused) { pending = []; return; } // paused by a dev: nothing is sent, nothing is predicted, nothing queued
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
-  const sample = controls.sample(DT);
+  const raw = controls.sample(DT);
+  const moving = raw.fwd !== 0 || raw.strafe !== 0;
+  lastMoving = moving;
+  let sample = raw;
+  if (castStill) {
+    if (me.cast) castStill.seen = true;
+    if (!moving || (!me.cast && (castStill.seen || performance.now() > castStill.until))) castStill = null; // keys let go (a fresh press moves and ends the cast), or the cast is over
+    else sample = { ...raw, fwd: 0, strafe: 0 };
+  }
   const jump = sample.jump && me.alive && !me.controlled && !hovers(me) && canStartJump((jumpTicks + 1) * tickMs); // counted in ticks like the server (one input per tick), not wall time: a late frame that plays several steps at once must not send a jump the server will refuse
   if (jump) {
     myJumpAt = performance.now();
@@ -992,9 +1000,16 @@ function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
   if (ABILITIES[msg.ability]?.coneDeg && msg.facing === undefined && Number.isFinite(lastFacing)) msg = { ...msg, facing: lastFacing };
   lastSent.ability = msg.ability;
   lastSent.at = performance.now();
+  // a cast started from a walk stands you still (your keys are held back) until you let go and press a move key again
+  const cd = ABILITIES[msg.ability];
+  if (lastMoving && cd && (cd.castTime > 0 || cd.channel) && !cd.castWhileMoving && !cd.unstoppable) castStill = { until: performance.now() + 500, seen: false };
   send(msg);
 }
 
+/** Set while a cast made on the move holds your walk back: `seen` once the server shows the cast, `until` how long to wait for it. */
+let castStill: { until: number; seen: boolean } | null = null;
+/** Were movement keys down in the last step? */
+let lastMoving = false;
 /** The way the player faced in the last step sent (cone skills carry it so they point where the screen shows). */
 let lastFacing = NaN;
 let queued: { ability: string; target: number | null; until: number; ground?: { x: number; z: number; lv?: 1 } } | null = null;
