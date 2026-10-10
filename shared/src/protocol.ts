@@ -17,6 +17,9 @@ export const PROTOCOL_VERSION = 10;
 /** Team sizes: 1v1, 2v2, 3v3. */
 export type TeamSize = 1 | 2 | 3;
 /** What the owner can do from the admin panel (a dev gets only the read and training ones: see DEV_ADMIN_ACTS in the server). */
+/** One change on the main branch, as the owner's log shows it. */
+export interface OwnerLogRow { sha: string; at: number; by: string; title: string; body: string; url: string }
+
 export type AdminAct = 'kick' | 'ban' | 'unban' | 'mute' | 'unmute' | 'set_rating' | 'reset_stats' | 'note' | 'maintenance' | 'pause_match' | 'history' | 'log' | 'feed' | 'train' | 'train_status' | 'autotrain' | 'kill' | 'train_all' | 'train_passes' | 'bot_knowledge' | 'bot_reset' | 'time' | 'bot_commit' | 'cooldowns_reset' | 'cooldowns_off' | 'bug_fixed';
 const ADMIN_ACTS: readonly AdminAct[] = ['kick', 'ban', 'unban', 'mute', 'unmute', 'set_rating', 'reset_stats', 'note', 'maintenance', 'pause_match', 'history', 'log', 'feed', 'train', 'train_status', 'autotrain', 'kill', 'train_all', 'train_passes', 'bot_knowledge', 'bot_reset', 'time', 'bot_commit', 'cooldowns_reset', 'cooldowns_off', 'bug_fixed'];
 /** A running match in the owner's admin panel. */
@@ -187,6 +190,8 @@ export type ClientMsg =
   | { t: 'dev_redeploy' }
   /** Dev tools: ask for the list of recent commits and the version the server runs now. */
   | { t: 'dev_commits' }
+  /** Owner only: every change on the main branch, hidden ones included (the patch notes' owner view). */
+  | { t: 'owner_log' }
   /** Dev tools: a note on a skill, sent to the owner. */
   | { t: 'dev_note'; ability: string; text: string }
   /** Ask Claude to change a skill's numbers from a plain-words request; the answer is tried in the dev's match at once. */
@@ -286,6 +291,7 @@ export type ServerMsg =
   | { t: 'proposals'; rows: ProposalRow[] }
   /** Recent dev commits to GitHub (newest first) and the patch version the server is running (a commit is live once that reaches its version). */
   | { t: 'dev_commits'; rows: DevCommitRow[]; running: string }
+  | { t: 'owner_log'; rows: OwnerLogRow[]; error?: string }
   /** The replays the bots are training on right now and the ones just finished. */
   | { t: 'train_status'; jobs: TrainJobRow[]; active: number }
   /** Owner only: what the bots know now against what shipped, and the last reports of what they learned. */
@@ -565,6 +571,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       return { t: 'dev_redeploy' };
     case 'dev_commits':
       return { t: 'dev_commits' };
+    case 'owner_log':
+      return { t: 'owner_log' };
     case 'dev_patch':
     case 'dev_session':
     case 'dev_commit':

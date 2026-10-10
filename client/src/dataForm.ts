@@ -223,24 +223,35 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
     const add = el('button', 'mm-small', k === 'effects' ? '＋ Add effect' : `＋ Add to ${nice(k).toLowerCase()}`);
     const kindSel = el('select', 'dform-add');
     if (k === 'effects') {
-      for (const [id, name] of QUICK) {
-        const o = el('option', '', name);
-        o.value = id;
-        kindSel.append(o);
-      }
-      const more = el('optgroup') as HTMLOptGroupElement;
-      more.label = 'Everything else';
-      for (const t of EFFECT_TYPES.filter((x) => !QUICK.some(([id]) => id === x))) {
-        const o = el('option', '', EFFECT_NAMES[t] ?? nice(t));
-        o.value = `type:${t}`;
-        more.append(o);
-      }
-      kindSel.append(more);
+      // an effect is a buff or a debuff to the game: one list of them by name, then the few things that are not (damage, healing, knockback...)
+      const group = (label: string, items: [string, string][]) => {
+        const g = el('optgroup') as HTMLOptGroupElement;
+        g.label = label;
+        for (const [value, name] of items) {
+          const o = el('option', '', name);
+          o.value = value;
+          g.append(o);
+        }
+        kindSel.append(g);
+      };
+      const byName = (x: [string, string], y: [string, string]) => x[1].localeCompare(y[1]);
+      const named = Object.entries(AURAS).filter(([id]) => id !== 'shield' && id !== 'damage_reduction');
+      group('Buffs', [['q:shield', 'Shield (you set the strength)'], ['q:reduction', 'Damage reduction (you set the %)'], ...named.filter(([, a]) => !a.harmful).map(([id, a]): [string, string] => [`a:${id}`, a.name]).sort(byName)]);
+      group('Debuffs', [['q:stun', 'Stun'], ['q:root', 'Root'], ['q:slow', 'Slow'], ...named.filter(([, a]) => a.harmful).map(([id, a]): [string, string] => [`a:${id}`, a.name]).sort(byName)]);
+      group('Other effects', [['q:damage', 'Damage'], ['q:heal', 'Heal'], ['q:knockback', 'Knockback'], ['q:interrupt', 'Interrupt'], ['q:dispel', 'Dispel'],
+        ...EFFECT_TYPES.filter((t) => !QUICK.some(([id]) => id === t) && t !== 'aura').map((t): [string, string] => [`type:${t}`, EFFECT_NAMES[t] ?? nice(t)])]);
+      kindSel.value = 'q:shield';
     }
     add.addEventListener('click', () => {
       if (k === 'effects') {
-        const q = QUICK.find(([id]) => id === kindSel.value);
-        a.push(q ? q[2]() : effectSkeleton(kindSel.value.replace(/^type:/, '')));
+        const v = kindSel.value;
+        const q = v.startsWith('q:') ? QUICK.find(([id]) => id === v.slice(2)) : undefined;
+        if (q) a.push(q[2]());
+        else if (v.startsWith('a:')) {
+          // a buff or debuff by name: a buff goes on you, a debuff on the target, and its own time is shown to change
+          const def = AURAS[v.slice(2)];
+          a.push({ type: 'aura', aura: v.slice(2), ...(def?.harmful ? {} : { self: true }), ...(def?.duration ? { duration: def.duration } : {}) });
+        } else a.push(effectSkeleton(v.replace(/^type:/, '')));
       } else if (a.length) a.push(structuredClone(a[a.length - 1]));
       else a.push('');
       structural();

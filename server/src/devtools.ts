@@ -1,4 +1,4 @@
-import type { DevCommitRow } from '@arena/shared';
+import type { DevCommitRow, OwnerLogRow } from '@arena/shared';
 import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MAX_ENTITY_CHARS, PATCH_FILES, smokeProblem, applyPatches, isEntityPatch, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
 import { ABILITIES, AURAS } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
@@ -411,6 +411,24 @@ export class DevTools {
       throw new Error(`GitHub refused the merge, so nothing was merged: ${(e as Error).message}. The pull request stays open: ${url}`);
     }
     await api(`/git/refs/heads/${branch}`, { method: 'DELETE' }).catch(() => undefined);
+  }
+
+  /** Every commit on the base branch, newest first: the owner's view of all that changed, including what the player patch notes leave out. */
+  async ownerLog(): Promise<{ rows: OwnerLogRow[]; error?: string }> {
+    const token = this.env.GITHUB_TOKEN;
+    if (!token) return { rows: [], error: 'No GITHUB_TOKEN on the server: the change log needs it.' };
+    try {
+      const { api, base } = this.github(token);
+      const list = (await api(`/commits?sha=${encodeURIComponent(base)}&per_page=60`)) as unknown as { sha: string; html_url: string; commit: { message: string; author: { name: string; date: string } } }[];
+      return {
+        rows: list.map((c) => {
+          const [title, ...rest] = c.commit.message.split('\n');
+          return { sha: c.sha.slice(0, 7), at: Date.parse(c.commit.author.date), by: c.commit.author.name, title: title.slice(0, 200), body: rest.join('\n').trim().slice(0, 1500), url: c.html_url };
+        }),
+      };
+    } catch (e) {
+      return { rows: [], error: friendlyGithubError((e as Error).message, 'main') };
+    }
   }
 
   private lastRedeploy = 0;

@@ -125,11 +125,11 @@ export const ABILITY_TARGET_TYPES: readonly string[] = ['self', 'enemy', 'ally',
 export const SCHOOL_IDS: readonly string[] = ['physical', 'fire', 'frost', 'arcane', 'holy', 'shadow', 'nature'];
 export const AURA_KIND_IDS: readonly string[] = ['stun', 'incapacitate', 'fear', 'root', 'slow', 'speed', 'absorb', 'stealth', 'buff', 'dot', 'mark'];
 /** The fields an effect cannot do without (the rest are optional): a missing one would stop the sim. */
-const EFFECT_NEEDS: Record<string, readonly string[]> = { damage: ['amount'], heal: ['amount'], healMissing: ['pct'], healMax: ['pct'], aura: ['aura'], proc: ['p', 'effects'], cast: ['ability'], mindControl: ['duration'], images: ['count', 'duration', 'damage'], strip: ['kinds'], zoneBuff: ['aura', 'radius', 'duration'], shield: ['amount', 'duration'], reduction: ['pct', 'duration'], knockback: ['distance'] };
+const EFFECT_NEEDS: Record<string, readonly string[]> = { damage: ['amount'], heal: ['amount'], healMissing: ['pct'], healMax: ['pct'], aura: ['aura'], proc: ['p', 'effects'], cast: ['ability'], mindControl: ['duration'], images: ['count', 'duration', 'damage'], strip: ['kinds'], zoneBuff: ['aura', 'radius', 'duration'], shield: ['amount', 'duration'], reduction: ['pct', 'duration'], knockback: ['distance'], interrupt: ['lockout'] };
 
 /** A new effect of a type with the fields it cannot do without filled in (the data editor's "add an effect"). */
 export function effectSkeleton(type: string, aura?: string, ability?: string): Record<string, unknown> {
-  const fill: Record<string, unknown> = { amount: 100, pct: 0.1, aura: aura ?? 'pw_shield', p: 0.2, effects: [], ability: ability ?? 'fireball', duration: 3000, count: 2, damage: 20, kinds: ['slow'], radius: 6, distance: 8 };
+  const fill: Record<string, unknown> = { amount: 100, pct: 0.1, aura: aura ?? 'pw_shield', p: 0.2, effects: [], ability: ability ?? 'fireball', duration: 3000, count: 2, damage: 20, kinds: ['slow'], radius: 6, distance: 8, lockout: 4000 };
   const e: Record<string, unknown> = { type };
   for (const need of EFFECT_NEEDS[type] ?? []) e[need] = fill[need];
   return e;

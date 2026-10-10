@@ -2045,6 +2045,11 @@ export class Lobby {
         })();
         break;
       }
+      case 'owner_log': {
+        if (!p.ownerOk || !this.dev) return void send(p, { t: 'owner_log', rows: [], error: 'Only the owner can see this.' });
+        void this.dev.ownerLog().then((r) => send(p, { t: 'owner_log', ...r }));
+        break;
+      }
       case 'dev_commits': {
         if (!this.isDev(p) || !this.dev) return;
         send(p, { t: 'dev_commits', rows: this.dev.commits, running: PATCHES[0]?.version ?? '0.0.0' });
