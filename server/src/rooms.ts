@@ -2337,16 +2337,16 @@ export class Lobby {
         break;
       }
       case 'maps_list':
-        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk) return;
+        if (!this.adminAccess(p)) return; // the owner and devs share the map tools
         send(p, { t: 'custom_maps', maps: [...customArenas()], off: disabledMaps() });
         break;
       case 'map_enable':
-        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        if (!this.adminAccess(p) || !this.customMaps) return;
         void this.customMaps.setAvailable(p.account?.name ?? p.name, msg.id, msg.on).then((r) => send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id } : {}) }));
         break;
       case 'map_save':
       case 'map_delete': {
-        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        if (!this.adminAccess(p) || !this.customMaps) return;
         const by = p.account?.name ?? p.name;
         void (msg.t === 'map_save' ? this.customMaps.save(by, msg.map) : this.customMaps.remove(by, msg.id)).then((r) => {
           send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id, warnings: r.warnings } : {}) });

@@ -47,7 +47,7 @@ const TABS: [Tab, string][] = [
 ];
 
 /** The tabs a dev can use (the rest is account moderation, announcements and maintenance). */
-const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'proposals', 'tuning', 'log'];
+const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'proposals', 'tuning', 'maps', 'log'];
 
 interface Hooks {
   send(m: ClientMsg): void;
@@ -122,7 +122,7 @@ export class AdminPanel {
   private op: OwnerPanel;
   /** Play time per player (owner only). */
   private time: TimeView;
-  /** The map editor of the Maps tab (owner only). */
+  /** The map editor of the Maps tab (owner and devs). */
   private maps: MapEditor;
   /** The bot battle window, started from the main menu (owner only). */
   private bb: HTMLElement | null = null;
