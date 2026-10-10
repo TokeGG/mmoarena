@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.46",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:05:54Z",
+  "title": "Custom maps",
+  "changes": [
+   "Practice, party and bot matches can now use custom-made maps, marked (custom) in the map list. They never appear in ranked or the queue."
+  ]
+ },
+ {
   "version": "0.69.45",
   "date": "2026-10-10",
   "at": "2026-10-10T04:00:14Z",

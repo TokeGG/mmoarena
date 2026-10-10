@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import {
-  ABILITIES, ARENAS, CLASSES, CLASS_IDS, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
+  ABILITIES, CLASSES, CLASS_IDS, allArenas, findArena, isCustomArena, COSMETICS, PATCHES, SPECS, barFor, canWear, compileMods, describeAbility, itemById, itemsForSlot, previewTalents, replacedBy, specPassives, switchTalents, talentsFor, PARTY_MAX,
 } from '@arena/shared';
 import type { AccountInfo, Build, ClassId, PartyInfo, PracticeDifficulty } from '@arena/shared';
 import { iconEl } from './iconArt';
@@ -166,6 +166,9 @@ export class MainMenu {
     return this.classId;
   }
   /** The arena picked in the menu: an id or 'random'. */
+  /** Rebuild the arena list (custom maps came or went). Set up by the constructor. */
+  refreshMaps: () => void = () => {};
+
   get selectedMap(): string {
     return this.map.value;
   }
@@ -336,13 +339,22 @@ export class MainMenu {
     refill();
     this.queueBtn.textContent = this.queueLabel(!!this.account);
     opt(this.diff, [['dummy', 'Dummies (passive)'], ['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']], 'arena.difficulty', 'normal');
-    opt(this.map, [['random', 'Random'], ...ARENAS.map((a): [string, string] => [a.id, a.name])], 'arena.map', 'random');
+    const mapItems = (): [string, string][] => [['random', 'Random'], ...allArenas().map((a): [string, string] => [a.id, isCustomArena(a.id) ? `${a.name} (custom)` : a.name])];
+    opt(this.map, mapItems(), 'arena.map', 'random');
     const showMap = () => {
-      const a = ARENAS.find((x) => x.id === this.map.value);
-      this.mapDesc.textContent = a ? a.desc : 'A random arena each match. In the queue, random players fill any arena.';
+      const a = findArena(this.map.value);
+      this.mapDesc.textContent = a ? (isCustomArena(a.id) ? `${a.desc} Custom map: for practice, party and bot matches. The queue plays it as Random.` : a.desc) : 'A random arena each match. In the queue, random players fill any arena.';
     };
     this.map.addEventListener('change', showMap);
     showMap();
+    /** The owner's custom maps changed (or arrived after the menu was built): rebuild the list and keep the pick if it still exists. */
+    this.refreshMaps = () => {
+      const want = this.map.value !== 'random' ? this.map.value : store.get('arena.map', 'random');
+      this.map.replaceChildren();
+      for (const [v, t] of mapItems()) this.map.append(new Option(t, v));
+      this.map.value = [...this.map.options].some((o) => o.value === want) ? want : 'random';
+      showMap();
+    };
     const practice = this.practiceBtn;
     const queue = this.queueBtn;
     practice.addEventListener('click', () => this.play('practice'));
@@ -956,6 +968,13 @@ export class MainMenu {
   }
 
   // ------------------------------------------------------------------ play
+
+  /** Start a practice match on this arena (the owner's map editor). */
+  playOn(mapId: string): void {
+    if (![...this.map.options].some((o) => o.value === mapId)) this.refreshMaps();
+    this.map.value = mapId;
+    this.play('practice');
+  }
 
   private play(mode: 'practice' | 'queue' | 'party') {
     const name = this.account ? this.account.name : this.nameInput.value.trim() || 'Player';

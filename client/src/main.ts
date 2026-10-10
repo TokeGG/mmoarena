@@ -1,6 +1,6 @@
 import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
 import { helpWindow } from './tourUi';
-import { ABILITIES, AURAS, ARENAS, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { UpdateNotice } from './updateNotice';
@@ -345,7 +345,7 @@ function onMessage(raw: MessageEvent) {
         ws?.close();
         return;
       }
-      arena = ARENAS.find((a) => a.id === m.map) ?? ARENAS[0];
+      arena = arenaById(m.map);
       scene.setMap(arena.id);
       matchStarting = true; // until its first snapshot, the menu backdrop must not swap the map back to the menu's pick
       // dev tools start fresh in every match (test numbers never carry over), and so do raid marks
@@ -447,6 +447,15 @@ function onMessage(raw: MessageEvent) {
       break;
     case 'hud_default':
       hudLayout.setDefault(m.layout, m.at, m.by);
+      break;
+    case 'custom_maps':
+      // the owner's custom maps: known to every lookup from now on (menus, scene, minimap, watch labels)
+      registerCustomArenas(m.maps);
+      mainMenu.refreshMaps();
+      adminPanel.handle(m);
+      break;
+    case 'map_result':
+      adminPanel.handle(m);
       break;
     case 'announce':
       announceBanner.show(m, () => audio.ui('select'));
@@ -1163,7 +1172,7 @@ function frame(now: number) {
     if (previewMap !== 'random' && !matchStarting) scene.setMap(previewMap);
     // the scene is the truth about which arena is on screen ('random' keeps showing whatever it already shows, and a map
     // being started is not swapped): the characters stand on ITS spawn, never on another map's coordinates
-    const prev = ARENAS.find((a) => a.id === scene.arenaId) ?? ARENAS[0];
+    const prev = arenaById(scene.arenaId);
     // drag on the empty middle of the menu to turn your character; the idle sway fades out while you do and comes back after
     // the Look window's buttons: turn steps ease in, auto-rotate keeps turning (and holds the idle sway off)
     const lv = mainMenu.lookView;
@@ -1510,7 +1519,7 @@ const livePicker = new LivePicker(
 
 /** Dev tools: the running test match moved to another map (the server put everyone at its spawns). */
 function swapMatchMap(mapId: string) {
-  arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
+  arena = arenaById(mapId);
   scene.setMap(arena.id);
   audio.ambience(arena.theme);
   matchStarting = true;
@@ -1533,7 +1542,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   controlling = false;
   takeoverUi.setControlling(null);
   spec = { kind, runner, id, rate: 1, paused: false, clock: 0 };
-  arena = ARENAS.find((a) => a.id === mapId) ?? ARENAS[0];
+  arena = arenaById(mapId);
   scene.setMap(arena.id);
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
   devPanel.setAvailable(false); // test numbers never carry over from a match you played
@@ -1839,6 +1848,7 @@ const adminPanel = new AdminPanel({
   watch: (id) => send({ t: 'spectate', id }),
   follow: (name) => send({ t: 'follow', name }),
   replay: (id) => void startReplay(id),
+  playOn: (id) => mainMenu.playOn(id),
   onPending: (n) => {
     setBadge(adminBadge, n);
     tools.setPending(n);

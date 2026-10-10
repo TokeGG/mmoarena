@@ -1,6 +1,6 @@
 import type { Popup } from './popups';
 import { makeResizable } from './resizable';
-import { ABILITIES, ARENAS, CLASSES, contentHash, specOf, talentsFor } from '@arena/shared';
+import { ABILITIES, CLASSES, findArena, contentHash, specOf, talentsFor } from '@arena/shared';
 import type { LiveMatch, ReplayData, StatRow, UnitBuild } from '@arena/shared';
 import { CLASS_ICON } from './icons';
 import { classLine, teamLine } from './iconArt';
@@ -16,7 +16,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-export const mapName = (id: string): string => ARENAS.find((a) => a.id === id)?.name ?? id;
+export const mapName = (id: string): string => findArena(id)?.name ?? id;
 export const classIcon = (id: string): string => CLASS_ICON[id as keyof typeof CLASS_ICON] ?? '?';
 
 /** Download and unpack a stored replay. Throws a message fit to show the player. */

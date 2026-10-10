@@ -1,4 +1,4 @@
-import { ABILITIES, ARENAS, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
+import { ABILITIES, allArenas, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
 import type { Build, DevCommitRow, DevPageId, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
 import { refreshIcons } from './iconArt';
 import { invalidateTip } from './tooltip';
@@ -209,11 +209,11 @@ export class DevPanel {
   /** Owner only: swap the map of this test match on the fly (everyone stays, builds and numbers are kept). */
   private mapPicker(): HTMLElement {
     const row = el('div', 'devp-row');
-    const ids = ARENAS.map((a) => a.id);
+    const ids = allArenas().map((a) => a.id);
     const go = (id: string) => this.hooks.send({ t: 'dev_map', id });
     const sel = document.createElement('select');
     sel.title = 'Swap the map of this match at once: same units, builds, bots and numbers, everyone back at the new spawns (works while paused)';
-    for (const a of ARENAS) {
+    for (const a of allArenas()) {
       const o = document.createElement('option');
       o.value = a.id;
       o.textContent = a.name;

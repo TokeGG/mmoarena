@@ -1,4 +1,4 @@
-import { ARENAS, CLASS_IDS, SPECS, TIME_CATS, TIME_DAYS, TIME_MATCH_CATS, TIME_MODES, emptyCats } from '@arena/shared';
+import { CLASS_IDS, findArena, SPECS, TIME_CATS, TIME_DAYS, TIME_MATCH_CATS, TIME_MODES, emptyCats } from '@arena/shared';
 import type { TimeBuckets, TimeCat, TimeGlobal, TimeRecord, TimeRow } from '@arena/shared';
 import type { Store } from './store';
 
@@ -32,7 +32,8 @@ export interface TimeSample {
 }
 
 const SPEC_KEYS = new Set(CLASS_IDS.flatMap((c) => (SPECS[c] ?? []).map((s) => `${c}:${s.id}`)));
-const MAP_IDS = new Set(ARENAS.map((a) => a.id));
+/** Built-in and custom maps (looked up live: the owner can add one). */
+const MAP_IDS = { has: (k: string): boolean => !!findArena(k) };
 const CLASS_SET = new Set<string>(CLASS_IDS);
 const MODE_SET = new Set<string>(TIME_MODES);
 
