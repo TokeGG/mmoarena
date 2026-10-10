@@ -182,6 +182,7 @@ describe('bots on every arena', () => {
         const last = units.map((u) => ({ ...u.pos }));
         const idle = units.map(() => 0);
         const travelled = units.map(() => 0);
+        const aliveSecs = units.map(() => 0); // someone who fell early had no time to cover ground
         let maxIdle = 0;
         const ticks = Math.round(360000 / sim.tickMs); // a healer outlasting a mage can take five minutes; the game's own cap is ten
         const perSecond = Math.round(1000 / sim.tickMs);
@@ -194,6 +195,7 @@ describe('bots on every arena', () => {
               const moved = Math.hypot(u.pos.x - last[i].x, u.pos.z - last[i].z);
               last[i] = { ...u.pos };
               travelled[i] += moved;
+              if (u.alive) aliveSecs[i]++;
               // stuck: alive, free to act and not casting, but not moving for a long time (healers and casters may hold still on purpose)
               if (u.alive && u.classId !== 'priest' && moved < 0.05 && !u.cast) idle[i]++;
               else idle[i] = 0;
@@ -202,7 +204,7 @@ describe('bots on every arena', () => {
           }
         }
         assert.ok(sim.winner !== null, `${a.id}: the match finished within 6 minutes (t=${t})`);
-        assert.ok(travelled.every((d, i) => units[i].classId === 'priest' || d > 40), `${a.id} ${size}v${size}: every bot covered ground (${travelled.map((d) => Math.round(d)).join(', ')})`);
+        assert.ok(travelled.every((d, i) => units[i].classId === 'priest' || aliveSecs[i] < 60 || d > 40), `${a.id} ${size}v${size}: every bot covered ground (${travelled.map((d) => Math.round(d)).join(', ')})`);
         assert.ok(maxIdle < 12, `${a.id} ${size}v${size}: nobody stood still for ${maxIdle} s`);
       }
     });
