@@ -69,7 +69,10 @@ describe('priest sentinel model and staffs', () => {
     for (const [id, file] of Object.entries(STAFFS)) {
       assert.ok(statSync(DIR + file).size < 600_000, `${file} size`);
       assert.equal(WEAPONS[id].right.part, 'staff');
-      assert.equal(WEAPONS[id].right.pos, undefined, 'no sideways offset: the shaft is the grip point');
+      const pos = WEAPONS[id].right.pos ?? [0, 0, 0];
+      assert.equal(pos[0], 0, 'no sideways offset: the shaft goes through the fist');
+      assert.equal(pos[2], 0, 'no forward offset: the shaft goes through the fist');
+      assert.ok(pos[1] <= 0 && pos[1] >= -0.6, 'the fist closes on the shaft, a little above its middle at most');
       const ch = createCharacter('priest', '', id);
       const pivots: THREE.Object3D[] = [];
       ch.root.traverse((o) => o.name === 'weapon:staff' && pivots.push(o));
@@ -103,6 +106,17 @@ describe('priest sentinel model and staffs', () => {
     }
     ch.setState(false, false);
     run(ch, 2, { dead: true } as never);
+  });
+
+  it('has a built head under the helm, the model\'s own head mesh hidden, and a gauntlet on the staff hand', () => {
+    const ch = createCharacter('priest', '', 'holy_staff');
+    let shown = 0, hidden = 0;
+    ch.root.traverse((o) => { if (o instanceof THREE.SkinnedMesh && o.name.startsWith('part_head')) (o.visible ? shown++ : hidden++); });
+    assert.equal(shown, 0);
+    assert.ok(hidden > 0);
+    let built = 0;
+    ch.root.traverse((o) => { if (o instanceof THREE.Mesh && !(o instanceof THREE.SkinnedMesh)) built++; });
+    assert.ok(built > 40, `built meshes ${built}`);
   });
 
   it('a back cosmetic replaces the body part, the helm stays under head items', () => {

@@ -1,8 +1,8 @@
 [
  {
-  "version": "0.69.60",
+  "version": "0.69.61",
   "date": "2026-10-10",
-  "at": "2026-10-10T18:31:42Z",
+  "at": "2026-10-10T18:36:14Z",
   "title": "Bot notes you approve, follow friends",
   "changes": [
    "Notes for the bots now show a breakdown of what they would change first. You choose Apply and commit to main, or Discard. Nothing is filed as an issue any more.",
@@ -12,6 +12,21 @@
    "Cone skills like Dragon's Breath now point where you see them pointing when you press them, so people standing in the cone are hit.",
    "Aimed spells such as Flamestrike go off at the spot the ring just showed green, even if you click in a hurry.",
    "Patch note times shown to players were wrong and are fixed."
+  ]
+ },
+ {
+  "version": "0.69.60",
+  "date": "2026-10-10",
+  "at": "2026-10-10T18:35:03Z",
+  "title": "Class animations and a finished priest",
+  "changes": [
+    "Every class now moves in its own way. The warrior is heavy and braced, the rogue stays low and quick with the elbows tucked, and the priest is upright and gliding with a slow hover.",
+    "Starting and stopping now lean the body, feet roll heel to toe on each step, and a jump stretches out on take-off before the legs tuck. The rogue curls tighter in the air, the priest floats, and the warrior lands harder.",
+    "Casting looks different per class: the priest raises the staff with an open free hand, the rogue crouches and draws the hands in, and the warrior plants wide with both fists forward. Instant casts add a quick flick of the casting hands: a push for the priest, a throwing flick for the rogue.",
+    "Melee swings differ too: the rogue pulls back and stabs, the priest lifts the staff overhead with both hands and smites down, and the warrior keeps the wide slash.",
+    "The mage now jumps with his arms: they fly up on take-off, spread at the top and drop to balance on the way down, and the body folds on landing.",
+    "Priest: the right arm now points forward like the left instead of out to the side, and the staff is held in a gauntlet lower on the shaft instead of floating next to him.",
+    "Priest: new head with a face, helm, horns, crest and cheek guards in place of the old jagged one."
   ]
  },
  {
