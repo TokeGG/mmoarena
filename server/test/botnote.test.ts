@@ -332,3 +332,25 @@ describe('a note moves the bots through the same limits as graded learning', () 
     assert.equal(b.bugList().length, 1);
   });
 });
+
+describe('a note is read in full, and what no number covers becomes a request', () => {
+  it('"a lot" moves a number further than "a bit", and the reading, the requests and the bugs come back', async () => {
+    const run = async (strength: 1 | 3) => {
+      const learner = new BotLearner(new MemoryStore());
+      await learner.whenReady();
+      const filed: string[] = [];
+      const out = await learner.addNote({
+        matchId: 'aaaaaaaaaaaa', text: 'the mage should hide way sooner and use blink to get out of melee', by: 'Toke', role: 'owner', matchClasses: ['mage'],
+        interpret: async () => ({ effects: [{ key: 'coverHp', dir: 1, said: 'hide sooner', classes: null, strength }], bugs: [], unplaced: [], requests: [{ title: 'Blink out of melee', detail: 'Mages use Blink when a melee enemy is on them' }], understood: 'Hide at higher health and Blink away from melee.' }),
+        fileRequest: async (title) => { filed.push(title); return title; },
+      });
+      const moved = out.report.classes[0]?.moved.find((m: any) => m.key === 'coverHp');
+      return { moved, filed: out.filed, understood: out.understood, listed: filed };
+    };
+    const little = await run(1);
+    const lot = await run(3);
+    assert.ok(Math.abs(lot.moved!.after - lot.moved!.before) > Math.abs(little.moved!.after - little.moved!.before), 'a lot moves it further than a bit');
+    assert.deepEqual(lot.filed, ['Blink out of melee']);
+    assert.equal(lot.understood, 'Hide at higher health and Blink away from melee.');
+  });
+});

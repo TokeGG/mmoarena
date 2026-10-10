@@ -11,7 +11,7 @@ import type { ClassId } from './types';
  */
 
 /** Longest note. */
-export const BOT_NOTE_MAX = 600;
+export const BOT_NOTE_MAX = 2500;
 /** A note counts like this many replays of graded evidence: each mapped number moves NUDGE_STEP of its range times this (botlearn.ts), inside the same step, drift and bound limits. */
 export const NOTE_WEIGHT = 3;
 
@@ -23,6 +23,8 @@ export interface NoteEffect {
   said: string;
   /** The classes the note names for this, or null for every bot class in the match. */
   classes: ClassId[] | null;
+  /** How strongly it was said: 1 slightly, 2 as written, 3 "a lot" (the reading by Ask Claude sets it; a phrase is 2). */
+  strength?: 1 | 2 | 3;
 }
 export interface ParsedNote {
   effects: NoteEffect[];

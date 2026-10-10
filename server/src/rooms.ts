@@ -1315,9 +1315,19 @@ export class Lobby {
     if (!m) return fail('That match is not known any more (replays are kept for 30 days).');
     if (!m.classes.length) return fail('There were no bots in that match, so there is nothing to teach.');
     const ai = this.ai?.enabled ? this.ai : null;
-    const { note, report } = await learner.addNote({ matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec, ...(ai ? { interpret: (t: string) => ai.interpretNote(t, m.classes) } : {}) });
+    const reqs = this.requests;
+    const { note, report, understood, filed } = await learner.addNote({
+      matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec,
+      ...(ai ? { interpret: (t: string) => ai.interpretNote(t, m.classes) } : {}),
+      // a behaviour no number covers goes in as a change request that Claude builds, exactly as the writer asked
+      ...(reqs ? { fileRequest: async (title: string, detail: string) => {
+        const r = await reqs.file(by, 'bots', { title: `Bots: ${title}`, wants: detail, current: 'The bots do not do this.', proposed: detail, acceptance: [`Bots do this: ${detail.slice(0, 200)}`, 'The per-spec bot test in shared/test/builds.test.ts passes'], affects: ['shared/src/bot.ts'], needsCode: 'The bot behaviour is in shared/src/bot.ts.' }, []);
+        return r.ok ? title : null;
+      } } : {}),
+    });
     void this.adminLog?.add(by, 'note for the bots', msg.id, `"${msg.text.slice(0, 160)}": ${report.headline.slice(0, 200)}${note.bugs.length ? ` (${note.bugs.length} bug${note.bugs.length === 1 ? '' : 's'} reported)` : ''}`);
-    send(p, { t: 'bot_note_ack', id: msg.id, ok: true, text: report.headline, lines: formatReport(report), unmapped: note.unmapped, bug: note.bugs.length > 0 });
+    const extra = [...(understood ? [`How I read it: ${understood}`] : []), ...filed.map((t) => `Sent to requests (Claude will write it): ${t}`)];
+    send(p, { t: 'bot_note_ack', id: msg.id, ok: true, text: report.headline, lines: [...extra, ...formatReport(report)], unmapped: note.unmapped, bug: note.bugs.length > 0 });
     for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
   }
 

@@ -497,17 +497,25 @@ export class BotLearner {
    * through the same room, step and bound limits, so the bots actually try it against people. What reports a bug goes to the bug
    * list; what cannot be placed is handed back. Always writes a report (source 'note') so "What was learned" shows its effect.
    */
-  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number; /** Reads a note the phrase list could not place (Ask Claude): the moves, the bugs and what it still could not place. */ interpret?: (text: string) => Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[] } | null> }): Promise<{ note: NoteInfo; report: LearnReport }> {
+  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number; /** Reads a note the phrase list could not place (Ask Claude): the moves, the bugs and what it still could not place. */ interpret?: (text: string) => Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[]; requests?: { title: string; detail: string }[]; understood?: string } | null>; /** Files something no brain number can do as a change request (Claude builds it); resolves with the title it was filed under, or null. */ fileRequest?: (title: string, detail: string) => Promise<string | null> }): Promise<{ note: NoteInfo; report: LearnReport; understood?: string; filed: string[] }> {
     await this.ready;
     let parsed = parseNote(o.text);
-    if (o.interpret && (parsed.unmapped.length || !parsed.effects.length)) {
+    let understood: string | undefined;
+    const filed: string[] = [];
+    if (o.interpret) {
       const read = await o.interpret(o.text).catch(() => null);
       if (read) {
         const fresh = read.effects.filter((e) => !parsed.effects.some((x) => x.key === e.key && x.dir === e.dir));
         parsed = { effects: [...parsed.effects, ...fresh], conflicts: parsed.conflicts, bugs: [...parsed.bugs, ...read.bugs], unmapped: read.unplaced };
+        understood = read.understood;
+        // what no brain number can do becomes a change request: Claude writes it and it comes back as a pull request
+        for (const r of read.requests ?? []) {
+          const title = await o.fileRequest?.(r.title, r.detail).catch(() => null);
+          if (title) filed.push(title);
+        }
       }
     }
-    const wanted = new Map<ClassId, Map<keyof Brain, { dir: 1 | -1; said: string }>>();
+    const wanted = new Map<ClassId, Map<keyof Brain, { dir: 1 | -1; said: string; strength: number }>>();
     const conflicts = [...parsed.conflicts];
     for (const e of parsed.effects) {
       for (const c of e.classes ?? o.matchClasses) {
@@ -518,7 +526,7 @@ export class BotLearner {
         if (have && have.dir !== e.dir) {
           m.delete(e.key);
           conflicts.push(`"${have.said}" and "${e.said}" ask for opposite things about ${c} bots`);
-        } else if (!have) m.set(e.key, { dir: e.dir, said: e.said });
+        } else if (!have) m.set(e.key, { dir: e.dir, said: e.said, strength: e.strength ?? 2 });
       }
     }
     const asked: NoteInfo['asked'] = [];
@@ -536,10 +544,11 @@ export class BotLearner {
       const brain = { ...before };
       const why = new Map<keyof Brain, string>();
       const notes: string[] = [];
-      for (const [k, { dir, said }] of want) {
+      for (const [k, { dir, said, strength }] of want) {
         const [bl, bh] = BRAIN_BOUNDS[k];
         const span = bh - bl;
-        const step = Math.min(NUDGE_STEP * span * NOTE_WEIGHT, STEP_LIMIT * span) * dir;
+        const str = strength / 2; // "slightly" is half a step, "a lot" one and a half
+        const step = Math.min(NUDGE_STEP * span * NOTE_WEIGHT * str, STEP_LIMIT * span * Math.max(1, str)) * dir;
         for (let attempt = 0; attempt < 2; attempt++) {
           const r = room[k] ?? DRIFT_LIMIT;
           const allowLo = Math.max(bl, shipped[k] - r * span);
@@ -591,7 +600,7 @@ export class BotLearner {
     this.saveList(NOTES_KEY, this.notes);
     for (const frag of parsed.bugs) this.bugs = [{ id: randomBytes(6).toString('hex'), matchId: o.matchId, at, by: o.by, text: frag, fixed: false }, ...this.bugs].slice(0, BUGS_MAX);
     if (parsed.bugs.length) this.saveList(BUGS_KEY, this.bugs);
-    return { note, report };
+    return { note, report, ...(understood ? { understood } : {}), filed };
   }
 
   /** Where the bots' learning stands, for the Bot training tab: matches studied, whether the store keeps them, per-class results against people. */
