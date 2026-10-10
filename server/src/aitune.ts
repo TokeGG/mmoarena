@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
-import { ABILITIES, CLASSES, SPECS, TALENTS, currentValue, entryFor, mergePatches, skillInfo, validPatch } from '@arena/shared';
+import { ABILITIES, BRAIN_WORDS, CLASSES, CLASS_IDS, SPECS, TALENTS, currentValue, entryFor, mergePatches, skillInfo, validPatch } from '@arena/shared';
+import type { Brain, ClassId as NoteClassId, NoteEffect } from '@arena/shared';
 import type { ChatTurn, ClassId, DataPatch } from '@arena/shared';
 
 export interface AiTuneEnv {
@@ -232,6 +233,60 @@ export class AiTune {
 
   private nextId(): string {
     return (Date.now() + this.seq++).toString(36) + Math.random().toString(36).slice(2, 5);
+  }
+
+  /**
+   * A note for the bots in the developer's own words (see shared/src/botnote.ts, whose phrase list only knows fixed wordings):
+   * Claude reads it and says which brain numbers it asks to move and which way, which parts report a broken thing (no number
+   * fixes that) and which it could not place. Nothing here changes a bot: the caller feeds the moves to the same lesson
+   * pipeline a phrase note uses. Null when Ask Claude is off or could not answer, and the phrase reading stands alone.
+   */
+  async interpretNote(text: string, classes: NoteClassId[]): Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[] } | null> {
+    if (!this.messages) return null;
+    const keys = Object.keys(BRAIN_WORDS) as (keyof Brain)[];
+    const system = [
+      'A developer wrote a note about how the computer-controlled players (bots) played a match in a WoW-style arena game. Turn it into moves of the bots\' brain numbers.',
+      'Each brain number has a key, what it controls, what "up" means and what "down" means:',
+      ...keys.map((k) => `- ${k}: ${BRAIN_WORDS[k].what}. up = ${BRAIN_WORDS[k].up}. down = ${BRAIN_WORDS[k].down}.`),
+      `The bots in that match were: ${classes.join(', ') || 'none'}. Name a class in an effect only when the note names it (otherwise leave classes empty: it applies to all of them).`,
+      'Rules: only use the keys above; a move is "up" or "down", never a number. Choose the key that best matches what went wrong, and at most 6 moves. "said" is the words of the note that asked for it, short. A part that reports something broken (stuck, frozen, spinning, walking into a wall, hitting through the floor) is a bug: put it in "bugs" and make no move for it. A part you cannot place on any key goes in "unplaced". Never invent a key. Reply in the language of the note for "said", "bugs" and "unplaced".',
+    ].join('\n');
+    const schema = {
+      type: 'object',
+      properties: {
+        effects: { type: 'array', items: { type: 'object', properties: { key: { type: 'string', enum: keys }, dir: { type: 'string', enum: ['up', 'down'] }, said: { type: 'string' }, classes: { type: 'array', items: { type: 'string', enum: [...CLASS_IDS] } } }, required: ['key', 'dir', 'said', 'classes'], additionalProperties: false } },
+        bugs: { type: 'array', items: { type: 'string' } },
+        unplaced: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['effects', 'bugs', 'unplaced'],
+      additionalProperties: false,
+    };
+    let msg: Anthropic.Beta.Messages.BetaMessage;
+    try {
+      msg = await this.messages.create({
+        model: this.model,
+        max_tokens: 2000,
+        system,
+        output_config: { effort: 'low', format: { type: 'json_schema', schema } },
+        messages: [{ role: 'user', content: text.slice(0, 600) }],
+      } as any);
+    } catch {
+      return null;
+    }
+    if (msg.stop_reason === 'refusal') return null;
+    try {
+      const raw = JSON.parse(msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')) as { effects?: { key?: string; dir?: string; said?: string; classes?: string[] }[]; bugs?: unknown; unplaced?: unknown };
+      const effects: NoteEffect[] = [];
+      for (const e of Array.isArray(raw.effects) ? raw.effects.slice(0, 6) : []) {
+        if (!e || typeof e.key !== 'string' || !(keys as string[]).includes(e.key) || (e.dir !== 'up' && e.dir !== 'down')) continue;
+        const named = (Array.isArray(e.classes) ? e.classes : []).filter((c): c is NoteClassId => (CLASS_IDS as readonly string[]).includes(c));
+        effects.push({ key: e.key as keyof Brain, dir: e.dir === 'up' ? 1 : -1, said: String(e.said ?? '').slice(0, 120), classes: named.length ? named : null });
+      }
+      const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 160)).slice(0, 6) : []);
+      return { effects, bugs: list(raw.bugs), unplaced: list(raw.unplaced) };
+    } catch {
+      return null;
+    }
   }
 
   /** One message of the dev; the answer is a set of questions, changes, a change request or a reply. */

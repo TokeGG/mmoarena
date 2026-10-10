@@ -28,7 +28,7 @@ describe('Look window sections', () => {
   it('groups options under their headings, keeping the order', () => {
     const groups = groupsOf(optionsOfSection('hud', LOOK_OPTIONS));
     assert.equal(groups[0].group, '');
-    assert.deepEqual(groups.map((g) => g.group).slice(1, 4), ['Kill feed', 'Health bars', 'Target']);
+    assert.deepEqual(groups.map((g) => g.group).slice(1, 4), ['Kill feed', 'DPS meter', 'Health bars']);
     assert.equal(groups.reduce((n, g) => n + g.options.length, 0), optionsOfSection('hud', LOOK_OPTIONS).length);
   });
 

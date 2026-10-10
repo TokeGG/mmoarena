@@ -27,6 +27,7 @@ export const LOOK_OPTIONS: LookOption[] = [
   { id: 'log', label: 'Combat log', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'help', label: 'Help text', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   { id: 'killfeed', label: 'Kill feed', group: 'Kill feed', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
+  { id: 'dpsmeter', label: 'DPS meter', group: 'DPS meter', choices: [['show', 'Shown'], ['hide', 'Hidden']] },
   // health bars on your frames, the target's, party and enemies
   { id: 'barHeight', label: 'Health bar height', group: 'Health bars', choices: [['thin', 'Thin'], ['normal', 'Normal'], ['thick', 'Thick'], ['huge', 'Huge']] },
   { id: 'allyColor', label: 'Ally health colour', group: 'Health bars', choices: [['green', 'Green'], ['blue', 'Blue'], ['teal', 'Teal'], ['gold', 'Gold']] },
@@ -75,7 +76,7 @@ const DEFAULTS: Record<string, string> = {
   bar: 'smooth', hpText: 'value', hpColor: 'team', portrait: 'left', slots: 'rounded', slotSize: 'md', keys: 'show', names: 'show', cast: 'classic', log: 'show', help: 'show',
   barHeight: 'normal', allyColor: 'green', enemyColor: 'red', hpFont: 'md',
   targetArrow: 'arrow', targetColor: 'auto', targetSize: 'md', targetAnim: 'bob', targetRing: 'normal', targetBars: 'glow',
-  killfeed: 'show',
+  killfeed: 'show', dpsmeter: 'show',
   errSize: 'lg', errColor: 'auto', errBold: 'bold', errOutline: 'strong', errPlate: 'none', errTime: '1.8', errAnim: 'pop', errRepeat: 'hold',
   ccSize: 'lg', ccColor: 'auto', ccBold: 'bold', ccOutline: 'soft', ccPlate: 'pill', ccAnim: 'pulse',
   netSize: 'md', netColor: 'auto', netPlate: 'plate',

@@ -4,7 +4,7 @@ import { gunzip as gunzipCb, gzip as gzipCb } from 'node:zlib';
 import { cpus } from 'node:os';
 import { Worker } from 'node:worker_threads';
 import { BRAIN_BOUNDS, CLASS_IDS, NOTE_WEIGHT, describeVariant, parseNote, plainClassMoves, variantLabel, playersEntry, roundBrain, MISTAKE_LABELS, brainDiff, mistakeLines, brainFor, buildReport, contentHash, forcedStudy, freshenPopulation, lessonBrain, limitChange, mergeLessons, mergeStyle, newPopulation, pickVariant, readReplay, recordResult, sanityClamp, styledBrain, sumLines } from '@arena/shared';
-import type { BotBug, BotTest, Brain, ClassId, ClassKnowledge, NoteInfo, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, LiveLearning, Population, PlayersFile, ReplayData, StudyOptions } from '@arena/shared';
+import type { BotBug, BotTest, Brain, ClassId, ClassKnowledge, NoteEffect, NoteInfo, ClassReport, CountLine, HumanStyle, LearnReport, LearnSource, Lessons, LiveLearning, Population, PlayersFile, ReplayData, StudyOptions } from '@arena/shared';
 import type { Store } from './store';
 
 const gzip = promisify(gzipCb);
@@ -497,9 +497,16 @@ export class BotLearner {
    * through the same room, step and bound limits, so the bots actually try it against people. What reports a bug goes to the bug
    * list; what cannot be placed is handed back. Always writes a report (source 'note') so "What was learned" shows its effect.
    */
-  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number }): Promise<{ note: NoteInfo; report: LearnReport }> {
+  async addNote(o: { matchId: string; text: string; by: string; role: 'owner' | 'dev'; matchClasses: ClassId[]; liveSec?: number; /** Reads a note the phrase list could not place (Ask Claude): the moves, the bugs and what it still could not place. */ interpret?: (text: string) => Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[] } | null> }): Promise<{ note: NoteInfo; report: LearnReport }> {
     await this.ready;
-    const parsed = parseNote(o.text);
+    let parsed = parseNote(o.text);
+    if (o.interpret && (parsed.unmapped.length || !parsed.effects.length)) {
+      const read = await o.interpret(o.text).catch(() => null);
+      if (read) {
+        const fresh = read.effects.filter((e) => !parsed.effects.some((x) => x.key === e.key && x.dir === e.dir));
+        parsed = { effects: [...parsed.effects, ...fresh], conflicts: parsed.conflicts, bugs: [...parsed.bugs, ...read.bugs], unmapped: read.unplaced };
+      }
+    }
     const wanted = new Map<ClassId, Map<keyof Brain, { dir: 1 | -1; said: string }>>();
     const conflicts = [...parsed.conflicts];
     for (const e of parsed.effects) {

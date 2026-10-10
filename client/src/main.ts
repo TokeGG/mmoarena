@@ -39,6 +39,7 @@ import { ToolsWindow } from './toolsWindow';
 import { designer } from './designer';
 import { AnnounceBanner } from './announce';
 import { KillFeed } from './killfeed';
+import { DpsMeter } from './dpsMeter';
 import { Recap } from './recap';
 import { botTests } from './botTestState';
 import { handleNoteAck, noteBox } from './botNoteUi';
@@ -162,6 +163,7 @@ const endChoice = (() => {
 })();
 let latest: Snapshot | null = null;
 const killFeed = new KillFeed();
+const dpsMeter = new DpsMeter();
 const recap = new Recap();
 const recapCard = new RecapCard();
 let recapPhase = '';
@@ -631,6 +633,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     netStats.delayMs = interpDelay.delay;
   }
   devPanel.feed(events as never, snap.time);
+  dpsMeter.feed(events, snap.time);
   if (spec && (!snap.units.some((u) => u.id === you) || you === 0)) {
     const first = snap.units.find((u) => u.team === 0) ?? snap.units[0];
     if (first) setFollow(first.id, snap);
@@ -681,6 +684,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     if (snap.phase === 'prep') {
       recap.reset();
       killFeed.clear();
+      dpsMeter.reset();
       recapCard.hide();
       recapExact = true;
     }
@@ -689,6 +693,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     recapPhase = snap.phase;
   }
   recap.setUnits(snap.units);
+  dpsMeter.paint(snap.units, you, spec ? null : team);
   const unitOf = (id: number) => snap.units.find((u) => u.id === id);
   for (const ev of events) {
     recap.add(ev);
@@ -1442,6 +1447,7 @@ const spectateBar = new SpectateBar({
     snaps.length = 0;
     recap.reset();
     killFeed.clear();
+    dpsMeter.reset();
     recapCard.hide();
     recapExact = tick <= 0;
     onSnapshot(spec.runner.snapshot(), []);
@@ -1572,6 +1578,7 @@ function cycleFollow(dir: 1 | -1) {
 function resetRecap() {
   recap.reset();
   killFeed.clear();
+  dpsMeter.reset();
   recapCard.hide();
   recapPhase = '';
   recapExact = true;

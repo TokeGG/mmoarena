@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.43",
+  "date": "2026-10-10",
+  "at": "2026-10-10T02:48:49Z",
+  "title": "DPS meter and raid marks",
+  "changes": [
+   "A DPS meter in the corner shows who deals the most damage and who heals. Move or hide it in the HUD editor and the Look window.",
+   "Bots follow your raid marks: put a skull on an enemy and your bot teammates go for it first, then the cross."
+  ]
+ },
+ {
   "version": "0.69.42",
   "date": "2026-10-10",
   "at": "2026-10-10T01:52:40Z",

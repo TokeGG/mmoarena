@@ -89,6 +89,8 @@ export class ArenaSim {
   private rng: () => number;
   /** Milliseconds per step, and per step in seconds. */
   readonly tickMs: number;
+  /** Raid marks per team (unit id -> mark 1-8, see MARKS), set by the room when a player marks someone. Only the bots read them, so they are not part of the state a replay needs. */
+  raidMarks = new Map<TeamId, Map<number, number>>();
   private readonly dt: number;
   /** The tick-count form of the input queue limits and of the lag compensation history (see INPUT_QUEUE_MS), worked out once from tickMs. */
   readonly limits: { queue: number; repeat: number; catchDepth: number; catchMax: number; credit: number; history: number };
