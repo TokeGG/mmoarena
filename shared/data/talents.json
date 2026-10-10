@@ -73,7 +73,7 @@
         {
           "id": "warrior_t2b",
           "name": "Iron Constitution",
-          "desc": "+10% maximum health.",
+          "desc": "+15% maximum health.",
           "icon": "🛡️",
           "mods": {
             "maxHealth": 1.15
@@ -281,7 +281,7 @@
         {
           "id": "warrior_t2b",
           "name": "Iron Constitution",
-          "desc": "+10% maximum health.",
+          "desc": "+15% maximum health.",
           "icon": "🛡️",
           "mods": {
             "maxHealth": 1.15
@@ -484,7 +484,7 @@
         {
           "id": "warrior_t2b",
           "name": "Iron Constitution",
-          "desc": "+10% maximum health.",
+          "desc": "+15% maximum health.",
           "icon": "🛡️",
           "mods": {
             "maxHealth": 1.15
@@ -667,7 +667,7 @@
         {
           "id": "mage_t2a",
           "name": "Quickened Casting",
-          "desc": "Casting time and the global cooldown are 10% shorter.",
+          "desc": "Casting time and the global cooldown are 15% shorter.",
           "icon": "⏩",
           "mods": {
             "castTime": 0.85,
@@ -677,7 +677,7 @@
         {
           "id": "mage_t2b",
           "name": "Hardy Mage",
-          "desc": "+10% maximum health.",
+          "desc": "+20% maximum health.",
           "icon": "❤️",
           "mods": {
             "maxHealth": 1.2
@@ -878,7 +878,7 @@
         {
           "id": "mage_t2a",
           "name": "Quickened Casting",
-          "desc": "Casting time and the global cooldown are 10% shorter.",
+          "desc": "Casting time and the global cooldown are 15% shorter.",
           "icon": "⏩",
           "mods": {
             "castTime": 0.85,
@@ -888,7 +888,7 @@
         {
           "id": "mage_t2b",
           "name": "Hardy Mage",
-          "desc": "+10% maximum health.",
+          "desc": "+20% maximum health.",
           "icon": "❤️",
           "mods": {
             "maxHealth": 1.2
@@ -1076,7 +1076,7 @@
         {
           "id": "mage_t2a",
           "name": "Quickened Casting",
-          "desc": "Casting time and the global cooldown are 10% shorter.",
+          "desc": "Casting time and the global cooldown are 15% shorter.",
           "icon": "⏩",
           "mods": {
             "castTime": 0.85,
@@ -1086,7 +1086,7 @@
         {
           "id": "mage_t2b",
           "name": "Hardy Mage",
-          "desc": "+10% maximum health.",
+          "desc": "+20% maximum health.",
           "icon": "❤️",
           "mods": {
             "maxHealth": 1.2
@@ -1290,7 +1290,7 @@
         {
           "id": "priest_t2a",
           "name": "Quickened Prayer",
-          "desc": "Casting time and the global cooldown are 10% shorter.",
+          "desc": "Casting time and the global cooldown are 20% shorter.",
           "icon": "⏩",
           "mods": {
             "castTime": 0.8,
@@ -1300,7 +1300,7 @@
         {
           "id": "priest_t2b",
           "name": "Healing Light",
-          "desc": "+10% healing.",
+          "desc": "+15% healing.",
           "icon": "✨",
           "mods": {
             "healingDone": 1.15
@@ -1309,7 +1309,7 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage and healing.",
+          "desc": "+10% damage.",
           "icon": "💥",
           "mods": {
             "damageDone": 1.1,
@@ -1473,7 +1473,7 @@
         {
           "id": "priest_t2a",
           "name": "Quickened Prayer",
-          "desc": "Casting time and the global cooldown are 10% shorter.",
+          "desc": "Casting time and the global cooldown are 20% shorter.",
           "icon": "⏩",
           "mods": {
             "castTime": 0.8,
@@ -1483,7 +1483,7 @@
         {
           "id": "priest_t2b",
           "name": "Healing Light",
-          "desc": "+10% healing.",
+          "desc": "+15% healing.",
           "icon": "✨",
           "mods": {
             "healingDone": 1.15
@@ -1492,7 +1492,7 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage and healing.",
+          "desc": "+10% damage.",
           "icon": "💥",
           "mods": {
             "damageDone": 1.1,
@@ -1657,7 +1657,7 @@
         {
           "id": "priest_t2a",
           "name": "Quickened Prayer",
-          "desc": "Casting time and the global cooldown are 10% shorter.",
+          "desc": "Casting time and the global cooldown are 20% shorter.",
           "icon": "⏩",
           "mods": {
             "castTime": 0.8,
@@ -1667,7 +1667,7 @@
         {
           "id": "priest_t2b",
           "name": "Healing Light",
-          "desc": "+10% healing.",
+          "desc": "+15% healing.",
           "icon": "✨",
           "mods": {
             "healingDone": 1.15
@@ -1676,7 +1676,7 @@
         {
           "id": "priest_t2c",
           "name": "Shadow Might",
-          "desc": "+10% damage and healing.",
+          "desc": "+10% damage.",
           "icon": "💥",
           "mods": {
             "damageDone": 1.1,

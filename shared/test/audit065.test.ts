@@ -282,7 +282,7 @@ describe('Bladestorm', () => {
     const at = { ...w.pos };
     sim.useAbility(prot.id, 'reel_in');
     assert.ok(Math.hypot(w.pos.x - at.x, w.pos.z - at.z) < 0.01, 'not dragged');
-    run(sim, 6000);
+    run(sim, 7500); // Bladestorm channels for 7 s
     assert.equal(w.cast, null, 'and it runs its course');
     assert.ok(sim.applyAura(r, w, 'kidney_shot').applied, 'afterwards control works again');
   });
