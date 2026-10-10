@@ -11,7 +11,14 @@ export const MODELS_ID = 'models';
 export type Triple = [number, number, number];
 export interface BoneAdjust { rx: number; ry: number; rz: number; size: number }
 export interface HandData { rot: Triple; pos: Triple; lift: number; out: number }
+/** One body part replaced by a model of the dev's own (a .glb in the server's store), fitted to its bone. */
+export interface PartFit { file: string; x: number; y: number; z: number; rx: number; ry: number; rz: number; scale: number; hide: number }
+export const NEUTRAL_PART: PartFit = { file: '', x: 0, y: 0, z: 0, rx: 0, ry: 0, rz: 0, scale: 1, hide: 1 };
+
 export interface CharacterData {
+  /** A whole replacement body: a rigged .glb made like the game's own models (see DEVELOPING.md). Empty keeps the game's. */
+  body?: { file: string };
+  parts?: Record<string, PartFit>;
   pose?: Record<string, number>;
   style?: Record<string, number>;
   helm?: { top: number; r: number; brow: number };
@@ -20,6 +27,8 @@ export interface CharacterData {
   bones?: Record<string, BoneAdjust>;
 }
 export interface WeaponData {
+  /** A model of the dev's own for this weapon (empty keeps the game's). It is used whole and held where the grip point is at its middle. */
+  file?: string;
   right: HandData;
   left?: HandData;
   mid: number;
@@ -47,6 +56,24 @@ export const BONE_LABEL: Record<string, string> = {
   shoulder_l: 'Shoulder', upperarm_l: 'Upper arm', forearm_l: 'Forearm', hand_l: 'Hand', shoulder_r: 'Shoulder', upperarm_r: 'Upper arm', forearm_r: 'Forearm', hand_r: 'Hand',
   thigh_l: 'Thigh', shin_l: 'Shin', foot_l: 'Foot', thigh_r: 'Thigh', shin_r: 'Shin', foot_r: 'Foot',
 };
+
+/** Uploaded models live in the server's store and are served at /models/custom/<name>. */
+export const CUSTOM_MODEL_RE = /^custom\/[a-z0-9][a-z0-9-]{0,47}\.glb$/;
+export const CUSTOM_MODEL_LIMIT_BYTES = 8_000_000;
+export const isModelFile = (v: unknown): v is string => typeof v === 'string' && (v === '' || CUSTOM_MODEL_RE.test(v));
+let customList: { file: string; label: string }[] = [];
+export const setCustomModels = (l: { file: string; label: string }[]): void => {
+  customList = l.filter((f) => CUSTOM_MODEL_RE.test(f.file));
+};
+export const customModels = (): readonly { file: string; label: string }[] => customList;
+export function modelFileChoices(): { options: string[]; labels: Record<string, string> } {
+  const labels: Record<string, string> = { '': 'The game\'s own' };
+  for (const f of customList) labels[f.file] = `Uploaded: ${f.label}`;
+  return { options: Object.keys(labels), labels };
+}
+
+/** The most readable size (yards) a part of the body is, for fitting an uploaded model: it is scaled to this when first put on. */
+export const PART_SIZE: Record<string, number> = { head: 0.34, neck: 0.18, hand_l: 0.2, hand_r: 0.2, forearm_l: 0.34, forearm_r: 0.34, upperarm_l: 0.36, upperarm_r: 0.36, shoulder_l: 0.3, shoulder_r: 0.3, chest: 0.5, spine: 0.4, hips: 0.4, thigh_l: 0.5, thigh_r: 0.5, shin_l: 0.5, shin_r: 0.5, foot_l: 0.3, foot_r: 0.3 };
 
 export interface ModelField { path: (string | number)[]; label: string; hint?: string; unit: 'deg' | 'yd' | 'x' | 'plain'; min: number; max: number }
 
@@ -109,6 +136,24 @@ export function characterGroups(id: string, data: ModelsFile): ModelGroup[] {
       out.push({ id: `part-${part.title}`, title: part.title, sub: part.sub, fields });
     }
   }
+  if (c.body) out.push({ id: 'body', title: 'Whole body', sub: 'replace the entire character model', fields: [{ ...f([...base, 'body', 'file'], 'Body model', 'plain', 0, 0, 'A rigged .glb made like the game\'s own models (bones named hips, spine, chest, neck, head, shoulder_l...; see DEVELOPING.md). The game keeps its own model until this one has loaded.'), unit: 'plain' }] });
+  if (c.parts) {
+    for (const part of BODY_PARTS.filter((p) => p.bones.some((b) => c.parts![b]))) {
+      const fields: ModelField[] = [];
+      for (const b of part.bones.filter((x) => c.parts![x])) {
+        const lbl = BONE_LABEL[b];
+        const pp = [...base, 'parts', b];
+        fields.push(
+          f([...pp, 'file'], `${lbl}: your own model`, 'plain', 0, 0, 'Pick a model you uploaded. It is fitted to this bone and moves with it.'),
+          f([...pp, 'hide'], `${lbl}: hide the game's own part`, 'plain', 0, 1, 'Cuts away the part of the game\'s model that belongs to this bone, so yours replaces it instead of sitting inside it.'),
+          f([...pp, 'scale'], `${lbl}: size`, 'x', 0.1, 4, 'Times the size it was fitted at: 1 is unchanged, 2 is double.'),
+          f([...pp, 'x'], `${lbl}: slide left / right`, 'yd', -1, 1, 'Yards. Positive is the character\'s left. A nudge is 0.02.'), f([...pp, 'y'], `${lbl}: slide up / down`, 'yd', -1, 1, 'Yards. Positive is up.'), f([...pp, 'z'], `${lbl}: slide forward / back`, 'yd', -1, 1, 'Yards. Positive is forward.'),
+          f([...pp, 'rx'], `${lbl}: tilt forward / back`, 'deg', -180, 180, 'Degrees.'), f([...pp, 'ry'], `${lbl}: turn left / right`, 'deg', -180, 180, 'Degrees.'), f([...pp, 'rz'], `${lbl}: lean sideways`, 'deg', -180, 180, 'Degrees.'),
+        );
+      }
+      out.push({ id: `own-${part.title}`, title: `${part.title}: your own models`, sub: 'replace this part with a model you uploaded', fields });
+    }
+  }
   if (c.cape) out.push({ id: 'cape', title: 'Cape', sub: 'where cape cosmetics hang', fields: CAPE.filter(([k]) => k in c.cape!).map(([k, label, lo, hi]) => f([...base, 'cape', k], label, 'plain', lo, hi)) });
   if (c.wings) out.push({ id: 'wings', title: 'Wings', sub: 'where wing cosmetics grow', fields: WINGS.filter(([k]) => k in c.wings!).map(([k, label, lo, hi]) => f([...base, 'wings', k], label, 'plain', lo, hi)) });
   return out;
@@ -124,7 +169,7 @@ export function weaponGroups(id: string, data: ModelsFile): ModelGroup[] {
   const w = data.weapons[id];
   if (!w) return [];
   const base = ['weapons', id];
-  const out: ModelGroup[] = [{ id: 'right', title: 'Right hand', sub: 'how it sits in the right hand', fields: hand([...base, 'right'], 'Right hand') }];
+  const out: ModelGroup[] = [{ id: 'model', title: 'Model', sub: 'swap the weapon for a model of your own', fields: [f([...base, 'file'], 'Weapon model', 'plain', 0, 0, 'A .glb you uploaded, used whole: its middle is held in the fist and its long side points where the tip should. Tune the grip below.')] }, { id: 'right', title: 'Right hand', sub: 'how it sits in the right hand', fields: hand([...base, 'right'], 'Right hand') }];
   if (w.left) out.push({ id: 'left', title: 'Left hand', sub: 'the second weapon of a pair', fields: hand([...base, 'left'], 'Left hand') });
   out.push({ id: 'effects', title: 'Cosmetic centre', sub: 'where weapon cosmetics (flames, stars, rings) are centred', fields: [f([...base, 'mid'], 'Centre along the weapon', 'yd', -1, 3, 'Yards from the grip.')] });
   if (w.hold) out.push({ id: 'hold', title: 'Two hands on it', sub: 'how both arms carry it', fields: [

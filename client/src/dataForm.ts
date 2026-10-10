@@ -24,11 +24,11 @@ const QUICK: [string, string, () => Record<string, unknown>][] = [
   ['shield', 'Shield', () => ({ ...effectSkeleton('shield'), amount: 300, duration: 8000, self: true })],
   ['reduction', 'Damage reduction', () => ({ ...effectSkeleton('reduction'), pct: 0.2, duration: 4000, self: true })],
   ['knockback', 'Knockback', () => effectSkeleton('knockback')],
-  ['stun', 'Stun', () => ({ type: 'aura', aura: 'concussion_stun', duration: 2000 })],
-  ['root', 'Root', () => ({ type: 'aura', aura: 'frostbolt_root', duration: 3000 })],
-  ['slow', 'Slow', () => ({ type: 'aura', aura: 'frostbolt_slow', duration: 4000 })],
-  ['fear', 'Fear', () => ({ type: 'aura', aura: 'psychic_scream', duration: 5000 })],
-  ['incapacitate', 'Incapacitate (breaks on damage)', () => ({ type: 'aura', aura: 'polymorph', duration: 6000 })],
+  ['stun', 'Stun', () => ({ type: 'aura', aura: 'cc_stun', duration: 2000 })],
+  ['root', 'Root', () => ({ type: 'aura', aura: 'cc_root', duration: 3000 })],
+  ['slow', 'Slow', () => ({ type: 'aura', aura: 'cc_slow', duration: 4000 })],
+  ['fear', 'Fear', () => ({ type: 'aura', aura: 'cc_fear', duration: 5000 })],
+  ['incapacitate', 'Incapacitate (breaks on damage)', () => ({ type: 'aura', aura: 'cc_incapacitate', duration: 6000 })],
   ['interrupt', 'Interrupt', () => effectSkeleton('interrupt')],
   ['dispel', 'Dispel', () => effectSkeleton('dispel')],
   ['aura', 'Other buff / debuff…', () => effectSkeleton('aura')],
@@ -217,7 +217,16 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
       const title = isObj(item) && typeof item.type === 'string' ? `${EFFECT_NAMES[item.type] ?? nice(item.type)}${typeof item.aura === 'string' ? `: ${AURAS[item.aura]?.name ?? item.aura}` : ''}` : `${nice(k)} ${i + 1}`;
       head.append(el('b', '', k === 'effects' ? `Effect ${i + 1}: ${title}` : title), remove(() => { a.splice(i, 1); structural(); }, 'Remove'));
       row.append(head);
-      if (isObj(item)) row.append(drawObject(item, [...path, String(i)]));
+      if (isObj(item) && k === 'effects' && typeof item.aura === 'string' && item.aura.startsWith('cc_')) {
+        // a plain crowd control: just how long it lasts; the aura's own type and extra fields stay behind "More options"
+        const holder = el('div', 'dform-val');
+        drawValue(holder, item, 'duration', [...path, String(i)]);
+        const lab = el('label', 'dform-field');
+        lab.append(el('span', '', 'Lasts '), holder);
+        const more = el('details', 'dform-more');
+        more.append(el('summary', '', 'More options'), drawObject(item, [...path, String(i)]));
+        row.append(lab, more);
+      } else if (isObj(item)) row.append(drawObject(item, [...path, String(i)]));
       else {
         const holder = el('div', 'dform-val');
         drawValue(holder, a, i, path);

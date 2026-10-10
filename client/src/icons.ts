@@ -32,7 +32,7 @@ export const AURA_ICON: Record<string, string> = {
   arcane_charge: '🔮', dragons_breath: '🐉', evocation: '🧘', hot_streak: '🔥', singed: '🕯️', cauterized: '🧯', burn: '♨️', deep_freeze_stun: '⛄',
   mortal_wounds: '🩸', mind_flay_slow: '🧿', mind_slow: '💭', hammer_stun: '🌩️', judgment_stun: '⚖️', creeping_rot: '☠️', plague_bloom: '🦠', plague_ready: '🧫',
   trinket_shield: '🔰', gouge: '👁️', sap: '🪵', banner_buff: '🏴', rune_of_power: '🔯', purified: '🕊️', ascended: '☁️', defensive_heal: '🧡', mind_controlling: '👁️‍🗨️', mind_controlled: '🪆', shield: '🫧', damage_reduction: '🏰', protective_vanish: '🌑',
-  intercept_guard: '🤝', renew: '🌿', penance_barrier: '🔆',
+  intercept_guard: '🤝', renew: '🌿', penance_barrier: '🔆', cc_stun: '😵‍💫', cc_root: '🪴', cc_slow: '🐌', cc_fear: '👻', cc_incapacitate: '💤',
 };
 
 export const CLASS_ICON: Record<ClassId, string> = { warrior: '⚔️', mage: '🔮', priest: '✝️', rogue: '🗡️' };

@@ -28,6 +28,8 @@ type Mode = 'stand' | 'walk' | 'run' | 'swing' | 'cast' | 'jump';
 const MODES: [Mode, string][] = [['stand', 'Stand'], ['walk', 'Walk'], ['run', 'Run'], ['swing', 'Swing'], ['cast', 'Cast'], ['jump', 'Jump']];
 const SLOTS: [string, string][] = [['head', 'Head'], ['back', 'Back'], ['wings', 'Wings'], ['weapon', 'Weapon glow']];
 const KEY = 'arena.modelwin.v1';
+/** The weapons to try on the model (each with the class that carries it), chosen in the window whatever page is open. */
+const WEAPONS: [string, string, ClassId][] = [['', 'Default weapon', 'warrior'], ['dual', 'Dual blades', 'warrior'], ['twohand', 'Two-handed sword', 'warrior'], ['polearm', 'Polearm', 'warrior'], ['daggers', 'Daggers', 'rogue'], ['fire_staff', 'Fire staff', 'mage'], ['ice_staff', 'Ice staff', 'mage'], ['arcane_staff', 'Arcane staff', 'mage'], ['holy_staff', 'Holy staff', 'priest'], ['necro_staff', 'Necro staff', 'priest']];
 
 /** What every picture of the window shares, so they turn and move together. */
 interface Shared {
@@ -176,6 +178,61 @@ class ModelView {
     r.render(this.scene, this.camera);
   }
 
+  /** The pivot a weapon hangs on in this hand (weaponModels.ts names its pivots and marks the hand). */
+  private pivotOf(hand: 'right' | 'left'): THREE.Object3D | null {
+    let found: THREE.Object3D | null = null;
+    this.char?.root.traverse((o) => {
+      if (!found && o.userData.hand === hand && o.name.startsWith('weapon:')) found = o;
+    });
+    return found;
+  }
+
+  /** Is there a weapon in this hand to move? */
+  hasHand(hand: 'right' | 'left'): boolean {
+    return !!this.pivotOf(hand);
+  }
+
+  /**
+   * Move or turn the weapon in a hand by a drag of the mouse, as seen from this picture's camera: `slide` moves it across the
+   * view (with shift: towards or away from the viewer), `turn` swings it about the view's up and sideways axes (with shift: rolls it
+   * about the line of sight). Returns the new numbers the game keeps (slide in yards from the fist, turn in degrees), or null.
+   */
+  dragWeapon(s: Shared, hand: 'right' | 'left', mode: 'slide' | 'turn', dx: number, dy: number, shift: boolean): { pos: number[]; rot: number[] } | null {
+    const p = this.pivotOf(hand);
+    const par = p?.parent;
+    if (!p || !par) return null;
+    p.updateWorldMatrix(true, false);
+    this.camera.updateMatrixWorld();
+    const e = this.camera.matrixWorld.elements;
+    const right = new THREE.Vector3(e[0], e[1], e[2]);
+    const up = new THREE.Vector3(e[4], e[5], e[6]);
+    const back = new THREE.Vector3(e[8], e[9], e[10]);
+    const grip = (p.userData.grip as THREE.Vector3 | undefined) ?? new THREE.Vector3();
+    const pos = p.position.clone();
+    const quat = p.quaternion.clone();
+    if (mode === 'slide') {
+      const k = (2 * Math.tan((18 * Math.PI) / 180) * s.dist) / Math.max(1, this.canvas.clientHeight);
+      const d = shift ? back.multiplyScalar(dy * k) : right.multiplyScalar(dx * k).add(up.multiplyScalar(-dy * k));
+      const w0 = new THREE.Vector3().setFromMatrixPosition(p.matrixWorld);
+      pos.add(par.worldToLocal(w0.clone().add(d)).sub(par.worldToLocal(w0.clone())));
+    } else {
+      const qd = new THREE.Quaternion();
+      if (shift) qd.setFromAxisAngle(back, -dx * 0.012);
+      else qd.setFromAxisAngle(up, dx * 0.012).multiply(new THREE.Quaternion().setFromAxisAngle(right, dy * 0.012));
+      const pq = par.getWorldQuaternion(new THREE.Quaternion());
+      quat.premultiply(pq.clone().invert().multiply(qd).multiply(pq));
+    }
+    p.position.copy(pos); // at once, so the next bit of the drag builds on this one before the picture is rebuilt
+    p.quaternion.copy(quat);
+    const aim = (p.userData.aim as THREE.Quaternion | undefined) ?? new THREE.Quaternion();
+    const eq = aim.clone().invert().multiply(quat);
+    const eu = new THREE.Euler().setFromQuaternion(eq, 'XYZ');
+    const r3 = (n: number) => Math.round(n * 1000) / 1000;
+    const r1 = (n: number) => Math.round(n * 10) / 10;
+    const dg = (n: number) => (n * 180) / Math.PI;
+    return { pos: [r3(pos.x - grip.x), r3(pos.y - grip.y), r3(pos.z - grip.z)], rot: [r1(dg(eu.x)), r1(dg(eu.y)), r1(dg(eu.z))] };
+  }
+
   dispose(): void {
     this.renderer?.dispose();
     this.renderer = null;
@@ -194,6 +251,63 @@ export class ModelWindow {
   private raf = 0;
   private running = false;
   private last = 0;
+  /** Set by the Models page while a weapon is on show: writes the numbers a drag made (final: the drag is over). */
+  private weaponEdit: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null = null;
+  private moveOn = false;
+  private editWeapon = '';
+  private weaponPicked = false;
+  private weaponSel = document.createElement('select');
+  private moveMode: 'slide' | 'turn' = 'slide';
+  private hand: 'right' | 'left' = 'right';
+  private moveBox = el('div', 'mwin-move');
+
+  /** Offer (or take away) dragging the weapon in the picture; the page gives the function that saves what the drag made. */
+  setWeaponEdit(fn: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null, weapon = ''): void {
+    this.weaponEdit = fn;
+    this.editWeapon = weapon;
+    if (!fn) this.moveOn = false;
+    this.paintMove();
+  }
+
+  private paintMove(): void {
+    const b = this.moveBox;
+    b.replaceChildren();
+    b.style.display = this.weaponEdit ? 'flex' : 'none';
+    if (!this.weaponEdit) return;
+    if ((this.s.spec.weapon ?? '') !== this.editWeapon) {
+      b.append(el('small', 'devp-dim', `Pick ${this.editWeapon.replace(/_/g, ' ')} in the weapon list to move it by hand.`));
+      return;
+    }
+    const on = el('button', `mm-small${this.moveOn ? ' on' : ''}`, '✋ Move the weapon');
+    on.title = 'Drag the weapon in the left picture: it moves with the mouse and the numbers are saved as you let go.';
+    on.addEventListener('click', () => {
+      this.moveOn = !this.moveOn;
+      this.paintMove();
+    });
+    b.append(on);
+    if (!this.moveOn) return;
+    const mode = (m: 'slide' | 'turn', label: string, tip: string) => {
+      const x = el('button', `mm-small${this.moveMode === m ? ' on' : ''}`, label);
+      x.title = tip;
+      x.addEventListener('click', () => {
+        this.moveMode = m;
+        this.paintMove();
+      });
+      return x;
+    };
+    b.append(mode('slide', 'Slide', 'Drag to slide it across the view; hold Shift to push it towards or away from you.'), mode('turn', 'Turn', 'Drag to swing it about; hold Shift and drag sideways to roll it about its own length.'));
+    if (this.now.hasHand('left')) {
+      for (const h of ['right', 'left'] as const) {
+        const x = el('button', `mm-small${this.hand === h ? ' on' : ''}`, h === 'right' ? 'Right hand' : 'Left hand');
+        x.addEventListener('click', () => {
+          this.hand = h;
+          this.paintMove();
+        });
+        b.append(x);
+      }
+    } else this.hand = 'right';
+    b.append(el('small', 'devp-dim', this.moveMode === 'slide' ? 'drag the weapon · Shift: nearer / farther' : 'drag to swing · Shift: roll'));
+  }
 
   constructor() {
     const style = document.createElement('style');
@@ -208,6 +322,7 @@ export class ModelWindow {
 .mwin-tag{position:absolute;left:8px;top:6px;padding:2px 8px;border-radius:10px;background:rgba(0,0,0,.55);font-size:12px;pointer-events:none}
 .mwin-anim{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 8px;flex:none;border-top:1px solid #2c2638;background:#181424}.mwin-anim small{color:#a99cc4}
 .mwin.dropping{outline:3px dashed #b58cff;outline-offset:-6px}
+.mwin-move{display:none;flex-wrap:wrap;gap:5px;align-items:center;padding:5px 8px;flex:none;border-bottom:1px solid #2c2638;background:#1b1530}
 .mwin-note{padding:3px 10px;color:#a99cc4;flex:none}`;
     this.root.append(style);
     const bar = el('div', 'mwin-bar');
@@ -228,6 +343,17 @@ export class ModelWindow {
       });
       tools.append(b);
     }
+    const ws = this.weaponSel;
+    ws.title = 'The weapon the model holds here';
+    for (const [id, name] of WEAPONS) ws.append(new Option(name, id));
+    ws.addEventListener('change', () => {
+      const w = WEAPONS.find((x) => x[0] === ws.value)!;
+      this.weaponPicked = true;
+      this.s.spec = { classId: w[2], weapon: w[0] || undefined };
+      this.note.textContent = `${CLASSES[w[2]].name}${w[0] ? ` with ${w[1].toLowerCase()}` : ''}. Changes show as you make them; the right side keeps the original for comparison.`;
+      this.paintMove();
+    });
+    tools.append(ws);
     const spin = el('button', 'mm-small on', '⟳ Turn');
     spin.dataset.spin = '1';
     spin.addEventListener('click', () => {
@@ -258,11 +384,11 @@ export class ModelWindow {
       });
       tools.append(sel);
     }
-    this.root.append(bar, tools, this.panes, this.animBox, this.note);
+    this.root.append(bar, tools, this.moveBox, this.panes, this.animBox, this.note);
     this.paintAnim();
     this.layout();
     this.restoreGeometry();
-    for (const v of [this.now, this.shipped]) this.wire(v.canvas);
+    for (const v of [this.now, this.shipped]) this.wire(v.canvas, v === this.now);
     new ResizeObserver(() => this.saveGeometry()).observe(this.root);
     // an animation file dropped anywhere on the window goes to the motion on show
     this.root.addEventListener('dragover', (e) => {
@@ -341,7 +467,13 @@ export class ModelWindow {
 
   /** What to show (the window opens if it is not open yet). */
   show(spec: PreviewSpec, gear: Record<string, string> = {}): void {
-    this.s.spec = spec;
+    // a weapon picked in the window stays while other pages are looked at; a weapon page shows its own
+    if (spec.weapon || !this.weaponPicked) {
+      this.s.spec = spec;
+      this.weaponPicked = false;
+    }
+    this.weaponSel.value = this.s.spec.weapon ?? '';
+    this.paintMove();
     // the slot a page is about is worn at first (a head page puts a head item on); what was picked by hand stays
     this.s.gear = { ...gear, ...this.s.gear };
     this.root.querySelectorAll<HTMLSelectElement>('select[data-slot]').forEach((sel) => (sel.value = this.s.gear[sel.dataset.slot!] ?? ''));
@@ -426,12 +558,14 @@ export class ModelWindow {
     }
   }
 
-  private wire(c: HTMLCanvasElement): void {
-    let drag: { x: number; y: number; pan: boolean } | null = null;
+  private wire(c: HTMLCanvasElement, editable: boolean): void {
+    let drag: { x: number; y: number; pan: boolean; weapon: boolean } | null = null;
+    let last: { pos: number[]; rot: number[] } | null = null;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
-      drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey };
+      drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey, weapon: editable && this.moveOn && !!this.weaponEdit && e.button === 0 };
+      last = null;
       c.style.cursor = 'grabbing';
       this.s.spin = false;
       this.root.querySelector('button[data-spin]')?.classList.remove('on');
@@ -442,14 +576,22 @@ export class ModelWindow {
       const dy = e.clientY - drag.y;
       drag.x = e.clientX;
       drag.y = e.clientY;
-      if (drag.pan) this.s.lookY = Math.max(0.2, Math.min(2.2, this.s.lookY + dy * 0.004));
+      if (drag.weapon) {
+        const r = this.now.dragWeapon(this.s, this.hand, this.moveMode, dx, dy, e.shiftKey);
+        if (r) {
+          last = r;
+          this.weaponEdit?.(this.hand, r, false);
+        }
+      } else if (drag.pan) this.s.lookY = Math.max(0.2, Math.min(2.2, this.s.lookY + dy * 0.004));
       else {
         this.s.yaw -= dx * 0.01;
         this.s.pitch = Math.max(-0.3, Math.min(1.3, this.s.pitch + dy * 0.006));
       }
     });
     const end = () => {
+      if (drag?.weapon && last) this.weaponEdit?.(this.hand, last, true);
       drag = null;
+      last = null;
       c.style.cursor = 'grab';
     };
     c.addEventListener('pointerup', end);
