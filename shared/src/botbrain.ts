@@ -80,7 +80,7 @@ export interface Brain {
 export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
   coverHp: [0.15, 0.7],
   defHp: [0.25, 0.7],
-  strafe: [0.3, 1], // a bot that never moves is not a player: the learner cannot train these to nothing
+  strafe: [0, 1],
   healerPrio: [0, 45],
   focus: [0, 30],
   killLow: [20, 100],
@@ -88,7 +88,7 @@ export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
   healAt: [0.7, 1.3],
   burstHp: [0.3, 1],
   strafeFlip: [0.6, 3],
-  chase: [0.15, 1],
+  chase: [0, 1],
   panicHp: [0.15, 0.5],
   dangerAt: [0.15, 0.7],
   ccEarly: [0, 1],
@@ -98,7 +98,7 @@ export const BRAIN_BOUNDS: Record<keyof Brain, [number, number]> = {
   jukeAt: [0.2, 0.7],
   kickAt: [0, 0.85],
   losUse: [0, 1],
-  mobility: [0.4, 1],
+  mobility: [0, 1],
   trinketAt: [0, 1],
   burstUse: [0, 1],
   peelAt: [0, 1],
