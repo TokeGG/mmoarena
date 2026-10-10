@@ -317,6 +317,8 @@ export class ArenaScene {
     return m.baseY;
   }
 
+  /** The circle cut in the deck above the viewer (aimed spells ignore the deck inside it and land on the floor). */
+  private hole = { x: 0, z: 0, r: 0 };
   /** The unit the camera follows (hidden while the camera is in first person). */
   followId = -99;
   /** The coloured ring under each unit; off in 1v1, where there is no one to tell apart. */
@@ -344,10 +346,12 @@ export class ArenaScene {
       d = cameraReach(dist, { x: head.x, y: head.y, z: head.z }, { x: offset.x, y: offset.y, z: offset.z }, this.arena.bounds, hits.length ? hits[0].distance : Infinity);
     }
     // the circle's size is the Animations page's (Camera); it only opens further when the camera itself sits above the deck
+    this.hole = { x: fx, z: fz, r: 0 };
     if (under && dk) {
       const camAbove = head.y + offset.y * d > dk.height - DECK_THICKNESS;
       const base = fxNum('deckHole', 'radius');
-      this.env.setHole(fx, fz, base > 0 ? Math.max(base, camAbove ? (d * h + 1.5) * fxNum('deckHole', 'coverCamera') : 0) : 0);
+      this.hole.r = base > 0 ? Math.max(base, camAbove ? (d * h + 1.5) * fxNum('deckHole', 'coverCamera') : 0) : 0;
+      this.env.setHole(fx, fz, this.hole.r);
     } else this.env.setHole(fx, fz, 0);
     const first = d < 1.8; // the camera pressed this close to a wall or pillar becomes first person
     const me = this.meshes.get(this.followId);
@@ -386,7 +390,7 @@ export class ArenaScene {
         const p = { x: o.x + (ground.x - o.x) * t, z: o.z + (ground.z - o.z) * t };
         const y = o.y + (0 - o.y) * t;
         const h = heightAt(this.arena, p.x, p.z, 1);
-        if (h > 0.05 && y <= h && onRaised(this.arena, p.x, p.z)) {
+        if (h > 0.05 && y <= h && onRaised(this.arena, p.x, p.z) && !(this.hole.r > 0 && Math.hypot(p.x - this.hole.x, p.z - this.hole.z) < this.hole.r && this.arena.deck?.ramps.every((r) => !(p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1)))) {
           let q = at(h); // settle on the surface (ramps slope)
           for (let k = 0; k < 3; k++) q = at(heightAt(this.arena, q.x, q.z, 1));
           return onRaised(this.arena, q.x, q.z) ? { ...q, lv: 1 } : { ...p, lv: 1 };

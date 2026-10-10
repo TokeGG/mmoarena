@@ -301,13 +301,20 @@ export class ArenaSim {
    * Lag compensation: `rewindMs` is how far behind the live state the caster's screen was when they pressed the button. Range and facing are judged
    * against where the target stood then (capped at TUNING.maxRewindMs), because that is what the player saw and aimed at.
    */
-  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: Ground | null, rewindMs = 0): Result {
+  useAbility(id: number, abilityId: string, targetId?: number | null, ground?: Ground | null, rewindMs = 0, facing?: number): Result {
     rewindMs = Number.isFinite(rewindMs) ? Math.max(0, Math.min(TUNING.maxRewindMs, Math.round(rewindMs))) : 0;
-    const cmd: SimCommand = [this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs, ...(ground?.lv === 1 ? [1] : [])];
+    const cmd: SimCommand = [this.tickNo, 2, id, abilityId, targetId ?? null, ground ? Math.round(ground.x * 100) / 100 : null, ground ? Math.round(ground.z * 100) / 100 : null, rewindMs, ...(facing !== undefined && Number.isFinite(facing) ? [ground?.lv === 1 ? 1 : 0, Math.round(facing * 1000) / 1000] : ground?.lv === 1 ? [1] : [])];
     if (ground) ground = { x: Math.round(ground.x * 100) / 100, z: Math.round(ground.z * 100) / 100, ...(ground.lv === 1 ? { lv: 1 as const } : {}) };
     const driven = this.drives(id);
     if (driven === null) return fail('you are controlled');
     id = driven;
+    // a cone skill points where the player sees it pointing now, not where their last processed steering left them
+    const caster = this.units.get(id);
+    if (caster && facing !== undefined && Number.isFinite(facing) && ABILITIES[abilityId]?.coneDeg && this.canAct(caster)) {
+      facing = Math.round(facing * 1000) / 1000;
+      caster.facing = facing;
+      caster.lastInput = { ...caster.lastInput, facing };
+    }
     const dropped = this.pending.delete(id); // any new press replaces a held cast
     const r = this.tryUse(id, abilityId, targetId ?? null, ground ?? null, false, rewindMs);
     // a refused press changes nothing (unless it replaced a held cast), so it is left out of the replay: bots press a lot of buttons that fail

@@ -572,7 +572,7 @@ export class Room {
       }
       case 'cast': {
         const rewind = msg.vt !== undefined ? this.sim.time - msg.vt : 0; // how far behind live the player's screen was
-        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z, ...(msg.lv === 1 ? { lv: 1 as const } : {}) } : null, rewind);
+        const r = this.sim.useAbility(id, msg.ability, msg.target, msg.x !== undefined && msg.z !== undefined ? { x: msg.x, z: msg.z, ...(msg.lv === 1 ? { lv: 1 as const } : {}) } : null, rewind, msg.facing);
         if (!r.ok) send(p, { t: 'error', reason: r.reason, ability: msg.ability });
         break;
       }
@@ -1302,6 +1302,19 @@ export class Lobby {
    * A note for the bots from the owner or a dev (see shared/src/botnote.ts): applied to the bots' lesson variant at once, kept
    * with the match, logged. A normal player cannot send one.
    */
+  private noteReads = new Map<string, { at: number; read: ReturnType<AiTune['interpretNote']> }>();
+  /** The reading of a note is made once: what the preview showed is exactly what applying it does. */
+  private readNote(ai: AiTune, matchId: string, text: string, classes: ClassId[]): ReturnType<AiTune['interpretNote']> {
+    const key = `${matchId}|${text}`;
+    const now = this.clock();
+    for (const [k, v] of this.noteReads) if (now - v.at > 600_000) this.noteReads.delete(k);
+    const have = this.noteReads.get(key);
+    if (have) return have.read;
+    const read = ai.interpretNote(text, classes);
+    this.noteReads.set(key, { at: now, read });
+    return read;
+  }
+
   private async botNote(p: Player, msg: Extract<ClientMsg, { t: 'bot_note' }>): Promise<void> {
     if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
     const fail = (text: string) => send(p, { t: 'bot_note_ack', id: msg.id, ok: false, text });
@@ -1315,19 +1328,32 @@ export class Lobby {
     if (!m) return fail('That match is not known any more (replays are kept for 30 days).');
     if (!m.classes.length) return fail('There were no bots in that match, so there is nothing to teach.');
     const ai = this.ai?.enabled ? this.ai : null;
-    const reqs = this.requests;
+    const apply = msg.apply === true;
     const { note, report, understood, filed } = await learner.addNote({
-      matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec,
-      ...(ai ? { interpret: (t: string) => ai.interpretNote(t, m.classes) } : {}),
-      // a behaviour no number covers goes in as a change request that Claude builds, exactly as the writer asked
-      ...(reqs ? { fileRequest: async (title: string, detail: string) => {
-        const r = await reqs.file(by, 'bots', { title: `Bots: ${title}`, wants: detail, current: 'The bots do not do this.', proposed: detail, acceptance: [`Bots do this: ${detail.slice(0, 200)}`, 'The per-spec bot test in shared/test/builds.test.ts passes'], affects: ['shared/src/bot.ts'], needsCode: 'The bot behaviour is in shared/src/bot.ts.' }, []);
-        return r.ok ? title : null;
-      } } : {}),
+      matchId: msg.id, text: msg.text, by, role: p.ownerOk ? 'owner' : 'dev', matchClasses: m.classes, liveSec: m.liveSec, dryRun: !apply,
+      ...(ai ? { interpret: (t: string) => this.readNote(ai, msg.id, t, m.classes) } : {}),
     });
+    // what no brain number can do is listed, never filed as an issue
+    const extra = [...(understood ? [`How I read it: ${understood}`] : []), ...filed.map((t) => `Needs new code, not done: ${t}`)];
+    const lines = [...extra, ...formatReport(report)];
+    if (!apply) return void send(p, { t: 'bot_note_ack', id: msg.id, ok: true, preview: true, text: report.headline, lines, unmapped: note.unmapped, bug: note.bugs.length > 0 });
     void this.adminLog?.add(by, 'note for the bots', msg.id, `"${msg.text.slice(0, 160)}": ${report.headline.slice(0, 200)}${note.bugs.length ? ` (${note.bugs.length} bug${note.bugs.length === 1 ? '' : 's'} reported)` : ''}`);
-    const extra = [...(understood ? [`How I read it: ${understood}`] : []), ...filed.map((t) => `Sent to requests (Claude will write it): ${t}`)];
-    send(p, { t: 'bot_note_ack', id: msg.id, ok: true, text: report.headline, lines: [...extra, ...formatReport(report)], unmapped: note.unmapped, bug: note.bugs.length > 0 });
+    // applied: the new brains go straight to the main branch as one commit (the same one the Commit learned bots button makes)
+    let committed: string | undefined;
+    let tail = '';
+    const dev = this.dev;
+    if (dev?.canOpenPr && (p.ownerOk || this.owns(p, 'commit'))) {
+      try {
+        const data = await learner.exportLive();
+        const r2 = await dev.commitLearnedBots(data, by);
+        learner.markCommitted({ version: r2.version, url: r2.url, matches: r2.matches });
+        committed = r2.url;
+        tail = `Committed to the main branch as patch ${r2.version}.`;
+      } catch (e) {
+        tail = `Applied here, but the commit failed: ${(e as Error).message}`;
+      }
+    } else tail = 'Applied here. It is not committed to the main branch (committing needs the commit power and a GitHub token on the server).';
+    send(p, { t: 'bot_note_ack', id: msg.id, ok: true, text: report.headline, lines: [...lines, tail], unmapped: note.unmapped, bug: note.bugs.length > 0, ...(committed ? { committed } : {}) });
     for (const q of this.panelViewers()) send(q, this.botKnowledgeMsg());
   }
 

@@ -1,7 +1,7 @@
 {
  "deckHole": {
   "radius": 3.5,
-  "coverCamera": 1
+  "coverCamera": 0
  },
  "jump": {
   "legTuck": 1,

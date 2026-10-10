@@ -771,8 +771,8 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       return m;
     };
     const topMat = holeable(M(th.deck.top, { color: th.deck.topTint, roughness: 0.9 }));
-    const stoneMat = holeable(M(th.deck.side, { roughness: 0.95, side: THREE.DoubleSide }));
-    const wedgeMat = holeable(M(th.deck.side, { repeat: [1 / 4, 1 / 4], roughness: 0.95, side: THREE.DoubleSide })); // extruded wedges take their UVs in yards
+    const stoneMat = M(th.deck.side, { roughness: 0.95, side: THREE.DoubleSide }); // piers and ramps stay whole: only the walkway's top is cut away
+    const wedgeMat = M(th.deck.side, { repeat: [1 / 4, 1 / 4], roughness: 0.95, side: THREE.DoubleSide }); // extruded wedges take their UVs in yards
     const railMat = M(th.deck.side, { color: 0xb0a89c, roughness: 0.95 });
     const shadeMat = new THREE.MeshBasicMaterial({ color: 0x0b0a0d, transparent: true, opacity: 0.35, depthWrite: false });
     mats.push(shadeMat);

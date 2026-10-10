@@ -18,6 +18,8 @@ interface Hooks {
   needSignIn(): void;
   /** Your party changed (null: you left or it ended). */
   onParty?(p: PartyInfo | null): void;
+  /** Owner: follow a friend into every match they join. */
+  follow?: { isOwner(): boolean; current(): string | null; set(name: string | null): void };
 }
 
 
@@ -302,6 +304,17 @@ export class FriendsUi {
     rm.addEventListener('click', () => {
       if (confirm(`Remove ${f.name} from your friends?`)) this.hooks.send({ t: 'friend', op: 'remove', name: f.name });
     });
+    const fol = this.hooks.follow;
+    if (fol?.isOwner() && f.status !== 'offline') {
+      const on = fol.current()?.toLowerCase() === f.name.toLowerCase();
+      const follow = el('button', `mm-small${on ? ' mm-go' : ''}`, on ? 'Following' : 'Follow');
+      follow.title = on ? `Stop following ${f.name}` : `Join ${f.name} in every match they play, as a spectator`;
+      follow.addEventListener('click', () => {
+        fol.set(on ? null : f.name);
+        window.setTimeout(() => this.hooks.send({ t: 'friends' }), 300); // repaint the button with the new state
+      });
+      row.append(follow);
+    }
     row.append(party, duel, rm);
     return row;
   }

@@ -149,7 +149,7 @@ export type ClientMsg =
   | { t: 'target'; id: number | null }
   /** Round-trip probe: the server answers at once with a `pong` carrying the same `n`. */
   | { t: 'ping'; n: number }
-  | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number; /** 1 when the point is on top of a walkway (the aim hit the deck, not the ground under it). */ lv?: 1; /** Sim time of the frame the player was looking at, so the server can judge range against what they saw. */ vt?: number }
+  | { t: 'cast'; ability: string; target?: number | null; /** Ground-targeted spells: the point under the cursor. */ x?: number; z?: number; /** 1 when the point is on top of a walkway (the aim hit the deck, not the ground under it). */ lv?: 1; /** Sim time of the frame the player was looking at, so the server can judge range against what they saw. */ vt?: number; /** Cone skills (Dragon's Breath, Sweep): the way the player faces right now, so the cone is where they see it even when their latest steering has not been processed yet. */ facing?: number }
   | { t: 'auto'; on: boolean }
   /** The auto-attack setting: `off` stops it from ever starting. */
   | { t: 'autoOff'; off: boolean }
@@ -205,7 +205,7 @@ export type ClientMsg =
   /** Dev tools: start the match over with the same builds (everyone back at the start, full health, live at once). */
   | { t: 'dev_restart' }
   /** Owner or dev: a note for the bots about a match (a live one, or a finished one by its match id); see botnote.ts. */
-  | { t: 'bot_note'; id: string; text: string; live?: boolean }
+  | { t: 'bot_note'; id: string; text: string; live?: boolean; /** Absent: only show what the note would change. True: make the change and commit it to the main branch. */ apply?: boolean }
   /** Dev tools, in the match being played or watched: a quick reset of everyone in it (cooldowns, health, resources, buffs and debuffs, positions) or the dead brought back. */
   | { t: 'dev_reset'; what: 'cooldowns' | 'health' | 'resources' | 'auras' | 'positions' | 'revive' }
   /** Dev tools: cooldowns off (no skill starts one) or back on. */
@@ -299,7 +299,7 @@ export type ServerMsg =
   /** Owner and devs only, never in a snapshot: which bots of the match you are in or watching play an experimental brain, and what they are trying. `bots` counts every bot in it (the note box shows when there is one). */
   | { t: 'bot_tests'; match: string; bots: number; units: BotTest[] }
   /** The answer to a `bot_note`: what the note moved, what it could not place, whether it was a bug report. */
-  | { t: 'bot_note_ack'; id: string; ok: boolean; text: string; lines?: string[]; unmapped?: string[]; bug?: boolean }
+  | { t: 'bot_note_ack'; id: string; ok: boolean; text: string; lines?: string[]; unmapped?: string[]; bug?: boolean; /** Only what the note would change: nothing was changed yet. */ preview?: boolean; /** The note was applied; the link is the commit on the main branch (when it was committed). */ committed?: string }
   /** Dev tools: the match's pause state and the test numbers in it. */
   | { t: 'dev_state'; paused: boolean; patches: DataPatch[]; /** The match started over (everyone is back at the spawns): drop every position and prediction held for the old state. */ reset?: boolean; /** Cooldowns are switched off in this match. */ noCooldowns?: boolean }
   /** The test match is now on this map (everyone in it, players and watchers). */
@@ -482,7 +482,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (m.target !== undefined && m.target !== null && !isNum(m.target)) return null;
       const gx = typeof m.x === 'number' && Number.isFinite(m.x) && Math.abs(m.x) < 1000 ? m.x : undefined;
       const gz = typeof m.z === 'number' && Number.isFinite(m.z) && Math.abs(m.z) < 1000 ? m.z : undefined;
-      return { t: 'cast', ability: m.ability, target: m.target ?? null, ...(gx !== undefined && gz !== undefined ? { x: gx, z: gz, ...(m.lv === 1 ? { lv: 1 as const } : {}) } : {}), ...(typeof m.vt === 'number' && Number.isFinite(m.vt) ? { vt: m.vt } : {}) };
+      return { t: 'cast', ability: m.ability, target: m.target ?? null, ...(gx !== undefined && gz !== undefined ? { x: gx, z: gz, ...(m.lv === 1 ? { lv: 1 as const } : {}) } : {}), ...(typeof m.vt === 'number' && Number.isFinite(m.vt) ? { vt: m.vt } : {}), ...(typeof m.facing === 'number' && Number.isFinite(m.facing) ? { facing: m.facing } : {}) };
     case 'auto':
       return { t: 'auto', on: !!m.on };
     case 'autoOff':
@@ -669,7 +669,7 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       if (typeof m.id !== 'string' || !/^[0-9a-f]{12,16}$/.test(m.id) || typeof m.text !== 'string') return null;
       const text = m.text.replace(/[\u0000-\u0008\u000b-\u001f]/g, ' ').trim().slice(0, BOT_NOTE_MAX);
       if (!text) return null;
-      return { t: 'bot_note', id: m.id, text, ...(m.live === true ? { live: true } : {}) };
+      return { t: 'bot_note', id: m.id, text, ...(m.live === true ? { live: true } : {}), ...(m.apply === true ? { apply: true } : {}) };
     }
     case 'admin_act': {
       if (!ADMIN_ACTS.includes(m.act)) return null;
