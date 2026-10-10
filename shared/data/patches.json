@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.48",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:39:27Z",
+  "title": "Bots can no longer read your cooldowns",
+  "changes": [
+   "Bots no longer know when an enemy's interrupt is on cooldown. Like a player, they assume it is ready until it has been used on them."
+  ]
+ },
+ {
   "version": "0.69.47",
   "date": "2026-10-10",
   "at": "2026-10-10T04:30:00Z",

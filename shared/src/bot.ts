@@ -211,6 +211,11 @@ export class Bot {
     const enemies = all.filter((e) => e.alive && e.team !== u.team && sim.canSee(u, e));
     const allies = all.filter((a) => a.alive && a.team === u.team && !a.image);
 
+    // a player cannot see an enemy's cooldowns: it learns that a kick is spent by being kicked
+    const lockEnd = Math.max(0, ...Object.values(u.lockouts ?? {}));
+    if (lockEnd > this.lockSeen) this.kickedAt = sim.time;
+    this.lockSeen = lockEnd;
+
     this.pickTarget(u, enemies);
     const tgt = this.target !== null ? sim.units.get(this.target) : undefined;
 
@@ -517,11 +522,15 @@ export class Bot {
     return interruptsOf(x);
   }
 
-  /** An enemy who could interrupt us right now: its interrupt is ready, it is in reach and it can see us. */
+  /** When it last got interrupted (the only way it learns an enemy's interrupt went on cooldown) and the end of the longest lockout it has seen. */
+  private kickedAt = -1e9;
+  private lockSeen = 0;
+
+  /** An enemy who could interrupt us right now: its interrupt is assumed ready (unless it just used it on us), it is in reach and it can see us. */
   private kickThreat(u: Unit, enemies: Unit[]): boolean {
     const sim = this.sim;
     // in reach, or closing in fast enough to be in reach before a cast finishes
-    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => (e.cooldowns[id] ?? 0) <= sim.time && dist(e.pos, u.pos) <= ABILITIES[id].range + 6) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
+    return enemies.some((e) => sim.canAct(e) && this.interruptsOf(e).some((id) => sim.time - this.kickedAt >= (ABILITIES[id].cooldown ?? 0) && dist(e.pos, u.pos) <= ABILITIES[id].range + 6) && hasLOS(e.pos, u.pos, sim.arena, e.level, u.level));
   }
 
   /**
