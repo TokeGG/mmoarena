@@ -1,13 +1,44 @@
 [
  {
-  "version": "0.69.40",
+  "version": "0.69.42",
   "date": "2026-10-10",
-  "at": "2026-10-10T01:52:24Z",
+  "at": "2026-10-10T01:52:40Z",
   "title": "Smarter bots",
   "changes": [
    "Bots find their way up and down ramps without getting stuck, and keep moving when they circle a target against a wall.",
    "Bots updated with what they learned from recent matches."
   ]
+ },
+ {
+  "version": "0.69.41",
+  "date": "2026-10-10",
+  "at": "2026-10-10T01:14:36Z",
+  "title": "Balance changes",
+  "changes": [
+   "Bladestorm: damage 90 to 86.",
+   "Bloodthirst: damage 180 to 140.",
+   "Sweep: damage 240 to 220.",
+   "Duelist: auto-attack damage 75 to 70.",
+   "Rampager: auto-attack damage 85 to 110.",
+   "Mage: max health 2400 to 2800.",
+   "Priest: max health 2500 to 2800."
+  ],
+  "by": "Twizz"
+ },
+ {
+  "version": "0.69.40",
+  "date": "2026-10-10",
+  "at": "2026-10-10T00:46:59Z",
+  "title": "Balance changes",
+  "changes": [
+   "Sweep: damage 300 to 240.",
+   "Bloodthirst: damage 200 to 180.",
+   "Axe Throw: cooldown 2 s to 4 s.",
+   "Axe Throw: damage 300 to 275.",
+   "Slice and Dice: damage 25 to 40.",
+   "Shadow Mend: Vanish: added effect 1 (extra), percent 0.5 to 0.3."
+  ],
+  "by": "Twizz"
  },
  {
   "version": "0.69.39",

@@ -6,13 +6,13 @@
     "bar": ["mortal_strike", "charge", "pummel", "hamstring"]
   },
   "mage": {
-    "name": "Mage", "color": "#69ccf0", "maxHealth": 2400,
+    "name": "Mage", "color": "#69ccf0", "maxHealth": 2800,
     "resource": { "type": "mana", "max": 1000, "start": 1000, "regenPerSec": 24 },
     "auto": null,
     "bar": ["frostbolt", "fireball", "polymorph", "counterspell", "frost_nova", "blink"]
   },
   "priest": {
-    "name": "Priest", "color": "#ffffff", "maxHealth": 2500,
+    "name": "Priest", "color": "#ffffff", "maxHealth": 2800,
     "resource": { "type": "mana", "max": 1000, "start": 1000, "regenPerSec": 15 },
     "auto": null,
     "bar": ["flash_heal", "power_word_shield", "smite", "dispel_magic", "psychic_scream"]

@@ -1857,7 +1857,7 @@
                 "extra": [
                   {
                     "type": "healMissing",
-                    "pct": 0.5
+                    "pct": 0.3
                   }
                 ]
               }
@@ -2050,7 +2050,7 @@
                 "extra": [
                   {
                     "type": "healMissing",
-                    "pct": 0.5
+                    "pct": 0.3
                   }
                 ]
               }
@@ -2242,7 +2242,7 @@
                 "extra": [
                   {
                     "type": "healMissing",
-                    "pct": 0.5
+                    "pct": 0.3
                   }
                 ]
               }

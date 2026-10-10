@@ -534,7 +534,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 200
+    "amount": 140
    },
    {
     "type": "healMax",
@@ -1688,7 +1688,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 25
+    "amount": 40
    },
    {
     "type": "aura",
@@ -1715,7 +1715,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 90
+    "amount": 86
    }
   ],
   "unstoppable": true
@@ -1758,7 +1758,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 300
+    "amount": 220
    }
   ]
  },
@@ -1820,13 +1820,13 @@
   "target": "enemy",
   "range": 10,
   "castTime": 0,
-  "cooldown": 2000,
+  "cooldown": 4000,
   "gcd": true,
   "cost": 50,
   "effects": [
    {
     "type": "damage",
-    "amount": 300
+    "amount": 275
    }
   ]
  },
