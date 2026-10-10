@@ -30,7 +30,7 @@ export const CATCHUP_CREDIT_MS = 250;
 /** A melee swing reaches this far up or down (a ramp's slope), not from a walkway's top to the ground below. */
 const MELEE_FLOOR_GAP = 1.6;
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
-const GRACE_REASONS = ['out of range', 'global cooldown', 'no line of sight', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
+const GRACE_REASONS = ['out of range', 'you are already casting', 'global cooldown', 'no line of sight', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
 /** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
 /** How long a fallen Mirror Image stays in the snapshots before it is gone. */
 const IMAGE_LINGER_MS = 700;
@@ -426,6 +426,8 @@ export class ArenaSim {
     const through = u.trinket === def.id || !!this.abilityMod(u, def).castDuring;
     // an unstoppable channel (Bladestorm) is not ended by pressing something else either: it runs its course
     if (u.cast && !through && ABILITIES[u.cast.ability]?.unstoppable) return fail(`you are channelling ${ABILITIES[u.cast.ability].name}`);
+    // a player's spell with a cast time cannot be started in the middle of another cast (it is held for a moment, and the client queues it); instants (an interrupt, Blink) still go off and stop it; bots keep switching
+    if (u.cast && !through && u.controller === 'player' && (def.castTime > 0 || def.channel)) return soft('you are already casting');
     // using any other ability stops the cast in progress, interrupts included (they can still be pressed mid-cast)
     if (u.cast && !through) this.cancelCast(u, 'switched spell');
     if (def.target === 'enemy' && tgt.team !== u.team) u.target = tgt.id;
@@ -445,6 +447,7 @@ export class ArenaSim {
         this.removeAura(u, fed, 'consumed');
       }
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ticks, done: 0 };
+      this.holdWalk(u, def.id);
       if (def.gcd) this.startGcd(u, def.id);
       if (!def.keepsStealth && this.isStealthed(u)) this.breakStealth(u);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
@@ -463,6 +466,7 @@ export class ArenaSim {
     if (def.castTime > 0) {
       const castMs = this.castTimeOf(u, def);
       u.cast = { ability: def.id, target: tgt.id, start: this.time, end: this.time + castMs, ...(ground ? { gx: ground.x, gz: ground.z, ...(ground.lv === 1 ? { gl: 1 as const } : {}) } : {}) };
+      this.holdWalk(u, def.id);
       if (def.gcd) this.startGcd(u, def.id);
       this.emit({ t: 'cast_start', unit: u.id, ability: def.id, target: tgt.id, end: u.cast.end });
       return ok;
@@ -610,6 +614,12 @@ export class ArenaSim {
       u.catchUp = Math.min(credit, (u.catchUp ?? 0) + 1); // a tick with nothing played and no movement is owed back
     }
 
+    // a cast made on the move holds the walk back until the keys are let go (and pressed again): inputs already on their way when the cast started cannot cancel it
+    if (u.castStill) {
+      if (!u.cast || (input.fwd === 0 && input.strafe === 0)) u.castStill = false;
+      else input = { ...input, fwd: 0, strafe: 0 };
+    }
+
     // a fresh jump request only (a repeated stale input must not re-jump)
     if (queued?.jump && this.canAct(u) && !this.hovering(u) && canStartJump(this.time - u.jumpStart)) {
       u.jumpStart = this.time;
@@ -668,7 +678,7 @@ export class ArenaSim {
       const speed = TUNING.runSpeed * this.speedMult(u);
       if (speed > 0) {
         for (const x of extras) {
-          if (!Number.isFinite(x.facing)) continue;
+          if (!Number.isFinite(x.facing) || u.castStill) continue;
           const r = stepMovementL(u.pos, u.level, x, speed, DT, this.arena, jumpHeight(this.time - u.jumpStart));
           u.pos = r.pos;
           u.level = r.level;
@@ -1655,6 +1665,11 @@ export class ArenaSim {
   }
 
   /** True when moving does not break this cast: the ability allows it, or the unit's spec or talents do (Warden Penance). */
+  /** A player's cast made while walking stands them still until they let go of the move keys (see `castStill`). */
+  private holdWalk(u: Unit, ability: string): void {
+    if (u.controller === 'player' && !this.castsOnTheMove(u, ability) && (u.lastInput.fwd !== 0 || u.lastInput.strafe !== 0)) u.castStill = true;
+  }
+
   private castsOnTheMove(u: Unit, ability: string): boolean {
     return !!ABILITIES[ability]?.castWhileMoving || !!this.modsOf(u).ability[ability]?.castWhileMoving;
   }

@@ -209,6 +209,11 @@ export class Hud {
   private enemyFrames = new Map<number, UnitFrame>();
   private slots: { root: HTMLElement; cd: HTMLElement; key: HTMLElement; ability: string; badge: HTMLElement }[] = [];
   private castBar = new Bar('#f1c40f');
+  /** The spell just sent (its bar is drawn before the server confirms it). */
+  private sentCast: { ability: string; at: number } | null = null;
+  castSent(ability: string): void {
+    this.sentCast = { ability, at: performance.now() };
+  }
   private plates = new Map<number, { view: PlateView; av: string; mk: number }>();
   /** Emblem, title and colour of signed-in players, keyed by unit id. Sent by the server per match. */
   private roster = new Map<number, RosterEntry>();
@@ -421,9 +426,16 @@ export class Hud {
       box.classList.toggle('hidden', !kind);
       box.style.color = controlColor(look.ccColor, kind as ControlKind | '', look.ccPlate !== 'none');
     }
-    const myStop = me.cast ? null : stoppedCast(me.id);
-    $('cast').classList.toggle('hidden', !me.cast && !myStop);
-    if (me.cast) {
+    // a cast just sent shows its bar at once (the server's answer takes a round trip), until it is confirmed or clearly was not accepted
+    const guess = !me.cast && this.sentCast && performance.now() - this.sentCast.at < 450 && (ABILITIES[this.sentCast.ability]?.castTime ?? 0) > 0 ? this.sentCast : null;
+    if (me.cast) this.sentCast = null;
+    const myStop = me.cast || guess ? null : stoppedCast(me.id);
+    $('cast').classList.toggle('hidden', !me.cast && !myStop && !guess);
+    if (guess) {
+      const d = ABILITIES[guess.ability];
+      this.castBar.setColor('#f1c40f');
+      this.castBar.set(d.channel ? d.castTime : performance.now() - guess.at, d.castTime, `${d.name}  ${(Math.max(0, d.castTime - (performance.now() - guess.at)) / 1000).toFixed(1)}`);
+    } else if (me.cast) {
       seeCast(me.id, me.cast, now);
       const left = Math.max(0, me.cast.end - now) / 1000;
       this.castBar.setColor('#f1c40f');

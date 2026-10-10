@@ -984,12 +984,11 @@ function viewTime(): number {
 
 const QUEUE_SAME_MS = 250;
 /**
- * Does this spell have to wait (be queued) right now? A different spell starts at once, even in the middle of a cast or the global
- * cooldown: it ends the one before it. The same spell waits for its own cast or the global cooldown, and so does anything while an
- * unstoppable channel runs.
+ * Does this spell have to wait (be queued) right now? A different spell starts at once in the middle of the global cooldown, but never ends a cast in
+ * progress: anything pressed during a cast waits for it (and the same spell waits for the global cooldown).
  */
 function mustWait(me: { cast: { ability: string; end: number } | null; gcdEnd: number; gcdBy?: string }, ability: string, now: number): boolean {
-  if (me.cast && (me.cast.ability === ability || ABILITIES[me.cast.ability]?.unstoppable)) return true;
+  if (me.cast && me.cast.end - now > QUEUE_EARLY_MS) return true; // a cast is never ended by starting another spell: it waits for it
   return me.gcdEnd > now && !(TUNING.gcdSwitch && me.gcdBy !== ability);
 }
 /** A queued spell is sent this long before the global cooldown ends: the server holds it for its cast grace, so it starts the moment it can. */
@@ -1003,6 +1002,7 @@ function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
   // a cast started from a walk stands you still (your keys are held back) until you let go and press a move key again
   const cd = ABILITIES[msg.ability];
   if (lastMoving && cd && (cd.castTime > 0 || cd.channel) && !cd.castWhileMoving && !cd.unstoppable) castStill = { until: performance.now() + 500, seen: false };
+  hud.castSent(msg.ability);
   send(msg);
 }
 
