@@ -331,6 +331,23 @@ describe('stealth', () => {
     assert.ok(foe.auras.some((x) => x.id === 'dragons_breath'), 'still disoriented');
   });
 
+  it("Dragon's Breath keeps those it hits inside its cone while they stumble about", () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const foe = add(sim, 'warrior', 1, 0, 9);
+    advance(sim, TICK);
+    mage.facing = 0; mage.lastInput = { ...mage.lastInput, facing: 0 };
+    mage.bar = [...mage.bar.slice(0, 7), 'dragons_breath'];
+    assert.ok(sim.useAbility(mage.id, 'dragons_breath', null).ok);
+    const def = ABILITIES.dragons_breath;
+    for (let t = 0; t < 4000; t += TICK) {
+      advance(sim, TICK);
+      const dx = foe.pos.x - mage.pos.x, dz = foe.pos.z - mage.pos.z;
+      assert.ok(Math.hypot(dx, dz) <= (def.radius ?? 0) + 0.5, 'within reach');
+      assert.ok(Math.abs(Math.atan2(dx, dz)) <= ((def.coneDeg ?? 0) * Math.PI) / 360 + 0.05, 'within the cone');
+    }
+  });
+
   it('Flamestrike can be placed behind you', () => {
     const sim = live();
     const mage = add(sim, 'mage', 0, 0, 0);

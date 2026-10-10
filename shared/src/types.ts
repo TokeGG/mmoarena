@@ -153,6 +153,8 @@ export interface AuraDef {
   vulnerable?: { school: School; mult: number };
   /** A line of text for the tooltip of an effect that has no stats of its own. */
   note?: string;
+  /** A fear whose victim stumbles about but never leaves the cone it was put on in (Dragon's Breath). */
+  stayInCone?: boolean;
   /** A fear that runs away from whoever put it on, as far as it can, instead of anywhere (Psychic Scream's flee form). */
   flee?: boolean;
   /** Enemies cannot see or target the holder while it lasts (Ascend to the Heavens). */
@@ -409,7 +411,7 @@ export interface Tuning {
 export interface MoveInput { seq: number; fwd: number; strafe: number; facing: number; /** Start a (cosmetic) jump. */ jump?: boolean }
 export type Result = { ok: true } | { ok: false; reason: string };
 
-export interface AuraInst { id: string; kind: AuraKind; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number; stacks?: number; /** Multiplier on this damage-over-time's ticks (Exsanguinate). */ dotMult?: number; /** Multiplier on all damage taken while it lasts (a Damage reduction effect: 0.8 is 20% less). */ dmgTaken?: number }
+export interface AuraInst { id: string; kind: AuraKind; /** A fear that keeps the victim inside the cone it was put on in (Dragon's Breath): the cone's tip, facing, width in degrees and reach. */ cone?: { x: number; z: number; facing: number; deg: number; r: number }; sourceId: number; expiresAt: number; absorbLeft: number; nextTick?: number; stacks?: number; /** Multiplier on this damage-over-time's ticks (Exsanguinate). */ dotMult?: number; /** Multiplier on all damage taken while it lasts (a Damage reduction effect: 0.8 is 20% less). */ dmgTaken?: number }
 export interface CastState { ability: string; target: number; start: number; end: number; /** Ground-targeted spells: where it lands (gl 1: on top of a walkway). */ gx?: number; gz?: number; gl?: 1; /** Channels: total ticks and how many have fired. */ ticks?: number; done?: number }
 export interface DRState { count: number; resetAt: number }
 

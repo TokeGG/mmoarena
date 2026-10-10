@@ -687,7 +687,26 @@ export class ArenaSim {
       // a fear that runs away (Fleeing Scream) is not slowed: it sprints; a plain fear stumbles about at a fraction of run speed
       const fleeing = u.auras.some((a) => a.kind === 'fear' && AURAS[a.id]?.flee);
       const k = (fleeing ? 1 : TUNING.fearSpeed) * TUNING.runSpeed * DT;
-      this.place(u, { x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k });
+      const cone = u.auras.find((a) => a.kind === 'fear' && a.cone)?.cone;
+      if (cone) {
+        // stumbling about inside the cone it was put on in: a step that would leave it turns the victim back towards the middle
+        const inside = (x: number, z: number) => {
+          const dx = x - cone.x, dz = z - cone.z;
+          if (Math.hypot(dx, dz) > cone.r) return false;
+          let d = Math.atan2(dx, dz) - cone.facing;
+          d = Math.atan2(Math.sin(d), Math.cos(d));
+          return Math.abs(d) <= (cone.deg * Math.PI) / 360;
+        };
+        const nx = u.pos.x + u.fearDir.x * k, nz = u.pos.z + u.fearDir.z * k;
+        if (!inside(nx, nz)) {
+          const a = cone.facing + (this.rng() - 0.5) * ((cone.deg * Math.PI) / 180) * 0.6;
+          const d = cone.r * (0.35 + 0.4 * this.rng());
+          const ang = Math.atan2(cone.x + Math.sin(a) * d - u.pos.x, cone.z + Math.cos(a) * d - u.pos.z);
+          u.fearDir = { x: Math.sin(ang), z: Math.cos(ang) };
+          u.facing = ang;
+          u.fearRetargetAt = this.time + 1000;
+        } else this.place(u, { x: nx, z: nz });
+      } else this.place(u, { x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k });
     } else if (u.cast && ABILITIES[u.cast.ability]?.channel?.hold) {
       // locked in a channel that holds the caster (Slice and Dice): you stand where you are and keep facing your target
     } else {
@@ -1748,6 +1767,11 @@ export class ArenaSim {
     if (CC_KINDS.includes(def.kind)) {
       if (tgt.cast) this.cancelCast(tgt, 'crowd controlled');
       if (def.kind === 'fear') tgt.fearRetargetAt = 0;
+    }
+    if (def.stayInCone && src !== tgt) {
+      // the cone of the skill that put it on: the victim stays inside it while it lasts
+      const from = Object.values(ABILITIES).find((x) => x.coneDeg && x.effects.some((e) => e.type === 'aura' && e.aura === auraId));
+      if (from?.coneDeg) inst.cone = { x: src.pos.x, z: src.pos.z, facing: src.facing, deg: from.coneDeg, r: this.radiusOf(src, from) };
     }
     this.emit({ t: 'aura', src: src.id, tgt: tgt.id, aura: auraId, expiresAt: isFinite(inst.expiresAt) ? inst.expiresAt : 0, dr: drMult });
     return { applied: true, duration, dr: drMult };

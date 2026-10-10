@@ -390,7 +390,10 @@ export class ArenaScene {
         const p = { x: o.x + (ground.x - o.x) * t, z: o.z + (ground.z - o.z) * t };
         const y = o.y + (0 - o.y) * t;
         const h = heightAt(this.arena, p.x, p.z, 1);
-        if (h > 0.05 && y <= h && onRaised(this.arena, p.x, p.z) && !(this.hole.r > 0 && Math.hypot(p.x - this.hole.x, p.z - this.hole.z) < this.hole.r && this.arena.deck?.ramps.every((r) => !(p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1)))) {
+        const dkr = this.arena.deck!;
+        const onRamp = dkr.ramps.some((r) => p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1);
+        // a ray that passes under the slab (below its underside) goes on to the floor beneath; only a ramp is solid all the way down
+        if (h > 0.05 && y <= h && (onRamp || y >= h - DECK_THICKNESS - 0.5) && onRaised(this.arena, p.x, p.z) && !(this.hole.r > 0 && Math.hypot(p.x - this.hole.x, p.z - this.hole.z) < this.hole.r && this.arena.deck?.ramps.every((r) => !(p.x >= r.x0 && p.x <= r.x1 && p.z >= r.z0 && p.z <= r.z1)))) {
           let q = at(h); // settle on the surface (ramps slope)
           for (let k = 0; k < 3; k++) q = at(heightAt(this.arena, q.x, q.z, 1));
           return onRaised(this.arena, q.x, q.z) ? { ...q, lv: 1 } : { ...p, lv: 1 };
