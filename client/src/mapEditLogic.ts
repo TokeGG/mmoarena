@@ -16,6 +16,8 @@ export type Tool = 'select' | 'pillar' | 'wall' | 'low' | 'lava' | 'flat' | 'ram
 export type Rise = '+x' | '-x' | '+z' | '-z';
 
 export const SNAP = 0.5;
+/** The snap steps the editor offers, in yards (0 = free, to a hundredth). */
+export const SNAP_STEPS = [0.25, 0.5, 1, 2, 0] as const;
 export const snap = (v: number, step = SNAP): number => (step > 0 ? Math.round(v / step) * step : Math.round(v * 100) / 100);
 
 export const RECT_KINDS: readonly RectKind[] = ['wall', 'low', 'flat', 'ramp', 'pier'];
@@ -180,4 +182,63 @@ export function makeView(b: ArenaDef['bounds'], w: number, h: number, pad = 14):
   const ox = (w - scale * (b.maxX - b.minX)) / 2 - scale * b.minX;
   const oz = (h - scale * (b.maxZ - b.minZ)) / 2 - scale * b.minZ;
   return { scale, ox, oz, px: (x) => ox + x * scale, py: (z) => oz + z * scale, wx: (px) => (px - ox) / scale, wz: (py) => (py - oz) / scale };
+}
+
+/** A copy of the selected piece, nudged 2 yards right and down so it does not hide under the original. Returns the copy's selection. */
+export function duplicateSel(d: ArenaDef, sel: Sel): Sel {
+  if (!sel || sel.kind === 'spawn') return null;
+  if (sel.kind === 'pillar') {
+    const p = d.pillars[sel.i];
+    if (!p) return null;
+    d.pillars.push({ ...p, x: p.x + 2, z: p.z + 2 });
+    return { kind: 'pillar', i: d.pillars.length - 1 };
+  }
+  const l = listOf(d, sel.kind);
+  const r = l?.[sel.i];
+  if (!l || !r) return null;
+  l.push({ ...r, x0: r.x0 + 2, x1: r.x1 + 2, z0: r.z0 + 2, z1: r.z1 + 2 });
+  return { kind: sel.kind, i: l.length - 1 };
+}
+
+const centreX = (r: Rect) => (r.x0 + r.x1) / 2;
+
+/**
+ * Make the map point-symmetric: keep what stands on the left (team 1's side, centre at x < 0 and what crosses the middle),
+ * remove what stands on the right and put the turned-around twin of every left piece there. How the built-in maps stay fair.
+ * Start spots of team 2 follow team 1's. Returns how many pieces were removed and added.
+ */
+export function symmetrize(d: ArenaDef): { removed: number; added: number } {
+  let removed = 0;
+  let added = 0;
+  const keepPillars = d.pillars.filter((p) => p.x <= 0.001);
+  removed += d.pillars.length - keepPillars.length;
+  d.pillars = keepPillars;
+  const flip = (r: Rect & { rise?: Rise; lava?: boolean }) => {
+    const twin = { ...r, x0: 0 - r.x1, x1: 0 - r.x0, z0: 0 - r.z1, z1: 0 - r.z0 };
+    if (r.rise) twin.rise = FLIP[r.rise];
+    return twin;
+  };
+  for (const p of [...d.pillars]) if (p.x < -0.001) { d.pillars.push({ x: 0 - p.x, z: 0 - p.z, r: p.r }); added++; }
+  const lists: (keyof ArenaDef | 'flats' | 'ramps')[] = ['walls', 'lows'];
+  for (const k of lists) {
+    const l = d[k as 'walls' | 'lows'];
+    if (!l) continue;
+    const keep = l.filter((r) => centreX(r) <= 0.001);
+    removed += l.length - keep.length;
+    for (const r of [...keep]) if (centreX(r) < -0.001) { keep.push(flip(r)); added++; }
+    (d as unknown as Record<string, unknown>)[k] = keep;
+    if (!keep.length) delete (d as unknown as Record<string, unknown>)[k];
+  }
+  if (d.deck) {
+    for (const k of ['flats', 'ramps', 'piers'] as const) {
+      const l = d.deck[k] as (Rect & { rise?: Rise })[] | undefined;
+      if (!l) continue;
+      const keep = l.filter((r) => centreX(r) <= 0.001);
+      removed += l.length - keep.length;
+      for (const r of [...keep]) if (centreX(r) < -0.001) { keep.push(flip(r)); added++; }
+      (d.deck as unknown as Record<string, unknown>)[k] = keep;
+    }
+  }
+  mirrorSpawns(d, 0);
+  return { removed, added };
 }

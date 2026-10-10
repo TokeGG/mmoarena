@@ -169,7 +169,7 @@ export class AdminPanel {
   private card = el('div', 'admp-card');
 
   constructor(private hooks: Hooks) {
-    this.maps = new MapEditor({ send: hooks.send, closeWindow: () => this.close(), playOn: (id) => hooks.playOn(id) });
+    this.maps = new MapEditor({ send: hooks.send, closeWindow: () => { this.close(); }, playOn: (id) => hooks.playOn(id) });
     this.time = new TimeView((m) => hooks.send(m), () => this.paint());
     this.root.append(this.card);
     this.root.addEventListener('focusout', () => window.setTimeout(() => this.repaintLater && !this.typing() && this.paint(), 150));
@@ -260,8 +260,6 @@ export class AdminPanel {
     if (this.tab === 'time' && this.can('matchctl')) this.time.refresh();
     if (this.tab === 'proposals' || this.tab === 'tuning' || this.tab === 'dashboard') s({ t: 'admin_proposals', op: 'list' });
     if (this.tab === 'requests') s({ t: 'dev_requests', op: 'list' });
-    if (this.tab !== 'maps') this.maps.hide();
-    else if (access === 'owner') this.maps.show();
     if (this.tab === 'dashboard' || this.tab === 'log') s({ t: 'admin_act', act: 'log' });
     if (this.tab === 'moderation') s({ t: 'suggestions' });
     if (this.tab === 'server' && this.can('botnames') && this.botNamesText === null) s({ t: 'admin_botnames' });
@@ -421,9 +419,13 @@ export class AdminPanel {
         body.append(el('h3', '', 'Skill designer'), this.propMsgBox(), this.designerBox(), el('h3', '', 'Live number changes'), this.prState(), this.op.overridesBox());
         if (access === 'owner') body.append(el('h3', '', 'Bot match'), el('p', 'mm-modal-foot', 'Start bot battles from the main menu (the robot button next to the admin button). They show live on the Watch tab, and every one is kept under Replays, where you can train the bots on it.'));
         break;
-      case 'maps':
-        body.append(this.maps.root);
+      case 'maps': {
+        body.append(el('h3', '', 'Map editor'), el('p', 'mm-modal-foot', 'The editor opens in a window of its own, so nothing overlaps it: a top view and a 3D view of the map, undo, snapping, symmetry, and map files you can export, share and drop back in.'));
+        const open = el('button', 'mm-small mm-go', 'Open the map editor');
+        open.addEventListener('click', () => this.maps.openWindow());
+        body.append(open);
         break;
+      }
       case 'permissions':
         body.append(el('h3', '', 'Who can do what'), this.op.permissionsBox());
         break;
