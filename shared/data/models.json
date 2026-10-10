@@ -1,0 +1,926 @@
+{
+ "characters": {
+  "knight": {
+   "pose": {
+    "armRest": -5.73,
+    "elbow": 6.875,
+    "stride": 0.55,
+    "armIn": 0,
+    "legIn": 0,
+    "rightSwing": 1,
+    "castR": -80.214,
+    "castL": -71.62,
+    "swingArc": -143.239
+   },
+   "style": {
+    "bounce": 0.8,
+    "sway": 0.7,
+    "lean": 0.75,
+    "crouch": 0,
+    "arms": 0.8,
+    "guard": 0,
+    "landing": 1.35,
+    "tuck": 0.8,
+    "float": 0
+   },
+   "bones": {
+    "hips": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "spine": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "chest": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "neck": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "head": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    }
+   },
+   "helm": {
+    "top": 1.3,
+    "r": 0.165,
+    "brow": 1.03
+   },
+   "cape": {
+    "y": 0.74,
+    "z": 0.2,
+    "sx": 1.5,
+    "sy": 0.95,
+    "sz": 0.8,
+    "tilt": -0.08,
+    "minPitch": -0.04,
+    "worldDown": 0.3
+   },
+   "wings": {
+    "y": 0.74,
+    "z": 0.3,
+    "scale": 0.5,
+    "sx": 1,
+    "tilt": 0.08,
+    "raise": 0,
+    "open": 0
+   }
+  },
+  "wizard": {
+   "cape": {
+    "y": 0.74,
+    "z": 0.12,
+    "sx": 1.3,
+    "sy": 1.1,
+    "sz": 1,
+    "tilt": -0.12,
+    "minPitch": -0.04,
+    "worldDown": 0.3
+   },
+   "wings": {
+    "y": 0.58,
+    "z": 0.22,
+    "scale": 0.4,
+    "sx": 1,
+    "tilt": 0.08,
+    "raise": 0,
+    "open": 0
+   }
+  },
+  "assassin": {
+   "pose": {
+    "armRest": -5.73,
+    "elbow": 8.594,
+    "stride": 0.6,
+    "armIn": 17.189,
+    "legIn": 0,
+    "rightSwing": 1,
+    "castR": -80.214,
+    "castL": -71.62,
+    "swingArc": -143.239
+   },
+   "style": {
+    "bounce": 1.1,
+    "sway": 1.25,
+    "lean": 1.5,
+    "crouch": 0.16,
+    "arms": 0.7,
+    "guard": 0.3,
+    "landing": 1.1,
+    "tuck": 1.3,
+    "float": 0
+   },
+   "bones": {
+    "hips": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "spine": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "chest": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "neck": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "head": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    }
+   },
+   "helm": {
+    "top": 1.15,
+    "r": 0.15,
+    "brow": 1.03
+   },
+   "cape": {
+    "y": 0.74,
+    "z": 0.2,
+    "sx": 1.5,
+    "sy": 0.95,
+    "sz": 0.8,
+    "tilt": -0.08,
+    "minPitch": -0.04,
+    "worldDown": 0.3
+   },
+   "wings": {
+    "y": 0.74,
+    "z": 0.3,
+    "scale": 0.5,
+    "sx": 1,
+    "tilt": 0.08,
+    "raise": 0,
+    "open": 0
+   }
+  },
+  "sentinel": {
+   "pose": {
+    "armRest": -5.73,
+    "elbow": 8.594,
+    "stride": 0.35,
+    "armIn": 17.189,
+    "castR": -20.054,
+    "castL": -63.025,
+    "swingArc": -91.673,
+    "rightSwing": 0.3,
+    "legIn": 0
+   },
+   "style": {
+    "bounce": 0.45,
+    "sway": 1.3,
+    "lean": 0.5,
+    "crouch": 0,
+    "arms": 0.55,
+    "guard": 0,
+    "landing": 0.7,
+    "tuck": 0.65,
+    "float": 1
+   },
+   "bones": {
+    "hips": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "spine": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "chest": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "neck": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "head": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    }
+   },
+   "helm": {
+    "top": 1.19,
+    "r": 0.15,
+    "brow": 1.03
+   },
+   "cape": {
+    "y": 0.74,
+    "z": 0.2,
+    "sx": 1.5,
+    "sy": 0.95,
+    "sz": 0.8,
+    "tilt": -0.08,
+    "minPitch": -0.04,
+    "worldDown": 0.3
+   },
+   "wings": {
+    "y": 0.74,
+    "z": 0.3,
+    "scale": 0.5,
+    "sx": 1,
+    "tilt": 0.08,
+    "raise": 0,
+    "open": 0
+   }
+  },
+  "brute": {
+   "pose": {
+    "armRest": -5.73,
+    "elbow": 11.459,
+    "stride": 0.5,
+    "rightSwing": 0.3,
+    "armIn": 34.377,
+    "legIn": 4.584,
+    "castR": -80.214,
+    "castL": -71.62,
+    "swingArc": -143.239
+   },
+   "style": {
+    "bounce": 1,
+    "sway": 1,
+    "lean": 1,
+    "crouch": 0,
+    "arms": 1,
+    "guard": 0,
+    "landing": 1,
+    "tuck": 1,
+    "float": 0
+   },
+   "bones": {
+    "hips": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "spine": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "chest": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "neck": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "head": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shoulder_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "upperarm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "forearm_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "hand_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_l": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "thigh_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "shin_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    },
+    "foot_r": {
+     "rx": 0,
+     "ry": 0,
+     "rz": 0,
+     "size": 1
+    }
+   },
+   "cape": {
+    "y": 0.74,
+    "z": 0.2,
+    "sx": 1.5,
+    "sy": 0.85,
+    "sz": 0.8,
+    "tilt": 0.05,
+    "minPitch": -0.04,
+    "worldDown": 0.3
+   },
+   "wings": {
+    "y": 0.74,
+    "z": 0.3,
+    "scale": 0.5,
+    "sx": 1,
+    "tilt": 0.08,
+    "raise": 0,
+    "open": 0
+   }
+  }
+ },
+ "weapons": {
+  "dual": {
+   "right": {
+    "rot": [
+     90,
+     90,
+     0
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 22.918,
+    "out": 17.189
+   },
+   "mid": 0.6,
+   "left": {
+    "rot": [
+     90,
+     90,
+     0
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 22.918,
+    "out": 17.189
+   }
+  },
+  "daggers": {
+   "right": {
+    "rot": [
+     90,
+     90,
+     0
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": -17.189,
+    "out": 6.875
+   },
+   "mid": 0.4,
+   "left": {
+    "rot": [
+     90,
+     90,
+     0
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": -17.189,
+    "out": 6.875
+   }
+  },
+  "twohand": {
+   "right": {
+    "rot": [
+     129.431,
+     68.698,
+     -37.471
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 1,
+   "hold": {
+    "r": [
+     -12.147,
+     26.356,
+     -50.821
+    ],
+    "l": [
+     -39.362,
+     -44.06,
+     -5.901
+    ],
+    "walk": 0.3,
+    "arc": 0.6,
+    "elbowArc": 0
+   },
+   "rest": {
+    "rot": [
+     58.213,
+     9.74,
+     -8.021
+    ]
+   }
+  },
+  "polearm": {
+   "right": {
+    "rot": [
+     -21.715,
+     -27.96,
+     -95.054
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 1.3,
+   "hold": {
+    "r": [
+     5.73,
+     11.459,
+     -40.107
+    ],
+    "l": [
+     -11.459,
+     -22.918,
+     -80.214
+    ],
+    "walk": 0.3,
+    "arc": 0.4,
+    "elbowArc": 0
+   }
+  },
+  "fire_staff": {
+   "right": {
+    "rot": [
+     9.11,
+     0,
+     1.948
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 1
+  },
+  "ice_staff": {
+   "right": {
+    "rot": [
+     9.11,
+     0,
+     1.948
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 0.9
+  },
+  "arcane_staff": {
+   "right": {
+    "rot": [
+     9.11,
+     0,
+     1.948
+    ],
+    "pos": [
+     0,
+     0,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 1
+  },
+  "holy_staff": {
+   "right": {
+    "rot": [
+     9.11,
+     0,
+     1.948
+    ],
+    "pos": [
+     0,
+     -0.4,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 1
+  },
+  "necro_staff": {
+   "right": {
+    "rot": [
+     9.11,
+     0,
+     1.948
+    ],
+    "pos": [
+     0,
+     -0.4,
+     0
+    ],
+    "lift": 0,
+    "out": 0
+   },
+   "mid": 0.9
+  }
+ },
+ "cosmetics": {
+  "head": {
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "scale": 1,
+   "rotY": 0
+  },
+  "wings": {
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "scale": 1,
+   "rotY": 0
+  },
+  "back": {
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "scale": 1,
+   "rotY": 0
+  },
+  "weapon": {
+   "x": 0,
+   "y": 0,
+   "z": 0,
+   "scale": 1,
+   "rotY": 0
+  }
+ }
+}

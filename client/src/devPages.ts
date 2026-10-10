@@ -35,7 +35,7 @@ let soundsLoadedOnce = false;
 
 /** The files each page edits (for its reset and its change counter). */
 export const PAGE_FILES: Record<DevPageId, DataPatch['file'][]> = {
-  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], animations: ['fx'], sounds: ['sounds'], icons: ['icons'], options: ['tuning'],
+  classes: ['classes'], specs: ['specs'], talents: ['talents'], skills: ['abilities'], passives: ['specs', 'talents', 'tuning'], auras: ['auras'], animations: ['fx'], sounds: ['sounds'], models: ['models'], icons: ['icons'], options: ['tuning'],
 };
 
 const CAULDRON = new Set(['cauterizeHealth', 'cauterizeCooldownMs']);
@@ -50,7 +50,8 @@ export function pageOwns(page: DevPageId, p: DataPatch): boolean {
 /** The id of a change's entry in a page's navigation. */
 export function navIdOf(page: DevPageId, p: DataPatch): string {
   if (page === 'icons') return `${({ aura: 'u', class: 'c', spec: 'p' } as Record<string, string>)[String(p.path[0])] ?? 'a'}:${p.id}`; // an icon's entry is its skill or buff
-  if (page === 'animations' || page === 'sounds') return String(p.path[0]); // an animation's entry is its effect (dragonsBreath, charge, ...)
+  if (page === 'animations' || page === 'sounds') return String(p.path[0]);
+  if (page === 'models') return `${({ characters: 'c:', weapons: 'w:', cosmetics: 's:' } as Record<string, string>)[String(p.path[0])] ?? 'c:'}${String(p.path[1])}`; // an animation's entry is its effect (dragonsBreath, charge, ...)
   if (page === 'classes' && p.file === 'tuning') return classOfOption(String(p.path[0])) ?? p.id;
   if (page !== 'passives') return p.id;
   if (p.file === 'tuning') return `s:${CLASS_IDS.flatMap((c) => SPECS[c]).find((x) => x.passive === 'cauterize')?.id ?? ''}`;
@@ -69,7 +70,7 @@ export class DevWorkspace {
   readonly editor = new SkillEditor();
   page: DevPageId = 'skills';
   private sel: Partial<Record<DevPageId, string>> = {};
-  private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', passives: '', auras: '', animations: '', sounds: '', icons: '', options: '' };
+  private search: Record<DevPageId, string> = { classes: '', specs: '', talents: '', skills: '', passives: '', auras: '', animations: '', sounds: '', models: '', icons: '', options: '' };
   private navOpen = new Map<string, boolean>();
   private adding = new Map<string, { kind: 'ability' | 'aura'; id: string }>();
   private classCtx: ClassId | null = null;
@@ -535,7 +536,7 @@ export class DevWorkspace {
   private resetEntry(id: string): void {
     const pairs = this.entryPairs(id);
     const hit = (p: Pick<DataPatch, 'file' | 'id'>) => pairs.some((x) => x.file === p.file && x.id === p.id);
-    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p) || ((this.page === 'talents' || this.page === 'specs') && pageOwns('passives', p))) && ((this.page !== 'animations' && this.page !== 'sounds') || p.path[0] === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
+    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p) || ((this.page === 'talents' || this.page === 'specs') && pageOwns('passives', p))) && ((this.page !== 'animations' && this.page !== 'sounds') || p.path[0] === id) && (this.page !== 'models' || navIdOf('models', p) === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
     for (const [k, p] of [...this.set.edits]) if (mine(p)) this.set.edits.delete(k);
     if (this.host.canRevert) for (const p of this.host.inEffect()) if (mine(p)) this.set.reverted.add(patchKey(p));
   }

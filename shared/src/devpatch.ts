@@ -1,4 +1,5 @@
-import { ABILITIES, AURAS, CLASSES, FX, ICONS, SOUNDS, SPECS, TALENTS, TUNING } from './data';
+import { ABILITIES, AURAS, CLASSES, FX, ICONS, MODELS_DATA, SOUNDS, SPECS, TALENTS, TUNING } from './data';
+import { MODELS_ID, modelBounds } from './modeldata';
 import { SOUND_FIELD_BOUNDS, SOUND_ID, isSoundFile } from './sounds';
 import { FX_ID, fxField } from './fx';
 import { ICON_TABLE, fileIconIdFor, iconExists, iconIdFor } from './iconlib';
@@ -9,9 +10,9 @@ import type { IconKind } from './iconlib';
  * testers try patches in a match against bots (only in their room), and a saved patch is applied for everyone (and
  * proposed for the data files as a pull request).
  */
-export type PatchFile = 'abilities' | 'auras' | 'specs' | 'talents' | 'classes' | 'tuning' | 'fx' | 'icons' | 'sounds';
+export type PatchFile = 'abilities' | 'auras' | 'specs' | 'talents' | 'classes' | 'tuning' | 'fx' | 'icons' | 'sounds' | 'models';
 /** Every data file a patch can name (the game options, shared/data/tuning.json, are one flat object with the id 'game'). */
-export const PATCH_FILES: readonly PatchFile[] = ['abilities', 'auras', 'specs', 'talents', 'classes', 'tuning', 'fx', 'icons', 'sounds'];
+export const PATCH_FILES: readonly PatchFile[] = ['abilities', 'auras', 'specs', 'talents', 'classes', 'tuning', 'fx', 'icons', 'sounds', 'models'];
 /** The id of the one object in tuning.json. */
 export const TUNING_ID = 'game';
 
@@ -85,9 +86,9 @@ const NOT_TUNABLE = new Set(['id', 'class', 'school', 'target', 'type', 'name', 
 const MAX_ABS = 1_000_000;
 
 /** The data as the files have it, copied before any patch can be applied (for "the file's value" next to the live one). */
-type Source = { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING; FX: typeof FX; ICONS: typeof ICONS; SOUNDS: typeof SOUNDS };
-const PRISTINE = structuredClone({ ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, FX, ICONS, SOUNDS }) as unknown as Source;
-const LIVE: Source = { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, FX, ICONS, SOUNDS };
+type Source = { ABILITIES: typeof ABILITIES; AURAS: typeof AURAS; CLASSES: typeof CLASSES; SPECS: typeof SPECS; TALENTS: typeof TALENTS; TUNING: typeof TUNING; FX: typeof FX; ICONS: typeof ICONS; SOUNDS: typeof SOUNDS; MODELS: typeof MODELS_DATA };
+const PRISTINE = structuredClone({ ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, FX, ICONS, SOUNDS, MODELS: MODELS_DATA }) as unknown as Source;
+const LIVE: Source = { ABILITIES, AURAS, CLASSES, SPECS, TALENTS, TUNING, FX, ICONS, SOUNDS, MODELS: MODELS_DATA };
 
 /** Every object an id names in a data file: one ability or aura, a spec, or a talent (the same talent sits in each spec's tree). */
 function roots(file: DataPatch['file'], id: string, src: Source = LIVE): Record<string, unknown>[] {
@@ -97,6 +98,7 @@ function roots(file: DataPatch['file'], id: string, src: Source = LIVE): Record<
   }
   if (file === 'tuning') return id === TUNING_ID ? [src.TUNING as unknown as Record<string, unknown>] : [];
   if (file === 'fx') return id === FX_ID ? [src.FX as unknown as Record<string, unknown>] : [];
+  if (file === 'models') return id === MODELS_ID ? [src.MODELS as unknown as Record<string, unknown>] : [];
   if (file === 'sounds') return id === SOUND_ID ? [src.SOUNDS as unknown as Record<string, unknown>] : [];
   if (file === 'icons') return []; // an icon is set by its kind (path ['ability'] or ['aura']), see locateAll
   const found = new Set<Record<string, unknown>>();
@@ -340,6 +342,10 @@ function valueFits(p: DataPatch): boolean {
   if (k && Object.hasOwn(ABILITY_FLAGS, k)) return p.value === 0 || p.value === 1;
   if (k && Object.hasOwn(ABILITY_CHOICES, k)) return typeof p.value === 'string' && ABILITY_CHOICES[k].options.includes(p.value);
   if (isSwitch(p)) return p.value === 0 || p.value === 1;
+  if (p.file === 'models') {
+    const b = modelBounds(p.path, MODELS_DATA);
+    return !!b && typeof p.value === 'number' && Number.isFinite(p.value) && p.value >= b.min && p.value <= b.max;
+  }
   if (p.file === 'sounds') {
     const key = p.path[1];
     if (key === 'file') return isSoundFile(p.value);

@@ -1,3 +1,4 @@
+import { applyModelData } from './modelData';
 import { ABILITIES, allArenas, CLASSES, CLASS_IDS, SPECS, applyPatches, mergePatches, talentsFor } from '@arena/shared';
 import type { Build, DevCommitRow, DevPageId, ClassId, ClientMsg, DataPatch, ServerMsg, SimEvent, UnitBuild } from '@arena/shared';
 import { refreshIcons } from './iconArt';
@@ -40,6 +41,7 @@ export class DataLayers {
   get roomPatches(): DataPatch[] {
     return this.room;
   }
+  private hadModels = false;
   private apply() {
     this.undo?.();
     const a = applyPatches(this.live);
@@ -50,6 +52,10 @@ export class DataLayers {
       s();
       a();
     };
+    // the Models page's numbers are merged over the model registry, and the characters are rebuilt, only while some are in effect (and once more when they go)
+    const modelsNow = [...this.live, ...this.session, ...this.room].some((p) => p.file === 'models');
+    if (modelsNow || this.hadModels) applyModelData();
+    this.hadModels = modelsNow;
     invalidateTip(); // open tooltips redraw with the new numbers
     refreshIcons(); // and every icon on the screen with the new pictures
   }

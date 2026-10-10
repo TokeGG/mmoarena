@@ -27,13 +27,14 @@ const CSS = `
 .mapw-bar { display:flex; align-items:center; gap:10px; padding:8px 14px; background:#14111d; border-bottom:1px solid #2c2638; flex:none; }
 .mapw-bar b { font-size:16px; color:#e2c7ff; } .mapw-bar .sp { flex:1; }
 .mapw-body { flex:1; min-height:0; overflow:auto; padding:12px 14px; }
-.mape-win { display:grid; grid-template-columns:260px minmax(0,1fr) 340px; grid-template-rows:auto minmax(0,1fr); gap:10px; height:100%; }
+.mape-win { display:grid; grid-template-columns:260px minmax(0,1fr) 340px; grid-template-rows:auto auto; gap:10px; align-items:start; }
 .mape-win > .mape-head { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
-.mape-win .mape-left, .mape-win .mape-right { overflow:auto; display:grid; gap:10px; align-content:start; min-height:0; }
-.mape-win .mape-center { display:flex; flex-direction:column; gap:8px; min-height:0; min-width:0; }
-.mape-win .mape-stage { flex:1; min-height:240px; position:relative; border-radius:8px; border:1px solid #2c2638; background:#10131a; overflow:hidden; }
-.mape-win .mape-stage .mape-canvas-wrap { position:absolute; inset:0; border:0; border-radius:0; }
-.mape-win .mape-stage .mape-3d { position:absolute; inset:0; width:100%; height:100%; display:block; outline:none; cursor:grab; }
+.mape-win .mape-left, .mape-win .mape-right { display:grid; gap:10px; align-content:start; }
+.mape-win .mape-center { display:flex; flex-direction:column; gap:8px; min-width:0; }
+.mape-win .mape-stage { position:relative; width:100%; height:calc(100vh - 190px); min-height:320px; border-radius:8px; border:1px solid #2c2638; background:#10131a; overflow:hidden; }
+.mape-win .mape-stage .mape-canvas-wrap { position:absolute; left:0; top:0; right:0; bottom:0; width:auto; border:0; border-radius:0; overflow:hidden; }
+.mape-win .mape-stage .mape-canvas { position:absolute; left:0; top:0; margin:0; }
+.mape-win .mape-stage .mape-3d { position:absolute; left:0; top:0; width:100%; height:100%; display:block; outline:none; cursor:grab; }
 .mape-win .mape-toolcol { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .mape-win .mape-toolcol button { text-align:left; }
 .mape-win .mape-form .own-row { flex-wrap:wrap; }
