@@ -29,6 +29,9 @@ type Mode = 'stand' | 'walk' | 'run' | 'swing' | 'cast' | 'jump';
 const MODES: [Mode, string][] = [['stand', 'Stand'], ['walk', 'Walk'], ['run', 'Run'], ['swing', 'Swing'], ['cast', 'Cast'], ['jump', 'Jump']];
 const SLOTS: [string, string][] = [['head', 'Head'], ['back', 'Back'], ['wings', 'Wings'], ['weapon', 'Weapon glow']];
 const KEY = 'arena.modelwin.v1';
+/** Length of one melee swing in the model view, and of one jump cycle (the view repeats it). */
+const SWING_S = 0.38;
+const JUMP_CYCLE_MS = 1500;
 /** The weapons to try on the model (each with the class that carries it), chosen in the window whatever page is open. */
 const WEAPONS: [string, string, ClassId][] = [['', 'Default weapon', 'warrior'], ['dual', 'Dual blades', 'warrior'], ['twohand', 'Two-handed sword', 'warrior'], ['polearm', 'Polearm', 'warrior'], ['daggers', 'Daggers', 'rogue'], ['fire_staff', 'Fire staff', 'mage'], ['ice_staff', 'Ice staff', 'mage'], ['arcane_staff', 'Arcane staff', 'mage'], ['holy_staff', 'Holy staff', 'priest'], ['necro_staff', 'Necro staff', 'priest']];
 
@@ -50,6 +53,9 @@ interface Shared {
   animRev: number;
   /** What the last file said about itself (bones matched), per mode. */
   animNote: Partial<Record<Mode, string>>;
+  /** The motion is held still at `scrub` (0 to 1 of its cycle) so a frame of it can be edited. */
+  paused: boolean;
+  scrub: number;
 }
 
 
@@ -180,6 +186,7 @@ class ModelView {
     }
     s.animNote[s.mode] = `${loaded.name}: ${r.matched} of 19 bones matched${r.missing.length ? `; not moved: ${r.missing.join(', ')}` : ''}.`;
     this.mixer = playOn(this.char.root, r.clip).mixer;
+    this.mixerDur = r.clip.duration;
     this.mixerMode = s.mode;
   }
 
@@ -207,7 +214,9 @@ class ModelView {
     this.camera.position.set(Math.sin(s.yaw) * cp * s.dist, s.lookY + Math.sin(s.pitch) * s.dist, Math.cos(s.yaw) * cp * s.dist);
     this.camera.lookAt(0, s.lookY, 0);
     const c = this.char;
-    if (c) {
+    if (c && s.paused) this.poseAt(c, s);
+    else if (c) {
+      this.frozen = '';
       const move = s.mode === 'walk' ? 0.55 : s.mode === 'run' ? 1 : 0;
       this.phase += dt * (s.mode === 'run' ? 11 : 7) * (move > 0 ? 1 : 0);
       if (s.mode === 'swing' && s.time - this.swingAt > 1.1) {
@@ -220,6 +229,44 @@ class ModelView {
     }
     this.syncBoxes();
     r.render(this.scene, this.camera);
+  }
+
+  private frozen = '';
+  private frozenChar: Character | null = null;
+  private mixerDur = 0;
+
+  /** How far through its cycle the motion on show is now (0 to 1), to start a pause where it is. */
+  progress(s: Shared): number {
+    if (s.mode === 'swing') return Math.min(1, Math.max(0, (s.time - this.swingAt) / (SWING_S / 1)));
+    if (s.mode === 'jump') return (((s.time - this.jumpAt) * 1000) % JUMP_CYCLE_MS) / JUMP_CYCLE_MS;
+    if (s.mode === 'walk' || s.mode === 'run') return (((this.phase % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI * 2);
+    return 0.5;
+  }
+
+  /**
+   * The character held at one moment of its motion: the pose is rebuilt from the start of the cycle up to `scrub` (walk and run set the
+   * stride, a swing is started and played to that point, a jump is put at that height), then left alone, so the bones stay where the
+   * dev drags them and an edit shows on exactly this frame.
+   */
+  private poseAt(c: Character, s: Shared): void {
+    const key = `${s.mode}|${s.scrub}|${s.animRev}|${modelVersion()}`;
+    if (this.frozenChar === c && this.frozen === key) return;
+    this.frozenChar = c;
+    this.frozen = key;
+    const f = Math.min(1, Math.max(0, s.scrub));
+    const move = s.mode === 'walk' ? 0.55 : s.mode === 'run' ? 1 : 0;
+    const phase = (move > 0 ? f : 0) * Math.PI * 2;
+    const air = s.mode === 'jump' ? jumpHeight(f * JUMP_CYCLE_MS) : 0;
+    const step = (dt: number) => c.pose({ phase, move, casting: s.mode === 'cast', time: 0, dt, vf: move * 7, vs: 0, air });
+    if (s.mode === 'swing') {
+      c.swing();
+      const total = f * SWING_S;
+      for (let t = 0; t < total; t += 0.016) step(Math.min(0.016, total - t));
+      step(0.001);
+    } else for (let i = 0; i < 10; i++) step(0.05); // the smoothed parts of the pose settle on this frame
+    if (this.mixer && this.mixerDur > 0) {
+      this.mixer.setTime(f * this.mixerDur);
+    }
   }
 
   /** The pivot a weapon hangs on in this hand (weaponModels.ts names its pivots and marks the hand). */
@@ -432,7 +479,7 @@ class ModelView {
 
 export class ModelWindow {
   readonly root = el('div', 'mwin');
-  private s: Shared = { spec: { classId: 'warrior' }, gear: {}, mode: 'stand', spin: true, yaw: 2.6, pitch: 0.12, dist: 5.2, lookY: 1.15, time: 0, restart: 0, anims: {}, animRev: 0, animNote: {} };
+  private s: Shared = { spec: { classId: 'warrior' }, gear: {}, mode: 'stand', spin: true, yaw: 2.6, pitch: 0.12, dist: 5.2, lookY: 1.15, time: 0, restart: 0, anims: {}, animRev: 0, animNote: {}, paused: false, scrub: 0.5 };
   private now = new ModelView('As it is now', false);
   private shipped = new ModelView('As it shipped', true);
   private compare = true;
@@ -470,6 +517,7 @@ export class ModelWindow {
   private moveMode: 'slide' | 'turn' = 'slide';
   private hand: 'right' | 'left' = 'right';
   private moveBox = el('div', 'mwin-move');
+  private paintFrame: () => void = () => undefined;
 
   /** Offer (or take away) dragging the weapon in the picture; the page gives, per weapon, the function that saves what the drag made. */
   setWeaponEditor(f: ((weapon: string) => ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null) | null): void {
@@ -540,6 +588,7 @@ export class ModelWindow {
 .mwin-anim{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:5px 8px;flex:none;border-top:1px solid #2c2638;background:#181424}.mwin-anim small{color:#a99cc4}
 .mwin.dropping{outline:3px dashed #b58cff;outline-offset:-6px}
 .mwin-move{display:none;flex-wrap:wrap;gap:5px;align-items:center;padding:5px 8px;flex:none;border-bottom:1px solid #2c2638;background:#1b1530}
+.mwin-frame{width:150px}
 .mwin-note{padding:3px 10px;color:#a99cc4;flex:none}`;
     this.root.append(style);
     const bar = el('div', 'mwin-bar');
@@ -556,6 +605,7 @@ export class ModelWindow {
         this.s.mode = id;
         this.s.restart++;
         tools.querySelectorAll('button[data-mode]').forEach((x) => x.classList.toggle('on', x === b));
+        this.paintFrame();
         this.paintAnim();
       });
       tools.append(b);
@@ -584,7 +634,45 @@ export class ModelWindow {
       cmp.classList.toggle('on', this.compare);
       this.layout();
     });
-    tools.append(spin, cmp);
+    const pause = el('button', 'mm-small', '⏸ Pause');
+    pause.title = 'Hold the motion still at one moment of it (the swing half way, a stride, the top of a jump) so you can edit the model on that frame. Move the slider to pick the frame.';
+    const frame = el('input');
+    frame.type = 'range';
+    frame.min = '0';
+    frame.max = '1000';
+    frame.className = 'mwin-frame';
+    frame.title = 'Which moment of the motion (0 is its start, 100 its end)';
+    const step = (d: number) => {
+      this.s.scrub = Math.min(1, Math.max(0, this.s.scrub + d));
+      frame.value = String(Math.round(this.s.scrub * 1000));
+      frameLbl.textContent = `${Math.round(this.s.scrub * 100)}%`;
+    };
+    const back = el('button', 'mm-small', '◀');
+    const fwd = el('button', 'mm-small', '▶');
+    const frameLbl = el('small', 'devp-dim', '');
+    const paintFrame = () => {
+      const scrubbable = this.s.paused && this.s.mode !== 'stand' && this.s.mode !== 'cast';
+      for (const x of [frame, back, fwd, frameLbl]) x.style.display = scrubbable ? '' : 'none';
+      pause.classList.toggle('on', this.s.paused);
+      pause.textContent = this.s.paused ? '▶ Play' : '⏸ Pause';
+    };
+    this.paintFrame = paintFrame;
+    pause.addEventListener('click', () => {
+      this.s.paused = !this.s.paused;
+      if (this.s.paused) {
+        this.s.scrub = this.now.progress(this.s);
+        step(0);
+      }
+      paintFrame();
+    });
+    frame.addEventListener('input', () => {
+      this.s.scrub = Number(frame.value) / 1000;
+      frameLbl.textContent = `${Math.round(this.s.scrub * 100)}%`;
+    });
+    back.addEventListener('click', () => step(-0.02));
+    fwd.addEventListener('click', () => step(0.02));
+    paintFrame();
+    tools.append(spin, cmp, pause, back, frame, fwd, frameLbl);
     for (const [slot, label] of SLOTS) {
       const sel = el('select');
       sel.dataset.slot = slot;
