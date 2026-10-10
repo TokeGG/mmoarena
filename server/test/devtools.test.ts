@@ -14,13 +14,13 @@ const CODE = 'dev-code';
 const mkP = (name: string, out: ServerMsg[], account: any) => ({ ws: { readyState: 1, send: (s: string) => out.push(JSON.parse(s)), bufferedAmount: 0 } as any, name, classId: 'mage', matches: 0, wins: 0, size: 1, ip: '1.1.1.1', mapPref: 'random', account, ownerOk: false } as any);
 const last = <T extends ServerMsg['t']>(out: ServerMsg[], t: T) => [...out].reverse().find((m) => m.t === t) as Extract<ServerMsg, { t: T }> | undefined;
 
-async function world(http?: typeof fetch) {
+async function world(http?: typeof fetch, landing?: string) {
   const store = new MemoryStore();
   const a = new Accounts(store, CODE);
   const toke = (await a.register('Toke', 'hunter22', '1.1.1.1', CODE)) as any;
   const dee = (await a.register('Dee', 'hunter22', '2.2.2.2')) as any;
   const bob = (await a.register('Bob', 'hunter22', '3.3.3.3')) as any;
-  const dev = new DevTools(store, { GITHUB_TOKEN: http ? 'tok' : undefined }, http);
+  const dev = new DevTools(store, { GITHUB_TOKEN: http ? 'tok' : undefined, ...(landing ? { ARENA_DEV_LANDING: landing } : {}) }, http);
   const lobby = new Lobby({ practicePrepMs: 0, queuePrepMs: 0, minCountedMatchMs: 0 }, a, undefined, undefined, dev);
   const outD: ServerMsg[] = [];
   const outB: ServerMsg[] = [];
@@ -62,9 +62,9 @@ describe('dev commits to GitHub', () => {
   };
   const tree = (calls: Call[]) => (calls.find((c) => c.url.endsWith('/git/trees'))!.body.tree as { path: string; content: string }[]);
 
-  it('a dev commits numbers straight to main as ONE commit that is also a patch: notes entry, version, README, SIM_REVISION', async () => {
+  it('on the pull request route a dev commits numbers as ONE commit that is also a patch: notes entry, version, README, SIM_REVISION', async () => {
     const calls: Call[] = [];
-    const { lobby, devP, outD } = await world(mkHttp(calls));
+    const { lobby, devP, outD } = await world(mkHttp(calls), 'pr');
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }], note: 'feels better' } as ClientMsg);
     await new Promise((r) => setTimeout(r, 80));
     assert.ok(calls.some((c) => c.url.endsWith('/git/refs') && c.method === 'POST'), 'the commit gets its own branch');
@@ -162,9 +162,31 @@ describe('dev commits to GitHub', () => {
     assert.ok(!calls.slice(before).some((c) => c.url.endsWith('/git/commits') && c.method === 'POST'), 'no commit for nothing');
   });
 
+  it('by default a dev commit lands straight on main as one commit, with no branch and no pull request', async () => {
+    const calls: Call[] = [];
+    const { lobby, devP, outD } = await world(mkHttp(calls));
+    lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 80));
+    assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 1, 'one commit');
+    assert.ok(calls.some((c) => c.url.includes('/git/refs/heads/main') && c.method === 'PATCH'), 'main moves to it');
+    assert.ok(!calls.some((c) => c.url.endsWith('/pulls') || (c.url.endsWith('/git/refs') && c.method === 'POST')), 'no branch, no pull request');
+    const res = last(outD, 'dev_result')!;
+    assert.equal(res.ok, true);
+    assert.match(String((res as any).url), /commit\/abc123/);
+  });
+
+  it('if GitHub refuses the push to main, the change goes through a pull request instead', async () => {
+    const calls: Call[] = [];
+    const { lobby, devP, outD } = await world(mkHttp(calls, { refFails: 1 }));
+    lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 120));
+    assert.ok(calls.some((c) => c.url.endsWith('/pulls') && c.method === 'POST'), 'the pull request takes over');
+    assert.equal(last(outD, 'dev_result')!.ok, true);
+  });
+
   it('a failing check keeps the commit off main and names the check to the dev', async () => {
     const calls: Call[] = [];
-    const { lobby, devP, outD } = await world(mkHttp(calls, { checks: [{ name: 'check', status: 'completed', conclusion: 'failure' }] }));
+    const { lobby, devP, outD } = await world(mkHttp(calls, { checks: [{ name: 'check', status: 'completed', conclusion: 'failure' }] }), 'pr');
     lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 7000 }] } as ClientMsg);
     await new Promise((r) => setTimeout(r, 120));
     assert.ok(!calls.some((c) => c.url.endsWith('/pulls/7/merge')), 'not merged');

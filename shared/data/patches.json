@@ -1,5 +1,16 @@
 [
  {
+  "version": "0.69.51",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:50:35Z",
+  "title": "Bots play more like people",
+  "changes": [
+   "Bots no longer know when an enemy's interrupt is on cooldown. Like a player, they assume it is ready until they have seen it used.",
+   "Casters no longer sit at the very edge of their range: each picks a distance it likes, closes in when the gap opens and picks again every few seconds.",
+   "Warrior bots save up rage for Slice and Dice and You're Not Going Anywhere instead of spending it on smaller attacks."
+  ]
+ },
+ {
   "version": "0.69.50",
   "date": "2026-10-10",
   "at": "2026-10-10T05:08:44Z",

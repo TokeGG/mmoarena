@@ -1,8 +1,8 @@
 {
  "warrior:arms": [
+  "slam",
   "mortal_strike",
-  "slice_and_dice",
-  "slam"
+  "slice_and_dice"
  ],
  "warrior:fury": [
   "sweep",

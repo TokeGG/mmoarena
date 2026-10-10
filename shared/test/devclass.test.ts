@@ -89,3 +89,17 @@ describe('dev tuning of classes, specs and talents', () => {
     assert.equal(sim.winner, null);
   });
 });
+
+describe('restarting a match restarts dampening', () => {
+  it('after a restart healing is at full strength again', async () => {
+    const { ArenaSim, TUNING } = await import('../src/index');
+    const sim = new ArenaSim({ seed: 3, prepMs: 0, tickMs: 16 });
+    sim.addUnit({ name: 'p', classId: 'priest', team: 0, controller: 'dummy', build: { spec: 'holy', talents: [], gear: {} } });
+    sim.addUnit({ name: 'w', classId: 'warrior', team: 1, controller: 'dummy' });
+    sim.step();
+    while (sim.time < TUNING.dampenStartMs + 20000) sim.step();
+    assert.ok(sim.dampening() > 0, 'dampening has set in');
+    sim.resetMatch();
+    assert.equal(sim.dampening(), 0, 'and starts over with the match');
+  });
+});

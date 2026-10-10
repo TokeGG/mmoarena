@@ -27,7 +27,7 @@ Everything here comes straight from the game data, so it matches the in-game too
 Heavy melee fighter. Builds rage by fighting. Charges in, hamstrings, interrupts.
 
 - **Health:** 3400
-- **Rage:** 100 max, start with 0; built by dealing damage (15% of it with a free skill or auto-attack) and taking damage (7.5%), and drains 5 a second out of combat
+- **Rage:** 100 max, start with 0; built by dealing damage (3% of it with a free skill or auto-attack) and taking damage (1%), and drains 5 a second out of combat
 - **Specs:** [Warbringer](#warrior-arms) (Dual wield) · [Rampager](#warrior-fury) (Two-handed sword) · [Barbarian](#warrior-protection) (Control / reach)
 
 **Talents every Warrior spec shares** (one pick per tier, kept when you change spec):
@@ -60,10 +60,10 @@ Fast, relentless swings. Mortal Strike cuts the target's healing; Slice and Dice
 | 1 | [Slam](#skill-slam) | 3 yd range · Instant · 3s cooldown |
 | 2 | [Mortal Strike](#skill-mortal-strike) | 30 rage · 3 yd range · Instant · 8s cooldown |
 | 3 | [Execute](#skill-execute) | 40 rage · 3 yd range · Instant · 5s cooldown |
-| 4 | [Slice and Dice](#skill-slice-and-dice) | 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun |
+| 4 | [Slice and Dice](#skill-slice-and-dice) | 80 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
-| 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 10s cooldown |
-| 7 | [Hamstring](#skill-hamstring) | 10 rage · 3 yd range · Instant · 8s slow |
+| 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 15s cooldown |
+| 7 | [Hamstring](#skill-hamstring) | 30 rage · 3 yd range · Instant · 8s slow |
 | 8 | [Heroic Leap](#skill-heroic-leap) | 25 yd range · Aimed at the cursor · Instant · 60s cooldown |
 
 **Talents** (one per tier; tiers I and II and IV and V are under [Warrior](#warrior)):
@@ -85,13 +85,13 @@ Slow swings with long reach. Bloodthirst cleaves everything around you and heals
 
 | Key | Skill | Numbers with this spec |
 |---|---|---|
-| 1 | [Bladestorm](#skill-bladestorm) | 30 rage · 7 yd radius · 7s channel · 80s cooldown |
+| 1 | [Bladestorm](#skill-bladestorm) | 40 rage · 7 yd radius · 7s channel · 80s cooldown |
 | 2 | [Bloodthirst](#skill-bloodthirst) | **4.5** (base 3) yd radius · Instant · 3.5s cooldown |
-| 3 | [Recklessness](#skill-recklessness) | Instant · 45s cooldown · 12s buff |
-| 4 | [Sweep](#skill-sweep) | 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown |
+| 3 | [Recklessness](#skill-recklessness) | 60 rage · Instant · 45s cooldown · 12s buff |
+| 4 | [Sweep](#skill-sweep) | 60 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
-| 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 10s cooldown |
-| 7 | [Hamstring](#skill-hamstring) | 10 rage · 3 yd range · Instant · 8s slow |
+| 6 | [Pummel](#skill-pummel) | 10 rage · 3 yd range · Instant · 15s cooldown |
+| 7 | [Hamstring](#skill-hamstring) | 30 rage · 3 yd range · Instant · 8s slow |
 | 8 | [Heroic Leap](#skill-heroic-leap) | 25 yd range · Aimed at the cursor · Instant · 60s cooldown |
 
 **Talents** (one per tier; tiers I and II and IV and V are under [Warrior](#warrior)):
@@ -115,11 +115,11 @@ Fights with a polearm. Reel In, a bleeding Deep Cuts and a banner that traps ene
 |---|---|---|
 | 1 | [Reel In](#skill-reel-in) | 15 rage · 10 yd range, 90° cone in front of you · Instant · 25s cooldown |
 | 2 | [Deep Cuts](#skill-deep-cuts) | **5** (base 3) yd range · Instant · 4s cooldown · 6s bleed |
-| 3 | [Axe Throw](#skill-axe-throw) | 50 rage · 10 yd range · Instant · 4s cooldown |
-| 4 | [You're Not Going Anywhere](#skill-not-going-anywhere) | 20 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner |
+| 3 | [Axe Throw](#skill-axe-throw) | 60 rage · 10 yd range · Instant · 4s cooldown |
+| 4 | [You're Not Going Anywhere](#skill-not-going-anywhere) | 80 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner |
 | 5 | [Charge](#skill-charge) | 25 yd range · min 6 yd · Instant · 15s cooldown |
-| 6 | [Pummel](#skill-pummel) | 10 rage · **5** (base 3) yd range · Instant · 10s cooldown |
-| 7 | [Hamstring](#skill-hamstring) | 10 rage · **5** (base 3) yd range · Instant · 8s slow |
+| 6 | [Pummel](#skill-pummel) | 10 rage · **5** (base 3) yd range · Instant · 15s cooldown |
+| 7 | [Hamstring](#skill-hamstring) | 30 rage · **5** (base 3) yd range · Instant · 8s slow |
 | 8 | [Heroic Leap](#skill-heroic-leap) | 25 yd range · Aimed at the cursor · Instant · 60s cooldown |
 
 **Talents** (one per tier; tiers I and II and IV and V are under [Warrior](#warrior)):
@@ -140,8 +140,8 @@ Base numbers, before spec and talent changes (in game, hover a skill to see your
 *Physical* · 3 yd range · Instant · 3s cooldown
 
 - Deals 160 physical damage.
-- Generates 15 rage.
-- *Its damage builds rage: 15% of the damage dealt (24 per hit).*
+- Generates 0 rage.
+- *Its damage builds rage: 3% of the damage dealt (5 per hit).*
 
 On the bar: [Warbringer](#warrior-arms) (key 1).
 
@@ -169,7 +169,7 @@ On the bar: [Warbringer](#warrior-arms) (key 3).
 <a id="skill-slice-and-dice"></a>
 #### Slice and Dice
 
-*Physical* · 30 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun
+*Physical* · 80 rage · 5 yd range, 90° cone in front of you · 4s channel · 60s cooldown · 1.1s stun
 
 - Strikes every enemy in range 16 times, once every 0.3s (the first at once), for 40 physical damage each (640 total). You stand still while it lasts, and being interrupted stops it.
 - Cannot move, cast or act.
@@ -183,7 +183,7 @@ On the bar: [Warbringer](#warrior-arms) (key 4).
 
 - Stuns the target for up to 2.5s as you sprint at it, closing the distance in about a second, then hits it for 50 and ends the stun when you land. You cannot steer while charging; taking damage, a stun or a root stops you (and frees the target).
 - Generates 20 rage.
-- *Its damage builds rage: 15% of the damage dealt (8 per hit).*
+- *Its damage builds rage: 3% of the damage dealt (2 per hit).*
 - *Does not trigger the global cooldown.*
 
 On the bar: [Warbringer](#warrior-arms) (key 5), [Rampager](#warrior-fury) (key 5), [Barbarian](#warrior-protection) (key 5).
@@ -191,7 +191,7 @@ On the bar: [Warbringer](#warrior-arms) (key 5), [Rampager](#warrior-fury) (key 
 <a id="skill-pummel"></a>
 #### Pummel
 
-*Physical* · 10 rage · 3 yd range · Instant · 10s cooldown
+*Physical* · 10 rage · 3 yd range · Instant · 15s cooldown
 
 - Interrupts the target's spellcasting and locks out that school for 5s.
 - *Does not trigger the global cooldown.*
@@ -201,7 +201,7 @@ On the bar: [Warbringer](#warrior-arms) (key 6), [Rampager](#warrior-fury) (key 
 <a id="skill-hamstring"></a>
 #### Hamstring
 
-*Physical* · 10 rage · 3 yd range · Instant · 8s slow
+*Physical* · 30 rage · 3 yd range · Instant · 8s slow
 
 - Movement speed reduced by 50%.
 
@@ -213,7 +213,7 @@ On the bar: [Warbringer](#warrior-arms) (key 7), [Rampager](#warrior-fury) (key 
 *Physical* · 25 yd range · Aimed at the cursor · Instant · 60s cooldown
 
 - Leaps through the air to the chosen spot, slamming enemies within 5 yards for 120 damage on landing.
-- *Its damage builds rage: 15% of the damage dealt (18 per enemy hit).*
+- *Its damage builds rage: 3% of the damage dealt (4 per enemy hit).*
 - *Does not trigger the global cooldown.*
 
 On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 8), [Barbarian](#warrior-protection) (key 8).
@@ -221,7 +221,7 @@ On the bar: [Warbringer](#warrior-arms) (key 8), [Rampager](#warrior-fury) (key 
 <a id="skill-bladestorm"></a>
 #### Bladestorm
 
-*Physical* · 30 rage · 7 yd radius · 7s channel · 80s cooldown
+*Physical* · 40 rage · 7 yd radius · 7s channel · 80s cooldown
 
 - Strikes every enemy in range 10 times, once every 0.7s, for 86 physical damage each (860 total).
 - *Can be cast while moving.*
@@ -237,14 +237,14 @@ On the bar: [Rampager](#warrior-fury) (key 1).
 - Deals 140 physical damage to all enemies in range.
 - Heals you for 3% of your maximum health.
 - Generates 8 rage.
-- *Its damage builds rage: 15% of the damage dealt (21 per enemy hit).*
+- *Its damage builds rage: 3% of the damage dealt (4 per enemy hit).*
 
 On the bar: [Rampager](#warrior-fury) (key 2).
 
 <a id="skill-recklessness"></a>
 #### Recklessness
 
-*Physical* · Instant · 45s cooldown · 12s buff
+*Physical* · 60 rage · Instant · 45s cooldown · 12s buff
 
 - +30% damage dealt. +100% rage from all sources.
 - *Does not trigger the global cooldown.*
@@ -254,7 +254,7 @@ On the bar: [Rampager](#warrior-fury) (key 3).
 <a id="skill-sweep"></a>
 #### Sweep
 
-*Physical* · 40 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown
+*Physical* · 60 rage · 5 yd range, 90° cone in front of you · Instant · 4s cooldown
 
 - Deals 220 physical damage to all enemies in range.
 
@@ -278,14 +278,14 @@ On the bar: [Barbarian](#warrior-protection) (key 1).
 - Deals 30 physical damage.
 - Bleeding: takes 16 physical damage every 1s (96 total).
 - Generates 10 rage.
-- *Its damage builds rage: 15% of the damage dealt (5 per hit).*
+- *Its damage builds rage: 3% of the damage dealt (1 per hit).*
 
 On the bar: [Barbarian](#warrior-protection) (key 2).
 
 <a id="skill-axe-throw"></a>
 #### Axe Throw
 
-*Physical* · 50 rage · 10 yd range · Instant · 4s cooldown
+*Physical* · 60 rage · 10 yd range · Instant · 4s cooldown
 
 - Deals 275 physical damage.
 
@@ -294,7 +294,7 @@ On the bar: [Barbarian](#warrior-protection) (key 3).
 <a id="skill-not-going-anywhere"></a>
 #### You're Not Going Anywhere
 
-*Physical* · 20 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner
+*Physical* · 80 rage · 15 yd range · Aimed at the cursor · Instant · 80s cooldown · 8s banner
 
 - Plants a banner at the chosen spot. Enemies inside its 5-yard circle cannot leave it.
 
@@ -473,7 +473,7 @@ On the bar: [Cryomancy](#mage-frost) (key 3), [Pyromancy](#mage-fire) (key 6), [
 
 *Arcane* · 30 yd range · Instant · 24s cooldown
 
-- Interrupts the target's spellcasting and locks out that school for 5s.
+- Interrupts the target's spellcasting and locks out that school for 7s.
 - *Usable while locked out.*
 - *Does not trigger the global cooldown.*
 
@@ -528,7 +528,7 @@ On the bar: [Cryomancy](#mage-frost) (key 8).
 
 *Fire* · 60 mana · 30 yd range · 1.8s cast
 
-- Deals 280 fire damage.
+- Deals 230 fire damage.
 - Applies 2 stacks of Singed for 20s: Scorch adds 1 stack and Fireball adds 2; the hit that would take it past its last stack removes them all and gives you Hot Streak, making your next Pyroblast instant.
 - 10% chance: You gain Hot Streak for 10s: Your next Pyroblast is instant.
 - Effects: [Singed](#effect-singed), [Hot Streak](#effect-hot-streak)
@@ -1097,7 +1097,7 @@ On the bar: [Cutthroat](#rogue-assassination) (key 3), [Duelist](#rogue-combat) 
 
 *Physical* · 3 yd range · Instant · 15s cooldown
 
-- Interrupts the target's spellcasting and locks out that school for 5s.
+- Interrupts the target's spellcasting and locks out that school for 6s.
 - *Does not trigger the global cooldown.*
 
 On the bar: [Cutthroat](#rogue-assassination) (key 4), [Duelist](#rogue-combat) (key 4), [Shade](#rogue-subtlety) (key 3).

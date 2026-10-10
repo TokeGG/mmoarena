@@ -161,7 +161,10 @@ describe('0.67 bots: builds, brains and rotations', () => {
         for (const e of sim.drainEvents()) if (e.t === 'cast_start' || e.t === 'cast') cast.add(e.ability);
       }
     }
-    const never = [...onBar].filter((a) => !cast.has(a));
+    // a skill priced near the whole bar with a long cooldown (Slice and Dice at 80 of 100 rage) is a rare spend when rage comes slowly:
+    // it is held to being cast by a bot that has the rage (the test below), not to showing up in every 70 random matches
+    const rare = (a: string) => (ABILITIES[a]?.cost ?? 0) >= 80 && (ABILITIES[a]?.cooldown ?? 0) >= 60000;
+    const never = [...onBar].filter((a) => !cast.has(a) && !rare(a));
     assert.deepEqual(never, [], `never cast: ${never.join(', ')}`);
   });
 });
@@ -439,4 +442,25 @@ describe('bots and stealth', () => {
     assert.ok(w.pos.x > 3, 'it went to look in the middle');
   });
 
+});
+
+describe('a warrior bot with the rage for a costly stun uses it', () => {
+  it('Slice and Dice is cast in melee at full rage', () => {
+    const sim = new ArenaSim({ seed: 5, prepMs: 0, tickMs: 16 });
+    const w = sim.addUnit({ name: 'w', classId: 'warrior', team: 0, controller: 'bot', build: { spec: 'arms', talents: [], gear: {} } });
+    const e = sim.addUnit({ name: 'e', classId: 'warrior', team: 1, controller: 'dummy' });
+    w.bar = [...w.bar.slice(0, 7), 'slice_and_dice'];
+    w.pos = { x: 0, z: 0 }; e.pos = { x: 0, z: 2 };
+    e.maxHealth = e.health = 1e7;
+    const bot = new Bot(sim, w.id, 'hard', 3);
+    sim.step();
+    w.resource = 100;
+    let cast = false;
+    for (let t = 0; t < 300 && !cast; t++) {
+      bot.tick();
+      sim.step();
+      for (const ev of sim.drainEvents()) if ((ev.t === 'cast' || ev.t === 'cast_start') && ev.ability === 'slice_and_dice') cast = true;
+    }
+    assert.ok(cast);
+  });
 });

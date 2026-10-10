@@ -862,7 +862,7 @@ function cycleTarget(dir: 1 | -1) {
   if (!latest) return;
   if (spec) return cycleFollow(dir);
   const enemies = latest.units
-    .filter((u) => u.team !== team && u.alive && !smokeHidden(u.id))
+    .filter((u) => u.team !== team && u.id !== you && u.alive && !smokeHidden(u.id)) // never yourself, whatever team you are shown on
     .sort((a, b) => Math.hypot(a.x - pred.x, a.z - pred.z) - Math.hypot(b.x - pred.x, b.z - pred.z));
   if (!enemies.length) return;
   const idx = enemies.findIndex((u) => u.id === targetId);
