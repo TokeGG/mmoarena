@@ -2,7 +2,7 @@ import { SHOUT_DUR, newShoutPose, shoutPose } from './shoutPose';
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { parseLook, clamp, fxNum } from '@arena/shared';
+import { parseLook, clamp, fxNum, MODELS_DATA } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 import { RigAnimator } from './riggedPose';
 import { boneAdjust, slotPlacement } from './modelData';
@@ -10,6 +10,7 @@ import { attachWeapon, WEAPONS } from './weaponModels';
 import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
 import { applyCustomParts } from './customParts';
+import { customScene, fittedPart } from './customModels';
 import { createMotion, motionOf } from './customMotion';
 import type { RigAsset, RigDriver } from './riggedModels';
 import { buildCape, isCapeItem, DEFAULT_CAPE_FIT } from './capeModels';
@@ -1244,8 +1245,51 @@ function placed<T extends THREE.Object3D>(parent: T, slot: string): T {
   return g as unknown as T;
 }
 
-function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string, CosmeticItem>) {
+/**
+ * A kind of cosmetic the dev gave a model of their own (models.json cosmetics.<slot>.file): that model is worn in place of the item's
+ * built-in look, at the slot's usual spot and moved by the slot's placement numbers. The slot is then left out of the rest of the dressing.
+ */
+function uploadedCosmetics(b: Builder, r: Rig, fit: Fit, look: Record<string, CosmeticItem>): Record<string, CosmeticItem> {
+  let out = look;
+  const spots: Record<string, { parent: THREE.Object3D; at: THREE.Vector3; size: number }> = {
+    head: { parent: r.head ?? r.upper, at: new THREE.Vector3(0, fit.headTop, 0), size: 0.45 },
+    back: { parent: r.upper, at: new THREE.Vector3(0, fit.cape?.y ?? 0.7, -(fit.chestZ ?? 0.15)), size: 0.9 },
+    wings: { parent: r.upper, at: new THREE.Vector3(0, fit.wings?.y ?? 0.7, -(fit.wings?.z ?? 0.2)), size: 1.5 },
+    weapon: { parent: r.armR, at: r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05), size: 0.5 },
+  };
+  for (const [slot, spot] of Object.entries(spots)) {
+    const item = look[slot];
+    const file = MODELS_DATA.cosmetics[slot]?.file;
+    const src = item && file ? customScene(file) : null;
+    if (!item || !src) continue;
+    const sp = slotPlacement(slot);
+    const shaped = fittedPart(src, spot.size * sp.scale);
+    shaped.position.set(spot.at.x + sp.x, spot.at.y + sp.y, spot.at.z + sp.z);
+    shaped.rotation.y = sp.rotY;
+    shaped.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const own = (m: THREE.Material) => {
+        const c = m.clone() as THREE.MeshStandardMaterial;
+        c.userData.base = c.color?.clone();
+        c.userData.glow = c.emissiveMap ? 1 : 0;
+        b.mats.push(c);
+        return c;
+      };
+      o.material = Array.isArray(o.material) ? o.material.map(own) : own(o.material);
+      b.meshes.push(o);
+    });
+    spot.parent.add(shaped);
+    if ((REPLACEABLE_SLOTS as readonly string[]).includes(slot)) b.dropPart(slot);
+    if (slot === 'back') r.cape = undefined;
+    if (out === look) out = { ...look };
+    delete out[slot];
+  }
+  return out;
+}
+
+function wearCosmetics(b: Builder, r: Rig, classId: ClassId, lookIn: Record<string, CosmeticItem>) {
   const fit = r.fit ?? FIT[classId];
+  const look = uploadedCosmetics(b, r, fit, lookIn);
   const { upper } = r;
   const hu = look.head ? placed(r.head ?? upper, 'head') : r.head ?? upper; // head items ride on the head bone of a skinned model
   // a cosmetic in a slot REPLACES the model's built-in part for it (helm/hood/hat, pauldrons, cape/wings) rather than stacking on it

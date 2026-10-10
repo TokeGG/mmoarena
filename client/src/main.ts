@@ -955,7 +955,7 @@ function castSlot(i: number) {
   // spell queue: pressing a global-cooldown spell while casting or on the GCD holds it and sends it the moment you are free
   const me = latest?.units.find((u) => u.id === you);
   const nowS = estimatedNow();
-  if (me && def?.gcd && me.alive && (me.cast || me.gcdEnd > nowS) && (me.cooldowns[ability] ?? 0) - nowS < 1500) {
+  if (me && def?.gcd && me.alive && mustWait(me, ability, nowS) && (me.cooldowns[ability] ?? 0) - nowS < 1500) {
     // the spell you are casting right now is only queued again in its last quarter second, so one press never casts twice
     const active = me.cast?.ability ?? (performance.now() - lastSent.at < 3000 ? lastSent.ability : null);
     const freeIn = Math.max(me.cast ? me.cast.end - nowS : 0, me.gcdEnd - nowS);
@@ -975,6 +975,15 @@ function viewTime(): number {
 }
 
 const QUEUE_SAME_MS = 250;
+/**
+ * Does this spell have to wait (be queued) right now? A different spell starts at once, even in the middle of a cast or the global
+ * cooldown: it ends the one before it. The same spell waits for its own cast or the global cooldown, and so does anything while an
+ * unstoppable channel runs.
+ */
+function mustWait(me: { cast: { ability: string; end: number } | null; gcdEnd: number; gcdBy?: string }, ability: string, now: number): boolean {
+  if (me.cast && (me.cast.ability === ability || ABILITIES[me.cast.ability]?.unstoppable)) return true;
+  return me.gcdEnd > now && !(TUNING.gcdSwitch && me.gcdBy !== ability);
+}
 /** A queued spell is sent this long before the global cooldown ends: the server holds it for its cast grace, so it starts the moment it can. */
 const QUEUE_EARLY_MS = 120;
 /** The last spell sent, so a repeat press of it is not queued on top of itself. */
@@ -1000,7 +1009,7 @@ function flushQueue() {
   if (!queued) return;
   const me = latest?.units.find((u) => u.id === you);
   if (spec || !me || !me.alive || performance.now() > queued.until) { queued = null; return; }
-  if (me.cast || me.gcdEnd > estimatedNow() + QUEUE_EARLY_MS || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + QUEUE_EARLY_MS) return;
+  if (mustWait(me, queued.ability, estimatedNow() + QUEUE_EARLY_MS) || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + QUEUE_EARLY_MS) return;
   const q = queued;
   queued = null;
   sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime(), ...(q.ground ? { x: q.ground.x, z: q.ground.z, ...(q.ground.lv === 1 ? { lv: 1 as const } : {}) } : {}) });
@@ -1059,7 +1068,7 @@ function confirmAim() {
   const spot = { x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}) };
   const me = latest?.units.find((u) => u.id === you);
   const nowS = estimatedNow();
-  if (me && def.gcd && (me.cast || me.gcdEnd > nowS)) {
+  if (me && def.gcd && mustWait(me, aiming, nowS)) {
     // placed while casting or on the global cooldown: it goes into the spell queue with its spot, like any other spell
     queued = { ability: aiming, target: null, until: performance.now() + 3000, ground: spot };
   } else {

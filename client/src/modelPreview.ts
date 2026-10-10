@@ -253,6 +253,13 @@ export class ModelWindow {
   private last = 0;
   /** Set by the Models page while a weapon is on show: writes the numbers a drag made (final: the drag is over). */
   private weaponEdit: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null = null;
+  private animFiles: Partial<Record<Mode, File>> = {};
+  /** Set by the Models page on a character: keeps a tried animation for this character's motion (uploads it and sets the field). Resolves with a problem text, or null when kept. */
+  private keepAnim: ((mode: string, f: File) => Promise<string | null>) | null = null;
+  setKeepAnim(fn: ((mode: string, f: File) => Promise<string | null>) | null): void {
+    this.keepAnim = fn;
+    this.paintAnim();
+  }
   private moveOn = false;
   private editWeapon = '';
   private weaponPicked = false;
@@ -431,11 +438,29 @@ export class ModelWindow {
       const back = el('button', 'mm-small', 'Back to built-in');
       back.addEventListener('click', () => {
         delete this.s.anims[mode];
+        delete this.animFiles[mode];
         delete this.s.animNote[mode];
         this.s.animRev++;
         this.paintAnim();
       });
       b.append(back);
+      const file = this.animFiles[mode];
+      if (this.keepAnim && file) {
+        const keep = el('button', 'mm-small mm-go', 'Keep it for this model');
+        keep.title = /\.glb$/i.test(file.name) ? 'Uploads the file and sets it as this character\'s animation for this motion, so it plays in matches.' : 'Only a .glb can be kept. Convert the .fbx to .glb (Blender or an online converter) and try that.';
+        keep.addEventListener('click', async () => {
+          keep.setAttribute('disabled', '');
+          const problem = /\.glb$/i.test(file.name) ? await this.keepAnim!(mode, file) : 'Only a .glb can be kept: convert the .fbx to .glb first.';
+          this.s.animNote[mode] = problem ?? `Kept: ${file.name} now plays for this motion in matches.`;
+          if (!problem) {
+            delete this.s.anims[mode]; // the saved one is played from now on, by the character itself
+            delete this.animFiles[mode];
+            this.s.animRev++;
+          }
+          this.paintAnim();
+        });
+        b.append(keep);
+      }
     }
     b.append(el('small', '', this.s.animNote[mode] ?? 'The picture on the left plays it; the one on the right keeps the built-in motion to compare.'));
   }
@@ -444,6 +469,7 @@ export class ModelWindow {
     try {
       const loaded = await readAnimationFile(f);
       this.s.anims[this.s.mode] = loaded;
+      this.animFiles[this.s.mode] = f;
       this.s.animNote[this.s.mode] = 'Reading…';
       this.s.animRev++;
       this.s.restart++;

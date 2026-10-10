@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.71",
+  "date": "2026-10-10",
+  "at": "2026-10-10T21:29:19Z",
+  "title": "Switch skills instantly",
+  "changes": [
+    "Starting a different skill now stops the cast or global cooldown in progress and starts the new one at once, no waiting.",
+    "Pressing the same skill again still waits for its own cooldown."
+  ]
+ },
+ {
   "version": "0.69.70",
   "date": "2026-10-10",
   "at": "2026-10-10T21:17:15Z",

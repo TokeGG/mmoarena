@@ -29,15 +29,27 @@ function mustFail(r: { ok: boolean; reason?: string }, reason: RegExp) {
 }
 
 describe('global cooldown and resources', () => {
-  it('blocks a second GCD ability until 1.5s has passed', () => {
+  it('blocks the same GCD ability until the global cooldown has passed, but a different one starts at once', () => {
     const sim = live();
     const rogue = add(sim, 'rogue', 0, 0, 0);
     const war = add(sim, 'warrior', 1, 2, 0);
     advance(sim, TICK);
     assert.ok(sim.useAbility(rogue.id, 'sinister_strike', war.id).ok);
-    mustFail(sim.useAbility(rogue.id, 'kidney_shot', war.id), /global cooldown/);
+    mustFail(sim.useAbility(rogue.id, 'sinister_strike', war.id), /global cooldown/);
+    assert.ok(sim.useAbility(rogue.id, 'kidney_shot', war.id).ok, 'a different skill is not held by it');
     advance(sim, TUNING.gcdMs);
-    assert.ok(sim.useAbility(rogue.id, 'kidney_shot', war.id).ok);
+    assert.ok(sim.useAbility(rogue.id, 'sinister_strike', war.id).ok);
+  });
+
+  it('starting another skill stops the cast in progress and starts the next one at once', () => {
+    const sim = live();
+    const mage = add(sim, 'mage', 0, 0, 0);
+    const war = add(sim, 'warrior', 1, 10, 0);
+    advance(sim, TICK);
+    assert.ok(sim.useAbility(mage.id, 'frostbolt', war.id).ok);
+    assert.ok(mage.cast && mage.cast.ability === 'frostbolt');
+    assert.ok(sim.useAbility(mage.id, 'fireball', war.id).ok);
+    assert.equal(mage.cast?.ability, 'fireball');
   });
 
   it('refuses abilities you cannot afford', () => {

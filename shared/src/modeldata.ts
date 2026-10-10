@@ -37,7 +37,7 @@ export interface WeaponData {
   hold?: { r: Triple; l: Triple; walk: number; arc: number; elbowArc: number };
   rest?: { rot: Triple };
 }
-export interface SlotData { x: number; y: number; z: number; scale: number; rotY: number }
+export interface SlotData { x: number; y: number; z: number; scale: number; rotY: number; /** A model of the dev's own worn in place of the built-in look of every item of this kind (empty keeps the item's look). */ file?: string }
 export interface ModelsFile { characters: Record<string, CharacterData>; weapons: Record<string, WeaponData>; cosmetics: Record<string, SlotData> }
 
 export const COSMETIC_SLOTS = ['head', 'wings', 'back', 'weapon'] as const;
@@ -190,6 +190,7 @@ export function slotGroups(slot: string, data: ModelsFile): ModelGroup[] {
   const base = ['cosmetics', slot];
   return [{ id: 'fit', title: 'Placement', sub: 'moves every cosmetic of this kind on every model', fields: [
     f([...base, 'x'], 'Slide left / right', 'yd', -1, 1, 'Yards. Positive is the character\'s left. A nudge is 0.05; a head is about 0.3 wide.'), f([...base, 'y'], 'Slide up / down', 'yd', -1, 1, 'Yards. Positive is up. A nudge is 0.05; a person is about 2 yards tall.'), f([...base, 'z'], 'Slide forward / back', 'yd', -1, 1, 'Yards. Positive is forward, negative is back. A nudge is 0.05.'),
+    ...(data.cosmetics[slot].file !== undefined ? [f([...base, 'file'], 'Your own model', 'plain', 0, 0, 'Pick an uploaded model: it is worn instead of the built-in look of every item of this kind (the item\'s colour and name stay). Slide, size and turn it with the numbers below.')] : []),
     f([...base, 'scale'], 'Size', 'x', 0.2, 3, 'Times its normal size: 1 is unchanged, 2 is double, 0.5 is half.'), f([...base, 'rotY'], 'Turn left / right', 'deg', -180, 180, 'Degrees, about the up axis. Positive turns it towards the character\'s left.'),
   ] }];
 }

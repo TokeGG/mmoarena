@@ -4,6 +4,7 @@ import { iconEl, setIconPreview } from './iconArt';
 import { libraryPage, loadCustomSounds, soundTools } from './soundsUi';
 import { ModelWindow } from './modelPreview';
 import { modelUploadBox } from './modelsUi';
+import { uploadModel } from './customModels';
 import type { PreviewSpec } from './modelPreview';
 import { IconEditor } from './iconEditor';
 import { previewOf } from './iconEditLogic';
@@ -408,6 +409,20 @@ export class DevWorkspace {
         const first = !this.preview;
         this.preview ??= new ModelWindow();
         const win = this.preview;
+        if (id.startsWith('c:')) {
+          // an animation tried in the window can be kept for this character: uploaded, and set on the field of that motion
+          const fields = entry.groups.flatMap((g) => g.fields);
+          win.setKeepAnim(async (mode, f) => {
+            const fd = fields.find((x) => x.path.join('.') === `characters.${id.slice(2)}.anims.${mode}`);
+            if (!fd) return 'This model keeps its own animations (it has clips of its own).';
+            const r = await uploadModel(f);
+            if (!r.ok) return r.text;
+            this.editor.set.set(fd, r.file, this.editor.testing(), this.editor.canRevert);
+            this.editor.onEdit();
+            this.host.repaint();
+            return null;
+          });
+        } else win.setKeepAnim(null);
         if (id.startsWith('w:')) {
           // dragging the weapon in the window writes the same numbers the fields below hold
           const fields = entry.groups.flatMap((g) => g.fields);

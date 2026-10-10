@@ -301,6 +301,7 @@ const ordinal = (i: number) => ['first', 'second', 'third', 'fourth', 'fifth'][i
 
 export const TUNING_INFO: Record<string, { label: string; hint: string; unit: FieldUnit; group: string }> = {
   gcdMs: { label: 'Global cooldown', hint: 'Time after most skills before the next one can be used.', unit: 'ms', group: 'Timing' },
+  gcdSwitch: { label: 'Start another skill during the global cooldown', hint: '1: pressing a different skill while the global cooldown runs starts it at once and ends the one before; 0: every skill waits for the global cooldown.', unit: 'count', group: 'Timing' },
   castGraceMs: { label: 'Cast grace after a failed range or facing check', hint: 'A cast that only failed on range or facing is retried for this long.', unit: 'ms', group: 'Timing' },
   outOfCombatMs: { label: 'Time until you are out of combat', hint: 'Seconds without fighting before combat ends (stealth skills, rage decay).', unit: 'ms', group: 'Timing' },
   runSpeed: { label: 'Run speed', hint: 'Yards per second for everyone before speed bonuses.', unit: 'plain', group: 'Movement' },
