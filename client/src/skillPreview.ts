@@ -1,11 +1,12 @@
 import * as THREE from 'three';
-import { ABILITIES, ArenaSim, CLASSES, TUNING, skillLook } from '@arena/shared';
+import { ABILITIES, ArenaSim, CLASSES, SPECS, TUNING, skillLook, weaponFor } from '@arena/shared';
 import type { AbilityDef, ClassId, SimEvent, Unit } from '@arena/shared';
 import { Effects } from './effects';
 import { createCharacter } from './models';
 import type { Character } from './models';
 import { uploadModel } from './customModels';
 import { el } from './bar';
+import { defaultBuild } from './profile';
 
 /**
  * The Animations page's view of a skill: a window of its own that floats over the game like the model view (drag its title to move it,
@@ -25,7 +26,7 @@ export function abilityOfEntry(id: string): string | null {
   return ABILITIES[snake] ? snake : null;
 }
 
-interface Dummy { char: Character; unit: Unit }
+interface Dummy { char: Character; unit: Unit; holder: THREE.Group }
 
 export class SkillWindow {
   readonly root = el('div', 'swin');
@@ -33,7 +34,7 @@ export class SkillWindow {
   private renderer: THREE.WebGLRenderer | null = null;
   private scene = new THREE.Scene();
   private camera = new THREE.PerspectiveCamera(42, 1, 0.1, 200);
-  private effects: Effects;
+  private effects!: Effects;
   private sim: ArenaSim | null = null;
   private chars = new Map<number, Dummy>();
   private ability = '';
@@ -47,7 +48,7 @@ export class SkillWindow {
   private loop = true;
   private speed = 1;
   private paused = false;
-  private yaw = 0.7;
+  private yaw = -1.2;
   private pitch = 0.28;
   private dist = 16;
   private target = new THREE.Vector3(0, 1.4, 5);
@@ -58,6 +59,7 @@ export class SkillWindow {
   private note = el('small', 'swin-note', '');
   private title = el('b', '', 'Skill view');
   private failed = false;
+  private casterWeapon: string | undefined;
   /** Set by the Animations page: stores the name of an uploaded picture or model as this skill's own look. */
   private setLookFile: ((file: string) => void) | null = null;
 
@@ -100,7 +102,7 @@ export class SkillWindow {
     for (const [v, l] of SPEEDS) speed.append(new Option(l, String(v)));
     speed.addEventListener('change', () => (this.speed = Number(speed.value)));
     tools.append(replay, loop, pause, speed);
-    for (const [label, yaw, pitch] of [['Side', 0.7, 0.28], ['Behind', 0, 0.3], ['Front', Math.PI, 0.3], ['Above', 0.2, 1.35]] as const) {
+    for (const [label, yaw, pitch] of [['Side', -1.2, 0.28], ['Behind', Math.PI, 0.3], ['Front', 0, 0.3], ['Above', -1.2, 1.35]] as const) {
       const b = el('button', 'mm-small', label);
       b.addEventListener('click', () => {
         this.yaw = yaw;
@@ -127,6 +129,12 @@ export class SkillWindow {
     });
     this.restoreGeometry();
     new ResizeObserver(() => this.saveGeometry()).observe(this.root);
+    this.freshScene();
+  }
+
+  /** A new scene and a new set of effects: nothing of the skill shown before stays behind. */
+  private freshScene(): void {
+    this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x1a1822);
     this.scene.add(new THREE.HemisphereLight(0xffffff, 0x554466, 1.5));
     const sun = new THREE.DirectionalLight(0xfff0dd, 1.6);
@@ -173,24 +181,24 @@ export class SkillWindow {
 
   // ---------------------------------------------------------------- the little match
 
-  private disposeChars(): void {
-    for (const d of this.chars.values()) this.scene.remove(d.char.root);
-    this.chars.clear();
-  }
-
   private build(): void {
-    this.disposeChars();
+    this.chars.clear();
+    this.freshScene();
     const def: AbilityDef | undefined = ABILITIES[this.ability];
     if (!def) return;
     const sim = new ArenaSim({ seed: 11, prepMs: 0, tickMs: TUNING.tickMs, facing: true });
     this.sim = sim;
     const cls: ClassId = def.class !== 'trinket' && CLASSES[def.class as ClassId] ? (def.class as ClassId) : 'warrior';
-    const caster = sim.addUnit({ name: 'You', classId: cls, team: 0 });
-    // a skill the class only has through a spec or talent is put on the bar by hand
+    // the caster is the spec that has this skill on its bar, with that spec's weapon (a skill only a talent gives is put on the bar by hand)
+    const spec = SPECS[cls]?.find((x) => x.bar.includes(this.ability)) ?? SPECS[cls]?.find((x) => x.bar.length) ?? undefined;
+    const build = spec ? { ...defaultBuild(cls), spec: spec.id } : undefined;
+    const caster = sim.addUnit({ name: 'You', classId: cls, team: 0, ...(build ? { build } : {}) });
     if (!caster.bar.includes(this.ability) && caster.trinket !== this.ability) caster.bar = [...caster.bar, this.ability];
+    this.casterWeapon = spec ? weaponFor(cls, spec.id) : undefined;
     const reach = def.range > 0 ? Math.min(10, Math.max(4, def.range * 0.45)) : def.target === 'aoe_enemy' || def.target === 'aoe_all' ? 3 : 6;
-    const foe = sim.addUnit({ name: 'Dummy', classId: 'warrior', team: 1, controller: 'dummy' });
-    const ally = sim.addUnit({ name: 'Friend', classId: 'priest', team: 0, controller: 'dummy' });
+    // the dummies are never the caster's own class, so who is casting is clear
+    const foe = sim.addUnit({ name: 'Dummy', classId: cls === 'warrior' ? 'rogue' : 'warrior', team: 1, controller: 'dummy' });
+    const ally = sim.addUnit({ name: 'Friend', classId: cls === 'priest' ? 'mage' : 'priest', team: 0, controller: 'dummy' });
     caster.pos = { x: 0, z: 0 };
     caster.facing = 0;
     foe.pos = { x: 0, z: reach };
@@ -204,9 +212,11 @@ export class SkillWindow {
     this.foe = foe;
     this.ally = ally;
     for (const u of [caster, foe, ally]) {
-      const char = createCharacter(u.classId);
-      this.scene.add(char.root);
-      this.chars.set(u.id, { char, unit: u });
+      const char = createCharacter(u.classId, undefined, u.id === caster.id ? this.casterWeapon : undefined);
+      const holder = new THREE.Group(); // the character moves itself (its lunge), so it is placed by a group around it
+      holder.add(char.root);
+      this.scene.add(holder);
+      this.chars.set(u.id, { char, unit: u, holder });
     }
     const zoneMs = def.effects.find((e) => e.type === 'zone');
     this.period = Math.max(3.2, def.castTime / 1000 + 2.6 + (zoneMs && zoneMs.type === 'zone' ? Math.min(6, zoneMs.duration / 1000) : 0));
@@ -300,8 +310,8 @@ export class SkillWindow {
     );
     for (const d of this.chars.values()) {
       const u = d.unit;
-      d.char.root.position.set(u.pos.x, 0, u.pos.z);
-      d.char.root.rotation.y = u.facing;
+      d.holder.position.set(u.pos.x, 0, u.pos.z);
+      d.holder.rotation.y = u.facing;
       d.char.setState(u.alive, false);
       d.char.pose({ phase: 0, move: 0, casting: !!u.cast, time: this.clock, dt: Math.max(0.001, dt), vf: 0, vs: 0, air: 0 });
     }
