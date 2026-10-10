@@ -68,6 +68,7 @@ const TARGET_DEFS: Target[] = [
   { id: 'autoind', label: 'Auto-attack' },
   { id: 'log', label: 'Combat log' },
   { id: 'killfeed', label: 'Kill feed' },
+  { id: 'dpsmeter', label: 'DPS meter' },
   { id: 'recap', label: 'Match recap' },
   { id: 'help', label: 'Help text' },
   { id: 'err', label: 'Error text' },

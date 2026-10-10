@@ -756,6 +756,22 @@
   body.hud-edit #killfeed:empty { display:flex; }
   body.hud-edit #killfeed { min-width:200px; min-height:44px; background:rgba(255,210,74,.1); }
   @media (max-width:600px) { #killfeed { top:150px; width:180px; font-size:11px; } }
+  #dpsmeter { position:fixed; left:12px; top:200px; width:200px; display:flex; flex-direction:column; gap:2px; pointer-events:none; z-index:20; font-size:12px; }
+  #dpsmeter:empty { display:none; }
+  #dpsmeter.hud-sized { max-width:none; }
+  .dm-head { padding:2px 8px; font-size:.9em; letter-spacing:.06em; text-transform:uppercase; color:#c9b27c; background:rgba(8,8,10,.62); border-radius:6px 6px 0 0; }
+  .dm-row { position:relative; display:flex; align-items:center; gap:6px; padding:2px 8px; background:rgba(8,8,10,.62); color:#e7e2d4; overflow:hidden; }
+  .dm-bar { position:absolute; left:0; top:0; bottom:0; opacity:.28; }
+  .dm-ally .dm-bar { background:#58d37a; } .dm-foe .dm-bar { background:#e0523f; }
+  .dm-name { position:relative; flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:600; }
+  .dm-ally .dm-name { color:#7ee08f; } .dm-foe .dm-name { color:#ff7a6b; }
+  .dm-you .dm-name { text-decoration:underline; }
+  .dm-dps, .dm-total { position:relative; font-variant-numeric:tabular-nums; text-align:right; }
+  .dm-dps { min-width:2.4em; font-weight:700; } .dm-total { min-width:3.2em; color:#9a9aa6; }
+  body[data-hud-dpsmeter=hide]:not(.hud-edit) #dpsmeter { display:none; }
+  body.hud-edit #dpsmeter:empty { display:flex; }
+  body.hud-edit #dpsmeter { min-width:160px; min-height:44px; background:rgba(255,210,74,.1); }
+  @media (max-width:600px) { #dpsmeter { top:150px; width:160px; font-size:11px; } }
   #damp { position:fixed; top:6px; left:50%; transform:translateX(-50%); padding:2px 10px; border-radius:10px; background:rgba(20,10,30,.7); border:1px solid #7a4bb0; color:#d9b8ff; font-size:12px; letter-spacing:.5px; z-index:5; }
   #damp.hidden { display:none; }
   #recap { position:fixed; left:50%; top:calc(14% + 72px); transform:translateX(-50%); z-index:31; width:min(640px, calc(100vw - 24px)); background:rgba(14,16,22,.95); border:1px solid #6b5a1f; border-radius:10px; padding:8px 10px; box-shadow:0 6px 24px rgba(0,0,0,.7); color:#e8e2d0; font-size:12px; }
@@ -1349,6 +1365,7 @@ body.tour-open { overscroll-behavior:none; }
   <div id="trinketbar"></div>
   <div id="log"></div>
   <div id="killfeed" aria-live="off"></div>
+  <div id="dpsmeter" aria-live="off"></div>
   <div id="help">RMB-drag: steer · LMB-drag: orbit camera · wheel: zoom · click: target<br />Esc: clear target, then menu · keys can be changed in the menu</div>
 </div>
 

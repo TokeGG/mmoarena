@@ -20,12 +20,12 @@ export type HudLayoutMap = Record<string, HudSlot>;
 
 /** Every element the editor can move. The client adds friendly names and selectors (client/src/hudLayout.ts). */
 export const HUD_IDS: readonly string[] = [
-  'self-frame', 'target-frame', 'party', 'enemies', 'actionbar', 'trinketbar', 'cast', 'autoind', 'log', 'killfeed', 'recap', 'help', 'err', 'ccstate', 'netstats', 'mute-btn', 'devbtn',
+  'self-frame', 'target-frame', 'party', 'enemies', 'actionbar', 'trinketbar', 'cast', 'autoind', 'log', 'killfeed', 'dpsmeter', 'recap', 'help', 'err', 'ccstate', 'netstats', 'mute-btn', 'devbtn',
   'banner', 'damp', 'announce', 'update-notice', 'endchoice', 'spec-bar', 'spec-top', 'spec-nav', 'spec-replay', 'scoreboard', 'builds', 'follow-box', 'takeover-chip', 'fr-toasts', 'fr-invites',
 ];
 
 /** Boxes of text: their text grows with the box. Value: the text size in px at 1x. */
-export const HUD_TEXT_BOX: Record<string, number> = { log: 11, killfeed: 12, netstats: 11 };
+export const HUD_TEXT_BOX: Record<string, number> = { log: 11, killfeed: 12, dpsmeter: 12, netstats: 11 };
 export const HUD_TEXT_MIN = 0.6;
 export const HUD_TEXT_MAX = 3;
 export const HUD_SCALE_MIN = 0.6;
