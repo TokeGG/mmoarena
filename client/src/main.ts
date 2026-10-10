@@ -975,6 +975,8 @@ function viewTime(): number {
 }
 
 const QUEUE_SAME_MS = 250;
+/** A queued spell is sent this long before the global cooldown ends: the server holds it for its cast grace, so it starts the moment it can. */
+const QUEUE_EARLY_MS = 120;
 /** The last spell sent, so a repeat press of it is not queued on top of itself. */
 const lastSent = { ability: '', at: 0 };
 function sendCast(msg: Extract<ClientMsg, { t: 'cast' }>) {
@@ -998,7 +1000,7 @@ function flushQueue() {
   if (!queued) return;
   const me = latest?.units.find((u) => u.id === you);
   if (spec || !me || !me.alive || performance.now() > queued.until) { queued = null; return; }
-  if (me.cast || me.gcdEnd > estimatedNow() + 25 || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + 25) return;
+  if (me.cast || me.gcdEnd > estimatedNow() + QUEUE_EARLY_MS || (me.cooldowns[queued.ability] ?? 0) > estimatedNow() + QUEUE_EARLY_MS) return;
   const q = queued;
   queued = null;
   sendCast({ t: 'cast', ability: q.ability, target: q.target, vt: viewTime(), ...(q.ground ? { x: q.ground.x, z: q.ground.z, ...(q.ground.lv === 1 ? { lv: 1 as const } : {}) } : {}) });
@@ -1053,7 +1055,7 @@ function confirmAim() {
   // the spot the ring showed green a moment ago counts when the cursor just slipped (a click made in a hurry)
   if (!g && lastGreen && performance.now() - lastGreen.at < 250 && lastGreen.ability === aiming) g = lastGreen.g;
   if (!g) return; // cursor on the sky: keep aiming
-  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt))) return; // red spot: nothing is sent, nothing is spent, still aiming
+  if (!hasLOS({ x: pred.x, z: pred.z }, g, arena, predLevel, aimLevel(g), jumpHeight(performance.now() - myJumpAt))) return void hud.error('No line of sight to that spot'); // red spot: nothing is sent, nothing is spent, still aiming
   const spot = { x: g.x, z: g.z, ...(g.lv === 1 ? { lv: 1 as const } : {}) };
   const me = latest?.units.find((u) => u.id === you);
   const nowS = estimatedNow();
