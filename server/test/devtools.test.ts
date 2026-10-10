@@ -567,3 +567,26 @@ describe('merging the pull request Claude opened', () => {
     assert.equal(reqs.visible('Toke', true)[0].status, 'done');
   });
 });
+
+describe('the owner sees every change', () => {
+  it('the owner gets the commit list of main, a dev and a player do not', async () => {
+    const http = (async (url: string) => {
+      if (url.includes('/commits?')) return new Response(JSON.stringify([{ sha: 'abcdef123456', html_url: 'https://github.com/x/y/commit/abcdef1', commit: { message: 'Hidden tweak\n\nonly the owner reads this', author: { name: 'Twizz', date: '2026-10-10T08:00:00Z' } } }]), { status: 200 });
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+    const { lobby, devP, bobP, owner, outD, outB, outO } = await world(http);
+    owner.ownerOk = true;
+    lobby.handle(owner, { t: 'owner_log' } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 40));
+    const got = last(outO, 'owner_log')!;
+    assert.equal(got.rows[0].title, 'Hidden tweak');
+    assert.equal(got.rows[0].by, 'Twizz');
+    assert.match(got.rows[0].body, /only the owner/);
+    for (const [p, out] of [[devP, outD], [bobP, outB]] as const) {
+      lobby.handle(p, { t: 'owner_log' } as ClientMsg);
+      await new Promise((r) => setTimeout(r, 20));
+      assert.deepEqual(last(out, 'owner_log')!.rows, []);
+      assert.match(String(last(out, 'owner_log')!.error), /owner/);
+    }
+  });
+});

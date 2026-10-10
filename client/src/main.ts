@@ -448,6 +448,9 @@ function onMessage(raw: MessageEvent) {
     case 'hud_default':
       hudLayout.setDefault(m.layout, m.at, m.by);
       break;
+    case 'owner_log':
+      mainMenu.showOwnerLog(m.rows, m.error);
+      break;
     case 'custom_maps':
       // the owner's custom maps: known to every lookup from now on (menus, scene, minimap, watch labels)
       registerCustomArenas(m.maps);
@@ -1899,6 +1902,8 @@ const mainMenu = new MainMenu(document.getElementById('join')!, {
   onEditHud: editHudFromMenu,
   nameSection: () => accountUi.nameSection(),
   onWatch: () => void openLive(),
+  ownerLog: () => (accountUi.account?.ownerOk ? send({ t: 'owner_log' }) : undefined),
+  isOwner: () => !!accountUi.account?.ownerOk,
   slotKey: (n) => binds.label(`slot${n}` as Action),
   onSelect: (c, b) => {
     setTipBuild(c, b);

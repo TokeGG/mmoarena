@@ -61,6 +61,10 @@ export interface MainMenuHooks {
   extras?: HTMLElement;
   /** The Look window's "Name and title" section (emblem, title, colour, icon), drawn by the account module from the signed-in account. */
   nameSection?(): HTMLElement;
+  /** The owner's view of every change on the main branch (asks the server; the answer comes to `showOwnerLog`). */
+  ownerLog?(): void;
+  /** Whether the signed-in account is the owner (the full change log is shown to nobody else). */
+  isOwner?(): boolean;
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
@@ -902,6 +906,28 @@ export class MainMenu {
     this.patchBadge.title = n ? `${n} new update${n === 1 ? '' : 's'}` : '';
   }
 
+  private ownerLogBox = el('div', 'mm-ownerlog');
+
+  /** The owner's full change log arrived: every commit, newest first. */
+  showOwnerLog(rows: { sha: string; at: number; by: string; title: string; body: string; url: string }[], error?: string): void {
+    const box = this.ownerLogBox;
+    box.replaceChildren();
+    if (error) return void box.append(el('div', 'adm-state bad', error));
+    for (const r of rows) {
+      const item = el('details', 'mm-patch');
+      const sum = el('summary', '');
+      sum.append(el('span', 'pv', r.sha), el('span', 'pt', r.title), el('span', 'pby', r.by), el('span', 'pd', new Date(r.at).toLocaleString()));
+      item.append(sum);
+      if (r.body) item.append(el('pre', 'mm-ownerlog-body', r.body));
+      const a = el('a', '', 'Open on GitHub');
+      a.href = r.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      item.append(a);
+      box.append(item);
+    }
+  }
+
   openPatches() {
     const lastSeen = store.get(LAST_SEEN_KEY, '') || null;
     const missed = unseenPatchCount(PATCHES, lastSeen);
@@ -912,6 +938,15 @@ export class MainMenu {
     head.append(el('h2', '', 'Patch notes'), close);
     card.append(head);
     if (missed) card.append(el('div', 'mm-missed', missedText(missed)));
+    if (this.hooks.ownerLog && this.hooks.isOwner?.()) {
+      const all = el('button', 'mm-small', 'Everything that changed (owner)');
+      all.title = 'Every commit on the main branch, including changes the player notes leave out';
+      all.addEventListener('click', () => {
+        this.ownerLogBox.replaceChildren(el('small', 'devp-dim', 'Loading…'));
+        this.hooks.ownerLog?.();
+      });
+      card.append(all, this.ownerLogBox);
+    }
     PATCHES.forEach((p, i) => {
       const fresh = !!lastSeen && compareVersions(p.version, lastSeen) > 0;
       const box = el('section', `mm-patch${i === 0 ? ' latest' : ''}${fresh ? ' fresh' : ''}`);
