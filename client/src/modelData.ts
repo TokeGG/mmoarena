@@ -64,11 +64,11 @@ function applyWeapon(def: WeaponDef, was: WeaponDef, w: WeaponData): void {
   if (w.rest && was.rest) def.rest = { ...was.rest, rot: [rad(w.rest.rot[0]), rad(w.rest.rot[1]), rad(w.rest.rot[2])] };
 }
 
-export function applyModelData(data: ModelsFile = MODELS_DATA): void {
+export function applyModelData(data: ModelsFile = MODELS_DATA, bump = true): void {
   const base = snapshot();
   for (const [id, c] of Object.entries(data.characters)) if (MODELS[id] && base.characters[id]) applyCharacter(MODELS[id], base.characters[id], c);
   for (const [id, w] of Object.entries(data.weapons)) if (WEAPONS[id] && base.weapons[id]) applyWeapon(WEAPONS[id], base.weapons[id], w);
-  bumpModelData();
+  if (bump) bumpModelData();
 }
 
 /** The bone adjustments of a model in radians, with the size, for the animator (null: the model has none). */

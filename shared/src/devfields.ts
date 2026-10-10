@@ -3,6 +3,8 @@ import { CLASS_BLURB, auraOrigins, describeAura, describeTalent, plainText, spec
 import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MOD_ABILITY_DEFAULT, MOD_ABILITY_FLAGS, MOD_SCALAR_DEFAULT, TUNING_ID, currentValue, fileDefault, isAddition, isSwitch, tunableNumbers } from './devpatch';
 import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
 import { FX_ID, FX_INFO, fxField } from './fx';
+import { LOOKS_ID, LOOK_CHOICES, LOOK_COLORS, LOOK_FORMS, LOOK_HIT_STYLES, LOOK_IMPACTS, LOOK_NUMBER_BOUNDS, LOOK_TRAILS } from './looks';
+import { LOOKS } from './data';
 import { BODY_PARTS, characterGroups, modelBounds, slotGroups, weaponGroups, SLOT_LABEL, MODELS_ID } from './modeldata';
 import { MODELS_DATA } from './data';
 import { SOUND_ID, SOUND_LIBRARY, customSounds, soundFileChoices, soundList } from './sounds';
@@ -354,13 +356,16 @@ export function fieldAt(file: PatchFile, id: string, path: (string | number)[], 
   const base = fileDefault({ file, id, path }) ?? now;
   const plain = plainPath(file, id, path);
   const soundFile = file === 'sounds' && path[1] === 'file' ? soundFileChoices() : null;
-  const choice = soundFile ? { label: 'Recording', options: soundFile.options } : file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
+  const lookChoice = file === 'looks' && typeof path[1] === 'string' && LOOK_CHOICES[path[1]] ? lookLabels(path[1]) : null;
+  const choice = lookChoice ? { label: 'Choice', options: lookChoice.options } : soundFile ? { label: 'Recording', options: soundFile.options } : file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
   const kind: DevField['kind'] = choice || soundFile ? 'choice' : isSwitch({ file, id, path }) ? 'switch' : 'number';
   const f: DevField = { file, id, path, kind, label: over.label ?? plain.label, unit: kind === 'number' ? over.unit ?? plain.unit : 'plain', value: now, base };
   const hint = over.hint ?? plain.hint;
   if (hint) f.hint = hint;
   if (choice) f.options = choice.options;
   if (soundFile) f.optionLabels = soundFile.labels;
+  if (lookChoice) f.optionLabels = lookChoice.labels;
+  if (file === 'looks' && typeof path[1] === 'string' && LOOK_NUMBER_BOUNDS[path[1]]) { f.min = LOOK_NUMBER_BOUNDS[path[1]].min; f.max = LOOK_NUMBER_BOUNDS[path[1]].max; }
   if (path[0] === 'mods' && isAddition({ file, id, path })) f.added = true;
   if (file === 'fx') {
     const b = fxField(path);
@@ -725,6 +730,36 @@ export const iconPatch = (navId: string, icon: string): DataPatch => ({ file: 'i
 /** Words for an icon in a change list: "fire-mage-3" style ids are shown as the library names them. */
 export const iconLabel = (id: string | number | undefined): string => (typeof id === 'string' && id ? iconTitle(id) : 'none');
 
+function lookLabels(key: string): { options: string[]; labels: Record<string, string> } {
+  const table: [string, string][] = key === 'form' ? LOOK_FORMS : key === 'trail' ? LOOK_TRAILS : key === 'hitKind' ? LOOK_IMPACTS : key === 'hitStyle' ? LOOK_HIT_STYLES : Object.entries(LOOK_COLORS).map(([k, v]): [string, string] => [k, v[0]]);
+  return { options: table.map((x) => x[0]), labels: Object.fromEntries(table) };
+}
+
+const LOOK_FIELDS: [string, string, string][] = [
+  ['form', 'Shape in flight', 'What flies from the caster to the target (a skill that does not fly anything keeps its own look).'],
+  ['color', 'Colour', 'Tints the projectile and its trail.'],
+  ['trail', 'Trail', 'What it leaves behind.'],
+  ['size', 'Size', 'How big it is drawn.'],
+  ['trailAmount', 'Trail amount', 'How much it leaves behind (0 none, more is thicker).'],
+  ['speed', 'Speed', 'How fast it is drawn flying. The hit still lands when it always did: this is only the picture.'],
+  ['hitKind', 'Impact kind', 'What the hit on the target is made of.'],
+  ['hitStyle', 'Impact style', 'How it appears on the target.'],
+  ['hitSize', 'Impact size', 'How big the impact is drawn.'],
+];
+
+/** The look groups of a skill's Animations page: its projectile and its impact, in plain words. */
+function lookGroups(abilityId: string): FieldGroup[] {
+  if (!Object.hasOwn(LOOKS, abilityId)) return [];
+  const field = (key: string) => {
+    const lf = LOOK_FIELDS.find((x) => x[0] === key)!;
+    return fieldAt('looks', LOOKS_ID, [abilityId, key], { label: lf[1], hint: lf[2] });
+  };
+  return [
+    { id: 'look-flight', title: 'How it flies', sub: 'shape, colour, trail, size and speed of the projectile', open: true, fields: some(['form', 'color', 'trail', 'size', 'trailAmount', 'speed'].map(field)) },
+    { id: 'look-hit', title: 'How it hits', sub: 'the impact on the target', open: true, fields: some(['hitKind', 'hitStyle', 'hitSize'].map(field)) },
+  ];
+}
+
 function animationEntry(id: string): DevEntry | null {
   const g = FX_INFO[id];
   if (!g) return null;
@@ -733,7 +768,7 @@ function animationEntry(id: string): DevEntry | null {
     file: 'fx', id: FX_ID, name: g.title, sub: g.sub,
     lines: ['These only change how the effect looks. Times are in seconds. A change shows the next time the effect plays (cast it again).'],
     facts: [],
-    groups: [{ id: 'timing', title: 'Timing and size', sub: 'seconds and scales', open: true, fields }],
+    groups: [...(id.startsWith('skill_') ? lookGroups(id.slice(6)) : []), { id: 'timing', title: 'Timing and size', sub: 'seconds and scales', open: true, fields }],
   };
 }
 

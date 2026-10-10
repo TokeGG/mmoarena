@@ -1,6 +1,7 @@
 import { lightMode } from './lightMode';
 import * as THREE from 'three';
-import { ABILITIES, AURAS, FX_INFO, fxNum, fxSec } from '@arena/shared';
+import { ABILITIES, AURAS, FX_INFO, NEUTRAL_LOOK, fxNum, fxSec, lookColor, skillLook } from '@arena/shared';
+import type { SkillLook } from '@arena/shared';
 
 const FX_GROUPS = FX_INFO;
 import type { AbilityDef, School, SimEvent, ZoneSnap } from '@arena/shared';
@@ -524,10 +525,49 @@ export class Effects {
     });
   }
 
-  private projectile(srcId: number, tgtId: number, school: School, kind: 'frost' | 'fire' | 'holy' | 'arcane' | 'shadow', size = 1, swirl = 0) {
+  /** One puff of a projectile's trail in a named style (the Animations page picks it; a skill's own look uses its school's). */
+  private trailPuff(style: string, q: THREE.Vector3, color: number, size: number): void {
+    switch (style) {
+      case 'none':
+        return;
+      case 'flame':
+        this.flame(q.x, q.y - 0.1, q.z, 0.55 * size);
+        if (Math.random() < 0.3) this.particle(q.x, q.y, q.z, { tex: 'smoke', color: 0x332a26, add: false, s0: 0.3, s1: 0.9, life: 0.6, a: 0.5, vy: 0.6 });
+        return;
+      case 'frost':
+        this.particle(q.x + rnd(-0.12, 0.12), q.y + rnd(-0.12, 0.12), q.z + rnd(-0.12, 0.12), { tex: Math.random() < 0.3 ? 'star' : 'spark', color: Math.random() < 0.5 ? 0xbfeaff : 0x5cb8ff, vy: rnd(-0.4, 0.4), s0: 0.32 * size, life: 0.45, drag: 2 });
+        return;
+      case 'embers':
+        this.particle(q.x + rnd(-0.1, 0.1), q.y + rnd(-0.1, 0.1), q.z + rnd(-0.1, 0.1), { tex: 'spark', color: Math.random() < 0.5 ? 0xff9a3c : 0xffd24a, vy: rnd(0.2, 0.9), s0: 0.2 * size, s1: 0.02, life: 0.7, drag: 1 });
+        return;
+      case 'smoke':
+        this.particle(q.x, q.y, q.z, { tex: 'smoke', color: 0x3a3340, add: false, s0: 0.3 * size, s1: 0.9 * size, life: 0.7, a: 0.5, vy: 0.4 });
+        return;
+      case 'shadow':
+        this.particle(q.x + rnd(-0.15, 0.15), q.y + rnd(-0.15, 0.15), q.z + rnd(-0.15, 0.15), { tex: 'smoke', color: 0x6a2fb0, add: true, s0: 0.3 * size, s1: 0.8 * size, life: 0.6, a: 0.5, vy: rnd(0, 0.4) });
+        return;
+      case 'holy':
+        this.particle(q.x + rnd(-0.15, 0.15), q.y + rnd(-0.15, 0.15), q.z + rnd(-0.15, 0.15), { tex: Math.random() < 0.4 ? 'star' : 'spark', color: 0xfff1a8, vy: rnd(0, 0.5), s0: 0.34 * size, life: 0.5, drag: 2 });
+        return;
+      case 'stars':
+        this.particle(q.x + rnd(-0.15, 0.15), q.y + rnd(-0.15, 0.15), q.z + rnd(-0.15, 0.15), { tex: 'star', color, vy: rnd(0, 0.5), s0: 0.34 * size, life: 0.55, drag: 2 });
+        return;
+      default:
+        this.particle(q.x + rnd(-0.15, 0.15), q.y + rnd(-0.15, 0.15), q.z + rnd(-0.15, 0.15), { tex: 'spark', color, vy: rnd(0, 0.5), s0: 0.34 * size, life: 0.5, drag: 2 });
+    }
+  }
+
+  private projectile(srcId: number, tgtId: number, school: School, kind: 'frost' | 'fire' | 'holy' | 'arcane' | 'shadow', size = 1, swirl = 0, look: SkillLook = NEUTRAL_LOOK) {
     const s = this.pos(srcId);
     if (!s) return 0;
-    const color = SCHOOL_COLOR[school];
+    const color = lookColor(look.color) ?? SCHOOL_COLOR[school];
+    size *= look.size;
+    const speed = PROJECTILE_SPEED * look.speed;
+    if (look.form === 'spiral' && !swirl) swirl = 1;
+    // the trail of the school's own look unless a style was picked
+    const trailStyle = look.trail !== 'default' ? look.trail : kind === 'fire' ? 'flame' : kind === 'frost' ? 'frost' : kind === 'holy' ? 'holy' : 'default';
+    const trailEvery = 0.016 / Math.max(0.05, look.trailAmount * (look.form === 'comet' ? 2.5 : 1));
+    let last: THREE.Vector3 | null = null;
     const core = this.sprite('spark', 0xffffff);
     const halo = this.sprite('glow', color);
     core.scale.set(0.7 * size, 0.7 * size, 1);
@@ -540,7 +580,7 @@ export class Effects {
     core.position.copy(p);
     halo.position.copy(p);
     const first = this.pos(tgtId);
-    const flight = first ? Math.hypot(first.x - p.x, first.z - p.z) / PROJECTILE_SPEED : 0.2;
+    const flight = first ? Math.hypot(first.x - p.x, first.z - p.z) / speed : 0.2;
     let t = 0;
     let trail = 0;
     this.addFx({
@@ -549,13 +589,13 @@ export class Effects {
         const tp = this.pos(tgtId);
         const to = tp ? new THREE.Vector3(tp.x, tp.y + CHEST, tp.z) : p;
         const d = to.clone().sub(p);
-        const step = PROJECTILE_SPEED * dt;
+        const step = speed * dt;
         const done = d.length() <= step + 0.4 || t > 3;
         const remaining = d.length();
         if (!done) p.addScaledVector(d.normalize(), step);
         q.copy(p);
         if (swirl) {
-          const prog = Math.min(1, Math.max(0, 1 - remaining / Math.max(1, flight * PROJECTILE_SPEED)));
+          const prog = Math.min(1, Math.max(0, 1 - remaining / Math.max(1, flight * speed)));
           const bend = Math.sin(Math.PI * prog) * swirl;
           const len = Math.hypot(d.x, d.z) || 1;
           q.x += (-d.z / len) * bend * side;
@@ -567,16 +607,14 @@ export class Effects {
         const pulse = 1 + Math.sin(t * 40) * 0.12;
         halo.scale.set(1.7 * size * pulse, 1.7 * size * pulse, 1);
         trail += dt;
-        while (trail > 0.016) {
-          trail -= 0.016;
-          if (kind === 'fire') {
-            this.flame(q.x, q.y - 0.1, q.z, 0.55 * size);
-            if (Math.random() < 0.3) this.particle(q.x, q.y, q.z, { tex: 'smoke', color: 0x332a26, add: false, s0: 0.3, s1: 0.9, life: 0.6, a: 0.5, vy: 0.6 });
-          } else if (kind === 'frost') {
-            this.particle(q.x + rnd(-0.12, 0.12), q.y + rnd(-0.12, 0.12), q.z + rnd(-0.12, 0.12), { tex: Math.random() < 0.3 ? 'star' : 'spark', color: Math.random() < 0.5 ? 0xbfeaff : 0x5cb8ff, vy: rnd(-0.4, 0.4), s0: 0.32 * size, life: 0.45, drag: 2 });
-          } else {
-            this.particle(q.x + rnd(-0.15, 0.15), q.y + rnd(-0.15, 0.15), q.z + rnd(-0.15, 0.15), { tex: Math.random() < 0.4 ? 'star' : 'spark', color: kind === 'holy' ? 0xfff1a8 : color, vy: rnd(0, 0.5), s0: 0.34, life: 0.5, drag: 2 });
-          }
+        while (trail > trailEvery) {
+          trail -= trailEvery;
+          this.trailPuff(trailStyle, q, color, size);
+        }
+        if (look.form === 'bolt') {
+          // a jagged bolt from where it was a moment ago to where it is now
+          if (last) this.bolt(last.x, last.y, last.z, q.x, q.y, q.z, color, 0.12, 5, 0.35 * size);
+          (last ??= new THREE.Vector3()).copy(q);
         }
         return done;
       },
@@ -1532,23 +1570,23 @@ export class Effects {
   }
 
   /** The table-driven result of an instant spell, drawn at (or under) the target. */
-  private hitVisual(h: { kind: ImpactKind; style: 'eruption' | 'impact' | 'pillar' | 'swirl' }, p: { x: number; z: number; y?: number }, target: number) {
+  private hitVisual(h: { kind: ImpactKind; style: 'eruption' | 'impact' | 'pillar' | 'swirl' }, p: { x: number; z: number; y?: number }, target: number, k = 1) {
     switch (h.style) {
       case 'eruption':
-        this.groundEruption(p.x, p.z, h.kind, 1);
-        this.impactAt(p, h.kind, 0.55); // and a flare around the body
+        this.groundEruption(p.x, p.z, h.kind, k);
+        this.impactAt(p, h.kind, 0.55 * k); // and a flare around the body
         break;
       case 'swirl':
         if (target) this.swirlAt(target, h.kind);
         else this.swirlAt(p, h.kind);
-        this.impactAt(p, h.kind, 0.6);
+        this.impactAt(p, h.kind, 0.6 * k);
         break;
       case 'pillar':
-        this.column(p.x, p.z, ERUPT[h.kind].col, 0.5, 0.7, 7);
-        this.impactAt(p, h.kind, 0.7);
+        this.column(p.x, p.z, ERUPT[h.kind].col, 0.5 * k, 0.7 * k, 7);
+        this.impactAt(p, h.kind, 0.7 * k);
         break;
       default:
-        this.impactAt(p, h.kind, 1);
+        this.impactAt(p, h.kind, k);
     }
   }
 
@@ -2052,6 +2090,13 @@ export class Effects {
             this.burst(q.x, q.y + CHEST, q.z, color, 4, 3, 0.25, 0.4);
             return;
           }
+          const sl = skillLook(ev.ability);
+          if (sl.hitKind !== 'default' || sl.hitStyle !== 'default' || sl.hitSize !== 1) {
+            // the Animations page picked another impact for this skill
+            const hk = (sl.hitKind !== 'default' ? sl.hitKind : impactKindFor(ev.school)) as ImpactKind;
+            this.hitVisual({ kind: hk, style: (sl.hitStyle !== 'default' ? sl.hitStyle : 'impact') as 'eruption' | 'impact' | 'pillar' | 'swirl' }, q, ev.tgt, sl.hitSize);
+            return;
+          }
           const fl = fireballLookFor(ev.ability);
           if (fl) {
             this.fireballImpact(q.x, q.y + CHEST, q.z, fl, big);
@@ -2335,8 +2380,9 @@ export class Effects {
       case 'fireball':
       case 'smite': {
         const kind = ability === 'frostbolt' ? 'frost' : ability === 'fireball' ? 'fire' : 'holy';
-        const look = fireballLookFor(ability);
-        const flight = look ? this.fireballFlight(unit, target, look) : this.projectile(unit, target, def.school, kind, 1);
+        const sl = skillLook(ability);
+        const look = sl.form === 'fireball' ? ({ look: 'fireball', size: sl.size, heat: 0 } as FireballLook) : sl.form === 'default' ? fireballLookFor(ability) : null;
+        const flight = look ? this.fireballFlight(unit, target, look) : this.projectile(unit, target, def.school, kind, 1, 0, sl);
         this.flights.set(`${unit}:${ability}`, flight);
         break;
       }
@@ -2709,7 +2755,10 @@ export class Effects {
       // an instant that lands now: drawn at the target, nothing flies there
       const tp = target ? this.pos(target) : null;
       if (tp) {
-        this.hitVisual(vis.hit, tp, target);
+        const sl = skillLook(def.id);
+        const kind = (sl.hitKind !== 'default' ? sl.hitKind : vis.hit.kind) as ImpactKind;
+        const style = (sl.hitStyle !== 'default' ? sl.hitStyle : vis.hit.style) as typeof vis.hit.style;
+        this.hitVisual({ kind, style }, tp, target, sl.hitSize);
         if (def.target === 'ally' && unit !== target) this.runeCircle(s.x, s.z, color, 1.1, 0.7, 1.4);
         return;
       }
@@ -2758,12 +2807,13 @@ export class Effects {
         this.onSwing(unit);
       } else if (def.channel) {
         // one small curving missile per tick of the volley
-        this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, 0.62, rnd(0.6, 1.3)));
+        this.flights.set(`${unit}:${def.id}`, this.projectile(unit, target, def.school, kind, 0.62, rnd(0.6, 1.3), skillLook(def.id)));
         this.onSwing(unit);
       } else if (def.castTime > 0) {
         const big = def.effects.some((e) => e.type === 'damage' && e.amount >= 300) ? 1.35 : 1;
-        const look = fireballLookFor(def.id);
-        this.flights.set(`${unit}:${def.id}`, look ? this.fireballFlight(unit, target, look) : this.projectile(unit, target, def.school, kind, big));
+        const sl = skillLook(def.id);
+        const look = sl.form === 'fireball' ? ({ look: 'fireball', size: sl.size, heat: 0 } as FireballLook) : sl.form === 'default' ? fireballLookFor(def.id) : null;
+        this.flights.set(`${unit}:${def.id}`, look ? this.fireballFlight(unit, target, look) : this.projectile(unit, target, def.school, kind, big, 0, sl));
       } else {
         this.impactAt(t, impactKindFor(def.school));
       }
