@@ -163,6 +163,8 @@ export interface AuraDef {
   invulnerable?: boolean;
   /** Harmful effects put on the holder do not take hold while it lasts (Purifying Light). */
   blocksDebuffs?: boolean;
+  /** Interrupts do nothing to the holder while it lasts (Purifying Light): casts finish, nothing is locked out. */
+  uninterruptible?: boolean;
   /** Putting this on resets the cooldown of this ability. */
   resetsCooldown?: string;
   /** The next use of this ability costs no cooldown, and uses this aura up. */
@@ -566,6 +568,8 @@ export interface UnitSnap {
   /** Combo point slots when above the usual five (Deep Pockets). */
   cpMax?: number;
   stealthed: boolean;
+  /** Someone's Mind Control has this unit (its own player cannot act; the priest playing it sees it as free). */
+  mcd?: true;
   /** Set on a Mirror Image: the unit id of the caster it copies. Images are left out of party frames, rosters and results. */
   img?: number;
   /** Damage the unit's shields (Power Word: Shield, Ice Barrier) can still soak; absent when none. */

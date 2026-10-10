@@ -85,3 +85,26 @@ describe('what the meter shows', () => {
     assert.equal(x.rows(units, { metric: 'kills' })[0].rate, null);
   });
 });
+
+describe('the DPS meter with more than one list', () => {
+  it('draws a block per thing shown, stacked, each with its own rows', () => {
+    type N = { cls: string; text: string; kids: N[] };
+    const mk = (cls = ''): N & Record<string, unknown> => {
+      const n: N & Record<string, unknown> = { cls, text: '', kids: [], style: {}, title: '', addEventListener() {}, append(...k: N[]) { n.kids.push(...k); } };
+      Object.defineProperty(n, 'className', { get: () => n.cls, set: (v: string) => { n.cls = v; } });
+      Object.defineProperty(n, 'textContent', { get: () => n.text, set: (v: string) => { n.text = v; } });
+      Object.defineProperty(n, 'childNodes', { get: () => n.kids });
+      return n;
+    };
+    (globalThis as any).document = { createElement: () => mk(), createDocumentFragment: () => mk('frag') };
+    const root = mk('root') as any;
+    root.replaceChildren = (frag: N) => { root.kids = frag ? [...frag.kids] : []; };
+    const m = new DpsMeter(root);
+    m.feed([dmg(1, 2, 300), heal(3, 1, 400)], 2000);
+    m.paint(units, 1, { metric: 'damage', also: ['healing', 'damage'], rows: 5, friendly: 0 });
+    const heads = root.kids.filter((k: N) => k.cls === 'dm-head').map((k: N) => k.text);
+    assert.deepEqual(heads, ['Damage done', 'Healing done'], 'two blocks, and a repeat is not drawn twice');
+    assert.equal(root.kids.filter((k: N) => k.cls.startsWith('dm-row')).length, 2, 'a row under each');
+    delete (globalThis as any).document;
+  });
+});

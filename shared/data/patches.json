@@ -1,5 +1,18 @@
 [
  {
+  "version": "0.69.55",
+  "date": "2026-10-10",
+  "at": "2026-10-10T15:52:00Z",
+  "title": "Priest changes",
+  "changes": [
+   "Ascend to the Heavens: you now see your own character flying in the sky, the same as everyone else does.",
+   "Fleeing Scream: enemies now run away at full speed instead of being slowed while they flee.",
+   "Mind Control: you can jump while controlling an enemy and its action bar is no longer grayed out.",
+   "Purifying Light: you and every ally it covers cannot be interrupted for as long as it lasts.",
+   "The damage meter can now show two or three lists at once (damage, healing, damage taken and more)."
+  ]
+ },
+ {
   "version": "0.69.54",
   "date": "2026-10-10",
   "at": "2026-10-10T12:32:04Z",

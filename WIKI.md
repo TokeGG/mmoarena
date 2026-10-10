@@ -672,7 +672,7 @@ Healer and support. Shields, heals, dispels and fears. Mana-hungry.
 |---|---|---|
 | I | ⏳ **Lingering Scream** | Psychic Scream lasts 33.3% (2 seconds) longer. |
 |  | 🧱 **Paralyzing Scream** | Psychic Scream stuns enemies where they stand for 3 seconds instead of making them run, and has a 50% longer cooldown (45 seconds). |
-|  | 🏃 **Fleeing Scream** | Psychic Scream makes enemies run as far from you as they can instead of running at random. |
+|  | 🏃 **Fleeing Scream** | Psychic Scream makes enemies run as far from you as they can, at full speed, instead of stumbling about at random. |
 | II | ⏩ **Quickened Prayer** | Casting time and the global cooldown are 20% shorter. |
 |  | ✨ **Healing Light** | +15% healing. |
 |  | 💥 **Shadow Might** | +10% damage. |
@@ -934,7 +934,7 @@ Talent: Warden tier V *Leap of Trust* (replaces Desperate Prayer); Lightbearer t
 *Holy* · 60 mana · 12 yd radius · Instant · 50s cooldown
 
 - Removes every harmful magic effect from you and every ally in range.
-- You and every ally in range gain Purified for 6s: Harmful effects cannot take hold.
+- You and every ally in range gain Purified for 6s: Harmful effects cannot take hold, and your casts cannot be interrupted.
 - Effects: [Purified](#effect-purified)
 
 Talent: Warden tier V *Cleansing Radiance* (replaces Desperate Prayer); Lightbearer tier V *Cleansing Radiance* (replaces Desperate Prayer); Gloomweaver tier V *Cleansing Radiance* (replaces Power Word: Shield).
@@ -1333,7 +1333,7 @@ Every buff, debuff and proc in the game. Durations are base values (some talents
 | <a id="effect-polymorph"></a>**Polymorph** | Debuff (incapacitate), magic | 8s | Cannot move, cast or act (can still turn), not even Blink. Breaks on damage. Heals 10% of maximum health every 1s. | [Polymorph](#skill-polymorph) |
 | <a id="effect-pw-shield"></a>**Power Word: Shield** | Buff (absorb), magic | 15s | Absorbs 275 damage. | [Power Word: Shield](#skill-power-word-shield) |
 | <a id="effect-psychic-scream"></a>**Psychic Scream** | Debuff (fear), magic | 6s | Runs around in fear at 35% speed. Cannot cast or act. Breaks on direct damage, not damage over time. | [Psychic Scream](#skill-psychic-scream) |
-| <a id="effect-purified"></a>**Purified** | Buff | 6s | Harmful effects cannot take hold. | [Purifying Light](#skill-purifying-light) |
+| <a id="effect-purified"></a>**Purified** | Buff | 6s | Harmful effects cannot take hold, and your casts cannot be interrupted. | [Purifying Light](#skill-purifying-light) |
 | <a id="effect-recklessness"></a>**Recklessness** | Buff | 12s | +30% damage dealt. +100% rage from all sources. | [Recklessness](#skill-recklessness) |
 | <a id="effect-renew"></a>**Renew** | Buff, magic | 5s | Heals 1% of maximum health every 1s. | talent *Renewing Heal* ([Greater Heal](#skill-greater-heal)) |
 | <a id="effect-sap"></a>**Sap** | Debuff (incapacitate) | 8s | Cannot move, cast or act. Breaks on damage. | [Sap](#skill-sap) |
