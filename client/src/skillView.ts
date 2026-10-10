@@ -91,7 +91,7 @@ export class SkillEditor {
     } else if (f.kind === 'choice') {
       const sel = el('select', 'devp-sel');
       for (const v of f.options ?? []) {
-        const o = el('option', '', v.replace(/_/g, ' '));
+        const o = el('option', '', f.optionLabels?.[v] ?? v.replace(/_/g, ' '));
         o.value = v;
         sel.append(o);
       }

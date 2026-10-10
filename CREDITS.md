@@ -127,3 +127,11 @@ Almost all sound is synthesised in code; recorded samples are listed here (`clie
 | [JM_FX_Fireball_01](https://freesound.org/people/julien_matthey/sounds/105016/) | Julien Matthey (julien_matthey on Freesound) | Licence to be confirmed by the owner (the Freesound licence must allow commercial use: CC BY-NC would not) | The launch and the hit of Fireball, and (pitched down) of Pyroblast |
 
 Two clips cut from the recording (the rising whoosh, then the burst and its decay), mixed to mono, loudness-matched, faded and encoded as MP3. The file carries no tags, so the licence is not known and the Freesound page could not be opened from here: it has to be read there before release. The original WAV is not part of this repository.
+
+### Sound effects: RPG Essentials (Free)
+
+| Pack | Licence | Used for |
+| --- | --- | --- |
+| RPG Essentials (Free), the sound effects folders: Battle SFX, UI Menu SFX, Player Movement SFX, Atk Magic SFX, Buffs and Heals SFX (48 clips) | Supplied by the owner; the pack's own licence file was not in the download, so it has to be read where the pack was obtained before release | Menus, footsteps, jumps, hits, heals, crowd control, spell schools and the match start and result (shared/data/sounds.json says which clip plays for which sound; the Sounds page of the dev panel changes it) |
+
+The clips were converted to mono MP3 (32 kHz, 72 kbit/s) and kept under client/public/audio/lib. The originals are not part of this repository.

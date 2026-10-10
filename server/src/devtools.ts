@@ -1,6 +1,6 @@
 import type { DevCommitRow, OwnerLogRow } from '@arena/shared';
 import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MAX_ENTITY_CHARS, PATCH_FILES, affectedSpecs, smokeProblem, trainRotations, applyPatches, isEntityPatch, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
-import { ABILITIES, AURAS } from '@arena/shared';
+import { ABILITIES, AURAS, soundList } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
 import type { ClassId, DataPatch, IconKind, IconTable, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
 
@@ -22,7 +22,7 @@ type CommitPatchOpts<X> = {
   by: string;
   build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }>;
 };
-const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json', icons: 'shared/data/icons.json' };
+const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json', icons: 'shared/data/icons.json', sounds: 'shared/data/sounds.json' };
 
 export interface DevToolsEnv {
   /** A GitHub token that may push branches and open pull requests on the repository. */
@@ -564,6 +564,7 @@ function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: nu
   if (file === 'icons' && p.path[0] === 'class') return `The ${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons' && p.path[0] === 'spec') return `${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons') return p.path[0] === 'aura' ? `The ${nameOf(file, p.id, p.path).replace(/ \((buff|debuff)\)$/, '')} ${AURAS[p.id]?.harmful ? 'debuff' : 'buff'} has a new icon.` : `${nameOf(file, p.id, p.path)} has a new icon.`;
+  if (file === 'sounds') return `The ${soundList().find((x) => x.id === p.path[0])?.label ?? 'a'} sound was changed.`;
   // stat bonuses, switches and the game's own rules are worded from the shared labels: "Warden: Power Word: Shield shield strength +50% to +60%."
   if (file === 'tuning' || file === 'fx' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
     let name = file === 'tuning' ? 'Game rules' : file === 'fx' ? 'Animations' : p.id;
@@ -635,6 +636,8 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
       return id === 'game' ? [data] : [];
     case 'fx':
       return id === 'fx' ? [data] : [];
+    case 'sounds':
+      return id === 'sounds' ? [data] : [];
     case 'icons':
       return [data];
   }
@@ -770,7 +773,8 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
             delete chain[i - 1][p.path[i - 1]];
           }
         }
-      } else if (typeof rec[last] === 'number' || (modSlot(p) && rec[last] === undefined && typeof p.value === 'number')) rec[last] = p.value;
+      } else if (file === 'sounds') rec[last] = p.value;
+      else if (typeof rec[last] === 'number' || (modSlot(p) && rec[last] === undefined && typeof p.value === 'number')) rec[last] = p.value;
     }
   }
   const indent = /\n( +)\S/.exec(text)?.[1].length ?? 2;

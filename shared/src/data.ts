@@ -61,6 +61,9 @@ export const availableArenas = (): readonly ArenaDef[] => allArenas().filter((a)
 export const arenaById = (id: string | undefined): ArenaDef => findArena(id) ?? ARENA;
 export const TUNING = tuningJson as unknown as Tuning;
 /** Animation timings (shared/data/fx.json): visual only, not part of the simulation or its content hash. */
+import soundsJson from '../data/sounds.json' with { type: 'json' };
+/** What each sound of the game is set to (shared/data/sounds.json, see sounds.ts): sounds only, never part of the simulation. */
+export const SOUNDS = soundsJson as unknown as Record<string, { file: string; volume: number; pitch: number; off: number }>;
 export const FX = fxJson as unknown as Record<string, Record<string, number>>;
 
 /** Which icon each skill and buff wears (shared/data/icons.json): visual only, not part of the simulation or its content hash. */

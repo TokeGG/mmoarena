@@ -1,8 +1,32 @@
-import { ABILITIES, AURAS } from '@arena/shared';
+import { ABILITIES, AURAS, SOUNDS, soundSetting } from '@arena/shared';
 import type { School, SimEvent } from '@arena/shared';
 import { ACTION_VOICE, STEP_SURFACE, castVoice, hitVoice, startVoice } from './voices';
 import type { Recipe } from './voices';
 import { SamplePlayer } from './samples';
+import { SAMPLES } from './sampleTable';
+import type { SampleDef } from './sampleTable';
+
+/**
+ * The recorded sounds of the game: shared/data/sounds.json says which recording each sound id plays, how loud and how high
+ * (the Sounds page of the dev panel edits it, and a change is heard at once). Read on every lookup through a live view; the
+ * hand-made entries of sampleTable.ts stay as the base for what they tune (layering, pitch spread).
+ */
+function liveSamples(): Record<string, SampleDef> {
+  const keys = () => [...new Set([...Object.keys(SAMPLES), ...Object.keys(SOUNDS)])];
+  const def = (id: string): SampleDef | undefined => {
+    const base = SAMPLES[id];
+    if (!(id in SOUNDS)) return base;
+    const s = soundSetting(id);
+    if (!s.file) return undefined; // the built-in sound
+    return { files: [s.file], volume: s.volume, rate: s.pitch, pitchVar: base?.pitchVar ?? 0.05, volVar: base?.volVar ?? 0.08, powerGain: base?.powerGain ?? 0.3, ...(base?.layer ? { layer: true } : {}), ...(base?.preload ? { preload: true } : {}) };
+  };
+  return new Proxy({} as Record<string, SampleDef>, {
+    get: (_t, id) => (typeof id === 'string' ? def(id) : undefined),
+    has: (_t, id) => typeof id === 'string' && !!def(id),
+    ownKeys: () => keys(),
+    getOwnPropertyDescriptor: (_t, id) => (typeof id === 'string' && def(id) ? { enumerable: true, configurable: true, value: def(id) } : undefined),
+  });
+}
 
 /**
  * All sound is synthesised here with the Web Audio API (no audio files to ship or license).
@@ -74,7 +98,7 @@ export class Audio {
   private muted = read(KEY.mute) === '1';
   private last = new Map<string, number>();
   /** Recorded sounds (sampleTable.ts) that take over from a recipe of the same id once they are loaded. */
-  private samples = new SamplePlayer();
+  private samples = new SamplePlayer(liveSamples());
   private ambNodes: { stop(): void }[] = [];
   private ambTimers: number[] = [];
   private theme = '';
@@ -152,6 +176,7 @@ export class Audio {
     this.applyVolumes();
     if (this.theme) this.ambience(this.theme);
     this.samples.preload(ctx); // small clips, fetched in the background; until they are decoded the recipes play
+    for (const f of new Set(Object.values(SOUNDS).map((x) => x.file).filter(Boolean))) this.samples.load(ctx, f); // the whole library is under a megabyte
     return ctx;
   }
 
@@ -161,6 +186,7 @@ export class Audio {
   private ok(id: string, minGap = 30): AudioContext | null {
     const ctx = this.ensure();
     if (!ctx || ctx.state !== 'running' || this.muted) return null;
+    if (soundSetting(id).off) return null; // switched off on the Sounds page
     const now = ctx.currentTime * 1000;
     if (now - (this.last.get(id) ?? -1e9) < minGap) return null;
     this.last.set(id, now);
@@ -229,13 +255,78 @@ export class Audio {
   // ------------------------------------------------------------------ recipes (see voices.ts)
 
   /** Plays a recipe through the same panning and loudness as every other positional sound. */
-  private play(id: string, r: Recipe, sp: Spatial, power = 1, minGap = 40, vol = 0.7): void {
+  private play(id: string, r: Recipe | null, sp: Spatial, power = 1, minGap = 40, vol = 0.7): boolean {
     const ctx = this.ok(id, minGap);
-    if (!ctx) return;
+    if (!ctx) return true; // gated or switched off: nothing more to play
     const o = this.out(ctx, sp, 'sfx', vol);
     // a recorded sample of this id replaces the recipe (or adds to it when the entry is layered); not loaded yet or undecodable: the recipe
-    if (this.samples.has(id) && this.samples.play(ctx, o, id, { power }) && !this.samples.layered(id)) return;
+    if (this.samples.has(id) && this.samples.play(ctx, o, id, { power }) && !this.samples.layered(id)) return true;
+    if (!r) return false; // no recording and no recipe of its own: the caller plays the school's sound
     r({ tone: (t) => this.tone(ctx, o, t), noise: (n) => this.noise(ctx, o, n) }, Math.max(0.4, Math.min(1.4, power)));
+    return true;
+  }
+
+  /**
+   * A recording for a sound that is played by hand-written tones (a click, a footstep, a heal): true when one played, and the tones
+   * are then skipped (unless the entry is layered).
+   */
+  private sampled(ctx: AudioContext, o: AudioNode, id: string, power = 1): boolean {
+    return this.samples.has(id) && this.samples.play(ctx, o, id, { power }) && !this.samples.layered(id);
+  }
+
+  /** Hear a sound as it is set now (the Sounds page): `file` tries a recording that is not saved yet; the gate and the off switch are ignored. */
+  preview(id: string, file?: string): void {
+    const ctx = this.ensure();
+    if (!ctx) return;
+    if (ctx.state !== 'running') void ctx.resume();
+    const o = this.out(ctx, NEAR, 'sfx', 1);
+    const s = soundSetting(id);
+    const f = file ?? s.file;
+    if (!f) {
+      this.unlockedPreview(id, ctx, o);
+      return;
+    }
+    const once = new SamplePlayer({ [id]: { files: [f], volume: s.volume, rate: s.pitch } }, undefined, undefined);
+    const tryPlay = (n: number) => {
+      if (once.play(ctx, o, id)) return;
+      if (n < 25) window.setTimeout(() => tryPlay(n + 1), 80); // still loading
+    };
+    once.load(ctx, f);
+    tryPlay(0);
+  }
+
+  /** The built-in sound of an id, when a recording has not been picked: the recipes are played by the same calls as in a match. */
+  private unlockedPreview(id: string, ctx: AudioContext, o: AudioNode): void {
+    const school = (id.split('-')[1] ?? 'physical') as School;
+    const sp = NEAR;
+    this.last.clear();
+    const am = /^(c|cs|hit|tick)-(.+)$/.exec(id);
+    const adef = am ? ABILITIES[am[2]] : undefined;
+    if (am && adef) {
+      const v = am[1] === 'c' ? castVoice(adef) : am[1] === 'cs' ? startVoice(adef) : am[1] === 'hit' ? hitVoice(adef) : ACTION_VOICE.tick;
+      if (!(v && this.play(id, v, sp, 1, 0, 0.7))) {
+        if (am[1] === 'cs') this.castStart(adef.school, sp);
+        else if (am[1] === 'c') this.cast(adef.school, adef.range <= 6 && adef.school === 'physical', sp);
+        else this.hit(adef.school, 200, sp);
+      }
+    } else if (id.startsWith('ui-')) this.ui(id.slice(3) as 'click');
+    else if (id === 'jump') this.jump(sp);
+    else if (id === 'jumpland') this.jumpLand(sp);
+    else if (id.startsWith('step-')) this.footstep(id.slice(5));
+    else if (id === 'count') this.countdown(2);
+    else if (id === 'start') this.matchStart();
+    else if (id.startsWith('result-')) this.result(id === 'result-win' ? true : id === 'result-lose' ? false : null);
+    else if (id === 'heal') this.heal(300, sp);
+    else if (id === 'death') this.death(true, sp);
+    else if (id.startsWith('cc-')) this.control(id.slice(3), sp);
+    else if (id.startsWith('m-')) this.misc(id.slice(2) as 'interrupt', sp);
+    else if (id.startsWith('hit-')) this.hit(school, 200, sp);
+    else if (id.startsWith('cs-')) this.castStart(school, sp);
+    else if (id.startsWith('c-')) this.cast(school, id.endsWith('true'), sp);
+    else {
+      void o;
+      void ctx;
+    }
   }
 
   /** When each unit last released each ability, to tell a fresh hit from a damage-over-time or channel tick. */
@@ -267,6 +358,7 @@ export class Audio {
     const ctx = this.ok(`ui-${kind}`, 40);
     if (!ctx) return;
     const o = this.out(ctx, NEAR, 'sfx', 0.8);
+    if (this.sampled(ctx, o, `ui-${kind}`)) return;
     if (kind === 'click') this.tone(ctx, o, { f: 1400, to: 900, d: 0.05, vol: 0.45, type: 'triangle' });
     else if (kind === 'select') this.tone(ctx, o, { f: 720, to: 960, d: 0.05, vol: 0.2 });
     else if (kind === 'error') this.tone(ctx, o, { f: 150, to: 110, d: 0.14, vol: 0.28, type: 'square', lp: 700 });
@@ -281,6 +373,7 @@ export class Audio {
     if (!ctx) return;
     const power = Math.min(1, 0.45 + Math.sqrt(Math.max(1, amount)) / 28);
     const o = this.out(ctx, sp, 'sfx', power);
+    if (this.sampled(ctx, o, `hit-${school}`, power)) return;
     switch (school) {
       case 'physical':
         this.noise(ctx, o, { d: 0.13, f: 2200, to: 300, type: 'lowpass', vol: 0.5 });
@@ -317,6 +410,7 @@ export class Audio {
     const ctx = this.ok(`cs-${school}`, 80);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', 0.55);
+    if (this.sampled(ctx, o, `cs-${school}`, 0.55)) return;
     switch (school) {
       case 'fire':
         this.noise(ctx, o, { d: 0.35, a: 0.1, f: 500, to: 1600, q: 0.7, vol: 0.3 });
@@ -346,6 +440,7 @@ export class Audio {
     const ctx = this.ok(`c-${school}-${melee}`, 60);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', 0.6);
+    if (this.sampled(ctx, o, `c-${school}-${melee}`)) return;
     if (melee) {
       this.noise(ctx, o, { d: 0.11, f: 500, to: 1900, q: 1.2, vol: 1.2 });
       return;
@@ -377,6 +472,7 @@ export class Audio {
     const ctx = this.ok('heal', 90);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', Math.min(1, 0.4 + amount / 600));
+    if (this.sampled(ctx, o, 'heal')) return;
     this.tone(ctx, o, { f: 660, to: 880, d: 0.18, vol: 0.22, type: 'triangle' });
     this.tone(ctx, o, { f: 990, to: 1320, d: 0.24, vol: 0.18, type: 'triangle', delay: 0.07 });
   }
@@ -385,6 +481,7 @@ export class Audio {
     const ctx = this.ok(`cc-${kind}`, 120);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', 0.8);
+    if (this.sampled(ctx, o, `cc-${kind}`)) return;
     switch (kind) {
       case 'stun':
         this.tone(ctx, o, { f: 220, to: 70, d: 0.2, vol: 0.5 });
@@ -409,6 +506,7 @@ export class Audio {
     const ctx = this.ok(`m-${kind}`, 80);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', 0.8);
+    if (this.sampled(ctx, o, `m-${kind}`)) return;
     if (kind === 'interrupt') {
       this.tone(ctx, o, { f: 320, to: 200, d: 0.07, vol: 0.4, type: 'square', lp: 1800 });
       this.noise(ctx, o, { d: 0.06, f: 4000, type: 'highpass', vol: 0.3 });
@@ -422,6 +520,7 @@ export class Audio {
     const ctx = this.ok('death', 200);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', isYou ? 1 : 0.7);
+    if (this.sampled(ctx, o, 'death')) return;
     this.tone(ctx, o, { f: 220, to: 45, d: isYou ? 0.9 : 0.55, vol: 0.5, type: 'sawtooth', lp: 650 });
     this.noise(ctx, o, { d: 0.35, f: 800, to: 120, type: 'lowpass', vol: 0.3 });
   }
@@ -430,16 +529,19 @@ export class Audio {
     const ctx = this.ok('jump', 150);
     if (!ctx) return;
     const o = this.out(ctx, sp, 'sfx', 0.5);
+    if (this.sampled(ctx, o, 'jump')) return;
     this.tone(ctx, o, { f: 200, to: 340, d: 0.12, vol: 0.25 });
     this.noise(ctx, o, { d: 0.1, f: 700, to: 1400, vol: 0.5 });
   }
 
   /** A step; the floor of the current arena decides what it sounds like. */
   footstep(theme = ''): void {
-    const ctx = this.ok('step', 120);
+    const surface = theme in STEP_SURFACE ? theme : 'colosseum';
+    const ctx = this.ok(`step-${surface}`, 120);
     if (!ctx) return;
-    const sf = STEP_SURFACE[theme] ?? STEP_SURFACE.colosseum;
+    const sf = STEP_SURFACE[surface];
     const o = this.out(ctx, NEAR, 'sfx', 0.55);
+    if (this.sampled(ctx, o, `step-${surface}`)) return;
     const j = 0.85 + Math.random() * 0.3;
     this.noise(ctx, o, { d: 0.07, f: sf.f * j, type: sf.lp > 1 ? 'bandpass' : 'lowpass', vol: 0.5 });
     this.tone(ctx, o, { f: sf.thud * j, to: sf.thud * 0.65, d: 0.08, vol: 0.4 });
@@ -450,6 +552,7 @@ export class Audio {
     const ctx = this.ok('count', 300);
     if (!ctx) return;
     const o = this.out(ctx, NEAR, 'sfx', 1.6);
+    if (this.sampled(ctx, o, 'count')) return;
     this.tone(ctx, o, { f: secondsLeft <= 1 ? 1175 : 880, d: 0.14, vol: 0.3, type: 'triangle' });
   }
 
@@ -457,15 +560,18 @@ export class Audio {
     const ctx = this.ok('start', 500);
     if (!ctx) return;
     const o = this.out(ctx, NEAR, 'sfx', 0.9);
+    if (this.sampled(ctx, o, 'start')) return;
     this.tone(ctx, o, { f: 110, d: 1.0, a: 0.03, vol: 0.4, type: 'sawtooth', lp: 900 });
     this.tone(ctx, o, { f: 165, d: 0.9, a: 0.03, vol: 0.3, type: 'sawtooth', lp: 900 });
     this.tone(ctx, o, { f: 220, d: 0.8, a: 0.03, vol: 0.25, type: 'sawtooth', lp: 1100 });
   }
 
   result(won: boolean | null): void {
-    const ctx = this.ok('result', 800);
+    const rid = won ? 'result-win' : won === false ? 'result-lose' : 'result-draw';
+    const ctx = this.ok(rid, 800);
     if (!ctx) return;
     const o = this.out(ctx, NEAR, 'sfx', 0.9);
+    if (this.sampled(ctx, o, rid)) return;
     const notes = won ? [523, 659, 784, 1047] : won === false ? [392, 349, 294, 220] : [440, 440];
     notes.forEach((f, i) => this.tone(ctx, o, { f, d: won ? 0.4 : 0.5, a: 0.02, vol: 0.28, type: won ? 'triangle' : 'sawtooth', lp: won ? undefined : 900, delay: i * 0.14 }));
   }
@@ -479,9 +585,7 @@ export class Audio {
         const s = sp(ev.unit);
         const def = ABILITIES[ev.ability];
         if (!s || !def || def.castTime <= 0) break;
-        const v = startVoice(def);
-        if (v) this.play(`cs-${def.id}`, v, s, 1, 80, 0.6);
-        else this.castStart(def.school, s);
+        if (!this.play(`cs-${def.id}`, startVoice(def), s, 1, 80, 0.6)) this.castStart(def.school, s);
         break;
       }
       case 'cast': {
@@ -491,9 +595,7 @@ export class Audio {
         this.castAt.set(`${ev.unit}|${ev.ability}`, performance.now());
         if (this.castAt.size > 300) this.castAt.clear();
         if (!s) break;
-        const v = castVoice(def);
-        if (v) this.play(`c-${def.id}`, v, s, 1, 60, 0.7);
-        else this.cast(def.school, def.range <= 6 && def.school === 'physical', s);
+        if (!this.play(`c-${def.id}`, castVoice(def), s, 1, 60, 0.7)) this.cast(def.school, def.range <= 6 && def.school === 'physical', s);
         break;
       }
       case 'damage': {
@@ -517,9 +619,7 @@ export class Audio {
           this.play(`tick-${ev.ability}`, ACTION_VOICE.tick, s, power, 140, 0.55); // damage over time and channel ticks
           break;
         }
-        const hv = hitVoice(def);
-        if (hv) this.play(`hit-${ev.ability}`, hv, s, power, 35, 0.75);
-        else this.hit(ev.school, ev.amount, s);
+        if (!this.play(`hit-${ev.ability}`, hitVoice(def), s, power, 35, 0.75)) this.hit(ev.school, ev.amount, s);
         if (ev.amount >= 320) this.play('big', ACTION_VOICE.land, s, 0.8, 150, 0.4); // a heavy blow gets a low boom under it
         break;
       }
