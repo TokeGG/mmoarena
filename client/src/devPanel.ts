@@ -125,6 +125,30 @@ export class DevPanel {
   private setupName = '';
   /** The window paused the match when it opened (and resumes it when it closes). */
   private autoPaused = false;
+  /** Live mode (the default): opening the window does not pause the match and every number you change is tried in it a moment later. Off: it pauses and "Try in this match" sends. */
+  private live = (() => {
+    try {
+      return localStorage.getItem('arena.devlive') !== '0';
+    } catch {
+      return true;
+    }
+  })();
+  private liveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** What the last change did, in words, so there is never a doubt whether it went in (shown by the toolbar). */
+  private saveNote = '';
+  private noteNow(text: string) {
+    this.saveNote = `✓ ${new Date().toLocaleTimeString()}  ${text}`;
+  }
+
+  /** Live mode: send what was typed to the match shortly after the last keystroke. */
+  private autoApply() {
+    if (!this.live || !this.inMatch) return;
+    if (this.liveTimer) clearTimeout(this.liveTimer);
+    this.liveTimer = setTimeout(() => {
+      this.liveTimer = null;
+      if (this.live && this.inMatch) this.hooks.send({ t: 'dev_patch', patches: this.toSend() });
+    }, 350);
+  }
 
   constructor(private hooks: Hooks, readonly layers: DataLayers) {
     this.button.id = 'devbtn'; // a HUD element: movable in the HUD editor
@@ -136,7 +160,10 @@ export class DevPanel {
       testing: () => new Map(this.inEffect().map((p) => [this.key(p), p])),
       inEffect: () => this.inEffect(),
       canRevert: true,
-      onEdit: () => this.refreshBar(),
+      onEdit: () => {
+        this.refreshBar();
+        this.autoApply();
+      },
       saveTitle: "Saves what you picked: sends it to the admin panel's Proposals list, where it can be committed.",
       save: () => {
         const all = this.toSend();
@@ -473,7 +500,7 @@ export class DevPanel {
       this.hooks.send({ t: 'dev_commits' });
       this.hooks.send({ t: 'dev_requests', op: 'list' });
       // opening the window in your own match pauses it, so you can read and edit in peace; closing it resumes. Watching a match never pauses it.
-      if (this.inMatch && !this.paused && this.hooks.youId() > 0 && !this.hooks.spectating?.()) {
+      if (!this.live && this.inMatch && !this.paused && this.hooks.youId() > 0 && !this.hooks.spectating?.()) {
         this.autoPaused = true;
         this.hooks.send({ t: 'dev_pause', on: true });
       }
@@ -564,6 +591,7 @@ export class DevPanel {
       this.noCooldowns = !!m.noCooldowns;
       // what was typed stays when only the pause changed; new numbers in the match replace it
       const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
+      if (!same) this.noteNow(m.patches.length ? `Applied to this match: ${m.patches.length} changed number${m.patches.length === 1 ? '' : 's'}, live for everyone in it. Not saved for everyone yet: Keep or Commit does that.` : 'Back to the real numbers in this match.');
       this.layers.setRoom(m.patches);
       if (!same || m.reset) this.edits.clear();
     } else if (m.t === 'overrides') {
@@ -572,6 +600,7 @@ export class DevPanel {
       if (this.drawerOpen) this.paint();
     } else if (m.t === 'dev_session') {
       this.session = m.patches;
+      if (m.patches.length) this.noteNow(`Saved for your session: ${m.patches.length} changed number${m.patches.length === 1 ? '' : 's'} in every match you start until you sign out.`);
       this.layers.setSession(m.patches);
       if (!this.inMatch) this.edits.clear();
     }
@@ -764,6 +793,26 @@ export class DevPanel {
   /** The actions, always in view: try the changes, keep them, send them, put everything back. */
   private toolbar(): HTMLElement {
     const acts = el('div', 'devp-toolbar');
+    const liveBox = el('label', 'devp-live');
+    const liveCb = el('input') as HTMLInputElement;
+    liveCb.type = 'checkbox';
+    liveCb.checked = this.live;
+    liveCb.title = 'On: the match keeps running while this window is open and every number you change is tried in it a moment after you type it. Off: the window pauses the match and you press "Try in this match".';
+    liveCb.addEventListener('change', () => {
+      this.live = liveCb.checked;
+      try {
+        localStorage.setItem('arena.devlive', this.live ? '1' : '0');
+      } catch {
+        /* ignore */
+      }
+      if (this.live && this.autoPaused) {
+        this.autoPaused = false;
+        if (this.paused) this.hooks.send({ t: 'dev_pause', on: false });
+      }
+      if (this.live) this.autoApply();
+    });
+    liveBox.append(liveCb, document.createTextNode(' Live: change numbers while the match runs'));
+    const savedNote = el('small', 'devp-saved', this.saveNote);
     const tryIt = el('button', 'mm-small mm-go', 'Try in this match');
     tryIt.title = 'Everyone in this match plays on these numbers at once (the match no longer counts)';
     tryIt.addEventListener('click', () => this.hooks.send({ t: 'dev_patch', patches: this.toSend() }));
@@ -808,8 +857,9 @@ export class DevPanel {
     });
     this.changesBtn = changes;
     for (const [b, id] of [[tryIt, 'try'], [keep, 'keep'], [save, 'send'], [reset, 'reset'], [changes, 'changes']] as const) b.dataset.tour = `dev-${id}`;
-    if (this.inMatch) acts.append(tryIt, keep, save, reset, changes);
+    if (this.inMatch) acts.append(liveBox, tryIt, keep, save, reset, changes);
     else acts.append(keep, save, reset, changes);
+    if (this.saveNote) acts.append(savedNote);
     return acts;
   }
 

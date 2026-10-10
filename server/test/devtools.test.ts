@@ -404,14 +404,21 @@ describe('dev tools with other people in the match', () => {
     lobby.handle(devP, { t: 'dev_pause', on: true } as ClientMsg);
     assert.equal(room.paused, true);
     assert.ok(outB.some((m) => m.t === 'dev_state' && m.paused));
-    // ranked: refused
+    // ranked: refused when the owner took Tune-any-match away; allowed (and it stops counting) otherwise
     const ranked: any = (lobby as any).makeRoom(0, true, true, 'colosseum');
     const outD2: ServerMsg[] = [];
-    const dev2 = mkP('Dee', outD2, { ...devP.account });
+    const dev2 = mkP('Dee', outD2, { ...devP.account, grants: ['dev', 'deny:tuneany'] });
     ranked.addPlayer(dev2, 0);
     lobby.handle(dev2, { t: 'dev_patch', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 1 }] } as ClientMsg);
     assert.deepEqual(ranked.devPatches, []);
     assert.equal(last(outD2, 'dev_result')?.text, 'Not in ranked matches.');
+    const outD3: ServerMsg[] = [];
+    const dev3 = mkP('Dee', outD3, { ...devP.account, grants: ['dev'] });
+    const ranked2: any = (lobby as any).makeRoom(0, true, true, 'colosseum');
+    ranked2.addPlayer(dev3, 0);
+    lobby.handle(dev3, { t: 'dev_patch', patches: [{ file: 'abilities', id: 'fireball', path: ['cooldown'], value: 1 }] } as ClientMsg);
+    assert.deepEqual(ranked2.devPatches.map((p: any) => p.value), [1], 'a dev can tune any match, ranked too');
+    assert.equal(ranked2.devTest, true, 'and it stops counting');
   });
 });
 

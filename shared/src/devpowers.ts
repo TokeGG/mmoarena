@@ -7,6 +7,7 @@ export interface DevPower { id: string; label: string; hint: string; on: boolean
 
 export const DEV_POWERS: readonly DevPower[] = [
   { id: 'tuning', label: 'Dev panel in matches', hint: 'Try numbers, pause, restart and change units in their own matches and the bot battles they watch', on: true },
+  { id: 'tuneany', label: 'Tune any match', hint: 'Use the dev panel in any match they play or watch, ranked ones and other people\'s included (it then stops counting)', on: true },
   { id: 'commit', label: 'Commit numbers to the game', hint: 'Save changes for everyone: they land on the main branch and the game updates', on: true },
   { id: 'askclaude', label: 'Ask Claude and requests', hint: 'Ask Claude about skills, send skill notes and requests for code changes', on: true },
   { id: 'botmatch', label: 'Start bot battles', hint: 'Bots against bots, watched live', on: true },
