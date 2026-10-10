@@ -1334,7 +1334,7 @@ export class Lobby {
       ...(ai ? { interpret: (t: string) => this.readNote(ai, msg.id, t, m.classes) } : {}),
     });
     // what no brain number can do is listed, never filed as an issue
-    const extra = [...(understood ? [`How I read it: ${understood}`] : []), ...filed.map((t) => `Needs new code, not done: ${t}`)];
+    const extra = [...(understood ? [`How I read it: ${understood}`] : []), ...filed.map((t) => `Needs new code, not done yet: ${t}. It is on the Requests list: press "Write the code here" there and Claude writes it and opens a pull request.`)];
     const lines = [...extra, ...formatReport(report)];
     if (!apply) return void send(p, { t: 'bot_note_ack', id: msg.id, ok: true, preview: true, text: report.headline, lines, unmapped: note.unmapped, bug: note.bugs.length > 0 });
     void this.adminLog?.add(by, 'note for the bots', msg.id, `"${msg.text.slice(0, 160)}": ${report.headline.slice(0, 200)}${note.bugs.length ? ` (${note.bugs.length} bug${note.bugs.length === 1 ? '' : 's'} reported)` : ''}`);
@@ -2268,6 +2268,16 @@ export class Lobby {
           void reqs.merge(msg.id).then((r) => {
             send(p, { t: 'dev_result', ok: r.ok, text: r.text });
             if (r.ok) void this.adminLog?.add(by, 'request: merged the pull request', undefined, msg.id);
+            this.sendRequests();
+          });
+          break;
+        }
+        if (msg.op === 'code') {
+          if (this.ownerOnly(p, 'Writing code with Claude', 'requestsadm') || !msg.id) return;
+          send(p, { t: 'dev_result', ok: true, text: 'Claude is writing the code. This takes a minute or two; the pull request shows on the request when it is ready.' });
+          void reqs.writeCode(msg.id, by).then((r) => {
+            send(p, { t: 'dev_result', ok: r.ok, text: r.text });
+            if (r.ok) void this.adminLog?.add(by, 'request: code written by Claude', undefined, msg.id);
             this.sendRequests();
           });
           break;

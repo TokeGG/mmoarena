@@ -5,7 +5,8 @@ import { createCharacter } from './models';
 import type { Character } from './models';
 import { modelVersion } from './riggedModels';
 import { applyModelData } from './modelData';
-import { playOn, readAnimationFile, retarget } from './animRetarget';
+import { CANON, canonicalOf, playOn, readAnimationFile, retarget } from './animRetarget';
+import { BONE_LABEL } from '@arena/shared';
 import type { LoadedClip } from './animRetarget';
 import { el } from './bar';
 
@@ -187,6 +188,37 @@ class ModelView {
     return found;
   }
 
+  private raycaster = new THREE.Raycaster();
+
+  /**
+   * What is under a point of this picture: a weapon (and which hand), a body part the dev uploaded (and its bone), or a bit of the
+   * game's own body (the bone that moves most of the triangle that was hit).
+   */
+  pickPart(clientX: number, clientY: number): { kind: 'weapon'; hand: 'right' | 'left' } | { kind: 'part' | 'bone'; bone: string } | null {
+    if (!this.char) return null;
+    const r = this.canvas.getBoundingClientRect();
+    this.raycaster.setFromCamera(new THREE.Vector2(((clientX - r.left) / r.width) * 2 - 1, -((clientY - r.top) / r.height) * 2 + 1), this.camera);
+    this.char.root.updateMatrixWorld(true);
+    const hits = this.raycaster.intersectObject(this.char.root, true).filter((h) => h.object.visible && (h.object as THREE.Mesh).isMesh);
+    for (const h of hits) {
+      for (let o: THREE.Object3D | null = h.object; o; o = o.parent) {
+        if (o.name.startsWith('weapon:') && (o.userData.hand === 'right' || o.userData.hand === 'left')) return { kind: 'weapon', hand: o.userData.hand };
+        if (o.name.startsWith('custom-part:')) return { kind: 'part', bone: o.name.slice('custom-part:'.length) };
+      }
+      const m = h.object as THREE.SkinnedMesh;
+      const f = h.face;
+      const si = m.geometry?.getAttribute('skinIndex');
+      const sw = m.geometry?.getAttribute('skinWeight');
+      if (!m.isSkinnedMesh || !f || !si || !sw) continue;
+      const total = new Map<number, number>();
+      for (const v of [f.a, f.b, f.c]) for (let k = 0; k < 4; k++) total.set(si.getComponent(v, k), (total.get(si.getComponent(v, k)) ?? 0) + sw.getComponent(v, k));
+      const best = [...total.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+      const canon = best === undefined ? null : canonicalOf(m.skeleton.bones[best]?.name ?? '');
+      if (canon && (CANON as readonly string[]).includes(canon)) return { kind: 'bone', bone: canon };
+    }
+    return null;
+  }
+
   /** Is there a weapon in this hand to move? */
   hasHand(hand: 'right' | 'left'): boolean {
     return !!this.pivotOf(hand);
@@ -260,6 +292,14 @@ export class ModelWindow {
     this.keepAnim = fn;
     this.paintAnim();
   }
+  /** Set by the Models page on a character: writes a number of that character (path from its own entry: ['bones', 'hand_r', 'rx']) and reads one. */
+  private partEdit: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined } | null = null;
+  private picked = '';
+  setPartEdit(e: { set: (path: (string | number)[], v: number, final: boolean) => void; get: (path: (string | number)[]) => number | undefined } | null): void {
+    this.partEdit = e;
+    if (!e && !this.weaponEdit) this.moveOn = false;
+    this.paintMove();
+  }
   private moveOn = false;
   private editWeapon = '';
   private weaponPicked = false;
@@ -272,14 +312,25 @@ export class ModelWindow {
   setWeaponEdit(fn: ((hand: 'right' | 'left', v: { pos: number[]; rot: number[] }, final: boolean) => void) | null, weapon = ''): void {
     this.weaponEdit = fn;
     this.editWeapon = weapon;
-    if (!fn) this.moveOn = false;
+    if (!fn && !this.partEdit) this.moveOn = false;
     this.paintMove();
   }
 
   private paintMove(): void {
     const b = this.moveBox;
     b.replaceChildren();
-    b.style.display = this.weaponEdit ? 'flex' : 'none';
+    b.style.display = this.weaponEdit || this.partEdit ? 'flex' : 'none';
+    if (this.partEdit && !this.weaponEdit) {
+      const on = el('button', `mm-small${this.moveOn ? ' on' : ''}`, '✋ Move parts');
+      on.title = 'Click a part of the model in the left picture (a hand, the head, an arm, a leg, a part you uploaded) and drag it.';
+      on.addEventListener('click', () => {
+        this.moveOn = !this.moveOn;
+        this.paintMove();
+      });
+      b.append(on);
+      if (this.moveOn) b.append(el('small', 'devp-dim', this.picked ? `${this.picked}: drag left / right to turn it, up / down to swing it, Shift for lean. A part you uploaded slides (Shift: forward / back).` : 'Click a part of the model, then drag it. Drag the background to turn the view.'));
+      return;
+    }
     if (!this.weaponEdit) return;
     if ((this.s.spec.weapon ?? '') !== this.editWeapon) {
       b.append(el('small', 'devp-dim', `Pick ${this.editWeapon.replace(/_/g, ' ')} in the weapon list to move it by hand.`));
@@ -587,11 +638,35 @@ export class ModelWindow {
   private wire(c: HTMLCanvasElement, editable: boolean): void {
     let drag: { x: number; y: number; pan: boolean; weapon: boolean } | null = null;
     let last: { pos: number[]; rot: number[] } | null = null;
+    let part: { kind: 'part' | 'bone'; bone: string; start: Record<string, number> } | null = null;
+    let acc = { x: 0, y: 0 };
+    let lastPut: { path: (string | number)[]; v: number } | null = null;
+    const put = (path: (string | number)[], v: number) => {
+      lastPut = { path, v };
+      this.partEdit?.set(path, v, false);
+    };
     c.addEventListener('contextmenu', (e) => e.preventDefault());
     c.addEventListener('pointerdown', (e) => {
       c.setPointerCapture(e.pointerId);
       drag = { x: e.clientX, y: e.clientY, pan: e.button === 2 || e.shiftKey, weapon: editable && this.moveOn && !!this.weaponEdit && e.button === 0 };
       last = null;
+      part = null;
+      lastPut = null;
+      acc = { x: 0, y: 0 };
+      if (editable && this.moveOn && this.partEdit && !this.weaponEdit && e.button === 0) {
+        const hit = this.now.pickPart(e.clientX, e.clientY);
+        if (hit && hit.kind !== 'weapon') {
+          const keys = hit.kind === 'part' ? ['x', 'y', 'z'] : ['rx', 'ry', 'rz'];
+          const root = hit.kind === 'part' ? 'parts' : 'bones';
+          const start: Record<string, number> = {};
+          for (const k of keys) start[k] = this.partEdit.get([root, hit.bone, k]) ?? (k === 'size' ? 1 : 0);
+          part = { kind: hit.kind, bone: hit.bone, start };
+          this.picked = `${hit.kind === 'part' ? 'Your ' : ''}${BONE_LABEL[hit.bone] ?? hit.bone}${/_l$/.test(hit.bone) ? ' (left)' : /_r$/.test(hit.bone) ? ' (right)' : ''}`;
+          this.paintMove();
+          drag!.weapon = false;
+          drag!.pan = false;
+        }
+      }
       c.style.cursor = 'grabbing';
       this.s.spin = false;
       this.root.querySelector('button[data-spin]')?.classList.remove('on');
@@ -602,7 +677,24 @@ export class ModelWindow {
       const dy = e.clientY - drag.y;
       drag.x = e.clientX;
       drag.y = e.clientY;
-      if (drag.weapon) {
+      if (part && this.partEdit) {
+        // the view looks at the character from the front when yaw is 0: left / right on the screen is the character's left / right the other way round once it has turned half way
+        const sgn = Math.cos(this.s.yaw) >= 0 ? 1 : -1;
+        acc = { x: acc.x + dx, y: acc.y + dy };
+        const root = part.kind === 'part' ? 'parts' : 'bones';
+        if (part.kind === 'part') {
+          const k = (2 * Math.tan((18 * Math.PI) / 180) * this.s.dist) / Math.max(1, c.clientHeight);
+          if (e.shiftKey) put([root, part.bone, 'z'], Math.round((part.start.z - acc.y * k) * 1000) / 1000);
+          else {
+            put([root, part.bone, 'x'], Math.round((part.start.x + acc.x * k * sgn) * 1000) / 1000);
+            put([root, part.bone, 'y'], Math.round((part.start.y - acc.y * k) * 1000) / 1000);
+          }
+        } else if (e.shiftKey) put([root, part.bone, 'rz'], Math.round((part.start.rz + acc.x * 0.6 * sgn) * 10) / 10);
+        else {
+          put([root, part.bone, 'ry'], Math.round((part.start.ry + acc.x * 0.6 * sgn) * 10) / 10);
+          put([root, part.bone, 'rx'], Math.round((part.start.rx - acc.y * 0.6) * 10) / 10);
+        }
+      } else if (drag.weapon) {
         const r = this.now.dragWeapon(this.s, this.hand, this.moveMode, dx, dy, e.shiftKey);
         if (r) {
           last = r;
@@ -616,6 +708,9 @@ export class ModelWindow {
     });
     const end = () => {
       if (drag?.weapon && last) this.weaponEdit?.(this.hand, last, true);
+      if (part && lastPut) this.partEdit?.set(lastPut.path, lastPut.v, true);
+      lastPut = null;
+      part = null;
       drag = null;
       last = null;
       c.style.cursor = 'grab';

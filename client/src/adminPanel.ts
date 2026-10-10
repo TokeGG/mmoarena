@@ -577,6 +577,14 @@ export class AdminPanel {
       chk.addEventListener('click', () => this.hooks.send({ t: 'dev_requests', op: 'check', id: r.id }));
       row.append(chk);
     }
+    if (r.code) row.append(el('small', 'devp-dim', ` Written by Claude in the game: ${r.code.summary.slice(0, 300)}`));
+    if (r.codeError) row.append(el('small', 'devp-dim', ` (the game's Claude could not finish: ${r.codeError.slice(0, 300)})`));
+    if (owner && r.status !== 'done' && !(r.prUrl && r.prState === 'open')) {
+      const wr = el('button', 'mm-small mm-go', '✍️ Write the code here');
+      wr.title = "The game's own Claude reads the code, writes the change and uploads it as a pull request (a branch of its own, checks run on it). Nothing goes live until you merge it.";
+      wr.addEventListener('click', () => window.confirm(`Have Claude write the code for "${r.title}" and upload it as a pull request? It uses the game's Anthropic key and takes a minute or two.`) && this.hooks.send({ t: 'dev_requests', op: 'code', id: r.id }));
+      row.append(wr);
+    }
     if (owner && !r.build && r.status !== 'done') {
       const bld = el('button', 'mm-small mm-go', '🤖 Build it with Claude');
       bld.title = 'Claude changes the code on GitHub, runs the checks and opens a pull request for you to review and merge. Nothing goes live until you merge it.';

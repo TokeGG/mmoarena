@@ -17,6 +17,7 @@ import { AdminLog } from './adminlog';
 import { CUSTOM_LIMITS, CustomIcons } from './customicons';
 import { CustomSounds } from './customsounds';
 import { CustomModels } from './custommodels';
+import { CodeWriter } from './codegen';
 import { CustomMaps } from './custommaps';
 import { AiTune } from './aitune';
 import { DevRequests } from './devrequests';
@@ -105,7 +106,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const customModels = new CustomModels(store, adminLog);
   // maps the owner made in the admin panel's Maps tab: kept in the store, registered for every arena lookup, sent to every client
   const customMaps = new CustomMaps(store, adminLog, (maps) => lobby.customMapsChanged(maps));
-  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, adminLog, new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)), playTime, health, customMaps);
+  const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, adminLog, new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t), new CodeWriter(process.env)), playTime, health, customMaps);
 
   const server = http.createServer((req, res) => {
     let url: URL;

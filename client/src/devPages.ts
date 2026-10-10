@@ -410,6 +410,23 @@ export class DevWorkspace {
         this.preview ??= new ModelWindow();
         const win = this.preview;
         if (id.startsWith('c:')) {
+          // a part clicked and dragged in the window writes the numbers of that bone (or uploaded part) of this character
+          const flds = entry.groups.flatMap((g) => g.fields);
+          const at = (path: (string | number)[]) => flds.find((x) => x.path.join('.') === ['characters', id.slice(2), ...path].join('.'));
+          win.setPartEdit({
+            get: (path) => {
+              const fd = at(path);
+              return fd && typeof fd.value === 'number' ? fd.value : undefined;
+            },
+            set: (path, v, final) => {
+              const fd = at(path);
+              if (fd) this.editor.set.set(fd, Math.max(fd.min ?? -1e9, Math.min(fd.max ?? 1e9, v)), this.editor.testing(), this.editor.canRevert);
+              this.editor.onEdit();
+              if (final) this.host.repaint();
+            },
+          });
+        } else win.setPartEdit(null);
+        if (id.startsWith('c:')) {
           // an animation tried in the window can be kept for this character: uploaded, and set on the field of that motion
           const fields = entry.groups.flatMap((g) => g.fields);
           win.setKeepAnim(async (mode, f) => {

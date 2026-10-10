@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.72",
+  "date": "2026-10-10",
+  "at": "2026-10-10T21:45:27Z",
+  "title": "Casting from a walk",
+  "changes": [
+    "Casting a spell while walking now stops you where you stand and starts the cast instead of cancelling it. Let go and press a move key again to move on at once.",
+    "While aiming a ground spell, a click over any frame, nameplate or chat places it instead of being caught by them."
+  ]
+ },
+ {
   "version": "0.69.71",
   "date": "2026-10-10",
   "at": "2026-10-10T21:29:19Z",
