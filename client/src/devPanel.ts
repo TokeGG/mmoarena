@@ -134,6 +134,11 @@ export class DevPanel {
     }
   })();
   private liveTimer: ReturnType<typeof setTimeout> | null = null;
+  /** What the last change did, in words, so there is never a doubt whether it went in (shown by the toolbar). */
+  private saveNote = '';
+  private noteNow(text: string) {
+    this.saveNote = `✓ ${new Date().toLocaleTimeString()}  ${text}`;
+  }
 
   /** Live mode: send what was typed to the match shortly after the last keystroke. */
   private autoApply() {
@@ -586,6 +591,7 @@ export class DevPanel {
       this.noCooldowns = !!m.noCooldowns;
       // what was typed stays when only the pause changed; new numbers in the match replace it
       const same = JSON.stringify(m.patches) === JSON.stringify(this.layers.roomPatches);
+      if (!same) this.noteNow(m.patches.length ? `Applied to this match: ${m.patches.length} changed number${m.patches.length === 1 ? '' : 's'}, live for everyone in it. Not saved for everyone yet: Keep or Commit does that.` : 'Back to the real numbers in this match.');
       this.layers.setRoom(m.patches);
       if (!same || m.reset) this.edits.clear();
     } else if (m.t === 'overrides') {
@@ -594,6 +600,7 @@ export class DevPanel {
       if (this.drawerOpen) this.paint();
     } else if (m.t === 'dev_session') {
       this.session = m.patches;
+      if (m.patches.length) this.noteNow(`Saved for your session: ${m.patches.length} changed number${m.patches.length === 1 ? '' : 's'} in every match you start until you sign out.`);
       this.layers.setSession(m.patches);
       if (!this.inMatch) this.edits.clear();
     }
@@ -805,6 +812,7 @@ export class DevPanel {
       if (this.live) this.autoApply();
     });
     liveBox.append(liveCb, document.createTextNode(' Live: change numbers while the match runs'));
+    const savedNote = el('small', 'devp-saved', this.saveNote);
     const tryIt = el('button', 'mm-small mm-go', 'Try in this match');
     tryIt.title = 'Everyone in this match plays on these numbers at once (the match no longer counts)';
     tryIt.addEventListener('click', () => this.hooks.send({ t: 'dev_patch', patches: this.toSend() }));
@@ -851,6 +859,7 @@ export class DevPanel {
     for (const [b, id] of [[tryIt, 'try'], [keep, 'keep'], [save, 'send'], [reset, 'reset'], [changes, 'changes']] as const) b.dataset.tour = `dev-${id}`;
     if (this.inMatch) acts.append(liveBox, tryIt, keep, save, reset, changes);
     else acts.append(keep, save, reset, changes);
+    if (this.saveNote) acts.append(savedNote);
     return acts;
   }
 

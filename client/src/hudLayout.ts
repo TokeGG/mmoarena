@@ -197,6 +197,8 @@ export class HudLayout {
   private touched = new Set<string>();
   private ghosts = new Map<string, HTMLElement>();
   private selBox!: HTMLElement;
+  private savedEl!: HTMLElement;
+  private savedTimer: ReturnType<typeof setTimeout> | null = null;
   /** The popup of the selected element (its place, its reset and its own options) and the list of every element. */
   private pop!: HTMLElement;
   private itemList!: HTMLElement;
@@ -499,6 +501,8 @@ export class HudLayout {
     const panel = mk('div', 'he-panel');
     const head = mk('div', 'he-head');
     head.append(mk('b', '', 'Edit HUD'));
+    this.savedEl = mk('span', 'he-saved');
+    head.append(this.savedEl);
     const done = mk('button', 'primary', 'Done (Esc)');
     done.title = 'Save and leave the editor (Esc)';
     done.addEventListener('click', () => this.stop());
@@ -648,6 +652,7 @@ export class HudLayout {
     clear.addEventListener('click', () => {
       resetSkin(id);
       this.applySkins();
+      this.flashSaved('Style put back');
       this.paintSelInfo();
     });
     head.append(title, clear);
@@ -661,6 +666,7 @@ export class HudLayout {
       sel.addEventListener('change', () => {
         setSkin(id, o.id, sel.value);
         this.applySkins();
+        this.flashSaved('Saved: this style stays on this device');
         clear.disabled = !skinChanged(id);
         requestAnimationFrame(() => this.fitAll());
       });
@@ -686,7 +692,10 @@ export class HudLayout {
         sel.append(opt);
       }
       sel.value = look[o.id];
-      sel.addEventListener('change', () => setLook(o.id, sel.value));
+      sel.addEventListener('change', () => {
+        setLook(o.id, sel.value);
+        this.flashSaved('Saved');
+      });
       label.append(sel);
       box.append(label);
     }
@@ -987,11 +996,23 @@ export class HudLayout {
 
   /** Keep what was moved. "Just me": the player's own layer, in this browser (and the account). "Everyone": the owner's draft, which only the save button publishes. */
   private save() {
-    if (this.mode === 'all') this.draft = this.pack(this.draft);
-    else {
+    if (this.mode === 'all') {
+      this.draft = this.pack(this.draft);
+      this.flashSaved('Draft updated: nothing is published until you press Save for everyone');
+    } else {
       this.saved = this.pack(this.saved);
       this.persist();
+      this.flashSaved('Saved');
     }
+  }
+
+  /** Say that a change went in: a green tick and a few words in the panel's header for a couple of seconds. */
+  flashSaved(text = 'Saved') {
+    if (!this.savedEl) return;
+    this.savedEl.textContent = `✓ ${text}`;
+    this.savedEl.classList.add('on');
+    if (this.savedTimer) clearTimeout(this.savedTimer);
+    this.savedTimer = setTimeout(() => this.savedEl.classList.remove('on'), 2600);
   }
 
   private persist() {
