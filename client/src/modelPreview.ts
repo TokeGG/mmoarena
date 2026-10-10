@@ -296,10 +296,17 @@ class ModelView {
   private gizmoKind: 'rotate' | 'slide' | null = null;
   private gizmo: THREE.Group | null = null;
   private gizmoBuilt = '';
+  private gizmoActive: 'h' | 'v' | 'z' | null = null;
+  private gizmoMats: { h: THREE.MeshBasicMaterial[]; v: THREE.MeshBasicMaterial[]; ring: THREE.MeshBasicMaterial } | null = null;
 
-  /** Arrows on the picked box showing which way a drag moves it: `slide` (three arrows) or `rotate` (turn, swing and a lean ring). */
+  /** A ring with four arrows on the picked part: left / right and up / down on the screen, the way the mouse moves it. */
   setGizmo(kind: 'rotate' | 'slide' | null): void {
     this.gizmoKind = kind;
+  }
+
+  /** Light the arrows of the way the drag is going now (h: left / right, v: up / down, z: Shift's third way: the ring). */
+  setGizmoActive(a: 'h' | 'v' | 'z' | null): void {
+    this.gizmoActive = a;
   }
 
   private updateGizmo(): void {
@@ -310,54 +317,63 @@ class ModelView {
     if (this.gizmo && this.gizmoBuilt !== key) {
       this.gizmo.removeFromParent();
       this.gizmo = null;
+      this.gizmoMats = null;
     }
     if (!kind || !holder) return;
     if (!this.gizmo) {
       const g = new THREE.Group();
-      const size = holder.scale.length() * 0.5;
-      const L = Math.min(0.9, Math.max(0.35, size * 0.9));
-      const mat = (c: number) => new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true, opacity: 0.95 });
-      const both = (axis: THREE.Vector3, color: number, label: string) => {
-        const m = mat(color);
-        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
-        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 2 * L, 8), m);
+      const mk = (c: number) => new THREE.MeshBasicMaterial({ color: c, depthTest: false, transparent: true });
+      const ring = mk(0xdfe6ff);
+      const ringMesh = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.014, 8, 48), ring);
+      ringMesh.renderOrder = 1002;
+      g.add(ringMesh);
+      const mats = { h: [] as THREE.MeshBasicMaterial[], v: [] as THREE.MeshBasicMaterial[], ring };
+      // four short arrows leaving the ring: right, left (red), up, down (green)
+      const arrow = (dir: THREE.Vector3, color: number, axis: 'h' | 'v') => {
+        const m = mk(color);
+        mats[axis].push(m);
+        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+        const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.26, 8), m);
         shaft.quaternion.copy(q);
-        const head = (sign: number) => {
-          const h = new THREE.Mesh(new THREE.ConeGeometry(0.045, 0.12, 12), m);
-          h.quaternion.copy(q);
-          h.position.copy(axis).multiplyScalar(sign * L);
-          if (sign < 0) h.rotateX(Math.PI);
-          return h;
-        };
-        const t = this.labelSprite(label, color);
-        t.position.copy(axis).multiplyScalar(L + 0.16);
-        for (const o of [shaft, head(1), head(-1), t]) {
-          o.renderOrder = 1002;
+        shaft.position.copy(dir).multiplyScalar(0.3 + 0.13);
+        const head = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.14, 12), m);
+        head.quaternion.copy(q);
+        head.position.copy(dir).multiplyScalar(0.3 + 0.26 + 0.07);
+        for (const o of [shaft, head]) {
+          o.renderOrder = 1003;
           g.add(o);
         }
       };
-      const X = new THREE.Vector3(1, 0, 0), Y = new THREE.Vector3(0, 1, 0), Z = new THREE.Vector3(0, 0, 1);
-      if (kind === 'slide') {
-        both(X, 0xff5a5a, 'slide ← →');
-        both(Y, 0x5aff7a, 'slide ↑ ↓');
-        both(Z, 0x6aa8ff, 'Shift: in / out');
-      } else {
-        both(X, 0xff5a5a, 'turn ← →');
-        both(Y, 0x5aff7a, 'swing ↑ ↓');
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(L * 0.8, 0.01, 8, 48), mat(0x6aa8ff));
-        ring.renderOrder = 1002;
-        g.add(ring);
-        const t = this.labelSprite('Shift: lean ← →', 0x6aa8ff);
-        t.position.set(L * 0.8, -L * 0.8, 0);
-        t.renderOrder = 1002;
-        g.add(t);
+      arrow(new THREE.Vector3(1, 0, 0), 0xff6b6b, 'h');
+      arrow(new THREE.Vector3(-1, 0, 0), 0xff6b6b, 'h');
+      arrow(new THREE.Vector3(0, 1, 0), 0x6bff8a, 'v');
+      arrow(new THREE.Vector3(0, -1, 0), 0x6bff8a, 'v');
+      // one word on each pair, out beyond the arrow heads
+      const hw = this.labelSprite(kind === 'slide' ? 'slide' : 'turn', 0xff6b6b);
+      hw.position.set(1.2, 0, 0);
+      const vw = this.labelSprite(kind === 'slide' ? 'slide' : 'swing', 0x6bff8a);
+      vw.position.set(0, 0.95, 0);
+      for (const o of [hw, vw]) {
+        o.renderOrder = 1004;
+        g.add(o);
       }
       this.scene.add(g);
       this.gizmo = g;
+      this.gizmoMats = mats;
       this.gizmoBuilt = key;
     }
-    this.gizmo.position.copy(holder.getWorldPosition(new THREE.Vector3()));
+    const at = holder.getWorldPosition(new THREE.Vector3());
+    this.gizmo.position.copy(at);
     this.gizmo.quaternion.copy(this.camera.quaternion); // the arrows are the screen's own directions: the mouse moves things that way
+    this.gizmo.scale.setScalar(Math.max(0.2, this.camera.position.distanceTo(at) * 0.2)); // the same size on the screen whatever the zoom
+    const m = this.gizmoMats;
+    if (m) {
+      const act = this.gizmoActive;
+      for (const x of m.h) x.opacity = act === null || act === 'h' ? 1 : 0.25;
+      for (const x of m.v) x.opacity = act === null || act === 'v' ? 1 : 0.25;
+      m.ring.color.set(act === 'z' ? 0x6aa8ff : 0xdfe6ff);
+      m.ring.opacity = act === null || act === 'z' ? 0.95 : 0.4;
+    }
   }
 
   private labelSprite(text: string, color: number): THREE.Sprite {
@@ -374,7 +390,7 @@ class ModelView {
     g.fillStyle = `#${color.toString(16).padStart(6, '0')}`;
     g.fillText(text, 128, 32);
     const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
-    sp.scale.set(0.85, 0.21, 1);
+    sp.scale.set(1.0, 0.25, 1);
     return sp;
   }
 
@@ -661,7 +677,7 @@ export class ModelWindow {
       };
       b.append(mode('slide', 'Slide', 'Drag the weapon\'s box to slide it across the view; hold Shift to push it towards or away from you.'), mode('turn', 'Turn', 'Drag the weapon\'s box to swing it about; hold Shift and drag sideways to roll it about its own length.'));
     }
-    b.append(el('small', 'devp-dim', this.selected ? (this.selected.kind === 'weapon' ? 'Drag its box (Slide or Turn). Drag anywhere else to turn the view.' : 'Drag its box: left / right turns it, up / down swings it, Shift for lean (a part you uploaded slides; Shift: forward / back). Pull a corner to resize it. Drag anywhere else to turn the view; a click on the background lets go of it.') : 'Click the box round a part or the weapon (or pick it here), then drag it. Drag anywhere else to turn the view.'));
+    b.append(el('small', 'devp-dim', this.selected ? (this.selected.kind === 'weapon' ? 'Drag its box (Slide or Turn). Drag anywhere else to turn the view.' : 'Drag its box: red arrows (left / right) turn it, green arrows (up / down) swing it, hold Shift and drag sideways to lean it (a part you uploaded slides instead, Shift: in / out). Pull a corner to resize it. Drag anywhere else to turn the view; a click on the background lets go of it.') : 'Click the box round a part or the weapon (or pick it here), then drag it. Drag anywhere else to turn the view.'));
   }
 
   constructor() {
@@ -1042,6 +1058,7 @@ export class ModelWindow {
         // the view looks at the character from the front when yaw is 0: left / right on the screen is the character's left / right the other way round once it has turned half way
         const sgn = Math.cos(this.s.yaw) >= 0 ? 1 : -1;
         acc = { x: acc.x + dx, y: acc.y + dy };
+        this.now.setGizmoActive(e.shiftKey ? 'z' : Math.abs(acc.x) >= Math.abs(acc.y) ? 'h' : 'v');
         const root = part.kind === 'part' ? 'parts' : 'bones';
         if (part.kind === 'part') {
           const k = (2 * Math.tan((18 * Math.PI) / 180) * this.s.dist) / Math.max(1, c.clientHeight);
@@ -1056,6 +1073,8 @@ export class ModelWindow {
           put([root, part.bone, 'rx'], Math.round((part.start.rx - acc.y * 0.6) * 10) / 10);
         }
       } else if (drag.weapon) {
+        acc = { x: acc.x + dx, y: acc.y + dy };
+        this.now.setGizmoActive(e.shiftKey ? 'z' : Math.abs(acc.x) >= Math.abs(acc.y) ? 'h' : 'v');
         const r = this.now.dragWeapon(this.s, this.hand, this.moveMode, dx, dy, e.shiftKey);
         if (r) {
           last = r;
@@ -1068,6 +1087,7 @@ export class ModelWindow {
       }
     });
     const end = () => {
+      this.now.setGizmoActive(null);
       // a plain click on the background (not a drag) lets go of the picked part, so every box shows again
       if (drag && !drag.weapon && !part && travel < 4 && editable && this.moveOn && this.selected) {
         this.selected = null;

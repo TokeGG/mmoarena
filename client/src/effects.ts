@@ -1391,7 +1391,7 @@ export class Effects {
     this.addFx({
       update: (dt) => {
         t += dt;
-        const p = this.pos(unit) ?? p0;
+        const p = p0; // the cone stays where and how it was cast, like the cone that holds the victims (the caster may walk or turn while it burns)
         const MY = p.y + 1.6;
         // full strength for `spray` seconds (a quick ramp in), then it dies down over `fade`
         const env = Math.min(1, t / 0.05) * (t <= o.spray ? 1 : o.fade > 0 ? Math.max(0, 1 - (t - o.spray) / o.fade) : 0);
@@ -1433,7 +1433,7 @@ export class Effects {
       this.later(rnd(0.05, Math.max(0.1, o.spray)), () => {
         const a = p0.facing + coneSpawnAngle(rnd(-1, 1), half);
         const d = range * rnd(0.3, 0.95);
-        const p = this.pos(unit) ?? p0;
+        const p = p0;
         const fx = p.x + Math.sin(a) * d;
         const fz = p.z + Math.cos(a) * d;
         this.fireTongue(fx, this.groundY(fx, fz) + 0.1, fz, rnd(0.8, 1.2));
