@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.74",
+  "date": "2026-10-10",
+  "at": "2026-10-10T22:28:32Z",
+  "title": "Move right after a cast starts",
+  "changes": [
+    "After a cast starts from a walk, pressing any move key again moves you at once and stops the cast, even if other move keys are still held down."
+  ]
+ },
+ {
   "version": "0.69.73",
   "date": "2026-10-10",
   "at": "2026-10-10T22:00:16Z",

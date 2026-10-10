@@ -44,6 +44,8 @@ export class Controls {
   /** True while a ground spell waits for a click; the left press then places it instead of steering the camera. */
   aimActive: () => boolean = () => false;
   private swallowClick = false;
+  /** How many times a move key has been pressed (not held down): a cast made on the move lets go of the walk at the next press. */
+  movePresses = 0;
   onAimPress: () => void = () => {};
   /** A right-button click that did not turn the camera (WoW: target and auto-attack). */
   onRightClick: (x: number, y: number) => void = () => {};
@@ -69,6 +71,7 @@ export class Controls {
       // in a match a bound key belongs to the game: Ctrl+R with R bound must not reload the page, Ctrl+S not save it
       if (this.inMatch() && this.binds.actionForEvent(e)) e.preventDefault();
       if (!e.repeat && this.binds.matches('jump', e)) this.jumpQueued = true;
+      if (!e.repeat && (['forward', 'back', 'strafeLeft', 'strafeRight', 'turnLeft', 'turnRight'] as const).some((a) => this.binds.matches(a, e))) this.movePresses++;
       if (!e.repeat) this.onKey(e.code, e);
       this.keys.add(e.code);
     });
