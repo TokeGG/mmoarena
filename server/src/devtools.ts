@@ -36,6 +36,8 @@ export interface DevToolsEnv {
   SUGGESTION_WEBHOOK_URL?: string;
   /** Render's deploy hook for this service (Dashboard, Settings, Deploy Hook): a request to it starts a deploy. */
   RENDER_DEPLOY_HOOK_URL?: string;
+  /** "pr": a dev commit goes on its own branch and a checked pull request instead of straight onto the base branch (the default). */
+  ARENA_DEV_LANDING?: string;
 }
 
 /**
@@ -329,7 +331,7 @@ export class DevTools {
   }
 
   private async commitPatchNow<X>(token: string, o: { title: string; by: string; build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }> }): Promise<{ url: string; version: string; extra: X }> {
-    const { api, base } = this.github(token);
+    const { api, base, repo } = this.github(token);
     const read = async (path: string): Promise<string> => {
       const got = (await api(`/contents/${path}?ref=${base}`)) as { content: string };
       return Buffer.from(got.content, 'base64').toString('utf8');
@@ -354,7 +356,19 @@ export class DevTools {
       const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
       const message = built.message(version);
       const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string };
-      // never straight onto the base branch: the commit goes on its own branch, a pull request checks it, and it merges once the checks pass
+      // straight onto the base branch, as the owner asked (ARENA_DEV_LANDING=pr brings back the branch and the checked pull request). If GitHub
+      // refuses the push (a protected branch, or someone pushed first) the pull request below takes over, so the change is never lost.
+      if (this.env.ARENA_DEV_LANDING !== 'pr') {
+        try {
+          await api(`/git/refs/heads/${base}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
+          const url = `https://github.com/${repo}/commit/${commit.sha}`;
+          await this.recordCommit({ version, by: o.by, at: Date.now(), url, lines });
+          return { url, version, extra: built.extra };
+        } catch {
+          /* fall through to the pull request */
+        }
+      }
+      // the commit goes on its own branch, a pull request checks it, and it merges once the checks pass
       const branch = `dev/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
       await api('/git/refs', { method: 'POST', body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: commit.sha }) });
       const pr = (await api('/pulls', { method: 'POST', body: JSON.stringify({ title: message.split('\n')[0], head: branch, base, body: `${message}\n\nMerges into ${base} once every check passes.` }) })) as { number: number; html_url: string };
