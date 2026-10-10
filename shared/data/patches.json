@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.65",
+  "date": "2026-10-10",
+  "at": "2026-10-10T20:02:38Z",
+  "title": "New map editor",
+  "changes": [
+    "The map editor now opens in a window of its own with a top view and a 3D view of the real depth of the map.",
+    "Maps can be exported to a file and dropped back into the editor; the editor also has undo and redo, snapping choices, duplicate, drawing both sides at once and a make-symmetric button."
+  ]
+ },
+ {
   "version": "0.69.64",
   "date": "2026-10-10",
   "at": "2026-10-10T19:53:37Z",

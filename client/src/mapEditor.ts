@@ -1,8 +1,10 @@
 import { ARENAS, ARENA_THEMES, MAP_LIMITS, blankArena, checkReach, cleanCustomArena, copyArena, customArenas, mapDisabled, suggestMapId } from '@arena/shared';
 import type { ArenaDef, BotPick, ClientMsg, MapCheck, ServerMsg } from '@arena/shared';
-import { KIND_LABEL, addItem, addTwin, deleteSel, handleAt, hitTest, itemOf, makeView, mirrorSpawns, moveSel, rectBetween, resizeRect, snap } from './mapEditLogic';
+import { KIND_LABEL, addItem, addTwin, deleteSel, duplicateSel, handleAt, hitTest, itemOf, makeView, mirrorSpawns, moveSel, rectBetween, resizeRect, snap, symmetrize } from './mapEditLogic';
+import { SNAP_STEPS } from './mapEditLogic';
 import type { Handle, Sel, Tool } from './mapEditLogic';
 import { drawArena } from './mapPreview';
+import { MapView3D } from './mapView3d';
 
 /**
  * The owner's map editor (admin panel, Maps tab). A list of the custom maps (editable) and the built-in ones (read only,
@@ -17,6 +19,43 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   if (cls) e.className = cls;
   if (text) e.textContent = text;
   return e;
+}
+
+const CSS = `
+.mapw { position:fixed; inset:0; z-index:9000; display:flex; flex-direction:column; background:#0c0e14; color:#e6e9ef; font:14px/1.4 system-ui; }
+.mapw.dropping::after { content:'Drop a map file here to open it'; position:absolute; inset:12px; border:3px dashed #b58cff; border-radius:14px; background:rgba(40,28,70,.82); display:flex; align-items:center; justify-content:center; font-size:26px; color:#eadcff; z-index:5; pointer-events:none; }
+.mapw-bar { display:flex; align-items:center; gap:10px; padding:8px 14px; background:#14111d; border-bottom:1px solid #2c2638; flex:none; }
+.mapw-bar b { font-size:16px; color:#e2c7ff; } .mapw-bar .sp { flex:1; }
+.mapw-body { flex:1; min-height:0; overflow:auto; padding:12px 14px; }
+.mape-win { display:grid; grid-template-columns:260px minmax(0,1fr) 340px; grid-template-rows:auto minmax(0,1fr); gap:10px; height:100%; }
+.mape-win > .mape-head { grid-column:1 / -1; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.mape-win .mape-left, .mape-win .mape-right { overflow:auto; display:grid; gap:10px; align-content:start; min-height:0; }
+.mape-win .mape-center { display:flex; flex-direction:column; gap:8px; min-height:0; min-width:0; }
+.mape-win .mape-stage { flex:1; min-height:240px; position:relative; border-radius:8px; border:1px solid #2c2638; background:#10131a; overflow:hidden; }
+.mape-win .mape-stage .mape-canvas-wrap { position:absolute; inset:0; border:0; border-radius:0; }
+.mape-win .mape-stage .mape-3d { position:absolute; inset:0; width:100%; height:100%; display:block; outline:none; cursor:grab; }
+.mape-win .mape-toolcol { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.mape-win .mape-toolcol button { text-align:left; }
+.mape-win .mape-form .own-row { flex-wrap:wrap; }
+.mape-win .mape-left .own-row.mape-nums { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.mape-win .mape-left .mape-f input[type=number] { width:100%; box-sizing:border-box; }
+.mape-win .mape-form select { width:100%; background:#10131a; color:#e6e9ef; border:1px solid #333b4d; border-radius:6px; padding:6px; }
+.mape-win .mape-form .own-row { display:grid; gap:8px; }
+.mape-tab.on { background:#3a2a66; color:#fff; }
+.mape-opt { display:flex; align-items:center; gap:6px; font-size:13px; color:#cfc5e6; }
+.mape-opt select { background:#10131a; color:#e6e9ef; border:1px solid #333b4d; border-radius:6px; padding:3px 6px; }
+.mape-hint { color:#a99cc4; font-size:12px; margin:0; }
+.mape-drop { border:2px dashed #4b3d73; border-radius:10px; padding:14px; text-align:center; color:#a99cc4; }
+@media (max-width:1100px) { .mape-win { grid-template-columns:1fr; grid-template-rows:auto; height:auto; } .mape-win .mape-stage { min-height:340px; } }
+`;
+let styled = false;
+function ensureStyles(): void {
+  if (styled || typeof document === 'undefined') return;
+  styled = true;
+  const st = document.createElement('style');
+  st.id = 'map-window-styles';
+  st.textContent = CSS;
+  document.head.append(st);
 }
 
 export interface MapEditorHooks {
@@ -64,9 +103,20 @@ export class MapEditor {
   /** Re-reads every number box of the form from the draft (after a drag). */
   private syncers: (() => void)[] = [];
   private view = makeView(blankArena().bounds, 100, 100);
+  /** The window the editor lives in (its own, over everything), made on first use. */
+  private win: HTMLElement | null = null;
+  /** Piece placement snaps to this many yards. */
+  private snapStep = 0.5;
+  /** A piece drawn on one side gets its point-symmetric twin on the other. */
+  private autoMirror = false;
+  private mode: 'top' | '3d' = 'top';
+  private view3d: MapView3D | null = null;
+  private hist: string[] = [];
+  private histAt = -1;
 
   constructor(private hooks: MapEditorHooks) {
     window.addEventListener('resize', () => this.active && this.draft && this.draw());
+    new ResizeObserver(() => this.active && this.draft && this.mode === 'top' && this.draw()).observe(this.root);
   }
 
   /** The Maps tab is showing: ask for the list and draw. */
@@ -129,7 +179,10 @@ export class MapEditor {
     this.idTouched = !isNew;
     this.confirmDelete = false;
     this.pendingAfterSave = null;
+    this.hist = [];
+    this.histAt = -1;
     this.revalidate();
+    this.pushHist();
     this.render();
   }
 
@@ -209,6 +262,8 @@ export class MapEditor {
   /** Something changed: re-check, redraw the picture, the problems and the buttons. */
   private changed(): void {
     this.revalidate();
+    this.pushHist();
+    if (this.draft) this.view3d?.set(this.draft);
     this.confirmDelete = false;
     this.draw();
     this.paintProblems();
@@ -216,21 +271,66 @@ export class MapEditor {
   }
 
   private renderEditor(): void {
+    ensureStyles();
     const d = this.draft!;
     const r = this.root;
-    const head = el('div', 'own-row');
+    r.className = 'mape own-box mape-win';
+    const head = el('div', 'mape-head');
     const back = el('button', 'mm-small', '← All maps');
     back.addEventListener('click', () => {
       if (this.dirty() && !window.confirm('Leave without saving your changes?')) return;
       this.draft = null;
       this.msg = null;
+      this.view3d?.stop();
       this.render();
     });
-    head.append(back, el('b', '', this.isNew ? 'New custom map' : 'Editing'), el('span', 'mape-count', d.name));
+    const undo = el('button', 'mm-small', '↶ Undo');
+    undo.title = 'Undo the last change (Ctrl+Z)';
+    undo.disabled = this.histAt <= 0;
+    undo.addEventListener('click', () => this.undo());
+    const redo = el('button', 'mm-small', '↷ Redo');
+    redo.title = 'Redo (Ctrl+Y)';
+    redo.disabled = this.histAt >= this.hist.length - 1;
+    redo.addEventListener('click', () => this.redo());
+    const tabTop = el('button', `mm-small mape-tab${this.mode === 'top' ? ' on' : ''}`, 'Top view');
+    const tab3d = el('button', `mm-small mape-tab${this.mode === '3d' ? ' on' : ''}`, '3D view');
+    tabTop.addEventListener('click', () => this.setMode('top'));
+    tab3d.addEventListener('click', () => this.setMode('3d'));
+    const snapSel = el('select');
+    for (const n of SNAP_STEPS) snapSel.append(new Option(n === 0 ? 'free' : `${n} yd`, String(n)));
+    snapSel.value = String(this.snapStep);
+    snapSel.addEventListener('change', () => (this.snapStep = Number(snapSel.value)));
+    const snapLbl = el('label', 'mape-opt', 'Snap ');
+    snapLbl.title = 'Pieces snap to this many yards when drawn, moved and resized';
+    snapLbl.append(snapSel);
+    const mirror = el('input');
+    mirror.type = 'checkbox';
+    mirror.checked = this.autoMirror;
+    mirror.addEventListener('change', () => (this.autoMirror = mirror.checked));
+    const mirrorLbl = el('label', 'mape-opt');
+    mirrorLbl.title = 'Every piece you draw also gets its turned-around twin on the other side, so the map stays fair';
+    mirrorLbl.append(mirror, document.createTextNode(' Draw both sides'));
+    const exp = el('button', 'mm-small', 'Export file');
+    exp.title = 'Save this map as a file you can keep, share or drop back into the editor';
+    exp.addEventListener('click', () => this.exportMap());
+    const imp = el('button', 'mm-small', 'Import file…');
+    imp.title = 'Open a map file (or just drop it anywhere in this window)';
+    const pick = el('input');
+    pick.type = 'file';
+    pick.accept = '.json,application/json';
+    pick.hidden = true;
+    pick.addEventListener('change', () => {
+      const f = pick.files?.[0];
+      if (f) void this.importFile(f);
+      pick.value = '';
+    });
+    imp.addEventListener('click', () => pick.click());
+    head.append(back, el('b', '', this.isNew ? 'New custom map' : 'Editing'), el('span', 'mape-count', d.name), undo, redo, tabTop, tab3d, snapLbl, mirrorLbl, exp, imp, pick);
     r.append(head);
 
-    // tools
-    const tools = el('div', 'own-row mape-tools');
+    // left: tools and the map's settings
+    const left = el('div', 'mape-left');
+    const tools = el('div', 'mape-toolcol');
     for (const [id, label, tip] of TOOLS) {
       const b = el('button', `mm-small${this.tool === id ? ' mm-go' : ''}`, label);
       b.title = tip;
@@ -241,38 +341,243 @@ export class MapEditor {
       });
       tools.append(b);
     }
-    r.append(tools);
+    left.append(el('h3', '', 'Pieces'), tools);
+    const extra = el('div', 'mape-toolcol');
+    const dup = el('button', 'mm-small', 'Duplicate');
+    dup.title = 'Copy the selected piece (D)';
+    dup.addEventListener('click', () => this.duplicate());
+    const sym = el('button', 'mm-small', 'Make symmetric');
+    sym.title = 'Keep the left half and rebuild the right half as its turned-around copy, so both teams get the same map';
+    sym.addEventListener('click', () => {
+      if (!this.draft || !window.confirm('Replace the right half of the map with the turned-around copy of the left half?')) return;
+      const r2 = symmetrize(this.draft);
+      this.msg = { ok: true, text: `Made symmetric: ${r2.removed} pieces on the right replaced by ${r2.added} copies of the left.` };
+      this.sel = null;
+      this.changed();
+      this.render();
+    });
+    extra.append(dup, sym);
+    left.append(extra);
+    const settings = this.settingsForm();
+    this.settingsSyncersCount = this.syncers.length;
+    left.append(el('h3', '', 'Map settings'), settings);
+    r.append(left);
 
-    // the picture
+    // centre: the picture (top view, or the same map in 3D)
+    const centre = el('div', 'mape-center');
+    const stage = el('div', 'mape-stage');
     const wrap = el('div', 'mape-canvas-wrap');
     const cv = el('canvas', 'mape-canvas');
     cv.tabIndex = 0;
     this.canvas = cv;
     wrap.append(cv);
-    r.append(wrap);
+    stage.append(wrap);
+    this.view3d ??= new MapView3D();
+    stage.append(this.view3d.canvas);
+    wrap.hidden = this.mode === '3d';
+    this.view3d.canvas.hidden = this.mode !== '3d';
+    centre.append(stage);
+    const hint = el('p', 'mape-hint', this.mode === '3d' ? 'Left drag turns the view, right drag (or Shift+drag) slides it, the wheel zooms. Blue cones: team 1 start spots, red: team 2, yellow lines: the gates.' : 'Blue: team 1 start spots (left). Red: team 2 (right). Dashed lines are the start gates. Grid lines every 5 yards. Delete removes the selected piece, arrow keys nudge it (Shift: 2 yards), D copies it, Ctrl+Z undoes.');
+    centre.append(hint);
+    r.append(centre);
     this.wireCanvas(cv);
-    r.append(el('p', 'mm-modal-foot', 'Blue: team 1 start spots (left). Red: team 2 (right). Dashed lines are the start gates. Grid lines every 5 yards; pieces snap to half a yard. Delete removes the selected piece, arrow keys nudge it.'));
 
-    const settings = this.settingsForm();
-    this.settingsSyncersCount = this.syncers.length;
+    // right: what is selected, the problems and the buttons
+    const right = el('div', 'mape-right');
     this.selBox = el('div', 'mape-sel');
-    r.append(this.selBox);
+    right.append(this.selBox);
     this.paintSel();
-
     this.probBox = el('div', 'mape-problems');
-    r.append(this.probBox);
-
-    r.append(el('h3', '', 'Map settings'), settings);
-
+    right.append(this.probBox);
     this.actionsBox = el('div', 'own-row mape-actions');
-    r.append(this.actionsBox);
+    right.append(this.actionsBox);
+    right.append(el('div', 'mape-drop', 'Have a map file? Drop it anywhere in this window to open it as a new map.'));
+    r.append(right);
+
     requestAnimationFrame(() => {
       this.draw();
       this.paintProblems();
       this.paintActions();
     });
+    if (this.mode === '3d') {
+      this.view3d.set(d);
+      this.view3d.start();
+    }
     this.paintProblems();
     this.paintActions();
+  }
+
+  private setMode(m: 'top' | '3d'): void {
+    this.mode = m;
+    if (m !== '3d') this.view3d?.stop();
+    this.render();
+  }
+
+  // ------------------------------------------------------------------ history, files and the window
+
+  private pushHist(): void {
+    if (!this.draft) return;
+    const j = JSON.stringify(this.draft);
+    if (this.hist[this.histAt] === j) return;
+    this.hist = this.hist.slice(0, this.histAt + 1);
+    this.hist.push(j);
+    if (this.hist.length > 200) this.hist.shift();
+    this.histAt = this.hist.length - 1;
+    this.refreshUndo();
+  }
+
+  private refreshUndo(): void {
+    // the undo and redo buttons live in the header: redrawing the whole editor for them would lose the drag, so only their state moves
+    const bar = this.root.querySelector('.mape-head');
+    if (!bar) return;
+    const [u, rd] = [...bar.querySelectorAll('button')].filter((b) => b.textContent?.includes('Undo') || b.textContent?.includes('Redo'));
+    if (u) u.disabled = this.histAt <= 0;
+    if (rd) rd.disabled = this.histAt >= this.hist.length - 1;
+  }
+
+  private restore(i: number): void {
+    const j = this.hist[i];
+    if (!j || !this.draft) return;
+    this.histAt = i;
+    const was = this.draft;
+    this.draft = JSON.parse(j) as ArenaDef;
+    if (!this.isNew) this.draft.id = was.id; // the id of a saved map never changes
+    this.sel = null;
+    this.revalidate();
+    this.render();
+  }
+
+  private undo(): void {
+    if (this.histAt > 0) this.restore(this.histAt - 1);
+  }
+
+  private redo(): void {
+    if (this.histAt < this.hist.length - 1) this.restore(this.histAt + 1);
+  }
+
+  private duplicate(): void {
+    if (!this.draft || !this.sel) return;
+    const next = duplicateSel(this.draft, this.sel);
+    if (!next) return;
+    this.sel = next;
+    this.changed();
+    this.render();
+  }
+
+  /** The map as a file: {format, map}, the same text the import reads back. */
+  private exportMap(): void {
+    if (!this.draft) return;
+    const text = JSON.stringify({ format: 'arena-map', version: 1, map: this.draft }, null, 1);
+    const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${this.draft.id || 'map'}.arena.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  /** Open a map file (exported here, or a plain arena definition) as a new custom map. Problems are listed, nothing is saved yet. */
+  async importFile(f: File): Promise<void> {
+    if (f.size > 400_000) return void this.flash(false, 'That file is too big to be a map.');
+    let raw: unknown;
+    try {
+      raw = JSON.parse(await f.text());
+    } catch {
+      return void this.flash(false, 'That file is not a map (it is not readable JSON).');
+    }
+    const body = raw && typeof raw === 'object' && 'map' in (raw as object) ? (raw as { map: unknown }).map : raw;
+    if (!body || typeof body !== 'object') return void this.flash(false, 'That file is not a map.');
+    const taken = customArenas().map((a) => a.id);
+    const m = JSON.parse(JSON.stringify(body)) as Record<string, unknown>;
+    delete m.nav;
+    m.id = suggestMapId(typeof m.id === 'string' && m.id ? m.id : 'imported', taken);
+    const names = new Set([...ARENAS, ...customArenas()].map((x) => x.name.toLowerCase()));
+    let name = typeof m.name === 'string' && m.name ? m.name.slice(0, MAP_LIMITS.nameMax) : 'Imported map';
+    for (let i = 2; names.has(name.toLowerCase()); i++) name = `${String(m.name ?? 'Imported map').slice(0, MAP_LIMITS.nameMax - 4)} ${i}`;
+    m.name = name;
+    const check = cleanCustomArena(JSON.parse(JSON.stringify(m)), customArenas());
+    // a map the checker cannot read at all (not an arena) is refused; one with fixable problems opens, and the problems are listed
+    if (!check.arena && !('bounds' in m && 'spawns' in m)) return void this.flash(false, `That file is not a map: ${check.problems[0] ?? 'it has no arena in it'}`);
+    this.active = true;
+    this.open((check.arena ?? (m as unknown as ArenaDef)) as ArenaDef, true);
+    this.flash(true, `Opened "${name}" from the file. It is not saved until you press Create map.`);
+  }
+
+  private flash(ok: boolean, text: string): void {
+    this.msg = { ok, text };
+    if (this.active) this.render();
+  }
+
+  /** The editor in a window of its own over everything (so nothing overlaps it); closing it asks about unsaved changes. */
+  openWindow(): void {
+    ensureStyles();
+    if (!this.win) {
+      const w = el('div', 'mapw');
+      const bar = el('div', 'mapw-bar');
+      const close = el('button', 'mm-small', '✕ Close');
+      close.addEventListener('click', () => this.closeWindow());
+      bar.append(el('b', '', 'Map editor'), el('span', 'mape-count', 'make arenas and see them in 3D'), el('span', 'sp'), close);
+      const body = el('div', 'mapw-body');
+      body.append(this.root);
+      w.append(bar, body);
+      let depth = 0;
+      w.addEventListener('dragenter', (e) => {
+        if (!e.dataTransfer?.types.includes('Files')) return;
+        e.preventDefault();
+        depth++;
+        w.classList.add('dropping');
+      });
+      w.addEventListener('dragover', (e) => {
+        if (e.dataTransfer?.types.includes('Files')) e.preventDefault();
+      });
+      w.addEventListener('dragleave', () => {
+        depth = Math.max(0, depth - 1);
+        if (!depth) w.classList.remove('dropping');
+      });
+      w.addEventListener('drop', (e) => {
+        e.preventDefault();
+        depth = 0;
+        w.classList.remove('dropping');
+        const f = [...(e.dataTransfer?.files ?? [])].find((x) => /\.json$/i.test(x.name) || x.type === 'application/json') ?? e.dataTransfer?.files[0];
+        if (f) void this.importFile(f);
+      });
+      window.addEventListener('keydown', (e) => {
+        if (!this.win?.isConnected) return;
+        const t = e.target as HTMLElement | null;
+        if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+          e.preventDefault();
+          if (e.shiftKey) this.redo();
+          else this.undo();
+        } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+          e.preventDefault();
+          this.redo();
+        } else if (e.key.toLowerCase() === 'd' && !e.ctrlKey && !e.metaKey && this.sel) this.duplicate();
+      });
+      this.win = w;
+    }
+    document.body.append(this.win);
+    this.show();
+  }
+
+  /** Close the window without asking (the map was just saved, or a match starts). */
+  forceClose(): void {
+    this.draft = null;
+    this.view3d?.dispose();
+    this.view3d = null;
+    this.win?.remove();
+    this.hide();
+  }
+
+  closeWindow(): void {
+    if (this.draft && this.dirty() && !window.confirm('Close the editor? Your unsaved changes to this map are lost.')) return;
+    this.draft = null;
+    this.view3d?.dispose();
+    this.view3d = null;
+    this.win?.remove();
+    this.hide();
   }
 
   private numField(label: string, get: () => number, set: (v: number) => void, opts: { step?: number; min?: number; max?: number; disabled?: boolean } = {}): HTMLElement {
@@ -586,12 +891,14 @@ export class MapEditor {
 
   private launch(what: 'test' | 'play', id: string): void {
     if (what === 'play') {
+      this.forceClose();
       this.hooks.closeWindow();
       this.hooks.playOn(id);
       return;
     }
     const n = this.size;
     this.hooks.send({ t: 'bot_match', size: n, teams: [BOT_TEAMS[0].slice(0, n).map((classId): BotPick => ({ classId })), BOT_TEAMS[1].slice(0, n).map((classId): BotPick => ({ classId }))], difficulty: 'hard', map: id });
+    this.forceClose();
     this.hooks.closeWindow();
   }
 
@@ -601,10 +908,9 @@ export class MapEditor {
     const cv = this.canvas;
     if (!cv || !this.draft) return;
     const d = this.draft;
-    const w = Math.max(280, Math.min(960, cv.parentElement?.clientWidth || 720));
-    const b = d.bounds;
-    const ratio = Number.isFinite(b.maxZ - b.minZ) && b.maxX > b.minX ? (b.maxZ - b.minZ) / (b.maxX - b.minX) : 0.66;
-    const h = Math.round(Math.max(200, Math.min(560, w * Math.min(1.2, Math.max(0.3, ratio)) + 36)));
+    const host = cv.parentElement;
+    const w = Math.max(280, host?.clientWidth || 720);
+    const h = Math.max(240, host?.clientHeight || 480);
     const dpr = window.devicePixelRatio || 1;
     if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
       cv.width = Math.round(w * dpr);
@@ -632,7 +938,7 @@ export class MapEditor {
     const at = (e: PointerEvent) => {
       const r = cv.getBoundingClientRect();
       const x = this.view.wx(e.clientX - r.left), z = this.view.wz(e.clientY - r.top);
-      return { x, z, sx: snap(x), sz: snap(z) };
+      return { x, z, sx: snap(x, this.snapStep), sz: snap(z, this.snapStep) };
     };
     cv.addEventListener('pointerdown', (e) => {
       if (!this.draft) return;
@@ -665,7 +971,7 @@ export class MapEditor {
       const p = at(e);
       if (drag.mode === 'draw') {
         drag.b = { x: p.sx, z: p.sz };
-        this.ghost = this.tool === 'pillar' ? null : rectBetween(drag.a, drag.b, 0.5);
+        this.ghost = this.tool === 'pillar' ? null : rectBetween(drag.a, drag.b, Math.max(0.25, this.snapStep));
       } else if (drag.mode === 'move') {
         const it = itemOf(this.draft, this.sel);
         if (!it) return;
@@ -678,7 +984,7 @@ export class MapEditor {
         if (it && 'x0' in it) resizeRect(it, drag.h, p.sx, p.sz);
       } else if (drag.mode === 'radius') {
         const it = itemOf(this.draft, this.sel);
-        if (it && 'r' in it) (it as { r: number }).r = Math.max(MAP_LIMITS.pillarR[0], Math.min(MAP_LIMITS.pillarR[1], snap(Math.hypot(p.x - (it as { x: number }).x, p.z - (it as { z: number }).z))));
+        if (it && 'r' in it) (it as { r: number }).r = Math.max(MAP_LIMITS.pillarR[0], Math.min(MAP_LIMITS.pillarR[1], snap(Math.hypot(p.x - (it as { x: number }).x, p.z - (it as { z: number }).z), this.snapStep)));
       }
       this.syncers.forEach((s) => s());
       this.revalidate();
@@ -692,6 +998,7 @@ export class MapEditor {
       if (!d0 || !this.draft) return;
       if (d0.mode === 'draw' && this.tool !== 'select') {
         this.sel = addItem(this.draft, this.tool, d0.a, d0.b);
+        if (this.autoMirror) addTwin(this.draft, this.sel); // the twin is added after: the drawn piece stays selected
         this.tool = 'select';
         this.render();
         return;
