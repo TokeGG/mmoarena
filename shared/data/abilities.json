@@ -534,7 +534,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 180
+    "amount": 140
    },
    {
     "type": "healMax",
@@ -1715,7 +1715,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 90
+    "amount": 86
    }
   ],
   "unstoppable": true
@@ -1758,7 +1758,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 240
+    "amount": 220
    }
   ]
  },
