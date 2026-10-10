@@ -614,7 +614,7 @@ export class ArenaSim {
     if (u.leap) {
       const L = u.leap;
       const p = Math.min(1, (this.time + this.tickMs - L.start) / L.dur);
-      u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ);
+      if (!L.knock) u.facing = Math.atan2(L.toX - L.fromX, L.toZ - L.fromZ); // a leap faces where it goes; a unit thrown back keeps looking at what threw it
       const yAbs = leapHeight(L, p);
       // the last part of a leap onto a walkway: the arc is no higher than its floor at the end, so its rim would stop you short; you are up there
       if (L.toLv === 1 && u.level === 0 && p >= 0.8 && onRaised(this.arena, L.toX, L.toZ)) u.level = 1;
@@ -1229,9 +1229,13 @@ export class ArenaSim {
         const dx = t.pos.x - u.pos.x, dz = t.pos.z - u.pos.z;
         const d = Math.hypot(dx, dz) || 1;
         if (this.unstoppable(t)) break; // a Bladestorming warrior cannot be thrown
-        t.pos = resolveCollisions({ x: t.pos.x + (dx / d) * eff.distance, z: t.pos.z + (dz / d) * eff.distance }, this.arena, t.level);
-        this.settleLevel(t);
+        // thrown in an arc, like a leap backwards: up, over and down at the far end (it lands on the ground, off a walkway too)
+        const to = resolveCollisions({ x: t.pos.x + (dx / d) * eff.distance, z: t.pos.z + (dz / d) * eff.distance }, this.arena, 0);
+        const dur = 380 + eff.distance * 45;
+        t.charge = null;
+        t.leap = { fromX: t.pos.x, fromZ: t.pos.z, toX: to.x, toZ: to.z, start: this.time, dur, damage: 0, radius: 0, fromH: heightAt(this.arena, t.pos.x, t.pos.z, t.level), toH: heightAt(this.arena, to.x, to.z, 0), toLv: 0, knock: true };
         if (t.cast) this.cancelCast(t, 'knocked back');
+        this.emit({ t: 'leap', unit: t.id, fromX: t.pos.x, fromZ: t.pos.z, x: to.x, z: to.z });
         break;
       }
       case 'flag':

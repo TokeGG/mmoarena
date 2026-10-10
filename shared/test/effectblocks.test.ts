@@ -59,6 +59,12 @@ describe('plain building blocks for skills: shield, damage reduction, knockback'
       const { sim, w, e } = duel();
       assert.ok(sim.useAbility(w.id, 'mortal_strike', e.id).ok);
       sim.step();
+      assert.ok(e.leap, 'thrown in an arc, not pushed');
+      let high = 0;
+      for (let t = 0; t < 40; t++) { sim.step(); high = Math.max(high, sim.snapshot(0).units.find((u) => u.id === e.id)!.y); }
+      assert.ok(high > 0.5, `it rose into the air on the way (${high})`);
+      for (let t = 0; t < 60; t++) sim.step();
+      assert.equal(e.leap, null, 'and came down');
       assert.ok(Math.hypot(e.pos.x - w.pos.x, e.pos.z - w.pos.z) > 6, `now ${Math.hypot(e.pos.x - w.pos.x, e.pos.z - w.pos.z).toFixed(1)} yd away`);
     } finally { undo(); }
   });

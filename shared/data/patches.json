@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.56",
+  "date": "2026-10-10",
+  "at": "2026-10-10T16:42:31Z",
+  "title": "Knockback and richer skill effects",
+  "changes": [
+   "Being knocked back now throws you in an arc through the air, like a leap backwards, instead of pushing you along the ground.",
+   "Most skills now play richer effects: glyph circles, sunbursts, spirals of light, crystals and school-coloured bursts instead of plain expanding rings."
+  ]
+ },
+ {
   "version": "0.69.55",
   "date": "2026-10-10",
   "at": "2026-10-10T15:52:00Z",

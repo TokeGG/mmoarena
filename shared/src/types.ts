@@ -471,7 +471,7 @@ export interface Unit {
   /** In the air after Heroic Leap: flies from -> to between start and start + dur, then slams down. */
   /** The spell this unit finished casting last, so a Counterspell pressed a moment late still counts. */
   lastCast: { ability: string; at: number } | null;
-  leap: { fromX: number; fromZ: number; toX: number; toZ: number; start: number; dur: number; damage: number; radius: number; /** Floor heights at take-off and landing, and the landing level. */ fromH: number; toH: number; toLv: 0 | 1 } | null;
+  leap: { fromX: number; fromZ: number; toX: number; toZ: number; start: number; dur: number; damage: number; radius: number; /** Floor heights at take-off and landing, and the landing level. */ fromH: number; toH: number; toLv: 0 | 1; /** Thrown by a Knockback effect: the unit keeps facing where it was and cannot act on the way. */ knock?: boolean } | null;
   charge: { target: number; stop: number; speed: number; until: number; hit: number } | null;
   nextSwing: number;
   lastCombatAt: number;
