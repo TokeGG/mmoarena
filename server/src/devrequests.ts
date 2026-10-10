@@ -15,6 +15,8 @@ export interface DevRequestsEnv {
   GITHUB_REPO?: string;
   /** Set to 1 to also open a GitHub issue labelled dev-request for each request (off by default). */
   ARENA_DEV_REQUEST_ISSUES?: string;
+  /** Set to 0 to stop a request that needs code from starting Claude on GitHub by itself (the owner's Build button still does). */
+  ARENA_DEV_REQUEST_AUTOBUILD?: string;
 }
 
 export { requestText };
@@ -98,10 +100,16 @@ export class DevRequests {
       acceptance: d.acceptance, affects: d.affects, needsCode: d.needsCode, tested: tested.slice(0, 40), status: 'open',
     };
     const body = requestText(row);
-    // an issue is opened for every request (without the label: Claude only starts when the owner presses "Build it with Claude")
+    // an issue is opened for every request; one that needs code then gets the label at once, which is what starts Claude on GitHub
+    // (ARENA_DEV_REQUEST_AUTOBUILD=0 keeps it for the owner's "Build it with Claude" button)
     if (this.env.ARENA_DEV_REQUEST_ISSUES !== '0') await this.openIssue(row);
     this.rows = [row, ...this.rows].slice(0, MAX_ROWS);
     await this.persist();
+    if (row.needsCode && row.issueNumber && this.env.ARENA_DEV_REQUEST_AUTOBUILD !== '0') {
+      const started = await this.build(row.id, by);
+      if (!started.ok) row.issueError = started.text; // the request stays; the owner can press the button again
+      await this.persist();
+    }
     void this.post(`📋 **Change request** from **${by}**: ${row.title}\n${row.proposed}\n${row.issueUrl ? `Issue: ${row.issueUrl}` : '(no GitHub issue)'}\n${requestText(row).slice(0, 1200)}`).catch(() => false);
     return { ok: true, row, text: '' };
   }

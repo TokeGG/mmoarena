@@ -499,7 +499,7 @@ describe('building a request with Claude on GitHub', () => {
       if (path.startsWith('/pulls')) return ok([{ html_url: 'https://github.com/x/y/pull/9', number: 9, state: 'open', merged_at: null, body: 'Closes #7', head: { ref: 'claude/issue-7-thing' } }]);
       return ok({});
     }) as any;
-    const reqs = new DevRequests(new MemoryStore(), { GITHUB_TOKEN: 't' }, http);
+    const reqs = new DevRequests(new MemoryStore(), { GITHUB_TOKEN: 't', ARENA_DEV_REQUEST_AUTOBUILD: '0' }, http);
     const draft = { title: 'Bigger fireball', wants: 'w', current: 'c', proposed: 'p', acceptance: ['a'], affects: ['fireball'], needsCode: 'n' };
     const { row } = await reqs.file('Dee', 'Fireball', draft as any, []);
     assert.equal(row!.issueNumber, 7);

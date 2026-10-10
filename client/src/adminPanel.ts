@@ -98,6 +98,10 @@ export class AdminPanel {
   private picked = new Set<string>();
   private propNote = '';
   private propMsg: { ok: boolean; text: string; url?: string } | null = null;
+  /** What the last Build / Merge / Check on the Requests tab answered (a refusal from GitHub is shown here, not dropped). */
+  private reqMsg: { ok: boolean; text: string } | null = null;
+  /** The request cards the owner has open, so a refresh of the list does not fold them shut. */
+  private openReqs = new Set<string>();
   private trainMsg: { ok: boolean; text: string } | null = null;
   /** The replays the bots are training on or just trained on, pushed by the server every second while any runs. */
   private jobs: TrainJobRow[] = [];
@@ -285,6 +289,7 @@ export class AdminPanel {
         if (this.tab === 'replays') {
           this.trainMsg = { ok: m.ok, text: m.text };
         }
+        if (this.tab === 'requests') this.reqMsg = { ok: m.ok, text: m.text };
         break;
       case 'owner':
         if (m.ok) this.refresh();
@@ -492,6 +497,11 @@ export class AdminPanel {
     const box = el('div', 'own-box admp-reqs');
     const rows = designer.requests;
     box.append(el('p', 'mm-modal-foot', 'Things devs asked Claude for that need a code change (new mechanics, visuals, AI). Each is a complete spec: copy it into a coding session. Number-only changes never land here: they are proposals under Proposals.'));
+    if (this.reqMsg) {
+      const msg = el('p', `mm-modal-foot ${this.reqMsg.ok ? 'own-ok' : 'own-bad'}`, this.reqMsg.text);
+      msg.style.fontWeight = '600';
+      box.append(msg);
+    }
     if (!rows.length) box.append(el('p', 'mm-modal-foot', 'No requests yet.'));
     const owner = this.access() === 'owner';
     for (const r of rows) box.append(this.requestCard(r, owner));
@@ -500,6 +510,8 @@ export class AdminPanel {
 
   private requestCard(r: DevRequestRow, owner: boolean): HTMLElement {
     const card = el('details', 'admp-prop');
+    card.open = this.openReqs.has(r.id);
+    card.addEventListener('toggle', () => { if (card.open) this.openReqs.add(r.id); else this.openReqs.delete(r.id); });
     const sum = el('summary', 'admp-prop-head');
     sum.append(el('b', '', r.title), el('small', '', ` · ${r.by} · ${r.scope} · ${ago(r.at)} · ${requestStatus(r)}`));
     card.append(sum);
