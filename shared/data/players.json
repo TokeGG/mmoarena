@@ -2,7 +2,7 @@
  "warrior": {
   "style": {
    "strafe": {
-    "value": 0.108,
+    "value": 0.239,
     "weight": 1200
    },
    "defHp": {
@@ -10,30 +10,30 @@
     "weight": 160
    },
    "healerPrio": {
-    "value": 19.73,
-    "weight": 200
+    "value": 11.52,
+    "weight": 1040
    },
    "focus": {
-    "value": 16.568,
-    "weight": 790
+    "value": 19.048,
+    "weight": 1200
    },
    "kickAt": {
-    "value": 0.575,
-    "weight": 72
+    "value": 0.635,
+    "weight": 132
    }
   },
   "vsPeople": {
    "mage": {
-    "games": 28,
-    "botWins": 11
+    "games": 36,
+    "botWins": 12
    },
    "warrior": {
-    "games": 12,
-    "botWins": 8
+    "games": 19,
+    "botWins": 12
    },
    "priest": {
-    "games": 16,
-    "botWins": 2
+    "games": 28,
+    "botWins": 8
    },
    "rogue": {
     "games": 3,
@@ -44,11 +44,11 @@
  "mage": {
   "style": {
    "strafe": {
-    "value": 0.464,
+    "value": 0.375,
     "weight": 1200
    },
    "rangeBias": {
-    "value": -11.648,
+    "value": -9.849,
     "weight": 1200
    },
    "defHp": {
@@ -56,38 +56,38 @@
     "weight": 390
    },
    "kickAt": {
-    "value": 0.626,
-    "weight": 384
+    "value": 0.619,
+    "weight": 408
    },
    "jukeAt": {
-    "value": 0.474,
+    "value": 0.472,
     "weight": 1200
    },
    "jukeChance": {
-    "value": 0.085,
-    "weight": 636
+    "value": 0.082,
+    "weight": 660
    },
    "healerPrio": {
-    "value": 8.632,
-    "weight": 420
+    "value": 13.302,
+    "weight": 1172
    },
    "focus": {
-    "value": 24.25,
+    "value": 22.617,
     "weight": 1200
    }
   },
   "vsPeople": {
    "mage": {
-    "games": 25,
+    "games": 28,
     "botWins": 1
    },
    "warrior": {
-    "games": 8,
-    "botWins": 5
+    "games": 11,
+    "botWins": 7
    },
    "priest": {
-    "games": 20,
-    "botWins": 9
+    "games": 32,
+    "botWins": 15
    },
    "rogue": {
     "games": 1,
@@ -98,42 +98,42 @@
  "priest": {
   "style": {
    "defHp": {
-    "value": 0.537,
+    "value": 0.716,
     "weight": 1200
    },
    "strafe": {
-    "value": 0.31,
+    "value": 0.297,
     "weight": 1200
    },
    "rangeBias": {
-    "value": -13.936,
+    "value": -12.502,
     "weight": 1200
    },
    "jukeAt": {
-    "value": 0.521,
-    "weight": 384
+    "value": 0.491,
+    "weight": 528
    },
    "focus": {
-    "value": 22.889,
-    "weight": 514
+    "value": 21.132,
+    "weight": 718
    },
    "healerPrio": {
-    "value": 19.162,
-    "weight": 413
+    "value": 17.505,
+    "weight": 573
    },
    "jukeChance": {
-    "value": 0.263,
-    "weight": 57
+    "value": 0.207,
+    "weight": 87
    }
   },
   "vsPeople": {
    "mage": {
-    "games": 31,
+    "games": 38,
     "botWins": 3
    },
    "warrior": {
-    "games": 7,
-    "botWins": 5
+    "games": 13,
+    "botWins": 6
    },
    "priest": {
     "games": 15,
@@ -166,11 +166,11 @@
   },
   "vsPeople": {
    "warrior": {
-    "games": 9,
+    "games": 16,
     "botWins": 5
    },
    "mage": {
-    "games": 31,
+    "games": 39,
     "botWins": 3
    },
    "priest": {
