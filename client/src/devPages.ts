@@ -393,7 +393,7 @@ export class DevWorkspace {
           any = true;
         }
       }
-      if (pass.addTargets && !q) box.append(this.addWidget(pass));
+      if (pass.addTargets) box.append(this.addWidget(pass)); // also while searching: this is where a shield on a heal is added
     }
     if (!any && q) box.append(el('small', 'devp-dim', 'No value here matches the search.'));
     if (entry.addTargets && !q) box.append(this.addWidget(entry));
