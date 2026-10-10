@@ -523,7 +523,7 @@
   "purified": {
     "name": "Purified",
     "kind": "buff",
-    "duration": 4000,
+    "duration": 6000,
     "harmful": false,
     "blocksDebuffs": true,
     "note": "Harmful effects cannot take hold."
@@ -531,11 +531,11 @@
   "ascended": {
     "name": "Ascended",
     "kind": "buff",
-    "duration": 4000,
+    "duration": 6000,
     "harmful": false,
     "invulnerable": true,
     "hover": {
-      "height": 6,
+      "height": 10,
       "riseMs": 600,
       "fallMs": 600
     },
