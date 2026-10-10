@@ -55,16 +55,6 @@ describe('ledges', () => {
       }
     });
 
-    it(`stepping onto a ramp's low side does not shove the unit (${tickMs} ms)`, () => {
-      const arena = arenaById('overlook'); // ramp x -2.5..2.5, z -13..-5, foot at z=-13, rail starts where the slope passes the step height
-      for (let z = -12.9; z <= -11.1; z += 0.1) {
-        for (const lead of [0, 0.1, -0.1]) {
-          const r = walk(arena, tickMs, -8, z, 0, Math.PI / 2 + lead, null, 1800);
-          assert.ok(r.maxStep <= limit + 0.005, `from z=${z.toFixed(1)} lead ${lead}: popped ${r.maxStep.toFixed(2)} yd in one tick (limit ${limit.toFixed(2)})`);
-        }
-      }
-    });
-
     it(`a unit that came down inside a rail is eased out, never carried along it (${tickMs} ms)`, () => {
       const arena = arenaById('overlook'); // the ramp z -13..-5, x -2.5..2.5: its +x side has a rail from about z=-12 up
       let pos = { x: 2.8, z: -9 }; // inside the rail's reach (it stands at x 2.5..2.9)

@@ -297,9 +297,7 @@ export function moveTo(arena: ArenaDef, level: Level, from: Vec2, to: Vec2, air 
   if (!dk) return { pos: resolveCollisions(to, arena, 0, air, from), level: 0 };
   let lv = level;
   if (lv === 0) {
-    // a rail in reach would shove a unit that stepped on there straight back off (a pop of up to half a yard): it slides along the side instead
-    const railed = air < CLEAR_HEIGHT && deckRails(arena).some((q) => rectDist(to.x, to.z, q) < PLAYER_RADIUS - RAIL_SETTLE);
-    for (const r of railed ? [] : dk.ramps) {
+    for (const r of dk.ramps) {
       if (rectDist(to.x, to.z, r) < PLAYER_RADIUS - 1e-6 && rampHeight(r, to.x, to.z, dk.height) <= air * RAMP_AIR + STEP_HEIGHT) {
         lv = 1;
         break;
