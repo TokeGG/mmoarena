@@ -196,7 +196,7 @@ describe('admin panel for the dev tag', () => {
     handle(lobby, devP, { t: 'suggest_delete', at: 1, text: 'x' });
     assert.equal(last(out.dev, 'suggest_ack')?.ok, false);
     handle(lobby, devP, { t: 'bot_match', size: 1, difficulty: 'normal', map: 'random', teams: [[{ classId: 'mage' }], [{ classId: 'mage' }]] });
-    assert.equal(devP.watching, undefined, 'no bot match for a dev');
+    assert.ok(devP.watching, 'a dev can start a bot match');
   });
 
   it('a dev reads the suggestion box but cannot delete from it', async () => {
