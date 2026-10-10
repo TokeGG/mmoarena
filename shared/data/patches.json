@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.70",
+  "date": "2026-10-10",
+  "at": "2026-10-10T21:17:15Z",
+  "title": "Ground spells cast on the first click",
+  "changes": [
+    "Flamestrike, Blizzard and other ground spells no longer need several clicks: a click a moment before the global cooldown ends, or a spot that just slipped out of sight, is held for a moment instead of thrown away.",
+    "A red aiming spot now tells you there is no line of sight to it."
+  ]
+ },
+ {
   "version": "0.69.69",
   "date": "2026-10-10",
   "at": "2026-10-10T21:11:42Z",

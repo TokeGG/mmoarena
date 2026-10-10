@@ -30,7 +30,7 @@ export const CATCHUP_CREDIT_MS = 250;
 /** A melee swing reaches this far up or down (a ramp's slope), not from a walkway's top to the ground below. */
 const MELEE_FLOOR_GAP = 1.6;
 /** Failures a player cast may be held through for TUNING.castGraceMs. */
-const GRACE_REASONS = ['out of range', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
+const GRACE_REASONS = ['out of range', 'global cooldown', 'no line of sight', 'that spot is not in front of you', 'target is not in front of you', 'already casting that'];
 /** Ways a cast can stop that give its global cooldown back (the caster's own choice, or the target slipping away). */
 /** How long a fallen Mirror Image stays in the snapshots before it is gone. */
 const IMAGE_LINGER_MS = 700;
@@ -372,7 +372,8 @@ export class ArenaSim {
     if (!def.ignoresLockout && (u.lockouts[def.school] ?? 0) > this.time) return fail(`${def.school} school is locked out`);
     if (this.storedFull(u, def)) return fail('ability is on cooldown');
     if (!this.modsOf(u).ability[def.id]?.stored && (u.cooldowns[def.id] ?? 0) > this.time && (u.chargesUsed[def.id] ?? 0) >= (this.modsOf(u).ability[def.id]?.charges ?? 0)) return fail('ability is on cooldown');
-    if (def.gcd && u.gcdEnd > this.time) return fail('global cooldown');
+    // a press a hair before the global cooldown ends (the player's clock runs a little ahead of the server's) is held, not thrown away
+    if (def.gcd && u.gcdEnd > this.time) return u.gcdEnd - this.time <= TUNING.castGraceMs ? soft('global cooldown') : fail('global cooldown');
     if (u.resource < this.costOf(u, def)) return fail(`not enough ${u.resourceType}`);
     if (def.cpSpend && u.cp < 1) return fail('needs combo points');
     if (def.requiresStealth && !this.isStealthed(u)) return fail('requires stealth');
@@ -388,7 +389,8 @@ export class ArenaSim {
       const b = this.arena.bounds;
       ground = { x: clamp(ground.x, b.minX, b.maxX), z: clamp(ground.z, b.minZ, b.maxZ), ...(ground.lv === 1 && onRaised(this.arena, ground.x, ground.z) ? { lv: 1 as const } : {}) };
       if (dist(u.pos, ground) > this.rangeOf(u, def) + TUNING.rangeTolerance) return soft('out of range');
-      if (!hasLOS(u.pos, ground, this.arena, u.level, ground.lv ?? 0, this.airOf(u))) return fail('no line of sight');
+      // the spot was green on the caster's screen a moment ago: held for a moment before it counts as blocked
+      if (!hasLOS(u.pos, ground, this.arena, u.level, ground.lv ?? 0, this.airOf(u))) return soft('no line of sight');
     }
 
     const tgt = this.resolveTarget(u, def, targetId);
