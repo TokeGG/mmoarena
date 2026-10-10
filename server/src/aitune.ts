@@ -241,49 +241,58 @@ export class AiTune {
    * fixes that) and which it could not place. Nothing here changes a bot: the caller feeds the moves to the same lesson
    * pipeline a phrase note uses. Null when Ask Claude is off or could not answer, and the phrase reading stands alone.
    */
-  async interpretNote(text: string, classes: NoteClassId[]): Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[] } | null> {
+  async interpretNote(text: string, classes: NoteClassId[]): Promise<{ effects: NoteEffect[]; bugs: string[]; unplaced: string[]; requests: { title: string; detail: string }[]; understood: string } | null> {
     if (!this.messages) return null;
     const keys = Object.keys(BRAIN_WORDS) as (keyof Brain)[];
+    const kit = (c: string) => {
+      const cls = CLASSES[c as ClassId];
+      return cls ? `${c}: ${SPECS[c as ClassId].map((s) => `${s.name} (bar: ${s.bar.map((a) => ABILITIES[a]?.name ?? a).join(', ')})`).join('; ')}` : c;
+    };
     const system = [
-      'A developer wrote a note about how the computer-controlled players (bots) played a match in a WoW-style arena game. Turn it into moves of the bots\' brain numbers.',
+      'The owner or a developer of a WoW-style arena game wrote a note about how the computer-controlled players (bots) played. They have watched the bots and know what they want: do exactly what they say, do not argue or decide what is better. Turn the note into (a) moves of the bots\' brain numbers, and (b) change requests for what no number can do.',
       'Each brain number has a key, what it controls, what "up" means and what "down" means:',
       ...keys.map((k) => `- ${k}: ${BRAIN_WORDS[k].what}. up = ${BRAIN_WORDS[k].up}. down = ${BRAIN_WORDS[k].down}.`),
-      `The bots in that match were: ${classes.join(', ') || 'none'}. Name a class in an effect only when the note names it (otherwise leave classes empty: it applies to all of them).`,
-      'Rules: only use the keys above; a move is "up" or "down", never a number. Choose the key that best matches what went wrong, and at most 6 moves. "said" is the words of the note that asked for it, short. A part that reports something broken (stuck, frozen, spinning, walking into a wall, hitting through the floor) is a bug: put it in "bugs" and make no move for it. A part you cannot place on any key goes in "unplaced". Never invent a key. Reply in the language of the note for "said", "bugs" and "unplaced".',
+      `The bots in that match were: ${classes.join(', ') || 'none'}. Their specs and skill bars: ${[...new Set(classes)].map(kit).join(' | ') || 'none'}.`,
+      'Rules for "effects": only use the keys above; a move is "up" or "down", never a number. Choose the key that best matches what the writer wants, up to 16 moves. "strength": 1 when they say slightly or a bit, 2 normally, 3 when they say a lot, much, way, always or never. "said" is their words for it, short. Name a class in an effect only when the note names it or its spec or skills (leave classes empty when it applies to every bot class).',
+      'A part that reports something broken (stuck, frozen, spinning, walking into a wall, hitting through the floor, a skill that never fires, an error) goes in "bugs" with no move. A part that asks for a behaviour no key covers (use skill X when Y, stand here, target that, a new tactic, change a skill priority) goes in "requests" with a short "title" and a "detail" that repeats exactly what they want in plain words, the classes and skills involved, and how to tell it works. Only a part you truly cannot make sense of goes in "unplaced" (a short question back to the writer).',
+      '"understood" is one or two plain sentences saying how you read the whole note, for the writer. Reply in the language of the note for every text.',
     ].join('\n');
     const schema = {
       type: 'object',
       properties: {
-        effects: { type: 'array', items: { type: 'object', properties: { key: { type: 'string', enum: keys }, dir: { type: 'string', enum: ['up', 'down'] }, said: { type: 'string' }, classes: { type: 'array', items: { type: 'string', enum: [...CLASS_IDS] } } }, required: ['key', 'dir', 'said', 'classes'], additionalProperties: false } },
+        understood: { type: 'string' },
+        effects: { type: 'array', items: { type: 'object', properties: { key: { type: 'string', enum: keys }, dir: { type: 'string', enum: ['up', 'down'] }, strength: { type: 'integer', enum: [1, 2, 3] }, said: { type: 'string' }, classes: { type: 'array', items: { type: 'string', enum: [...CLASS_IDS] } } }, required: ['key', 'dir', 'strength', 'said', 'classes'], additionalProperties: false } },
         bugs: { type: 'array', items: { type: 'string' } },
+        requests: { type: 'array', items: { type: 'object', properties: { title: { type: 'string' }, detail: { type: 'string' } }, required: ['title', 'detail'], additionalProperties: false } },
         unplaced: { type: 'array', items: { type: 'string' } },
       },
-      required: ['effects', 'bugs', 'unplaced'],
+      required: ['understood', 'effects', 'bugs', 'requests', 'unplaced'],
       additionalProperties: false,
     };
     let msg: Anthropic.Beta.Messages.BetaMessage;
     try {
       msg = await this.messages.create({
         model: this.model,
-        max_tokens: 2000,
+        max_tokens: 4000,
         system,
         output_config: { effort: 'low', format: { type: 'json_schema', schema } },
-        messages: [{ role: 'user', content: text.slice(0, 600) }],
+        messages: [{ role: 'user', content: text.slice(0, 2500) }],
       } as any);
     } catch {
       return null;
     }
     if (msg.stop_reason === 'refusal') return null;
     try {
-      const raw = JSON.parse(msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')) as { effects?: { key?: string; dir?: string; said?: string; classes?: string[] }[]; bugs?: unknown; unplaced?: unknown };
+      const raw = JSON.parse(msg.content.map((b) => (b.type === 'text' ? b.text : '')).join('')) as { understood?: unknown; effects?: { key?: string; dir?: string; strength?: number; said?: string; classes?: string[] }[]; bugs?: unknown; requests?: { title?: unknown; detail?: unknown }[]; unplaced?: unknown };
       const effects: NoteEffect[] = [];
-      for (const e of Array.isArray(raw.effects) ? raw.effects.slice(0, 6) : []) {
+      for (const e of Array.isArray(raw.effects) ? raw.effects.slice(0, 16) : []) {
         if (!e || typeof e.key !== 'string' || !(keys as string[]).includes(e.key) || (e.dir !== 'up' && e.dir !== 'down')) continue;
         const named = (Array.isArray(e.classes) ? e.classes : []).filter((c): c is NoteClassId => (CLASS_IDS as readonly string[]).includes(c));
-        effects.push({ key: e.key as keyof Brain, dir: e.dir === 'up' ? 1 : -1, said: String(e.said ?? '').slice(0, 120), classes: named.length ? named : null });
+        effects.push({ key: e.key as keyof Brain, dir: e.dir === 'up' ? 1 : -1, said: String(e.said ?? '').slice(0, 160), classes: named.length ? named : null, strength: e.strength === 1 ? 1 : e.strength === 3 ? 3 : 2 });
       }
-      const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 160)).slice(0, 6) : []);
-      return { effects, bugs: list(raw.bugs), unplaced: list(raw.unplaced) };
+      const list = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string').map((x) => x.slice(0, 240)).slice(0, 12) : []);
+      const requests = (Array.isArray(raw.requests) ? raw.requests : []).filter((r) => r && typeof r.title === 'string' && typeof r.detail === 'string' && r.title.trim()).slice(0, 5).map((r) => ({ title: String(r.title).slice(0, 120), detail: String(r.detail).slice(0, 1200) }));
+      return { effects, bugs: list(raw.bugs), unplaced: list(raw.unplaced), requests, understood: typeof raw.understood === 'string' ? raw.understood.slice(0, 500) : '' };
     } catch {
       return null;
     }
