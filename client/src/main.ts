@@ -756,7 +756,7 @@ function spatial(id: number): Spatial | null {
 // ------------------------------------------------------------------ movement prediction
 
 /** Hovering (Ascend to the Heavens) holds you in place without taking your hands: you can cast, you cannot walk or jump. */
-const hovers = (u: { auras: { id: string }[] }): boolean => u.auras.some((a) => AURAS[a.id]?.hover);
+const hovers = (u: { auras: { id: string }[]; cast?: { ability: string } | null }): boolean => u.auras.some((a) => AURAS[a.id]?.hover) || !!(u.cast && ABILITIES[u.cast.ability]?.channel?.hold); // a channel that holds you (Slice and Dice) keeps you where you stand
 
 function applyInput(i: MoveInput & { air: number }, me: UnitSnap) {
   const speed = TUNING.runSpeed * me.speedMult;

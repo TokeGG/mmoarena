@@ -18,6 +18,13 @@ const mult = (label: string, hint: string, min = 0, max = 2.5): FxField => ({ la
 /** How the people move (the rigged characters): 1 is as it was; more is bigger, less is smaller. Looks only. */
 const MOVE = 'Character movement';
 export const FX_INFO: Record<string, FxGroup> = {
+  deckHole: {
+    title: 'See-through deck', section: 'Camera', sub: 'the circle cut in a walkway above you when you stand under it',
+    fields: {
+      radius: { label: 'Circle size', hint: 'How many yards around you the deck above is cut away (0 turns it off, so you just see the underside).', unit: 'plain', min: 0, max: 20 },
+      coverCamera: { label: 'Open up for the camera', hint: 'When the camera sits above the deck (looking steeply down), the circle also grows to reach it. 0 never grows it, 1 grows it all the way.', unit: 'x', min: 0, max: 1 },
+    },
+  },
   jump: {
     title: 'Jumping', section: MOVE, sub: 'how a character pulls up, floats and lands',
     fields: {
