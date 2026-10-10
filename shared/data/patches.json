@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.52",
+  "date": "2026-10-10",
+  "at": "2026-10-10T07:18:09Z",
+  "title": "Balance changes",
+  "changes": [
+   "Mortal Strike: cost 30 to 60.",
+   "Game rules: rage from damage taken 0.01 to 0.02.",
+   "Game rules: rage from damage dealt 0.03 to 0.13."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.51",
   "date": "2026-10-10",
   "at": "2026-10-10T04:50:35Z",

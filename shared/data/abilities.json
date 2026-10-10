@@ -9,7 +9,7 @@
   "castTime": 0,
   "cooldown": 8000,
   "gcd": true,
-  "cost": 30,
+  "cost": 60,
   "effects": [
    {
     "type": "damage",
