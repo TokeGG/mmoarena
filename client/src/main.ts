@@ -347,6 +347,7 @@ function onMessage(raw: MessageEvent) {
       }
       arena = arenaById(m.map);
       scene.setMap(arena.id);
+      if (!(m.t === 'controlling' && m.mind)) mindDriving = false;
       matchStarting = true; // until its first snapshot, the menu backdrop must not swap the map back to the menu's pick
       // dev tools start fresh in every match (test numbers never carry over), and so do raid marks
       devPanel.setAvailable(false);
@@ -395,6 +396,7 @@ function onMessage(raw: MessageEvent) {
       joinMsg('');
       if (m.t === 'controlling' && m.mind) {
         // a priest took an enemy (or it ended): the screen follows that unit, the match goes on
+        mindDriving = m.mind === 'control';
         hud.error(m.mind === 'control' ? `Mind Control: you play ${lastBuilds.find((u) => u.id === m.unitId)?.name ?? 'the enemy'}` : 'Mind Control ended');
       } else if (m.t === 'controlling') {
         devPanel.setAvailable(false); // nothing a pause or a patch would announce to the others
@@ -639,8 +641,13 @@ function resetNetState(): void {
 }
 let wasPausedSnap = false;
 
+/** You are playing an enemy you took with Mind Control: that unit is free in your hands, though its own player cannot act. */
+let mindDriving = false;
+
 function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
   const at = performance.now();
+  const own = snap.units.find((u) => u.id === you);
+  if (own?.mcd && !mindDriving) own.controlled = true; // the player whose unit was taken cannot act
   // a resume: the server clock stood still for the whole pause, so the clock, the delay and every buffered snapshot are started afresh
   if (!spec && wasPausedSnap && !snap.paused) resetNetState();
   wasPausedSnap = !spec && !!snap.paused;
@@ -716,7 +723,7 @@ function onSnapshot(snap: Snapshot, events: Parameters<Hud['event']>[0][]) {
     recapPhase = snap.phase;
   }
   recap.setUnits(snap.units);
-  dpsMeter.paint(snap.units, you, { metric: look.dpsMetric as MeterMetric, who: look.dpsWho as MeterWho, numbers: look.dpsNumbers as MeterNumbers, rows: Number(look.dpsRows) || 5, friendly: spec ? 0 : team });
+  dpsMeter.paint(snap.units, you, { metric: look.dpsMetric as MeterMetric, also: [look.dpsMetric2, look.dpsMetric3].filter((m) => m !== 'none') as MeterMetric[], who: look.dpsWho as MeterWho, numbers: look.dpsNumbers as MeterNumbers, rows: Number(look.dpsRows) || 5, friendly: spec ? 0 : team });
   const unitOf = (id: number) => snap.units.find((u) => u.id === id);
   for (const ev of events) {
     recap.add(ev);
@@ -772,6 +779,8 @@ function leapArc(id: number, y: number): number {
 /** How high your own character is in the air: your predicted jump, or (while the server moves you, e.g. Heroic Leap) its arc. */
 function ownHeight(u: UnitSnap | undefined, serverY?: number): number {
   const jump = jumpHeight(performance.now() - myJumpAt);
+  // held up by Ascend to the Heavens: the height is the server's (you cannot jump up there), shown to you as it is to everyone else
+  if (u?.auras.some((a) => AURAS[a.id]?.hover)) return Math.max(jump, serverY ?? u.y ?? 0);
   return u?.controlled || ownDashing ? Math.max(jump, leapArc(u?.id ?? 0, serverY ?? u?.y ?? 0)) : jump;
 }
 

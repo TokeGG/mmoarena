@@ -38,7 +38,7 @@ export const METRICS: { id: MeterMetric; label: string; hint: string; rate: bool
 
 export interface MeterUnit { id: number; name: string; team: TeamId }
 export interface MeterRow { id: number; name: string; team: TeamId; value: number; rate: number | null; tally: Omit<Tally, 'log'> }
-export interface MeterOptions { metric: MeterMetric; rows: number; who: MeterWho; numbers: MeterNumbers; friendly: TeamId }
+export interface MeterOptions { metric: MeterMetric; /** More blocks under the first one (damage, then healing, then damage taken...): each shows its own rows. */ also?: MeterMetric[]; rows: number; who: MeterWho; numbers: MeterNumbers; friendly: TeamId }
 
 /** How far back the per-second numbers look (the same window the dev panel's meter uses). */
 const WINDOW_MS = 10_000;
@@ -162,56 +162,62 @@ export class DpsMeter {
     return out.sort((a, b) => b.value - a.value).slice(0, Math.max(1, opt.rows));
   }
 
-  /** Draw it (at most four times a second). `you` is marked; `o.friendly` is the team shown in the friendly colour (0 when spectating). */
+  /** Draw it (at most four times a second). `you` is marked; `o.friendly` is the team shown in the friendly colour (0 when spectating). One block per thing shown, stacked. */
   paint(units: readonly MeterUnit[], you: number, o: Partial<MeterOptions> = {}): void {
     const root = this.root;
     if (!root || this.now - this.paintedAt < PAINT_MS) return;
     this.paintedAt = this.now;
     const opt = { ...DEFAULT_OPTIONS, ...o };
-    const rows = this.rows(units, opt);
-    if (!rows.length) return void root.replaceChildren();
-    const metric = METRICS.find((m) => m.id === opt.metric) ?? METRICS[0];
-    const top = Math.max(1, ...rows.map((r) => r.value));
+    const metrics = [opt.metric, ...(opt.also ?? [])].filter((m, i, all) => all.indexOf(m) === i);
     const frag = document.createDocumentFragment();
-    const head = document.createElement('div');
-    head.className = 'dm-head';
-    head.textContent = metric.label;
-    head.title = `${metric.hint}. Click to show something else (more in Edit HUD and the Look window).`;
-    head.addEventListener('mousedown', (e) => {
-      if (e.button !== 0 || e.buttons !== 1) return;
-      e.stopPropagation();
-      this.onCycle?.();
-    });
-    frag.append(head);
     const num = (n: number) => String(Math.round(n));
-    for (const r of rows) {
-      const row = document.createElement('div');
-      row.className = `dm-row${r.team === opt.friendly ? ' dm-ally' : ' dm-foe'}${r.id === you ? ' dm-you' : ''}`;
-      const bar = document.createElement('span');
-      bar.className = 'dm-bar';
-      bar.style.width = `${Math.round((r.value / top) * 100)}%`;
-      const name = document.createElement('span');
-      name.className = 'dm-name';
-      name.textContent = r.name;
-      row.append(bar, name);
-      const showRate = r.rate !== null && opt.numbers !== 'total';
-      const showTotal = opt.numbers !== 'rate' || r.rate === null;
-      if (showRate) {
-        const rate = document.createElement('span');
-        rate.className = 'dm-dps';
-        rate.textContent = num(r.rate!);
-        rate.title = 'per second over the last ten seconds';
-        row.append(rate);
+    metrics.forEach((id, block) => {
+      const rows = this.rows(units, { ...opt, metric: id });
+      if (!rows.length) return;
+      const metric = METRICS.find((m) => m.id === id) ?? METRICS[0];
+      const top = Math.max(1, ...rows.map((r) => r.value));
+      const head = document.createElement('div');
+      head.className = 'dm-head';
+      head.textContent = metric.label;
+      head.title = `${metric.hint}.${block === 0 ? ' Click to show something else (more in Edit HUD and the Look window).' : ''}`;
+      if (block === 0) {
+        head.addEventListener('mousedown', (e) => {
+          if (e.button !== 0 || e.buttons !== 1) return;
+          e.stopPropagation();
+          this.onCycle?.();
+        });
       }
-      if (showTotal) {
-        const total = document.createElement('span');
-        total.className = showRate ? 'dm-total' : 'dm-dps';
-        total.textContent = num(r.value);
-        total.title = `Dealt ${num(r.tally.dealt)} · healed ${num(r.tally.healed)} (overheal ${num(r.tally.overheal)}) · took ${num(r.tally.taken)} (absorbed ${num(r.tally.absorbed)}) · ${r.tally.kills} kills, ${r.tally.deaths} deaths · ${r.tally.interrupts} interrupts, ${r.tally.dispels} dispels, ${r.tally.cc} crowd control`;
-        row.append(total);
+      frag.append(head);
+      for (const r of rows) {
+        const row = document.createElement('div');
+        row.className = `dm-row${r.team === opt.friendly ? ' dm-ally' : ' dm-foe'}${r.id === you ? ' dm-you' : ''}`;
+        const bar = document.createElement('span');
+        bar.className = 'dm-bar';
+        bar.style.width = `${Math.round((r.value / top) * 100)}%`;
+        const name = document.createElement('span');
+        name.className = 'dm-name';
+        name.textContent = r.name;
+        row.append(bar, name);
+        const showRate = r.rate !== null && opt.numbers !== 'total';
+        const showTotal = opt.numbers !== 'rate' || r.rate === null;
+        if (showRate) {
+          const rate = document.createElement('span');
+          rate.className = 'dm-dps';
+          rate.textContent = num(r.rate!);
+          rate.title = 'per second over the last ten seconds';
+          row.append(rate);
+        }
+        if (showTotal) {
+          const total = document.createElement('span');
+          total.className = showRate ? 'dm-total' : 'dm-dps';
+          total.textContent = num(r.value);
+          total.title = `Dealt ${num(r.tally.dealt)} · healed ${num(r.tally.healed)} (overheal ${num(r.tally.overheal)}) · took ${num(r.tally.taken)} (absorbed ${num(r.tally.absorbed)}) · ${r.tally.kills} kills, ${r.tally.deaths} deaths · ${r.tally.interrupts} interrupts, ${r.tally.dispels} dispels, ${r.tally.cc} crowd control`;
+          row.append(total);
+        }
+        frag.append(row);
       }
-      frag.append(row);
-    }
+    });
+    if (!frag.childNodes.length) return void root.replaceChildren();
     root.replaceChildren(frag);
   }
 }

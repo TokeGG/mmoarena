@@ -196,6 +196,9 @@ export class HudLayout {
   private touched = new Set<string>();
   private ghosts = new Map<string, HTMLElement>();
   private selBox!: HTMLElement;
+  /** The popup of the selected element (its place, its reset and its own options) and the list of every element. */
+  private pop!: HTMLElement;
+  private itemList!: HTMLElement;
   private ownerBox!: HTMLElement;
   private noteEl!: HTMLElement;
   private resetAllBtn!: HTMLButtonElement;
@@ -486,13 +489,17 @@ export class HudLayout {
     };
     const panel = mk('div', 'he-panel');
     const head = mk('div', 'he-head');
-    head.append(mk('b', '', 'Edit HUD'), mk('span', 'he-sub', 'Drag to move. Drag the corner to change width and height (double-click it for the natural size). Scroll to scale (on a text box: scroll to resize the text, and it grows when you drag the corner). Arrow keys nudge the last one you moved.'));
+    head.append(mk('b', '', 'Edit HUD'));
     const done = mk('button', 'primary', 'Done (Esc)');
     done.title = 'Save and leave the editor (Esc)';
     done.addEventListener('click', () => this.stop());
     this.resetAllBtn = mk('button', '', 'Reset all');
     this.resetAllBtn.addEventListener('click', () => this.reset());
     head.append(this.resetAllBtn, done);
+    const hint = mk('div', 'he-sub', 'Drag anything on screen to move it, or pick it from the list for its options. Drag a corner to resize (double-click for the natural size), scroll to scale, arrow keys nudge.');
+
+    // every element of the HUD, one button each: it opens that element's own popup
+    this.itemList = mk('div', 'he-list');
 
     // presets
     const row1 = mk('div', 'he-row');
@@ -533,13 +540,15 @@ export class HudLayout {
     sizeLabel.append(sizeSel);
     row2.append(toggle('Show grid', () => this.grid.show, (v) => (this.grid.show = v)), toggle('Snap to grid and centre', () => this.grid.snap, (v) => (this.grid.snap = v)), sizeLabel, mk('small', '', 'Hold Alt while dragging to ignore snapping.'));
 
-    // the selected element: where its place comes from, and a way back to the default
-    this.selBox = mk('div', 'he-row he-sel');
+    // the selected element: where its place comes from, and a way back to the default (shown in its own popup beside the panel)
+    this.selBox = mk('div', 'he-sel');
+    this.pop = mk('div', 'he-pop hidden');
+    this.pop.append(this.selBox);
     this.noteEl = mk('div', 'he-moved');
     this.ownerBox = mk('div', 'he-owner hidden');
 
     // the look options (bars, nameplates, target marks, text styles) live in the Look window now
-    const moved = mk('div', 'he-moved', 'Health bar, nameplate, target mark and text looks moved to Look (main menu). This editor is for where things sit and how big they are.');
+    const moved = mk('div', 'he-moved', 'Health bar, nameplate, target mark and text looks are in Look (main menu).');
 
     // nameplates have their own editor (profiles for you, allies and enemies; see nameplateEditor.ts)
     const plateRow = mk('div', 'he-row');
@@ -547,15 +556,41 @@ export class HudLayout {
     plateBtn.title = 'Size, place and style the nameplates: separate looks for you, allies and enemies';
     plateBtn.addEventListener('click', () => openNameplateEditor());
     plateRow.append(plateBtn);
-    panel.append(head, row1, row2, this.selBox, this.noteEl, this.ownerBox, plateRow, moved);
+    const more = document.createElement('details');
+    more.className = 'he-more';
+    more.append(mk('summary', '', 'Layout preset, grid, nameplates'), row1, row2, plateRow, moved);
+    panel.append(head, hint, this.itemList, this.noteEl, this.ownerBox, more);
+    this.bar.append(this.pop);
     return panel;
   }
 
   /** Refresh everything the panel shows about layers: the selected element, the owner's section, the tags. */
   private paintAll() {
+    this.paintList();
     this.paintSelection();
     this.paintOwner();
     this.paintLabels();
+  }
+
+  /** Pick an element from the list: it is selected on screen and its popup opens. */
+  private select(id: string | null) {
+    this.selected = id;
+    if (id) this.touched.add(id);
+    this.paintSelection();
+    this.paintLabels();
+  }
+
+  /** The list of every element of the HUD (the ones in use now), the selected one lit, the ones moved from the default marked. */
+  private paintList() {
+    this.itemList.replaceChildren();
+    for (const id of ACTIVE_IDS()) {
+      const b = document.createElement('button');
+      b.className = `he-item${id === this.selected ? ' on' : ''}`;
+      b.textContent = DEF_OF.get(id)?.label ?? id;
+      if (this.own(id)) b.append(Object.assign(document.createElement('i'), { textContent: ' ●', title: 'Moved from the default' }));
+      b.addEventListener('click', () => this.select(id === this.selected ? null : id));
+      this.itemList.append(b);
+    }
   }
 
   private paintSelInfo() {
@@ -569,10 +604,9 @@ export class HudLayout {
     this.resetAllBtn.textContent = all ? 'Reset draft' : 'Reset all to default';
     this.resetAllBtn.title = all ? 'Put every element of the default layout back to its built-in spot (not published until you press the save button)' : this.defMeta ? 'Put every element back to the default layout the owner set' : 'Put every element back to its built-in spot';
     this.selBox.replaceChildren();
-    if (!id) {
-      this.selBox.append(mk('small', Object.keys(this.def).length ? 'Click an element to select it. A ◆ on a tag means it follows the owner\'s default layout.' : 'Click an element to select it.'));
-      return;
-    }
+    this.paintList();
+    this.pop.classList.toggle('hidden', !id);
+    if (!id) return;
     const label = DEF_OF.get(id)?.label ?? id;
     const own = this.own(id);
     const where = whereText(this.mode, this.source(id));
@@ -580,15 +614,22 @@ export class HudLayout {
     reset.disabled = !own;
     reset.title = all ? 'Put this element back to its built-in spot in the default layout' : 'Put this element back to the default (it follows the owner\'s layout again)';
     reset.addEventListener('click', () => this.resetOne(id));
-    const b = mk('b', label);
-    this.selBox.append(b, mk('small', ` ${where}`), reset);
+    const top = document.createElement('div');
+    top.className = 'he-pop-head';
+    const close = mk('button', '✕') as HTMLButtonElement;
+    close.title = 'Close this popup';
+    close.addEventListener('click', () => this.select(null));
+    top.append(mk('b', label), close);
+    this.selBox.append(top, mk('small', where), reset);
     if (id === 'dpsmeter') this.selBox.append(this.dpsSettings());
+    else this.selBox.append(mk('small', 'Drag it on screen to move it, drag its corner to resize, scroll to scale. Reset puts it back to the default spot.'));
   }
 
   /** What the DPS meter shows: the same settings as Look > HUD > DPS meter, here where the meter is being placed. */
   private dpsSettings(): HTMLElement {
     const box = document.createElement('div');
-    box.className = 'he-row';
+    box.className = 'he-opts';
+    box.append(Object.assign(document.createElement('small'), { textContent: 'Each list shows one thing. Add a second or third list to see damage, healing and more at the same time.' }));
     for (const o of LOOK_OPTIONS.filter((x) => x.group === 'DPS meter' && x.id !== 'dpsmeter')) {
       const label = document.createElement('label');
       label.textContent = `${o.label} `;

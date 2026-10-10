@@ -526,7 +526,8 @@
     "duration": 6000,
     "harmful": false,
     "blocksDebuffs": true,
-    "note": "Harmful effects cannot take hold."
+    "note": "Harmful effects cannot take hold, and your casts cannot be interrupted.",
+    "uninterruptible": true
   },
   "ascended": {
     "name": "Ascended",

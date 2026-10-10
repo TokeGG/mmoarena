@@ -1273,7 +1273,7 @@
         {
           "id": "priest_t1c",
           "name": "Fleeing Scream",
-          "desc": "Psychic Scream makes enemies run as far from you as they can instead of running at random.",
+          "desc": "Psychic Scream makes enemies run as far from you as they can, at full speed, instead of stumbling about at random.",
           "icon": "🏃",
           "mods": {
             "ability": {
@@ -1456,7 +1456,7 @@
         {
           "id": "priest_t1c",
           "name": "Fleeing Scream",
-          "desc": "Psychic Scream makes enemies run as far from you as they can instead of running at random.",
+          "desc": "Psychic Scream makes enemies run as far from you as they can, at full speed, instead of stumbling about at random.",
           "icon": "🏃",
           "mods": {
             "ability": {
@@ -1645,7 +1645,7 @@
         {
           "id": "priest_t1c",
           "name": "Fleeing Scream",
-          "desc": "Psychic Scream makes enemies run as far from you as they can instead of running at random.",
+          "desc": "Psychic Scream makes enemies run as far from you as they can, at full speed, instead of stumbling about at random.",
           "icon": "🏃",
           "mods": {
             "ability": {

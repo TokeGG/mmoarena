@@ -677,7 +677,9 @@ export class ArenaSim {
         u.facing = ang;
         u.fearRetargetAt = this.time + 1000;
       }
-      const k = TUNING.fearSpeed * TUNING.runSpeed * DT;
+      // a fear that runs away (Fleeing Scream) is not slowed: it sprints; a plain fear stumbles about at a fraction of run speed
+      const fleeing = u.auras.some((a) => a.kind === 'fear' && AURAS[a.id]?.flee);
+      const k = (fleeing ? 1 : TUNING.fearSpeed) * TUNING.runSpeed * DT;
       this.place(u, { x: u.pos.x + u.fearDir.x * k, z: u.pos.z + u.fearDir.z * k });
     } else if (u.cast && ABILITIES[u.cast.ability]?.channel?.hold) {
       // locked in a channel that holds the caster (Slice and Dice): you stand where you are and keep facing your target
@@ -1396,6 +1398,10 @@ export class ArenaSim {
     }
     const live = !!t.cast;
     const cast = ABILITIES[(t.cast?.ability ?? late!.ability)];
+    if (t.auras.some((a) => AURAS[a.id]?.uninterruptible)) {
+      this.emit({ t: 'immune', src: src.id, tgt: t.id, aura: def.id }); // Purifying Light: the cast goes on
+      return;
+    }
     if (cast.unstoppable && live) {
       this.emit({ t: 'immune', src: src.id, tgt: t.id, aura: def.id }); // Bladestorm cannot be kicked
       return;
@@ -2001,11 +2007,12 @@ export class ArenaSim {
       ...(u.mods.maxCp ? { cpMax: 5 + u.mods.maxCp } : {}),
       ...(Object.values(u.lockouts).some((t) => (t ?? 0) > this.time) ? { lockouts: Object.fromEntries(Object.entries(u.lockouts).filter(([, t]) => (t ?? 0) > this.time)) } : {}),
       stealthed: this.isStealthed(u),
+      ...(u.mc ? { mcd: true as const } : {}),
       ...(u.image ? { img: u.image.owner } : {}),
       ...(u.auras.some((a) => a.kind === 'absorb' && a.absorbLeft > 0) ? { absorb: Math.round(u.auras.reduce((n, a) => n + (a.kind === 'absorb' ? a.absorbLeft : 0), 0)) } : {}),
       y: u.alive ? (u.leap ? Math.round(Math.max(0, leapHeight(u.leap, Math.min(1, (this.time - u.leap.start) / u.leap.dur)) - heightAt(this.arena, u.pos.x, u.pos.z, u.level)) * 100) / 100 : Math.round(this.airOf(u) * 100) / 100) : 0,
       speedMult: this.speedMult(u),
-      controlled: !this.canAct(u) || !!u.charge || !!u.leap || !!u.mc, // hovering holds you in place but not your hands: you can cast (the client stops the walking itself)
+      controlled: !this.canAct(u) || !!u.charge || !!u.leap, // hovering holds you in place but not your hands: you can cast (the client stops the walking itself)
       autoAttack: u.autoAttack,
       lastSeq: u.lastSeq,
     };

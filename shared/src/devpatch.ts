@@ -56,6 +56,7 @@ export const AURA_FLAGS: Record<string, string> = {
   invulnerable: 'Target takes no damage and is immune to control',
   untargetable: 'Target cannot be targeted',
   blocksDebuffs: 'Harmful effects cannot take hold',
+  uninterruptible: 'Cannot be interrupted',
   locksAbilities: 'Target cannot use skills',
   noCast: 'Target cannot cast',
   silence: 'Silences the target',

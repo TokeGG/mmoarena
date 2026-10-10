@@ -41,6 +41,16 @@ describe('Mind Control', () => {
     assert.ok(w.priest.auras.some((a) => a.id === 'mind_controlling'));
   });
 
+  it('the priest can jump the mage it controls, and the mage\'s own snapshot says it is held while the priest\'s view does not need it', () => {
+    const w = world();
+    start(w);
+    w.sim.queueInput(w.priest.id, { seq: 1, fwd: 0, strafe: 0, facing: 0, jump: true });
+    w.run(300);
+    assert.ok(w.sim.airOf(w.mage) > 0 || w.sim.snapshot(0).units.find((u) => u.id === w.mage.id)!.y > 0, 'the controlled mage left the ground');
+    const snap = w.sim.snapshot(0).units.find((u) => u.id === w.mage.id)!;
+    assert.equal(snap.mcd, true, 'flagged as taken');
+    assert.ok(!snap.controlled, 'but not as stunned: the priest playing it can use its bar');
+  });
   it('the priest\'s commands drive the mage: movement, spells with the mage\'s own bar, and the mage\'s own commands do nothing', () => {
     const w = world();
     start(w);
