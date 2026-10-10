@@ -80,7 +80,7 @@
   "castTime": 0,
   "cooldown": 0,
   "gcd": true,
-  "cost": 10,
+  "cost": 30,
   "effects": [
    {
     "type": "aura",
@@ -129,7 +129,7 @@
   "effects": [
    {
     "type": "damage",
-    "amount": 280
+    "amount": 230
    },
    {
     "type": "aura",
@@ -493,7 +493,7 @@
   "castTime": 0,
   "cooldown": 45000,
   "gcd": false,
-  "cost": 0,
+  "cost": 60,
   "effects": [
    {
     "type": "aura",
@@ -1680,7 +1680,7 @@
   "castTime": 4000,
   "cooldown": 60000,
   "gcd": true,
-  "cost": 30,
+  "cost": 80,
   "channel": {
    "ticks": 16,
    "immediate": true,
@@ -1708,7 +1708,7 @@
   "castTime": 7000,
   "cooldown": 80000,
   "gcd": true,
-  "cost": 30,
+  "cost": 40,
   "castWhileMoving": true,
   "channel": {
    "ticks": 10
@@ -1739,7 +1739,7 @@
    },
    {
     "type": "gain",
-    "amount": 15
+    "amount": 0
    }
   ]
  },
@@ -1755,7 +1755,7 @@
   "castTime": 0,
   "cooldown": 4000,
   "gcd": true,
-  "cost": 40,
+  "cost": 60,
   "effects": [
    {
     "type": "damage",
@@ -1823,7 +1823,7 @@
   "castTime": 0,
   "cooldown": 4000,
   "gcd": true,
-  "cost": 50,
+  "cost": 60,
   "effects": [
    {
     "type": "damage",
@@ -1841,7 +1841,7 @@
   "castTime": 0,
   "cooldown": 80000,
   "gcd": true,
-  "cost": 20,
+  "cost": 80,
   "effects": [
    {
     "type": "flag",
