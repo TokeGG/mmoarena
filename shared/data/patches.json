@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.64",
+  "date": "2026-10-10",
+  "at": "2026-10-10T19:53:37Z",
+  "title": "Recorded sound effects",
+  "changes": [
+   "Menus, footsteps, jumps, weapon hits, spell hits, healing, crowd control, interrupts, deaths and the start and end of a match now play recorded sound effects instead of the synthesised ones."
+  ]
+ },
+ {
   "version": "0.69.63",
   "date": "2026-10-10",
   "at": "2026-10-10T19:05:01Z",

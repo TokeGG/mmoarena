@@ -29,6 +29,7 @@ import { FriendsUi } from './friendsUi';
 import { badgeText, liveCount } from './counts';
 import { LobbyTags } from './lobbyTags';
 import { Audio } from './audio';
+import { soundHooks } from './soundsUi';
 import type { Spatial } from './audio';
 import { BuildsPanel, LivePicker, SpectateBar, loadReplay, mapName } from './spectate';
 import { TakeoverUi } from './takeoverUi';
@@ -89,6 +90,7 @@ let showNetStats = false;
 const drawn = { rt: 0, at: -1e9 };
 
 const audio = new Audio();
+soundHooks.preview = (id, file) => audio.preview(id, file); // the Sounds page of the dev panel plays through the game's own engine
 const canvas = document.getElementById('c') as HTMLCanvasElement;
 const scene = new ArenaScene(canvas);
 void preloadRiggedModels(); // skinned character models load in the background; until then (or if one fails) the procedural models are used

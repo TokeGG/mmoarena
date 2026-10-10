@@ -21,6 +21,7 @@ export * from './devpatch';
 export * from './devinfo';
 export * from './devfields';
 export * from './fx';
+export * from './sounds';
 export * from './iconlib';
 export * from './devrequest';
 export * from './snapslim';

@@ -1,0 +1,1418 @@
+{
+ "ui-click": {
+  "file": "lib/ui-hover-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "ui-select": {
+  "file": "lib/ui-confirm-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "ui-error": {
+  "file": "lib/ui-denied-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "ui-ping": {
+  "file": "lib/ui-use-item-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "jump": {
+  "file": "lib/move-jump-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "jumpland": {
+  "file": "lib/move-landing-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "step-colosseum": {
+  "file": "lib/move-step-rock-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "step-ruins": {
+  "file": "lib/move-step-grass-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "step-frost": {
+  "file": "lib/move-step-rock-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "step-cinder": {
+  "file": "lib/move-step-rock-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "step-forge": {
+  "file": "lib/move-step-wood-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "step-sandstone": {
+  "file": "lib/move-step-grass-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "leap": {
+  "file": "lib/move-jump-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "land": {
+  "file": "lib/move-landing-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "auto": {
+  "file": "lib/battle-impact-flesh-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "big": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "miss": {
+  "file": "lib/battle-miss-evade-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "immune": {
+  "file": "lib/battle-block-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "absorb": {
+  "file": "lib/buff-absorb-04.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "shield-break": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "heal": {
+  "file": "lib/buff-heal-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "death": {
+  "file": "lib/battle-enemy-death-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "heart": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "m-interrupt": {
+  "file": "lib/battle-block-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "m-dispel": {
+  "file": "lib/buff-debuff-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "m-dodge": {
+  "file": "lib/battle-miss-evade-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "cc-stun": {
+  "file": "lib/battle-block-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "cc-incapacitate": {
+  "file": "lib/buff-sleep-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "cc-fear": {
+  "file": "lib/battle-flee-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "cc-root": {
+  "file": "lib/move-cling-climb-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "slow": {
+  "file": "lib/buff-debuff-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "speed": {
+  "file": "lib/buff-speed-up-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "buff": {
+  "file": "lib/buff-def-buff-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "stealth-in": {
+  "file": "lib/magic-wind-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "stealth-out": {
+  "file": "lib/magic-wind-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "proc": {
+  "file": "lib/buff-atk-buff-04.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-physical": {
+  "file": "lib/battle-flesh-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-fire": {
+  "file": "lib/magic-fire-explosion-04-medium.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-frost": {
+  "file": "lib/magic-ice-explosion-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-arcane": {
+  "file": "lib/magic-wind-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-holy": {
+  "file": "lib/magic-thunder-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-shadow": {
+  "file": "lib/magic-poison-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-nature": {
+  "file": "lib/magic-earth-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-physical": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-fire": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-frost": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-arcane": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-holy": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-shadow": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-nature": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-physical-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-physical-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-fire-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-fire-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-frost-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-frost-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-holy-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-holy-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-shadow-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-shadow-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-nature-false": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-nature-true": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "count": {
+  "file": "lib/ui-hover-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "start": {
+  "file": "lib/battle-encounter-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "result-win": {
+  "file": "lib/buff-revive-03.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "result-lose": {
+  "file": "lib/battle-enemy-death-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "result-draw": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-mortal_strike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-mortal_strike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-charge": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-pummel": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-hamstring": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-frostbolt": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-frostbolt": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-frostbolt": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-fireball": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-fireball": {
+  "file": "fireball-launch.mp3",
+  "volume": 0.5,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-fireball": {
+  "file": "fireball-hit.mp3",
+  "volume": 0.4,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-polymorph": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-polymorph": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-counterspell": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-frost_nova": {
+  "file": "lib/magic-ice-explosion-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-frost_nova": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-blink": {
+  "file": "lib/move-teleport-02.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-flash_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-flash_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-flash_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-power_word_shield": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-smite": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-smite": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-smite": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-dispel_magic": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-psychic_scream": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-stealth": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-cheap_shot": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-sinister_strike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-sinister_strike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-backstab": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-backstab": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-kidney_shot": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-kick": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-sprint": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-execute": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-execute": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-recklessness": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-intimidating_shout": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-bloodthirst": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-bloodthirst": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-whirlwind": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-whirlwind": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-enraged_regeneration": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-concussion_blow": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-shield_wall": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-ice_barrier": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-pyroblast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-pyroblast": {
+  "file": "fireball-launch.mp3",
+  "volume": 0.42,
+  "pitch": 0.72,
+  "off": 0
+ },
+ "hit-pyroblast": {
+  "file": "fireball-hit.mp3",
+  "volume": 0.5,
+  "pitch": 0.62,
+  "off": 0
+ },
+ "cs-arcane_blast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane_blast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-arcane_blast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane_barrage": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-arcane_barrage": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane_power": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-greater_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-greater_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-greater_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-pain_suppression": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-desperate_prayer": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-desperate_prayer": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-mind_blast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-mind_blast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-mind_blast": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-shadow_word_death": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-dispersion": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-mutilate": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-mutilate": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-vanish": {
+  "file": "lib/magic-wind-01.mp3",
+  "volume": 0.6,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-adrenaline_rush": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-shadowstep": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-evasion": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-flamestrike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-flamestrike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-flamestrike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-flamestrike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-shockwave": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-shockwave": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-piercing_howl": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-die_by_the_sword": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-penance": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-penance": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-penance": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-penance": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-holy_word": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-holy_word": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-power_infusion": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-blind": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-eviscerate": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-crippling_strike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-crippling_strike": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-ice_lance": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-ice_lance": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-blizzard": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-blizzard": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-blizzard": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-blizzard": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-scorch": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-scorch": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-scorch": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-deep_freeze": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane_silence": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-hammer_toss": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-harpoon_throw": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-judgment_hammer": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-hush": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-plague_bloom": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-plague_bloom": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-choke_bomb": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-knife_snipe": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-dragons_breath": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-dragons_breath": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-evocation": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-arcane_missiles": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane_missiles": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-arcane_missiles": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-arcane_missiles": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-arcane_explosion": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-arcane_explosion": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-garrote": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-garrote": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-fan_of_knives": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-fan_of_knives": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-holy_nova": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-holy_nova": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-mind_flay": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-mind_flay": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-mind_flay": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-mind_flay": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-exsanguinate": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-exsanguinate": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-heroic_leap": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-slice_and_dice": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-slice_and_dice": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-slice_and_dice": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-slice_and_dice": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-bladestorm": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-bladestorm": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-bladestorm": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "tick-bladestorm": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-slam": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-slam": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-sweep": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-sweep": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-reel_in": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-reel_in": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-deep_cuts": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-deep_cuts": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-axe_throw": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-axe_throw": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-not_going_anywhere": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-trinket_cleanse": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-trinket_shield": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-trinket_heal": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-gouge": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-sap": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-dragon_roar": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "hit-dragon_roar": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-battle_banner": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-mirror_image": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-rune_of_power": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-leap_of_faith": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-purifying_light": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-ascend": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "cs-mind_control": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ },
+ "c-mind_control": {
+  "file": "",
+  "volume": 1,
+  "pitch": 1,
+  "off": 0
+ }
+}

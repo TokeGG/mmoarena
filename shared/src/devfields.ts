@@ -3,6 +3,8 @@ import { CLASS_BLURB, auraOrigins, describeAura, describeTalent, plainText, spec
 import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MOD_ABILITY_DEFAULT, MOD_ABILITY_FLAGS, MOD_SCALAR_DEFAULT, TUNING_ID, currentValue, fileDefault, isAddition, isSwitch, tunableNumbers } from './devpatch';
 import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
 import { FX_ID, FX_INFO, fxField } from './fx';
+import { SOUND_ID, SOUND_LIBRARY, customSounds, soundFileChoices, soundList } from './sounds';
+import type { SoundInfo } from './sounds';
 import { iconTitle } from './iconlib';
 import type { ClassId } from './types';
 
@@ -31,6 +33,8 @@ export interface DevField {
   /** The file does not have it yet: the value shown is the neutral one, and changing it adds it. */
   added?: boolean;
   options?: string[];
+  /** Words for the options of a choice (the option itself when absent). */
+  optionLabels?: Record<string, string>;
   /** Bounds of a number a page keeps it within (in the file's own unit: milliseconds for times). */
   min?: number;
   max?: number;
@@ -175,6 +179,7 @@ export function nameOf(file: PatchFile, id: string, path: readonly (string | num
     case 'specs': return specInfo(id)?.spec.name ?? id;
     case 'talents': return findTalent(id)?.t.name ?? id;
     case 'fx': return 'Animations';
+    case 'sounds': return 'Sounds';
     default: return 'Game options';
   }
 }
@@ -197,6 +202,14 @@ export function plainPath(file: PatchFile, id: string, path: readonly (string | 
   const last = String(path[path.length - 1]);
   if (path[0] === '$entity') return { label: 'Whole entry (edited as data)', hint: 'Every field of it, as the data editor wrote it.', unit: 'plain' };
   if (file === 'icons') return { label: path[0] === 'aura' ? 'Icon of the buff or debuff' : 'Icon', hint: 'The picture it wears on the action bar, in tooltips and on buff rows. Looks only: never changes a match.', unit: 'plain' };
+  if (file === 'sounds') {
+    const key = last;
+    const name = soundList().find((s) => s.id === path[0])?.label ?? String(path[0]);
+    if (key === 'file') return { label: 'Recording', hint: 'Which recording plays. The built-in sound is made by the game itself; the library is the RPG Essentials pack; uploads are your own files.', unit: 'plain' };
+    if (key === 'volume') return { label: 'Volume', hint: `How loud "${name}" is (1 is the normal level, 0.5 is half as loud).`, unit: 'x' };
+    if (key === 'pitch') return { label: 'Pitch and speed', hint: `Higher is higher and faster, lower is deeper and slower (1 is as recorded).`, unit: 'x' };
+    return { label: 'Silent', hint: `Switch "${name}" off completely (no recording and no built-in sound).`, unit: 'plain' };
+  }
   if (file === 'fx') {
     const f = fxField(path);
     return f ? { label: `${FX_INFO[String(path[0])].title}: ${f.label.charAt(0).toLowerCase()}${f.label.slice(1)}`, hint: f.hint, unit: f.unit } : { label: cap(words(last)), unit: 'plain' };
@@ -337,16 +350,22 @@ export function fieldAt(file: PatchFile, id: string, path: (string | number)[], 
   if (now === undefined) return null;
   const base = fileDefault({ file, id, path }) ?? now;
   const plain = plainPath(file, id, path);
-  const choice = file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
-  const kind: DevField['kind'] = choice ? 'choice' : isSwitch({ file, id, path }) ? 'switch' : 'number';
+  const soundFile = file === 'sounds' && path[1] === 'file' ? soundFileChoices() : null;
+  const choice = soundFile ? { label: 'Recording', options: soundFile.options } : file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
+  const kind: DevField['kind'] = choice || soundFile ? 'choice' : isSwitch({ file, id, path }) ? 'switch' : 'number';
   const f: DevField = { file, id, path, kind, label: over.label ?? plain.label, unit: kind === 'number' ? over.unit ?? plain.unit : 'plain', value: now, base };
   const hint = over.hint ?? plain.hint;
   if (hint) f.hint = hint;
   if (choice) f.options = choice.options;
+  if (soundFile) f.optionLabels = soundFile.labels;
   if (path[0] === 'mods' && isAddition({ file, id, path })) f.added = true;
   if (file === 'fx') {
     const b = fxField(path);
     if (b) { f.min = b.min; f.max = b.max; }
+  }
+  if (file === 'sounds' && (path[1] === 'volume' || path[1] === 'pitch')) {
+    f.min = path[1] === 'volume' ? 0 : 0.5;
+    f.max = path[1] === 'volume' ? 3 : 2;
   }
   return f;
 }
@@ -439,7 +458,7 @@ export function modGroups(file: 'specs' | 'talents' | 'auras', id: string, scope
 
 // ------------------------------------------------------------------ the pages
 
-export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'icons' | 'options';
+export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'sounds' | 'icons' | 'options';
 
 export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The tab row is read left to right in these steps. */ step: string }[] = [
   { id: 'classes', label: 'Classes', step: 'Who', blurb: 'Health, resource and auto-attack of each class.' },
@@ -449,6 +468,7 @@ export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The t
   { id: 'passives', label: 'Passives', step: 'What they do', blurb: 'What a spec or talent gives without a button: stat bonuses, changes to skills, Cauterize.' },
   { id: 'auras', label: 'Buffs & debuffs', step: 'What they do', blurb: 'Every buff and debuff (the icons on a unit): duration, ticks, stacks, stat changes.' },
   { id: 'animations', label: 'Animations', step: 'What they do', blurb: 'How long the big visual effects take and stay (Dragon\'s Breath, Flamestrike, Charge, Heroic Leap). Looks only: never changes a match. Shows on the next cast.' },
+  { id: 'sounds', label: 'Sounds', step: 'Look', blurb: 'Every sound in the game: pick a recording from the library or upload your own, set the volume and pitch, or switch it off. Sounds only: never changes a match. Heard at once.' },
   { id: 'icons', label: 'Icon edit', step: 'Look', blurb: 'Pick the picture of any skill or buff from the whole icon library. Looks only: never changes a match. Shows at once.' },
   { id: 'options', label: 'Game options', step: 'Rules', blurb: 'Global rules: cooldowns, speeds, dampening, match length.' },
 ];
@@ -531,6 +551,12 @@ export function navFor(page: DevPageId): NavGroup[] {
       return [...byKind.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, entries]) => ({ title: cap(words(k)), entries }));
     }
     case 'icons': return iconNav();
+    case 'sounds': {
+      const groups = new Map<string, NavEntry[]>();
+      for (const s of soundList()) groups.set(s.group, [...(groups.get(s.group) ?? []), { id: s.id, name: s.label, sub: s.hint }]);
+      const lib = [...SOUND_LIBRARY.map((f) => ({ id: `lib:${f.file}`, name: f.label, sub: `${f.seconds} s` })), ...customSounds().map((f) => ({ id: `lib:${f.file}`, name: `Uploaded: ${f.label}`, sub: 'your own' }))];
+      return [...groups.entries()].map(([title, entries]) => ({ title, entries })).concat([{ title: 'Recording library (listen here)', entries: lib }]);
+    }
     case 'animations':
       {
       const sections = new Map<string, { id: string; name: string; sub: string }[]>();
@@ -552,6 +578,7 @@ export function entryFor(page: DevPageId, id: string): DevEntry | null {
     case 'auras': return auraEntry(id);
     case 'animations': return animationEntry(id);
     case 'icons': return iconEntry(id);
+    case 'sounds': return soundEntry(id);
     case 'options': return optionsEntry();
     default: return null;
   }
@@ -692,6 +719,25 @@ function animationEntry(id: string): DevEntry | null {
     lines: ['These only change how the effect looks. Times are in seconds. A change shows the next time the effect plays (cast it again).'],
     facts: [],
     groups: [{ id: 'timing', title: 'Timing and size', sub: 'seconds and scales', open: true, fields }],
+  };
+}
+
+function soundEntry(id: string): DevEntry | null {
+  if (id.startsWith('lib:')) {
+    const file = id.slice(4);
+    const f = SOUND_LIBRARY.find((x) => x.file === file) ?? customSounds().find((x) => x.file === file);
+    if (!f) return null;
+    const seconds = 'seconds' in f ? `${f.seconds} s` : 'uploaded';
+    return { file: 'sounds', id: SOUND_ID, name: f.label, sub: 'recording', lines: ['A recording you can give to any sound. Press Play to listen; pick it on the sound you want it for.'], facts: [['File', file], ['Length', seconds]], groups: [] };
+  }
+  const info: SoundInfo | undefined = soundList().find((s) => s.id === id);
+  if (!info) return null;
+  const fields = some(['file', 'volume', 'pitch', 'off'].map((k) => fieldAt('sounds', SOUND_ID, [id, k])));
+  return {
+    file: 'sounds', id: SOUND_ID, name: info.label, sub: info.group,
+    lines: [info.hint ?? 'A sound of the game.', 'Press Play to hear it as it is set now. Changes are heard at once.'],
+    facts: [['Sound id', id]],
+    groups: [{ id: 'sound', title: 'This sound', sub: 'recording, volume, pitch', open: true, fields }],
   };
 }
 
