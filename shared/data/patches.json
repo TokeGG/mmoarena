@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.46",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:06:36Z",
+  "title": "Balance changes",
+  "changes": [
+   "Slam: strength 15 to 0.",
+   "Game rules: rage from damage taken 0.08 to 0.03.",
+   "Game rules: rage from damage dealt 0.15 to 0.13."
+  ],
+  "by": "scrandy"
+ },
+ {
   "version": "0.69.45",
   "date": "2026-10-10",
   "at": "2026-10-10T03:30:38Z",
