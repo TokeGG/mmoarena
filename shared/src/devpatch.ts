@@ -109,6 +109,137 @@ function roots(file: DataPatch['file'], id: string, src: Source = LIVE): Record<
 
 type PatchAt = Pick<DataPatch, 'file' | 'id' | 'path'>;
 
+// ------------------------------------------------------------------ the data editor: a whole entry as JSON
+
+/** The path that stands for "the whole entry": the patch's value is then the entry as JSON text (the dev panel's data editor). */
+export const ENTITY = '$entity';
+export const isEntityPatch = (p: PatchAt): boolean => p.path.length === 1 && p.path[0] === ENTITY;
+/** The longest entry the data editor takes. */
+export const MAX_ENTITY_CHARS = 30000;
+const ENTITY_FILES: readonly PatchFile[] = ['abilities', 'auras', 'specs', 'talents'];
+export const canEditAsData = (file: PatchFile): boolean => ENTITY_FILES.includes(file);
+
+/** Every effect type a skill can have (what the sim knows how to run). */
+export const EFFECT_TYPES: readonly string[] = ['damage', 'heal', 'healMissing', 'aura', 'exsanguinate', 'interrupt', 'dispel', 'dashToTarget', 'healMax', 'leap', 'pull', 'flag', 'charge', 'blink', 'gain', 'zone', 'smoke', 'cleanse', 'freeMove', 'dropCombat', 'proc', 'cast', 'strip', 'dropTargets', 'mindControl', 'images', 'zoneBuff'];
+export const ABILITY_TARGET_TYPES: readonly string[] = ['self', 'enemy', 'ally', 'ally_or_self', 'any', 'aoe_enemy', 'aoe_all', 'ground'];
+export const SCHOOL_IDS: readonly string[] = ['physical', 'fire', 'frost', 'arcane', 'holy', 'shadow', 'nature'];
+export const AURA_KIND_IDS: readonly string[] = ['stun', 'incapacitate', 'fear', 'root', 'slow', 'speed', 'absorb', 'stealth', 'buff', 'dot', 'mark'];
+/** The fields an effect cannot do without (the rest are optional): a missing one would stop the sim. */
+const EFFECT_NEEDS: Record<string, readonly string[]> = { damage: ['amount'], heal: ['amount'], healMissing: ['pct'], healMax: ['pct'], aura: ['aura'], proc: ['p', 'effects'], cast: ['ability'], mindControl: ['duration'], images: ['count', 'duration', 'damage'], strip: ['kinds'], zoneBuff: ['aura', 'radius', 'duration'] };
+
+/** An entry's object as it is now (or in the data file, before any patch), the first one when a talent sits in several specs. */
+function entityObject(file: PatchFile, id: string, pristine = false): Record<string, unknown> | undefined {
+  return roots(file, id, pristine ? (PRISTINE as unknown as Source) : LIVE)[0];
+}
+
+/** An entry as the editor shows it: formatted JSON (undefined when there is no such entry, or its kind cannot be edited as data). */
+export function entityText(file: PatchFile, id: string, pristine = false): string | undefined {
+  if (!canEditAsData(file)) return undefined;
+  const o = entityObject(file, id, pristine);
+  return o ? JSON.stringify(o, null, 2) : undefined;
+}
+
+const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
+/** What is wrong with an entry typed into the data editor, in plain words (an empty list: it can be used). */
+export function entityProblems(file: PatchFile, id: string, text: string): string[] {
+  if (!canEditAsData(file)) return ['This kind of entry cannot be edited as data.'];
+  if (typeof text !== 'string' || !text.trim()) return ['Nothing there.'];
+  if (text.length > MAX_ENTITY_CHARS) return [`Too long: at most ${MAX_ENTITY_CHARS} characters.`];
+  if (!entityObject(file, id)) return ['That entry does not exist.'];
+  let v: unknown;
+  try {
+    v = JSON.parse(text);
+  } catch (e) {
+    return [`Not valid JSON: ${(e as Error).message}`];
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return ['It must be one object: { ... }.'];
+  const out: string[] = [];
+  const walk = (x: unknown, where: string, depth: number) => {
+    if (depth > 12) return void out.push(`${where}: nested too deeply.`);
+    if (typeof x === 'string') {
+      if (x.length > 600) out.push(`${where}: text longer than 600 characters.`);
+    } else if (typeof x === 'number') {
+      if (!Number.isFinite(x) || Math.abs(x) > MAX_ABS) out.push(`${where}: ${x} is not a sane number.`);
+    } else if (Array.isArray(x)) {
+      if (x.length > 60) out.push(`${where}: more than 60 items.`);
+      x.forEach((y, i) => walk(y, `${where}[${i}]`, depth + 1));
+    } else if (x && typeof x === 'object') {
+      const keys = Object.keys(x);
+      if (keys.length > 80) out.push(`${where}: more than 80 fields.`);
+      for (const k of keys) {
+        if (FORBIDDEN_KEYS.has(k)) out.push(`${where}: the name ${k} is not allowed.`);
+        else walk((x as Record<string, unknown>)[k], where ? `${where}.${k}` : k, depth + 1);
+      }
+    }
+  };
+  walk(v, '', 0);
+  if (out.length) return out;
+  const o = v as Record<string, unknown>;
+  const str = (k: string, max = 60) => {
+    if (typeof o[k] !== 'string' || !(o[k] as string).trim() || (o[k] as string).length > max) out.push(`"${k}" must be a short piece of text.`);
+  };
+  const effect = (e: unknown, where: string, depth: number) => {
+    if (depth > 4) return void out.push(`${where}: effects nested too deeply.`);
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return void out.push(`${where}: an effect is an object with a "type".`);
+    const r = e as Record<string, unknown>;
+    if (typeof r.type !== 'string' || !EFFECT_TYPES.includes(r.type)) return void out.push(`${where}: "type" must be one of ${EFFECT_TYPES.join(', ')}.`);
+    for (const need of EFFECT_NEEDS[r.type] ?? []) if (r[need] === undefined) out.push(`${where}: a ${r.type} effect needs "${need}".`);
+    if (typeof r.aura === 'string' && !Object.hasOwn(AURAS, r.aura)) out.push(`${where}: there is no buff or debuff called "${r.aura}".`);
+    if (r.type === 'cast' && typeof r.ability === 'string' && !Object.hasOwn(ABILITIES, r.ability)) out.push(`${where}: there is no skill called "${r.ability}".`);
+    if (r.type === 'proc') {
+      if (typeof r.p !== 'number' || r.p < 0 || r.p > 1) out.push(`${where}: "p" is a chance from 0 to 1.`);
+      if (Array.isArray(r.effects)) r.effects.forEach((x, i) => effect(x, `${where}.effects[${i}]`, depth + 1));
+      else out.push(`${where}: "effects" must be a list.`);
+    }
+  };
+  if (file === 'abilities') {
+    if (o.id !== id) out.push(`"id" must stay "${id}".`);
+    str('name', 40);
+    str('class', 20);
+    if (typeof o.school !== 'string' || !SCHOOL_IDS.includes(o.school)) out.push(`"school" must be one of ${SCHOOL_IDS.join(', ')}.`);
+    if (typeof o.target !== 'string' || !ABILITY_TARGET_TYPES.includes(o.target)) out.push(`"target" must be one of ${ABILITY_TARGET_TYPES.join(', ')}.`);
+    for (const k of ['castTime', 'cooldown', 'cost', 'range']) if (o[k] !== undefined && (typeof o[k] !== 'number' || (o[k] as number) < 0)) out.push(`"${k}" must be a number, 0 or more.`);
+    if (!Array.isArray(o.effects)) out.push('"effects" must be a list.');
+    else {
+      if (o.effects.length > 12) out.push('At most 12 effects.');
+      o.effects.forEach((e, i) => effect(e, `effects[${i}]`, 0));
+    }
+  } else if (file === 'auras') {
+    str('name', 40);
+    if (typeof o.kind !== 'string' || !AURA_KIND_IDS.includes(o.kind)) out.push(`"kind" must be one of ${AURA_KIND_IDS.join(', ')}.`);
+    if (o.duration !== undefined && (typeof o.duration !== 'number' || o.duration < 0)) out.push('"duration" must be a number of milliseconds, 0 or more.');
+  } else if (file === 'talents') {
+    if (o.id !== id) out.push(`"id" must stay "${id}".`);
+    str('name', 40);
+    str('desc', 400);
+    if (o.mods !== undefined && (typeof o.mods !== 'object' || !o.mods || Array.isArray(o.mods))) out.push('"mods" must be an object.');
+    const sw = o.swap as Record<string, unknown> | undefined;
+    if (sw !== undefined) {
+      if (!sw || typeof sw !== 'object' || typeof sw.to !== 'string' || !Object.hasOwn(ABILITIES, sw.to)) out.push('"swap.to" must be an existing skill.');
+      if (sw && typeof sw === 'object' && typeof sw.from !== 'string') out.push('"swap.from" must be the id of the skill it replaces.');
+    }
+  } else if (file === 'specs') {
+    if (o.id !== id) out.push(`"id" must stay "${id}".`);
+    str('name', 40);
+    const was = entityObject('specs', id, true)?.bar as string[] | undefined;
+    if (!Array.isArray(o.bar) || !o.bar.every((a) => typeof a === 'string' && Object.hasOwn(ABILITIES, a))) out.push('"bar" must be a list of existing skills.');
+    else if (was && o.bar.length !== was.length) out.push(`"bar" must keep its ${was.length} slots.`);
+  }
+  return out;
+}
+
+/** Put an entry's fields back as they were, or replace them (the same object stays, so everything that holds it sees the change). Returns the undo. */
+function replaceEntity(obj: Record<string, unknown>, next: Record<string, unknown>): () => void {
+  const was = { ...obj };
+  for (const k of Object.keys(obj)) delete obj[k];
+  Object.assign(obj, next);
+  return () => {
+    for (const k of Object.keys(obj)) delete obj[k];
+    Object.assign(obj, was);
+  };
+}
+
 /** What kind of stat change a path inside `mods` is (a spec, talent or buff that does not have it yet can be given it), with the value that does nothing. */
 export function modSlot(p: PatchAt): { kind: 'number' | 'flag'; def: number } | null {
   if (p.file !== 'specs' && p.file !== 'talents' && p.file !== 'auras') return null;
@@ -202,6 +333,7 @@ function valueFits(p: DataPatch): boolean {
 
 /** True when the patch names an existing number (or option), or a stat change that can be added, and sets it to something sane. */
 export function validPatch(p: DataPatch): boolean {
+  if (p && Array.isArray(p.path) && isEntityPatch(p)) return typeof p.id === 'string' && typeof p.value === 'string' && entityProblems(p.file, p.id, p.value).length === 0;
   return !!p && typeof p.id === 'string' && Array.isArray(p.path) && valueFits(p) && locate(p) !== null;
 }
 
@@ -218,6 +350,7 @@ function readAt(at: Loc, p: PatchAt): number | string | undefined {
 
 /** The value a patch would change, as it is now (a yes/no option reads 1 or 0; a stat change the data does not have reads as the value that does nothing). */
 export function currentValue(p: PatchAt): number | string | undefined {
+  if (isEntityPatch(p)) return entityText(p.file, p.id);
   if (p.file === 'icons') return locate(p) ? iconIdFor(p.path[0] as IconKind, p.id) ?? '' : undefined;
   const at = locate(p);
   return at ? readAt(at, p) : undefined;
@@ -225,6 +358,7 @@ export function currentValue(p: PatchAt): number | string | undefined {
 
 /** The value the data FILE has for a patch's spot, before any patch (undefined when the spot is not in the file; a stat change it lacks reads as the neutral value). */
 export function fileDefault(p: PatchAt): number | string | undefined {
+  if (isEntityPatch(p)) return entityText(p.file, p.id, true);
   if (p.file === 'icons') return locate(p) ? fileIconIdFor(p.path[0] as IconKind, p.id) ?? '' : undefined;
   const at = locateAll(p, PRISTINE as unknown as Source)[0];
   return at ? readAt(at, p) : undefined;
@@ -232,6 +366,7 @@ export function fileDefault(p: PatchAt): number | string | undefined {
 
 /** True when the data file has no such entry yet (a stat change the patch would add). */
 export function isAddition(p: PatchAt): boolean {
+  if (isEntityPatch(p)) return false;
   const at = locateAll(p, PRISTINE as unknown as Source)[0];
   return !!at && (at.rest.length > 0 || !Object.hasOwn(at.obj, at.key));
 }
@@ -239,8 +374,15 @@ export function isAddition(p: PatchAt): boolean {
 /** Apply patches to the live data; returns a function that puts every number back as it was. Invalid patches are skipped. */
 export function applyPatches(patches: readonly DataPatch[]): () => void {
   const undo: { obj: Record<string | number, unknown>; key: string | number; was: unknown; had: boolean }[] = [];
+  // whole entries first (the data editor), so a number patch to the same entry lands on the new one
+  const entityUndo: (() => void)[] = [];
   for (const p of patches) {
-    if (!validPatch(p)) continue;
+    if (!isEntityPatch(p) || !validPatch(p)) continue;
+    const next = JSON.parse(p.value as string) as Record<string, unknown>;
+    for (const root of roots(p.file, p.id)) entityUndo.push(replaceEntity(root, structuredClone(next)));
+  }
+  for (const p of patches) {
+    if (isEntityPatch(p) || !validPatch(p)) continue;
     const sw = isSwitch(p);
     const value = sw ? p.value === 1 : p.value;
     for (const at of locateAll(p)) {
@@ -268,6 +410,7 @@ export function applyPatches(patches: readonly DataPatch[]): () => void {
       if (u.had) u.obj[u.key] = u.was;
       else delete u.obj[u.key];
     }
+    for (let i = entityUndo.length - 1; i >= 0; i--) entityUndo[i]();
   };
 }
 

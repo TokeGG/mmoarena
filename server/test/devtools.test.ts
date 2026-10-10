@@ -381,7 +381,7 @@ describe('dev tools with other people in the match', () => {
     assert.ok(outB.some((m) => m.t === 'notice' && m.text.includes('Dee is testing')), 'and is told who changed them');
     lobby.handle(devP, { t: 'dev_pause', on: true } as ClientMsg);
     assert.equal(room.paused, true);
-    assert.ok(outB.some((m) => m.t === 'notice' && m.text.includes('paused')));
+    assert.ok(outB.some((m) => m.t === 'dev_state' && m.paused));
     // ranked: refused
     const ranked: any = (lobby as any).makeRoom(0, true, true, 'colosseum');
     const outD2: ServerMsg[] = [];

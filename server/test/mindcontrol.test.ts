@@ -27,10 +27,17 @@ describe('Mind Control reaches the priest\'s screen', () => {
     const foe = [...sim.units.values()].find((u) => u.team !== me.team)!;
     me.bar = [...me.bar.slice(0, 7), 'mind_control'];
     me.pos = { x: 0, z: 0 };
-    foe.pos = { x: 0, z: 12 };
+    foe.pos = { x: me.pos.x + 3, z: me.pos.z + 3, ...(me.pos.y !== undefined ? { y: me.pos.y } : {}) } as any;
     foe.maxHealth = foe.health = 1e6;
     for (let i = 0; i < 5; i++) room.tick(); // the match goes live
-    const cast = sim.useAbility(me.id, 'mind_control', foe.id);
+    // some maps have a wall at the middle: try a few open spots until the priest can see the target
+    let cast = sim.useAbility(me.id, 'mind_control', foe.id);
+    for (const [x, z] of [[-20, -10], [20, 10], [-10, 20], [10, -20], [0, 25]]) {
+      if (cast.ok) break;
+      me.pos = { x, z };
+      foe.pos = { x: x + 3, z: z + 3 };
+      cast = sim.useAbility(me.id, 'mind_control', foe.id);
+    }
     assert.ok(cast.ok, JSON.stringify(cast));
     const controlling = () => out.filter((m) => m.t === 'controlling') as Extract<ServerMsg, { t: 'controlling' }>[];
     for (let i = 0; i < 400 && !controlling().length; i++) room.tick();

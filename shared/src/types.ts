@@ -588,6 +588,8 @@ export interface Snapshot {
   zones: ZoneSnap[];
   /** A dev paused this match (dev tools, against bots only): nothing moves until it resumes. */
   paused?: true;
+  /** Name of whoever paused it. */
+  pausedBy?: string;
 }
 
 export interface ZoneSnap {

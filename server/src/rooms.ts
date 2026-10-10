@@ -686,6 +686,8 @@ export class Room {
   /** Dev tools: the test numbers in this match, whether it is paused, and whether either ever happened (then it counts for nothing). */
   devPatches: DataPatch[] = [];
   paused = false;
+  /** Who paused it (shown in the Paused banner). */
+  pausedBy = '';
   devTest = false;
   private pausedTicks = 0;
 
@@ -707,11 +709,11 @@ export class Room {
       if (this.pausedTicks++ % this.ticksIn(250) === 0) {
         for (const [p, id] of this.viewers()) {
           const me = this.sim.units.get(id);
-          if (me && p.ws.readyState === 1) p.ws.send(JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(me.team), paused: true }, events: [] }));
+          if (me && p.ws.readyState === 1) p.ws.send(JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(me.team), paused: true, ...(this.pausedBy ? { pausedBy: this.pausedBy } : {}) }, events: [] }));
         }
         // watchers see it paused too (late watchers stay on their delayed view, which stops moving)
         if (this.spectators.size) {
-          const frame = JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(), paused: true }, events: [] });
+          const frame = JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(), paused: true, ...(this.pausedBy ? { pausedBy: this.pausedBy } : {}) }, events: [] });
           for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
         }
       }
@@ -1146,10 +1148,10 @@ export class Lobby {
         const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed);
         if (!room) return;
         room.paused = !!msg.on;
+        room.pausedBy = room.paused ? 'the owner' : '';
         room.devTest = true; // a paused match no longer counts
         for (const q of [...room.players.values(), ...room.spectators]) {
           send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
-          if (q !== p) send(q, { t: 'notice', text: room.paused ? 'The owner paused the match (it no longer counts).' : 'The owner resumed the match.' });
         }
         log(msg.on ? 'pause match' : 'resume match', room.id);
         send(p, this.overviewMsg('owner', p));
@@ -1870,11 +1872,10 @@ export class Lobby {
         if (msg.t === 'dev_pause') {
           room.devTest = true; // from now on this match counts for nothing (progress, rating, replays, bot learning)
           room.paused = msg.on;
+          room.pausedBy = msg.on ? (p.account?.name ?? p.name) : '';
           room.clearInputs(); // whatever was queued before the pause must not move anyone after it
-          const by = p.account?.name ?? p.name;
           for (const q of [...room.players.values(), ...room.spectators]) {
             send(q, { t: 'dev_state', paused: room.paused, patches: room.devPatches, noCooldowns: room.sim.noCooldowns });
-            if (q !== p) send(q, { t: 'notice', text: `${by} ${msg.on ? 'paused' : 'resumed'} the match.` });
           }
         } else this.setRoomPatches(room, p, msg.patches);
         break;
