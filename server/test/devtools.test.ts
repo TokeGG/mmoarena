@@ -73,7 +73,7 @@ describe('dev commits to GitHub', () => {
     assert.ok(!calls.some((c) => c.url.includes('/git/refs/heads/main') && c.method === 'PATCH'), 'main is never moved directly');
     assert.equal(calls.filter((c) => c.url.endsWith('/git/commits') && c.method === 'POST').length, 1, 'one commit');
     const files = tree(calls);
-    const paths = files.map((f) => f.path).sort();
+    const paths = files.map((f) => f.path).filter((x) => x !== 'shared/data/rotations.json').sort(); // the bots' re-learned damage orders may come along
     assert.deepEqual(paths, ['README.md', 'client/package.json', 'package.json', 'shared/data/abilities.json', 'shared/data/patches.json', 'shared/src/replay.ts']);
     const patches = JSON.parse(files.find((f) => f.path === 'shared/data/patches.json')!.content) as { version: string; title: string; changes: string[]; at: string }[];
     const prev = JSON.parse(fs.readFileSync(new URL('../../shared/data/patches.json', import.meta.url), 'utf8')) as { version: string }[];
@@ -588,5 +588,36 @@ describe('the owner sees every change', () => {
       assert.deepEqual(last(out, 'owner_log')!.rows, []);
       assert.match(String(last(out, 'owner_log')!.error), /owner/);
     }
+  });
+});
+
+describe('the bots learn a patch', () => {
+  it('a balance commit brings the bots\' re-learned damage orders in the same commit, and says so', async () => {
+    const calls: { url: string; method: string; body?: any }[] = [];
+    const http = (async (url: string, init?: RequestInit) => {
+      const method = init?.method ?? 'GET';
+      const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+      calls.push({ url, method, body });
+      const ok = (b: unknown) => new Response(JSON.stringify(b), { status: 200 });
+      if (url.includes('/git/ref/heads/')) return ok({ object: { sha: 'h' } });
+      if (url.includes('/git/commits/')) return ok({ tree: { sha: 't' } });
+      if (url.endsWith('/git/trees')) return ok({ sha: 't2' });
+      if (url.endsWith('/git/commits') && method === 'POST') return ok({ sha: 'abc123' });
+      if (url.includes('/git/refs/heads/') && method === 'PATCH') return ok({});
+      const m = /\/contents\/([^?]+)/.exec(url);
+      if (m && method === 'GET') return ok({ content: fs.readFileSync(new URL('../../' + m[1], import.meta.url)).toString('base64') });
+      return new Response('{}', { status: 404 });
+    }) as typeof fetch;
+    const { lobby, devP } = await world(http);
+    // Fireball much slower: the mage's best order moves
+    lobby.handle(devP, { t: 'dev_commit', patches: [{ file: 'abilities', id: 'fireball', path: ['castTime'], value: 6000 }, { file: 'abilities', id: 'frostbolt', path: ['castTime'], value: 300 }] } as ClientMsg);
+    await new Promise((r) => setTimeout(r, 4000));
+    const tree = calls.find((c) => c.url.endsWith('/git/trees'))?.body.tree as { path: string; content: string }[] | undefined;
+    assert.ok(tree, 'a commit was made');
+    const rot = tree!.find((f) => f.path === 'shared/data/rotations.json');
+    assert.ok(rot, 'the rotations file is part of it');
+    assert.ok(JSON.parse(rot!.content)['mage:fire'], 'and still a full table');
+    const notes = JSON.parse(tree!.find((f) => f.path === 'shared/data/patches.json')!.content)[0].changes as string[];
+    assert.ok(notes.some((l) => /bots adjusted/.test(l)));
   });
 });

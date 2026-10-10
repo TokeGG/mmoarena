@@ -155,7 +155,7 @@ describe('committing passives through the dev tools', () => {
     assert.equal(r.applied, 6, r.skipped.join('; '));
     assert.deepEqual(r.skipped, []);
     const files = tree(calls);
-    assert.deepEqual(files.map((f) => f.path).sort(), ['README.md', 'client/package.json', 'package.json', 'shared/data/classes.json', 'shared/data/patches.json', 'shared/data/specs.json', 'shared/data/talents.json', 'shared/data/tuning.json', 'shared/src/replay.ts']);
+    assert.deepEqual(files.map((f) => f.path).filter((x) => x !== 'shared/data/rotations.json').sort(), ['README.md', 'client/package.json', 'package.json', 'shared/data/classes.json', 'shared/data/patches.json', 'shared/data/specs.json', 'shared/data/talents.json', 'shared/data/tuning.json', 'shared/src/replay.ts']);
     const specs = files.find((f) => f.path === 'shared/data/specs.json')!.content;
     assert.equal(find(specs, 'holy').mods.healingDone, 1.1);
     assert.equal(find(specs, 'discipline').mods.ability.power_word_shield.heal, 1.75);

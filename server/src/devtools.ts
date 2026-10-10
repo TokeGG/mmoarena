@@ -1,5 +1,5 @@
 import type { DevCommitRow, OwnerLogRow } from '@arena/shared';
-import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MAX_ENTITY_CHARS, PATCH_FILES, smokeProblem, applyPatches, isEntityPatch, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
+import { ICON_TABLE, resolveIcon, ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MAX_ENTITY_CHARS, PATCH_FILES, affectedSpecs, smokeProblem, trainRotations, applyPatches, isEntityPatch, currentValue, isSwitch, mergePatches, modSlot, nameOf, plainPath, validPatch } from '@arena/shared';
 import { ABILITIES, AURAS } from '@arena/shared';
 import { dataFileText, mergePlayers } from '@arena/shared';
 import type { ClassId, DataPatch, IconKind, IconTable, PlayersEntry, PlayersFile, ProposalRow } from '@arena/shared';
@@ -254,6 +254,7 @@ export class DevTools {
         const skipped: string[] = [];
         const lines: string[] = [];
         const notes: string[] = [];
+        const todoAll: DataPatch[] = [];
         for (const file of PATCH_FILES) {
           const mine = patches.filter((p) => p.file === file);
           if (!mine.length) continue;
@@ -265,11 +266,35 @@ export class DevTools {
             else if (isEntityPatch(p) ? was === compactJson(p.value) : String(was) === String(p.value)) skipped.push(`${label(p)} (already ${isEntityPatch(p) ? 'like that' : p.value})`);
             else {
               todo.push(p);
+              todoAll.push(p);
               notes.push(isEntityPatch(p) ? `${label(p)}` : `${label(p)}: ${was} -> ${p.value}`);
               lines.push(playerLine(text, file, p, was));
             }
           }
           if (todo.length) files.push({ path: FILES[file], content: patchJsonText(text, file, todo) });
+        }
+        // the bots learn the patch: their damage orders are searched again against the new numbers and go in the same commit
+        if (files.some((f) => f.path !== FILES.fx && f.path !== FILES.icons)) {
+          try {
+            const keys = affectedSpecs(todoAll);
+            if (keys.length) {
+              const was = await read('shared/data/rotations.json');
+              const undo = applyPatches(todoAll); // (no waiting inside: nothing else may run while the numbers are changed)
+              let next: Record<string, string[]>;
+              try {
+                next = trainRotations(JSON.parse(was) as Record<string, string[]>, { only: keys, seconds: 30, tries: 90 });
+              } finally {
+                undo();
+              }
+              const text = JSON.stringify(next, null, 1) + '\n';
+              if (text !== was) {
+                files.push({ path: 'shared/data/rotations.json', content: text });
+                lines.push('The bots adjusted how they play to these changes.');
+              }
+            }
+          } catch {
+            /* the numbers still go in: the bots learn on the next commit or from their next matches */
+          }
         }
         if (!files.length) throw new Error(`Nothing was committed: ${skipped.length ? skipped.join('; ') : 'those numbers are already what the files have'}.`);
         return { files, lines, sim: files.some((f) => f.path !== FILES.fx && f.path !== FILES.icons), message: (version) => `Dev tuning by ${by} (${version}): ${notes.slice(0, 3).join('; ')}${notes.length > 3 ? ` and ${notes.length - 3} more` : ''}${note ? `\n\n${note}` : ''}`, extra: { applied: notes.length, skipped } };
