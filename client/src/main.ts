@@ -768,7 +768,7 @@ function fixedStep() {
   const me = latest.units.find((u) => u.id === you);
   if (!me) return;
   const sample = controls.sample(DT);
-  const jump = sample.jump && me.alive && !me.controlled && !hovers(me) && canStartJump(performance.now() - myJumpAt);
+  const jump = sample.jump && me.alive && !me.controlled && !hovers(me) && canStartJump((jumpTicks + 1) * tickMs); // counted in ticks like the server (one input per tick), not wall time: a late frame that plays several steps at once must not send a jump the server will refuse
   if (jump) {
     myJumpAt = performance.now();
     audio.jump();
