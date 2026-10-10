@@ -1,5 +1,20 @@
 [
  {
+  "version": "0.69.40",
+  "date": "2026-10-10",
+  "at": "2026-10-10T00:46:59Z",
+  "title": "Balance changes",
+  "changes": [
+   "Sweep: damage 300 to 240.",
+   "Bloodthirst: damage 200 to 180.",
+   "Axe Throw: cooldown 2 s to 4 s.",
+   "Axe Throw: damage 300 to 275.",
+   "Slice and Dice: damage 25 to 40.",
+   "Shadow Mend: Vanish: added effect 1 (extra), percent 0.5 to 0.3."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.39",
   "date": "2026-10-10",
   "at": "2026-10-10T00:04:18Z",
