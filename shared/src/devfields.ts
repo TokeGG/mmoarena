@@ -5,7 +5,7 @@ import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
 import { FX_ID, FX_INFO, fxField } from './fx';
 import { LOOKS_ID, LOOK_CHOICES, LOOK_COLORS, LOOK_FORMS, LOOK_HIT_STYLES, LOOK_IMPACTS, LOOK_NUMBER_BOUNDS, LOOK_TRAILS } from './looks';
 import { LOOKS } from './data';
-import { BODY_PARTS, characterGroups, modelBounds, modelFileChoices, slotGroups, weaponGroups, SLOT_LABEL, MODELS_ID } from './modeldata';
+import { BODY_PARTS, characterGroups, modelBounds, modelFileChoices, lookFileChoices, slotGroups, weaponGroups, SLOT_LABEL, MODELS_ID } from './modeldata';
 import { MODELS_DATA } from './data';
 import { SOUND_ID, SOUND_LIBRARY, customSounds, soundFileChoices, soundList } from './sounds';
 import type { SoundInfo } from './sounds';
@@ -358,7 +358,7 @@ export function fieldAt(file: PatchFile, id: string, path: (string | number)[], 
   const plain = plainPath(file, id, path);
   const soundFile = file === 'sounds' && path[1] === 'file' ? soundFileChoices() : null;
   const lookChoice = file === 'looks' && typeof path[1] === 'string' && LOOK_CHOICES[path[1]] ? lookLabels(path[1]) : null;
-  const modelFile = file === 'models' && path[path.length - 1] === 'file' ? modelFileChoices() : null;
+  const modelFile = file === 'models' && path[path.length - 1] === 'file' ? modelFileChoices() : file === 'looks' && path[1] === 'file' ? lookFileChoices() : null;
   const choice = modelFile ? { label: 'Model', options: modelFile.options } : lookChoice ? { label: 'Choice', options: lookChoice.options } : soundFile ? { label: 'Recording', options: soundFile.options } : file === 'abilities' && path.length === 1 ? ABILITY_CHOICES[String(path[0])] : undefined;
   const kind: DevField['kind'] = choice || soundFile || modelFile ? 'choice' : isSwitch({ file, id, path }) ? 'switch' : 'number';
   const f: DevField = { file, id, path, kind, label: over.label ?? plain.label, unit: kind === 'number' ? over.unit ?? plain.unit : 'plain', value: now, base };
@@ -742,6 +742,7 @@ const LOOK_FIELDS: [string, string, string][] = [
   ['form', 'Shape in flight', 'What flies from the caster to the target (a skill that does not fly anything keeps its own look).'],
   ['color', 'Colour', 'Tints the projectile and its trail.'],
   ['trail', 'Trail', 'What it leaves behind.'],
+  ['file', 'Your own picture or model', 'A picture (png, webp, jpg) or model (.glb) you uploaded, flown in place of the projectile\'s core. Drop a file on the skill view to upload and pick it.'],
   ['size', 'Size', 'How big it is drawn.'],
   ['trailAmount', 'Trail amount', 'How much it leaves behind (0 none, more is thicker).'],
   ['speed', 'Speed', 'How fast it is drawn flying. The hit still lands when it always did: this is only the picture.'],
@@ -758,7 +759,7 @@ function lookGroups(abilityId: string): FieldGroup[] {
     return fieldAt('looks', LOOKS_ID, [abilityId, key], { label: lf[1], hint: lf[2] });
   };
   return [
-    { id: 'look-flight', title: 'How it flies', sub: 'shape, colour, trail, size and speed of the projectile', open: true, fields: some(['form', 'color', 'trail', 'size', 'trailAmount', 'speed'].map(field)) },
+    { id: 'look-flight', title: 'How it flies', sub: 'shape, colour, trail, size and speed of the projectile', open: true, fields: some(['form', 'file', 'color', 'trail', 'size', 'trailAmount', 'speed'].map(field)) },
     { id: 'look-hit', title: 'How it hits', sub: 'the impact on the target', open: true, fields: some(['hitKind', 'hitStyle', 'hitSize'].map(field)) },
   ];
 }

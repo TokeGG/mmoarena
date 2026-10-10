@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, FX, ICONS, LOOKS, MODELS_DATA, SOUNDS, SPECS, TALENTS, TUNING } from './data';
 import { LOOKS_ID, LOOK_CHOICES, LOOK_NUMBER_BOUNDS } from './looks';
-import { MODELS_ID, isModelFile, modelBounds } from './modeldata';
+import { MODELS_ID, isLookFile, isModelFile, modelBounds } from './modeldata';
 import { SOUND_FIELD_BOUNDS, SOUND_ID, isSoundFile } from './sounds';
 import { FX_ID, fxField } from './fx';
 import { ICON_TABLE, fileIconIdFor, iconExists, iconIdFor } from './iconlib';
@@ -302,7 +302,7 @@ function locateAll(p: PatchAt, src: Source = LIVE): Loc[] {
   // a skill's look: one part of it (form, colour, trail, size...)
   if (p.file === 'looks') {
     const [aid, key] = p.path;
-    if (p.id !== LOOKS_ID || p.path.length !== 2 || typeof aid !== 'string' || typeof key !== 'string' || !(key in LOOK_CHOICES || key in LOOK_NUMBER_BOUNDS) || !Object.hasOwn(src.LOOKS, aid)) return [];
+    if (p.id !== LOOKS_ID || p.path.length !== 2 || typeof aid !== 'string' || typeof key !== 'string' || !(key in LOOK_CHOICES || key in LOOK_NUMBER_BOUNDS || key === 'file') || !Object.hasOwn(src.LOOKS, aid)) return [];
     return [{ obj: (src.LOOKS as unknown as Record<string, Record<string, unknown>>)[aid], key, rest: [] }];
   }
   // a sound: one of the four settings (file, volume, pitch, off) of a sound id
@@ -356,6 +356,7 @@ function valueFits(p: DataPatch): boolean {
   if (isSwitch(p)) return p.value === 0 || p.value === 1;
   if (p.file === 'looks') {
     const key = String(p.path[1]);
+    if (key === 'file') return isLookFile(p.value);
     if (key in LOOK_CHOICES) return typeof p.value === 'string' && LOOK_CHOICES[key].includes(p.value);
     const nb = LOOK_NUMBER_BOUNDS[key];
     return !!nb && typeof p.value === 'number' && Number.isFinite(p.value) && p.value >= nb.min && p.value <= nb.max;

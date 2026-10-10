@@ -7,17 +7,22 @@ import type { Store } from './store';
  * repository): each file is kept as base64 under `modelfile:<name>` and the list under `modellist`. The server serves them at
  * /models/custom/<name> (the client's loader fetches /models/<file>), and lists them at GET /api/sounds/custom.
  */
-export interface ModelRecord { name: string; label: string; type: 'glb'; by: string; at: number }
+export interface ModelRecord { name: string; label: string; type: 'glb' | 'png' | 'webp' | 'jpg'; by: string; at: number }
 export type ModelResult = { ok: true; file: string } | { ok: false; status: number; text: string };
 
 const LIST = 'modellist';
 const MAX_FILES = 40;
 const key = (name: string) => `modelfile:${name}`;
-export const MIME: Record<ModelRecord['type'], string> = { glb: 'model/gltf-binary' };
+export const MIME: Record<ModelRecord['type'], string> = { glb: 'model/gltf-binary', png: 'image/png', webp: 'image/webp', jpg: 'image/jpeg' };
 
-/** A binary glTF starts with "glTF" and version 2 (the file name is not trusted). */
+/** What the bytes are, from their first bytes (the file name is not trusted): a binary glTF 2.0, or a png, webp or jpeg picture. */
 export function modelType(b: Buffer): ModelRecord['type'] | null {
-  return b.length > 20 && b.toString('latin1', 0, 4) === 'glTF' && b.readUInt32LE(4) === 2 ? 'glb' : null;
+  if (b.length < 20) return null;
+  if (b.toString('latin1', 0, 4) === 'glTF' && b.readUInt32LE(4) === 2) return 'glb';
+  if (b[0] === 0x89 && b.toString('latin1', 1, 4) === 'PNG') return 'png';
+  if (b.toString('latin1', 0, 4) === 'RIFF' && b.toString('latin1', 8, 12) === 'WEBP') return 'webp';
+  if (b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return 'jpg';
+  return null;
 }
 
 const slug = (s: string) => s.toLowerCase().replace(/\.[a-z0-9]+$/, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
@@ -69,7 +74,7 @@ export class CustomModels {
     const buf = Buffer.from(b.data, 'base64');
     if (!buf.length || buf.length > CUSTOM_MODEL_LIMIT_BYTES) return { ok: false, status: 413, text: `A model can be at most ${Math.round(CUSTOM_MODEL_LIMIT_BYTES / 1000)} KB.` };
     const type = modelType(buf);
-    if (!type) return { ok: false, status: 400, text: 'That is not a .glb model (a binary glTF 2.0 file).' };
+    if (!type) return { ok: false, status: 400, text: 'That is not a .glb model (a binary glTF 2.0 file) or a png, webp or jpg picture.' };
     let name = slug(b.name) || 'model';
     for (let n = 2; this.list.some((r) => r.name === name); n++) name = `${slug(b.name) || 'model'}-${n}`.slice(0, 48);
     await this.store.set(key(name), buf.toString('base64'));
@@ -82,7 +87,7 @@ export class CustomModels {
   remove(by: string, file: string): Promise<ModelResult> {
     const run = this.chain.then(async (): Promise<ModelResult> => {
       await this.ready;
-      const m = /^([a-z0-9-]{1,48})(?:\.(glb))?$/.exec(file);
+      const m = /^([a-z0-9-]{1,48})(?:\.(glb|png|webp|jpg))?$/.exec(file);
       const r = m && this.list.find((x) => x.name === m[1]);
       if (!r) return { ok: false, status: 404, text: 'That model is gone.' };
       this.list = this.list.filter((x) => x !== r);

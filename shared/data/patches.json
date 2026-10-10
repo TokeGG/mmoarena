@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.82",
+  "date": "2026-10-10",
+  "at": "2026-10-10T23:06:13Z",
+  "title": "Housekeeping",
+  "changes": [
+    "Behind-the-scenes fixes; no change to how matches play."
+  ]
+ },
+ {
   "version": "0.69.81",
   "date": "2026-10-10",
   "at": "2026-10-10T22:57:09Z",

@@ -393,7 +393,7 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
           .catch(() => res.writeHead(500).end());
         return;
       }
-      const model = err ? /^\/models\/custom\/([a-z0-9-]{1,48})\.(glb)$/.exec(rel) : null;
+      const model = err ? /^\/models\/custom\/([a-z0-9-]{1,48})\.(glb|png|webp|jpg)$/.exec(rel) : null;
       if (model) {
         customModels
           .file(model[1], model[2])

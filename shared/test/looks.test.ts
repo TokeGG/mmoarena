@@ -30,3 +30,16 @@ describe('skill looks', () => {
     assert.ok(LOOK_CHOICES.trail.includes('frost'));
   });
 });
+
+describe('a skill\'s own picture or model', () => {
+  it('a look can be given an uploaded picture or model, and only a file the store could have made', () => {
+    const p = (value: string) => ({ file: 'looks' as const, id: LOOKS_ID, path: ['frostbolt', 'file'], value });
+    assert.ok(validPatch(p('')) && validPatch(p('custom/my-orb.png')) && validPatch(p('custom/my-bolt.glb')) && validPatch(p('custom/a1.webp')));
+    assert.ok(!validPatch(p('../etc/passwd')) && !validPatch(p('custom/x.exe')) && !validPatch(p('https://example.com/x.png')));
+    const undo = applyPatches([p('custom/my-orb.png')]);
+    assert.equal(skillLook('frostbolt').file, 'custom/my-orb.png');
+    assert.equal(isCustomLook(skillLook('frostbolt')), true);
+    undo();
+    assert.equal(skillLook('frostbolt').file, '');
+  });
+});
