@@ -530,6 +530,16 @@ export class Hud {
       let p = this.plates.get(u.id);
       if (!p) {
         const view = new PlateView();
+        // click the nameplate to target them (a plain left click, like the frames: a right button is the camera)
+        const plateId = u.id;
+        view.root.style.pointerEvents = 'auto';
+        view.root.style.cursor = 'pointer';
+        view.root.style.userSelect = 'none';
+        view.root.addEventListener('mousedown', (e) => {
+          if (e.button !== 0 || e.buttons !== 1) return;
+          e.stopPropagation();
+          this.handlers.onTarget(plateId);
+        });
         $('labels').append(view.root);
         p = { view, av: '', mk: 0 };
         this.plates.set(u.id, p);
