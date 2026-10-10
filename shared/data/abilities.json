@@ -298,7 +298,7 @@
   "target": "any",
   "range": 30,
   "castTime": 0,
-  "cooldown": 8000,
+  "cooldown": 12000,
   "gcd": true,
   "cost": 40,
   "effects": [

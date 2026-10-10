@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.53",
+  "date": "2026-10-10",
+  "at": "2026-10-10T08:45:45Z",
+  "title": "Balance changes",
+  "changes": [
+   "Dispel Magic: cooldown 8 s to 12 s."
+  ],
+  "by": "Twizz"
+ },
+ {
   "version": "0.69.52",
   "date": "2026-10-10",
   "at": "2026-10-10T07:18:09Z",
