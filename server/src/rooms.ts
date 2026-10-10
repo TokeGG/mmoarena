@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import type { WebSocket } from 'ws';
-import { ARENAS, ArenaSim, findArena, customArenas, isCustomArena, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
+import { ARENAS, ArenaSim, disabledMaps, mapDisabled, findArena, customArenas, isCustomArena, Bot, TUNING, SlimEncoder, CLASSES, PATCHES, botBuild, PROTOCOL_VERSION, ReplayRecorder, START_RATING, arenaById, resolveCosmetics, packHudDefault } from '@arena/shared';
 import type { HudLayoutMap, StatRow, FriendRow, FriendStatus, LiveMatch, MatchPlayer, MatchRecord, PartyInfo, RosterEntry, Snapshot, SimEvent, Unit } from '@arena/shared';
 import { issueProfile, verifyProfile } from './profile';
 import { findMatch } from './matchmaking';
@@ -137,8 +137,9 @@ export const DUEL_MAP = 'overlook';
 
 /** An arena id, resolving 'random' (or anything unknown) to a random arena. */
 export function pickMap(pref: string, avoid?: string): string {
-  if (findArena(pref)) return pref; // a custom map can be picked by name; it is never in the random pool below
-  const pool = ARENAS.filter((a) => a.randomPool !== false);
+  if (findArena(pref) && !mapDisabled(pref)) return pref; // a custom map can be picked by name; it is never in the random pool below
+  const open = ARENAS.filter((a) => a.randomPool !== false);
+  const pool = open.some((a) => !mapDisabled(a.id)) ? open.filter((a) => !mapDisabled(a.id)) : open; // switched off maps are left out (unless that leaves none)
   const fresh = pool.filter((a) => a.id !== avoid); // never the arena that was just played
   const from = fresh.length ? fresh : pool;
   return from[Math.floor(Math.random() * from.length)].id;
@@ -148,7 +149,7 @@ export function pickMap(pref: string, avoid?: string): string {
  * The map a queued player asks for. Custom maps are for practice, parties and the owner's bot matches only: the ranked and
  * the normal queue (which pair people who ask for the same map) treat a custom pick as 'random', so the pool is built-ins.
  */
-export const queuePref = (pref: string): string => (isCustomArena(pref) ? 'random' : pref);
+export const queuePref = (pref: string): string => (isCustomArena(pref) || mapDisabled(pref) ? 'random' : pref);
 
 export class Room {
   readonly sim: ArenaSim;
@@ -1533,8 +1534,10 @@ export class Lobby {
     // the owner can do it anywhere: in their own match or one they are watching, ranked included (it then stops counting)
     if (p.ctl) return null; // playing a bot in secret: nothing that would announce itself to the others
     if (p.ownerOk) return p.room ?? p.watching ?? null;
-    const r = p.room;
-    return r && this.isDev(p) && !r.isRanked ? r : null;
+    if (!this.isDev(p)) return null;
+    // a dev can also tune and pause a bot match they are watching (those are made for testing)
+    const r = p.room ?? (p.watching?.botsOnly ? p.watching : null);
+    return r && !r.isRanked ? r : null;
   }
   /** Last suggestion time per account and per network address (old entries are swept). */
   private lastSuggest = new Map<string, number>();
@@ -1562,7 +1565,7 @@ export class Lobby {
     // the owner's default HUD layout, for everyone (guests and spectators too)
     if (this.hudDef) send(out, this.hudDef);
     // the owner's custom maps, so the pickers, the scene and the minimap know them
-    if (customArenas().length) send(out, { t: 'custom_maps', maps: [...customArenas()] });
+    if (customArenas().length || disabledMaps().length) send(out, { t: 'custom_maps', maps: [...customArenas()], off: disabledMaps() });
     // a recent announcement greets people who come online just after it
     if (this.lastAnnounce && Date.now() - this.lastAnnounce.at < ANNOUNCE_KEEP_MS) send(out, this.lastAnnounce);
     return out;
@@ -1570,7 +1573,7 @@ export class Lobby {
 
   /** The custom maps changed: every connected client gets the new list (their pickers and scenes). */
   customMapsChanged(maps: readonly ArenaDef[]): void {
-    for (const q of this.conns) send(q, { t: 'custom_maps', maps: [...maps] });
+    for (const q of this.conns) send(q, { t: 'custom_maps', maps: [...maps], off: disabledMaps() });
   }
 
   /** Save (or, with null, remove) the default HUD layout, tell everyone connected, and write the admin log. */
@@ -2323,14 +2326,18 @@ export class Lobby {
         p.follow = key;
         send(p, { t: 'following', name: msg.name });
         // already in a match: go and watch it now (dummy practice included: the owner sees everything)
-        const target = [...this.conns].find((q) => q.account?.key === key && q.room);
+        const target = [...this.conns].find((q) => q.account?.key === key && (q.room || q.watching));
         if (target && !this.busy(p)) this.pullFollowers(target);
         else send(p, { t: 'notice', text: `Following ${msg.name}: you will join their next match as soon as it starts.` });
         break;
       }
       case 'maps_list':
         if (this.ownerOnly(p, 'The map editor') || !p.ownerOk) return;
-        send(p, { t: 'custom_maps', maps: [...customArenas()] });
+        send(p, { t: 'custom_maps', maps: [...customArenas()], off: disabledMaps() });
+        break;
+      case 'map_enable':
+        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        void this.customMaps.setAvailable(p.account?.name ?? p.name, msg.id, msg.on).then((r) => send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id } : {}) }));
         break;
       case 'map_save':
       case 'map_delete': {
@@ -2352,6 +2359,7 @@ export class Lobby {
         msg.teams.forEach((side, team) => side.forEach((b) => room.addNpc(b.classId, team as TeamId, msg.difficulty, b.spec)));
         this.rooms.add(room);
         room.addSpectator(p);
+        this.pullFollowers(p); // whoever follows this account comes along
         this.changed(p);
         break;
       }
@@ -2465,12 +2473,12 @@ export class Lobby {
   /** Something about `p` changed (online, queueing, in a match...): tell the friends who are watching their list. */
   /** `q` just went into a match: an owner following them comes along as a live spectator, wherever they were watching. */
   private pullFollowers(q: Player): void {
-    const room = q.room;
+    const room = q.room ?? q.watching; // in a match, or watching one (a bot battle they just started)
     const key = q.account?.key;
     if (!room || !key) return;
     for (const f of this.conns) {
-      // a dev follows into matches a dev may watch (listed ones, on the delayed view), never into private practice
-      if (f.follow !== key || !(f.ownerOk || (this.adminAccess(f) && room.watchable)) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
+      // a dev follows into matches a dev may watch (listed ones, on the delayed view) and into bot battles, never into private practice
+      if (f.follow !== key || !(f.ownerOk || (this.adminAccess(f) && (room.watchable || room.botsOnly))) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
       f.watching?.removeSpectator(f);
       room.addSpectator(f);
       send(f, { t: 'notice', text: `Following ${q.account!.name} into their match.` });

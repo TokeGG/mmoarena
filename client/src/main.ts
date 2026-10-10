@@ -1,6 +1,6 @@
 import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
 import { helpWindow } from './tourUi';
-import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
+import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, setDisabledMaps, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { UpdateNotice } from './updateNotice';
@@ -451,6 +451,7 @@ function onMessage(raw: MessageEvent) {
     case 'custom_maps':
       // the owner's custom maps: known to every lookup from now on (menus, scene, minimap, watch labels)
       registerCustomArenas(m.maps);
+      setDisabledMaps(m.off ?? []);
       mainMenu.refreshMaps();
       adminPanel.handle(m);
       break;
@@ -1546,7 +1547,7 @@ function startSpectate(kind: 'live' | 'replay', mapId: string, id?: string, runn
   scene.setMap(arena.id);
   matchStarting = true; // a watched match or replay is on its own map, whatever the menu shows
   devPanel.setAvailable(false); // test numbers never carry over from a match you played
-  if (accountUi.account?.ownerOk && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched
+  if ((accountUi.account?.ownerOk || isDev()) && kind === 'live') devPanel.setAvailable(true); // the owner can pause and tune a match being watched, a dev one of the bot matches (the server says no to the others)
   if (accountUi.account?.ownerOk && kind === 'live') accountUi.sendRaw({ t: 'dev_builds' }); // the bots list for the Play as picker, without opening the tools window
   audio.ambience(arena.theme);
   you = 0;

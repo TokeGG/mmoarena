@@ -200,3 +200,26 @@ describe('replays of custom maps', () => {
     registerCustomArenas([]);
   });
 });
+
+describe('switching maps off', () => {
+  it('a switched-off map is not picked, not queued and not random; it stays off after a restart', async () => {
+    const { MemoryStore } = await import('../src/store');
+    const { pickMap, queuePref } = await import('../src/rooms');
+    const { mapDisabled, setDisabledMaps } = await import('@arena/shared');
+    const store = new MemoryStore();
+    const m = new CustomMaps(store);
+    assert.equal((await m.setAvailable('T', 'ruins', false)).ok, true);
+    assert.equal(mapDisabled('ruins'), true);
+    assert.notEqual(pickMap('ruins'), 'ruins');
+    for (let i = 0; i < 200; i++) assert.notEqual(pickMap('random'), 'ruins');
+    assert.equal(queuePref('ruins'), 'random');
+    assert.equal((await m.setAvailable('T', 'nope', false)).ok, false);
+    setDisabledMaps([]);
+    const again = new CustomMaps(store);
+    await again.ready;
+    assert.equal(mapDisabled('ruins'), true, 'read back from the store');
+    await again.setAvailable('T', 'ruins', true);
+    assert.equal(pickMap('ruins'), 'ruins');
+    setDisabledMaps([]);
+  });
+});

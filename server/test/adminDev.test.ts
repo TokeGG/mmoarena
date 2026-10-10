@@ -199,6 +199,25 @@ describe('admin panel for the dev tag', () => {
     assert.ok(devP.watching, 'a dev can start a bot match');
   });
 
+  it('a dev can pause the bot match they started', async () => {
+    const { lobby, devP } = await world();
+    handle(lobby, devP, { t: 'bot_match', size: 1, difficulty: 'normal', map: 'random', teams: [[{ classId: 'mage' }], [{ classId: 'mage' }]] });
+    const room = devP.watching;
+    assert.ok(room);
+    handle(lobby, devP, { t: 'dev_pause', on: true });
+    assert.equal(room.paused, true);
+    handle(lobby, devP, { t: 'dev_pause', on: false });
+    assert.equal(room.paused, false);
+  });
+
+  it('whoever follows a dev comes along into the bot battle they start', async () => {
+    const { lobby, devP, owner } = await world();
+    handle(lobby, owner, { t: 'follow', name: 'Dee' });
+    handle(lobby, devP, { t: 'bot_match', size: 1, difficulty: 'normal', map: 'random', teams: [[{ classId: 'mage' }], [{ classId: 'mage' }]] });
+    assert.ok(devP.watching);
+    assert.equal(owner.watching, devP.watching, 'the follower is in the battle too');
+  });
+
   it('a dev reads the suggestion box but cannot delete from it', async () => {
     const { lobby, devP, bobP, out, store } = await world();
     handle(lobby, bobP, { t: 'suggest', text: 'more bears' });

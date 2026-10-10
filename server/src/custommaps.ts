@@ -1,4 +1,4 @@
-import { MAP_LIMITS, checkReach, cleanCustomArena, registerCustomArenas } from '@arena/shared';
+import { MAP_LIMITS, checkReach, cleanCustomArena, findArena, registerCustomArenas, setDisabledMaps } from '@arena/shared';
 import type { ArenaDef } from '@arena/shared';
 import type { AdminLog } from './adminlog';
 import type { Store } from './store';
@@ -14,6 +14,7 @@ import type { Store } from './store';
  * deleted since cannot be played (the client says so).
  */
 const KEY = 'custommaps';
+const OFF_KEY = 'mapsoff';
 
 export type MapResult = { ok: true; id: string; text: string; warnings: string[] } | { ok: false; text: string; problems: string[] };
 
@@ -40,7 +41,38 @@ export class CustomMaps {
     } catch {
       // an unreadable store: no custom maps until it is back
     }
+    try {
+      const off = JSON.parse((await this.store.get(OFF_KEY)) ?? '[]') as unknown;
+      this.off = (Array.isArray(off) ? off : []).filter((x): x is string => typeof x === 'string').slice(0, 200);
+    } catch {
+      this.off = [];
+    }
     registerCustomArenas(this.maps);
+    setDisabledMaps(this.off);
+  }
+
+  private off: string[] = [];
+
+  /** Switch a map on or off for players. */
+  setAvailable(by: string, id: string, on: boolean): Promise<MapResult> {
+    const run = this.chain.then(async (): Promise<MapResult> => {
+      await this.ready;
+      const m = findArena(id);
+      if (!m) return { ok: false, text: 'That map does not exist.', problems: [] };
+      const next = on ? this.off.filter((x) => x !== id) : [...new Set([...this.off, id])];
+      try {
+        await this.store.set(OFF_KEY, JSON.stringify(next));
+      } catch {
+        return { ok: false, text: 'That could not be saved. Try again.', problems: [] };
+      }
+      this.off = next;
+      setDisabledMaps(next);
+      this.onChange?.(this.maps);
+      void this.log?.add(by, on ? 'map on' : 'map off', id, m.name);
+      return { ok: true, id, text: `${m.name} is ${on ? 'available' : 'switched off'} for players.`, warnings: [] };
+    });
+    this.chain = run.catch(() => undefined);
+    return run;
   }
 
   list(): ArenaDef[] {

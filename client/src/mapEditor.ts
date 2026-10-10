@@ -1,4 +1,4 @@
-import { ARENAS, ARENA_THEMES, MAP_LIMITS, blankArena, checkReach, cleanCustomArena, copyArena, customArenas, suggestMapId } from '@arena/shared';
+import { ARENAS, ARENA_THEMES, MAP_LIMITS, blankArena, checkReach, cleanCustomArena, copyArena, customArenas, mapDisabled, suggestMapId } from '@arena/shared';
 import type { ArenaDef, BotPick, ClientMsg, MapCheck, ServerMsg } from '@arena/shared';
 import { KIND_LABEL, addItem, addTwin, deleteSel, handleAt, hitTest, itemOf, makeView, mirrorSpawns, moveSel, rectBetween, resizeRect, snap } from './mapEditLogic';
 import type { Handle, Sel, Tool } from './mapEditLogic';
@@ -174,6 +174,11 @@ export class MapEditor {
     const info = el('div', 'own-room-info');
     info.append(el('span', '', a.name), el('small', '', `${custom ? 'custom' : 'built-in'} · ${a.id} · ${a.bounds.maxX - a.bounds.minX}×${a.bounds.maxZ - a.bounds.minZ} yd · ${a.pillars.length} pillars${a.walls?.length ? `, ${a.walls.length} walls` : ''}${a.deck ? ', walkway' : ''}${a.lows?.some((l) => l.lava) ? ', lava' : ''}`));
     row.append(th, info);
+    const on = !mapDisabled(a.id);
+    const avail = el('button', `mm-small${on ? ' mm-go' : ''}`, on ? 'Available' : 'Off');
+    avail.title = on ? 'Players can pick it and it can come up at random. Click to switch it off.' : 'Switched off: not in the queue, ranked or the random pool, and players cannot pick it. Click to switch it on.';
+    avail.addEventListener('click', () => this.hooks.send({ t: 'map_enable', id: a.id, on: !on }));
+    row.append(avail);
     if (custom) {
       const edit = el('button', 'mm-small', 'Edit');
       edit.addEventListener('click', () => this.open(a, false));

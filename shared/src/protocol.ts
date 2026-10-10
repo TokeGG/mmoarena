@@ -238,6 +238,8 @@ export type ClientMsg =
   | { t: 'maps_list' }
   | { t: 'map_save'; map: ArenaDef }
   | { t: 'map_delete'; id: string }
+  /** Owner only: switch a map (built-in or custom) on or off for players. */
+  | { t: 'map_enable'; id: string; on: boolean }
   /** Friends: your list and requests. */
   | { t: 'friends' }
   | { t: 'friend'; op: 'add' | 'accept' | 'decline' | 'remove'; name: string }
@@ -297,7 +299,7 @@ export type ServerMsg =
   /** The test match is now on this map (everyone in it, players and watchers). */
   | { t: 'dev_map'; map: string }
   /** Every custom map (the owner's map editor), sent on connect and after every change: register them with registerCustomArenas. */
-  | { t: 'custom_maps'; maps: ArenaDef[] }
+  | { t: 'custom_maps'; maps: ArenaDef[]; /** Ids of maps switched off for players. */ off?: string[] }
   /** The answer to a map_save / map_delete (only to the owner who asked). */
   | { t: 'map_result'; ok: boolean; text: string; id?: string; warnings?: string[] }
   | { t: 'dev_session'; patches: DataPatch[] }
@@ -699,6 +701,8 @@ export function parseClientMsg(raw: string): ClientMsg | null {
       // the server cleans and checks the map (cleanCustomArena); here only that it is an object of a sane size
       if (!m.map || typeof m.map !== 'object' || Array.isArray(m.map) || JSON.stringify(m.map).length > 24000) return null;
       return { t: 'map_save', map: m.map as ArenaDef };
+    case 'map_enable':
+      return typeof m.id === 'string' && m.id.length <= 40 && typeof m.on === 'boolean' ? { t: 'map_enable', id: m.id, on: m.on } : null;
     case 'map_delete':
       return typeof m.id === 'string' && m.id.length <= 40 ? { t: 'map_delete', id: m.id } : null;
     case 'bot_match': {
