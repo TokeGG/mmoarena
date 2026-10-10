@@ -1,5 +1,17 @@
 [
  {
+  "version": "0.69.49",
+  "date": "2026-10-10",
+  "at": "2026-10-10T04:43:17Z",
+  "title": "Balance changes",
+  "changes": [
+   "Pummel: cooldown 10 s to 15 s.",
+   "Counterspell: lockout 5 s to 7 s.",
+   "Kick: lockout 5 s to 6 s."
+  ],
+  "by": "Toke"
+ },
+ {
   "version": "0.69.48",
   "date": "2026-10-10",
   "at": "2026-10-10T04:38:12Z",
