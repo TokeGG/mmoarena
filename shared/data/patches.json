@@ -1,5 +1,15 @@
 [
  {
+  "version": "0.69.39",
+  "date": "2026-10-10",
+  "at": "2026-10-10T00:04:18Z",
+  "title": "Bots learned from live matches",
+  "changes": [
+   "The bots studied 51 more matches against players and play better for it."
+  ],
+  "by": "Toke"
+ },
+ {
   "version": "0.69.38",
   "date": "2026-10-09",
   "at": "2026-10-09T23:20:17Z",
