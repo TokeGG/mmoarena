@@ -363,21 +363,6 @@ export class DevWorkspace {
       for (const [k, v] of entry.facts) facts.append(el('span', 'devp-dim', k), el('span', '', v));
       box.append(facts);
     }
-    if (entry.passivesId && !q) {
-      const pid = entry.passivesId;
-      const row = el('div', 'devp-row devp-links');
-      row.append(el('small', 'devp-dim', 'Passives:'));
-      const b = el('button', 'mm-small devp-link', 'Edit its stat bonuses and skill changes →');
-      b.title = 'Open it on the Passives page';
-      b.addEventListener('click', () => {
-        this.page = 'passives';
-        this.sel.passives = pid;
-        this.host.onSelect?.();
-        this.host.repaint();
-      });
-      row.append(b);
-      box.append(row);
-    }
     if (entry.skillLinks?.length && !q) {
       const links = el('div', 'devp-row devp-links');
       links.append(el('small', 'devp-dim', 'Skills:'));
@@ -396,6 +381,19 @@ export class DevWorkspace {
         box.append(node);
         any = true;
       }
+    }
+    // a spec's or talent's bonuses and skill changes are edited right here, the way a skill's numbers are (they used to be a page away)
+    const pass = entry.passivesId ? entryFor('passives', entry.passivesId) : null;
+    if (pass) {
+      if (!q) box.append(el('div', 'devp-title', 'Bonuses and changes to skills'));
+      for (const g of pass.groups) {
+        const node = ed.group(g, `passives:${pass.id}`);
+        if (node) {
+          box.append(node);
+          any = true;
+        }
+      }
+      if (pass.addTargets && !q) box.append(this.addWidget(pass));
     }
     if (!any && q) box.append(el('small', 'devp-dim', 'No value here matches the search.'));
     if (entry.addTargets && !q) box.append(this.addWidget(entry));
@@ -430,7 +428,7 @@ export class DevWorkspace {
   private resetEntry(id: string): void {
     const pairs = this.entryPairs(id);
     const hit = (p: Pick<DataPatch, 'file' | 'id'>) => pairs.some((x) => x.file === p.file && x.id === p.id);
-    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p)) && (this.page !== 'animations' || p.path[0] === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
+    const mine = (p: DataPatch) => hit(p) && (this.page === 'skills' || pageOwns(this.page, p) || ((this.page === 'talents' || this.page === 'specs') && pageOwns('passives', p))) && (this.page !== 'animations' || p.path[0] === id) && (this.page !== 'icons' || p.path[0] === ({ u: 'aura', c: 'class', p: 'spec' } as Record<string, string>)[id[0]] || (p.path[0] === 'ability' && id.startsWith('a:')));
     for (const [k, p] of [...this.set.edits]) if (mine(p)) this.set.edits.delete(k);
     if (this.host.canRevert) for (const p of this.host.inEffect()) if (mine(p)) this.set.reverted.add(patchKey(p));
   }
