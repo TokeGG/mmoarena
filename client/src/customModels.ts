@@ -86,7 +86,7 @@ const toBase64 = (b: Uint8Array): string => {
 export type UploadResult = { ok: true; file: string } | { ok: false; text: string };
 
 export async function uploadModel(f: File): Promise<UploadResult> {
-  if (!/\.glb$/i.test(f.name)) return { ok: false, text: 'Use a .glb file (a binary glTF).' };
+  if (!/\.(glb|png|webp|jpe?g)$/i.test(f.name)) return { ok: false, text: 'Use a .glb model or a png, webp or jpg picture.' };
   if (f.size > CUSTOM_MODEL_LIMIT_BYTES) return { ok: false, text: `That file is too big (${(f.size / 1e6).toFixed(1)} MB; the limit is ${CUSTOM_MODEL_LIMIT_BYTES / 1e6} MB). Reduce its textures or polygons.` };
   try {
     const bytes = new Uint8Array(await f.arrayBuffer());
@@ -206,4 +206,20 @@ export function maskedGeometry(geo: THREE.BufferGeometry, boneNames: readonly st
   if (!per) masked.set(geo, (per = new Map()));
   per.set(key, out);
   return out;
+}
+
+const textures = new Map<string, THREE.Texture>();
+/** An uploaded picture as a texture (it fills in when it has loaded). */
+export function customTexture(file: string): THREE.Texture {
+  let t = textures.get(file);
+  if (!t) {
+    t = new THREE.TextureLoader().load(`/models/${file}`, (x) => {
+      x.colorSpace = THREE.SRGBColorSpace;
+      x.needsUpdate = true;
+      version++;
+    });
+    t.colorSpace = THREE.SRGBColorSpace;
+    textures.set(file, t);
+  }
+  return t;
 }

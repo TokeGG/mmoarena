@@ -1,8 +1,9 @@
-import { fieldAt, MODELS_ID, itemsForSlot, ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
+import { fieldAt, MODELS_ID, LOOKS_ID as MODELS_LOOKS_ID, itemsForSlot, ABILITIES, AURAS, classOfOption, classOptionKeys, CLASSES, CLASS_IDS, DEV_PAGES, SPECS, TALENTS, auraSlots, canEditAsData, effectSkeleton, EFFECT_TYPES, entityProblems, entityText, entryFor, navFor, navText, skillInfo, skillSlots } from '@arena/shared';
 import type { ClassId, DataPatch, DevEntry, DevPageId, ModTarget, NavEntry, NavGroup } from '@arena/shared';
 import { iconEl, setIconPreview } from './iconArt';
 import { libraryPage, loadCustomSounds, soundTools } from './soundsUi';
 import { ModelWindow } from './modelPreview';
+import { SkillWindow, abilityOfEntry } from './skillPreview';
 import { modelUploadBox } from './modelsUi';
 import { uploadModel } from './customModels';
 import type { PreviewSpec } from './modelPreview';
@@ -100,6 +101,12 @@ export class DevWorkspace {
   private preview: ModelWindow | null = null;
   /** The dev closed the model view: it stays closed until the button opens it again. */
   private previewDismissed = false;
+  private skillWin: SkillWindow | null = null;
+  private skillDismissed = false;
+  /** An edit was made: the skill view casts again so the new look is what plays. */
+  edited(): void {
+    this.skillWin?.replaySoon();
+  }
   private adding = new Map<string, { kind: 'ability' | 'aura'; id: string }>();
   private classCtx: ClassId | null = null;
   private iconEd: IconEditor;
@@ -476,6 +483,32 @@ export class DevWorkspace {
         box.append(open);
       }
     } else this.preview?.close();
+    if (this.page === 'animations') {
+      // the skill itself, cast again and again with the game's own effects, so every change on the page can be seen
+      const ab = abilityOfEntry(id);
+      if (ab) {
+        const first = !this.skillWin;
+        this.skillWin ??= new SkillWindow();
+        const win = this.skillWin;
+        const fileField = fieldAt('looks', MODELS_LOOKS_ID, [ab, 'file']);
+        const handler = fileField
+          ? (file: string) => {
+              this.editor.set.set(fileField, file, this.editor.testing(), this.editor.canRevert);
+              this.editor.onEdit();
+              this.host.repaint();
+            }
+          : null;
+        if (!first && !win.isOpen) this.skillDismissed = true;
+        if (first || (win.isOpen && !this.skillDismissed)) win.show(ab, handler);
+        const open = el('button', `mm-small${win.isOpen ? '' : ' mm-go'}`, win.isOpen ? 'The skill view is open: it floats over the game, drag it where you like' : 'Show the skill view');
+        open.addEventListener('click', () => {
+          this.skillDismissed = false;
+          win.show(ab, handler);
+          this.host.repaint();
+        });
+        box.append(open);
+      } else this.skillWin?.close();
+    } else this.skillWin?.close();
     if (this.page === 'sounds') {
       if (!soundsLoadedOnce) {
         soundsLoadedOnce = true;

@@ -1,5 +1,6 @@
 import { lightMode } from './lightMode';
 import * as THREE from 'three';
+import { customScene, customTexture, fittedPart } from './customModels';
 import { ABILITIES, AURAS, FX_INFO, NEUTRAL_LOOK, fxNum, fxSec, lookColor, skillLook } from '@arena/shared';
 import type { SkillLook } from '@arena/shared';
 
@@ -572,6 +573,22 @@ export class Effects {
     const halo = this.sprite('glow', color);
     core.scale.set(0.7 * size, 0.7 * size, 1);
     halo.scale.set(1.7 * size, 1.7 * size, 1);
+    // a picture or a model the dev uploaded for this skill flies in place of the core
+    let custom: THREE.Object3D | null = null;
+    if (look.file) {
+      if (look.file.endsWith('.glb')) {
+        const m = customScene(look.file);
+        if (m) custom = fittedPart(m, 0.9 * size);
+      } else {
+        const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: customTexture(look.file), transparent: true, depthWrite: false }));
+        sp.scale.set(1.3 * size, 1.3 * size, 1);
+        custom = sp;
+      }
+      if (custom) {
+        this.scene.add(custom);
+        core.visible = false;
+      }
+    }
     // volley missiles leave from alternating sides of the caster and curve in towards the target
     const side = Math.random() < 0.5 ? -1 : 1;
     const hand = swirl ? side * rnd(0.3, 0.6) : 0;
@@ -604,6 +621,10 @@ export class Effects {
         }
         core.position.copy(q);
         halo.position.copy(q);
+        if (custom) {
+          custom.position.copy(q);
+          if (!(custom instanceof THREE.Sprite) && !done) custom.lookAt(to);
+        }
         const pulse = 1 + Math.sin(t * 40) * 0.12;
         halo.scale.set(1.7 * size * pulse, 1.7 * size * pulse, 1);
         trail += dt;
@@ -619,6 +640,10 @@ export class Effects {
         return done;
       },
       dispose: () => {
+        if (custom) {
+          this.scene.remove(custom);
+          if (custom instanceof THREE.Sprite) custom.material.dispose();
+        }
         for (const sp of [core, halo]) {
           this.scene.remove(sp);
           sp.visible = false;

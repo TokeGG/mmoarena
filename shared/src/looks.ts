@@ -38,8 +38,8 @@ export const LOOK_COLORS: Record<string, [string, number]> = {
 export const LOOK_IMPACTS: [string, string][] = [['default', 'As it is now'], ['fire', 'Fire'], ['frost', 'Frost'], ['arcane', 'Arcane'], ['shadow', 'Shadow'], ['holy', 'Holy light'], ['nature', 'Nature'], ['dust', 'Dust']];
 export const LOOK_HIT_STYLES: [string, string][] = [['default', 'As it is now'], ['impact', 'A flash and burst'], ['eruption', 'Erupts from the ground'], ['pillar', 'A pillar of light'], ['swirl', 'A swirl round the target']];
 
-export interface SkillLook { form: string; color: string; trail: string; size: number; trailAmount: number; speed: number; hitKind: string; hitStyle: string; hitSize: number }
-export const NEUTRAL_LOOK: SkillLook = { form: 'default', color: 'default', trail: 'default', size: 1, trailAmount: 1, speed: 1, hitKind: 'default', hitStyle: 'default', hitSize: 1 };
+export interface SkillLook { form: string; color: string; trail: string; size: number; trailAmount: number; speed: number; hitKind: string; hitStyle: string; hitSize: number; /** A picture or model of the dev's own flown in place of the projectile's core (empty: the form above). */ file: string }
+export const NEUTRAL_LOOK: SkillLook = { form: 'default', color: 'default', trail: 'default', size: 1, trailAmount: 1, speed: 1, hitKind: 'default', hitStyle: 'default', hitSize: 1, file: '' };
 export const LOOK_NUMBER_BOUNDS: Record<string, { min: number; max: number }> = { size: { min: 0.3, max: 3 }, trailAmount: { min: 0, max: 3 }, speed: { min: 0.4, max: 2.5 }, hitSize: { min: 0.3, max: 3 } };
 export const LOOK_CHOICES: Record<string, string[]> = {
   form: LOOK_FORMS.map((x) => x[0]), color: Object.keys(LOOK_COLORS), trail: LOOK_TRAILS.map((x) => x[0]), hitKind: LOOK_IMPACTS.map((x) => x[0]), hitStyle: LOOK_HIT_STYLES.map((x) => x[0]),

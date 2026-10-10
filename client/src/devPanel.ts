@@ -47,13 +47,15 @@ export class DataLayers {
   private previewUndo: (() => void) | null = null;
   /** The Models page's typed numbers show on the characters at once (the model view, and the game's models), before anything is kept or tried. */
   previewModels(typed: readonly DataPatch[]) {
-    const mine = typed.filter((p) => p.file === 'models');
+    const mine = typed.filter((p) => p.file === 'models' || p.file === 'fx' || p.file === 'looks'); // looks only: the model view, the skill view and the game's effects show them at once
     if (!mine.length && !this.previewUndo) return;
     this.previewUndo?.();
     this.previewUndo = mine.length ? applyPatches(mine) : null;
     this.hadPreview = true;
-    applyModelData();
+    if (mine.some((p) => p.file === 'models') || this.hadModelPreview) applyModelData();
+    this.hadModelPreview = mine.some((p) => p.file === 'models');
   }
+  private hadModelPreview = false;
   private apply() {
     this.previewUndo?.();
     this.previewUndo = null;
@@ -184,6 +186,7 @@ export class DevPanel {
       onEdit: () => {
         this.refreshBar();
         this.layers.previewModels(this.toSend());
+        this.ws.edited();
         this.autoApply();
       },
       saveTitle: "Saves what you picked: sends it to the admin panel's Proposals list, where it can be committed.",

@@ -60,9 +60,12 @@ export const BONE_LABEL: Record<string, string> = {
 };
 
 /** Uploaded models live in the server's store and are served at /models/custom/<name>. */
-export const CUSTOM_MODEL_RE = /^custom\/[a-z0-9][a-z0-9-]{0,47}\.glb$/;
+export const CUSTOM_MODEL_RE = /^custom\/[a-z0-9][a-z0-9-]{0,47}\.(glb|png|webp|jpg)$/;
 export const CUSTOM_MODEL_LIMIT_BYTES = 8_000_000;
-export const isModelFile = (v: unknown): v is string => typeof v === 'string' && (v === '' || CUSTOM_MODEL_RE.test(v));
+/** A model (.glb) of the dev's own, or empty. */
+export const isModelFile = (v: unknown): v is string => typeof v === 'string' && (v === '' || (CUSTOM_MODEL_RE.test(v) && v.endsWith('.glb')));
+/** A picture (png, webp, jpg) or a model (.glb) of the dev's own, or empty: what a skill's look can be given. */
+export const isLookFile = (v: unknown): v is string => typeof v === 'string' && (v === '' || CUSTOM_MODEL_RE.test(v));
 let customList: { file: string; label: string }[] = [];
 export const setCustomModels = (l: { file: string; label: string }[]): void => {
   customList = l.filter((f) => CUSTOM_MODEL_RE.test(f.file));
@@ -70,7 +73,13 @@ export const setCustomModels = (l: { file: string; label: string }[]): void => {
 export const customModels = (): readonly { file: string; label: string }[] => customList;
 export function modelFileChoices(): { options: string[]; labels: Record<string, string> } {
   const labels: Record<string, string> = { '': 'The game\'s own' };
-  for (const f of customList) labels[f.file] = `Uploaded: ${f.label}`;
+  for (const f of customList) if (f.file.endsWith('.glb')) labels[f.file] = `Uploaded: ${f.label}`;
+  return { options: Object.keys(labels), labels };
+}
+/** Pictures and models, for a skill's look. */
+export function lookFileChoices(): { options: string[]; labels: Record<string, string> } {
+  const labels: Record<string, string> = { '': 'As it is now' };
+  for (const f of customList) labels[f.file] = `Uploaded ${f.file.endsWith('.glb') ? 'model' : 'picture'}: ${f.label}`;
   return { options: Object.keys(labels), labels };
 }
 
