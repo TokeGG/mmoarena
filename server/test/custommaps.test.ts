@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { ARENAS, ArenaSim, ReplayRecorder, ReplayRunner, arenaById, blankArena, copyArena, findArena, parseClientMsg, registerCustomArenas, replayMapProblem } from '@arena/shared';
+import { ARENAS, ArenaSim, ReplayRecorder, ReplayRunner, arenaById, blankArena, copyArena, findArena, mapDisabled, parseClientMsg, registerCustomArenas, replayMapProblem } from '@arena/shared';
 import type { ArenaDef, ReplayData, ServerMsg } from '@arena/shared';
 import { MemoryStore } from '../src/store';
 import { Accounts } from '../src/accounts';
@@ -105,15 +105,31 @@ describe('custom maps over the protocol', () => {
     assert.equal(parseClientMsg(JSON.stringify({ t: 'map_save', map: good() }))?.t, 'map_save');
   });
 
-  it('only the owner can list, save and delete; everyone connected hears the change', async () => {
+  it('the owner and devs can list, save, delete and switch maps off; a player can do none of it; everyone connected hears the change', async () => {
     const { lobby, owner, devP, outO, outD } = await world();
+    const outP: ServerMsg[] = [];
+    const player = mkP('Bob', outP, undefined);
+    (lobby as any).conns.add(player);
+    lobby.handle(player, { t: 'map_save', map: good() });
+    lobby.handle(player, { t: 'map_enable', id: 'ruins', on: false });
+    await tick();
+    assert.equal(findArena('pit-fight'), undefined, 'a player cannot save');
+    assert.equal(mapDisabled('ruins'), false, 'or switch a map off');
+    lobby.handle(player, { t: 'maps_list' });
+    assert.equal(last(outP, 'map_result'), undefined);
+
     lobby.handle(devP, { t: 'map_save', map: good() });
     await tick();
-    assert.equal(findArena('pit-fight'), undefined, 'a dev cannot save');
-    assert.equal(last(outD, 'dev_result')?.ok, false);
-    assert.equal(last(outD, 'map_result'), undefined);
-    lobby.handle(devP, { t: 'maps_list' });
-    assert.equal(last(outD, 'custom_maps'), undefined);
+    assert.equal(last(outD, 'map_result')?.ok, true, 'a dev can save');
+    assert.ok(findArena('pit-fight'));
+    lobby.handle(devP, { t: 'map_enable', id: 'pit-fight', on: false });
+    await tick();
+    assert.equal(mapDisabled('pit-fight'), true, 'a dev can switch it off');
+    lobby.handle(devP, { t: 'map_enable', id: 'pit-fight', on: true });
+    await tick();
+    lobby.handle(devP, { t: 'map_delete', id: 'pit-fight' });
+    await tick();
+    assert.equal(findArena('pit-fight'), undefined, 'a dev can delete');
 
     lobby.handle(owner, { t: 'map_save', map: good() });
     await tick();
@@ -121,7 +137,6 @@ describe('custom maps over the protocol', () => {
     assert.equal(res.ok, true);
     assert.equal(res.id, 'pit-fight');
     assert.equal(last(outD, 'custom_maps')?.maps[0].id, 'pit-fight', 'the dev (any client) is told');
-    assert.equal(last(outD, 'map_result'), undefined, 'the answer goes to the owner only');
 
     // someone connecting later gets the list
     const outN: ServerMsg[] = [];
@@ -129,9 +144,6 @@ describe('custom maps over the protocol', () => {
     lobby.connect(sock, '9.9.9.9');
     assert.equal(last(outN, 'custom_maps')?.maps.length, 1);
 
-    lobby.handle(devP, { t: 'map_delete', id: 'pit-fight' });
-    await tick();
-    assert.ok(findArena('pit-fight'), 'a dev cannot delete');
     lobby.handle(owner, { t: 'map_delete', id: 'pit-fight' });
     await tick();
     assert.equal(findArena('pit-fight'), undefined);
@@ -221,5 +233,26 @@ describe('switching maps off', () => {
     await again.setAvailable('T', 'ruins', true);
     assert.equal(pickMap('ruins'), 'ruins');
     setDisabledMaps([]);
+  });
+});
+
+describe('dev powers the owner switched off', () => {
+  it('a dev without the Maps power is refused map actions, and with it can use them again; admin_set accepts the grants', async () => {
+    const { lobby, owner, devP, outD } = await world();
+    owner.ownerOk = true;
+    devP.account = { ...devP.account, grants: ['dev', 'deny:maps'] };
+    lobby.handle(devP, { t: 'map_save', map: good() });
+    await tick();
+    assert.equal(findArena('pit-fight'), undefined, 'refused');
+    assert.match(String(last(outD, 'dev_result')?.text), /not given you that power/);
+    devP.account = { ...devP.account, grants: ['dev'] };
+    lobby.handle(devP, { t: 'map_save', map: good() });
+    await tick();
+    assert.ok(findArena('pit-fight'), 'allowed again');
+    registerCustomArenas([]);
+    assert.equal(Accounts.validGrant('deny:maps'), true);
+    assert.equal(Accounts.validGrant('power:maintain'), true);
+    assert.equal(Accounts.validGrant('deny:nonsense'), false);
+    assert.deepEqual(parseClientMsg('{"t":"admin_set","name":"Dee","grants":["dev","deny:botmatch","power:maintain"]}'), { t: 'admin_set', name: 'Dee', grants: ['dev', 'deny:botmatch', 'power:maintain'] });
   });
 });

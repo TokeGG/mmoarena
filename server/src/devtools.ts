@@ -381,17 +381,17 @@ export class DevTools {
       const tree = (await api('/git/trees', { method: 'POST', body: JSON.stringify({ base_tree: head.tree.sha, tree: files.map((f) => ({ path: f.path, mode: '100644', type: 'blob', content: f.content })) }) })) as { sha: string };
       const message = built.message(version);
       const commit = (await api('/git/commits', { method: 'POST', body: JSON.stringify({ message, tree: tree.sha, parents: [ref.object.sha] }) })) as { sha: string };
-      // straight onto the base branch, as the owner asked (ARENA_DEV_LANDING=pr brings back the branch and the checked pull request). If GitHub
-      // refuses the push (a protected branch, or someone pushed first) the pull request below takes over, so the change is never lost.
+      // straight onto the base branch: there is one branch, main, and no pull requests (set ARENA_DEV_LANDING=pr to bring back a branch and a checked pull request).
+      // If GitHub refuses the push (someone pushed first, or the branch is protected) nothing is created: the dev is told and presses Commit again.
       if (this.env.ARENA_DEV_LANDING !== 'pr') {
         try {
           await api(`/git/refs/heads/${base}`, { method: 'PATCH', body: JSON.stringify({ sha: commit.sha, force: false }) });
-          const url = `https://github.com/${repo}/commit/${commit.sha}`;
-          await this.recordCommit({ version, by: o.by, at: Date.now(), url, lines });
-          return { url, version, extra: built.extra };
-        } catch {
-          /* fall through to the pull request */
+        } catch (e) {
+          throw new Error(friendlyGithubError((e as Error).message, base));
         }
+        const url = `https://github.com/${repo}/commit/${commit.sha}`;
+        await this.recordCommit({ version, by: o.by, at: Date.now(), url, lines });
+        return { url, version, extra: built.extra };
       }
       // the commit goes on its own branch, a pull request checks it, and it merges once the checks pass
       const branch = `dev/${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;

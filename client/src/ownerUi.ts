@@ -1,4 +1,4 @@
-import { ABILITIES, ABILITY_GRANTS, AURAS, allArenas, findArena, isCustomArena, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, nameOf, resolveCosmetics } from '@arena/shared';
+import { ABILITIES, ABILITY_GRANTS, AURAS, DEV_POWERS, hasPower, withPower, allArenas, findArena, isCustomArena, CLASSES, CLASS_IDS, CUSTOM_TITLE_MAX, EMBLEMS, NAME_COLORS, SPECS, TITLES, nameOf, resolveCosmetics } from '@arena/shared';
 import type { AccountInfo, AdminRow, BotPick, ClassId, ClientMsg, CustomStyle, DataPatch, MatchRecord, ServerMsg } from '@arena/shared';
 import { applyName } from './nameStyle';
 
@@ -556,6 +556,110 @@ export class OwnerPanel {
       box.append(ul);
     }
     return box;
+  }
+
+  // ------------------------------------------------------------------ admin: permissions
+
+  private permQuery = '';
+  private permOpen = '';
+  /** Unsaved edits to an account's grants, by account name. */
+  private permDraft = new Map<string, Set<string>>();
+
+  /** The Permissions tab: pick a person, give or take their tags (Dev, GIF icon) and switch single dev powers on or off. */
+  permissionsBox(): HTMLElement {
+    const box = el('div', 'own-box');
+    box.append(el('p', 'mm-modal-foot', 'Pick someone, tick the tags they have, and tick or untick what a dev may do. Powers only count for accounts with the Dev tag. Nothing changes until you press Save.'));
+    const search = el('input');
+    search.type = 'search';
+    search.placeholder = 'Search accounts';
+    search.value = this.permQuery;
+    search.dataset.f = 'permq';
+    search.addEventListener('input', () => {
+      this.permQuery = search.value;
+      this.hooks.rerender();
+    });
+    box.append(search);
+    if (!this.rows) {
+      box.append(el('p', 'mm-modal-foot', 'Loading accounts…'));
+      return box;
+    }
+    const q = this.permQuery.trim().toLowerCase();
+    const list = el('div', 'adm-list');
+    // people who already have the dev tag first, then everyone else that matches the search
+    const rows = this.rows.filter((x) => x.name.toLowerCase() !== 'toke' && (!q ? x.grants.includes('dev') : x.name.toLowerCase().includes(q)));
+    for (const r of rows) {
+      const row = el('div', `adm-row${this.permOpen === r.name ? ' open' : ''}`);
+      const head = el('div', 'adm-head');
+      head.append(el('b', '', r.name));
+      if (r.grants.includes('dev')) head.append(el('span', 'adm-badge dev', 'dev'));
+      head.addEventListener('click', () => {
+        this.permOpen = this.permOpen === r.name ? '' : r.name;
+        this.hooks.rerender();
+      });
+      row.append(head);
+      if (this.permOpen === r.name) row.append(this.permBody(r));
+      list.append(row);
+    }
+    if (!list.children.length) list.append(el('p', 'mm-modal-foot', q ? 'No matching accounts.' : 'Nobody has the Dev tag yet. Search for a name to give it.'));
+    box.append(list);
+    return box;
+  }
+
+  private permBody(r: AdminRow): HTMLElement {
+    const body = el('div', 'adm-body');
+    const grants = this.permDraft.get(r.name) ?? new Set(r.grants);
+    this.permDraft.set(r.name, grants);
+    const redraw = () => this.hooks.rerender();
+    body.append(el('b', '', 'Tags'));
+    const tags = el('div', 'chk-grid');
+    for (const [id, label] of [['dev', 'Dev: the dev tools'], ['gif', 'Animated GIF icon']] as const) {
+      const l = el('label', 'chk');
+      const i = el('input');
+      i.type = 'checkbox';
+      i.checked = grants.has(id);
+      i.addEventListener('change', () => {
+        if (i.checked) grants.add(id);
+        else grants.delete(id);
+        redraw();
+      });
+      l.append(i, label);
+      tags.append(l);
+    }
+    body.append(tags);
+    body.append(el('b', '', 'Powers'));
+    const isDev = grants.has('dev');
+    if (!isDev) body.append(el('small', 'devp-dim', 'Give the Dev tag to turn powers on.'));
+    const powers = el('div', 'chk-grid');
+    for (const p of DEV_POWERS) {
+      const l = el('label', 'chk');
+      const i = el('input');
+      i.type = 'checkbox';
+      i.disabled = !isDev;
+      i.checked = hasPower([...grants], p.id);
+      i.title = p.hint;
+      i.addEventListener('change', () => {
+        const next = withPower([...grants], p.id, i.checked);
+        grants.clear();
+        for (const g of next) grants.add(g);
+        redraw();
+      });
+      l.append(i, `${p.label}${p.on ? '' : ' (off unless you give it)'}`);
+      l.title = p.hint;
+      powers.append(l);
+    }
+    body.append(powers);
+    const save = el('button', 'mm-small', 'Save');
+    save.addEventListener('click', () => {
+      this.hooks.send({ t: 'admin_set', name: r.name, grants: [...grants] });
+      this.permDraft.delete(r.name);
+    });
+    const undo = el('button', 'mm-small', 'Discard changes');
+    undo.addEventListener('click', () => {
+      this.permDraft.delete(r.name);
+      redraw();
+    });
+    body.append(el('div', 'own-row'), save, undo);
+    return body;
   }
 
   // ------------------------------------------------------------------ admin: accounts

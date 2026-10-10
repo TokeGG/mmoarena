@@ -71,6 +71,10 @@ export class DevWorkspace {
   private adding = new Map<string, { kind: 'ability' | 'aura'; id: string }>();
   private classCtx: ClassId | null = null;
   private iconEd: IconEditor;
+  /** Where each list and each entry was scrolled to, so a redraw (the panel refreshes now and then) puts you back where you were. */
+  private scrollPos = new Map<string, number>();
+  /** Unsaved edits in an entry's data form, by file and id: they survive a redraw until applied or put back. */
+  private drafts = new Map<string, Record<string, unknown>>();
   private navBox: HTMLElement | null = null;
   private detailBox: HTMLElement | null = null;
 
@@ -237,12 +241,12 @@ export class DevWorkspace {
     input.addEventListener('keydown', (e) => e.stopPropagation()); // typing here never casts spells
     input.addEventListener('input', () => {
       this.search[this.page] = input.value;
-      this.editor.filter = input.value.trim().toLowerCase();
+      this.editor.filter = ''; // the search finds the entry in the list; the entry itself always shows every option
       this.drawNav();
       // the open entry is not in the list any more: open the first one that is
       const first = this.navBox?.querySelector<HTMLElement>('.devp-navitem');
       const shown = [...(this.navBox?.querySelectorAll<HTMLElement>('.devp-navitem') ?? [])].some((b) => b.classList.contains('sel'));
-      if (this.editor.filter && first && !shown) first.click();
+      if (input.value.trim() && first && !shown) first.click();
       else this.drawDetail();
     });
     const reset = el('button', 'mm-small', '↺ Reset this page');
@@ -254,13 +258,15 @@ export class DevWorkspace {
     });
     bar.append(input, reset);
     root.append(bar);
-    this.editor.filter = this.search[this.page].trim().toLowerCase();
+    this.editor.filter = '';
 
     const split = el('div', 'devp-split');
     this.navBox = el('div', 'devp-nav');
     this.detailBox = el('div', 'devp-detail');
     this.navBox.dataset.tour = 'dev-nav';
     this.detailBox.dataset.tour = 'dev-detail';
+    this.navBox.addEventListener('scroll', () => this.scrollPos.set(`nav:${this.page}`, this.navBox?.scrollTop ?? 0));
+    this.detailBox.addEventListener('scroll', () => this.scrollPos.set(`detail:${this.page}:${this.sel[this.page] ?? ''}`, this.detailBox?.scrollTop ?? 0));
     split.append(this.navBox, this.detailBox);
     if (this.page === 'options') split.classList.add('single'); // one entry: no list to pick from
     root.append(split);
@@ -272,9 +278,12 @@ export class DevWorkspace {
   private drawNav(): void {
     const box = this.navBox;
     if (!box) return;
+    const navKey = `nav:${this.page}`;
+    const keepNav = box.scrollTop || (this.scrollPos.get(navKey) ?? 0);
     box.replaceChildren();
     const q = this.search[this.page].trim().toLowerCase();
     const sel = this.sel[this.page];
+    queueMicrotask(() => { box.scrollTop = keepNav; });
     const entryBtn = (e: NavEntry): HTMLElement => {
       const b = el('button', `devp-navitem${e.id === sel ? ' sel' : ''}`);
       if (this.page === 'skills' || this.page === 'icons') {
@@ -290,6 +299,7 @@ export class DevWorkspace {
       const changed = this.entryChanged(e.id);
       if (changed) b.append(el('span', 'devp-dot', '●'));
       b.addEventListener('click', () => {
+        this.scrollPos.delete(`detail:${this.page}:${e.id}`);
         this.sel[this.page] = e.id;
         this.noteClass();
         this.host.onSelect?.();
@@ -341,7 +351,10 @@ export class DevWorkspace {
   private drawDetail(): void {
     const box = this.detailBox;
     if (!box) return;
+    const detailKey = `detail:${this.page}:${this.sel[this.page] ?? ''}`;
+    const keepDetail = this.scrollPos.get(detailKey) ?? 0;
     box.replaceChildren();
+    queueMicrotask(() => { box.scrollTop = keepDetail; });
     const id = this.sel[this.page];
     if (!id) return void box.append(el('small', 'devp-dim', 'Pick something on the left.'));
     const ed = this.editor;
@@ -415,7 +428,12 @@ export class DevWorkspace {
     const field = { file, id, path: ['$entity'], base: entityText(file, id, true) ?? '', value: entityText(file, id) ?? '' };
     const norm = (t: string) => { try { return JSON.stringify(JSON.parse(t), null, 2); } catch { return t; } };
     const testing = this.host.testing();
-    let work: Record<string, unknown> = JSON.parse(String(this.set.shown(field, testing)) || '{}');
+    const dk = `${file}:${id}`;
+    let work: Record<string, unknown> = this.drafts.get(dk) ?? JSON.parse(String(this.set.shown(field, testing)) || '{}');
+    const keepDraft = () => {
+      if (norm(JSON.stringify(work)) === norm(String(this.set.shown(field, testing)))) this.drafts.delete(dk);
+      else this.drafts.set(dk, work);
+    };
     const msg = el('div', 'devp-dim');
     const apply = el('button', 'mm-small mm-go', 'Apply');
     const area = el('textarea', 'devp-data') as HTMLTextAreaElement;
@@ -430,12 +448,13 @@ export class DevWorkspace {
     };
     const formHost = el('div');
     const drawForm = () => {
-      formHost.replaceChildren(dataForm(file, work, () => { area.value = current(); check(); }, drawForm));
+      formHost.replaceChildren(dataForm(file, work, () => { area.value = current(); keepDraft(); check(); }, drawForm));
       area.value = current();
       check();
     };
     drawForm();
     apply.addEventListener('click', () => {
+      this.drafts.delete(dk);
       this.set.set(field, norm(current()), testing, this.host.canRevert);
       this.host.onEdit();
       this.host.repaint();
@@ -443,6 +462,7 @@ export class DevWorkspace {
     const reset = el('button', 'mm-small', '↺ Put back');
     reset.title = 'Put this entry back to the data file';
     reset.addEventListener('click', () => {
+      this.drafts.delete(dk);
       this.set.set(field, field.base, testing, this.host.canRevert);
       this.host.onEdit();
       this.host.repaint();
@@ -452,7 +472,8 @@ export class DevWorkspace {
     area.addEventListener('input', () => {
       try {
         work = JSON.parse(area.value);
-        formHost.replaceChildren(dataForm(file, work, () => { area.value = current(); check(); }, drawForm));
+        keepDraft();
+        formHost.replaceChildren(dataForm(file, work, () => { area.value = current(); keepDraft(); check(); }, drawForm));
       } catch { /* mid-typing */ }
       const bad = entityProblems(file, id, area.value);
       msg.replaceChildren(...(bad.length ? bad.slice(0, 6).map((b) => el('div', 'devp-bad', `✗ ${b}`)) : [el('div', '', '✓ Ready to apply')]));

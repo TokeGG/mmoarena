@@ -33,3 +33,4 @@ export * from './botnote';
 export * from './devsmoke';
 export * from './mapedit';
 export * from './rotationtrain';
+export * from './devpowers';

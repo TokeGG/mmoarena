@@ -1,13 +1,13 @@
 {
  "warrior:arms": [
-  "slam",
   "mortal_strike",
+  "slam",
   "slice_and_dice"
  ],
  "warrior:fury": [
-  "sweep",
+  "bloodthirst",
   "bladestorm",
-  "bloodthirst"
+  "sweep"
  ],
  "warrior:protection": [
   "deep_cuts",

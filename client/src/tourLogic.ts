@@ -42,6 +42,13 @@ export function markSeenIn(m: SeenMap, id: TourId, now: number): SeenMap {
   return { ...m, [id]: Math.max(1, Math.floor(now)) };
 }
 
+/** "Skip tour": the person does not want any of them by themselves, so every tour counts as seen (the Help & tours list still starts any of them). */
+export function markAllSeenIn(m: SeenMap, now: number): SeenMap {
+  const out: SeenMap = { ...m };
+  for (const id of TOUR_IDS) out[id] ??= now;
+  return out;
+}
+
 /** Both devices' lists together: a tour seen anywhere stays seen (the earlier time is kept). */
 export function unionSeen(a: string | null | undefined, b: string | null | undefined): string {
   const x = parseSeen(a);

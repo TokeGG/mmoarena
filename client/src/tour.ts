@@ -9,7 +9,7 @@
  * Import this file before anything that listens for keys in `main.ts`: its key listener must run first.
  */
 import { TOURS } from './tourData';
-import { CARD_W, TOURS_KEY, canStartIn, counterText, isLastStep, keyAction, markSeenIn, parseSeen, pickAutoTour, placeCard, serializeSeen, spotRect, stepBack, stepForward, textFor, unionRect } from './tourLogic';
+import { CARD_W, TOURS_KEY, canStartIn, counterText, isLastStep, keyAction, markAllSeenIn, markSeenIn, parseSeen, pickAutoTour, placeCard, serializeSeen, spotRect, stepBack, stepForward, textFor, unionRect } from './tourLogic';
 import type { Rect, SeenMap, TourContext, TourDef, TourHost, TourId, TourStep, TourTrigger } from './tourLogic';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''): HTMLElementTagNameMap[K] {
@@ -231,13 +231,13 @@ class TourRunner {
     const r = this.run;
     if (r && r.index > 0) void this.goTo(stepBack(r.index));
   }
-  /** Skip or finish: both count as seen. */
+  /** Skip: no tour starts by itself again (every one counts as seen). Finishing the last step only counts that tour. */
   skip() {
-    this.end(true);
+    this.end(true, true);
   }
 
   /** Close the tour. `seen`: remember it as seen (finished or skipped), else it comes back next time (the person left the place it was about). */
-  end(seen: boolean) {
+  end(seen: boolean, all = false) {
     const r = this.run;
     if (!r) return;
     this.run = null;
@@ -247,7 +247,7 @@ class TourRunner {
     this.n = null;
     this.lastLayout = '';
     document.body.classList.remove('tour-open');
-    if (seen) this.save(markSeenIn(this.seen(), r.def.id, Date.now()));
+    if (seen) this.save(all ? markAllSeenIn(markSeenIn(this.seen(), r.def.id, Date.now()), Date.now()) : markSeenIn(this.seen(), r.def.id, Date.now()));
     try {
       if (this.host) r.def.onEnd?.(this.host);
     } catch {

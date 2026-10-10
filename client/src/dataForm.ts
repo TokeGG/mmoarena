@@ -84,6 +84,9 @@ const CHOICES: Record<string, () => [string, string][]> = {
  * The data editor as a form: every field of an entry as a labelled box, with ✕ to remove one and ＋ to add one the game knows
  * (a shield, a damage effect, a talent bonus). `work` is changed in place; `changed` is called after every edit.
  */
+/** The category last used in the add-effect picker (kept while the form is redrawn). */
+let lastCat = 'shield';
+
 export function dataForm(file: string, work: Obj, changed: () => void, redraw: () => void): HTMLElement {
   const root = el('div', 'dform');
   const change = () => changed();
@@ -221,30 +224,40 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
       box.append(row);
     });
     const add = el('button', 'mm-small', k === 'effects' ? '＋ Add effect' : `＋ Add to ${nice(k).toLowerCase()}`);
+    const catSel = el('select', 'dform-add');
     const kindSel = el('select', 'dform-add');
     if (k === 'effects') {
-      // an effect is a buff or a debuff to the game: one list of them by name, then the few things that are not (damage, healing, knockback...)
-      const group = (label: string, items: [string, string][]) => {
-        const g = el('optgroup') as HTMLOptGroupElement;
-        g.label = label;
-        for (const [value, name] of items) {
-          const o = el('option', '', name);
-          o.value = value;
-          g.append(o);
-        }
-        kindSel.append(g);
-      };
+      // categories first, then what is in the category: a short list each time, the choice kept while more effects are added
       const byName = (x: [string, string], y: [string, string]) => x[1].localeCompare(y[1]);
       const named = Object.entries(AURAS).filter(([id]) => id !== 'shield' && id !== 'damage_reduction');
-      group('Buffs', [['q:shield', 'Shield (you set the strength)'], ['q:reduction', 'Damage reduction (you set the %)'], ...named.filter(([, a]) => !a.harmful).map(([id, a]): [string, string] => [`a:${id}`, a.name]).sort(byName)]);
-      group('Debuffs', [['q:stun', 'Stun'], ['q:root', 'Root'], ['q:slow', 'Slow'], ...named.filter(([, a]) => a.harmful).map(([id, a]): [string, string] => [`a:${id}`, a.name]).sort(byName)]);
-      group('Other effects', [['q:damage', 'Damage'], ['q:heal', 'Heal'], ['q:knockback', 'Knockback'], ['q:interrupt', 'Interrupt'], ['q:dispel', 'Dispel'],
-        ...EFFECT_TYPES.filter((t) => !QUICK.some(([id]) => id === t) && t !== 'aura').map((t): [string, string] => [`type:${t}`, EFFECT_NAMES[t] ?? nice(t)])]);
-      kindSel.value = 'q:shield';
+      const CC_KINDS = ['stun', 'root', 'slow', 'fear', 'incapacitate'];
+      const auraItems = (pick: (a: (typeof AURAS)[string]) => boolean): [string, string][] => named.filter(([, a]) => pick(a)).map(([id, a]): [string, string] => [`a:${id}`, a.name]).sort(byName);
+      const types = (ids: string[]): [string, string][] => ids.filter((t) => EFFECT_TYPES.includes(t)).map((t) => [QUICK.some(([q]) => q === t) ? `q:${t}` : `type:${t}`, EFFECT_NAMES[t] ?? nice(t)]);
+      const CATS: [string, string, () => [string, string][]][] = [
+        ['dmg', 'Damage and healing', () => types(['damage', 'heal', 'healMissing', 'healMax', 'gain', 'zone', 'exsanguinate'])],
+        ['shield', 'Shields and protection', () => [['q:shield', 'Shield (you set the strength)'], ['q:reduction', 'Damage reduction (you set the %)'], ...auraItems((a) => !a.harmful && (a.kind === 'absorb' || !!a.invulnerable || !!a.mods?.damageTaken))]],
+        ['buff', 'Buffs on you or allies', () => auraItems((a) => !a.harmful)],
+        ['cc', 'Crowd control', () => [['q:stun', 'Stun'], ['q:root', 'Root'], ['q:slow', 'Slow'], ...auraItems((a) => !!a.harmful && CC_KINDS.includes(a.kind))]],
+        ['debuff', 'Debuffs and damage over time', () => auraItems((a) => !!a.harmful && !CC_KINDS.includes(a.kind))],
+        ['move', 'Movement', () => types(['knockback', 'pull', 'leap', 'blink', 'charge', 'dashToTarget', 'freeMove'])],
+        ['util', 'Utility', () => types(['interrupt', 'dispel', 'cleanse', 'strip', 'smoke', 'images', 'flag', 'mindControl', 'zoneBuff', 'dropCombat', 'dropTargets', 'cast', 'proc'])],
+      ];
+      for (const [id, name] of CATS) catSel.append(Object.assign(el('option', '', name), { value: id }));
+      const fill = () => {
+        kindSel.replaceChildren();
+        for (const [v, name] of CATS.find(([id]) => id === catSel.value)![2]()) kindSel.append(Object.assign(el('option', '', name), { value: v }));
+      };
+      catSel.value = lastCat;
+      fill();
+      catSel.addEventListener('change', () => {
+        lastCat = catSel.value;
+        fill();
+      });
     }
     add.addEventListener('click', () => {
       if (k === 'effects') {
         const v = kindSel.value;
+        if (!v) return;
         const q = v.startsWith('q:') ? QUICK.find(([id]) => id === v.slice(2)) : undefined;
         if (q) a.push(q[2]());
         else if (v.startsWith('a:')) {
@@ -256,7 +269,7 @@ export function dataForm(file: string, work: Obj, changed: () => void, redraw: (
       else a.push('');
       structural();
     });
-    if (k === 'effects') box.append(kindSel);
+    if (k === 'effects') box.append(el('small', 'devp-dim', 'Add an effect: pick a kind, then which one.'), catSel, kindSel);
     box.append(add);
     return box;
   }

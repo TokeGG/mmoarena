@@ -11,6 +11,7 @@ import { TimeView } from './timeUi';
 import { mapName } from './spectate';
 import type { Popup } from './popups';
 import { tours } from './tour';
+import { hasPower } from '@arena/shared';
 import { toursList } from './tourUi';
 import { MapEditor } from './mapEditor';
 
@@ -30,7 +31,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls = '', text = ''):
   return e;
 }
 
-export type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'maps' | 'requests' | 'server' | 'log';
+export type Tab = 'dashboard' | 'players' | 'time' | 'matches' | 'replays' | 'moderation' | 'proposals' | 'tuning' | 'maps' | 'permissions' | 'requests' | 'server' | 'log';
 const TABS: [Tab, string][] = [
   ['dashboard', 'Dashboard'],
   ['players', 'Players'],
@@ -41,13 +42,14 @@ const TABS: [Tab, string][] = [
   ['proposals', 'Proposals'],
   ['tuning', 'Tuning'],
   ['maps', 'Maps'],
+  ['permissions', 'Permissions'],
   ['requests', 'Requests'],
   ['server', 'Server'],
   ['log', 'Log'],
 ];
 
 /** The tabs a dev can use (the rest is account moderation, announcements and maintenance). */
-const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'proposals', 'tuning', 'log'];
+const DEV_TABS: readonly Tab[] = ['dashboard', 'matches', 'replays', 'moderation', 'proposals', 'tuning', 'maps', 'log'];
 
 interface Hooks {
   send(m: ClientMsg): void;
@@ -122,7 +124,7 @@ export class AdminPanel {
   private op: OwnerPanel;
   /** Play time per player (owner only). */
   private time: TimeView;
-  /** The map editor of the Maps tab (owner only). */
+  /** The map editor of the Maps tab (owner and devs). */
   private maps: MapEditor;
   /** The bot battle window, started from the main menu (owner only). */
   private bb: HTMLElement | null = null;
@@ -371,6 +373,7 @@ export class AdminPanel {
     tabs.dataset.tour = 'admin-tabs'; // the guided tours point at these (tourData.ts)
     for (const [id, label] of TABS) {
       if (access === 'dev' && !DEV_TABS.includes(id)) continue;
+      if (access === 'dev' && id === 'maps' && !hasPower(this.hooks.account()?.grants, 'maps')) continue; // the owner switched the map tools off for this dev
       const waiting = id === 'proposals' ? pendingProposals(this.proposals) : id === 'requests' ? designer.requests.filter((r) => r.status === 'open').length : 0;
       const b = el('button', `admp-tab${id === this.tab ? ' sel' : ''}`, waiting ? `${label} (${waiting})` : label);
       b.dataset.tour = `admin-tab-${id}`;
@@ -412,6 +415,9 @@ export class AdminPanel {
         break;
       case 'maps':
         body.append(this.maps.root);
+        break;
+      case 'permissions':
+        body.append(el('h3', '', 'Who can do what'), this.op.permissionsBox());
         break;
       case 'requests':
         body.append(this.requestsBox());

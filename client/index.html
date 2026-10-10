@@ -933,6 +933,21 @@
   .plate .pcast .blabel { font-size:9px; line-height:11px; font-weight:700; }
   .plate .pcast.enemy { box-shadow:0 0 6px rgba(255,150,60,.7); }
 
+  /* ---------- HUD element skins (hudSkin.ts) ---------- */
+  .hs-hidden { display:none !important; } body.hud-edit .hs-hidden { display:revert !important; opacity:.3 !important; outline:1px dashed #8fe6ff; }
+  [data-hs-textcolor] *:not(.bar):not(.fill):not(.dm-bar):not(.hbar) { color:inherit !important; }
+  #party[data-hs-layout=row], #enemies[data-hs-layout=row] { flex-direction:row !important; flex-wrap:wrap; }
+  #party[data-hs-layout=grid], #enemies[data-hs-layout=grid] { display:grid !important; grid-template-columns:repeat(2, auto); }
+  [data-hs-portrait=hide] .portrait { display:none !important; }
+  #actionbar[data-hs-gap=none] { gap:0 !important; } #actionbar[data-hs-gap=tight] { gap:2px !important; } #actionbar[data-hs-gap=wide] { gap:14px !important; } #actionbar[data-hs-gap=huge] { gap:26px !important; }
+  #endchoice .ec-btn { padding:12px 28px; font-size:18px; font-weight:700; border-radius:8px; border:2px solid #8a93a6; background:rgba(20,24,34,.9); color:#fff; cursor:pointer; } #endchoice .ec-btn.ec-primary { border-color:#ffd34a; background:#ffd34a; color:#1a1a1a; }
+  #endchoice[data-hs-btn=outline] .ec-btn { background:transparent !important; color:#fff !important; } #endchoice[data-hs-btn=outline] .ec-btn.ec-primary { border-color:#ffd34a; color:#ffd34a !important; }
+  #endchoice[data-hs-btn=pill] .ec-btn { border-radius:999px; } #endchoice[data-hs-btn=square] .ec-btn { border-radius:0; }
+  #endchoice[data-hs-btn=ghost] .ec-btn { background:transparent !important; border-color:transparent !important; text-shadow:0 1px 4px #000; color:#fff !important; } #endchoice[data-hs-btn=ghost] .ec-btn.ec-primary { color:#ffd34a !important; }
+  #endchoice[data-hs-btnsize=md] .ec-btn { padding:8px 18px; font-size:15px; } #endchoice[data-hs-btnsize=sm] .ec-btn { padding:5px 12px; font-size:12px; }
+  #endchoice[data-hs-stack=column] > div { flex-direction:column; }
+  #log[data-hs-lines=compact] > *, #killfeed[data-hs-lines=compact] > * { padding-top:0 !important; padding-bottom:0 !important; line-height:1.1 !important; } #log[data-hs-lines=spaced] > *, #killfeed[data-hs-lines=spaced] > * { margin-bottom:6px !important; }
+
   /* ---------- HUD layout editor ---------- */
   #hud-edit-bar { position:fixed; top:14px; right:14px; z-index:150; width:min(250px, calc(100vw - 24px)); font:600 13px var(--serif); }
   #hud-edit-bar .he-list { display:grid; grid-template-columns:1fr 1fr; gap:4px; max-height:44vh; overflow:auto; } #hud-edit-bar .he-item { padding:5px 8px; text-align:left; font-size:11px; } #hud-edit-bar .he-item.on { background:#2a6f82; border-color:#8fe6ff; color:#fff; } #hud-edit-bar .he-item i { font-style:normal; color:#e9c872; }

@@ -1,6 +1,6 @@
 import { tours } from './tour'; // first: its key listener must run before every other one (see tour.ts)
 import { helpWindow } from './tourUi';
-import { ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, setDisabledMaps, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
+import { hasPower, ABILITIES, AURAS, ARENAS, arenaById, registerCustomArenas, setDisabledMaps, lockedByAura, silencedBy, hasLOS, heightAt, onRaised, stepMovementL, CLASSES, ReplayRunner, canStartJump, jumpHeight, PROTOCOL_VERSION, SnapMerger, TUNING, barFor, clampToGate, gearLook, specOf, weaponFor, fxNum, } from '@arena/shared';
 import type { ArenaDef, Build, ClassId, DevPageId, ClientMsg, MoveInput, ServerMsg, Snapshot, TeamId, UnitBuild, UnitSnap } from '@arena/shared';
 import pkg from '../package.json';
 import { UpdateNotice } from './updateNotice';
@@ -138,7 +138,7 @@ const endChoice = (() => {
   const mk = (label: string, primary: boolean) => {
     const b = document.createElement('button');
     b.textContent = label;
-    b.style.cssText = `padding:12px 28px;font-size:18px;font-weight:700;border-radius:8px;border:2px solid ${primary ? '#ffd34a' : '#8a93a6'};background:${primary ? '#ffd34a' : 'rgba(20,24,34,.9)'};color:${primary ? '#1a1a1a' : '#fff'};cursor:pointer;`;
+    b.className = `ec-btn${primary ? ' ec-primary' : ''}`; // styled in index.html (hudSkin.ts changes it)
     row.append(b);
     return b;
   };
@@ -1890,7 +1890,7 @@ const paintHeader = () => {
   b.title = a ? `Profile · ${a.name}` : 'Sign in or register';
   b.classList.toggle('hdr-signin', !a);
   header.buttons.admin.classList.toggle('hidden', a?.role !== 'owner' && !adminAccessOf(a)); // the founder account and accounts with the dev tag see the admin button
-  header.buttons.bots.classList.toggle('hidden', !adminAccessOf(a) && a?.role !== 'owner'); // and the bot battle button
+  header.buttons.bots.classList.toggle('hidden', (!adminAccessOf(a) && a?.role !== 'owner') || (adminAccessOf(a) === 'dev' && !hasPower(a?.grants, 'botmatch'))); // and the bot battle button
 };
 paintHeader();
 menuExtras.append(header.root, friendsUi.partyChip);

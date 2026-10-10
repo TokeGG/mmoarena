@@ -11,7 +11,7 @@ import { REPLAY_MAX_BYTES, bannedText, publicInfo } from './accounts';
 import type { AccountRecord, Accounts } from './accounts';
 import type { BotLearner } from './botlearn';
 import type { Suggestions } from './suggestions';
-import { DEFAULT_BOT_NAMES, pickBotName, validateBotNames, currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, smokeProblem, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
+import { hasPower, DEFAULT_BOT_NAMES, pickBotName, validateBotNames, currentValue, barSwapped, cleanGear, emptyBuild, gearLook, isOwnerName, mergePatches, specOf, validateBuild, withPatches, smokeProblem, ABILITIES, PARTY_MAX, PARTY_SIDE_MAX, partyWaitingText } from '@arena/shared';
 import { formatReport } from '@arena/shared';
 import { whereIs } from './geoip';
 import type { ChatChange, ChatTurn, AdminAct, AdminOnline, AdminRoom, DataPatch, ReplayData, TrainJobRow, UnitBuild } from '@arena/shared';
@@ -961,6 +961,13 @@ export interface LobbyConfig {
 }
 
 /** What the dev tag may do in the admin panel (admin_act); everything else in AdminAct is the owner's. */
+/** The dev power each message needs (the owner has them all; the Permissions tab switches single ones off for a dev). */
+const POWER_OF_MSG: Partial<Record<ClientMsg['t'], string>> = {
+  dev_pause: 'tuning', dev_patch: 'tuning', dev_session: 'tuning', dev_restart: 'tuning', dev_reset: 'tuning', dev_cooldowns: 'tuning', dev_unit: 'tuning', dev_map: 'tuning', dev_bot: 'tuning', dev_builds: 'tuning',
+  dev_save: 'commit', dev_commit: 'commit', dev_redeploy: 'redeploy',
+  dev_ai: 'askclaude', dev_ai_apply: 'askclaude', dev_ai_undo: 'askclaude', dev_ai_clear: 'askclaude', dev_requests: 'askclaude', dev_note: 'askclaude',
+  bot_match: 'botmatch', maps_list: 'maps', map_save: 'maps', map_delete: 'maps', map_enable: 'maps',
+};
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
 const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', cooldowns_reset: 'Resetting cooldowns', cooldowns_off: 'Switching cooldowns off', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub', bug_fixed: 'Marking a bot bug fixed' };
@@ -1087,7 +1094,7 @@ export class Lobby {
     // the server decides what a dev may do, whatever the client shows
     const access = this.adminAccess(p);
     if (!access) return;
-    if (access === 'dev' && !DEV_ADMIN_ACTS.has(msg.act)) {
+    if (access === 'dev' && !DEV_ADMIN_ACTS.has(msg.act) && !(msg.act === 'maintenance' && hasPower(p.account?.grants, 'maintain'))) {
       return void send(p, { t: 'dev_result', ok: false, text: `${DEV_REFUSED[msg.act] ?? 'That'} is for the owner only. The dev tag opens the panel's read and training tools.` });
     }
     switch (msg.act) {
@@ -1798,6 +1805,11 @@ export class Lobby {
   handle(p: Player, msg: ClientMsg): void {
     // background polling (pings, the live-match badge) is not the player doing something
     if (msg.t !== 'ping' && msg.t !== 'live' && msg.t !== 'admin_overview' && !(msg.t === 'admin_proposals' && msg.op === 'list')) p.activeAt = this.clock();
+    // a dev whose owner switched this power off is told so (the owner always has it; others fall through to the usual refusals)
+    const need = POWER_OF_MSG[msg.t];
+    if (need && this.adminAccess(p) === 'dev' && !hasPower(p.account?.grants, need)) {
+      return void send(p, { t: 'dev_result', ok: false, text: 'The owner has not given you that power. They can switch it on in the admin panel, under Permissions.' });
+    }
     switch (msg.t) {
       case 'ping':
         send(p, { t: 'pong', n: msg.n, load: this.meter.report().load }); // answered at once, in any state
@@ -2259,7 +2271,7 @@ export class Lobby {
         break;
       }
       case 'admin_announce': {
-        if (this.ownerOnly(p, 'Announcements')) return;
+        if (!(this.adminAccess(p) === 'dev' && hasPower(p.account?.grants, 'maintain')) && this.ownerOnly(p, 'Announcements')) return;
         this.lastAnnounce = { t: 'announce', text: msg.text, by: p.account?.name ?? p.name, at: Date.now() };
         for (const q of this.conns) send(q, this.lastAnnounce);
         void this.adminLog?.add(p.account?.name ?? p.name, 'announce', undefined, msg.text);
@@ -2337,16 +2349,16 @@ export class Lobby {
         break;
       }
       case 'maps_list':
-        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk) return;
+        if (!this.adminAccess(p)) return; // the owner and devs share the map tools
         send(p, { t: 'custom_maps', maps: [...customArenas()], off: disabledMaps() });
         break;
       case 'map_enable':
-        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        if (!this.adminAccess(p) || !this.customMaps) return;
         void this.customMaps.setAvailable(p.account?.name ?? p.name, msg.id, msg.on).then((r) => send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id } : {}) }));
         break;
       case 'map_save':
       case 'map_delete': {
-        if (this.ownerOnly(p, 'The map editor') || !p.ownerOk || !this.customMaps) return;
+        if (!this.adminAccess(p) || !this.customMaps) return;
         const by = p.account?.name ?? p.name;
         void (msg.t === 'map_save' ? this.customMaps.save(by, msg.map) : this.customMaps.remove(by, msg.id)).then((r) => {
           send(p, { t: 'map_result', ok: r.ok, text: r.text, ...(r.ok ? { id: r.id, warnings: r.warnings } : {}) });
