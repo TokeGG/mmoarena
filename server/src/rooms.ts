@@ -60,6 +60,8 @@ export interface Player {
   token?: string;
   /** Owner code entered for this session: custom styles, GIF icon, admin panel. */
   ownerOk?: boolean;
+  /** A dev the owner gave the Watch-any-match power: sees every match live, like the owner (set on every message). */
+  fullView?: boolean;
   /** Account actions run one at a time per connection. */
   chain: Promise<void>;
   lastSettingsSave?: number;
@@ -722,7 +724,7 @@ export class Room {
         // watchers see it paused too (late watchers stay on their delayed view, which stops moving)
         if (this.spectators.size) {
           const frame = JSON.stringify({ t: 'snapshot', snap: { ...this.sim.snapshot(), paused: true, ...(this.pausedBy ? { pausedBy: this.pausedBy } : {}) }, events: [] });
-          for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
+          for (const w of this.spectators) if ((w.ownerOk || w.fullView) && w.ws.readyState === 1) w.ws.send(frame);
         }
       }
       return;
@@ -772,7 +774,7 @@ export class Room {
       if (this.countsForProgress) this.delayed.push({ snap, events });
       if (this.spectators.size) {
         // nobody plays in a bot match, so everyone watching it sees it live
-        const live = [...this.spectators].filter((w) => w.ownerOk || this.botsOnly);
+        const live = [...this.spectators].filter((w) => w.ownerOk || w.fullView || this.botsOnly);
         if (live.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap, events });
           const stats = this.sim.tickNo % this.ticksIn(500) === 0 ? JSON.stringify({ t: 'stats', rows: this.statRows() }) : null;
@@ -781,7 +783,7 @@ export class Room {
       }
       if (this.delayed.length > this.ticksIn(SPECTATE_DELAY_MS)) {
         const f = this.delayed.shift()!;
-        const late = [...this.spectators].filter((w) => !w.ownerOk && !this.botsOnly);
+        const late = [...this.spectators].filter((w) => !w.ownerOk && !w.fullView && !this.botsOnly);
         if (late.length) {
           const frame = JSON.stringify({ t: 'snapshot', snap: f.snap, events: f.events });
           // the delayed view reaches the end five seconds after the players do, and only then gets the scoreboard
@@ -797,7 +799,7 @@ export class Room {
         this.finalSent = true;
         const frame = JSON.stringify({ t: 'stats', rows: this.statRows(), final: true });
         for (const p of this.players.values()) if (p.ws.readyState === 1) p.ws.send(frame);
-        for (const w of this.spectators) if (w.ownerOk && w.ws.readyState === 1) w.ws.send(frame);
+        for (const w of this.spectators) if ((w.ownerOk || w.fullView) && w.ws.readyState === 1) w.ws.send(frame);
       }
       this.creditProgress();
       // matches that earn nothing (bots only, dummies, test numbers, too short) still go in the owner's match list
@@ -968,6 +970,14 @@ const POWER_OF_MSG: Partial<Record<ClientMsg['t'], string>> = {
   dev_ai: 'askclaude', dev_ai_apply: 'askclaude', dev_ai_undo: 'askclaude', dev_ai_clear: 'askclaude', dev_requests: 'askclaude', dev_note: 'askclaude',
   bot_match: 'botmatch', maps_list: 'maps', map_save: 'maps', map_delete: 'maps', map_enable: 'maps',
 };
+/** The dev power each owner-only admin action needs. */
+const ACT_POWER: Partial<Record<AdminAct, string>> = {
+  kick: 'moderate', ban: 'moderate', unban: 'moderate', mute: 'moderate', unmute: 'moderate', note: 'moderate', kill: 'moderate',
+  set_rating: 'ratings', reset_stats: 'ratings',
+  pause_match: 'matchctl', cooldowns_reset: 'matchctl', cooldowns_off: 'matchctl', time: 'matchctl',
+  autotrain: 'botadmin', bot_reset: 'botadmin', bot_commit: 'botadmin', bug_fixed: 'botadmin',
+  maintenance: 'maintain',
+};
 const DEV_ADMIN_ACTS: ReadonlySet<AdminAct> = new Set<AdminAct>(['history', 'log', 'feed', 'train', 'train_passes', 'train_all', 'train_status', 'bot_knowledge']);
 /** How a refused action is named in the message a dev gets. */
 const DEV_REFUSED: Partial<Record<AdminAct, string>> = { kick: 'Kicking players', kill: 'Killing players', time: 'Play time statistics', ban: 'Banning', unban: 'Unbanning', mute: 'Muting', unmute: 'Unmuting', set_rating: 'Changing ratings', reset_stats: 'Resetting stats', note: 'Account notes', maintenance: 'Maintenance mode', pause_match: 'Pausing other people\'s matches', cooldowns_reset: 'Resetting cooldowns', cooldowns_off: 'Switching cooldowns off', autotrain: 'The train-on-every-match switch', bot_reset: 'Resetting the learned brain', bot_commit: 'Committing the learned bots to GitHub', bug_fixed: 'Marking a bot bug fixed' };
@@ -1094,7 +1104,7 @@ export class Lobby {
     // the server decides what a dev may do, whatever the client shows
     const access = this.adminAccess(p);
     if (!access) return;
-    if (access === 'dev' && !DEV_ADMIN_ACTS.has(msg.act) && !(msg.act === 'maintenance' && hasPower(p.account?.grants, 'maintain'))) {
+    if (access === 'dev' && !DEV_ADMIN_ACTS.has(msg.act) && !(ACT_POWER[msg.act] && hasPower(p.account?.grants, ACT_POWER[msg.act]!))) {
       return void send(p, { t: 'dev_result', ok: false, text: `${DEV_REFUSED[msg.act] ?? 'That'} is for the owner only. The dev tag opens the panel's read and training tools.` });
     }
     switch (msg.act) {
@@ -1500,7 +1510,7 @@ export class Lobby {
     if (!this.requests) return;
     for (const q of this.conns) {
       if (!this.isDev(q)) continue;
-      const all = this.adminAccess(q) === 'owner';
+      const all = this.owns(q, 'watchall');
       send(q, { t: 'dev_requests', rows: this.requests.visible(q.account?.name ?? q.name, all), all });
     }
   }
@@ -1521,9 +1531,15 @@ export class Lobby {
   }
 
   /** Refuse a dev (clearly) an owner-only part of the panel. Returns true when `p` is not the owner so the caller stops. */
-  private ownerOnly(p: Player, what: string): boolean {
+  /** The owner, or a dev the owner gave this power (all of them are checked here on the server). */
+  private owns(p: Player, power: string): boolean {
+    return !!p.ownerOk || (this.adminAccess(p) === 'dev' && hasPower(p.account?.grants, power));
+  }
+
+  private ownerOnly(p: Player, what: string, power?: string): boolean {
     const access = this.adminAccess(p);
     if (access === 'owner') return false;
+    if (power && access === 'dev' && hasPower(p.account?.grants, power)) return false;
     if (access === 'dev') send(p, { t: 'dev_result', ok: false, text: `${what} is for the owner only. The dev tag opens the panel's read and training tools.` });
     return true;
   }
@@ -1747,12 +1763,17 @@ export class Lobby {
           send(p, { t: 'history', rows: await acc.history(p.account.key) });
           break;
         case 'admin_list': {
-          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: this.adminAccess(p) ? 'The player list and moderation are for the owner only.' : 'Owner tools are locked.' });
+          if (!this.owns(p, 'players') && !this.owns(p, 'moderate')) return void send(p, { t: 'auth_error', reason: this.adminAccess(p) ? 'The player list and moderation are for the owner only.' : 'Owner tools are locked.' });
           send(p, { t: 'admin_accounts', rows: await acc.adminList(this.onlineKeys()) });
           break;
         }
         case 'admin_set': {
-          if (!p.ownerOk) return void send(p, { t: 'auth_error', reason: this.adminAccess(p) ? 'Account changes (tags, passwords) are for the owner only.' : 'Owner tools are locked.' });
+          if (!this.owns(p, 'players')) return void send(p, { t: 'auth_error', reason: this.adminAccess(p) ? 'Account changes (tags, passwords) are for the owner only.' : 'Owner tools are locked.' });
+          if (!p.ownerOk) {
+            // a dev with the Players power never touches tags or powers, the owner, or other devs: those stay the owner's
+            const target = await acc.get(msg.name);
+            if (msg.grants !== undefined || !target || isOwnerName(target.name) || target.grants?.includes('dev')) return void send(p, { t: 'admin_result', ok: false, reason: 'Tags and powers, the owner and other devs are for the owner only.' } as ServerMsg);
+          }
           const r = await acc.adminSet(msg.name, msg);
           if (!r.ok) return void send(p, { t: 'admin_result', ok: false, name: msg.name, reason: r.reason });
           // a friend who is online gets the change immediately (and a reset password signs them out)
@@ -1805,6 +1826,7 @@ export class Lobby {
   handle(p: Player, msg: ClientMsg): void {
     // background polling (pings, the live-match badge) is not the player doing something
     if (msg.t !== 'ping' && msg.t !== 'live' && msg.t !== 'admin_overview' && !(msg.t === 'admin_proposals' && msg.op === 'list')) p.activeAt = this.clock();
+    p.fullView = this.adminAccess(p) === 'dev' && hasPower(p.account?.grants, 'watchall');
     // a dev whose owner switched this power off is told so (the owner always has it; others fall through to the usual refusals)
     const need = POWER_OF_MSG[msg.t];
     if (need && this.adminAccess(p) === 'dev' && !hasPower(p.account?.grants, need)) {
@@ -1886,7 +1908,7 @@ export class Lobby {
         if (this.busy(p)) return;
         if (!p.account) return void send(p, { t: 'notice', text: 'Sign in to watch live matches.' });
         // the owner can watch any match (practice and private bot matches too); everyone else only listed ones
-        const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed && (r.watchable || p.ownerOk));
+        const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed && (r.watchable || this.owns(p, 'watchall')));
         if (!room) return void send(p, { t: 'closed', reason: 'That match is over.' });
         p.watching?.removeSpectator(p);
         room.addSpectator(p);
@@ -1915,7 +1937,7 @@ export class Lobby {
         if (!this.isDev(p)) return void send(p, { t: 'dev_result', ok: false, text: 'Dev tools need the dev tag.' });
         if (msg.live) {
           // "Make it live": everyone gets these numbers at once, and the same match keeps them as well
-          if (this.ownerOnly(p, 'Making numbers live')) return;
+          if (this.ownerOnly(p, 'Making numbers live', 'numberslive')) return;
           const by = p.account?.name ?? p.name;
           void this.dev?.save(msg.patches).then(() => {
             void this.adminLog?.add(by, 'numbers made live', undefined, `${msg.patches.length} number${msg.patches.length === 1 ? '' : 's'}`);
@@ -1970,7 +1992,7 @@ export class Lobby {
       }
       case 'dev_unit': {
         // the owner moderates from inside a match (played or watched): the unit's player, not a name typed in
-        if (!p.ownerOk) return void send(p, { t: 'dev_result', ok: false, text: 'Killing, kicking and banning are for the owner only.' });
+        if (!this.owns(p, 'moderate')) return void send(p, { t: 'dev_result', ok: false, text: 'Killing, kicking and banning are for the owner only.' });
         const room = this.devRoom(p);
         const u = room && !room.closed ? room.sim.units.get(msg.unit) : undefined;
         if (!room || !u) return void send(p, { t: 'dev_result', ok: false, text: 'That unit is not in a match you are in or watching.' });
@@ -2058,7 +2080,7 @@ export class Lobby {
         break;
       }
       case 'owner_log': {
-        if (!p.ownerOk || !this.dev) return void send(p, { t: 'owner_log', rows: [], error: 'Only the owner can see this.' });
+        if (!this.owns(p, 'changelog') || !this.dev) return void send(p, { t: 'owner_log', rows: [], error: 'Only the owner can see this.' });
         void this.dev.ownerLog().then((r) => send(p, { t: 'owner_log', ...r }));
         break;
       }
@@ -2205,7 +2227,7 @@ export class Lobby {
           break;
         }
         if (msg.op === 'merge') {
-          if (this.ownerOnly(p, 'Merging a pull request') || !msg.id) return;
+          if (this.ownerOnly(p, 'Merging a pull request', 'requestsadm') || !msg.id) return;
           void reqs.merge(msg.id).then((r) => {
             send(p, { t: 'dev_result', ok: r.ok, text: r.text });
             if (r.ok) void this.adminLog?.add(by, 'request: merged the pull request', undefined, msg.id);
@@ -2214,7 +2236,7 @@ export class Lobby {
           break;
         }
         if (msg.op === 'build') {
-          if (this.ownerOnly(p, 'Asking Claude to build a request') || !msg.id) return;
+          if (this.ownerOnly(p, 'Asking Claude to build a request', 'requestsadm') || !msg.id) return;
           void reqs.build(msg.id, by).then((r) => {
             send(p, { t: 'dev_result', ok: r.ok, text: r.text });
             if (r.ok) void this.adminLog?.add(by, 'request: build with Claude', undefined, msg.id);
@@ -2222,7 +2244,7 @@ export class Lobby {
           });
           break;
         }
-        if (this.ownerOnly(p, 'Marking or deleting requests') || !msg.id) return;
+        if (this.ownerOnly(p, 'Marking or deleting requests', 'requestsadm') || !msg.id) return;
         if (msg.op !== 'done' && msg.op !== 'reopen' && msg.op !== 'delete') return;
         void reqs.mark(msg.id, msg.op).then((ok) => {
           if (!ok) return void send(p, { t: 'dev_result', ok: false, text: 'That request is gone.' });
@@ -2248,8 +2270,8 @@ export class Lobby {
         break;
       }
       case 'admin_takeover': {
-        // owner only (not the dev tag), and nothing is said to anyone but the owner
-        if (!p.ownerOk) return;
+        // the owner, or a dev given the Takeover power; nothing is said to anyone else
+        if (!this.owns(p, 'takeover')) return;
         if (p.room || this.inQueue(p) || p.duelWith !== undefined) return void send(p, { t: 'dev_result', ok: false, text: 'Finish or leave your own match first.' });
         const room = [...this.rooms].find((r) => r.id === msg.id && !r.closed);
         if (!room) return void send(p, { t: 'dev_result', ok: false, text: 'That match is over.' });
@@ -2261,7 +2283,7 @@ export class Lobby {
         break;
       }
       case 'admin_release': {
-        if (!p.ownerOk) return;
+        if (!this.owns(p, 'takeover')) return;
         p.ctl?.room.releaseControl(p);
         break;
       }
@@ -2278,14 +2300,12 @@ export class Lobby {
         break;
       }
       case 'admin_hud_default': {
-        if (this.ownerOnly(p, 'The HUD default for everyone')) return;
-        if (!p.ownerOk) return;
+        if (this.ownerOnly(p, 'The HUD default for everyone', 'hudall')) return;
         void this.setHudDefault(p, msg.layout);
         break;
       }
       case 'admin_botnames': {
-        if (this.ownerOnly(p, 'The bot names')) return;
-        if (!p.ownerOk) return;
+        if (this.ownerOnly(p, 'The bot names', 'botnames')) return;
         let error: string | undefined;
         if (msg.names !== undefined) {
           const v = msg.names === null ? null : validateBotNames(msg.names);
@@ -2301,7 +2321,7 @@ export class Lobby {
         break;
       }
       case 'admin_end': {
-        if (this.ownerOnly(p, 'Ending a match')) return;
+        if (this.ownerOnly(p, 'Ending a match', 'matchctl')) return;
         const room = [...this.rooms].find((r) => r.id === msg.id);
         if (room) {
           room.close('The owner ended this match.');
@@ -2311,7 +2331,7 @@ export class Lobby {
         break;
       }
       case 'overrides_pr': {
-        if (this.ownerOnly(p, 'Opening a pull request') || !this.dev) return;
+        if (this.ownerOnly(p, 'Opening a pull request', 'numberslive') || !this.dev) return;
         const dev = this.dev;
         const by = p.account?.name ?? p.name;
         if (!dev.overrides.length) return void send(p, { t: 'dev_result', ok: false, text: 'There are no live number changes to propose.' });
@@ -2325,7 +2345,7 @@ export class Lobby {
         break;
       }
       case 'overrides_clear': {
-        if (this.ownerOnly(p, 'Clearing the live numbers') || !this.dev) return;
+        if (this.ownerOnly(p, 'Clearing the live numbers', 'numberslive') || !this.dev) return;
         void this.adminLog?.add(p.account?.name ?? p.name, 'clear number overrides');
         void this.dev.clear().then(() => {
           for (const q of this.conns) send(q, { t: 'overrides', patches: [] });
@@ -2432,7 +2452,7 @@ export class Lobby {
         void this.suggestions.list().then((rows) => send(p, { t: 'suggestions', rows }));
         break;
       case 'suggest_delete':
-        if (!p.ownerOk || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can delete suggestions.' });
+        if (!this.owns(p, 'suggestions') || !this.suggestions) return void send(p, { t: 'suggest_ack', ok: false, reason: 'Only the owner can delete suggestions.' });
         void this.suggestions.remove(msg.at, msg.text).then(() => this.suggestions!.list()).then((rows) => send(p, { t: 'suggestions', rows }));
         break;
       default:
@@ -2495,7 +2515,7 @@ export class Lobby {
     if (!room || !key) return;
     for (const f of this.conns) {
       // a dev follows into matches a dev may watch (listed ones, on the delayed view) and into bot battles, never into private practice
-      if (f.follow !== key || !(f.ownerOk || (this.adminAccess(f) && (room.watchable || room.botsOnly))) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
+      if (f.follow !== key || !(this.owns(f, 'watchall') || (this.adminAccess(f) && (room.watchable || room.botsOnly))) || f === q || f.room || this.inQueue(f) || f.watching === room) continue;
       f.watching?.removeSpectator(f);
       room.addSpectator(f);
       send(f, { t: 'notice', text: `Following ${q.account!.name} into their match.` });

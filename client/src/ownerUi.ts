@@ -716,6 +716,7 @@ export class OwnerPanel {
       return body;
     }
     body.append(this.moderation(r));
+    if (this.hooks.limited?.()) return body; // tags, unlocks and styles stay the owner's
     body.append(el('b', '', 'Unlocks and abilities'));
     const grants = new Set(r.grants);
     const grid = el('div', 'chk-grid');
