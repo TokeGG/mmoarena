@@ -1,6 +1,6 @@
 import { ABILITIES, AURAS, CLASSES, FX, ICONS, LOOKS, MODELS_DATA, SOUNDS, SPECS, TALENTS, TUNING } from './data';
 import { LOOKS_ID, LOOK_CHOICES, LOOK_NUMBER_BOUNDS } from './looks';
-import { MODELS_ID, modelBounds } from './modeldata';
+import { MODELS_ID, isModelFile, modelBounds } from './modeldata';
 import { SOUND_FIELD_BOUNDS, SOUND_ID, isSoundFile } from './sounds';
 import { FX_ID, fxField } from './fx';
 import { ICON_TABLE, fileIconIdFor, iconExists, iconIdFor } from './iconlib';
@@ -275,6 +275,7 @@ export function modSlot(p: PatchAt): { kind: 'number' | 'flag'; def: number } | 
 /** True when the patch is a yes/no switch (patched as 1 or 0). */
 export function isSwitch(p: PatchAt): boolean {
   if (p.file === 'sounds') return p.path.length === 2 && p.path[1] === 'off';
+  if (p.file === 'models') return p.path[p.path.length - 1] === 'hide';
   if (p.path.length === 1 && p.file === 'abilities') return Object.hasOwn(ABILITY_FLAGS, String(p.path[0]));
   if (p.path.length === 1 && p.file === 'auras') return Object.hasOwn(AURA_FLAGS, String(p.path[0]));
   return modSlot(p)?.kind === 'flag';
@@ -360,6 +361,7 @@ function valueFits(p: DataPatch): boolean {
     return !!nb && typeof p.value === 'number' && Number.isFinite(p.value) && p.value >= nb.min && p.value <= nb.max;
   }
   if (p.file === 'models') {
+    if (p.path[p.path.length - 1] === 'file') return isModelFile(p.value); // an uploaded model (or empty: the game's own)
     const b = modelBounds(p.path, MODELS_DATA);
     return !!b && typeof p.value === 'number' && Number.isFinite(p.value) && p.value >= b.min && p.value <= b.max;
   }

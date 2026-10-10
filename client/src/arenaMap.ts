@@ -794,9 +794,14 @@ export function buildArenaEnvironment(scene: THREE.Scene, renderer: THREE.WebGLR
       root.add(sh);
       if (th.extras === 'lava') {
         // a glowing seam under the lip of the slab
-        const g = new THREE.Mesh(new THREE.BoxGeometry(f.x1 - f.x0 + 0.06, 0.12, f.z1 - f.z0 + 0.06), new THREE.MeshBasicMaterial({ color: th.accent }));
-        g.position.set((f.x0 + f.x1) / 2, H - slab - 0.02, (f.z0 + f.z1) / 2);
-        root.add(g);
+        // (four thin strips along the edges: a whole slab here would be an orange floor seen through the see-through circle under the deck)
+        const seam = new THREE.MeshBasicMaterial({ color: th.accent });
+        const w = f.x1 - f.x0 + 0.06, d = f.z1 - f.z0 + 0.06, cx = (f.x0 + f.x1) / 2, cz = (f.z0 + f.z1) / 2, y = H - slab - 0.02;
+        for (const [sx, sz, px, pz] of [[w, 0.1, cx, f.z0 - 0.03], [w, 0.1, cx, f.z1 + 0.03], [0.1, d, f.x0 - 0.03, cz], [0.1, d, f.x1 + 0.03, cz]] as const) {
+          const g = new THREE.Mesh(new THREE.BoxGeometry(sx, 0.12, sz), seam);
+          g.position.set(px, y, pz);
+          root.add(g);
+        }
       }
     }
     for (const p of deckPiers(ARENA)) box(p.x0, p.x1, 0, H - 0.6, p.z0, p.z1, stoneMat, 4);

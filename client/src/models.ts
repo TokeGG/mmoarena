@@ -9,6 +9,7 @@ import { boneAdjust, slotPlacement } from './modelData';
 import { attachWeapon, WEAPONS } from './weaponModels';
 import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
+import { applyCustomParts } from './customParts';
 import type { RigAsset, RigDriver } from './riggedModels';
 import { buildCape, isCapeItem, DEFAULT_CAPE_FIT } from './capeModels';
 import { robeBackLook, robeBackUniforms, robeBackAttribute, ROBE_BACK_GLSL } from './robeBack';
@@ -957,6 +958,8 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     }
     (b.parts[slot] ??= []).push({ group, meshes: [...list], fx: [], anim: [] });
   }
+
+  applyCustomParts(b, asset.id, inst, meta); // body parts the dev uploaded
 
   // what shows where a worn item took a part away: a bare face under the helm, plain joints under the pauldrons
   const skin = b.m(SKIN, { rough: 0.8 });

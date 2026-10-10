@@ -169,7 +169,7 @@ export function weaponGroups(id: string, data: ModelsFile): ModelGroup[] {
   const w = data.weapons[id];
   if (!w) return [];
   const base = ['weapons', id];
-  const out: ModelGroup[] = [{ id: 'model', title: 'Model', sub: 'swap the weapon for a model of your own', fields: [f([...base, 'file'], 'Weapon model', 'plain', 0, 0, 'A .glb you uploaded, used whole: its middle is held in the fist and its long side points where the tip should. Tune the grip below.')] }, { id: 'right', title: 'Right hand', sub: 'how it sits in the right hand', fields: hand([...base, 'right'], 'Right hand') }];
+  const out: ModelGroup[] = [{ id: 'model', title: 'Model', sub: 'swap the weapon for a model of your own', fields: [f([...base, 'file'], 'Weapon model', 'plain', 0, 0, 'A .glb you uploaded. It is made the length of the weapon it replaces, with its long side along the blade or shaft and its bottom end in the fist. Tune the grip below.')] }, { id: 'right', title: 'Right hand', sub: 'how it sits in the right hand', fields: hand([...base, 'right'], 'Right hand') }];
   if (w.left) out.push({ id: 'left', title: 'Left hand', sub: 'the second weapon of a pair', fields: hand([...base, 'left'], 'Left hand') });
   out.push({ id: 'effects', title: 'Cosmetic centre', sub: 'where weapon cosmetics (flames, stars, rings) are centred', fields: [f([...base, 'mid'], 'Centre along the weapon', 'yd', -1, 3, 'Yards from the grip.')] });
   if (w.hold) out.push({ id: 'hold', title: 'Two hands on it', sub: 'how both arms carry it', fields: [

@@ -5,7 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import type { RawData } from 'ws';
-import { CUSTOM_SOUND_LIMIT_BYTES, PATCHES, TUNING, parseClientMsg } from '@arena/shared';
+import { CUSTOM_SOUND_LIMIT_BYTES, CUSTOM_MODEL_LIMIT_BYTES, PATCHES, TUNING, parseClientMsg } from '@arena/shared';
 import { Lobby } from './rooms';
 import { PlayTime } from './playtime';
 import { ServerHealth } from './health';
@@ -16,6 +16,7 @@ import { DevTools } from './devtools';
 import { AdminLog } from './adminlog';
 import { CUSTOM_LIMITS, CustomIcons } from './customicons';
 import { CustomSounds } from './customsounds';
+import { CustomModels } from './custommodels';
 import { CustomMaps } from './custommaps';
 import { AiTune } from './aitune';
 import { DevRequests } from './devrequests';
@@ -100,6 +101,8 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
   const customIcons = new CustomIcons(store, adminLog);
   // recordings uploaded on the dev panel's Sounds page: kept in the store, served at /audio/custom/<name>
   const customSounds = new CustomSounds(store, adminLog);
+  // models uploaded on the dev panel's Models page (body parts, weapons, cosmetics): kept in the store, served at /models/custom/<name>
+  const customModels = new CustomModels(store, adminLog);
   // maps the owner made in the admin panel's Maps tab: kept in the store, registered for every arena lookup, sent to every client
   const customMaps = new CustomMaps(store, adminLog, (maps) => lobby.customMapsChanged(maps));
   const lobby = new Lobby({ tickMs, practicePrepMs: opts.practicePrepMs ?? 3000, queuePrepMs: opts.queuePrepMs ?? 5000 }, accounts, botLearner, new Suggestions(store, process.env.SUGGESTION_WEBHOOK_URL), devTools, adminLog, new AiTune(process.env), new DevRequests(store, process.env, undefined, (t) => devTools.post(t)), playTime, health, customMaps);
@@ -210,6 +213,52 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
           res.writeHead(r.ok ? 200 : r.status, { 'content-type': 'application/json' }).end(JSON.stringify(r.ok ? r : { ok: false, text: r.text }));
         } catch {
           fail(500, 'Could not save the recording.');
+        }
+      });
+      return;
+    }
+    // models uploaded on the Models page (they live in the store, not in the repository)
+    if (url.pathname === '/api/models/custom' && req.method === 'GET') {
+      customModels.files().then((models) => res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' }).end(JSON.stringify({ models }))).catch(() => res.writeHead(500).end());
+      return;
+    }
+    if ((url.pathname === '/api/models/custom' && req.method === 'POST') || (url.pathname.startsWith('/api/models/custom/') && req.method === 'DELETE')) {
+      const token = /^Bearer (\S{10,80})$/.exec(String(req.headers.authorization ?? ''))?.[1];
+      const fail = (code: number, msg: string) => res.writeHead(code, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: false, text: msg }));
+      if (!token) return void fail(401, 'Sign in first.');
+      const max = Math.ceil(CUSTOM_MODEL_LIMIT_BYTES * 1.4) + 4096;
+      const chunks: Buffer[] = [];
+      let size = 0;
+      let dead = false;
+      req.on('data', (c: Buffer) => {
+        size += c.length;
+        if (size > max) {
+          dead = true;
+          fail(413, 'That upload is too big.');
+          req.destroy();
+        } else chunks.push(c);
+      });
+      req.on('end', async () => {
+        if (dead) return;
+        try {
+          const a = await accounts.accountForToken(token);
+          if (!a) return void fail(401, 'Session expired. Sign in again.');
+          const owner = await accounts.isOwnerSession(token, a);
+          if (!owner && !a.grants?.includes('dev')) return void fail(403, 'Only the owner or a dev can change models.');
+          let r;
+          if (req.method === 'DELETE') r = await customModels.remove(a.name, decodeURIComponent(url.pathname.slice('/api/models/custom/'.length)));
+          else {
+            let body: unknown;
+            try {
+              body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            } catch {
+              return void fail(400, 'That upload is not readable.');
+            }
+            r = await customModels.add(a.name, body);
+          }
+          res.writeHead(r.ok ? 200 : r.status, { 'content-type': 'application/json' }).end(JSON.stringify(r.ok ? r : { ok: false, text: r.text }));
+        } catch {
+          fail(500, 'Could not save the model.');
         }
       });
       return;
@@ -339,6 +388,14 @@ export function startServer(opts: ServerOptions): Promise<RunningServer> {
         // not in the static folder: a recording uploaded to this server
         customSounds
           .file(sound[1], sound[2])
+          .then((f) => (f ? res.writeHead(200, { 'content-type': f.mime, 'cache-control': 'public, max-age=600', 'x-content-type-options': 'nosniff' }).end(f.buf) : res.writeHead(404, { 'content-type': 'text/plain' }).end('not found')))
+          .catch(() => res.writeHead(500).end());
+        return;
+      }
+      const model = err ? /^\/models\/custom\/([a-z0-9-]{1,48})\.(glb)$/.exec(rel) : null;
+      if (model) {
+        customModels
+          .file(model[1], model[2])
           .then((f) => (f ? res.writeHead(200, { 'content-type': f.mime, 'cache-control': 'public, max-age=600', 'x-content-type-options': 'nosniff' }).end(f.buf) : res.writeHead(404, { 'content-type': 'text/plain' }).end('not found')))
           .catch(() => res.writeHead(500).end());
         return;

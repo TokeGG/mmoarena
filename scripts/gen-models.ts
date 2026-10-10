@@ -3,7 +3,8 @@
 // Run once to start the file; numbers already in it are kept (`--fresh` writes it all again from the code).
 import { readFileSync, writeFileSync } from 'node:fs';
 import { BONE_NAMES, COSMETIC_SLOTS } from '../shared/src/index';
-import type { BoneAdjust, CharacterData, ModelsFile, SlotData, Triple, WeaponData } from '../shared/src/index';
+import { NEUTRAL_PART } from '../shared/src/index';
+import type { BoneAdjust, PartFit, CharacterData, ModelsFile, SlotData, Triple, WeaponData } from '../shared/src/index';
 import { codeDefaults } from '../client/src/modelData';
 
 const path = new URL('../shared/data/models.json', import.meta.url);
@@ -33,6 +34,9 @@ for (const [id, m] of Object.entries(d.characters)) {
     c.bones = {};
     for (const b of BONE_NAMES) c.bones[b] = old.characters[id]?.bones?.[b] ?? ({ rx: 0, ry: 0, rz: 0, size: 1 } satisfies BoneAdjust);
   }
+  c.body = { file: '' };
+  c.parts = {};
+  for (const b of BONE_NAMES) c.parts[b] = old.characters[id]?.parts?.[b] ?? ({ ...NEUTRAL_PART } satisfies PartFit);
   if (m.helm) c.helm = { ...m.helm };
   c.cape = Object.fromEntries(Object.entries(m.cape).map(([k, v]) => [k, round(v)]));
   c.wings = Object.fromEntries(Object.entries(m.wings).map(([k, v]) => [k, round(v)]));
@@ -41,11 +45,11 @@ for (const [id, m] of Object.entries(d.characters)) {
 const weapons: Record<string, WeaponData> = {};
 for (const [id, w] of Object.entries(d.weapons)) {
   const hand = (h: { rot: number[]; pos?: number[]; lift?: number; out?: number }) => ({ rot: tri(h.rot), pos: tri(h.pos ?? [0, 0, 0], round), lift: deg(h.lift ?? 0), out: deg(h.out ?? 0) });
-  const e: WeaponData = { right: hand(w.right), mid: round(w.mid) };
+  const e: WeaponData = { file: '', right: hand(w.right), mid: round(w.mid) };
   if (w.left) e.left = hand(w.left);
   if (w.hold) e.hold = { r: tri([w.hold.r.x, w.hold.r.z, w.hold.r.e]), l: tri([w.hold.l.x, w.hold.l.z, w.hold.l.e]), walk: round(w.hold.walk), arc: round(w.hold.arc), elbowArc: round(w.hold.elbowArc ?? 1) };
   if (w.rest) e.rest = { rot: tri(w.rest.rot) };
-  weapons[id] = old.weapons[id] ?? e;
+  weapons[id] = { ...e, ...(old.weapons[id] ?? {}), file: old.weapons[id]?.file ?? '' };
 }
 const cosmetics: Record<string, SlotData> = {};
 for (const s of COSMETIC_SLOTS) cosmetics[s] = old.cosmetics[s] ?? { x: 0, y: 0, z: 0, scale: 1, rotY: 0 };
