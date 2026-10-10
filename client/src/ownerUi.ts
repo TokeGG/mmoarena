@@ -265,7 +265,7 @@ export class OwnerPanel {
     }
     const list = el('ul', 'own-overrides');
     for (const p of this.overrides) {
-      const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : p.file === 'fx' ? 'Animations' : p.file === 'sounds' ? 'Sounds' : p.file === 'icons' ? nameOf(p.file, p.id, p.path) : AURAS[p.id]?.name;
+      const name = p.file === 'abilities' ? ABILITIES[p.id]?.name : p.file === 'fx' ? 'Animations' : p.file === 'sounds' ? 'Sounds' : p.file === 'models' ? 'Models' : p.file === 'icons' ? nameOf(p.file, p.id, p.path) : AURAS[p.id]?.name;
       list.append(el('li', '', `${name ?? p.id} · ${p.path.join('.')} = ${p.value}`));
     }
     if (this.hooks.limited?.()) {

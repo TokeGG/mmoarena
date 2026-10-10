@@ -145,7 +145,10 @@ const assets = new Map<string, RigAsset>();
 let version = 0;
 
 /** Changes whenever a model finishes loading. Scenes compare it to the version their characters were built with. */
-export const modelVersion = () => version + weaponModelVersion() + capeModelVersion() + wingModelVersion(); // the weapon, cape and wing models count too
+/** Bumped when the Models page's numbers (shared/data/models.json) are merged again: scenes rebuild their characters. */
+let dataRev = 0;
+export const bumpModelData = (): void => void dataRev++;
+export const modelVersion = () => version + dataRev + weaponModelVersion() + capeModelVersion() + wingModelVersion(); // the weapon, cape and wing models count too
 
 const queryModel = (cls: string): string | null => {
   try {

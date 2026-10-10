@@ -5,6 +5,7 @@ import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { parseLook, clamp, fxNum } from '@arena/shared';
 import type { ClassId, CosmeticItem } from '@arena/shared';
 import { RigAnimator } from './riggedPose';
+import { boneAdjust, slotPlacement } from './modelData';
 import { attachWeapon, WEAPONS } from './weaponModels';
 import type { AttachedWeapon, WeaponLook } from './weaponModels';
 import { instantiate, riggedAssetFor } from './riggedModels';
@@ -985,7 +986,7 @@ function riggedRig(b: Builder, asset: RigAsset, classId: ClassId, weapon?: strin
     }
   };
   if (asset.def.ownHead) sentinelHead(b, r);
-  r.rigged = { anim: inst.anim ?? new RigAnimator(bones, asset.def.pose), ensureOwn, deadY: meta.deadY ?? 0.3, robe: bodyMeshes.filter((m) => asset.def.robeBack?.includes(m.name.split('__')[1])), robeFront: asset.def.robeFront ?? 1 };
+  r.rigged = { anim: inst.anim ?? new RigAnimator(bones, asset.def.pose, boneAdjust(asset.id)), ensureOwn, deadY: meta.deadY ?? 0.3, robe: bodyMeshes.filter((m) => asset.def.robeBack?.includes(m.name.split('__')[1])), robeFront: asset.def.robeFront ?? 1 };
   root.userData.driver = r.rigged.anim; // for tests and debugging
   if (!asset.def.ownWeapon) {
     if (classId === 'warrior') warriorWeapons(b, r, weapon);
@@ -1227,10 +1228,22 @@ function ribbonMat(b: Builder, color: number, glow: number, rough = 0.6): THREE.
  * Draws a unit's cosmetics on top of its class model. Every style is a different shape, so what a player picked is
  * obvious from across the arena. A slot with nothing picked draws nothing.
  */
+/** The Models page's placement of a kind of cosmetic: a group under `parent` that every item of the slot is built into (the parent itself when the placement is neutral). */
+function placed<T extends THREE.Object3D>(parent: T, slot: string): T {
+  const s = slotPlacement(slot);
+  if (!s.x && !s.y && !s.z && s.scale === 1 && !s.rotY) return parent;
+  const g = new THREE.Group();
+  g.position.set(s.x, s.y, s.z);
+  g.scale.setScalar(s.scale);
+  g.rotation.y = s.rotY;
+  parent.add(g);
+  return g as unknown as T;
+}
+
 function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string, CosmeticItem>) {
   const fit = r.fit ?? FIT[classId];
   const { upper } = r;
-  const hu = r.head ?? upper; // head items ride on the head bone of a skinned model
+  const hu = look.head ? placed(r.head ?? upper, 'head') : r.head ?? upper; // head items ride on the head bone of a skinned model
   // a cosmetic in a slot REPLACES the model's built-in part for it (helm/hood/hat, pauldrons, cape/wings) rather than stacking on it
   for (const slot of REPLACEABLE_SLOTS) {
     if (!look[slot]) continue;
@@ -1478,7 +1491,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
       }
       b.anim.push((t) => (bu.uBTime.value = t));
     }
-    const capeRig = isCapeItem(back) && !robeCloak ? buildCape(back, fit.cape ?? DEFAULT_CAPE_FIT, upper) : undefined;
+    const capeRig = isCapeItem(back) && !robeCloak ? buildCape(back, fit.cape ?? DEFAULT_CAPE_FIT, placed(upper, 'back')) : undefined;
     if (capeRig) {
       b.mats.push(capeRig.material);
       b.meshes.push(capeRig.mesh);
@@ -1594,7 +1607,7 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
 
   // ---- wings: the shared feathered pair (wingModels.ts), between the shoulder blades and behind any cape
   if (look.wings) {
-    const wingRig = buildWings(look.wings, fit.wings ?? DEFAULT_WING_FIT, upper);
+    const wingRig = buildWings(look.wings, fit.wings ?? DEFAULT_WING_FIT, placed(upper, 'wings'));
     if (wingRig) {
       b.mats.push(...wingRig.materials);
       b.meshes.push(...wingRig.meshes);
@@ -1608,11 +1621,16 @@ function wearCosmetics(b: Builder, r: Rig, classId: ClassId, look: Record<string
   if (weapon) {
     const c = hexNum(weapon.color);
     const aura = new THREE.Group();
+    {
+      const sp = slotPlacement('weapon');
+      aura.scale.setScalar(sp.scale);
+      aura.rotation.y = sp.rotY;
+    }
     if (r.weaponPivot) {
-      aura.position.set(0, r.weaponPivot.mid, 0); // a shoulder-carried weapon turns in the hand: the glow rides on it
+      aura.position.set(slotPlacement('weapon').x, r.weaponPivot.mid + slotPlacement('weapon').y, slotPlacement('weapon').z); // a shoulder-carried weapon turns in the hand: the glow rides on it
       r.weaponPivot.node.add(aura);
     } else {
-      aura.position.copy(r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05));
+      aura.position.copy(r.weaponGlowAt ?? new THREE.Vector3(0, -0.6, 0.05)).add(new THREE.Vector3(slotPlacement('weapon').x, slotPlacement('weapon').y, slotPlacement('weapon').z));
       r.armR.add(aura);
     }
     if (r.weaponMats?.length) {

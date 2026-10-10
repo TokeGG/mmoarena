@@ -1,5 +1,14 @@
 [
  {
+  "version": "0.69.66",
+  "date": "2026-10-10",
+  "at": "2026-10-10T20:17:38Z",
+  "title": "Model fit numbers",
+  "changes": [
+    "The player models' pose, weapon grips and cosmetic placement are now kept in a data file, so they can be tuned without a new build."
+  ]
+ },
+ {
   "version": "0.69.65",
   "date": "2026-10-10",
   "at": "2026-10-10T20:02:38Z",

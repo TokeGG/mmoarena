@@ -154,7 +154,10 @@ export class RigAnimator {
   private sinceSwing = 99;
   private readonly sh = newShoutPose();
 
-  constructor(bones: Record<string, THREE.Object3D>, opts: RigPoseOpts = {}) {
+  /** The Models page's turn of every bone (radians), added to whatever the animation asks for. */
+  private readonly adj = new Float32Array(RIG_BONES.length * 3);
+
+  constructor(bones: Record<string, THREE.Object3D>, opts: RigPoseOpts = {}, adjust: Record<string, { rx: number; ry: number; rz: number; size: number }> | null = null) {
     this.bones = RIG_BONES.map((n) => bones[n]);
     this.rest = this.bones.map((b) => b.position.clone());
     this.restQ = this.bones.map((b) => b.quaternion.clone());
@@ -163,6 +166,16 @@ export class RigAnimator {
     this.opts = { armRest: opts.armRest ?? -0.12, elbow: opts.elbow ?? 0.15, stride: opts.stride ?? 0.62, rightSwing: opts.rightSwing ?? 1, armIn: opts.armIn ?? 0, legIn: opts.legIn ?? 0, castR: opts.castR ?? -1.4, castL: opts.castL ?? -1.25, swingArc: opts.swingArc ?? -2.5 };
     this.style = { ...STYLE_DEFAULT, ...opts.style };
     this.cur.fill(0);
+    if (adjust) {
+      RIG_BONES.forEach((n, i) => {
+        const a = adjust[n];
+        if (!a) return;
+        this.adj[i * 3] = a.rx;
+        this.adj[i * 3 + 1] = a.ry;
+        this.adj[i * 3 + 2] = a.rz;
+        if (a.size !== 1) this.bones[i].scale.multiplyScalar(a.size);
+      });
+    }
   }
 
   private t(bone: RigBoneName, axis: 0 | 1 | 2, v: number, rate = 22) {
@@ -553,6 +566,8 @@ export class RigAnimator {
       set('chest', 0, 0); set('spine', 0, 0); set('chest', 1, 0); set('spine', 1, 0);
       set('chest', 2, 0); set('spine', 2, 0); set('hips', 1, 0); set('hips', 2, 0);
     }
+
+    for (let j = 0; j < this.adj.length; j++) this.tgt[j] += this.adj[j];
 
     // ---- smooth every channel toward its target and write the bones
     const n = RIG_BONES.length;

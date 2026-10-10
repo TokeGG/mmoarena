@@ -22,7 +22,7 @@ type CommitPatchOpts<X> = {
   by: string;
   build: (read: (path: string) => Promise<string>) => Promise<{ files: CommitFile[]; lines: string[]; message: (version: string) => string; extra: X; /** False when no file changed the simulation (animations only): SIM_REVISION stays, replays keep playing. */ sim?: boolean }>;
 };
-const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json', icons: 'shared/data/icons.json', sounds: 'shared/data/sounds.json' };
+const FILES: Record<DataPatch['file'], string> = { abilities: 'shared/data/abilities.json', auras: 'shared/data/auras.json', specs: 'shared/data/specs.json', talents: 'shared/data/talents.json', classes: 'shared/data/classes.json', tuning: 'shared/data/tuning.json', fx: 'shared/data/fx.json', icons: 'shared/data/icons.json', sounds: 'shared/data/sounds.json', models: 'shared/data/models.json' };
 
 export interface DevToolsEnv {
   /** A GitHub token that may push branches and open pull requests on the repository. */
@@ -564,6 +564,7 @@ function playerLine(text: string, file: DataPatch['file'], p: DataPatch, was: nu
   if (file === 'icons' && p.path[0] === 'class') return `The ${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons' && p.path[0] === 'spec') return `${nameOf(file, p.id, p.path)} has a new icon.`;
   if (file === 'icons') return p.path[0] === 'aura' ? `The ${nameOf(file, p.id, p.path).replace(/ \((buff|debuff)\)$/, '')} ${AURAS[p.id]?.harmful ? 'debuff' : 'buff'} has a new icon.` : `${nameOf(file, p.id, p.path)} has a new icon.`;
+  if (file === 'models') return `The player models were adjusted (${String(p.path[1])}).`;
   if (file === 'sounds') return `The ${soundList().find((x) => x.id === p.path[0])?.label ?? 'a'} sound was changed.`;
   // stat bonuses, switches and the game's own rules are worded from the shared labels: "Warden: Power Word: Shield shield strength +50% to +60%."
   if (file === 'tuning' || file === 'fx' || file === 'specs' || file === 'talents' || (file === 'classes' && p.path[0] === 'resource') || p.path[0] === 'mods' || isSwitch(p)) {
@@ -638,6 +639,8 @@ function targetsIn(data: unknown, file: DataPatch['file'], id: string): unknown[
       return id === 'fx' ? [data] : [];
     case 'sounds':
       return id === 'sounds' ? [data] : [];
+    case 'models':
+      return id === 'models' ? [data] : [];
     case 'icons':
       return [data];
   }
@@ -773,7 +776,7 @@ export function patchJsonText(text: string, file: DataPatch['file'], patches: Da
             delete chain[i - 1][p.path[i - 1]];
           }
         }
-      } else if (file === 'sounds') rec[last] = p.value;
+      } else if (file === 'sounds' || file === 'models') rec[last] = p.value;
       else if (typeof rec[last] === 'number' || (modSlot(p) && rec[last] === undefined && typeof p.value === 'number')) rec[last] = p.value;
     }
   }

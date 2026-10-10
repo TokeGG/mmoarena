@@ -3,6 +3,8 @@ import { CLASS_BLURB, auraOrigins, describeAura, describeTalent, plainText, spec
 import { ABILITY_CHOICES, ABILITY_FLAGS, AURA_FLAGS, MOD_ABILITY_DEFAULT, MOD_ABILITY_FLAGS, MOD_SCALAR_DEFAULT, TUNING_ID, currentValue, fileDefault, isAddition, isSwitch, tunableNumbers } from './devpatch';
 import type { DataPatch, PatchFile, TunableNumber } from './devpatch';
 import { FX_ID, FX_INFO, fxField } from './fx';
+import { BODY_PARTS, characterGroups, modelBounds, slotGroups, weaponGroups, SLOT_LABEL, MODELS_ID } from './modeldata';
+import { MODELS_DATA } from './data';
 import { SOUND_ID, SOUND_LIBRARY, customSounds, soundFileChoices, soundList } from './sounds';
 import type { SoundInfo } from './sounds';
 import { iconTitle } from './iconlib';
@@ -180,6 +182,7 @@ export function nameOf(file: PatchFile, id: string, path: readonly (string | num
     case 'talents': return findTalent(id)?.t.name ?? id;
     case 'fx': return 'Animations';
     case 'sounds': return 'Sounds';
+    case 'models': return 'Models';
     default: return 'Game options';
   }
 }
@@ -363,6 +366,10 @@ export function fieldAt(file: PatchFile, id: string, path: (string | number)[], 
     const b = fxField(path);
     if (b) { f.min = b.min; f.max = b.max; }
   }
+  if (file === 'models') {
+    const b = modelBounds(path, MODELS_DATA);
+    if (b) { f.min = b.min; f.max = b.max; }
+  }
   if (file === 'sounds' && (path[1] === 'volume' || path[1] === 'pitch')) {
     f.min = path[1] === 'volume' ? 0 : 0.5;
     f.max = path[1] === 'volume' ? 3 : 2;
@@ -458,7 +465,7 @@ export function modGroups(file: 'specs' | 'talents' | 'auras', id: string, scope
 
 // ------------------------------------------------------------------ the pages
 
-export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'sounds' | 'icons' | 'options';
+export type DevPageId = 'classes' | 'specs' | 'talents' | 'skills' | 'passives' | 'auras' | 'animations' | 'sounds' | 'models' | 'icons' | 'options';
 
 export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The tab row is read left to right in these steps. */ step: string }[] = [
   { id: 'classes', label: 'Classes', step: 'Who', blurb: 'Health, resource and auto-attack of each class.' },
@@ -469,6 +476,7 @@ export const DEV_PAGES: { id: DevPageId; label: string; blurb: string; /** The t
   { id: 'auras', label: 'Buffs & debuffs', step: 'What they do', blurb: 'Every buff and debuff (the icons on a unit): duration, ticks, stacks, stat changes.' },
   { id: 'animations', label: 'Animations', step: 'What they do', blurb: 'How long the big visual effects take and stay (Dragon\'s Breath, Flamestrike, Charge, Heroic Leap). Looks only: never changes a match. Shows on the next cast.' },
   { id: 'sounds', label: 'Sounds', step: 'Look', blurb: 'Every sound in the game: pick a recording from the library or upload your own, set the volume and pitch, or switch it off. Sounds only: never changes a match. Heard at once.' },
+  { id: 'models', label: 'Models', step: 'Look', blurb: 'The player models by part: the gait and arms, every bone, the helm, cape and wings, how each weapon sits in the hands, and where each kind of cosmetic sits. Looks only: never changes a match. Seen at once in the preview.' },
   { id: 'icons', label: 'Icon edit', step: 'Look', blurb: 'Pick the picture of any skill or buff from the whole icon library. Looks only: never changes a match. Shows at once.' },
   { id: 'options', label: 'Game options', step: 'Rules', blurb: 'Global rules: cooldowns, speeds, dampening, match length.' },
 ];
@@ -551,6 +559,12 @@ export function navFor(page: DevPageId): NavGroup[] {
       return [...byKind.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, entries]) => ({ title: cap(words(k)), entries }));
     }
     case 'icons': return iconNav();
+    case 'models':
+      return [
+        { title: 'Characters', entries: Object.keys(MODELS_DATA.characters).map((id) => ({ id: `c:${id}`, name: modelName(id), sub: BODY_PARTS.length ? 'body, gait, helm, cape, wings' : '' })) },
+        { title: 'Weapons in the hands', entries: Object.keys(MODELS_DATA.weapons).map((id) => ({ id: `w:${id}`, name: weaponName(id), sub: MODELS_DATA.weapons[id].left ? 'a pair' : MODELS_DATA.weapons[id].hold ? 'two hands' : 'one hand' })) },
+        { title: 'Cosmetic placement', entries: Object.keys(MODELS_DATA.cosmetics).map((id) => ({ id: `s:${id}`, name: SLOT_LABEL[id] ?? id, sub: 'on every model' })) },
+      ];
     case 'sounds': {
       const groups = new Map<string, NavEntry[]>();
       for (const s of soundList()) groups.set(s.group, [...(groups.get(s.group) ?? []), { id: s.id, name: s.label, sub: s.hint }]);
@@ -578,6 +592,7 @@ export function entryFor(page: DevPageId, id: string): DevEntry | null {
     case 'auras': return auraEntry(id);
     case 'animations': return animationEntry(id);
     case 'icons': return iconEntry(id);
+    case 'models': return modelEntry(id);
     case 'sounds': return soundEntry(id);
     case 'options': return optionsEntry();
     default: return null;
@@ -719,6 +734,26 @@ function animationEntry(id: string): DevEntry | null {
     lines: ['These only change how the effect looks. Times are in seconds. A change shows the next time the effect plays (cast it again).'],
     facts: [],
     groups: [{ id: 'timing', title: 'Timing and size', sub: 'seconds and scales', open: true, fields }],
+  };
+}
+
+const MODEL_NAME: Record<string, string> = { knight: 'Warrior: the gold knight', wizard: 'Mage: the Old Wizard', assassin: 'Rogue: the hooded assassin', sentinel: 'Priest: the Abyssal Sentinel', brute: 'Warrior (alternative): the brute' };
+const modelName = (id: string) => MODEL_NAME[id] ?? id;
+const WEAPON_NAME: Record<string, string> = { dual: 'Twin sabres (Warbringer)', daggers: 'Daggers (every rogue)', twohand: 'Greatsword (Rampager)', polearm: 'Halberd (Barbarian)', fire_staff: 'Fire staff', ice_staff: 'Frost staff', arcane_staff: 'Arcane staff', holy_staff: 'Holy staff', necro_staff: 'Necromancer staff' };
+const weaponName = (id: string) => WEAPON_NAME[id] ?? id;
+
+/** One page of the Models editor: a character, a weapon, or a kind of cosmetic, as groups of fields in plain words. */
+function modelEntry(id: string): DevEntry | null {
+  const kind = id.slice(0, 2);
+  const key = id.slice(2);
+  const groups = kind === 'c:' ? characterGroups(key, MODELS_DATA) : kind === 'w:' ? weaponGroups(key, MODELS_DATA) : kind === 's:' ? slotGroups(key, MODELS_DATA) : [];
+  if (!groups.length) return null;
+  const name = kind === 'c:' ? modelName(key) : kind === 'w:' ? weaponName(key) : SLOT_LABEL[key] ?? key;
+  return {
+    file: 'models', id: MODELS_ID, name, sub: kind === 'c:' ? 'character model' : kind === 'w:' ? 'weapon' : 'cosmetic placement',
+    lines: [kind === 'c:' ? 'Each part of the body can be turned and resized; the preview on the right shows the change at once. Angles are in degrees.' : kind === 'w:' ? 'How the weapon sits in the hand(s): turn it, slide it through the fist, raise or lower the tip.' : 'Moves or resizes every cosmetic of this kind, on every model.'],
+    facts: [],
+    groups: groups.map((g, i) => ({ id: g.id, title: g.title, sub: g.sub, open: i === 0, fields: some(g.fields.map((fd) => fieldAt('models', MODELS_ID, fd.path, { label: fd.label, ...(fd.hint ? { hint: fd.hint } : {}), unit: fd.unit === 'deg' ? 'deg' : fd.unit === 'yd' ? 'yd' : fd.unit === 'x' ? 'x' : 'plain' }))) })),
   };
 }
 
